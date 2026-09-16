@@ -17,6 +17,6 @@ export default defineConfig({
         transformIndexHtml: (html) => html.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'"),
       },
     ],
-    server: { host: "127.0.0.1" },
+    server: { host: "127.0.0.1", watch: { usePolling: true, interval: 100 } },
   },
 });

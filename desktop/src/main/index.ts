@@ -2,10 +2,24 @@ import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 const workspace = resolve(moduleDir, "../../..");
+let launcher: BrowserWindow | undefined;
+let quitting = false;
+
+function showLauncher(): void {
+  if (!launcher || launcher.isDestroyed()) return;
+  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const [width, height] = launcher.getSize();
+  launcher.setPosition(
+    Math.round(workArea.x + (workArea.width - width) / 2),
+    Math.round(workArea.y + Math.max(0, (workArea.height - height) / 3)),
+  );
+  launcher.show();
+  launcher.focus();
+}
 
 app.setName("XiaoWei");
 app.setAppUserModelId("com.tctony.xiaowei");
@@ -19,19 +33,26 @@ if (!app.isPackaged) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
-    const window = BrowserWindow.getAllWindows()[0];
-    if (window?.isMinimized()) window.restore();
-    window?.show();
-    window?.focus();
-  });
+  app.on("second-instance", showLauncher);
   app
     .whenReady()
     .then(async () => {
-      await createWindow();
-      app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+      ipcMain.on("launcher:hide", (event) => {
+        if (event.sender === launcher?.webContents && event.senderFrame === event.sender.mainFrame) {
+          launcher.hide();
+        }
       });
+      await createWindow();
+      const shortcut = process.platform === "darwin" ? "Command+Alt+Space" : "Control+Alt+Space";
+      if (
+        !globalShortcut.register(shortcut, () => {
+          if (launcher?.isVisible() && launcher.isFocused()) launcher.hide();
+          else showLauncher();
+        })
+      ) {
+        console.error(`Launcher shortcut unavailable: ${shortcut}`);
+      }
+      app.on("activate", showLauncher);
     })
     .catch((error: unknown) => {
       console.error("Application startup failed", error);
@@ -41,18 +62,35 @@ if (!app.requestSingleInstanceLock()) {
 
 async function createWindow(): Promise<void> {
   const window = new BrowserWindow({
-    width: 1000,
-    height: 720,
-    minWidth: 600,
-    minHeight: 480,
+    width: 800,
+    height: 71,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    show: false,
+    transparent: true,
     title: "XiaoWei",
-    backgroundColor: "#fafaf9",
+    backgroundColor: "#00000000",
     webPreferences: {
       preload: join(moduleDir, "../preload/index.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  launcher = window;
+  window.once("ready-to-show", showLauncher);
+  window.on("blur", () => {
+    if (!window.webContents.isDevToolsOpened()) window.hide();
+  });
+  window.on("close", (event) => {
+    if (!quitting) {
+      event.preventDefault();
+      window.hide();
+    }
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
@@ -73,3 +111,8 @@ async function createWindow(): Promise<void> {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+app.on("before-quit", () => {
+  quitting = true;
+});
+app.on("will-quit", () => globalShortcut.unregisterAll());

@@ -16,6 +16,10 @@
 - 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 构建并重启。
 - 没有实例时，告知用户当前没有实例及待验证事项，等待用户启动；不要自行冷启动或操作其他工作区进程。
 
+## UI 开发
+
+组件迁移与验收遵循 [UI 对齐与 Storybook](docs/ui-alignment.md)。产品与 Storybook 复用同一组件；Storybook 可独立启动，不等于桌面冷启动。
+
 ## Coding Agent Skills
 
 仓库开发与排障流程位于 `.agent/skills/`，约定见 [`.agent/skills/README.md`](.agent/skills/README.md)。命中对应任务时，先完整读取该 `SKILL.md`。当前尚未登记 skill。

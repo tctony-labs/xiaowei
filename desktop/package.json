@@ -10,7 +10,9 @@
     "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
     "smoke": "electron scripts/smoke.mjs",
     "package": "electron-builder --dir",
-    "dev:main": "node scripts/build-main.mjs && electron ."
+    "dev:main": "node scripts/build-main.mjs && electron .",
+    "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open --disable-telemetry",
+    "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
     "react": "19.3.0",
@@ -18,17 +20,19 @@
     "zustand": "5.0.8"
   },
   "devDependencies": {
+    "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "5.2.0",
     "electron": "44.3.0",
-    "electron-vite": "5.0.0",
     "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "nodemon": "3.1.14",
+    "storybook": "10.6.0",
     "tailwindcss": "4.3.3",
-    "vite": "7.3.6",
-    "nodemon": "3.1.14"
+    "vite": "7.3.6"
   },
   "description": "XiaoWei desktop client"
 }

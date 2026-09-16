@@ -16,7 +16,8 @@ app.once("browser-window-created", (_event, window) => {
         const timeout = setTimeout(() => { clearInterval(poll); reject(new Error("Renderer did not mount")); }, 5000);
         const poll = setInterval(() => {
           const image = document.querySelector("img");
-          if (document.querySelector("h1")?.textContent === "XiaoWei" && image?.complete && image.naturalWidth > 0) {
+          const input = document.querySelector("input[aria-label=搜索]");
+          if (input === document.activeElement && image?.complete && image.naturalWidth > 0) {
             clearInterval(poll);
             clearTimeout(timeout);
             resolve(true);

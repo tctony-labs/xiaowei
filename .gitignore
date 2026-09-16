@@ -23,3 +23,5 @@ coverage/
 .husky/_/
 
 .prepare-ts
+
+desktop/storybook-static/

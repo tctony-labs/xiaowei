@@ -1,0 +1,8 @@
+body {
+  overflow: auto;
+  background: #f1f1f1;
+}
+
+:root[data-theme="dark"] body {
+  background: #252525;
+}

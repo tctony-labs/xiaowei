@@ -65,6 +65,10 @@ start:
 rs:
     touch desktop/.rs
 
+# Preview UI components independently of Electron.
+storybook:
+    pnpm --dir desktop storybook
+
 # Start the independent HTTP service.
 server:
     cd server && go run ./cmd/xiaowei-server
