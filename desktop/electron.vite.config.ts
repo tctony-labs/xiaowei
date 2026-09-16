@@ -1,0 +1,22 @@
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "electron-vite";
+
+export default defineConfig({
+  main: {},
+  preload: {
+    build: { rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } } },
+  },
+  renderer: {
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: "development-csp",
+        apply: "serve",
+        transformIndexHtml: (html) => html.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'"),
+      },
+    ],
+    server: { host: "127.0.0.1" },
+  },
+});

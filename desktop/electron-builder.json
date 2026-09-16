@@ -1,0 +1,18 @@
+{
+  "appId": "com.tctony.xiaowei",
+  "productName": "XiaoWei",
+  "directories": {
+    "output": "dist"
+  },
+  "files": ["out/**/*"],
+  "mac": {
+    "category": "public.app-category.productivity",
+    "icon": "resources/logo.png"
+  },
+  "win": {
+    "icon": "resources/logo.png"
+  },
+  "linux": {
+    "icon": "resources/logo.png"
+  }
+}

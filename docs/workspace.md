@@ -1,0 +1,120 @@
+# 工作区开发
+
+当前工程提供 Electron 桌面窗口与独立 Go HTTP 服务。业务功能尚未迁入。
+
+## 目录与工具链
+
+| 位置 | 职责 |
+| --- | --- |
+| `desktop/src/main/` | Electron 生命周期与窗口 |
+| `desktop/src/preload/` | 沙箱 renderer 可调用的受限 API |
+| `desktop/src/renderer/` | React、Tailwind CSS 最小页面；已安装 Zustand |
+| `desktop/resources/logo.png` | 用户提供的原始 Logo；renderer 和打包器共用 |
+| `desktop/scripts/smoke.mjs` | 使用真实 Electron 的端到端冒烟入口，不随应用打包 |
+| `server/cmd/xiaowei-server/` | Go 进程入口、监听与信号退出 |
+| `server/internal/httpapi/` | HTTP 路由及测试 |
+| `packages/` | 独立 npm 包的位置，目前无包，仅保留目录 |
+| `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
+| `deploy/` | Go 容器部署示例 |
+
+根 pnpm workspace 包含 `desktop` 与 `packages/*`。Go 在 `server/` 中独立管理，不使用 `go.work`。`mobile/` 尚未创建。
+
+当前使用 Node **26.3.1**（`.node-version`）、pnpm **10.14.0**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
+
+Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.9.3**、React **19.3.0**、Tailwind CSS **4.3.3** 和 Zustand **5.0.8** 由包清单与 `pnpm-lock.yaml` 固定依赖解析。Vite 使用 electron-vite 支持的 7.x。类型检查使用固定版本的 `@typescript/native-preview` **7.0.0-dev.20260707.2** 提供的 tsgo；保留 TypeScript 5.9.3 作为工具生态配套依赖。
+
+`pnpm-lock.yaml` 提交到仓库，由工具生成；Go 当前仅依赖标准库，没有 `go.sum`。pnpm 安装脚本策略在 `pnpm-workspace.yaml` 一处配置，允许 Electron、esbuild，显式忽略当前未使用的 Squirrel.Windows 依赖 `electron-winstaller` 的安装脚本；Electron 44 的运行时可能在第一次启动时下载，需要网络。
+
+## 开发入口
+
+先准备 Node、pnpm、Go 和 just，由用户在根目录运行：
+
+```sh
+just prepare
+just start
+```
+
+`just start` 先执行 `just prepare`，再通过全局 `~/.xiaowei/.dev.pid` 停止上一个开发实例的进程树，并启动当前工作区的独立 Vite 开发服务器与 nodemon，首次构建 main/preload 并启动 Electron。React 页面支持 HMR；main/preload 源码修改不自动编译或重启，在另一个终端执行 `just rs` 后才重新编译 main/preload 并重启当前工作区 Electron。Vite 服务保持运行，只监听 `127.0.0.1`，默认从 5173 选择可用端口。
+
+另一个终端可独立运行服务端：
+
+```sh
+just server
+```
+
+默认监听 `127.0.0.1:8080`。通过进程环境 `XIAOWEI_LISTEN_ADDR` 修改监听地址，例如使用 `127.0.0.1:0` 由系统分配空闲端口，实际地址会写入日志。`server/.env.example` 仅说明配置，不自动加载 dotenv。`GET /healthz` 返回 `{"status":"ok"}`，SIGINT/SIGTERM 触发最多 5 秒的优雅退出。
+
+当前页面仅展示产品介绍与 Logo，桌面没有连接 Go HTTP 服务端。
+
+## 提交检查
+
+根 `package.json` 的 `prepare` 生命周期通过 Husky 安装 `.husky/pre-commit`；`just prepare` 安装依赖时会一并启用，Git 的 `core.hooksPath` 指向 `.husky/_`。生成的 `.husky/_/` 不提交。
+
+pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just check`，任一步失败即阻止提交。若格式化改变了待提交文件，检查通过后仍会中止，提示检查并重新暂存，以免提交格式化前的版本。Hook 不自动 `git add`，保留部分暂存边界；检查针对当前工作区内容，并非暂存区的独立构建。
+
+`pnpm install --frozen-lockfile` 只按锁文件安装，清单与锁文件不一致时失败。`Already up to date` 表示依赖已经齐全。`pnpm approve-builds` 用于决定哪些依赖可以执行安装脚本，不是项目编译命令；无需对当前忽略的 `electron-winstaller` 全选放行。以后启用 Squirrel.Windows 打包时再评估该脚本。
+
+`just rs` 执行 `touch desktop/.rs`。nodemon 使用 `--legacy-watch` 轮询 `.rs`（默认间隔 100ms），收到变更后停止自己启动的应用，重新执行 main/preload 构建并启动 Electron；编译失败时等待下次 `rs`。Vite 保持运行，实际监听地址通过环境变量传给 Electron。没有运行实例时，`rs` 只更新文件，不启动应用。
+
+## 检查与构建
+
+| 命令 | 行为 |
+| --- | --- |
+| `just` | 列出快捷入口 |
+| `just prepare` | 使用 frozen lockfile 安装 pnpm 依赖 |
+| `just fmt` | Biome 格式化及安全修复、go fmt；会修改文件 |
+| `just check` | Biome、分环境 tsgo 类型检查、Go 格式与 vet；不修改源码或暂存区 |
+| `just test` | 运行工作区已有测试与 Go 测试 |
+| `just build` | Electron 三个入口构建、Go 二进制构建 |
+
+根 `tsconfig.base.json` 维护共享严格选项；桌面的 `tsconfig.node.json` 与 `tsconfig.web.json` 由 tsgo 分别检查 Node 和浏览器环境。根 `biome.json` 启用 Tailwind 指令解析。代码显示宽度不超过 120；格式工具之外仍需核对含全角字符的行。
+
+Go 测试保护健康检查路由和方法边界；桌面通过真实 Electron 冒烟测试验证。
+
+以下冒烟验证会启动应用，仅由用户执行：
+
+```sh
+just test
+pnpm build
+pnpm --dir desktop smoke
+```
+
+冒烟脚本启动独立测试进程，加载构建后的页面，验证 Node 隔离、页面挂载和 Logo 加载，保存浅色与深色截图到忽略的 `desktop/out/smoke/`，然后退出。测试同工作区时应先关闭该工作区开发实例，避免单实例锁阻止测试启动。
+
+验证开发服务器路径可运行：
+
+```sh
+pnpm --dir desktop exec electron-vite dev --entry scripts/smoke.mjs
+```
+
+## 进程与资源边界
+
+所有工作区通过 `just start` 共用一个开发实例入口，PID 文件与旧 `xiaowei-next` 共用。切换工作区启动时会停止旧实例；启动脚本退出时清理自己拥有的进程树，仅当 PID 文件仍指向自己时删除文件。冷启动由用户操作；Agent 必须先确认当前工作区有活实例，才能执行 `just rs`。
+
+应用标识是 `com.tctony.xiaowei`，在 `desktop/electron-builder.json` 中用于打包。开发 userData 放在系统应用数据目录的 `com.tctony.xiaowei.dev/<workspace-hash>/`，按仓库绝对路径隔离；正式包使用 Electron 默认的 `XiaoWei` userData 目录。Electron 单实例锁作用于各自 userData；跨工作区停止旧实例由 `just start` 的全局 PID 流程负责。
+
+当前不引入 Rust 或 sidecar。macOS 关闭最后一个窗口不退出应用，Cmd+Q 退出。
+
+Renderer 启用 sandbox 和 context isolation，关闭 Node integration；preload 保留空入口，尚未暴露 IPC API。窗口拒绝外部导航、新窗口及 webview 嵌入。生产 HTML 不允许内联脚本；开发模式只为 React HMR 增加内联脚本许可。
+
+## 本地打包与部署示例
+
+在 `just build` 后生成本机目录包：
+
+```sh
+CSC_IDENTITY_AUTO_DISCOVERY=false pnpm --dir desktop package
+```
+
+macOS arm64 产物位于 `desktop/dist/mac-arm64/XiaoWei.app`，打包器从原始 PNG 派生应用图标。此命令用于不使用个人签名身份的本地验证，不包含正式签名、公证或上传发布。Windows/Linux 尚未验证。
+
+Go 构建结果在 `server/bin/xiaowei-server`。部署示例：
+
+```sh
+docker compose -f deploy/compose.yaml up --build
+```
+
+Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.0.0:8080`。镜像多阶段构建，不带 Node、数据库或业务凭据。当前环境没有 Docker，容器构建和运行尚未验证。
+
+`just prepare` 使用 `.prepare-ts` 记录上次成功安装时间。锁文件、工作区配置及根、desktop、packages 下的包清单都不比该时间新，且依赖安装记录与 Hook 入口存在时跳过安装；否则执行 frozen install，成功后更新时间戳。删除 `.prepare-ts` 可强制重新安装。时间戳文件不提交。
+
+窗口首次加载被刷新或关闭取消时，忽略 Electron 的 `ERR_ABORTED`，不将其当作启动失败退出；其他加载错误仍向上传递。

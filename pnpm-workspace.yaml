@@ -1,0 +1,10 @@
+packages:
+  - desktop
+  - packages/*
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+
+# Squirrel.Windows is not a configured packaging target.
+ignoredBuiltDependencies:
+  - electron-winstaller
