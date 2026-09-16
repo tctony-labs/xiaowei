@@ -14,5 +14,7 @@
   },
   "linux": {
     "icon": "resources/logo.png"
-  }
+  },
+  "asarUnpack": ["**/*.node"],
+  "npmRebuild": false
 }

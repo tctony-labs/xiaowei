@@ -33,3 +33,15 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 当前搜索框视觉样式已于 2026-09-16 获用户确认：透明 Logo、右内边距 16px，其余基础布局按旧版参数。该确认作为后续变更评审的起点；不代表尚未迁移的结果列表和原生窗口行为已通过验收。
 
 当前独立搜索框不显示结果列表分隔线，输入行填满卡片高度并垂直居中，避免底部留下额外横线。后续接入结果列表时再由容器决定是否显示分隔线。
+
+## 主题色
+
+品牌主色沿用旧版绿色 `#00C572`，统一定义为 `--color-primary`，不要求与 Logo 像素颜色完全一致。Logo 当前保持不变。
+
+搜索命中等普通字号的绿色文字使用 `--color-primary-text`：浅色主题为同色系深绿 `#007A46`，深色主题使用品牌主色，以兼顾背景与选中行上的可读性。组件使用语义颜色类 `text-primary-text`，不直接写 Tailwind 蓝色或独立色值。桌面和 Storybook 共用此定义。
+
+## Launcher / SearchResults
+
+结果列表与桌面共用 `SearchResultList`，场景包括 Mixed、Dark、Scroll、SelectAndConfirm；`Launcher / Interaction / KeyboardAndComposition` 使用真实 Launcher 组件和模拟 IPC，覆盖方向键边界、回车确认及合成输入法事件。后者不替代原生输入法验收。
+
+旧版结果列表参数已迁入：48px 行高、4px 行间距、14px 标题、22px 图标、应用图标 1.25 倍留白补偿、主题色选中背景（浅色 `#D4F7E6`、深色 `#152B2A`）、8px 键盘滚动余量。新版绿色高亮使用上文的语义变量。真实应用图标仍由 Electron 获取，与旧 NSWorkspace 提取结果需在真机对照。

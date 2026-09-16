@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 import logo from "../../../../resources/logo-clear.png";
 
 export interface LauncherSearchBarProps {
   query: string;
   onQueryChange(query: string): void;
   onDismiss(): void;
+  children?: ReactNode;
+  onNavigate?(event: KeyboardEvent<HTMLInputElement>): void;
 }
 
-export function LauncherSearchBar({ query, onQueryChange, onDismiss }: LauncherSearchBarProps) {
+export function LauncherSearchBar({ query, onQueryChange, onDismiss, children, onNavigate }: LauncherSearchBarProps) {
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const focus = () => {
@@ -21,9 +23,9 @@ export function LauncherSearchBar({ query, onQueryChange, onDismiss }: LauncherS
 
   return (
     <main className="h-full w-full overflow-hidden bg-transparent px-1 py-0.5">
-      <div className="launcher-card relative h-full overflow-hidden rounded-xl border border-line bg-surface">
+      <div className="launcher-card relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface">
         <div aria-hidden="true" className="launcher-drag absolute inset-x-0 top-0 h-4" />
-        <div className="flex h-full items-center gap-2 pl-6 pr-4">
+        <div className="flex h-[65px] shrink-0 items-center gap-2 pl-6 pr-4">
           <div className="flex min-h-8 min-w-0 flex-1 items-center">
             <input
               ref={input}
@@ -34,6 +36,7 @@ export function LauncherSearchBar({ query, onQueryChange, onDismiss }: LauncherS
               onChange={(event) => onQueryChange(event.target.value)}
               onKeyDown={(event) => {
                 if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+                onNavigate?.(event);
                 if (event.key === "Escape") {
                   event.preventDefault();
                   onQueryChange("");
@@ -47,6 +50,7 @@ export function LauncherSearchBar({ query, onQueryChange, onDismiss }: LauncherS
           </div>
           <img src={logo} alt="XiaoWei" draggable={false} className="size-8 shrink-0 select-none rounded-md" />
         </div>
+        {children}
       </div>
     </main>
   );

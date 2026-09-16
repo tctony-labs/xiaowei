@@ -4,6 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
 
+import { registerSearch } from "./search";
+
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 const workspace = resolve(moduleDir, "../../..");
 let launcher: BrowserWindow | undefined;
@@ -42,6 +44,7 @@ if (!app.requestSingleInstanceLock()) {
           launcher.hide();
         }
       });
+      registerSearch(() => launcher);
       await createWindow();
       const shortcut = process.platform === "darwin" ? "Command+Alt+Space" : "Control+Alt+Space";
       if (

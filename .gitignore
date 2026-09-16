@@ -25,3 +25,6 @@ coverage/
 .prepare-ts
 
 desktop/storybook-static/
+
+# Native build outputs
+crates/*/napi/*.node

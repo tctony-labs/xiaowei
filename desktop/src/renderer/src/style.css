@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --color-primary: #00c572;
+  --color-primary-bg: #d4f7e6;
+  --color-hover: #0000000f;
+  --color-primary-text: #007a46;
   --color-surface: #ffffff;
   --color-ink: #000000d9;
   --color-muted: #00000073;
@@ -11,6 +15,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --color-primary-bg: #152b2a;
+    --color-hover: #ffffff1f;
+    --color-primary-text: var(--color-primary);
     --color-surface: #141414;
     --color-ink: #ffffffd1;
     --color-muted: #ffffff73;
@@ -20,6 +27,9 @@
 }
 
 :root[data-theme="dark"] {
+  --color-primary-bg: #152b2a;
+  --color-hover: #ffffff1f;
+  --color-primary-text: var(--color-primary);
   --color-surface: #141414;
   --color-ink: #ffffffd1;
   --color-muted: #ffffff73;

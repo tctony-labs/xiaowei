@@ -1,0 +1,35 @@
+# 迁移全局搜索与 Rust 原生模块
+
+## Why
+
+让 Launcher 能搜索并执行本地结果，复用旧版 Rust 核心，去除 Tauri 和公司后台依赖。
+
+## What
+
+首批迁移计算器、macOS 应用与系统设置面板、Chrome Default profile 书签，以及统一模糊匹配、拼音、高亮和最近使用排序。命令、任务、扩展随对应能力迁移，不接入旧内部服务。Query 历史和剪贴板是独立模式，不属于本次范围。
+
+## How
+
+`crates/xiaowei-search` 是 Launcher 全局搜索的统一业务入口，不承载剪贴板内部搜索或知识库检索。为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../docs/rust-napi.md)。
+
+内部数据源 crate 位于 `crates/xw-app` 和 `crates/xw-bookmark`。复用旧项目的纯 Rust 数据源、拼音、打分和计算器逻辑，去除 Tauri 耦合；Electron main 负责调用搜索与执行系统动作，preload 暴露受限接口。
+
+原生模块显式构建；`just rs` 不额外编译 Rust。结果列表沿用旧版 48px 行高、4px 行间距、最多九行的窗口布局，保留现有 800 × 71 空搜索框。
+
+搜索首次调用在 Rust 后台线程建立索引，保留应用与书签文件监听；中文原文、全拼、首字母及多音字共用 nucleo 打分与码点高亮。计算器固定置顶，应用和书签各按基础匹配分（同分按标题）取前 20 条，再做最近使用加权并稳定混排，最多 30 条；同分保持书签先于应用的旧注册顺序，返回的 score 保留基础分；使用记录仅保存在内存，重启清空。同 URL 书签保留不同条目并使用不同结果 ID，最近使用权重仍按 URL 共享；重复应用按稳定键去重。应用搜索当前仅支持 macOS。
+
+Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，renderer 不提供任意路径或 URL。旧查询响应不覆盖新查询；输入改变时保留上一轮列表和窗口高度，待新结果替换；清空输入立即收起结果，等待新结果期间不执行旧条目。结果支持上下键、回车、单击选中和双击执行，组合输入期间不处理导航／确认键。应用名称与图标的系统调用已提取到内部 `xw-platform`，由 `xiaowei-search` 对外提供。图标沿用旧版 macOS `NSWorkspace.iconForFile` → TIFF → PNG，经 napi 异步返回 Buffer，Electron 转为 data URL；不再使用按文件关联类型读取图标的 `app.getFileIcon`。读取失败保留通用图标且不缓存失败；renderer 保留已加载图标，避免每轮查询闪回占位图。普通网址只允许 HTTP(S)，系统设置 URL 仅对应用数据源开放。
+
+## Outcome
+
+实现核心 crate、napi 绑定与生成的 JS／类型入口、Electron IPC、结果列表及 Storybook 明暗／滚动／选择场景。`just check`、60 项 Rust 测试、Node 原生绑定测试、Go 测试、桌面和 Storybook 构建通过。本机 macOS arm64 目录包构建通过，已直接加载包内解包出的 `.node` 验证计算结果；未启动打包应用。`just rs` 已在核实当前工作区进程归属后执行，未冷启动。已在实际 Electron 窗口验证 `7*8 = 56`、`wx` 返回应用／系统设置／书签混合结果、窗口随结果展开及 Esc 清空。
+
+## Current work
+
+用户已确认实际应用和 URL 结果均可打开。原生窗口的键盘导航、输入法、滚动及明暗视觉仍待完整验收。Storybook 中 SelectAndConfirm 与 KeyboardAndComposition 已在 Chrome 执行 PASS；核验了浅／深主题的选中背景、绿色高亮、48px 行高、14px 标题和图标缩放。多平台发布包及 Windows/Linux 应用数据源不在本次实现范围。
+
+对齐结果列表的源码参数：14px／20px 标题、22px 图标（应用与设置图标放大 1.25 倍补偿透明留白）、8px 图文间距、10px 行左右内边距、主题色选中背景与旧版 hover 色。键盘滚动在上下保留 8px 余量。主题绿色文字使用项目确认的可读性变体，不强制还原旧版浅色低对比高亮。
+
+平台模块仅迁入当前需要的名称和图标能力；包前缀与依赖方向统一遵循 [Rust 模块接入约定](../../../docs/rust-napi.md)。
+
+`xw-platform` 提取后，Rust 全量测试、`just check` 和两项 Node 绑定测试通过；图标测试覆盖真实 Finder PNG、与 Safari 图标区分及无效路径，并通过 napi 接口检查 PNG 签名与尺寸。未为图标新增 Storybook 场景。

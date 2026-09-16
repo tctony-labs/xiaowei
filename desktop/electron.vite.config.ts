@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 
 export default defineConfig({
-  main: {},
+  main: { build: { externalizeDeps: { include: ["xiaowei-search"] } } },
   preload: {
     build: { rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } } },
   },

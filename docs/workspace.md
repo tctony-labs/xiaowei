@@ -1,6 +1,6 @@
 # 工作区开发
 
-当前工程提供 Electron 桌面窗口与独立 Go HTTP 服务。业务功能尚未迁入。
+当前工程提供 Electron Launcher、Rust 全局搜索核心与独立 Go HTTP 服务。
 
 ## 目录与工具链
 
@@ -14,11 +14,14 @@
 | `desktop/scripts/smoke.mjs` | 使用真实 Electron 的端到端冒烟入口，不随应用打包 |
 | `server/cmd/xiaowei-server/` | Go 进程入口、监听与信号退出 |
 | `server/internal/httpapi/` | HTTP 路由及测试 |
+| `crates/xiaowei-search/` | 全局搜索核心及 `napi/` npm 入口 |
+| `crates/xw-platform/` | 内部系统能力：应用本地化名称和原生图标 |
+| `crates/xw-app/`、`crates/xw-bookmark/` | 应用和 Chrome 书签数据源 |
 | `packages/` | 独立 npm 包的位置，目前无包，仅保留目录 |
 | `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
 | `deploy/` | Go 容器部署示例 |
 
-根 pnpm workspace 包含 `desktop` 与 `packages/*`。Go 在 `server/` 中独立管理，不使用 `go.work`。`mobile/` 尚未创建。
+根 pnpm workspace 包含 `desktop`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](rust-napi.md)。Go 在 `server/` 中独立管理，不使用 `go.work`。`mobile/` 尚未创建。
 
 当前使用 Node **26.3.1**（`.node-version`）、pnpm **10.14.0**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
 
@@ -32,6 +35,7 @@ Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.
 
 ```sh
 just prepare
+pnpm --filter xiaowei-search build:debug
 just start
 ```
 
@@ -45,7 +49,7 @@ just server
 
 默认监听 `127.0.0.1:8080`。通过进程环境 `XIAOWEI_LISTEN_ADDR` 修改监听地址，例如使用 `127.0.0.1:0` 由系统分配空闲端口，实际地址会写入日志。`server/.env.example` 仅说明配置，不自动加载 dotenv。`GET /healthz` 返回 `{"status":"ok"}`，SIGINT/SIGTERM 触发最多 5 秒的优雅退出。
 
-当前主窗口为 Launcher 搜索框，支持全局快捷键唤起、失焦与 Esc 隐藏；尚未连接搜索数据源或 Go 服务端。交互说明见 [迁移 Launcher](../.agent/records/active/2026-09-16-migrate-launcher.md)。
+当前主窗口为 Launcher 搜索框，支持全局快捷键唤起、失焦与 Esc 隐藏；已接入 Rust 计算器、macOS 应用／系统设置及 Chrome Default profile 书签搜索，尚未连接 Go 服务端。交互说明见 [迁移 Launcher](../.agent/records/active/2026-09-16-migrate-launcher.md)。
 
 ## 提交检查
 
@@ -63,10 +67,10 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 | --- | --- |
 | `just` | 列出快捷入口 |
 | `just prepare` | 使用 frozen lockfile 安装 pnpm 依赖 |
-| `just fmt` | Biome 格式化及安全修复、go fmt；会修改文件 |
-| `just check` | Biome、分环境 tsgo 类型检查、Go 格式与 vet；不修改源码或暂存区 |
-| `just test` | 运行工作区已有测试与 Go 测试 |
-| `just build` | Electron 三个入口构建、Go 二进制构建 |
+| `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
+| `just check` | Biome、分环境 tsgo 类型检查、Rust 格式与 cargo check、Go 格式与 vet；不修改源码或暂存区 |
+| `just test` | 运行 Rust、Node 原生绑定与 Go 测试（须先构建原生模块） |
+| `just build` | 先构建本机 napi 模块，再构建 Electron 与 Go 二进制 |
 
 根 `tsconfig.base.json` 维护共享严格选项；桌面的 `tsconfig.node.json` 与 `tsconfig.web.json` 由 tsgo 分别检查 Node 和浏览器环境。根 `biome.json` 启用 Tailwind 指令解析。代码显示宽度不超过 120；格式工具之外仍需核对含全角字符的行。
 
@@ -94,9 +98,9 @@ pnpm --dir desktop exec electron-vite dev --entry scripts/smoke.mjs
 
 应用标识是 `com.tctony.xiaowei`，在 `desktop/electron-builder.json` 中用于打包。开发 userData 放在系统应用数据目录的 `com.tctony.xiaowei.dev/<workspace-hash>/`，按仓库绝对路径隔离；正式包使用 Electron 默认的 `XiaoWei` userData 目录。Electron 单实例锁作用于各自 userData；跨工作区停止旧实例由 `just start` 的全局 PID 流程负责。
 
-当前不引入 Rust 或 sidecar。关闭 Launcher 会隐藏窗口，Cmd+Q 退出应用。
+Rust 搜索模块通过 napi 在 Electron 主进程加载；当前没有 sidecar。关闭 Launcher 会隐藏窗口，Cmd+Q 退出应用。
 
-Renderer 启用 sandbox 和 context isolation，关闭 Node integration；preload 仅暴露 `launcher.hide()`，主进程校验发送方窗口及主 frame。窗口拒绝外部导航、新窗口及 webview 嵌入。生产 HTML 不允许内联脚本；开发模式只为 React HMR 增加内联脚本许可。
+Renderer 启用 sandbox 和 context isolation，关闭 Node integration；preload 暴露隐藏、搜索、结果执行、图标获取和结果数量驱动的窗口尺寸接口；主进程校验发送方窗口及主 frame。动作仅接受当前搜索结果的 token 和 ID，实际路径／URL 由主进程回查，URL 仅允许 HTTP(S) 及内置系统设置 scheme。窗口拒绝外部导航、新窗口及 webview 嵌入。生产 HTML 不允许内联脚本；开发模式只为 React HMR 增加内联脚本许可。
 
 ## 本地打包与部署示例
 
@@ -116,10 +120,12 @@ docker compose -f deploy/compose.yaml up --build
 
 Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.0.0:8080`。镜像多阶段构建，不带 Node、数据库或业务凭据。当前环境没有 Docker，容器构建和运行尚未验证。
 
-`just prepare` 使用 `.prepare-ts` 记录上次成功安装时间。锁文件、工作区配置及根、desktop、packages 下的包清单都不比该时间新，且依赖安装记录与 Hook 入口存在时跳过安装；否则执行 frozen install，成功后更新时间戳。删除 `.prepare-ts` 可强制重新安装。时间戳文件不提交。
+`just prepare` 使用 `.prepare-ts` 记录上次成功安装时间。锁文件、工作区配置及根、desktop、packages 和 `crates/*/napi` 下的包清单都不比该时间新，且依赖安装记录与 Hook 入口存在时跳过安装；否则执行 frozen install，成功后更新时间戳。删除 `.prepare-ts` 可强制重新安装。时间戳文件不提交。
 
 窗口首次加载被刷新或关闭取消时，忽略 Electron 的 `ERR_ABORTED`，不将其当作启动失败退出；其他加载错误仍向上传递。
 
 ## UI 组件预览
 
 `just storybook` 启动独立组件预览，不需要 Electron 或服务端。组件场景、设计变量和验收流程见 [UI 对齐与 Storybook](ui-alignment.md)。
+
+Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。首次安装后须先构建原生模块，安装与 `rs` 不会自动编译 Rust。

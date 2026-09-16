@@ -1,6 +1,7 @@
 packages:
   - desktop
   - packages/*
+  - crates/*/napi
 onlyBuiltDependencies:
   - electron
   - esbuild

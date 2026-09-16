@@ -1,0 +1,15 @@
+[package]
+name = "xiaowei-search-napi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+xiaowei-search = { path = ".." }
+napi = { version = "3", features = ["napi8", "async"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
