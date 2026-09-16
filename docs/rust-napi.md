@@ -9,7 +9,7 @@
 
 目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，内部模块不反向依赖 App 或功能入口。
 
-旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前仅包含应用本地化名称和应用图标，拼音和匹配留在 `xiaowei-search`。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
+旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前包含应用本地化名称、应用图标和 macOS 系统主题切换，拼音和匹配留在 `xiaowei-search`。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
 
 ## 目录与职责
 
@@ -76,7 +76,7 @@ napi 入口包提供以下脚本：
 
 `napi build` 默认仅编译当前机器的平台和架构；`--platform` 表示在文件名中加入平台标识，例如 `xiaowei-search.darwin-arm64.node`，不表示编译所有平台。其他目标需要显式指定 target 并准备对应工具链，通常由 CI 分别构建。
 
-修改 Rust 后，显式执行 `pnpm --filter xiaowei-search build:debug`，再重启正在运行的 Electron 加载新模块。`just rs` 仍只触发桌面重建与重启，不附带 Rust 编译。Agent 重启前必须遵循仓库的实例归属检查规则。
+修改 Rust 源码、内部依赖 crate、napi 接口或相关依赖与构建配置后，Agent 必须主动执行受影响包的原生构建；当前搜索包执行 `pnpm --filter xiaowei-search build:debug`。`cargo check` 或单测不能代替生成最新 `.node`、JS 入口和类型声明。构建成功后，再按 [AGENTS.md 的运行实例与原生模块规则](../AGENTS.md) 检查归属并执行 `just rs`；没有实例时完成构建并告知用户待验证内容。已加载的原生模块不会随文件更新或前端 HMR 自动替换。`just rs` 仍只触发桌面重建与重启，不附带 Rust 编译，也不新增自动监听机制。
 
 ## 本地加载与多平台发布
 

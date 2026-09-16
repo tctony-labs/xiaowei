@@ -6,7 +6,7 @@
 
 ## What
 
-首批迁移计算器、macOS 应用与系统设置面板、Chrome Default profile 书签，以及统一模糊匹配、拼音、高亮和最近使用排序。命令、任务、扩展随对应能力迁移，不接入旧内部服务。Query 历史和剪贴板是独立模式，不属于本次范围。
+首批迁移计算器、macOS 应用与系统设置面板、Chrome Default profile 书签，以及统一模糊匹配、拼音、高亮和最近使用排序。内置命令本轮仅接入切换系统主题和开发态 `rs`，不接入旧内部服务。Query 历史和剪贴板是独立模式，不属于本次范围。
 
 ## How
 
@@ -33,3 +33,16 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 平台模块仅迁入当前需要的名称和图标能力；包前缀与依赖方向统一遵循 [Rust 模块接入约定](../../../docs/rust-napi.md)。
 
 `xw-platform` 提取后，Rust 全量测试、`just check` 和两项 Node 绑定测试通过；图标测试覆盖真实 Finder PNG、与 Safari 图标区分及无效路径，并通过 napi 接口检查 PNG 签名与尺寸。未为图标新增 Storybook 场景。
+
+## 内置命令范围
+
+本轮仅实现两个命令，匹配、拼音、高亮与最近使用排序留在 Rust；Electron 按当前结果回查命令 ID，执行白名单动作。
+
+- `toggle-system-theme`：macOS 切换系统明暗主题，沿用旧版 `System Events` 的固定 AppleScript，通过 `xw-platform` 执行并经 napi 异步导出。支持主题／浅色／深色／theme／dark 等别名。系统若要求自动化授权，由用户处理；失败通过 IPC 返回错误。不在自动测试中改变用户系统主题。
+- `rs`：仅开发实例提供，支持 reload／rebuild 别名；Electron 按 `app.getAppPath()` touch 当前桌面目录的 `.rs`，复用现有 nodemon 流程。正式包不注册、执行侧也拒绝该命令。可见性由 Electron 开发状态决定，不依赖 Rust debug/release 编译模式。
+
+命令按基础分取前 10 条，与书签／应用一起加权混排；同分保留命令、书签、应用的顺序。计算器仍置顶。
+
+暂不实现：对话、扩展设置、扩展调试、检查更新、Kitchen 调试入口、Query 历史；切换内部后台环境不迁移。当前没有工作区与任务执行系统，任务搜索本轮不加入。上述入口不作为占位结果暴露。
+
+命令接入验证：`just check`、`just test`（63 项 Rust 测试、3 项 Node 原生绑定测试及 Go 测试）、napi 与桌面构建通过。覆盖主题别名／拼音匹配、默认隐藏 rs、开发态显示 rs；未在自动测试中真实改变系统外观。已通过搜索框执行 rs，确认旧 Electron 进程退出并启动新实例；用户确认重启 Vite 后命令图标正常。系统主题切换的实际执行仍待验收。

@@ -18,7 +18,7 @@ export declare function readAppIcon(path: string): Promise<Buffer | null>
 
 export declare function recordUsage(id: string): void
 
-export declare function search(query: string): Promise<Array<SearchHit>>
+export declare function search(query: string, development?: boolean | undefined | null): Promise<Array<SearchHit>>
 
 export interface SearchHit {
   id: string
@@ -31,3 +31,5 @@ export interface SearchHit {
   actionType: string
   actionValue: string
 }
+
+export declare function toggleSystemTheme(): Promise<boolean>

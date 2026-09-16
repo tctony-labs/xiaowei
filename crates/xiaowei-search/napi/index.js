@@ -781,3 +781,4 @@ module.exports = nativeBinding
 module.exports.readAppIcon = nativeBinding.readAppIcon
 module.exports.recordUsage = nativeBinding.recordUsage
 module.exports.search = nativeBinding.search
+module.exports.toggleSystemTheme = nativeBinding.toggleSystemTheme

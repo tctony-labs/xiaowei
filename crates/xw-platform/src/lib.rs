@@ -6,3 +6,5 @@ pub mod app_name;
 mod macos {
     pub mod app_name;
 }
+
+pub mod appearance;

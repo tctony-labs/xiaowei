@@ -1,5 +1,7 @@
-import { type BrowserWindow, clipboard, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
-import { readAppIcon, recordUsage, type SearchHit, search } from "xiaowei-search";
+import { open, utimes } from "node:fs/promises";
+import { join } from "node:path";
+import { app, type BrowserWindow, clipboard, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
+import { readAppIcon, recordUsage, type SearchHit, search, toggleSystemTheme } from "xiaowei-search";
 import { launcherHeight } from "../shared/launcher-api";
 
 export function registerSearch(getWindow: () => BrowserWindow | undefined): void {
@@ -18,7 +20,7 @@ export function registerSearch(getWindow: () => BrowserWindow | undefined): void
     if (typeof query !== "string" || Buffer.byteLength(query) > 4096) throw new Error("Invalid search query");
     const request = ++token;
     results = new Map();
-    const hits = await search(query);
+    const hits = await search(query, !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL));
     if (request !== token) return { token: request, hits: [] };
     results = new Map(hits.map((hit) => [hit.id, hit]));
     return {
@@ -38,6 +40,19 @@ export function registerSearch(getWindow: () => BrowserWindow | undefined): void
     const hit = request === token && typeof id === "string" ? results.get(id) : undefined;
     if (!hit) throw new Error("Search result expired");
     switch (hit.actionType) {
+      case "runCommand":
+        if (hit.actionValue === "toggle-system-theme" && process.platform === "darwin") {
+          await toggleSystemTheme();
+        } else if (hit.actionValue === "rs" && !app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+          const path = join(app.getAppPath(), ".rs");
+          const file = await open(path, "a");
+          await file.close();
+          const now = new Date();
+          await utimes(path, now, now);
+        } else {
+          throw new Error("Unsupported command");
+        }
+        break;
       case "copyText":
         clipboard.writeText(hit.actionValue);
         break;

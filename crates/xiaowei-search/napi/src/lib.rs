@@ -24,7 +24,7 @@ pub struct SearchHit {
 }
 
 #[napi]
-pub async fn search(query: String) -> napi::Result<Vec<SearchHit>> {
+pub async fn search(query: String, development: Option<bool>) -> napi::Result<Vec<SearchHit>> {
     if query.len() > 4096 {
         return Err(napi::Error::from_reason("Search query is too long"));
     }
@@ -34,13 +34,14 @@ pub async fn search(query: String) -> napi::Result<Vec<SearchHit>> {
             .lock()
             .map_err(|_| napi::Error::from_reason("Search engine unavailable"))?;
         Ok(engine
-            .search(&query)
+            .search_with_development(&query, development.unwrap_or(false))
             .into_iter()
             .map(|hit| {
                 let (kind, value) = match hit.action {
                     Action::CopyText(value) => ("copyText", value),
                     Action::OpenUrl(value) => ("openUrl", value),
                     Action::LaunchApp(value) => ("launchApp", value),
+                    Action::RunCommand(value) => ("runCommand", value),
                 };
                 SearchHit {
                     id: hit.id,
@@ -82,4 +83,12 @@ pub async fn read_app_icon(path: String) -> napi::Result<Option<napi::bindgen_pr
     })
     .await
     .map_err(|error| napi::Error::from_reason(error.to_string()))
+}
+
+#[napi]
+pub async fn toggle_system_theme() -> napi::Result<bool> {
+    napi::tokio::task::spawn_blocking(xiaowei_search::toggle_dark_mode)
+        .await
+        .map_err(|error| napi::Error::from_reason(error.to_string()))?
+        .map_err(napi::Error::from_reason)
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import logo from "../../../../resources/logo-clear.png";
 import type { LauncherHit } from "../../../shared/launcher-api";
 import chrome from "../assets/chrome.svg";
 import genericApp from "../assets/macos-generic-app.png";
@@ -43,7 +44,16 @@ export function SearchResultList({ hits, selected, icons = {}, onSelect, onConfi
       <div className="flex flex-col gap-1" role="listbox" aria-label="搜索结果">
         {hits.map((hit, index) => {
           const icon =
-            icons[hit.id] ?? (hit.provider === "bookmark" ? chrome : hit.label === "系统设置" ? settings : genericApp);
+            icons[hit.id] ??
+            (hit.provider === "command"
+              ? hit.id === "command:toggle-system-theme"
+                ? settings
+                : logo
+              : hit.provider === "bookmark"
+                ? chrome
+                : hit.label === "系统设置"
+                  ? settings
+                  : genericApp);
           return (
             <button
               key={hit.id}

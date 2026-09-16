@@ -20,3 +20,14 @@ test("icon API returns application PNG bytes", { skip: process.platform !== "dar
   assert.ok(finder.readUInt32BE(20) > 0);
   assert.equal(await readAppIcon("/no/such/application.app"), null);
 });
+
+test("commands respect host development mode", async () => {
+  const production = await search("reload");
+  assert.ok(!production.some((hit) => hit.id === "command:rs"));
+  const development = await search("reload", true);
+  assert.ok(development.some((hit) => hit.actionType === "runCommand" && hit.actionValue === "rs"));
+  if (process.platform === "darwin") {
+    const theme = await search("切换系统主题");
+    assert.ok(theme.some((hit) => hit.actionValue === "toggle-system-theme"));
+  }
+});

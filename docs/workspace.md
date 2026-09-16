@@ -15,7 +15,7 @@
 | `server/cmd/xiaowei-server/` | Go 进程入口、监听与信号退出 |
 | `server/internal/httpapi/` | HTTP 路由及测试 |
 | `crates/xiaowei-search/` | 全局搜索核心及 `napi/` npm 入口 |
-| `crates/xw-platform/` | 内部系统能力：应用本地化名称和原生图标 |
+| `crates/xw-platform/` | 内部系统能力：应用名称、原生图标、macOS 主题切换 |
 | `crates/xw-app/`、`crates/xw-bookmark/` | 应用和 Chrome 书签数据源 |
 | `packages/` | 独立 npm 包的位置，目前无包，仅保留目录 |
 | `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
@@ -129,3 +129,5 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 `just storybook` 启动独立组件预览，不需要 Electron 或服务端。组件场景、设计变量和验收流程见 [UI 对齐与 Storybook](ui-alignment.md)。
 
 Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。首次安装后须先构建原生模块，安装与 `rs` 不会自动编译 Rust。
+
+Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。

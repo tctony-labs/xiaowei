@@ -71,7 +71,7 @@ export function Launcher({ api = window.launcher }: { api?: LauncherApi }) {
       await api.execute(response.token, hit.id);
       changeQuery("");
     } catch {
-      setError("打开失败，请重试");
+      setError("执行失败，请重试");
     } finally {
       executing.current = false;
     }

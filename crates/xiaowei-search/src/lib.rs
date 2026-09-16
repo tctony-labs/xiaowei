@@ -1,6 +1,8 @@
 //! Launcher 全局搜索核心。数据源与匹配不依赖 Electron 或 napi。
 pub use xw_platform::app_icon::read_app_icon;
 mod calculator;
+mod commands;
+pub use xw_platform::appearance::toggle_dark_mode;
 mod pinyin;
 mod scoring;
 #[cfg(target_os = "macos")]
@@ -18,6 +20,7 @@ pub enum Action {
     CopyText(String),
     OpenUrl(String),
     LaunchApp(String),
+    RunCommand(String),
 }
 
 #[derive(Clone, Debug)]
@@ -142,6 +145,10 @@ impl SearchEngine {
     }
 
     pub fn search(&self, query: &str) -> Vec<SearchHit> {
+        self.search_with_development(query, false)
+    }
+
+    pub fn search_with_development(&self, query: &str, development: bool) -> Vec<SearchHit> {
         let query = query.trim();
         if query.is_empty() || query.len() > 4096 {
             return Vec::new();
@@ -199,8 +206,12 @@ impl SearchEngine {
             provider.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.title.cmp(&b.title)));
             provider.truncate(20);
         }
-        bookmarks.extend(apps);
-        let mut ranked: Vec<_> = bookmarks
+        let mut command_hits = commands::search(query, development);
+        command_hits.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.title.cmp(&b.title)));
+        command_hits.truncate(10);
+        command_hits.extend(bookmarks);
+        command_hits.extend(apps);
+        let mut ranked: Vec<_> = command_hits
             .into_iter()
             .map(|hit| {
                 let rank = hit.score * (1.0 + 0.6 * self.usage.factor(&hit.recency_key));
