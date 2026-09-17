@@ -1,13 +1,13 @@
-import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
+import { initializeLogging } from "xiaowei-search";
 
+import { attachRendererLogging, createLoggers } from "./logging";
 import { registerSearch } from "./search";
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
-const workspace = resolve(moduleDir, "../../..");
 let launcher: BrowserWindow | undefined;
 let quitting = false;
 
@@ -25,16 +25,28 @@ function showLauncher(): void {
 
 app.setName("XiaoWei");
 app.setAppUserModelId("com.tctony.xiaowei");
-if (!app.isPackaged) {
-  const workspaceId = createHash("sha256").update(workspace).digest("hex").slice(0, 12);
-  const userData = join(app.getPath("appData"), "com.tctony.xiaowei.dev", workspaceId);
-  mkdirSync(userData, { recursive: true });
-  app.setPath("userData", userData);
-}
+const userData = join(app.getPath("appData"), "com.tctony.xiaowei");
+mkdirSync(userData, { recursive: true });
+app.setPath("userData", userData);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  const logs = createLoggers(join(app.getPath("userData"), "logs"), !app.isPackaged);
+  Object.assign(console, logs.main.functions);
+  process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
+  process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));
+  initializeLogging(!app.isPackaged, ({ level, target, message }) => {
+    const method = level === "trace" ? "debug" : level;
+    if (method === "error" || method === "warn" || method === "info" || method === "debug") {
+      logs.main[method](`[rust:${target}] ${message}`);
+    }
+  });
+  app.on("web-contents-created", (_event, contents) => {
+    if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
+  });
+  console.info("Application starting", { version: app.getVersion(), logs: join(app.getPath("userData"), "logs") });
+  app.on("will-quit", () => console.info("Application stopping"));
   app.on("second-instance", showLauncher);
   app
     .whenReady()

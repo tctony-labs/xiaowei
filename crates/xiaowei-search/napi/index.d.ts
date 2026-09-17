@@ -14,6 +14,14 @@ export interface HighlightRange {
   end: number
 }
 
+export declare function initializeLogging(development: boolean, callback: (entry: NativeLogEntry) => void): void
+
+export interface NativeLogEntry {
+  level: string
+  target: string
+  message: string
+}
+
 export declare function readAppIcon(path: string): Promise<Buffer | null>
 
 export declare function recordUsage(id: string): void

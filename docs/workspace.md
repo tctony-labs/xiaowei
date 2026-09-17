@@ -96,7 +96,7 @@ pnpm --dir desktop exec electron-vite dev --entry scripts/smoke.mjs
 
 所有工作区通过 `just start` 共用一个开发实例入口，PID 文件与旧 `xiaowei-next` 共用。切换工作区启动时会停止旧实例；启动脚本退出时清理自己拥有的进程树，仅当 PID 文件仍指向自己时删除文件。冷启动由用户操作；Agent 必须先确认当前工作区有活实例，才能执行 `just rs`。
 
-应用标识是 `com.tctony.xiaowei`，在 `desktop/electron-builder.json` 中用于打包。开发 userData 放在系统应用数据目录的 `com.tctony.xiaowei.dev/<workspace-hash>/`，按仓库绝对路径隔离；正式包使用 Electron 默认的 `XiaoWei` userData 目录。Electron 单实例锁作用于各自 userData；跨工作区停止旧实例由 `just start` 的全局 PID 流程负责。
+应用标识是 `com.tctony.xiaowei`，在 `desktop/electron-builder.json` 中用于打包。开发与打包统一使用系统应用数据目录下的 `com.tctony.xiaowei/` 作为 userData，不按工作区或 tag 隔离。Electron 单实例锁作用于同一个 userData；跨工作区停止旧实例由 `just start` 的全局 PID 流程负责。
 
 Rust 搜索模块通过 napi 在 Electron 主进程加载；当前没有 sidecar。关闭 Launcher 会隐藏窗口，Cmd+Q 退出应用。
 
@@ -131,3 +131,5 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。首次安装后须先构建原生模块，安装与 `rs` 不会自动编译 Rust。
 
 Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。
+
+桌面日志同时输出 console 和 `userData/logs/YYYY-MM-DD-xiaowei.log`：main、renderer 和 Rust 统一写入，日期使用本地时间。当天超过 20 MiB 后，下次写入前轮转为带 `HH-mm-ss-SSS` 时间后缀的文件，重名追加序号；保留最近 15 个自然日（含今天），启动及跨天写入时清理更早的日志，不上传。调用方式与边界见 [桌面日志模块](../.agent/records/active/2026-09-17-add-desktop-logging.md)。

@@ -2,6 +2,8 @@ use napi_derive::napi;
 use std::sync::{Mutex, OnceLock};
 use xiaowei_search::{Action, SearchEngine};
 
+pub mod logging;
+
 static ENGINE: OnceLock<Mutex<SearchEngine>> = OnceLock::new();
 
 #[napi(object)]

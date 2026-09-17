@@ -5,6 +5,7 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
+    "test": "node --test scripts/*.test.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "electron-vite build",
     "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
@@ -15,10 +16,11 @@
     "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
+    "electron-log": "5.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zustand": "5.0.8",
-    "xiaowei-search": "workspace:*"
+    "xiaowei-search": "workspace:*",
+    "zustand": "5.0.8"
   },
   "devDependencies": {
     "@storybook/react-vite": "10.6.0",

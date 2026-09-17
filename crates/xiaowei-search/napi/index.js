@@ -778,6 +778,7 @@ function __napiStampBindingTarget(exportsObject, target) {
 // linked import resolves to `undefined`.
 module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __napiLoadedBindingTarget)
 module.exports = nativeBinding
+module.exports.initializeLogging = nativeBinding.initializeLogging
 module.exports.readAppIcon = nativeBinding.readAppIcon
 module.exports.recordUsage = nativeBinding.recordUsage
 module.exports.search = nativeBinding.search

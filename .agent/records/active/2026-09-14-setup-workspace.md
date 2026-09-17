@@ -22,7 +22,7 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 - 根 pnpm 工作区与格式配置统一管理各自生态，justfile 提供已经验证的最小开发入口。
 - `packages/` 保留为独立 npm 包目录，没有创建无用途的示例包；`protocol/` 与 `deploy/` 分别存放最小协议说明和服务端部署示例。
 - `mobile/` 留待实际开发，未创建空工程。独立开发文档在工程落地后提取到 `docs/`，不在 record 重复维护当前事实。
-- 开发数据按工作区隔离，`just start` 通过全局 PID 切换运行实例；格式化与只读检查分开，不引入自动暂存、提交或内部项目依赖。
+- 开发与打包共用 `com.tctony.xiaowei` 数据目录，不按工作区或 tag 隔离，`just start` 通过全局 PID 切换运行实例；格式化与只读检查分开，不引入自动暂存、提交或内部项目依赖。
 
 ## Alternatives considered
 
