@@ -16,6 +16,8 @@ export interface HighlightRange {
 
 export declare function initializeLogging(development: boolean, callback: (entry: NativeLogEntry) => void): void
 
+export declare function initializeSearch(): Promise<void>
+
 export interface NativeLogEntry {
   level: string
   target: string

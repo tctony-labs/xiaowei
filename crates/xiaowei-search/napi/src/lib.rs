@@ -6,6 +6,25 @@ pub mod logging;
 
 static ENGINE: OnceLock<Mutex<SearchEngine>> = OnceLock::new();
 
+fn engine() -> &'static Mutex<SearchEngine> {
+    ENGINE.get_or_init(|| {
+        let start = std::time::Instant::now();
+        log::info!("Search index initialization started");
+        let engine = SearchEngine::open_default();
+        log::info!("Search index initialized in {} ms", start.elapsed().as_millis());
+        Mutex::new(engine)
+    })
+}
+
+#[napi]
+pub async fn initialize_search() -> napi::Result<()> {
+    napi::tokio::task::spawn_blocking(|| {
+        engine();
+    })
+    .await
+    .map_err(|error| napi::Error::from_reason(error.to_string()))
+}
+
 #[napi(object)]
 pub struct HighlightRange {
     pub start: u32,
@@ -30,9 +49,11 @@ pub async fn search(query: String, development: Option<bool>) -> napi::Result<Ve
     if query.len() > 4096 {
         return Err(napi::Error::from_reason("Search query is too long"));
     }
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
     napi::tokio::task::spawn_blocking(move || {
-        let engine = ENGINE.get_or_init(|| Mutex::new(SearchEngine::open_default()));
-        let engine = engine
+        let engine = engine()
             .lock()
             .map_err(|_| napi::Error::from_reason("Search engine unavailable"))?;
         Ok(engine

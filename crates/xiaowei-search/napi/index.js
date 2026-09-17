@@ -779,6 +779,7 @@ function __napiStampBindingTarget(exportsObject, target) {
 module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __napiLoadedBindingTarget)
 module.exports = nativeBinding
 module.exports.initializeLogging = nativeBinding.initializeLogging
+module.exports.initializeSearch = nativeBinding.initializeSearch
 module.exports.readAppIcon = nativeBinding.readAppIcon
 module.exports.recordUsage = nativeBinding.recordUsage
 module.exports.search = nativeBinding.search

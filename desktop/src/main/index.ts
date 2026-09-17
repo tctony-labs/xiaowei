@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
-import { initializeLogging } from "xiaowei-search";
+import { initializeLogging, initializeSearch } from "xiaowei-search";
 
 import { attachRendererLogging, createLoggers } from "./logging";
 import { registerSearch } from "./search";
@@ -58,6 +58,11 @@ if (!app.requestSingleInstanceLock()) {
       });
       registerSearch(() => launcher);
       await createWindow();
+      const searchWarmup = setTimeout(() => {
+        void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));
+      }, 1000);
+      searchWarmup.unref();
+      app.once("before-quit", () => clearTimeout(searchWarmup));
       const shortcut = process.platform === "darwin" ? "Command+Alt+Space" : "Control+Alt+Space";
       if (
         !globalShortcut.register(shortcut, () => {
