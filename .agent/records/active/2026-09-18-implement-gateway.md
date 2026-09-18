@@ -1,0 +1,295 @@
+# 实现核心 Gateway 通信机制
+
+## Why
+
+目前 Electron 使用业务专用 IPC 接口，renderer、main 和独立 Rust 原生模块之间缺少统一寻址和调用方式。随着模块间调用增多，需要一个独立的核心通信机制，使调用方不必了解服务所在的模块／进程。
+
+多个 `.node` 即使依赖同一个 Rust crate，也不会自动共享 registry 或内存实例，需要显式的本地注册和跨模块路由。
+
+## What
+
+从 `xiaowei-next` 提取 gateway，作为独立的核心通信机制，统一跨进程 IPC 和进程内 RPC，覆盖 renderer、main 和 Rust 模块。Gateway 不依赖具体应用模块，也不包含数据库、配置或其他业务逻辑。调用权限按可信／不可信划分，不按 renderer／backend 划分。
+
+应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
+
+本事项进入 gateway 通信的实施准备，已编制 Plan 并完成隔离的 Protobuf 适配验证，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。以下设计尚未实现，不代表当前代码行为。
+
+## How
+
+### 统一服务调用
+
+按全局服务名注册 handler，调用方使用 `route + payload`，不绑定具体实现位置。沿用旧版 `XwInvokeRegistry`、`XwEventRegistry`、`xwInvoke`、`xwOn` 的模型：本地命中时直接调用 handler，未命中时通过传输适配层路由到 owner。
+
+进程内 RPC 与跨进程 IPC 共用寻址、协议和生命周期；本地调用不必绕行 Electron IPC 或 socket。保留服务名称冲突检查、按 owner 注册／注销、handler 超时与并发限制，以及显式事件导出和订阅清理。
+
+Electron main 可作为当前多个 `.node` 模块之间的路由中心：原生模块注册服务，并通过适配层获得调用其他服务的能力。每个服务实例由明确的 owner 持有，不因其他模块依赖同一 crate 而重复创建。具体 napi 回调和服务启动顺序在实施前细化，不要求合并现有原生包，也不因此引入新的子进程。
+
+### 接口定义与绑定生成：Protobuf 适配方向
+
+Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成熟的 Protobuf 消息定义与生成工具适配现有传输，不再自研 JSON 类型 DSL，也不引入完整 gRPC 网络运行时或直接接入 Mojo。独立适配验证已完成，正式绑定工具和 Gateway runtime 尚未实现。
+
+计划使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 使用 prost-build 的 ServiceGenerator 扩展点生成 Gateway method descriptor、typed client／handler adapter。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
+
+同一份消息定义支持 optional、oneof、数组和嵌套 bytes。验证中 uint64 映射为 TS bigint／Rust u64，bytes 为 Uint8Array／Vec<u8>；现有业务 facade 的字符串 ID 在接入层显式转换，不强制改产品 API。Proto3 optional 表达缺失与默认值，不天然表达缺失／null／值三态；确有需求时在 proto 中显式定义 oneof／NullValue。Protobuf 编解码负责 wire 格式，业务范围、长度、权限和领域校验仍由运行时／handler 负责，不能把生成类型说成完整校验器。
+
+Event 的最低契约就是稳定名称和对应 message。验证使用 message 的 Protobuf full name 作为名称，TS descriptor 与 Rust `prost::Name` 同源生成，无须额外 RPC 或手写两份常量；只有显式导出的 message 才成为事件。需要 filter 时再定义 filter message。若保留 `clipboard.changed` 等业务别名，应从同一份元数据生成映射，具体采用 proto option 还是同源注册描述在正式接入前确定；不为命名再造一套类型 DSL。
+
+契约集中为独立的 `contracts/` 工程，由对应业务维护 proto，客户端和服务端共同依赖，不再各自在 desktop／业务 crate 复制生成类型。契约包不依赖 Gateway、不包含业务实现或具体传输。
+
+```text
+contracts/
+  proto/                 # 唯一手写来源；common 与业务分目录，本地不加 v1
+  ts/                    # TS npm 契约包：生成类型、codec、接口描述
+    package.json
+  rust/                  # Rust 契约 crate：生成类型、codec、接口描述
+    Cargo.toml
+  go/                    # Go 契约 module：生成类型、codec、接口描述
+    go.mod
+  ...                    # 统一的生成配置与工具入口
+```
+
+Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate，Go 服务端使用 Go module。包名、module path 及具体生成配置在实施时确定。契约工程是共享接口产物，不是第三套 Gateway 实现；Gateway 的 TS／Rust 两包结构保持不变。本地 proto package 与目录均不预设 `v1`；涉及服务端的契约以后再按兼容需求决定版本命名空间。业务目录可以 import common，common 不依赖业务；按实际规模拆文件，不强制 types／service／events 三文件。
+
+通用 protoc／Protobuf-ES／prost／Go 生成编排归 `contracts/` 管理。`xiaowei-gateway` 只保留 Gateway 特有的 client／handler 绑定适配，消费语言契约中的 service descriptor；不把业务定义写进 Gateway 核心。调用方和服务提供方使用相同契约；如果后续其他 transport 需要专用 stub／server interface，也从同一 proto 生成，不复制消息定义。
+
+正式工具计划提供 `pnpm contracts:generate` 与只读的 `pnpm contracts:check`，产物禁止手改，固定工具版本并检测缺失／过期。napi-rs 继续生成 endpoint／生命周期 API 的 JS 加载器和声明，与业务 PB 绑定分工。开发探针仅验证过 TS／Rust，Go 生成与跨语言往返尚未验证；探针的产物暂不入库，可按其本地 README 重建。
+
+协议兼容遵循 Protobuf 字段编号和版本规则；控制协议版本、route kind 和可接受的接口版本需要运行时明确检查。旧计划的“任意 schema 指纹不同就拒绝”不能直接沿用为 PB 默认策略，正式接入前需区分兼容加字段和破坏性变更。生成漂移检查与运行时兼容检查是两件事。prost 会丢弃 typed decode／encode 后的未知字段，Gateway 中转层必须原样转发 PB 字节，只在实际调用与执行端解码。
+
+流控和取消由 Gateway 两端运行时实现，不必写进每个业务 `.proto`。`returns (stream Chunk)` 只声明结果形态，不会自动带来 gRPC 的流控、取消或状态机。内部 open／next／cancel、句柄归属、错误与终态仍须统一约定并版本化；目前不要求把这些控制操作暴露为业务 RPC。双方代码可以实现该约定，但不能各自采用不兼容语义。
+
+### Protobuf 适配验证结果
+
+临时验证代码与复现步骤保存在本地 `experiments/gateway-protobuf/`，该目录被 Git 忽略，不属于仓库交付内容，也不是后续实施的必需依赖；验证结论保留在本 record。实验使用独立 pnpm／Cargo 工程，没有更改主应用依赖，没有启动桌面或修改用户数据。
+
+使用 protoc 36.0、Protobuf-ES 2.15.0、prost／prost-build 0.14.4。TS 类型检查及 10 项自动测试通过：两端方法名称／流标记一致；typed unary；uint64 最大值、optional 和 oneof；嵌套 bytes／2 MiB 字节往返；事件名称及 payload；惰性 pull、提前 break 取消、正常终态、pending next 中取消；非法 wire／业务参数拒绝；未知字段行为。
+
+这证明 PB 消息与 service 定义可绑定到自定义 transport，不依赖 gRPC 运行时。Rust CLI 仅经 stdin／stdout 交换测试字节，不是产品 sidecar；流生命周期使用可控 TS ByteSource，尚未验证真实 Rust 常驻 producer、TSFN、Electron IPC／contextBridge 或 HTTP SSE。生产级 client／handler 生成、全链路背压、取消与资源限额仍按各 Plan 实施，不能据本实验宣称 Gateway 已完成。
+
+### Stream 契约与传输
+
+LLM SSE 场景使用请求绑定的响应 stream；SSE 解析和结构化增量由业务提供，Gateway 不理解 HTTP／SSE。此次实现通用流能力及模拟生产者，不新增实际 LLM provider、网络请求或聊天 UI。
+
+```ts
+const stream = await gateway.stream("llm.generate", request, { signal });
+try {
+  for await (const chunk of stream) {
+    // chunk 类型由契约生成，例如文本增量或工具调用增量。
+  }
+} finally {
+  await stream.cancel(); // 已结束时为幂等空操作。
+}
+```
+
+上例的 route 仅说明后续用法，不在产品中注册占位的 `llm.generate`。TS 返回 `AsyncIterable` 与幂等 `cancel()`；Rust 返回带取消句柄的 typed `Stream<Item = Result<Chunk, GatewayError>>`。`for await` 提前 break／抛错通过 iterator.return 发起取消；显式 signal 中止同样取消。Rust drop 触发尽力取消，需要等待释放时使用显式异步 cancel。
+
+首版采用 pull 模式，不先实现可转交端点的通用双向 pipe：
+
+| 控制操作 | 行为 |
+| --- | --- |
+| `stream.open` | 校验契约和权限，绑定 caller／owner 实例，分配 stream ID；只建立流句柄，不向消费者抢先推送 chunk |
+| `stream.next` | 每流最多一个在途 pull；返回一个带 seq 的 chunk、正常 end 或结构化 error。main 路由至原 owner，不重新按 route 寻找替代实例 |
+| `stream.cancel` | 独立于 pending next 发送，取消生产者及在途 next，并幂等释放句柄；开流尚未完成时可按 open request ID 中止 |
+
+`open → active → ended / failed / cancelled`，终态只发生一次；正常结束不是错误，失败后的消费获得明确错误，已交付 chunk 不撤回。终态消费规则由 client 保持，不为了幂等无限保留服务端 tombstone。序号仅在单条流内递增，不能自动重试 next；序号异常或传输失败终止流，不承诺重连续传／exactly-once。未消费的历史不在 Gateway 中持久化。
+
+pull 是端到端背压：消费者调用 next 才拉取下一项；main 和 napi 不另开后台 drain 或无界队列。本地 Rust 调用也使用同样的惰性流语义。业务若必须桥接主动生产者，只能使用有界队列并在达到限额时停止读取上游；同时限制 chunk 大小、缓冲项数、字节总量、每 owner／caller 活跃流数。超出单块限制或上游无法暂停且缓冲耗尽时显式失败并取消，不能丢弃／合并增量，也不能无限缓存。具体限额作为 owner 注册的 stream policy，在实施切片中明确默认值并测试。
+
+背压最多传播到应用的 HTTP 读取，不保证远端 LLM 停止生成或停止计费。取消通过业务 cancellation token 关闭本地 HTTP 请求和 reader；无法中断的外部副作用不能声称已撤销。
+
+执行 owner 分别管理开流超时、待拉取数据时的生产超时、消费者长期不拉取的空闲期限及可选总时长。普通 invoke 默认 30 秒不能直接套作整条流总时长；没有 pull 时不得误算生产者超时，但不能无限保留被遗弃的流。流占用的并发／资源额度保留至生产者真实退出，不能每个 next 都当成新的独立业务调用。
+
+窗口导航／重载／销毁、owner 注销、native 环境关闭均取消相关流。main 维护 caller 与 owner 实例关联，stream ID 不能作为任意调用方均可使用的凭据；可信调用免白名单，不免除句柄归属检查。不可信 caller 的开流按 route 白名单授权，next／cancel 只可操作自己已授权建立的流。取消不得受满载的数据队列阻塞，也不得等待当前 next 返回才能处理。
+
+Electron／napi 仅传普通请求、结果、stream ID 和字节；AsyncIterator、JS class、Rust Stream 对象不直接跨 contextBridge 或 IPC。iterator 在 renderer 的 client 内创建，preload 只暴露 open／next／cancel transport 方法。napi endpoint 用异步方法完成同样的控制操作；不能持有 registry 锁等待流项，也不能在 pending next 中占有 cancel 所需的锁。
+
+### Renderer 接入与访问边界
+
+```text
+Renderer: xwInvoke("clipboard.list", { query })
+    → preload → Electron IPC
+    → gateway → 剪贴板 owner → 业务 handler
+```
+
+上图为业务调用示例，存储实现不属于 Gateway。现有 `window.clipboardHistory` 等强类型业务封装可以保留，内部改用 gateway，组件不直接处理传输细节。
+
+renderer 使用 `xwOn("clipboard.changed", handler)` 订阅事件。gateway 按实际窗口／frame 投递，在取消订阅、窗口销毁或重载时清理订阅。沿用旧版 best-effort、at-most-once 事件语义；可靠恢复通过重新读取快照或专门的历史接口实现。
+
+调用方分为两类：
+
+- 可信：不做 IPC 调用授权或白名单检查。当前调用方均为自有业务，包括 renderer、Electron main 和 Rust 模块，默认可信。
+- 不可信：需要显式授权对应的 IPC 白名单，只允许调用已授权的 route；未授权的调用拒绝执行。
+
+信任分类由宿主接入层确定，不通过业务 payload 自报。当前不为自有业务增加逐 route 授权配置；未来接入不可信调用方时显式标记并配置白名单。可信调用不做授权检查，不影响接口参数校验、业务校验、事务约束或订阅生命周期管理。
+
+上图展示通过业务服务查询数据的常用链路，不是 renderer 的权限限制。可信 renderer 可以调用任意已注册的业务 route，不设置 backend-only 限制；涉及领域规则时仍应使用业务服务，避免重复实现业务逻辑。
+
+### 远端服务与双向 WebSocket（仅记录，暂不实现）
+
+同一套 Gateway 调用方式可以覆盖远端 server。client／server 建立已认证的 WS 连接后，双方均可作为调用方和服务提供方，使用同一份 contracts 生成的 typed client 与 handler 接口。上层调用方式与本地服务一致，网络不可用、超时等结果仍明确返回，不伪装成本地调用必然成功。
+
+```text
+客户端 typed client → 客户端 Gateway → WS transport
+    → 服务端 Gateway → 服务端业务 handler
+
+服务端 typed client → 服务端 Gateway → 同一条 WS 连接
+    → 客户端 Gateway → 客户端业务 handler
+```
+
+职责分层：
+
+- Contracts：接口、消息、event payload 和 stream chunk 的共同定义及语言产物。
+- Gateway：owner／route 注册、寻址、invoke／event／stream 和服务生命周期。
+- WS transport／连接管理层：认证、连接状态、请求／响应关联、超时、断线清理，以及订阅、流取消和背压的跨网络传播。
+- 业务 handler：业务处理，不各自建立 WS 或维护连接状态；依赖业务在线状态时通过连接层接口获知。
+
+连接建立且完成认证、契约及服务发布协商后，将显式导出的远端服务挂到对应连接 owner；断开时撤销可用状态，使在途请求／流明确失败并清理订阅和资源。重连使用新的连接实例标识，旧响应／旧 stream ID 不得影响新连接；可重新发布服务和建立订阅，但不自动重试写操作、重放事件或恢复 LLM 流，可靠恢复需业务专门设计。
+
+WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并扩展 Gateway 控制语义，仍需有界发送缓冲、独立取消路径和 owner／caller 关联。请求 ID 需区分连接实例及调用方向，具体帧格式、心跳、重连退避和流量控制映射在远端实施前细化。
+
+本地自有模块默认可信的约定不延伸为网络免认证。远端导出的 route／event 应显式声明并进行会话授权，不能因为共享契约或建立 WS 就把本机所有服务暴露给服务器，或把 Storage 原始数据库接口公开给任意客户端。反向调用同样受导出范围和会话权限约束。
+
+本地与远端的路由作用域必须区分：面向 server 的 client 绑定明确远端 owner／目标，不能把任意本地未命中调用自动发送到网络，也不能让同名服务覆盖本地 owner。具体目标选择和多连接命名规则后续确定。
+
+本节只记录整体架构，不增加当前 Plan 的 WS、Go Gateway runtime 或服务端接入任务，不创建网络连接、不选择额外运行时。先完成本地 Electron IPC／napi 链路，远端 transport 另行计划。
+
+### 后续本地 socket 接入（仅记录）
+
+当前 renderer 与 main 的跨进程通信由 Electron IPC 承载；napi 连接同一进程中的 TS 与 Rust。当前没有自行实现本地进程通信的需求，不新增 socket transport、独立 worker／helper、占位实现或实施 Plan。
+
+后续若需要独立本地进程接入，可为 Gateway 增加本地 socket transport，复用核心的契约、服务注册、路由、调用和事件／stream 语义。提供接入能力不意味着必须将现有原生业务模块改为子进程。
+
+届时参考旧版 host／studio 的 Unix domain socket、BridgeHub 请求响应关联与心跳、enrollment 接入认证、broker 服务归属与订阅管理，以及连接 epoch 和断线清理机制；按实际运行平台与需求确定传输和协议适配，不直接搬入旧版部署结构。连接准入与业务调用授权分别处理，旧会话的响应和资源不得影响新连接。
+
+### 旧版参考与迁移边界
+
+参考仓库：`~/Develop/XiaoWei/workspace/src/xiaowei-next`。
+
+- `docs/xw-gateway.md`：服务寻址、本地优先、事件与 owner 生命周期。
+- `crates/xw-tauri/src/invoke.rs`：调用 registry、typed adapter、超时和并发限制。
+- `crates/xw-tauri/src/event.rs`：事件 registry。
+- `crates/xw-core/src/bridge/`：后续本地 socket 接入参考；`hub.rs` 管理收发与请求响应关联，`peer.rs`／`auth.rs` 管理接入认证，`protocol.rs` 定义旧版桥接协议。
+- `xiaowei/src/api/xwIpc.ts`：前端调用和订阅封装。
+
+提取与 Tauri 无关的机制，补 Electron／napi 适配及可信调用来源；不搬入旧版公司业务和私有依赖。host/studio socket、enrollment、多 peer 重连等机制待实际多进程需求出现后再评估，不把旧版完整部署结构作为本次前提。
+
+## Alternatives considered
+
+- 先合并为单一 `.node` 以共享内存状态：并非引入 gateway 的必要条件，当前不要求这样调整。
+- 按 renderer／backend 设置固定权限边界：不采用。当前自有业务默认可信，未来不可信调用方按 IPC 白名单授权。
+
+## Current work
+
+Plan 00–04 的范围均已逐项确认，本轮计划评审完成。实施依赖顺序如下；Protobuf 探针已完成，正式 Gateway 代码仍待开始，后续从 Plan 00 开始实施。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
+
+0. [契约生成和测试](../../plans/2026-09-18-implement-gateway/00-interface-bindings.md)：范围已确认定稿；仅建立 proto 组织、三语言消息／接口描述生成、生成检查和 codec 测试，不实现 Gateway 绑定。
+1. [Gateway 核心逻辑与测试契约验证](../../plans/2026-09-18-implement-gateway/01-gateway-core.md)：范围已确认定稿；实现 TS／Rust Gateway 的注册、路由、通用调用绑定、请求管理和事件机制，复用 Plan 00 的测试契约验证，不接入真实业务。
+2. [napi 传输适配与联调](../../plans/2026-09-18-implement-gateway/02-native-transport.md)：范围已确认，尚未实施；先验证两个独立 `.node` 之间的调用、事件及关闭行为，再接实际业务。
+3. [响应流](../../plans/2026-09-18-implement-gateway/03-response-streams.md)：范围已确认，尚未实施；实现端到端 pull、取消、资源限制和终态语义。
+4. [Electron 与业务迁移](../../plans/2026-09-18-implement-gateway/04-electron-integration.md)：范围已确认，尚未实施；renderer／main／Rust 使用同一 gateway，保留当前强类型业务 API 和 UI 行为。
+
+### 本次实施边界与拟定结构
+
+- `gateway/ts`：App 直接使用的 TS 包，提供绑定生成工具、协议、main registry／路由和调用／事件／stream 客户端封装；核心与默认入口不依赖 Electron，Electron 适配通过子路径入口隔离。按现有命名约定使用 `xiaowei-`。
+- `gateway/rust`：Rust registry、typed handler、事件、stream 与传输接口；默认仅编译纯 Rust 核心，不依赖 Tauri、napi 或 Electron。napi 适配放在该 crate 的可选 `napi` feature 中，不另建 `xw-napi-gateway` 包。
+- `desktop/src/main/gateway.ts` 和 `desktop/src/preload/gateway.ts`：调用 Gateway 的环境适配入口，负责应用实例装配与生命周期接线；业务 facade 保持原有调用签名。
+
+Gateway 集中放在根目录 `gateway/`：`ts/` 是 npm 包，`rust/` 是 Cargo crate，`tests/` 保存跨语言集成测试，`README.md` 说明工程入口。pnpm 与 Cargo workspace 分别显式纳入 `gateway/ts`、`gateway/rust`；包名保持不变。通用契约及生成工具仍在根目录 `contracts/`。后续可增加 `gateway/go/`，本次只记录，不创建目录、占位包或 Go Gateway 实现；Plan 00 的 Go 契约生成范围保持不变。
+
+### 两个包与运行实例
+
+两个包共同组成一套 Gateway，不是两个独立通信系统，也不生成单独的 gateway `.node`。绑定生成与 stream 是在旧版 route／event 机制上新增的能力，属于本次明确扩展；底层仍复用 Electron IPC／napi，不直接接入 Mojo。
+
+| 包／入口 | 使用方 | 负责内容 |
+| --- | --- | --- |
+| `xiaowei-gateway` 默认入口（TS） | 普通业务包，包括第三方 package | 环境无关的 client／handler 绑定、类型与 transport 接口；由宿主注入 client，不自行创建全局 host |
+| `xiaowei-gateway/main` | Electron main | 装配 host、原生 endpoint 与 Electron ingress；全局路由核心保持环境无关、可独立测试 |
+| `xiaowei-gateway/preload` | Electron preload | Electron IPC 与 contextBridge 桥接，不暴露底层 ipcRenderer 或宿主管理权限 |
+| `xiaowei-gateway/renderer` | renderer | 基于 preload 通道创建 invoke／event／stream client，不维护全局路由表，不依赖 Node／Electron |
+| `xw-gateway` 默认 feature（Rust） | 各 Rust 业务包 | 本地 registry、typed handler、事件及远端 transport 抽象 |
+| `xw-gateway` 的 `napi` feature（Rust） | 各业务包的 napi 绑定 crate | TSFN／Promise、字节和错误转换、JS transport 接入及关闭；复用同一个 Rust registry |
+
+```text
+gateway/
+  README.md
+  ts/                  # npm 包 xiaowei-gateway
+    package.json
+    src/
+      core/            # protocol、registry、client、stream
+      binding/         # typed client／handler 适配
+      main/            # native endpoint 与 Electron main 适配
+      preload/         # IPC／contextBridge 桥接
+      renderer/        # 浏览器侧 client 接入
+  rust/                # crate xw-gateway
+    Cargo.toml
+    src/
+      lib.rs
+      protocol.rs
+      invoke.rs
+      event.rs
+      binding.rs
+      stream.rs
+      napi/            # 可选 napi feature
+  tests/               # 跨语言集成测试
+```
+
+Plan 01 实现环境无关的核心与绑定，Plan 02 添加 native 适配，Plan 04 添加 Electron 环境入口。第三方 package 是代码来源，不是运行环境或自动建立的安全边界；直接加载的 npm 依赖拥有所在进程的权限。不可信插件的隔离宿主与授权接入后续另行设计。
+
+Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启 `features = ["napi"]`。该 feature 仅引入可选 napi 依赖；不把核心类型绑定到 JS 值或运行环境。纯 Rust 用例须可在未启用该 feature 时编译与测试。
+
+每个业务模块显式持有自己的 registry 和服务实例，通过 `Arc` 传给其 napi endpoint；不能在业务层与适配层各创建一份 registry。搜索和剪贴板的 registry 分别位于各自 `.node`，不是进程共享 static。main 则只创建一个 host，接入这些 endpoint；renderer 只创建 client。
+
+### 对外接入契约（拟定）
+
+以下为本轮接口职责，具体 Rust／TS 类型在 Plan 01／02 中验证后落实，不代表已有可调用 API。
+
+| 接口 | 调用方与作用 |
+| --- | --- |
+| Rust `register_owner`／事件导出 | 业务模块注册自己的 typed handler 和可订阅事件；业务规则仍调用现有 Service |
+| Rust `call`／`subscribe`／`publish`／`stream` | 业务模块调用或订阅服务，本地优先；不要求调用方知道 JS、Electron 或目标 `.node` |
+| TS host `registerOwner` | main 注册窗口操作、文件打开等 TS handler |
+| TS host `attachNative` | 读取 endpoint manifest，检查全局重名，绑定宿主分配的 owner 上下文和异步 transport；全部成功后对外发布 |
+| TS host `call`／`subscribe`／`stream` | main 本地业务或 Electron ingress 调用统一入口，按 owner 分发 |
+| TS client `invoke`／`on`／`stream`（由契约生成类型） | renderer 使用 route 和 payload；原有强类型业务 facade 在内部调用它们 |
+| owner handle `close` | 停止接入并注销该实例的 routes／events／订阅，释放回调和在途请求；幂等，不能注销后续重新接入的新实例 |
+
+各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/main` 的 native 适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
+
+### 实际调用链路
+
+```text
+renderer 调用 clipboard.list
+  → TS client → preload → Electron IPC
+  → main host 查询 owner
+  → clipboard.node 的 endpoint.dispatchLocal
+  → 剪贴板 registry → 已有 Service.list
+
+Rust 模块调用自己的本地 route
+  → 本模块 registry → handler（不进入 JS）
+
+Rust 模块调用其他模块的 route
+  → 本模块 registry 未命中
+  → napi 异步 transport → main host 查询 owner
+  → 目标 .node 的 endpoint.dispatchLocal → 目标 handler
+
+main 调用自己的 TS route
+  → main host → TS handler（不进入 Electron IPC）
+```
+
+事件由 owner 显式导出；同一 Rust registry 内的订阅直接投递，跨模块／renderer 订阅由 main 路由到对应 endpoint 或窗口／frame。`clipboard.changed` 仍是失效通知，消费者重新查询；不因引入 Gateway 变成可靠消息队列。
+
+新增 Rust 业务模块时，只需用 `xw-gateway` 注册 handler／event，在自己的 napi 入口复用可选适配并返回 endpoint，再由 main 调用 `attachNative`；无需修改 Gateway 来识别新的业务名称。新增 TS 服务只需向 main host 注册 handler／event，不需要创建 Rust 包。后续 Storage 遵循同一方式，不是 Gateway 的特殊分支。
+
+### 路由及执行约束
+
+main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 registry；Rust 本地命中直接执行，未命中才经异步 napi 回调请求 main 转发。main 向目标 owner 只执行本地 dispatch，不能再次 remote fallback，避免路由环。注册本地 handler 不等于已全局发布：main 校验并接受 manifest 后才能对外启用，失败须回滚。
+
+普通 invoke 保留旧版默认 30 秒 handler 超时、每 route 32 并发、超额立即拒绝及 owner 生命周期；超时仅由执行 handler 的 owner 控制，转发层不叠加同一调用的执行超时。超时不保证数据库或系统副作用被撤销，不自动重试写操作。
+
+旧版 payload 为 JSON，新的业务绑定使用 PB 字节，中转层在 napi 侧传 Buffer、Electron 侧传 Uint8Array，不转 Base64／数字数组，不提供任意 JS 对象传输。本地 typed 调用可保留直接调用路径，但不得改变契约／错误语义；旧 handler 适配与 protobuf 接口是本轮显式扩展，不宣称旧版已有此能力。
+
+当前 renderer、main 和 Rust 自有业务全部可信，无逐 route 授权检查；未来不可信入口由宿主注入上下文并应用精确白名单（调用／开流和事件订阅分别授权），不能靠 payload 自报信任。该上下文在嵌套调用中保留，不能经一次可信模块转发后自动升级。窗口身份用于定向操作和生命周期管理，不等于给可信 renderer 增加 backend-only 限制。
+
+本次不改变数据库所有权、数据目录、表结构、检索语义、图片／长文本存储或 UI；不处理既有剪贴板差异清单。当前不实现 WS／其他 socket、sidecar、Go 服务运行时或 RN 接入；三语言契约产物与远端连接实现是不同范围。Storage 的 DB／KV／Config 设计与验收由其独立 record 承载；本次不先发布占位的 `storage.*` 业务接口。
+
+关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。完整执行、测试和收尾步骤见各 Plan。
