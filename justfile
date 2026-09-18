@@ -26,6 +26,7 @@ start:
     #!/usr/bin/env bash
     set -e
     just prepare
+    pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
     pidfile="$HOME/.xiaowei/.dev.pid"
     mkdir -p "$(dirname "$pidfile")"
     kill_tree() {

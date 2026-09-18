@@ -36,12 +36,10 @@ Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.
 先准备 Node、pnpm、Go 和 just，由用户在根目录运行：
 
 ```sh
-just prepare
-pnpm --filter xiaowei-search build:debug
 just start
 ```
 
-`just start` 先执行 `just prepare`，再通过全局 `~/.xiaowei/.dev.pid` 停止上一个开发实例的进程树，并启动当前工作区的独立 Vite 开发服务器与 nodemon，首次构建 main/preload 并启动 Electron。React 页面支持 HMR，Vite 使用 100ms 轮询避免本机文件事件丢失导致缓存不更新；main/preload 源码修改不自动编译或重启，在另一个终端执行 `just rs` 后才重新编译 main/preload 并重启当前工作区 Electron。Vite 服务保持运行，只监听 `127.0.0.1`，默认从 5173 选择可用端口。
+`just start` 先执行 `just prepare`，再依次构建所有 `crates/*/napi` 包的 debug 原生产物（已有产物使用 Cargo 增量编译）；安装或构建失败时直接退出，不停止旧实例。准备成功后，通过全局 `~/.xiaowei/.dev.pid` 停止上一个开发实例的进程树，并启动当前工作区的独立 Vite 开发服务器与 nodemon，首次构建 main/preload 并启动 Electron。React 页面支持 HMR，Vite 使用 100ms 轮询避免本机文件事件丢失导致缓存不更新；main/preload 源码修改不自动编译或重启，在另一个终端执行 `just rs` 后才重新编译 main/preload 并重启当前工作区 Electron。Vite 服务保持运行，只监听 `127.0.0.1`，默认从 5173 选择可用端口。
 
 另一个终端可独立运行服务端：
 
@@ -130,7 +128,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 `just storybook` 启动独立组件预览，不需要 Electron 或服务端。组件场景、设计变量和验收流程见 [UI 对齐与 Storybook](ui-alignment.md)。
 
-Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。首次安装后须先构建原生模块，安装与 `rs` 不会自动编译 Rust。
+Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。`just start` 自动构建所有原生模块；单独安装依赖与 `just rs` 不会编译 Rust。
 
 本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `window.clipboardHistory` 获取分页历史、详情、图片、复制、收藏和删除，并通过 `onChanged` 重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 

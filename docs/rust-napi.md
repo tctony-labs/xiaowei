@@ -72,6 +72,8 @@ napi 入口包提供以下脚本：
 }
 ```
 
+`just start` 在安装依赖后、停止旧开发实例前，依次执行所有 `crates/*/napi` 包的 `build:debug`，确保新工作区具备本机原生产物；构建失败时退出并保留旧实例。
+
 `pnpm -r build` 执行各工作区包的 `build` 脚本；Electron 声明 `workspace:*` 依赖后，pnpm 按依赖关系先构建 napi 包，再构建桌面端。
 
 `napi build` 默认仅编译当前机器的平台和架构；`--platform` 表示在文件名中加入平台标识，例如 `xiaowei-search.darwin-arm64.node`，不表示编译所有平台。其他目标需要显式指定 target 并准备对应工具链，通常由 CI 分别构建。
