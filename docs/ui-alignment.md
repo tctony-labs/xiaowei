@@ -36,6 +36,8 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 
 ## 主题色
 
+2026-09-18 用户确认全局移除默认 focus outline：桌面与 Storybook 共用的 `style.css` 对 `:focus` / `:focus-visible` 设置 `outline: none`，覆盖鼠标点击和键盘聚焦。保留焦点行为，选中与焦点的视觉样式由组件自行实现。
+
 品牌主色沿用旧版绿色 `#00C572`，统一定义为 `--color-primary`，不要求与 Logo 像素颜色完全一致。Logo 当前保持不变。
 
 搜索命中等普通字号的绿色文字使用 `--color-primary-text`：浅色主题为同色系深绿 `#007A46`，深色主题使用品牌主色，以兼顾背景与选中行上的可读性。组件使用语义颜色类 `text-primary-text`，不直接写 Tailwind 蓝色或独立色值。桌面和 Storybook 共用此定义。

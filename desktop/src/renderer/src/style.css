@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Components own the visual treatment of selection and focus. */
+*:focus,
+*:focus-visible {
+  outline: none;
+}
+
 @theme {
   --color-elevated: #ffffff;
   --color-ink-secondary: #000000a6;
