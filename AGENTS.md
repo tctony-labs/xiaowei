@@ -12,7 +12,7 @@
 - [`.agent/plans/`](.agent/plans/README.md)：正在实施事项的临时步骤；创建和维护 Plan 时先读取该目录的 README。
 - [`docs/`](docs/)：跨多个事项或需要独立查阅的长期说明，描述当前架构、行为和开发约定，按需维护，不要求每个事项都创建独立文档。
 
-开始非平凡开发事项前，先完整读取 [`.agent/records/README.md`](.agent/records/README.md)，并遵循其中的事项生命周期。事项实施完成或离开 active 时，必须回填 Outcome 和长期文档，并删除对应 Plan；实施完成且成果仍在生效的事项继续留在 active。
+开始非平凡开发事项前，先完整读取 [`.agent/records/README.md`](.agent/records/README.md)，并遵循其中的事项生命周期。满足创建条件时，Agent 主动提出创建 record，但必须先说明拟记录的事项和创建理由，获得用户确认后才能新建；用户已明确要求创建该 record 时无需重复确认。事项实施完成或离开 active 时，必须回填 Outcome 和长期文档，并删除对应 Plan；实施完成且成果仍在生效的事项继续留在 active。
 
 实际架构和行为以当前代码为最终依据；修改模块时，应同步更新承载对应说明的 record 或 docs 文档。
 
