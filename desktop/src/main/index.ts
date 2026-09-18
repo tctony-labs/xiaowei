@@ -6,7 +6,7 @@ import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboa
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import type { LauncherMode } from "../shared/launcher-api";
 import { registerClipboard } from "./clipboard";
-import { activateLauncherShortcut } from "./launcher-shortcuts";
+import { activateLauncherShortcut, positionLauncher, showLauncherWindow } from "./launcher-shortcuts";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { createPaths } from "./paths";
 import { registerSearch } from "./search";
@@ -17,15 +17,13 @@ let quitting = false;
 let launcherMode: LauncherMode = "search";
 
 function showLauncher(): void {
+  showLauncherWindow(launcher);
+}
+
+function resetLauncherPosition(): void {
   if (!launcher || launcher.isDestroyed()) return;
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  const [width, height] = launcher.getSize();
-  launcher.setPosition(
-    Math.round(workArea.x + (workArea.width - width) / 2),
-    Math.round(workArea.y + Math.max(0, (workArea.height - height) / 3)),
-  );
-  launcher.show();
-  launcher.focus();
+  positionLauncher(launcher, workArea);
 }
 
 app.setName("XiaoWei");
@@ -64,6 +62,12 @@ if (!app.requestSingleInstanceLock()) {
       ipcMain.on("launcher:hide", (event) => {
         if (event.sender === launcher?.webContents && event.senderFrame === event.sender.mainFrame) {
           launcher.hide();
+        }
+      });
+      ipcMain.on("launcher:resetPosition", (event) => {
+        if (event.sender === launcher?.webContents && event.senderFrame === event.sender.mainFrame) {
+          resetLauncherPosition();
+          showLauncher();
         }
       });
       registerSearch(
@@ -122,7 +126,10 @@ async function createWindow(): Promise<void> {
     },
   });
   launcher = window;
-  window.once("ready-to-show", showLauncher);
+  window.once("ready-to-show", () => {
+    resetLauncherPosition();
+    showLauncher();
+  });
   window.on("blur", () => {
     if (!window.webContents.isDevToolsOpened()) window.hide();
   });

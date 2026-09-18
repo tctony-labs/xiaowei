@@ -56,6 +56,7 @@ export interface ClipboardPanelProps extends ClipboardEditing {
   onFavorite(id: string, value: boolean): void;
   onDelete(id: string): void;
   onBack(): void;
+  onResetPosition?(): void;
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -300,6 +301,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
       }}
     >
       <LauncherSearchBar
+        onResetPosition={props.onResetPosition}
         query={props.query}
         onQueryChange={props.onQueryChange}
         onCompositionChange={props.onCompositionChange}

@@ -9,6 +9,7 @@ export interface SearchResponse {
 export interface LauncherApi {
   onOpen?(callback: (mode: LauncherMode) => void): () => void;
   hide(): void;
+  resetPosition?(): void;
   search(query: string): Promise<SearchResponse>;
   execute(token: number, id: string): Promise<undefined | "clipboard">;
   resize(resultCount: number, mode?: "clipboard"): void;

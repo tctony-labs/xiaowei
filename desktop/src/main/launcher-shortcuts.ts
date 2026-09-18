@@ -1,4 +1,4 @@
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, Rectangle } from "electron";
 import type { LauncherMode } from "../shared/launcher-api";
 
 export function activateLauncherShortcut(
@@ -18,4 +18,20 @@ export function activateLauncherShortcut(
   window.webContents.send("launcher:open", targetMode);
   show();
   return targetMode;
+}
+
+export function positionLauncher(window: BrowserWindow, workArea: Rectangle): void {
+  const [width] = window.getSize();
+  // Keep every mode at the same upper-screen anchor, independent of the panel height.
+  window.setPosition(
+    Math.round(workArea.x + (workArea.width - width) / 2),
+    Math.round(workArea.y + workArea.height * 0.15),
+  );
+}
+
+export function showLauncherWindow(window: BrowserWindow | undefined): void {
+  if (!window || window.isDestroyed()) return;
+  // Hiding preserves the native window position, including manual dragging.
+  window.show();
+  window.focus();
 }

@@ -88,13 +88,21 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
     }
   }
   if (clipboardOpen)
-    return <ClipboardPage onHide={() => api.hide()} api={clipboardApi} onBack={() => setClipboardOpen(false)} />;
+    return (
+      <ClipboardPage
+        onHide={() => api.hide()}
+        onResetPosition={() => api.resetPosition?.()}
+        api={clipboardApi}
+        onBack={() => setClipboardOpen(false)}
+      />
+    );
   return (
     <div className="h-screen">
       <LauncherSearchBar
         query={query}
         onQueryChange={changeQuery}
         onDismiss={() => api.hide()}
+        onResetPosition={() => api.resetPosition?.()}
         onNavigate={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();

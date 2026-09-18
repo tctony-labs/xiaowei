@@ -4,10 +4,12 @@ import { ClipboardPanel, type ClipboardView } from "./ClipboardPanel";
 
 export function ClipboardPage({
   onBack,
+  onResetPosition,
   api = window.clipboardHistory,
   onHide = () => window.launcher.hide(),
 }: {
   onBack(): void;
+  onResetPosition?(): void;
   api?: ClipboardApi;
   onHide?(): void;
 }) {
@@ -219,6 +221,7 @@ export function ClipboardPage({
         }}
         onSelect={setSelectedId}
         onBack={onBack}
+        onResetPosition={onResetPosition}
         onActivate={(id) =>
           void act(async () => {
             await api.copy(id);

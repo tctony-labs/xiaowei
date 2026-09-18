@@ -9,6 +9,7 @@ const launcher: LauncherApi = {
     return () => ipcRenderer.removeListener("launcher:open", listener);
   },
   hide: () => ipcRenderer.send("launcher:hide"),
+  resetPosition: () => ipcRenderer.send("launcher:resetPosition"),
   search: (query) => ipcRenderer.invoke("launcher:search", query),
   execute: (token, id) => ipcRenderer.invoke("launcher:execute", token, id),
   resize: (count, mode) => ipcRenderer.send("launcher:resize", count, mode),
