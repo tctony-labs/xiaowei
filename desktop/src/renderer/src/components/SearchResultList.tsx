@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import logo from "../../../../resources/logo-clear.png";
 import type { LauncherHit } from "../../../shared/launcher-api";
 import chrome from "../assets/chrome.svg";
+import clipboardIcon from "../assets/clipboard.svg";
 import genericApp from "../assets/macos-generic-app.png";
 import settings from "../assets/macos-system-settings.png";
 
@@ -48,7 +49,9 @@ export function SearchResultList({ hits, selected, icons = {}, onSelect, onConfi
             (hit.provider === "command"
               ? hit.id === "command:toggle-system-theme"
                 ? settings
-                : logo
+                : hit.id === "command:clipboard"
+                  ? clipboardIcon
+                  : logo
               : hit.provider === "bookmark"
                 ? chrome
                 : hit.label === "系统设置"

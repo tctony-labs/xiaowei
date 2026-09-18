@@ -2,6 +2,7 @@ use crate::{pinyin, scoring::FuzzyScorer, Action, SearchHit};
 
 pub fn search(query: &str, development: bool) -> Vec<SearchHit> {
     let entries = [
+        ("clipboard", "剪贴板", &["clipboard", "粘贴板", "剪贴板历史"][..], true),
         (
             "toggle-system-theme",
             "切换系统主题",
@@ -49,6 +50,13 @@ pub fn search(query: &str, development: bool) -> Vec<SearchHit> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clipboard_matches_aliases() {
+        for query in ["剪贴板", "clipboard", "jiantieban", "jtb"] {
+            assert!(search(query, false).iter().any(|hit| hit.id == "command:clipboard"));
+        }
+    }
 
     #[test]
     fn rs_requires_development_host() {

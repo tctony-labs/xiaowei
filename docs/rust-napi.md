@@ -9,7 +9,7 @@
 
 目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，内部模块不反向依赖 App 或功能入口。
 
-旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前包含应用本地化名称、应用图标和 macOS 系统主题切换，拼音和匹配留在 `xiaowei-search`。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
+旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前包含应用本地化名称、应用图标和 macOS 系统主题切换，拼音和匹配留在 `xiaowei-search`。`xiaowei-clipboard` 承载本地剪贴板业务，接入方式与搜索一致；两个原生包复用 `xw-napi-log` 的日志接收器，各自在所属动态库中初始化。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
 
 ## 目录与职责
 
@@ -45,7 +45,7 @@ Cargo workspace 纳入核心 crate 和其 `napi` 子 crate；新增模块时登�
 ```toml
 [workspace]
 resolver = "2"
-members = ["crates/*", "crates/xiaowei-search/napi"]
+members = ["crates/*", "crates/xiaowei-search/napi", "crates/xiaowei-clipboard/napi"]
 ```
 
 pnpm workspace 纳入含有 `package.json` 的 napi 入口目录：

@@ -8,8 +8,8 @@ export interface SearchResponse {
 export interface LauncherApi {
   hide(): void;
   search(query: string): Promise<SearchResponse>;
-  execute(token: number, id: string): Promise<void>;
-  resize(resultCount: number): void;
+  execute(token: number, id: string): Promise<undefined | "clipboard">;
+  resize(resultCount: number, mode?: "clipboard"): void;
   icon(token: number, id: string): Promise<string | null>;
 }
 

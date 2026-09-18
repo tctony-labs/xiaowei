@@ -6,10 +6,22 @@ export interface LauncherSearchBarProps {
   onQueryChange(query: string): void;
   onDismiss(): void;
   children?: ReactNode;
+  leading?: ReactNode;
+  placeholder?: string;
+  onCompositionChange?(composing: boolean): void;
   onNavigate?(event: KeyboardEvent<HTMLInputElement>): void;
 }
 
-export function LauncherSearchBar({ query, onQueryChange, onDismiss, children, onNavigate }: LauncherSearchBarProps) {
+export function LauncherSearchBar({
+  query,
+  onQueryChange,
+  onDismiss,
+  children,
+  onNavigate,
+  leading,
+  placeholder = "输入搜索内容",
+  onCompositionChange,
+}: LauncherSearchBarProps) {
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const focus = () => {
@@ -26,18 +38,21 @@ export function LauncherSearchBar({ query, onQueryChange, onDismiss, children, o
       <div className="launcher-card relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface">
         <div aria-hidden="true" className="launcher-drag absolute inset-x-0 top-0 h-4" />
         <div className="flex h-[65px] shrink-0 items-center gap-2 pl-6 pr-4">
-          <div className="flex min-h-8 min-w-0 flex-1 items-center">
+          <div className="flex min-h-8 min-w-0 flex-1 items-center gap-2">
+            {leading}
             <input
               ref={input}
               type="text"
               aria-label="搜索"
-              placeholder="输入搜索内容"
+              placeholder={placeholder}
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
+              onCompositionStart={() => onCompositionChange?.(true)}
+              onCompositionEnd={() => onCompositionChange?.(false)}
               onKeyDown={(event) => {
                 if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                 onNavigate?.(event);
-                if (event.key === "Escape") {
+                if (!event.defaultPrevented && event.key === "Escape") {
                   event.preventDefault();
                   onQueryChange("");
                   onDismiss();

@@ -45,3 +45,11 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 结果列表与桌面共用 `SearchResultList`，场景包括 Mixed、Dark、Scroll、SelectAndConfirm；`Launcher / Interaction / KeyboardAndComposition` 使用真实 Launcher 组件和模拟 IPC，覆盖方向键边界、回车确认及合成输入法事件。后者不替代原生输入法验收。
 
 旧版结果列表参数已迁入：48px 行高、4px 行间距、14px 标题、22px 图标、应用图标 1.25 倍留白补偿、主题色选中背景（浅色 `#D4F7E6`、深色 `#152B2A`）、8px 键盘滚动余量。新版绿色高亮使用上文的语义变量。真实应用图标仍由 Electron 获取，与旧 NSWorkspace 提取结果需在真机对照。
+
+## Clipboard / Panel
+
+`ClipboardPanel` 由桌面与 Storybook 共用，按旧版 launcher 模式标签、收藏／剪贴板／图片／文件导航、列表和底部工具栏布局迁移。尺寸、快捷键、直接复用的旧版组件及未迁移能力以 [剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md) 为准，不自行设计替代交互。尚未获得用户视觉验收。
+
+Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongText、Image、Files、Loading、LoadError、NoMatches、Json。`KeyboardAndActions` 检查选中、回车使用、收藏、删除确认和 Esc 返回；`CategoriesAndContextMenu` 检查左右键分类循环、右键复制、详情折叠、取消删除和空输入 Backspace 返回。`Launcher / Interaction / OpenClipboard` 检查从搜索结果进入面板、尺寸切换及返回。`EditingAndCategories` 检查文本编辑、备注保存、归类、分类创建与改名、删除分类确认。所有弹窗复用从旧版迁入的本地 `Modal` 组件，不依赖 `@tencent` 私有 UI 包。浏览器模拟 IPC 不替代 Electron 真机验收。
+
+`ResourceMenus` 检查文件卡片操作、图片复制路径子菜单、定位和长文本查看入口；`MarkdownWebContent` 检查 Web 链接回调和远程图片元素，浏览器验收使用固定图片响应。外部应用打开和 Finder 定位仍须真机验收。

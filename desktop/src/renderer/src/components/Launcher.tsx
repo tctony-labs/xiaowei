@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import type { ClipboardApi } from "../../../shared/clipboard-api";
 import type { LauncherApi, SearchResponse } from "../../../shared/launcher-api";
+import { ClipboardPage } from "./ClipboardPage";
 import { LauncherSearchBar } from "./LauncherSearchBar";
 import { SearchResultList } from "./SearchResultList";
 
-export function Launcher({ api = window.launcher }: { api?: LauncherApi }) {
+export function Launcher({ api = window.launcher, clipboardApi }: { api?: LauncherApi; clipboardApi?: ClipboardApi }) {
+  const [clipboardOpen, setClipboardOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<SearchResponse>({ token: 0, hits: [] });
   const [selected, setSelected] = useState(0);
@@ -45,8 +48,8 @@ export function Launcher({ api = window.launcher }: { api?: LauncherApi }) {
     };
   }, [query, api]);
   useEffect(() => {
-    api.resize(error ? 1 : response.hits.length);
-  }, [response.hits.length, error, api]);
+    api.resize(error ? 1 : response.hits.length, clipboardOpen ? "clipboard" : undefined);
+  }, [response.hits.length, error, api, clipboardOpen]);
   useEffect(() => {
     let active = true;
     for (const hit of response.hits) {
@@ -68,7 +71,8 @@ export function Launcher({ api = window.launcher }: { api?: LauncherApi }) {
     if (!hit || pending.current || executing.current) return;
     executing.current = true;
     try {
-      await api.execute(response.token, hit.id);
+      const destination = await api.execute(response.token, hit.id);
+      if (destination === "clipboard") setClipboardOpen(true);
       changeQuery("");
     } catch {
       setError("执行失败，请重试");
@@ -76,6 +80,8 @@ export function Launcher({ api = window.launcher }: { api?: LauncherApi }) {
       executing.current = false;
     }
   }
+  if (clipboardOpen)
+    return <ClipboardPage onHide={() => api.hide()} api={clipboardApi} onBack={() => setClipboardOpen(false)} />;
   return (
     <div className="h-screen">
       <LauncherSearchBar

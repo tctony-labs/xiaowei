@@ -41,6 +41,10 @@ export function registerSearch(getWindow: () => BrowserWindow | undefined): void
     if (!hit) throw new Error("Search result expired");
     switch (hit.actionType) {
       case "runCommand":
+        if (hit.actionValue === "clipboard") {
+          recordUsage(hit.recencyKey);
+          return "clipboard";
+        }
         if (hit.actionValue === "toggle-system-theme" && process.platform === "darwin") {
           await toggleSystemTheme();
         } else if (hit.actionValue === "rs" && !app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
@@ -99,10 +103,11 @@ export function registerSearch(getWindow: () => BrowserWindow | undefined): void
     }
     return icon;
   });
-  ipcMain.on("launcher:resize", (event, count: unknown) => {
+  ipcMain.on("launcher:resize", (event, count: unknown, mode: unknown) => {
     const window = getWindow();
     if (!window || event.sender !== window.webContents || event.senderFrame !== event.sender.mainFrame) return;
     if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 30) return;
-    window.setSize(800, launcherHeight(count));
+    if (mode !== undefined && mode !== "clipboard") return;
+    window.setSize(800, mode === "clipboard" ? 580 : launcherHeight(count));
   });
 }

@@ -2,8 +2,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
+import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
-
+import { registerClipboard } from "./clipboard";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { registerSearch } from "./search";
 
@@ -36,12 +37,14 @@ if (!app.requestSingleInstanceLock()) {
   Object.assign(console, logs.main.functions);
   process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
   process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));
-  initializeLogging(!app.isPackaged, ({ level, target, message }) => {
+  const nativeLog = ({ level, target, message }: { level: string; target: string; message: string }) => {
     const method = level === "trace" ? "debug" : level;
     if (method === "error" || method === "warn" || method === "info" || method === "debug") {
       logs.main[method](`[rust:${target}] ${message}`);
     }
-  });
+  };
+  initializeLogging(!app.isPackaged, nativeLog);
+  initializeClipboardLogging(!app.isPackaged, nativeLog);
   app.on("web-contents-created", (_event, contents) => {
     if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
   });
@@ -57,6 +60,7 @@ if (!app.requestSingleInstanceLock()) {
         }
       });
       registerSearch(() => launcher);
+      registerClipboard(() => launcher);
       await createWindow();
       const searchWarmup = setTimeout(() => {
         void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));

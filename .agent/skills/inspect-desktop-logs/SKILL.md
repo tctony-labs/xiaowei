@@ -52,7 +52,7 @@ rg -n -C 5 -F 'Application startup failed' "$log_dir" -g "${log_day}-xiaowei*.lo
 - 文件不存在时先检查目录中有哪些日期和文件，不创建占位日志。旧版 `xiaowei.log` 或 `.dev` 目录仅在明确追查旧运行记录时查看，不能当作当前日志路径。
 - `[main]` 是主进程；`[renderer]` 来自窗口的 `console-message`；Rust 带 `[main] [rust:target]`。renderer 在 DevTools、终端和文件出现同一条消息是预期的多端输出，不等于业务执行了多次。
 - main 日志初始化前的失败可能只在启动终端；renderer 复杂对象在文件中可能只剩 Chromium 格式化文本；正式包不记录 debug。
-- 缺少 Rust 日志时检查 `crates/xiaowei-search/napi/src/logging.rs` 的 target 过滤和 `initializeLogging` 接入。确认新的 `.node` 已构建且实例已重启；有界异步回调在退出或队列满时可能丢日志，不能把缺日志当作未执行的证明。
+- 缺少 Rust 日志时检查 `crates/xw-napi-log/src/lib.rs` 的 target 过滤，以及对应搜索／剪贴板 napi 包的 `src/logging.rs` 和 `initializeLogging` 接入。两个动态库需分别初始化；共享接收器修改后两者都要重新构建。确认新的 `.node` 已构建且实例已重启；有界异步回调在退出或队列满时可能丢日志，不能把缺日志当作未执行的证明。
 - 文件输出和窗口采集入口在 `desktop/src/main/logging.ts`。查日志本身不清空、删除或改写日志，不为查看日志启动 App；需要构建或重启时遵循根 `AGENTS.md` 的原生模块和运行实例规则。
 
 轮转、保留策略与日志链路的完整说明见 [桌面日志 record](../../records/active/2026-09-17-add-desktop-logging.md)。

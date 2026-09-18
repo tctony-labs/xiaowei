@@ -8,6 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = "0.4"
+xw-napi-log = { path = "../../xw-napi-log" }
 xiaowei-search = { path = ".." }
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
