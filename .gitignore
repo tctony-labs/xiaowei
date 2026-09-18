@@ -31,3 +31,6 @@ crates/*/napi/*.node
 
 # Git Worktrees
 worktrees/
+
+# Local validation experiments
+/experiments/
