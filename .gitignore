@@ -28,3 +28,6 @@ desktop/storybook-static/
 
 # Native build outputs
 crates/*/napi/*.node
+
+# Git Worktrees
+worktrees/
