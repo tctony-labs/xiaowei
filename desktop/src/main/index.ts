@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
+import type { LauncherMode } from "../shared/launcher-api";
 import { registerClipboard } from "./clipboard";
+import { activateLauncherShortcut } from "./launcher-shortcuts";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { createPaths } from "./paths";
 import { registerSearch } from "./search";
@@ -12,6 +14,7 @@ import { registerSearch } from "./search";
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 let launcher: BrowserWindow | undefined;
 let quitting = false;
+let launcherMode: LauncherMode = "search";
 
 function showLauncher(): void {
   if (!launcher || launcher.isDestroyed()) return;
@@ -63,7 +66,12 @@ if (!app.requestSingleInstanceLock()) {
           launcher.hide();
         }
       });
-      registerSearch(() => launcher);
+      registerSearch(
+        () => launcher,
+        (mode) => {
+          launcherMode = mode;
+        },
+      );
       registerClipboard(paths.clipboard, () => launcher);
       await createWindow();
       const searchWarmup = setTimeout(() => {
@@ -71,14 +79,18 @@ if (!app.requestSingleInstanceLock()) {
       }, 1000);
       searchWarmup.unref();
       app.once("before-quit", () => clearTimeout(searchWarmup));
-      const shortcut = process.platform === "darwin" ? "Command+Alt+Space" : "Control+Alt+Space";
-      if (
-        !globalShortcut.register(shortcut, () => {
-          if (launcher?.isVisible() && launcher.isFocused()) launcher.hide();
-          else showLauncher();
-        })
-      ) {
-        console.error(`Launcher shortcut unavailable: ${shortcut}`);
+      const shortcuts: [string, LauncherMode][] = [
+        [process.platform === "darwin" ? "Command+Space" : "Control+Alt+Space", "search"],
+        ["CommandOrControl+Shift+X", "clipboard"],
+      ];
+      for (const [shortcut, mode] of shortcuts) {
+        if (
+          !globalShortcut.register(shortcut, () => {
+            launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher);
+          })
+        ) {
+          console.error(`Launcher shortcut unavailable: ${shortcut} (${mode})`);
+        }
       }
       app.on("activate", showLauncher);
     })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClipboardApi } from "../../../shared/clipboard-api";
 import type { LauncherApi, SearchResponse } from "../../../shared/launcher-api";
 import { ClipboardPage } from "./ClipboardPage";
@@ -16,14 +16,21 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
   const executing = useRef(false);
   const pending = useRef(false);
 
-  function changeQuery(value: string) {
+  const changeQuery = useCallback((value: string) => {
     revision.current += 1;
     setQuery(value);
     pending.current = true;
     if (!value.trim()) setResponse({ token: 0, hits: [] });
     setSelected(0);
     setError("");
-  }
+  }, []);
+  useEffect(() => {
+    return api.onOpen?.((mode) => {
+      const nextClipboardOpen = mode === "clipboard";
+      if (nextClipboardOpen !== clipboardOpen) changeQuery("");
+      setClipboardOpen(nextClipboardOpen);
+    });
+  }, [api, clipboardOpen, changeQuery]);
   useEffect(() => {
     let active = true;
     const current = revision.current;

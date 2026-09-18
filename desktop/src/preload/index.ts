@@ -1,8 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ClipboardApi } from "../shared/clipboard-api";
-import type { LauncherApi } from "../shared/launcher-api";
+import type { LauncherApi, LauncherMode } from "../shared/launcher-api";
 
 const launcher: LauncherApi = {
+  onOpen: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, mode: LauncherMode) => callback(mode);
+    ipcRenderer.on("launcher:open", listener);
+    return () => ipcRenderer.removeListener("launcher:open", listener);
+  },
   hide: () => ipcRenderer.send("launcher:hide"),
   search: (query) => ipcRenderer.invoke("launcher:search", query),
   execute: (token, id) => ipcRenderer.invoke("launcher:execute", token, id),

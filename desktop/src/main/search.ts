@@ -2,9 +2,12 @@ import { open, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { app, type BrowserWindow, clipboard, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import { readAppIcon, recordUsage, type SearchHit, search, toggleSystemTheme } from "xiaowei-search";
-import { launcherHeight } from "../shared/launcher-api";
+import { type LauncherMode, launcherHeight } from "../shared/launcher-api";
 
-export function registerSearch(getWindow: () => BrowserWindow | undefined): void {
+export function registerSearch(
+  getWindow: () => BrowserWindow | undefined,
+  onModeChange: (mode: LauncherMode) => void,
+): void {
   let token = 0;
   let results = new Map<string, SearchHit>();
   const icons = new Map<string, Promise<string | null>>();
@@ -108,6 +111,7 @@ export function registerSearch(getWindow: () => BrowserWindow | undefined): void
     if (!window || event.sender !== window.webContents || event.senderFrame !== event.sender.mainFrame) return;
     if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 30) return;
     if (mode !== undefined && mode !== "clipboard") return;
+    onModeChange(mode === "clipboard" ? "clipboard" : "search");
     window.setSize(800, mode === "clipboard" ? 580 : launcherHeight(count));
   });
 }

@@ -1,11 +1,13 @@
 import type { SearchHit } from "xiaowei-search";
 
 export type LauncherHit = Omit<SearchHit, "actionType" | "actionValue" | "recencyKey">;
+export type LauncherMode = "search" | "clipboard";
 export interface SearchResponse {
   token: number;
   hits: LauncherHit[];
 }
 export interface LauncherApi {
+  onOpen?(callback: (mode: LauncherMode) => void): () => void;
   hide(): void;
   search(query: string): Promise<SearchResponse>;
   execute(token: number, id: string): Promise<undefined | "clipboard">;

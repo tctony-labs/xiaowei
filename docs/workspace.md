@@ -49,7 +49,7 @@ just server
 
 默认监听 `127.0.0.1:8080`。通过进程环境 `XIAOWEI_LISTEN_ADDR` 修改监听地址，例如使用 `127.0.0.1:0` 由系统分配空闲端口，实际地址会写入日志。`server/.env.example` 仅说明配置，不自动加载 dotenv。`GET /healthz` 返回 `{"status":"ok"}`，SIGINT/SIGTERM 触发最多 5 秒的优雅退出。
 
-当前主窗口为 Launcher 搜索框，支持全局快捷键唤起、失焦与 Esc 隐藏；已接入 Rust 计算器、macOS 应用／系统设置及 Chrome Default profile 书签搜索，尚未连接 Go 服务端。交互说明见 [迁移 Launcher](../.agent/records/active/2026-09-16-migrate-launcher.md)。
+当前主窗口为 Launcher 搜索框，macOS 固定使用 Cmd+Space 唤起搜索、Cmd+Shift+X 唤起剪贴板；同模式已显示并聚焦时再次按下隐藏，跨模式则切换，暂不提供自定义快捷键。支持失焦与 Esc 隐藏；已接入 Rust 计算器、macOS 应用／系统设置及 Chrome Default profile 书签搜索，尚未连接 Go 服务端。交互说明见 [迁移 Launcher](../.agent/records/active/2026-09-16-migrate-launcher.md)。
 
 ## 提交检查
 
