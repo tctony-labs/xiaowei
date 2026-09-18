@@ -53,3 +53,14 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongText、Image、Files、Loading、LoadError、NoMatches、Json。`KeyboardAndActions` 检查选中、回车使用、收藏、删除确认和 Esc 返回；`CategoriesAndContextMenu` 检查左右键分类循环、右键复制、详情折叠、取消删除和空输入 Backspace 返回。`Launcher / Interaction / OpenClipboard` 检查从搜索结果进入面板、尺寸切换及返回。`EditingAndCategories` 检查文本编辑、备注保存、归类、分类创建与改名、删除分类确认。所有弹窗复用从旧版迁入的本地 `Modal` 组件，不依赖 `@tencent` 私有 UI 包。浏览器模拟 IPC 不替代 Electron 真机验收。
 
 `ResourceMenus` 检查文件卡片操作、图片复制路径子菜单、定位和长文本查看入口；`MarkdownWebContent` 检查 Web 链接回调和远程图片元素，浏览器验收使用固定图片响应。外部应用打开和 Finder 定位仍须真机验收。
+
+
+## Settings
+
+设置 UI 位于 `desktop/src/renderer/src/components/settings/`，目前仅在 Storybook 使用，尚未接入产品窗口。范围及旧版源码清单见 [设置 UI 事项](../.agent/records/active/2026-09-18-settings-ui-inventory.md)。
+
+Storybook 的 `Settings` 分组包含 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About，共 81 个场景；扩展和“清空未收藏历史”不在本次范围。各页包含浅色／深色及相关空态、加载、错误、弹窗场景。框架保留 207px 侧栏、固定标题与内容滚动，旧版窗口基准为 800 × 600。
+
+页面组件通过 props／回调接收数据，`SettingsPreview.tsx` 仅提供预览用内存数据与模拟异步交互；登录、模型下载、联网校验、文件打开、更新和配置保存均不执行真实操作。快捷键录制不注册系统快捷键，归档删除仅删除模拟条目。关于页使用当前 Logo，旧版企业版权未显示。
+
+19 个 `play` 场景覆盖导航、快捷键录制与重复处理、迁移与跳转、提供商配置、模型校验、搜索 Key 删除回退及归档操作。已在 Chrome 检查全部场景及代表性明暗截图，构建与代码检查通过，仍待用户视觉确认。未确认的组件没有被产品页面引用。
