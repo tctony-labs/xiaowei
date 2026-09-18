@@ -47,14 +47,14 @@ function listOptions(value: unknown): ClipboardListOptions {
   return options as ClipboardListOptions;
 }
 
-export function registerClipboard(getWindow: () => BrowserWindow | undefined): void {
+export function registerClipboard(directory: string, getWindow: () => BrowserWindow | undefined): void {
   const exportDirectory = mkdtempSync(join(app.getPath("temp"), "xiaowei-clipboard-"));
   app.once("will-quit", () => {
     rmSync(exportDirectory, { recursive: true, force: true });
   });
   let history: ClipboardHistory | undefined;
   let stopping = false;
-  const ready = ClipboardHistory.open(join(app.getPath("userData"), "clipboard"), () => {
+  const ready = ClipboardHistory.open(directory, () => {
     const window = getWindow();
     if (window && !window.isDestroyed()) window.webContents.send("clipboard:changed");
   }).then((store) => {

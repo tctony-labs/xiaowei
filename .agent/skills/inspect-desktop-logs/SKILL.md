@@ -9,15 +9,15 @@ description: >-
 
 ## 定位文件
 
-日志目录由 `desktop/src/main/index.ts` 中的 `userData` 决定，目前 macOS 为：
+日志目录由 `desktop/src/main/paths.ts` 集中定义，通过 `desktop/src/main/index.ts` 传给日志模块，目前 macOS 为：
 
 ```bash
-log_dir="$HOME/Library/Application Support/com.tctony.xiaowei/logs"
+log_dir="$HOME/Library/Application Support/com.tctony.xiaowei/xiaowei/logs"
 log_day=$(date +%F)
 rg --files "$log_dir" -g "${log_day}-xiaowei*.log"
 ```
 
-在同一 shell 中执行后续命令，或重新设置这两个变量。查询历史问题时，把 `log_day` 换成发生日期。其他平台按 `app.getPath("appData")/com.tctony.xiaowei/logs` 定位，不套用 macOS 路径。
+在同一 shell 中执行后续命令，或重新设置这两个变量。查询历史问题时，把 `log_day` 换成发生日期。其他平台按 `app.getPath("appData")/com.tctony.xiaowei/xiaowei/logs` 定位，不套用 macOS 路径。
 
 - 当天活动文件：`YYYY-MM-DD-xiaowei.log`。
 - 当天轮转备份：`YYYY-MM-DD-xiaowei-HH-mm-ss-SSS.log`，重名时带额外序号。

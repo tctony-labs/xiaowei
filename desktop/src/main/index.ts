@@ -6,6 +6,7 @@ import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboa
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import { registerClipboard } from "./clipboard";
 import { attachRendererLogging, createLoggers } from "./logging";
+import { createPaths } from "./paths";
 import { registerSearch } from "./search";
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
@@ -26,14 +27,14 @@ function showLauncher(): void {
 
 app.setName("XiaoWei");
 app.setAppUserModelId("com.tctony.xiaowei");
-const userData = join(app.getPath("appData"), "com.tctony.xiaowei");
-mkdirSync(userData, { recursive: true });
-app.setPath("userData", userData);
+const paths = createPaths(app.getPath("appData"));
+mkdirSync(paths.userData, { recursive: true });
+app.setPath("userData", paths.userData);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  const logs = createLoggers(join(app.getPath("userData"), "logs"), !app.isPackaged);
+  const logs = createLoggers(paths.logs, !app.isPackaged);
   Object.assign(console, logs.main.functions);
   process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
   process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));
@@ -48,7 +49,10 @@ if (!app.requestSingleInstanceLock()) {
   app.on("web-contents-created", (_event, contents) => {
     if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
   });
-  console.info("Application starting", { version: app.getVersion(), logs: join(app.getPath("userData"), "logs") });
+  console.info("Application starting", {
+    version: app.getVersion(),
+    logs: paths.logs,
+  });
   app.on("will-quit", () => console.info("Application stopping"));
   app.on("second-instance", showLauncher);
   app
@@ -60,7 +64,7 @@ if (!app.requestSingleInstanceLock()) {
         }
       });
       registerSearch(() => launcher);
-      registerClipboard(() => launcher);
+      registerClipboard(paths.clipboard, () => launcher);
       await createWindow();
       const searchWarmup = setTimeout(() => {
         void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));

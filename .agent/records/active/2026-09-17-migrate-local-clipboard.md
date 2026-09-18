@@ -12,7 +12,7 @@
 
 `crates/xiaowei-clipboard` 是纯 Rust 业务入口，`napi/` 提供 npm 包；Electron 仅负责生命周期、日志与 IPC。旧版参考：`xiaowei-next/crates/xw-domain/src/clipboard/` 的数据类型、toolkit、hash、storage，以及 `src-tauri/src/biz/clipboard/monitor.rs`。系统 I/O 复用 arboard、macOS changeCount 和文件 URL 的方式，业务规则保留空白过滤、内容去重、重复使用更新时间和次数、复制后的自身事件抑制。
 
-SQLite 数据库位于 `userData/clipboard/history.sqlite`。图片按旧版 `storage.rs` 在采集时由 Rust 写入 `userData/clipboard/images/<hash>.png`，数据库只保存哈希、尺寸等元数据，返回的 `imagePath` 由目录和哈希推导。图片读取、复制回系统剪贴板均读取原文件；打开、定位和复制路径也直接使用原文件，退出应用不删除。相同哈希复用文件，删除记录时尽力删除附件；清空普通历史保留收藏及其图片。文件历史只保存路径，不复制用户原文件。
+SQLite 数据库位于 `userData/xiaowei/clipboard/history.sqlite`。图片按旧版 `storage.rs` 在采集时由 Rust 写入 `userData/xiaowei/clipboard/images/<hash>.png`，数据库只保存哈希、尺寸等元数据，返回的 `imagePath` 由目录和哈希推导。图片读取、复制回系统剪贴板均读取原文件；打开、定位和复制路径也直接使用原文件，退出应用不删除。相同哈希复用文件，删除记录时尽力删除附件；清空普通历史保留收藏及其图片。文件历史只保存路径，不复制用户原文件。
 
 schema v3 将当前应用 v1/v2 数据库中的 PNG 写成持久文件，全部成功后才在事务中移除 `png` 列、更新版本；失败保留数据库图片供下次重试。文件先写入临时文件并同步落盘，再改名，避免迁移中断留下半文件。ID、收藏、分类、备注和时间保持不变。此升级不是旧版应用数据库导入。
 

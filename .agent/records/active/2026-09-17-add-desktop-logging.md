@@ -12,7 +12,7 @@ main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来�
 
 使用 electron-log 的 Node 接口管理输出，不启用其自动 IPC 或远程传输。主进程统一写文件，renderer 通过当前窗口的 `console-message` 事件采集，保留 DevTools console 并镜像到终端。renderer 不获得文件系统权限，也无需新增通用 IPC。
 
-日志位于 `app.getPath("userData")/logs/`，不按工作区或 tag 隔离。开发与打包使用同一个 `com.tctony.xiaowei` 应用标识和 userData 目录。main 与 renderer 的 logger 在同一个主进程中共享 electron-log 的文件注册表，统一追加写入。
+日志位于 `app.getPath("userData")/xiaowei/logs/`，不按工作区或 tag 隔离。开发与打包使用同一个 `com.tctony.xiaowei` 应用标识和 userData 目录。main 与 renderer 的 logger 在同一个主进程中共享 electron-log 的文件注册表，统一追加写入。
 
 按本地日期写入 `YYYY-MM-DD-xiaowei.log`，跨天后第一条日志自动切换文件。当天文件超过 20 MiB 后，在下一次写入前重命名为 `YYYY-MM-DD-xiaowei-HH-mm-ss-SSS.log`，时间取轮转时的本地时分秒和毫秒；若重名，追加 `-1`、`-2` 等序号，不覆盖已有备份，再新建当天文件继续写入。大小阈值不是硬上限，单条日志可能使文件超出阈值。
 
