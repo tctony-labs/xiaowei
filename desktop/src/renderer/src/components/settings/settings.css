@@ -1,0 +1,23 @@
+.settings-layout {
+  background: #f7f8fa;
+}
+.settings-fill {
+  background: #0000000a;
+}
+.settings-scrollbar {
+  scrollbar-width: thin;
+}
+:root[data-theme="dark"] .settings-layout {
+  background: #000;
+}
+:root[data-theme="dark"] .settings-fill {
+  background: #ffffff14;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .settings-layout {
+    background: #000;
+  }
+  :root:not([data-theme="light"]) .settings-fill {
+    background: #ffffff14;
+  }
+}
