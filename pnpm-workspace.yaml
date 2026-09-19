@@ -2,10 +2,8 @@ packages:
   - desktop
   - packages/*
   - crates/*/napi
-onlyBuiltDependencies:
-  - electron
-  - esbuild
-
-# Squirrel.Windows is not a configured packaging target.
-ignoredBuiltDependencies:
-  - electron-winstaller
+allowBuilds:
+  electron: true
+  esbuild: true
+  # Squirrel.Windows is not a configured packaging target.
+  electron-winstaller: false

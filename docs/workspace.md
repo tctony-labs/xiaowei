@@ -25,11 +25,11 @@
 
 根 pnpm workspace 包含 `desktop`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](rust-napi.md)。Go 在 `server/` 中独立管理，不使用 `go.work`。`mobile/` 尚未创建。
 
-当前使用 Node **26.3.1**（`.node-version`）、pnpm **10.14.0**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
+当前使用 Node **26.3.1**（`.node-version`）、pnpm **12.4.2**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
 
 Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.9.3**、React **19.3.0**、Tailwind CSS **4.3.3** 和 Zustand **5.0.8** 由包清单与 `pnpm-lock.yaml` 固定依赖解析。Vite 使用 electron-vite 支持的 7.x。类型检查使用固定版本的 `@typescript/native-preview` **7.0.0-dev.20260707.2** 提供的 tsgo；保留 TypeScript 5.9.3 作为工具生态配套依赖。
 
-`pnpm-lock.yaml` 提交到仓库，由工具生成；Go 当前仅依赖标准库，没有 `go.sum`。pnpm 安装脚本策略在 `pnpm-workspace.yaml` 一处配置，允许 Electron、esbuild，显式忽略当前未使用的 Squirrel.Windows 依赖 `electron-winstaller` 的安装脚本；Electron 44 的运行时可能在第一次启动时下载，需要网络。
+`pnpm-lock.yaml` 提交到仓库，由工具生成；Go 当前仅依赖标准库，没有 `go.sum`。pnpm 12 安装脚本策略在 `pnpm-workspace.yaml` 的 `allowBuilds` 一处配置：Electron、esbuild 为 `true`，当前未使用的 Squirrel.Windows 依赖 `electron-winstaller` 为 `false`。策略随仓库共享，新 clone 无需交互执行 `pnpm approve-builds`；新增带安装脚本的依赖时，需要明确配置其布尔值。Electron 44 的运行时可能在第一次启动时下载，需要网络。
 
 ## 开发入口
 
