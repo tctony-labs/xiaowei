@@ -13,7 +13,7 @@ type LogCallback = ThreadsafeFunction<NativeLogEntry, (), NativeLogEntry, napi::
 
 #[napi(ts_args_type = "development: boolean, callback: (entry: NativeLogEntry) => void")]
 pub fn initialize_logging(development: bool, callback: Arc<LogCallback>) -> napi::Result<()> {
-    xw_napi_log::initialize(development, move |entry| {
+    xw_napi_log::initialize("xiaowei-clipboard", development, move |entry| {
         let status = callback.call(
             NativeLogEntry {
                 level: entry.level,

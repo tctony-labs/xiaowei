@@ -22,13 +22,15 @@ main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来�
 
 文件同步写入，记录时间、级别和来源。开发态记录 debug 及以上，正式包记录 info 及以上；renderer 的 DevTools console 保留浏览器原生行为。
 
-调用方式：main 和 renderer 使用 `console.debug/info/warn/error`；main 初始化时接管 console，renderer 保留浏览器 console。Rust 使用 `log::debug!/info!/warn!/error!`，接收器仅转发 `xiaowei_`、`xw_` 开头的 target。main 在业务初始化前分别调用搜索和剪贴板 napi 包的 `initializeLogging` 安装接收器。文件输出位于 `desktop/src/main/logging.ts`，共享 Rust 日志接收器位于 `crates/xw-napi-log/src/lib.rs`，两个 napi 包各自保留线程安全回调适配。
+调用方式：main 和 renderer 使用 `console.debug/info/warn/error`；main 初始化时接管 console，renderer 保留浏览器 console。Rust 使用 `log::debug!/info!/warn!/error!`，接收器仅转发 `xiaowei_`、`xw_` 开头的 target。main 在业务初始化前分别调用搜索和剪贴板 napi 包的 `initializeLogging` 安装接收器，初始化日志包含业务模块名称：`Native logging initialized: xiaowei-search` / `xiaowei-clipboard`。文件输出位于 `desktop/src/main/logging.ts`，共享 Rust 日志接收器位于 `crates/xw-napi-log/src/lib.rs`，两个 napi 包各自保留线程安全回调适配。
 
 Rust 继续使用 `log` facade，当前在搜索 napi 入口安装接收器，通过有界、非阻塞、弱引用的线程安全回调转发给 main。回调不阻止进程退出，退出或队列满时不能保证尚未传递的日志落盘；主进程已收到的日志同步写入。后续独立 `.node` 模块须分别安装其日志接收器，不能假设跨动态库共享 Rust 全局 logger。
 
 main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获 console、未处理 Promise 拒绝和渲染进程异常退出。浏览器 console-message 提供的是文本，复杂对象的文件表示受 Chromium 格式限制，需要完整结构时显式序列化。业务日志不主动记录搜索词、剪贴板正文或密钥；调用者仍需避免输出敏感内容。
 
 ## Outcome
+
+初始化日志已增加搜索与剪贴板业务模块名称；两个 napi debug 包重建成功，8 项 napi 测试通过（包含模块名称与独立回调验证），确认当前工作区实例归属后已执行 `just rs`。
 
 查询日志的可复用流程已登记为 [inspect-desktop-logs](../../skills/inspect-desktop-logs/SKILL.md)，覆盖文件定位、备份查询、按来源和错误筛选，以及缺失日志的排查边界。
 

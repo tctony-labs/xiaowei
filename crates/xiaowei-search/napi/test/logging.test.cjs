@@ -13,6 +13,6 @@ test("native logs cross the callback bridge and initialization can replace the s
     });
     assert.equal(entry.level, "info");
     assert.match(entry.target, /^xw_napi_log/);
-    assert.equal(entry.message, "Native logging initialized");
+    assert.equal(entry.message, "Native logging initialized: xiaowei-search");
   }
 });
