@@ -20,6 +20,8 @@ main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来�
 
 日志级别按 5 字符宽度左侧补空格，例如 `[ info]`、`[ warn]`、`[error]`。终端日志前缀按级别着色：debug 灰色、info 青色、warn 黄色、error 红色；自动检测 TTY，重定向时不加颜色，文件保持纯文本。renderer 的 DevTools console 继续使用浏览器自身的级别样式。
 
+终端输出使用独立的 Node `Console({ ignoreErrors: true })`，保留 electron-log 的格式化与级别映射。异常日志仍尝试写 console；stdout/stderr 同步或异步写入失败时忽略该输出错误，不再次触发未捕获异常或记录派生错误，文件日志继续正常写入。日志清理失败的兜底报告也使用该 Console，避免回到日志链路。
+
 文件同步写入，记录时间、级别和来源。开发态记录 debug 及以上，正式包记录 info 及以上；renderer 的 DevTools console 保留浏览器原生行为。
 
 调用方式：main 和 renderer 使用 `console.debug/info/warn/error`；main 初始化时接管 console，renderer 保留浏览器 console。Rust 使用 `log::debug!/info!/warn!/error!`，接收器仅转发 `xiaowei_`、`xw_` 开头的 target。main 在业务初始化前分别调用搜索和剪贴板 napi 包的 `initializeLogging` 安装接收器，初始化日志包含业务模块名称：`Native logging initialized: xiaowei-search` / `xiaowei-clipboard`。文件输出位于 `desktop/src/main/logging.ts`，共享 Rust 日志接收器位于 `crates/xw-napi-log/src/lib.rs`，两个 napi 包各自保留线程安全回调适配。
@@ -29,6 +31,8 @@ Rust 继续使用 `log` facade，当前在搜索 napi 入口安装接收器，�
 main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获 console、未处理 Promise 拒绝和渲染进程异常退出。浏览器 console-message 提供的是文本，复杂对象的文件表示受 Chromium 格式限制，需要完整结构时显式序列化。业务日志不主动记录搜索词、剪贴板正文或密钥；调用者仍需避免输出敏感内容。
 
 ## Outcome
+
+修复退出时 console 写入 `EIO` 经未捕获异常监测反复记录、导致日志持续轮转的问题。新增独立 Node 子进程测试覆盖正常终端、同步 `EPIPE` 和异步 `EIO`，验证异常仍尝试输出 console、无派生未捕获异常及重复日志、后续文件写入继续；14 项桌面测试、桌面类型检查和修改文件的 Biome 检查通过。未启动桌面实例，实际终端关闭时的 Electron 退出行为待运行验证。
 
 初始化日志已增加搜索与剪贴板业务模块名称；两个 napi debug 包重建成功，8 项 napi 测试通过（包含模块名称与独立回调验证），确认当前工作区实例归属后已执行 `just rs`。
 

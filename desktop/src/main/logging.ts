@@ -1,10 +1,12 @@
+import { Console } from "node:console";
 import { existsSync, readdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { WebContents } from "electron";
 import log from "electron-log/node";
 
-// Keep the original console method: reporting a file error must not write to the same file again.
-const reportFileError = console.error.bind(console);
+// Ignore sync and async terminal write failures without feeding them back into the logger.
+const terminal = new Console({ stdout: process.stdout, stderr: process.stderr, ignoreErrors: true });
+const reportFileError = terminal.error.bind(terminal);
 
 function localDate(date: Date): string {
   return [
@@ -81,6 +83,10 @@ export function createLoggers(directory: string, development: boolean) {
     logger.transports.file.sync = true;
     logger.transports.file.level = level;
     logger.transports.console.level = level;
+    logger.transports.console.writeFn = ({ message }) => {
+      const method = message.level === "verbose" || message.level === "silly" ? "info" : message.level;
+      terminal[method](...message.data);
+    };
     if (logger.transports.ipc) logger.transports.ipc.level = false;
     logger.transports.remote.level = false;
     const format = `{y}-{m}-{d} {h}:{i}:{s}.{ms} [{paddedLevel}] [${name}] {text}`;

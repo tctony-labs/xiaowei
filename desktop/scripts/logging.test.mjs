@@ -1,10 +1,81 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { attachRendererLogging, createLoggers } from "../src/main/logging.ts";
+
+for (const mode of ["healthy", "sync", "async"]) {
+  test(`console ${mode} writes preserve file logging without uncaught exceptions`, () => {
+    const directory = mkdtempSync(join(tmpdir(), "xiaowei-logs-"));
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `
+            import assert from "node:assert/strict";
+            import { readdirSync, readFileSync } from "node:fs";
+            import { join } from "node:path";
+            import { Writable } from "node:stream";
+            const [mode, directory, moduleUrl] = process.argv.slice(1);
+            const output = { stdout: [], stderr: [] };
+            for (const name of ["stdout", "stderr"]) {
+              const stream = new Writable({
+                write(chunk, encoding, callback) {
+                  output[name].push(chunk.toString());
+                  if (mode === "async") {
+                    setImmediate(() => callback(Object.assign(new Error("write EIO"), { code: "EIO" })));
+                  } else {
+                    callback();
+                  }
+                },
+              });
+              if (mode === "sync") {
+                stream.write = (chunk) => {
+                  output[name].push(chunk.toString());
+                  throw Object.assign(new Error("write EPIPE"), { code: "EPIPE" });
+                };
+              }
+              Object.defineProperty(process, name, { value: stream });
+            }
+            const { createLoggers } = await import(moduleUrl);
+            const { main, renderer } = createLoggers(directory, true);
+            let uncaught = 0;
+            process.on("uncaughtExceptionMonitor", () => { uncaught++; });
+            Object.assign(console, main.functions);
+            console.info("stdout-marker");
+            main.error("uncaughtException", new Error("original-error-marker"));
+            renderer.warn("renderer-marker");
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            main.info("after-failure-marker");
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            assert.equal(uncaught, 0);
+            assert.match(output.stdout.join(""), /stdout-marker/);
+            assert.match(output.stderr.join(""), /original-error-marker/);
+            const text = readdirSync(directory)
+              .map((name) => readFileSync(join(directory, name), "utf8")).join("");
+            for (const marker of ["stdout-marker", "original-error-marker", "renderer-marker", "after-failure-marker"]) {
+              assert.equal(text.split(marker).length - 1, 1);
+            }
+            assert.doesNotMatch(text, /write EIO|write EPIPE/);
+          `,
+          mode,
+          directory,
+          new URL("../src/main/logging.ts", import.meta.url).href,
+        ],
+        { encoding: "utf8", timeout: 5000 },
+      );
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr || `child exited with signal ${result.signal}`);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}
 
 test("main and renderer share one file and console output, with rotation", (context) => {
   context.mock.timers.enable({ apis: ["Date"], now: new Date(2026, 8, 17, 10, 30, 45, 123) });
