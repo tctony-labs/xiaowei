@@ -1,0 +1,5 @@
+{
+  "ts": ["**/*.proto"],
+  "rust": ["**/*.proto"],
+  "go": ["testing/fixture.proto"]
+}

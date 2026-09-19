@@ -8,7 +8,7 @@ prepare:
     shopt -s nullglob
     stamp=".prepare-ts"
     changed=false
-    for file in pnpm-lock.yaml pnpm-workspace.yaml package.json desktop/package.json packages/*/package.json crates/*/napi/package.json; do
+    for file in pnpm-lock.yaml pnpm-workspace.yaml package.json contracts/ts/package.json desktop/package.json packages/*/package.json crates/*/napi/package.json; do
         if [ ! -f "$stamp" ] || [ "$file" -nt "$stamp" ]; then
             changed=true
             break
@@ -74,11 +74,16 @@ storybook:
 server:
     cd server && go run ./cmd/xiaowei-server
 
+# Generate contracts; add other code generation tasks here as needed.
+gen:
+    pnpm contracts:generate
+
 # Format source files explicitly.
 fmt:
     pnpm exec biome check --write .
     cargo fmt --all
     cd server && go fmt ./...
+    cd contracts/go && go fmt ./...
 
 # Check without changing source or the Git index.
 check:
@@ -86,11 +91,14 @@ check:
     pnpm check
     cd server && test -z "$(gofmt -l .)"
     cd server && go vet ./...
+    cd contracts/go && test -z "$(gofmt -l .)"
+    cd contracts/go && go vet ./...
 
 # Run regression tests.
 test:
     cargo test --workspace --locked
     pnpm test
+    pnpm contracts:test
     cd server && go test ./...
 
 # Build desktop bundles and Go server.

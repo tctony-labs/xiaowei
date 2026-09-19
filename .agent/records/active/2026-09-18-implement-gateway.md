@@ -12,7 +12,7 @@
 
 应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
-本事项进入 gateway 通信的实施准备，已编制 Plan 并完成隔离的 Protobuf 适配验证，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。以下设计尚未实现，不代表当前代码行为。
+本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway runtime 与业务迁移设计尚未实现，不代表当前产品行为。
 
 ## How
 
@@ -26,9 +26,9 @@ Electron main 可作为当前多个 `.node` 模块之间的路由中心：原生
 
 ### 接口定义与绑定生成：Protobuf 适配方向
 
-Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成熟的 Protobuf 消息定义与生成工具适配现有传输，不再自研 JSON 类型 DSL，也不引入完整 gRPC 网络运行时或直接接入 Mojo。独立适配验证已完成，正式绑定工具和 Gateway runtime 尚未实现。
+Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成熟的 Protobuf 消息定义与生成工具适配现有传输，不再自研 JSON 类型 DSL，也不引入完整 gRPC 网络运行时或直接接入 Mojo。独立适配验证与 Plan 00 的正式消息／接口描述生成已完成；Gateway 专用绑定和 runtime 尚未实现。
 
-计划使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 使用 prost-build 的 ServiceGenerator 扩展点生成 Gateway method descriptor、typed client／handler adapter。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
+使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 使用 prost-build 的 ServiceGenerator 扩展点生成 Gateway method descriptor、typed client／handler adapter。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
 
 同一份消息定义支持 optional、oneof、数组和嵌套 bytes。验证中 uint64 映射为 TS bigint／Rust u64，bytes 为 Uint8Array／Vec<u8>；现有业务 facade 的字符串 ID 在接入层显式转换，不强制改产品 API。Proto3 optional 表达缺失与默认值，不天然表达缺失／null／值三态；确有需求时在 proto 中显式定义 oneof／NullValue。Protobuf 编解码负责 wire 格式，业务范围、长度、权限和领域校验仍由运行时／handler 负责，不能把生成类型说成完整校验器。
 
@@ -48,11 +48,11 @@ contracts/
   ...                    # 统一的生成配置与工具入口
 ```
 
-Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate，Go 服务端使用 Go module。包名、module path 及具体生成配置在实施时确定。契约工程是共享接口产物，不是第三套 Gateway 实现；Gateway 的 TS／Rust 两包结构保持不变。本地 proto package 与目录均不预设 `v1`；涉及服务端的契约以后再按兼容需求决定版本命名空间。业务目录可以 import common，common 不依赖业务；按实际规模拆文件，不强制 types／service／events 三文件。
+Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate，Go 服务端使用 Go module。包名、module path、消费方式与生成入口已在 Plan 00 确定，见 [契约说明](../../../contracts/README.md)。契约工程是共享接口产物，不是第三套 Gateway 实现；Gateway 的 TS／Rust 两包结构保持不变。本地 proto package 与目录均不预设 `v1`；涉及服务端的契约以后再按兼容需求决定版本命名空间。业务目录可以 import common，common 不依赖业务；按实际规模拆文件，不强制 types／service／events 三文件。
 
 通用 protoc／Protobuf-ES／prost／Go 生成编排归 `contracts/` 管理。`xiaowei-gateway` 只保留 Gateway 特有的 client／handler 绑定适配，消费语言契约中的 service descriptor；不把业务定义写进 Gateway 核心。调用方和服务提供方使用相同契约；如果后续其他 transport 需要专用 stub／server interface，也从同一 proto 生成，不复制消息定义。
 
-正式工具计划提供 `pnpm contracts:generate` 与只读的 `pnpm contracts:check`，产物禁止手改，固定工具版本并检测缺失／过期。napi-rs 继续生成 endpoint／生命周期 API 的 JS 加载器和声明，与业务 PB 绑定分工。开发探针仅验证过 TS／Rust，Go 生成与跨语言往返尚未验证；探针的产物暂不入库，可按其本地 README 重建。
+正式工具已提供 `pnpm contracts:generate`、只读的 `pnpm contracts:check` 和 `pnpm contracts:test`，产物入库且禁止手改，固定工具版本并检测缺失／过期／多余产物。生成检查接入 `just check`，跨语言 codec 测试接入 `just test`。具体工具版本、跨项目 protoc 缓存和平台支持见 [契约说明](../../../contracts/README.md)。napi-rs 继续生成 endpoint／生命周期 API 的 JS 加载器和声明，与业务 PB 绑定分工。早期探针仅验证过 TS／Rust；Plan 00 已完成正式 Go 生成及三语言往返。探针不属于交付内容，正式工具不依赖其目录或产物。
 
 协议兼容遵循 Protobuf 字段编号和版本规则；控制协议版本、route kind 和可接受的接口版本需要运行时明确检查。旧计划的“任意 schema 指纹不同就拒绝”不能直接沿用为 PB 默认策略，正式接入前需区分兼容加字段和破坏性变更。生成漂移检查与运行时兼容检查是两件事。prost 会丢弃 typed decode／encode 后的未知字段，Gateway 中转层必须原样转发 PB 字节，只在实际调用与执行端解码。
 
@@ -180,9 +180,9 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 
 ## Current work
 
-Plan 00–04 的范围均已逐项确认，本轮计划评审完成。实施依赖顺序如下；Protobuf 探针已完成，正式 Gateway 代码仍待开始，后续从 Plan 00 开始实施。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
+Plan 00–04 的范围均已逐项确认。Plan 00 已实现、完成自动验证并经用户确认提交；下一步为 Plan 01。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
 
-0. [契约生成和测试](../../plans/2026-09-18-implement-gateway/00-interface-bindings.md)：范围已确认定稿；仅建立 proto 组织、三语言消息／接口描述生成、生成检查和 codec 测试，不实现 Gateway 绑定。
+0. 契约生成和测试：已完成，Plan 已删除；当前实现与使用方式见 [契约说明](../../../contracts/README.md)，验证结果见 Outcome。未实现 Gateway 绑定。
 1. [Gateway 核心逻辑与测试契约验证](../../plans/2026-09-18-implement-gateway/01-gateway-core.md)：范围已确认定稿；实现 TS／Rust Gateway 的注册、路由、通用调用绑定、请求管理和事件机制，复用 Plan 00 的测试契约验证，不接入真实业务。
 2. [napi 传输适配与联调](../../plans/2026-09-18-implement-gateway/02-native-transport.md)：范围已确认，尚未实施；先验证两个独立 `.node` 之间的调用、事件及关闭行为，再接实际业务。
 3. [响应流](../../plans/2026-09-18-implement-gateway/03-response-streams.md)：范围已确认，尚未实施；实现端到端 pull、取消、资源限制和终态语义。
@@ -293,3 +293,24 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 本次不改变数据库所有权、数据目录、表结构、检索语义、图片／长文本存储或 UI；不处理既有剪贴板差异清单。当前不实现 WS／其他 socket、sidecar、Go 服务运行时或 RN 接入；三语言契约产物与远端连接实现是不同范围。Storage 的 DB／KV／Config 设计与验收由其独立 record 承载；本次不先发布占位的 `storage.*` 业务接口。
 
 关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。完整执行、测试和收尾步骤见各 Plan。
+
+## Outcome
+
+### Plan 00：契约生成和测试
+
+2026-09-19 完成 proto 测试 namespace、TS／Rust／Go 契约包、三语言消息和接口描述生成、产物入库与只读漂移检查。公开入口分别为 `xiaowei-contracts`、`xw-contracts`、`github.com/tctony-labs/xiaowei/contracts/go`；当前只有测试契约，没有生产业务、Gateway 绑定或运行时。长期工具与兼容说明维护在 [契约说明](../../../contracts/README.md)。
+
+正式 protoc 固定为 36.2，与早期探针的 36.0 不同；生成脚本使用校验 SHA-256 后的官方包，缓存位于跨项目共享的 `~/.cache/protoc/36.2/`，不依赖系统 PATH。Protobuf-ES 2.15.0、prost／prost-build 0.14.4、Go plugin／runtime v1.36.6 分别固定。Go 插件按版本共享缓存于 `~/.cache/protoc-gen-go/v1.36.6/bin/protoc-gen-go`，首次安装后原子发布，每次使用前校验版本并通过绝对路径调用；后续生成／检查不再执行 go install，不覆盖全局插件。`contracts/generate.config.json` 分语言选择 proto 入口：TS／Rust 使用 `**/*.proto` 默认全量，Go 当前显式选中 `testing/fixture.proto`，后续按需加入服务端通信契约。通用测试使用独立的 `proto/testing/` 目录和 `testing` package，业务目录保留为 `proto/xiaowei/` 的约定，目前尚无业务 proto。Go 产物统一放在 `go/gen/`，项目内 import 映射从 go.mod 推导，测试 proto 不写死项目路径。生成器从 protoc 描述符递归补入项目内 import，各语言独立生成，空数组可关闭生成，漂移检查同时检测配置缩小后的多余产物。Rust 采用原生 FileDescriptorSet，不在本切片生成 Gateway adapter。当前没有真正共用的消息，因此未创建 common 占位类型。
+
+验证证据：
+
+- `pnpm install --frozen-lockfile` 与 `just check` 通过，包括生成漂移、TS 消费者类型、桌面既有类型、Rust 及 Go 检查。
+- TS 测试执行器固定为 tsx 4.23.13，替换会调用已弃用 module.register() 的 4.20.6；在当前 Node 26 环境使用 `NODE_OPTIONS=--throw-deprecation pnpm contracts:test` 验证通过，未屏蔽弃用警告。
+- `pnpm contracts:test` 通过：TS／Rust／Go 消费者、双向语言组合、Unicode、uint64 最大值及超过 JS 安全整数范围、optional、oneof 显式 null、嵌套 2 MiB bytes、非法 wire、字段编号／reserved、unary／streaming／event 描述一致。
+- 新增未知字段字节在三端可解码；Protobuf-ES／Go 保留，prost typed 往返丢弃。后续 Gateway 中转必须保留原始字节。
+- 测试 namespace 已与业务目录分离；迁移后 `just check` 与 codec 测试通过。临时 `portable_check` 业务目录验证了无 go_package 的跨目录消息引用及 well-known types，生成的 Go 包编译通过；清理临时 fixture 后原有产物字节一致。
+- 分语言选择的三项自动测试通过；临时真实 proto 验证 Go 自动包含 import 依赖、排除没有 go_package 的本地契约。关闭 Go 后 check 只读报告旧产物，generate 清理 Go 产物，TS／Rust 保留；恢复配置与临时 fixture 后原有产物字节一致。
+- Go 插件共享缓存首次安装及复用验证通过：缓存命中后将 PATH 中的 go 替换为必失败的测试入口，generate／check 仍通过；缓存文件 inode、mtime 和摘要及全部生成产物保持不变。
+- 连续两次生成产物字节一致。分别修改及删除 TS、Rust descriptor、Go 产物，六种故障均使 check 失败且不改动故障现场；恢复后 check 通过。
+
+本切片仅在 macOS arm64 验证，不宣称其他平台已经验收；未启动桌面实例，也未涉及现有 napi 包的代码或依赖。Plan 00 已经用户确认。整个 Gateway 事项仍在实施中，Plan 01–04 保留，后续从 Plan 01 继续。

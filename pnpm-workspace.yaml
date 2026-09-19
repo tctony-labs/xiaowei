@@ -1,4 +1,5 @@
 packages:
+  - contracts/ts
   - desktop
   - packages/*
   - crates/*/napi

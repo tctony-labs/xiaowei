@@ -6,7 +6,13 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/pnpm-lock.yaml", "!crates/*/napi/index.js", "!crates/*/napi/index.d.ts"]
+    "includes": [
+      "**",
+      "!**/pnpm-lock.yaml",
+      "!crates/*/napi/index.js",
+      "!crates/*/napi/index.d.ts",
+      "!contracts/ts/src/gen"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
