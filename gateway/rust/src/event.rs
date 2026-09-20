@@ -80,6 +80,8 @@ struct QueueState {
 struct DeliveryQueue {
     state: Mutex<QueueState>,
     sink: Sink,
+    // Publishers and transport callbacks may run on ordinary OS threads.
+    runtime: tokio::runtime::Handle,
 }
 
 impl DeliveryQueue {
@@ -100,7 +102,7 @@ impl DeliveryQueue {
         state.draining = true;
         drop(state);
         let queue = self.clone();
-        tokio::spawn(async move {
+        self.runtime.spawn(async move {
             loop {
                 let payload = {
                     let mut state = queue.state.lock().unwrap();
@@ -256,6 +258,7 @@ impl XwInvokeRegistry {
     {
         context.authorize(name, true)?;
         validate_name(name)?;
+        let runtime = tokio::runtime::Handle::current();
         let mut state = self.state.lock().unwrap();
         let policy = if let Some((_, export)) = state.events.entries.get(name) {
             (export.validate)(filter.as_deref())?;
@@ -275,6 +278,7 @@ impl XwInvokeRegistry {
                 caller: context.caller().into(),
                 persistent,
                 queue: Arc::new(DeliveryQueue {
+                    runtime,
                     state: Mutex::new(QueueState {
                         policy,
                         pending: VecDeque::new(),
@@ -446,6 +450,7 @@ impl RemoteEvents {
     {
         context.authorize(name, true)?;
         validate_name(name)?;
+        let runtime = tokio::runtime::Handle::current();
         let id = {
             let mut state = self.0.lock().unwrap();
             state.next_id += 1;
@@ -460,6 +465,7 @@ impl RemoteEvents {
                     binding: None,
                     generation: 0,
                     queue: Arc::new(DeliveryQueue {
+                        runtime,
                         state: Mutex::new(QueueState {
                             policy: EventBackpressure::Drop,
                             pending: VecDeque::new(),

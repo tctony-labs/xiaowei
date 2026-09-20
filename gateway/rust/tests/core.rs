@@ -351,6 +351,70 @@ async fn typed_filter_is_checked_and_subscriptions_are_authorized() {
 }
 
 #[tokio::test]
+async fn events_can_be_published_from_a_thread_without_a_runtime() {
+    let registry = XwInvokeRegistry::new();
+    let owner = registry
+        .register_owner("owner", vec![], vec![export(EventBackpressure::Ordered)])
+        .unwrap();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let _handle = registry
+        .subscribe(&context(), "testing.Changed", None, false, move |payload| {
+            let tx = tx.clone();
+            async move {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+                tx.send(payload).unwrap();
+            }
+        })
+        .unwrap();
+    std::thread::spawn(move || {
+        assert!(tokio::runtime::Handle::try_current().is_err());
+        for id in 0..3 {
+            registry.publish(&owner, "testing.Changed", changed(id)).unwrap();
+        }
+    })
+    .join()
+    .unwrap();
+    for id in 0..3 {
+        let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv()).await.unwrap();
+        assert_eq!(payload.unwrap(), changed(id));
+    }
+}
+
+#[tokio::test]
+async fn remote_events_can_be_delivered_from_a_thread_without_a_runtime() {
+    use xw_gateway::event::{EventSink, EventTransport, RemoteBinding, RemoteEvents};
+    let events = RemoteEvents::default();
+    let (deliver, mut delivery) = mpsc::unbounded_channel::<EventSink>();
+    let transport: EventTransport = Arc::new(move |_, _, _, sink| {
+        deliver.send(sink).unwrap();
+        Box::pin(async {
+            Ok(RemoteBinding {
+                policy: EventBackpressure::Ordered,
+                close: Arc::new(|| {}),
+            })
+        })
+    });
+    events.set_transport(Some(transport)).await;
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let _handle = events
+        .subscribe(context(), "testing.Changed", None, false, move |payload| {
+            let tx = tx.clone();
+            async move { tx.send(payload).unwrap() }
+        })
+        .await
+        .unwrap();
+    let sink = delivery.recv().await.unwrap();
+    std::thread::spawn(move || {
+        assert!(tokio::runtime::Handle::try_current().is_err());
+        sink(changed(42));
+    })
+    .join()
+    .unwrap();
+    let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv()).await.unwrap();
+    assert_eq!(payload.unwrap(), changed(42));
+}
+
+#[tokio::test]
 async fn ordered_delivery_preserves_bursts_larger_than_legacy_capacity() {
     let registry = XwInvokeRegistry::new();
     let owner = registry

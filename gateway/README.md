@@ -79,6 +79,8 @@ cancel 同步改变终态，再异步等待本地 producer 清理；显式清理
 
 事件必须显式导出，filter 在源 owner 验证并匹配。TS 本地使用 `bindEvent`，远端使用含 `attach` 回调的 event export；中转层不解码 payload 或 filter。Rust 使用 `EventExportRegistration::typed` 和 `RemoteEvents` 的可注入 transport；业务通过 `Client::subscribe` 本地优先订阅。
 
+Rust 本地和远端订阅须在 Tokio runtime 上下文中创建，投递队列保存该 runtime 的 handle；发布事件和 transport delivery 回调可从普通 OS 线程调用（如剪贴板监听线程），sink 始终调度到订阅时的 runtime。该 runtime 须在订阅存续期间保持运行。
+
 每个订阅有自己的队列：Ordered 保留全部待投递事件，不用固定容量静默截断；Coalesce 替换为最后一个待投递状态；Drop 在已有待投递项时丢弃新项。正在执行的 sink 不算待投递项。事件是 best-effort、at-most-once；没有跨来源全序、历史补发或离线 payload 缓存。
 
 普通本地订阅随源 owner 注销清理；显式 persistent 订阅只保留意图，源晚注册或替换后恢复。TS host 负责远端 owner 重新出现时重新 attach；Rust remote transport 替换时先使旧 delivery 闭包失效，再重建 persistent 订阅。transport 接入端须将 persistent 意图交给 host 管理，断开时调用 `set_transport(None)`。无效的晚到 filter 不会收到事件；调用者可关闭并重新订阅修正 filter。
