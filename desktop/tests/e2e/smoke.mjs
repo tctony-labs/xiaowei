@@ -43,4 +43,4 @@ app.once("browser-window-created", (_event, window) => {
   });
 });
 
-await import("../out/main/index.js");
+await import("../../out/main/index.js");

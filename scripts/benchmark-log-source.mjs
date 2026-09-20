@@ -3,8 +3,11 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
+import { fileURLToPath } from "node:url";
 import { resolveConfig } from "electron-vite";
 import { build, createServer } from "vite";
+
+process.chdir(fileURLToPath(new URL("../desktop", import.meta.url)));
 
 // Runs Vite only, never Electron. OS and dependency caches are not cleared.
 const directory = await mkdtemp(join(tmpdir(), "xiaowei-log-benchmark-"));

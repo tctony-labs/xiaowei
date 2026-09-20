@@ -9,7 +9,7 @@ prepare:
     stamp=".prepare-ts"
     changed=false
     for file in pnpm-lock.yaml pnpm-workspace.yaml package.json \
-        contracts/ts/package.json gateway/ts/package.json desktop/package.json \
+        contracts/ts/package.json gateway/ts/package.json gateway/tests/package.json desktop/package.json \
         packages/*/package.json crates/*/napi/package.json; do
         if [ ! -f "$stamp" ] || [ "$file" -nt "$stamp" ]; then
             changed=true

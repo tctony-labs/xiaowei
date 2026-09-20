@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "@babel/parser";
-import { hasSourceLocation, sourceLog } from "@xiaowei/source-log/runtime";
-import { sourceLocationPlugin } from "@xiaowei/source-log/vite";
+import { hasSourceLocation } from "../runtime.ts";
+import { sourceLocationPlugin } from "../vite.ts";
 
-const id = fileURLToPath(new URL("../src/renderer/src/example.tsx", import.meta.url));
+const id = fileURLToPath(new URL("./fixtures/example.tsx", import.meta.url));
 function transform(code, enabled = true, file = id) {
   return sourceLocationPlugin(enabled).transform(code, file);
 }
@@ -33,21 +33,8 @@ test("does not rewrite shadowed console, aliases, dependencies or disabled modul
   assert.equal(transform('const x = "console.info()";'), null);
 });
 
-test("helper preserves format strings, object identity, Error and spread arguments", (context) => {
-  const calls = [];
-  context.mock.method(console, "info", (...args) => calls.push(args));
-  const error = new Error("failure");
-  const object = { count: 2 };
-  sourceLog("info", "desktop/src/main/example.ts:5", "%s %o", "hello", object, error);
-  sourceLog("info", "desktop/src/main/example.ts:6", object, error);
-  assert.deepEqual(calls[0], ["[desktop/src/main/example.ts:5] %s %o", "hello", object, error]);
-  assert.deepEqual(calls[1], ["[desktop/src/main/example.ts:6]", object, error]);
-  assert.equal(hasSourceLocation(calls[0][0]), true);
-  assert.equal(hasSourceLocation("ordinary message (bundle.js:1)"), false);
-});
-
 test("covers workspace packages and rejects external paths and build output", () => {
-  const root = new URL("../../", import.meta.url);
+  const root = new URL("../../../", import.meta.url);
   for (const path of ["packages/utils/src/index.ts", "contracts/ts/src/log.ts", "scripts/task.mjs"]) {
     const result = transform('console.info("workspace");', true, fileURLToPath(new URL(path, root)));
     assert.ok(result.code.includes(`${path}:1`));
@@ -68,8 +55,8 @@ test("covers workspace packages and rejects external paths and build output", ()
 
 test("Vite bundles workspace package sources with their original locations", async () => {
   const { build } = await import("vite");
-  const entry = fileURLToPath(new URL("../src/log-fixture.ts", import.meta.url));
-  const dependency = fileURLToPath(new URL("../../packages/log-fixture/src/index.ts", import.meta.url));
+  const entry = fileURLToPath(new URL("./fixtures/entry.ts", import.meta.url));
+  const dependency = fileURLToPath(new URL("../../../packages/log-fixture/src/index.ts", import.meta.url));
   for (const enabled of [false, true]) {
     const result = await build({
       configFile: false,

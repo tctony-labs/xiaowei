@@ -74,3 +74,5 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 修复 start 切换实例只等待根 pnpm 的漏洞：清理前暂停并快照整个进程树，退出信号发送后等待所有记录 PID（包括独立进程组和已被接管的后代），6 秒后强制终止残留，约 10 秒后仍有残留则取消启动。新增根进程先退出、独立后代延迟退出及忽略 SIGTERM 的真实子进程测试，11 项开发控制测试通过，just 配方解析通过。当前活实例与 PID 文件归属已核对为 prometheus；未停止该实例或冷启动应用，跨工作区实际切换待用户验证。
 
 按开发工具边界整理目录：dev、dev-session、dev-process、dev-output 移至根 scripts，对应控制／进程／输出测试及 Gateway 构建解析测试移至 scripts/tests。增加根 test:tooling 入口并纳入 pnpm test，开发工具依赖在根声明；desktop dev 仅调用根入口，工作目录与 .rs 路径显式指向 desktop。迁移后 17 项工具测试通过，业务测试入口独立保留。
+
+完成工具／产品测试目录整理：移除 desktop/scripts；构建与 benchmark 入口归入根 scripts，桌面模块测试归入 desktop/tests，真实应用冒烟归入 desktop/tests/e2e，Gateway Electron 验收归入 gateway/tests/electron 并声明独立测试依赖。工具解析测试改名为 desktop-source-resolution.test.mjs；共享 source-log 的 Vite/runtime 测试回归包内。调用入口和文档同步，prepare 检测新增测试包清单。17 项工具测试、23 项桌面测试、8 项 source-log 测试及 just check 通过；main/preload 构建、完整 benchmark、Gateway 验收资产构建通过。未执行会启动 Electron 的冒烟或实际 Electron 验收，未修改产品业务逻辑。

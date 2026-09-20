@@ -8,3 +8,9 @@ Rust `tests/core.rs` 保留旧 invoke／event 测试覆盖的注册、typed 参�
 `pnpm gateway:test-native` 由 `native.mjs` 构建两个带测试 feature 的真实 addon，并运行 `ts/test/native/bridge.test.ts`，最后恢复正常构建产物。覆盖本地优先、双向调用、重入、PB 大字节、超时／并发、事件过滤／取消／重连、接入回滚、上下文权限、TSFN throw／reject／队列满、显式关闭和 Worker 环境销毁。测试 feature 使用两个同源生成的 Fixture／PeerFixture service；不读取业务数据，不启动 Electron。
 
 `ts/test/stream.test.ts` 和 `rust/tests/stream.rs` 验证惰性 typed 流、模拟 SSE、单流并发、取消／drop、owner／caller 清理、分阶段可控时钟、配额和主动队列。native 流测试覆盖 TS→Rust、Rust 本地、A→main→B、有序 PB bytes、生产错误、pending open／next 取消、句柄归属及实际 producer 计数归零。`StreamMethod` 的生成漂移检查和两端编译反例验证方法种类与 chunk 类型。
+
+## Electron 集成验收
+
+`electron/` 保存真实 contextBridge 验收脚本及 preload／renderer 测试资产。依赖由本目录的私有 workspace 包 `@xiaowei/gateway-tests` 声明，不再借用 desktop 的依赖。
+
+`pnpm --filter @xiaowei/gateway-tests build:electron` 只构建测试资产并输出临时目录。`electron/run.mjs` 仍需在已有 Electron 主进程的调试会话中导入并调用 `run(directory)`；执行前构建 Gateway dist 和原生 fixture，沿用现有验收流程。它创建隔离测试窗口，结束后清理，不属于 `pnpm test` 自动执行范围。

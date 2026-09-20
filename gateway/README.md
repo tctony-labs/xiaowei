@@ -143,9 +143,9 @@ cargo run -q -p xw-gateway --example generate_business -- search > crates/xiaowe
 
 退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check 直接检查 Gateway 源码类型，main/preload/renderer 的开发与正式 Vite 构建均通过 `source` 条件加载 Gateway 源码，不预构建或改写 dist；Storybook 与验收资源构建同样选择源码入口。main/preload 的 SSR 解析也显式启用该条件。桌面打包内联 TS Gateway 与契约代码，现有两个 `.node` 保持外置并从 ASAR 解包加载。
 
-独立 Node／Electron 验收脚本保持默认 dist 入口，例如 `desktop/scripts/gateway-acceptance/run.mjs`；执行前需运行 `pnpm --filter xiaowei-gateway build`。`gateway/tests/native.mjs` 在运行生产业务联调前已显式构建 dist。
+独立 Node／Electron 验收脚本保持默认 dist 入口，例如 `gateway/tests/electron/run.mjs`；执行前需运行 `pnpm --filter xiaowei-gateway build`。`gateway/tests/native.mjs` 在运行生产业务联调前已显式构建 dist。
 
-`pnpm gateway:test-native` 还会在恢复正常原生构建后验证生产业务 endpoint，使用临时数据库，不触碰用户剪贴板。`desktop/scripts/gateway-acceptance/build.mjs` 仅构建真实 contextBridge 验收资产；`run.mjs` 供现有开发 main 的调试会话调用，创建隔离测试窗口和 fixture host，finally 清理窗口与连接，不是应用启动入口。
+`pnpm gateway:test-native` 还会在恢复正常原生构建后验证生产业务 endpoint，使用临时数据库，不触碰用户剪贴板。`gateway/tests/electron/build.mjs` 仅构建真实 contextBridge 验收资产；`run.mjs` 供现有开发 main 的调试会话调用，创建隔离测试窗口和 fixture host，finally 清理窗口与连接，不是应用启动入口。
 
 业务 service 按能力而非部署模块划分：Search 为通用查询与使用反馈，Launcher 管理查询批次／执行和窗口布局，App 提供图标读取，System 提供主题／网页打开，Clipboard 包含记录与记录资源操作。当前原生搜索 endpoint 承载 Search／App／System.ToggleTheme；main 承载 System.OpenUrl 及 Clipboard 的资源方法，route 无重复注册。具体原则见 [业务契约维护](../contracts/proto/xiaowei/README.md)。
 

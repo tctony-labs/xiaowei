@@ -252,9 +252,6 @@ importers:
         specifier: 5.0.8
         version: 5.0.8(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
-      '@babel/parser':
-        specifier: 7.29.8
-        version: 7.29.8
       '@storybook/react-vite':
         specifier: 10.6.0
         version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.63.2)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@5.5.0)(typescript@5.9.3)(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6))
@@ -294,6 +291,24 @@ importers:
       vite:
         specifier: 7.3.6
         version: 7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6)
+
+  gateway/tests:
+    devDependencies:
+      '@bufbuild/protobuf':
+        specifier: 2.15.0
+        version: 2.15.0
+      electron:
+        specifier: 44.3.0
+        version: 44.3.0(supports-color@7.2.0)
+      vite:
+        specifier: 7.3.6
+        version: 7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../../contracts/ts
+      xiaowei-gateway:
+        specifier: workspace:*
+        version: link:../ts
 
   gateway/ts:
     dependencies:

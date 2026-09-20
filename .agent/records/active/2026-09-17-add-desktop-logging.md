@@ -32,7 +32,7 @@ main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获
 
 ### 源码位置（方案 A）
 
-自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `build-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
+自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `scripts/build-desktop-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
 
 位置格式为 `[desktop/src/main/index.ts:行号]` 或 `[packages/utils/src/index.ts:行号]`，文件路径相对工作区根目录、使用 `/`。调用参数仍交给原 console；首参数为字符串时将位置合并到格式字符串前，保留 `%s`、`%o`、`%c` 等占位符及其参数，其他首参数保持原对象／Error 引用。DevTools 同样显示源码位置前缀，其原生可点击链接仍可能指向包装器或产物。无运行时抓栈或源码映射。
 
@@ -44,7 +44,7 @@ native 接收器保留 target 用于 `xw_` / `xiaowei_` 过滤，额外将可选
 
 React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 `@xiaowei/source-log/babel` 入口，由宿主 Babel 解析和生成代码；沿用原有 RN/Expo preset，在源码转换阶段注入位置。默认根目录为当前工作区，可用 `workspaceRoot` 指定绝对路径；通过 `enabled: false` 或环境变量关闭。修改开关后需重启 Metro 并清理转换缓存。插件不依赖 Electron、不安装 Metro、不改变移动端日志传输和落盘。接入示例及 Metro 对工作区源码的可见性要求见 [共享日志定位包](../../../packages/source-log/README.md)。
 
-性能对比入口：`pnpm --filter @xiaowei/desktop exec node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
+性能对比入口：`node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
 
 ## Outcome
 
@@ -67,3 +67,5 @@ React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 
 ## 后续工作
 
 - 日志上传：后续单独设计和实现，本轮仅提供本地 console 与文件输出。
+
+测试目录整理：原 desktop 的 source-location 测试迁入共享包，拆为 test/vite.test.mjs 和 test/runtime.test.mjs，与既有 Babel 测试统一；应用日志测试位于 desktop/tests/logging.test.mjs。8 项共享包测试及应用日志回归通过，根 scripts/benchmark-log-source.mjs 完整执行通过。

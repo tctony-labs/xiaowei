@@ -37,3 +37,7 @@ Metro 必须能访问工作区共享包和被引用的源码；按未来 RN/Expo
 只转换全局 console 的直接方法调用，跳过局部声明／导入的 console、解构和别名调用、计算属性、可选调用及 `globalThis.console`。关闭后保留原始调用，不自动抓栈。
 
 输出前缀示例：`[packages/utils/src/index.ts:12] 搜索完成`。首参数为字符串时保留格式占位符及后续参数；对象与 Error 仍交给原 console。各平台对复杂对象的最终呈现由其 console 决定。DevTools 的原生链接可能指向包装器，但日志文本包含原始源码位置。桌面收到已有位置前缀时不再追加打包产物位置。
+
+## 测试
+
+`pnpm --filter @xiaowei/source-log test` 执行 `test/vite.test.mjs`、`test/babel.test.mjs` 和 `test/runtime.test.mjs`，分别覆盖适配器转换及运行时参数保留。桌面实际构建配置的包入口解析由根目录 `scripts/tests/desktop-source-resolution.test.mjs` 验证；性能对比单独运行 `node scripts/benchmark-log-source.mjs`，不启动 Electron。

@@ -11,7 +11,11 @@
 | `desktop/src/renderer/` | React、Tailwind CSS Launcher 搜索框；已安装 Zustand |
 | `desktop/resources/logo-clear.png` | 搜索框在明暗主题下共用的透明 Logo |
 | `desktop/resources/logo.png` | 用户提供的原始 Logo，供打包器使用 |
-| `desktop/scripts/smoke.mjs` | 使用真实 Electron 的端到端冒烟入口，不随应用打包 |
+| `scripts/`、`scripts/tests/` | 工作区开发、构建、性能测量工具及其回归测试 |
+| `desktop/tests/*.test.mjs` | 桌面应用模块测试，由 desktop 的 test 命令执行 |
+| `packages/source-log/test/` | 日志源码定位包的 Vite、Babel、runtime 测试 |
+| `gateway/tests/electron/` | Gateway 真实 Electron 环境集成验收，单独显式执行 |
+| `desktop/tests/e2e/smoke.mjs` | 使用真实 Electron 的端到端冒烟入口，不随应用打包 |
 | `server/cmd/xiaowei-server/` | Go 进程入口、监听与信号退出 |
 | `server/internal/httpapi/` | HTTP 路由及测试 |
 | `crates/xiaowei-search/` | 全局搜索核心及 `napi/` npm 入口 |
@@ -63,7 +67,7 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 
 开发终端支持直接按键（无需回车）：`R` 依次关闭 Electron/nodemon 和 Vite，再创建新的开发子进程，重新加载 Vite 配置及插件并启动 Electron；`r` 通过 touch `.rs` 重建 main/preload 并重启 Electron；`h` 显示命令列表，后续命令统一注册在 `dev.mjs` 的命令表中；`Ctrl+C` 退出并恢复终端输入模式。每个终端命令执行前打印分隔线、按键和命令说明，帮助列表从同一命令表生成。重启命令串行执行，退出会取消尚未执行的命令；退出过程重复收到信号时等待同一次清理，不将用户退出误报为重启失败。非 TTY 环境不接管输入，仍保留信号退出与 `.rs` 重启入口。
 
-工作区开发工具位于根目录 `scripts/`，对应回归测试位于 `scripts/tests/`，通过 `pnpm test:tooling` 单独运行，根目录 `pnpm test` 也会执行；desktop 的业务测试入口保持独立。`scripts/dev.mjs` 独占终端输入，`dev-session.mjs` 子进程拥有 Vite 与 nodemon；子进程不读取 stdin，nodemon 与它启动的应用处于独立 POSIX 进程组。退出时向该组发送 SIGTERM，等待整个组消失（包括已被系统接管的后代）；主动停止旧实例（`Ctrl+C`、`R`）期间，仅过滤 pnpm 的 `ELIFECYCLE Command failed.` 和 Electron CLI 的 `exited with signal SIGTERM` 提示，其他日志及错误继续输出；非主动停止期间不做过滤。输出经管道转发时保留 ANSI 颜色，开发入口在终端环境传递 `FORCE_COLOR`，应用日志显式遵循该设置及 `NO_COLOR`；日志文件仍为纯文本。5 秒仍未退出则向该组发送 SIGKILL，不能仅凭 nodemon 退出判断应用已经退出。父进程通过 IPC 请求开发子进程停止，避免 SIGTERM 触发 Vite 自带的立即退出处理；子进程先清理应用进程组，再关闭 Vite，最后断开 IPC 并正常退出。`R` 会等待旧子进程退出后再启动，确保插件模块缓存被清空，并把新的 Vite URL 传给 Electron。Vite 启动失败后可修正配置再按 `R` 重试。修改 `dev.mjs` 本身需要用户重新运行 `just start`；`just start` 显式为后台开发进程保留 stdin。切换实例时先暂停并记录旧实例的整棵进程树，再发送退出信号并等待所有记录的进程消失；6 秒后对残留进程发送 SIGKILL，约 10 秒后仍未清理完成则取消启动，不能仅凭最外层 pnpm 退出继续启动。上述快捷键不执行 Rust 原生模块构建。
+开发态 main/preload 构建入口为 `scripts/build-desktop-main.mjs`，日志定位性能对比入口为 `scripts/benchmark-log-source.mjs`，两者均显式定位 desktop 工作目录。桌面源码解析配置由 `scripts/tests/desktop-source-resolution.test.mjs` 验证。工作区开发工具位于根目录 `scripts/`，对应回归测试位于 `scripts/tests/`，通过 `pnpm test:tooling` 单独运行，根目录 `pnpm test` 也会执行；desktop 的业务测试入口保持独立。`scripts/dev.mjs` 独占终端输入，`dev-session.mjs` 子进程拥有 Vite 与 nodemon；子进程不读取 stdin，nodemon 与它启动的应用处于独立 POSIX 进程组。退出时向该组发送 SIGTERM，等待整个组消失（包括已被系统接管的后代）；主动停止旧实例（`Ctrl+C`、`R`）期间，仅过滤 pnpm 的 `ELIFECYCLE Command failed.` 和 Electron CLI 的 `exited with signal SIGTERM` 提示，其他日志及错误继续输出；非主动停止期间不做过滤。输出经管道转发时保留 ANSI 颜色，开发入口在终端环境传递 `FORCE_COLOR`，应用日志显式遵循该设置及 `NO_COLOR`；日志文件仍为纯文本。5 秒仍未退出则向该组发送 SIGKILL，不能仅凭 nodemon 退出判断应用已经退出。父进程通过 IPC 请求开发子进程停止，避免 SIGTERM 触发 Vite 自带的立即退出处理；子进程先清理应用进程组，再关闭 Vite，最后断开 IPC 并正常退出。`R` 会等待旧子进程退出后再启动，确保插件模块缓存被清空，并把新的 Vite URL 传给 Electron。Vite 启动失败后可修正配置再按 `R` 重试。修改 `dev.mjs` 本身需要用户重新运行 `just start`；`just start` 显式为后台开发进程保留 stdin。切换实例时先暂停并记录旧实例的整棵进程树，再发送退出信号并等待所有记录的进程消失；6 秒后对残留进程发送 SIGKILL，约 10 秒后仍未清理完成则取消启动，不能仅凭最外层 pnpm 退出继续启动。上述快捷键不执行 Rust 原生模块构建。
 
 `just rs` 执行 `touch desktop/.rs`。nodemon 使用 `--legacy-watch` 轮询 `.rs`（默认间隔 100ms），收到变更后停止自己启动的应用，重新执行 main/preload 构建并启动 Electron；编译失败时等待下次 `rs`。Vite 保持运行，实际监听地址通过环境变量传给 Electron。没有运行实例时，`rs` 只更新文件，不启动应用。
 
@@ -97,7 +101,7 @@ pnpm --dir desktop smoke
 验证开发服务器路径可运行：
 
 ```sh
-pnpm --dir desktop exec electron-vite dev --entry scripts/smoke.mjs
+pnpm --dir desktop exec electron-vite dev --entry tests/e2e/smoke.mjs
 ```
 
 ## 进程与资源边界

@@ -1,0 +1,15 @@
+{
+  "name": "@xiaowei/gateway-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:electron": "node electron/build.mjs"
+  },
+  "devDependencies": {
+    "@bufbuild/protobuf": "2.15.0",
+    "electron": "44.3.0",
+    "vite": "7.3.6",
+    "xiaowei-contracts": "workspace:*",
+    "xiaowei-gateway": "workspace:*"
+  }
+}
