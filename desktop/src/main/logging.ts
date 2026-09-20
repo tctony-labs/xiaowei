@@ -3,6 +3,7 @@ import { existsSync, readdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { WebContents } from "electron";
 import log from "electron-log/node";
+import { hasSourceLocation } from "../../../packages/source-log/runtime.ts";
 
 // Ignore sync and async terminal write failures without feeding them back into the logger.
 const terminal = new Console({ stdout: process.stdout, stderr: process.stderr, ignoreErrors: true });
@@ -100,7 +101,9 @@ export function createLoggers(directory: string, development: boolean) {
 export function attachRendererLogging(contents: WebContents, logger: ReturnType<typeof createLoggers>["renderer"]) {
   contents.on("console-message", (event) => {
     const level = event.level === "warning" ? "warn" : event.level;
-    logger[level](`${event.message} (${event.sourceId}:${event.lineNumber})`);
+    logger[level](
+      hasSourceLocation(event.message) ? event.message : `${event.message} (${event.sourceId}:${event.lineNumber})`,
+    );
   });
   contents.on("render-process-gone", (_event, details) => {
     logger.error("Renderer process exited", details);

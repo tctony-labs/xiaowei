@@ -82,4 +82,6 @@ export interface NativeLogEntry {
   level: string
   target: string
   message: string
+  file?: string
+  line?: number
 }

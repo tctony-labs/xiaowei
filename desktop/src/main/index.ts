@@ -44,10 +44,21 @@ if (!app.requestSingleInstanceLock()) {
   Object.assign(console, logs.main.functions);
   process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
   process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));
-  const nativeLog = ({ level, target, message }: { level: string; target: string; message: string }) => {
+  const nativeLog = ({
+    level,
+    message,
+    file,
+    line,
+  }: {
+    level: string;
+    message: string;
+    file?: string | null;
+    line?: number | null;
+  }) => {
     const method = level === "trace" ? "debug" : level;
     if (method === "error" || method === "warn" || method === "info" || method === "debug") {
-      logs.main[method](`[rust:${target}] ${message}`);
+      const location = file ? `[${file}${line == null ? "" : `:${line}`}] ` : "";
+      logs.main[method](`${location}${message}`);
     }
   };
   initializeLogging(!app.isPackaged, nativeLog);

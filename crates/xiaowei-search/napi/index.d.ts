@@ -38,6 +38,8 @@ export interface NativeLogEntry {
   level: string
   target: string
   message: string
+  file?: string
+  line?: number
 }
 
 export declare function readAppIcon(path: string): Promise<Buffer | null>

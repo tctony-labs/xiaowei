@@ -175,3 +175,29 @@ test("daily files retain 15 local calendar days and clean up on startup and the 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("injected renderer locations are recorded once without the bundle suffix", () => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-source-logs-"));
+  try {
+    const { renderer } = createLoggers(directory, true);
+    const output = [];
+    renderer.transports.console.writeFn = ({ message }) => output.push(message);
+    const contents = new EventEmitter();
+    attachRendererLogging(contents, renderer);
+    contents.emit("console-message", {
+      level: "info",
+      message: "[packages/utils/src/index.ts:10] located-marker",
+      sourceId: "file:///app.asar/out/renderer/assets/index.js",
+      lineNumber: 1,
+    });
+    const text = readdirSync(directory)
+      .map((name) => readFileSync(join(directory, name), "utf8"))
+      .join("");
+    assert.equal(text.split("located-marker").length - 1, 1);
+    assert.match(text, /\[packages\/utils\/src\/index.ts:10\]/);
+    assert.doesNotMatch(text, /app.asar/);
+    assert.equal(output.length, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

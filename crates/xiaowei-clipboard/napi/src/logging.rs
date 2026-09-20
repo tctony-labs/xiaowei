@@ -7,6 +7,8 @@ pub struct NativeLogEntry {
     pub level: String,
     pub target: String,
     pub message: String,
+    pub file: Option<String>,
+    pub line: Option<u32>,
 }
 
 type LogCallback = ThreadsafeFunction<NativeLogEntry, (), NativeLogEntry, napi::Status, false, true, 1024>;
@@ -19,6 +21,8 @@ pub fn initialize_logging(development: bool, callback: Arc<LogCallback>) -> napi
                 level: entry.level,
                 target: entry.target,
                 message: entry.message,
+                file: entry.file,
+                line: entry.line,
             },
             ThreadsafeFunctionCallMode::NonBlocking,
         );
