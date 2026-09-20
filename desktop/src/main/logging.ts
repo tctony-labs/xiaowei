@@ -84,6 +84,11 @@ export function createLoggers(directory: string, development: boolean) {
     logger.transports.file.sync = true;
     logger.transports.file.level = level;
     logger.transports.console.level = level;
+    if (process.env.FORCE_COLOR !== undefined) {
+      logger.transports.console.useStyles = process.env.FORCE_COLOR !== "0";
+    } else if (process.env.NO_COLOR !== undefined) {
+      logger.transports.console.useStyles = false;
+    }
     logger.transports.console.writeFn = ({ message }) => {
       const method = message.level === "verbose" || message.level === "silly" ? "info" : message.level;
       terminal[method](...message.data);

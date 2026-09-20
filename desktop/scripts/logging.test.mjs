@@ -201,3 +201,43 @@ test("injected renderer locations are recorded once without the bundle suffix", 
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+for (const forceColor of [undefined, "0", "1"]) {
+  test(`piped logs honor FORCE_COLOR=${forceColor} without coloring log files`, () => {
+    const directory = mkdtempSync(join(tmpdir(), "xiaowei-log-colors-"));
+    const env = { ...process.env };
+    delete env.FORCE_COLOR;
+    delete env.NO_COLOR;
+    if (forceColor !== undefined) env.FORCE_COLOR = forceColor;
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          `
+          const { createLoggers } = await import(process.argv[1]);
+          const { main, renderer } = createLoggers(process.argv[2], true);
+          main.info('main-color-marker');
+          renderer.warn('renderer-color-marker');
+        `,
+          new URL("../src/main/logging.ts", import.meta.url).href,
+          directory,
+        ],
+        { env, encoding: "utf8" },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      for (const output of [result.stdout, result.stderr]) {
+        assert.equal(output.includes("\x1b["), forceColor === "1", output);
+      }
+      const fileLog = readdirSync(directory)
+        .map((name) => readFileSync(join(directory, name), "utf8"))
+        .join("");
+      assert.match(fileLog, /main-color-marker/);
+      assert.match(fileLog, /renderer-color-marker/);
+      assert.equal(fileLog.includes("\x1b["), false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}

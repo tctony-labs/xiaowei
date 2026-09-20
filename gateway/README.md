@@ -4,7 +4,7 @@ Gateway 提供环境无关的 TS host／client、Rust 本地 registry、PB 调�
 
 ## 工程入口
 
-- `ts/`：`xiaowei-gateway`，默认入口提供 client、协议和契约绑定；`xiaowei-gateway/host` 提供宿主管理 API。默认入口和 host 不依赖 Node／Electron；`xiaowei-gateway/native` 是使用 Node Buffer 的原生接入入口。编译到 `dist/` 后通过 runtime／types exports 使用。
+- `ts/`：`xiaowei-gateway`，默认入口提供 client、协议和契约绑定；`xiaowei-gateway/host` 提供宿主管理 API。默认入口和 host 不依赖 Node／Electron；`xiaowei-gateway/native` 是使用 Node Buffer 的原生接入入口。类型入口直接指向 `src/`；桌面 Vite/Storybook 使用 `source` 条件加载源码，普通 Node 的默认 import 入口仍指向 `dist/`，需要先构建。
 - `rust/`：`xw-gateway`，默认纯 Rust，不依赖 napi／Tauri；显式开启 `napi` feature 才编译原生适配。宿主持有 registry 的 `Arc`，向业务注入带调用上下文的 `Client`。
 - `tests/wire-cases.json`：两端共同使用的有效／无效 PB 样例。`ts/test/transport.test.ts` 启动测试 CLI 验证 TS→Rust 和 Rust→TS；该 CLI 不是产品 sidecar，JSON 数字数组仅用于测试进程的帧封装。
 
@@ -141,7 +141,9 @@ cargo run -q -p xw-gateway --example generate_business -- clipboard > crates/xia
 cargo run -q -p xw-gateway --example generate_business -- search > crates/xiaowei-search/src/gateway_bindings.rs
 ```
 
-退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check／build 及开发 main 重建会先生成 Gateway 的 dist；桌面打包内联 TS Gateway 与契约代码，现有两个 `.node` 保持外置并从 ASAR 解包加载。
+退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check 直接检查 Gateway 源码类型，main/preload/renderer 的开发与正式 Vite 构建均通过 `source` 条件加载 Gateway 源码，不预构建或改写 dist；Storybook 与验收资源构建同样选择源码入口。main/preload 的 SSR 解析也显式启用该条件。桌面打包内联 TS Gateway 与契约代码，现有两个 `.node` 保持外置并从 ASAR 解包加载。
+
+独立 Node／Electron 验收脚本保持默认 dist 入口，例如 `desktop/scripts/gateway-acceptance/run.mjs`；执行前需运行 `pnpm --filter xiaowei-gateway build`。`gateway/tests/native.mjs` 在运行生产业务联调前已显式构建 dist。
 
 `pnpm gateway:test-native` 还会在恢复正常原生构建后验证生产业务 endpoint，使用临时数据库，不触碰用户剪贴板。`desktop/scripts/gateway-acceptance/build.mjs` 仅构建真实 contextBridge 验收资产；`run.mjs` 供现有开发 main 的调试会话调用，创建隔离测试窗口和 fixture host，finally 清理窗口与连接，不是应用启动入口。
 

@@ -423,3 +423,5 @@ open 前登记取消，native 同步准备请求后才派发异步任务；每�
 
 
 合并 develop 的应用图标缓存时，保留一周磁盘有效期与 Gateway 惰性资源 URL：协议处理器先查磁盘，缺失或过期再通过 App.ReadIcon 提取。已完成的读取不常驻 main 内存，避免绕过磁盘过期检查；缓存继续跨应用启动复用。
+
+2026-09-20 调整桌面 Gateway 加载：package exports 增加 `source` 条件，类型入口直接指向源码；桌面 main/preload（含 SSR）、renderer、Storybook 与验收资源构建选择源码，移除 desktop check/build/dev:main 的 Gateway 预构建。普通 Node import 保留 dist，现有原生业务联调和 Electron 验收脚本仍可使用。无修改的 r 不再重写 renderer 共享依赖，真实源码修改仍触发 HMR；长期说明见 Gateway README。未采用内容比较后写入的构建包装器，保持独立 Node 场景原有 tsc 构建。`just check` 与 38 项桌面测试通过；实际 Vite 构建的模块清单确认三个目标均包含 Gateway src、没有 Gateway dist，默认 Node 解析仍指向 dist。

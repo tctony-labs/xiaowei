@@ -28,29 +28,52 @@ start:
     #!/usr/bin/env bash
     set -e
     just prepare
-    pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
+    pnpm --silent --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
     pidfile="$HOME/.xiaowei/.dev.pid"
     mkdir -p "$(dirname "$pidfile")"
     kill_tree() {
-        local pid=$1
-        for child in $(pgrep -P "$pid" 2>/dev/null); do
-            kill_tree "$child"
+        local pid i alive
+        local -a dev_pids=()
+        collect_tree() {
+            local pid=$1 child
+            # Freeze supervisors before collecting children so they cannot respawn them.
+            kill -STOP "$pid" 2>/dev/null || return 0
+            dev_pids+=("$pid")
+            for child in $(pgrep -P "$pid" 2>/dev/null); do
+                collect_tree "$child"
+            done
+        }
+        collect_tree "$1"
+        for ((i=${#dev_pids[@]}-1; i>=0; i--)); do
+            pid=${dev_pids[$i]}
+            kill -TERM "$pid" 2>/dev/null || true
+            kill -CONT "$pid" 2>/dev/null || true
         done
-        kill "$pid" 2>/dev/null || true
+        # Keep the snapshot: descendants may be reparented after their supervisor exits.
+        for ((i=0; i<50; i++)); do
+            alive=false
+            for pid in "${dev_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then alive=true; fi
+            done
+            if [ "$alive" = false ]; then return 0; fi
+            if [ "$i" -eq 30 ]; then
+                for pid in "${dev_pids[@]}"; do
+                    kill -KILL "$pid" 2>/dev/null || true
+                done
+            fi
+            sleep 0.2
+        done
+        echo "Previous dev processes did not exit; cancelling startup." >&2
+        return 1
     }
     if [ -f "$pidfile" ]; then
         old_pid=$(cat "$pidfile")
         if [[ "$old_pid" =~ ^[1-9][0-9]*$ ]] && kill -0 "$old_pid" 2>/dev/null; then
             echo "Killing previous dev instance (pid $old_pid)..."
             kill_tree "$old_pid"
-            for i in $(seq 1 10); do
-                kill -0 "$old_pid" 2>/dev/null || break
-                sleep 0.2
-            done
-            kill -9 "$old_pid" 2>/dev/null || true
         fi
     fi
-    pnpm --dir desktop dev &
+    pnpm --dir desktop dev <&0 &
     child_pid=$!
     echo "$child_pid" > "$pidfile"
     cleanup() {

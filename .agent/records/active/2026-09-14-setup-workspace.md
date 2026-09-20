@@ -54,3 +54,23 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 按用户要求移除 `--legacy-watch`，恢复 nodemon 默认文件事件监听；此前轮询方案不再采用。开发监听参数由用户下次运行 `start` 时加载。
 
 默认 FSEvents 监听失效的根因尚未确定；按用户决定，当前恢复 `--legacy-watch`，使用默认 100ms 轮询作为临时方案。此决定取代上面的恢复默认监听决定。
+
+2026-09-20 增加开发终端命令：`R` 重建整个 Vite/Electron 开发子进程，`r` 复用 `.rs` → nodemon 重启 Electron，`h` 从命令表生成帮助。父进程持有终端输入，后台启动显式保留 stdin；完整重启等待旧进程关闭，清除插件模块缓存。保留 Agent 使用的 `just rs`。实现说明见工作区文档。新增测试覆盖大小写命令、帮助、串行重启、退出中断、raw mode 恢复、非 TTY 与失败后重试；未启动新应用实例，真实终端按键及应用重启需用户重新执行 `just start` 后验收。
+
+随后排查“启动日志缺失”：旧 Electron 的 cwd 属于当前工作区，但父 pnpm 已被系统接管，新实例因单实例锁立即退出。清理该旧实例并通过已运行的 nodemon 执行 `just rs` 后，17:36:07 的 main/renderer 启动日志恢复。`just start` 的进程树清理增加先暂停父进程的步骤，防止停止子进程时监控器重新拉起应用；新增真实的自动重启监控器／子进程回归测试，验证清理后无替代子进程遗留，6 项开发入口测试通过。未冷启动应用。
+
+继续修复 `R` 重启的遗留进程问题：nodemon 的 close 不代表 pnpm/Electron 后代已退出，之前仅等待 nodemon 的判断不足。现在以独立 POSIX 进程组启动 nodemon，退出时等待整个组消失，超时升级信号；旧开发进程异常退出时取消本次自动启动。使用真实 nodemon → pnpm → 测试应用验证延迟退出及忽略 SIGTERM 两种情形，确认后代和进程组均消失后才返回，9 项开发入口测试通过。实际 Electron 的连续 R 重启仍需加载新入口后验收。
+
+修复 Ctrl+C 停止时的 Vite CSP 错误：Vite 的 `waitForSuccessfulPing` 在 HMR 断开后创建 blob SharedWorker，此前缺少 worker-src，回退到 script-src 后被阻止。仅开发态 CSP 新增 `worker-src 'self' blob:`，正式 HTML 保持原 CSP。
+
+补齐终端操作标记与退出验证：`R/r/h/Ctrl+C` 执行前输出分隔线和命令说明；用户退出与重启失败分开处理，退出期间重复信号共用同一次清理，避免未捕获异常。新增完整开发会话测试，以真实 nodemon/pnpm 和测试应用执行两次 R 再 Ctrl+C，验证旧进程组消失且无遗留应用；12 项开发入口测试通过。清理了之前未采用独立进程组的旧遗留 Electron。开发态 CSP 与正式构建 CSP 已分别检查，只有开发态允许 blob worker。
+
+定位并修复正常 R 重启返回 143：Vite 自带 SIGTERM 监听器会主动结束其宿主进程，与自定义异步清理竞争。正常停止改为父子进程 IPC 请求，不再给 Vite 宿主发送 SIGTERM；先等待应用进程组退出，再关闭 Vite、断开 IPC，正常返回 0。完整会话测试改用真实 Vite（此前以替身代替，未覆盖该冲突），结合真实 nodemon/pnpm 和测试应用验证连续两次 R、Ctrl+C、进程组清空及无重启错误。当前未检测到实际开发/Electron 残留实例；实际 Electron 仍需用户启动后验收。
+
+主动停止输出处理：保留进程组退出机制，仅在 Ctrl+C / R 主动停止旧实例期间过滤 pnpm 的 `ELIFECYCLE Command failed.` 和 macOS Electron CLI 的 `exited with signal SIGTERM` 两类预期提示；运行期同类输出、退出阶段其他错误及应用清理日志继续输出。新增输出过滤回归测试，并在真实 Vite/nodemon/pnpm 与测试应用的连续 R / Ctrl+C 测试中验证过滤及进程清理，14 项相关测试通过；未冷启动 Electron，实际终端表现待用户重新启动开发入口后验证。
+
+修复退出提示过滤引入的日志颜色回归：管道使 electron-log 的 isTTY 检测失效，且该库不读取 FORCE_COLOR。日志配置现显式将 FORCE_COLOR 转为布尔 useStyles，并支持 NO_COLOR；输出过滤保留原始 ANSI，文件日志仍无颜色控制码。管道模式下默认／禁用／启用颜色、main/renderer 输出及过滤转发共 12 项相关测试通过，桌面 TypeScript 检查通过；未启动 Electron。
+
+修复 start 切换实例只等待根 pnpm 的漏洞：清理前暂停并快照整个进程树，退出信号发送后等待所有记录 PID（包括独立进程组和已被接管的后代），6 秒后强制终止残留，约 10 秒后仍有残留则取消启动。新增根进程先退出、独立后代延迟退出及忽略 SIGTERM 的真实子进程测试，11 项开发控制测试通过，just 配方解析通过。当前活实例与 PID 文件归属已核对为 prometheus；未停止该实例或冷启动应用，跨工作区实际切换待用户验证。
+
+按开发工具边界整理目录：dev、dev-session、dev-process、dev-output 移至根 scripts，对应控制／进程／输出测试及 Gateway 构建解析测试移至 scripts/tests。增加根 test:tooling 入口并纳入 pnpm test，开发工具依赖在根声明；desktop dev 仅调用根入口，工作目录与 .rs 路径显式指向 desktop。迁移后 17 项工具测试通过，业务测试入口独立保留。

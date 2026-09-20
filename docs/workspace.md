@@ -61,6 +61,10 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 
 `pnpm install --frozen-lockfile` 只按锁文件安装，清单与锁文件不一致时失败。`Already up to date` 表示依赖已经齐全。`pnpm approve-builds` 用于决定哪些依赖可以执行安装脚本，不是项目编译命令；无需对当前忽略的 `electron-winstaller` 全选放行。以后启用 Squirrel.Windows 打包时再评估该脚本。
 
+开发终端支持直接按键（无需回车）：`R` 依次关闭 Electron/nodemon 和 Vite，再创建新的开发子进程，重新加载 Vite 配置及插件并启动 Electron；`r` 通过 touch `.rs` 重建 main/preload 并重启 Electron；`h` 显示命令列表，后续命令统一注册在 `dev.mjs` 的命令表中；`Ctrl+C` 退出并恢复终端输入模式。每个终端命令执行前打印分隔线、按键和命令说明，帮助列表从同一命令表生成。重启命令串行执行，退出会取消尚未执行的命令；退出过程重复收到信号时等待同一次清理，不将用户退出误报为重启失败。非 TTY 环境不接管输入，仍保留信号退出与 `.rs` 重启入口。
+
+工作区开发工具位于根目录 `scripts/`，对应回归测试位于 `scripts/tests/`，通过 `pnpm test:tooling` 单独运行，根目录 `pnpm test` 也会执行；desktop 的业务测试入口保持独立。`scripts/dev.mjs` 独占终端输入，`dev-session.mjs` 子进程拥有 Vite 与 nodemon；子进程不读取 stdin，nodemon 与它启动的应用处于独立 POSIX 进程组。退出时向该组发送 SIGTERM，等待整个组消失（包括已被系统接管的后代）；主动停止旧实例（`Ctrl+C`、`R`）期间，仅过滤 pnpm 的 `ELIFECYCLE Command failed.` 和 Electron CLI 的 `exited with signal SIGTERM` 提示，其他日志及错误继续输出；非主动停止期间不做过滤。输出经管道转发时保留 ANSI 颜色，开发入口在终端环境传递 `FORCE_COLOR`，应用日志显式遵循该设置及 `NO_COLOR`；日志文件仍为纯文本。5 秒仍未退出则向该组发送 SIGKILL，不能仅凭 nodemon 退出判断应用已经退出。父进程通过 IPC 请求开发子进程停止，避免 SIGTERM 触发 Vite 自带的立即退出处理；子进程先清理应用进程组，再关闭 Vite，最后断开 IPC 并正常退出。`R` 会等待旧子进程退出后再启动，确保插件模块缓存被清空，并把新的 Vite URL 传给 Electron。Vite 启动失败后可修正配置再按 `R` 重试。修改 `dev.mjs` 本身需要用户重新运行 `just start`；`just start` 显式为后台开发进程保留 stdin。切换实例时先暂停并记录旧实例的整棵进程树，再发送退出信号并等待所有记录的进程消失；6 秒后对残留进程发送 SIGKILL，约 10 秒后仍未清理完成则取消启动，不能仅凭最外层 pnpm 退出继续启动。上述快捷键不执行 Rust 原生模块构建。
+
 `just rs` 执行 `touch desktop/.rs`。nodemon 使用 `--legacy-watch` 轮询 `.rs`（默认间隔 100ms），收到变更后停止自己启动的应用，重新执行 main/preload 构建并启动 Electron；编译失败时等待下次 `rs`。Vite 保持运行，实际监听地址通过环境变量传给 Electron。没有运行实例时，`rs` 只更新文件，不启动应用。
 
 ## 检查与构建
@@ -98,7 +102,7 @@ pnpm --dir desktop exec electron-vite dev --entry scripts/smoke.mjs
 
 ## 进程与资源边界
 
-所有工作区通过 `just start` 共用一个开发实例入口，PID 文件与旧 `xiaowei-next` 共用。切换工作区启动时会停止旧实例；启动脚本退出时清理自己拥有的进程树，仅当 PID 文件仍指向自己时删除文件。冷启动由用户操作；Agent 必须先确认当前工作区有活实例，才能执行 `just rs`。
+所有工作区通过 `just start` 共用一个开发实例入口，PID 文件与旧 `xiaowei-next` 共用。切换工作区启动时会停止旧实例；启动脚本退出时清理自己拥有的进程树；清理时先暂停每层父进程，停止其子进程后再发送终止信号并恢复父进程，避免 nodemon 在清理途中重新拉起应用。仅当 PID 文件仍指向自己时删除文件。冷启动由用户操作；Agent 必须先确认当前工作区有活实例，才能执行 `just rs`。
 
 应用标识是 `com.tctony.xiaowei`，在 `desktop/electron-builder.json` 中用于打包。开发与打包统一使用系统应用数据目录下的 `com.tctony.xiaowei/` 作为 userData，不按工作区或 tag 隔离。Electron 单实例锁作用于同一个 userData；跨工作区停止旧实例由 `just start` 的全局 PID 流程负责。
 
@@ -150,4 +154,6 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和两个既有 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
 
-桌面 check、build 和开发 main 重建先构建 Gateway dist；electron-vite 内联 Gateway／契约的 JS，原生模块仍外置。修改 Rust 后仍须先重建对应 napi 包，再重启已有桌面实例；`just rs` 不负责 Rust 编译。
+桌面 check 直接检查 Gateway 源码类型；桌面 Vite（包括 main/preload 的 SSR）、Storybook 和验收资源构建通过 `source` 条件加载 Gateway 源码，不再预构建 dist。因此无改动的 `r` 不会因重写 Gateway 产物触发 renderer HMR；真实 Gateway 源码修改仍可触发 renderer HMR。默认 Node 消费仍使用 dist，并需独立构建。electron-vite 内联 Gateway／契约代码，原生模块仍外置。修改 Rust 后仍须先重建对应 napi 包，再重启已有桌面实例；`just rs` 不负责 Rust 编译。
+
+开发态 HTML 的 CSP 额外允许 `worker-src 'self' blob:`，供 Vite 在 HMR 连接断开后创建 SharedWorker 等待服务恢复，避免停止／重启时产生 CSP 错误。该设置仅由 `apply: "serve"` 的插件注入，正式构建不添加此权限。

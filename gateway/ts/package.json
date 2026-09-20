@@ -5,31 +5,38 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
+      "source": "./src/index.ts",
       "import": "./dist/index.js"
     },
     "./host": {
-      "types": "./dist/core/registry.d.ts",
+      "types": "./src/core/registry.ts",
+      "source": "./src/core/registry.ts",
       "import": "./dist/core/registry.js"
     },
     "./protocol": {
-      "types": "./dist/core/protocol.d.ts",
+      "types": "./src/core/protocol.ts",
+      "source": "./src/core/protocol.ts",
       "import": "./dist/core/protocol.js"
     },
     "./native": {
-      "types": "./dist/main/native.d.ts",
+      "types": "./src/main/native.ts",
+      "source": "./src/main/native.ts",
       "import": "./dist/main/native.js"
     },
     "./electron": {
-      "types": "./dist/main/electron.d.ts",
+      "types": "./src/main/electron.ts",
+      "source": "./src/main/electron.ts",
       "import": "./dist/main/electron.js"
     },
     "./preload": {
-      "types": "./dist/preload/index.d.ts",
+      "types": "./src/preload/index.ts",
+      "source": "./src/preload/index.ts",
       "import": "./dist/preload/index.js"
     },
     "./renderer": {
-      "types": "./dist/renderer/index.d.ts",
+      "types": "./src/renderer/index.ts",
+      "source": "./src/renderer/index.ts",
       "import": "./dist/renderer/index.js"
     }
   },

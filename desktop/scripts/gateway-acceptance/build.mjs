@@ -3,12 +3,13 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "vite";
+import { build, defaultClientConditions } from "vite";
 
 const directory = await mkdtemp(join(tmpdir(), "xiaowei-gateway-acceptance-"));
 for (const target of ["preload", "renderer"]) {
   await build({
     configFile: false,
+    resolve: { conditions: ["source", ...defaultClientConditions] },
     logLevel: "warn",
     build: {
       outDir: directory,
