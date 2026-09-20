@@ -8,8 +8,8 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { runDevelopment } from "../dev.mjs";
-import { stopProcessGroup } from "../dev-process.mjs";
+import { runDevelopment } from "./dev.mjs";
+import { stopProcessGroup } from "./dev-process.mjs";
 
 const require = createRequire(import.meta.url);
 for (const stubborn of [false, true]) {
@@ -92,7 +92,7 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
     import { spawn } from 'node:child_process';
     import { writeFileSync } from 'node:fs';
     import { createServer } from ${JSON.stringify(import.meta.resolve("vite"))};
-    import { runSession } from ${JSON.stringify(new URL("../dev-session.mjs", import.meta.url).href)};
+    import { runSession } from ${JSON.stringify(new URL("./dev-session.mjs", import.meta.url).href)};
     runSession({
       createRenderer: () => createServer({
         configFile: false, logLevel: 'silent',

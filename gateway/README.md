@@ -122,7 +122,7 @@ pnpm gateway:test-native
 
 测试脚本退出前总会重新执行两个包的正常 `build:debug`，生成正式 `.node`、JS 加载器及声明。源码中的 napi 注解决定公开类型，生成声明不手改；TS 类型检查同时验证两个生成 endpoint 类型与 NativeEndpoint 接口兼容。
 
-修改原生源码后须完成上述构建，并按工作区运行实例规则执行 `just rs`，已加载的 `.node` 不会自动替换。`just test` 运行常规核心／业务回归；`pnpm gateway:test-native` 是需要构建测试 feature 的独立联调入口。
+修改原生源码后，已有实例可按工作区运行实例规则执行 `just rs`，共用构建入口会先增量构建所有 napi 包再重启；无实例时须单独完成上述构建。已加载的 `.node` 不会自动替换。`just test` 运行常规核心／业务回归；`pnpm gateway:test-native` 是需要构建测试 feature 的独立联调入口。
 
 ## Electron 与业务接入
 

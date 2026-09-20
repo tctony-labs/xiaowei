@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
-import { forwardOutput } from "../dev-output.mjs";
+import { forwardOutput } from "./dev-output.mjs";
 
 const electron = "/project/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron";
 const notices = `[ELIFECYCLE] Command failed.\n${electron} exited with signal SIGTERM\n`;

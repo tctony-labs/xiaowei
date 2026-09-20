@@ -16,7 +16,7 @@
     "contracts:check": "node contracts/generate.mjs --check",
     "contracts:test": "node contracts/tests/codec.mjs",
     "gateway:test-native": "node gateway/tests/native.mjs",
-    "test:tooling": "node --test scripts/tests/*.test.mjs"
+    "test:tooling": "node --test scripts/dev/*.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

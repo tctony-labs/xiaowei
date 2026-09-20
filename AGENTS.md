@@ -27,7 +27,7 @@
 - `just start` 使用全局 `~/.xiaowei/.dev.pid`，会停止其中记录的旧开发实例及其子进程，再启动当前工作区；可能影响其他工作区，与旧 `xiaowei-next` 共用此 PID 文件。
 - 冷启动由用户执行。Agent 不运行 `just start`、`pnpm dev`、直接 Electron 启动或冒烟脚本等会创建应用实例的入口。
 - 重启前先检查活进程，通过进程命令中的绝对路径、cwd 和父子进程关系确认 Electron 与开发监听进程属于当前工作区。不能只凭 `.rs`、PID 文件、端口或应用名称判断实例存活及归属。
-- 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 构建并重启。
+- 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 依次构建所有 napi 包、main/preload 并重启；构建失败不启动 Electron。
 - 没有实例时，告知用户当前没有实例及待验证事项，等待用户启动；不要自行冷启动或操作其他工作区进程。
 
 ## 手写代码的排版与可读性
@@ -47,8 +47,8 @@
 
 - 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。搜索包执行 `pnpm --filter xiaowei-search build:debug`，剪贴板包执行 `pnpm --filter xiaowei-clipboard build:debug`；修改共享 `xw-napi-log` 时两者都需重建。以后新增模块执行对应包的构建命令。
 - `cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
-- 构建成功后，按上面的运行实例规则确认当前工作区实例归属，再执行 `just rs`，让 Electron 加载新模块；已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
-- 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 本身不编译 Rust，不新增自动监听或自动重启机制。
+- 有运行实例时，按上面的运行实例规则确认归属后可直接执行 `just rs`，由共用构建入口完成 napi 增量构建并重启；必须确认构建成功且 Electron 加载新模块。已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
+- 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 通过已有 nodemon 流程触发 napi 构建，不新增 Rust 源码自动监听或自动重启机制。
 
 ## UI 开发
 

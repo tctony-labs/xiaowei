@@ -76,3 +76,11 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 按开发工具边界整理目录：dev、dev-session、dev-process、dev-output 移至根 scripts，对应控制／进程／输出测试及 Gateway 构建解析测试移至 scripts/tests。增加根 test:tooling 入口并纳入 pnpm test，开发工具依赖在根声明；desktop dev 仅调用根入口，工作目录与 .rs 路径显式指向 desktop。迁移后 17 项工具测试通过，业务测试入口独立保留。
 
 完成工具／产品测试目录整理：移除 desktop/scripts；构建与 benchmark 入口归入根 scripts，桌面模块测试归入 desktop/tests，真实应用冒烟归入 desktop/tests/e2e，Gateway Electron 验收归入 gateway/tests/electron 并声明独立测试依赖。工具解析测试改名为 desktop-source-resolution.test.mjs；共享 source-log 的 Vite/runtime 测试回归包内。调用入口和文档同步，prepare 检测新增测试包清单。17 项工具测试、23 项桌面测试、8 项 source-log 测试及 just check 通过；main/preload 构建、完整 benchmark、Gateway 验收资产构建通过。未执行会启动 Electron 的冒烟或实际 Electron 验收，未修改产品业务逻辑。
+
+补齐开发重启的原生构建：共用 `build-desktop-main.mjs` 在 main/preload 前依次执行所有 napi 包的 debug 增量构建，覆盖 `just rs`、终端 `r`／`R` 与应用内 `rs`；构建失败即退出，不加载旧原生产物。移除 `just start` 的重复预构建，首次启动和重启统一通过共用入口，每个 napi 包只构建一次；首次构建失败时旧实例已停止，新 Electron 不会启动。已验证两个 napi 包及 main/preload 构建成功、注入原生构建失败时保留退出码并跳过后续构建；当前工作区执行 `just rs` 后，两份 `.node` 的更新时间晚于 `.rs`，Electron PID 更新且原生日志、剪贴板监听和搜索初始化正常。当前行为与无实例边界已同步工作区文档及 AGENTS.md。
+
+开发调用链集中到 `scripts/dev/`：迁移 dev、session、process、output、桌面构建与原生构建脚本，原生构建脚本改名 `build-napi.mjs`；四个工具测试与目标模块并排放置，移除空的 `scripts/tests/`。同步 desktop、两个 napi 包、test:tooling 的入口与文档引用；保留 benchmark 和 pre-commit 在 scripts 根目录。17 项工具测试通过（源码解析测试需先生成 Gateway dist），新路径下两个 napi 包及 main/preload 构建、Biome 和差异检查通过。验证期间已观察到当前工作区运行新路径下的 `scripts/dev/dev-session.mjs` 和 `dev:main`，Electron、剪贴板监听及搜索初始化正常。
+
+切换实例优先 graceful shutdown：`just start` 直接启动 `node scripts/dev/dev.mjs`，使全局 PID 指向退出协调进程。原来的后台 pnpm 命令让 `$!` 指向包装进程，退出依赖其信号转发和等待行为；直接运行 Node 后可将 SIGTERM 交给 dev.mjs，可靠进入已有的 stop／IPC 流程。session 的工作目录由 dev.mjs 显式设置，不依赖 pnpm 的 `--dir`。清理先记录进程树并只向根进程发送 SIGTERM，复用 Ctrl+C 的 stop／IPC 流程，最多等待 6 秒；残留进程才进入冻结、逐层 SIGTERM 与超时 SIGKILL 的兜底流程，保留对旧入口及被接管后代的清理能力。新增真实子进程回归，验证 dev 控制进程收到信号后通过 IPC 等待 session 正常退出，session 未收到提前终止信号。18 项工具测试、just 配方解析、Bash 语法及差异检查通过；未切换或冷启动实际桌面实例，新启动入口由用户下次执行 `just start` 加载。
+
+补齐外部停止的终端提示：此前 SIGTERM／SIGINT 直接调用 stop，只有 Ctrl+C 按键打印退出标记，切换工作区时旧终端缺少解释。现在外部信号先打印信号名和停止提示，正常清理完成后打印退出完成；重复信号不重复标记，不推断信号发送方工作区。20 项工具测试通过，覆盖非 TTY 的两种信号、重复信号及真实控制进程的 IPC 清理与提示顺序，Biome 和差异检查通过。未启动或停止其他工作区实例；dev 控制进程需用户重新执行 just start 后加载新提示。Chromium network service 提示保留，现有证据不足以单独确定其终止来源。

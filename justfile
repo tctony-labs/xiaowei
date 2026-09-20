@@ -28,11 +28,12 @@ start:
     #!/usr/bin/env bash
     set -e
     just prepare
-    pnpm --silent --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
     pidfile="$HOME/.xiaowei/.dev.pid"
     mkdir -p "$(dirname "$pidfile")"
     kill_tree() {
         local pid i alive
+        local root_pid=$1
+        local -a graceful_pids=()
         local -a dev_pids=()
         collect_tree() {
             local pid=$1 child
@@ -43,7 +44,29 @@ start:
                 collect_tree "$child"
             done
         }
-        collect_tree "$1"
+        snapshot_tree() {
+            local pid=$1 child
+            kill -0 "$pid" 2>/dev/null || return 0
+            graceful_pids+=("$pid")
+            for child in $(pgrep -P "$pid" 2>/dev/null); do
+                snapshot_tree "$child"
+            done
+        }
+        snapshot_tree "$root_pid"
+        # Let dev.mjs use the same IPC shutdown path as terminal Ctrl+C.
+        kill -TERM "$root_pid" 2>/dev/null || true
+        for ((i=0; i<30; i++)); do
+            alive=false
+            for pid in "${graceful_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then alive=true; fi
+            done
+            if [ "$alive" = false ]; then return 0; fi
+            sleep 0.2
+        done
+        # Legacy launchers or stalled shutdowns still need descendant cleanup.
+        for pid in "${graceful_pids[@]}"; do
+            collect_tree "$pid"
+        done
         for ((i=${#dev_pids[@]}-1; i>=0; i--)); do
             pid=${dev_pids[$i]}
             kill -TERM "$pid" 2>/dev/null || true
@@ -73,7 +96,9 @@ start:
             kill_tree "$old_pid"
         fi
     fi
-    pnpm --dir desktop dev <&0 &
+    # Record dev.mjs itself: with pnpm dev, $! identifies pnpm, not the shutdown coordinator.
+    # Send SIGTERM directly to dev.mjs so it uses the Ctrl+C IPC cleanup path without pnpm forwarding.
+    node scripts/dev/dev.mjs <&0 &
     child_pid=$!
     echo "$child_pid" > "$pidfile"
     cleanup() {

@@ -4,7 +4,7 @@ import { EventEmitter, once } from "node:events";
 import { readFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
-import { runDevelopment } from "../dev.mjs";
+import { runDevelopment } from "./dev.mjs";
 
 function fixture(context, tty = true) {
   const input = new PassThrough();
@@ -212,7 +212,7 @@ test("signal termination during Ctrl+C shutdown does not reject or print a resta
 
 for (const stubborn of [false, true]) {
   test(`start waits for detached descendants after the root exits (ignores TERM: ${stubborn})`, {
-    timeout: 15000,
+    timeout: 25000,
   }, async () => {
     const appCode = `
       process.on('SIGTERM', () => { ${stubborn ? "" : "setTimeout(() => process.exit(0), 600);"} });
@@ -262,5 +262,76 @@ for (const stubborn of [false, true]) {
       }
       await closed;
     }
+  });
+}
+
+test("start cleanup lets dev.mjs finish its IPC shutdown before signalling descendants", {
+  timeout: 5000,
+}, async () => {
+  const sessionCode = `
+    process.on('SIGTERM', () => {
+      console.log('unexpected-session-signal');
+      process.exit(1);
+    });
+    process.on('message', (message) => {
+      if (message.type !== 'stop') return;
+      setTimeout(() => {
+        console.log('session-closed-gracefully');
+        process.disconnect();
+      }, 150);
+    });
+    console.log('ready');
+  `;
+  const controllerCode = `
+    import { spawn } from 'node:child_process';
+    import { runDevelopment } from ${JSON.stringify(new URL("./dev.mjs", import.meta.url).href)};
+    runDevelopment({
+      startSession: () => spawn(process.execPath, ['-e', ${JSON.stringify(sessionCode)}], {
+        stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+      }),
+    });
+  `;
+  const controller = spawn(process.execPath, ["--input-type=module", "-e", controllerCode], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const closed = once(controller, "close");
+  let output = "";
+  controller.stdout.on("data", (chunk) => {
+    output += chunk;
+  });
+  try {
+    await once(controller.stdout, "data");
+    const justfile = readFileSync(new URL("../../justfile", import.meta.url), "utf8");
+    const start = justfile.indexOf("    kill_tree() {");
+    const end = justfile.indexOf("\n    }", start) + "\n    }".length;
+    const cleanup = justfile.slice(start, end);
+    const cleaner = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1"`, "cleanup", String(controller.pid)]);
+    const [code] = await once(cleaner, "close");
+    assert.equal(code, 0);
+    assert.deepEqual(await closed, [0, null]);
+    assert.match(output, /\[SIGTERM\].*收到外部停止请求/);
+    assert.match(output, /session-closed-gracefully/);
+    assert.ok(output.indexOf("session-closed-gracefully") < output.indexOf("开发实例已退出。"));
+    assert.doesNotMatch(output, /unexpected-session-signal/);
+  } finally {
+    controller.kill("SIGKILL");
+    await closed;
+  }
+});
+
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  test(`${signal} announces external shutdown once and reports completion after cleanup`, async (context) => {
+    const state = fixture(context, false);
+    state.signals.emit(signal);
+    state.signals.emit(signal);
+    await Promise.resolve();
+    assert.equal(state.output.filter((line) => line.includes("收到外部停止请求")).length, 1);
+    assert.ok(state.output[0].includes(`[${signal}]`));
+    assert.ok(!state.output.includes("开发实例已退出。"));
+    assert.deepEqual(state.children[0].kills, ["SIGTERM"]);
+    state.children[0].finish();
+    await state.controller.stop();
+    assert.equal(state.output.at(-1), "开发实例已退出。");
+    assert.equal(state.signals.listenerCount(signal), 0);
   });
 }

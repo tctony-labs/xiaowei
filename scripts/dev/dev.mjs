@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { styleText } from "node:util";
 
 function touchRestart() {
-  closeSync(openSync(new URL("../desktop/.rs", import.meta.url), "a"));
+  closeSync(openSync(new URL("../../desktop/.rs", import.meta.url), "a"));
   const now = new Date();
-  utimesSync(new URL("../desktop/.rs", import.meta.url), now, now);
+  utimesSync(new URL("../../desktop/.rs", import.meta.url), now, now);
 }
 
 export function runDevelopment({
@@ -16,7 +16,7 @@ export function runDevelopment({
   print = console.log,
   startSession = () =>
     spawn(process.execPath, [fileURLToPath(new URL("./dev-session.mjs", import.meta.url))], {
-      cwd: fileURLToPath(new URL("../desktop", import.meta.url)),
+      cwd: fileURLToPath(new URL("../../desktop", import.meta.url)),
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     }),
   restartElectron = touchRestart,
@@ -69,7 +69,7 @@ export function runDevelopment({
   }
   function onKey(text, key) {
     if (key?.ctrl && key.name === "c") {
-      announce("Ctrl+C", "退出开发实例");
+      if (!stopping) announce("Ctrl+C", "退出开发实例");
       void stop();
       return;
     }
@@ -99,20 +99,32 @@ export function runDevelopment({
     }
     stopped = queue
       .then(stopSession)
+      .then(() => print("开发实例已退出。"))
       .catch((error) => {
         print(`开发进程退出失败：${error.message}`);
         signals.exitCode = 1;
       })
       .finally(() => {
-        signals.off("SIGINT", stop);
-        signals.off("SIGTERM", stop);
+        signals.off("SIGINT", onInterrupt);
+        signals.off("SIGTERM", onTerminate);
       });
     return stopped;
   }
 
+  function stopFromSignal(signal) {
+    if (!stopping) announce(signal, "收到外部停止请求，正在退出开发实例");
+    void stop();
+  }
+  function onInterrupt() {
+    stopFromSignal("SIGINT");
+  }
+  function onTerminate() {
+    stopFromSignal("SIGTERM");
+  }
+
   start();
-  signals.on("SIGINT", stop);
-  signals.on("SIGTERM", stop);
+  signals.on("SIGINT", onInterrupt);
+  signals.on("SIGTERM", onTerminate);
   if (input.isTTY) {
     emitKeypressEvents(input);
     input.setRawMode(true);

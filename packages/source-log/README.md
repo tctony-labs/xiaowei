@@ -40,4 +40,4 @@ Metro 必须能访问工作区共享包和被引用的源码；按未来 RN/Expo
 
 ## 测试
 
-`pnpm --filter @xiaowei/source-log test` 执行 `test/vite.test.mjs`、`test/babel.test.mjs` 和 `test/runtime.test.mjs`，分别覆盖适配器转换及运行时参数保留。桌面实际构建配置的包入口解析由根目录 `scripts/tests/desktop-source-resolution.test.mjs` 验证；性能对比单独运行 `node scripts/benchmark-log-source.mjs`，不启动 Electron。
+`pnpm --filter @xiaowei/source-log test` 执行 `test/vite.test.mjs`、`test/babel.test.mjs` 和 `test/runtime.test.mjs`，分别覆盖适配器转换及运行时参数保留。桌面实际构建配置的包入口解析由根目录 `scripts/dev/desktop-source-resolution.test.mjs` 验证；性能对比单独运行 `node scripts/benchmark-log-source.mjs`，不启动 Electron。

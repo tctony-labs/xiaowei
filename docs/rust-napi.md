@@ -72,13 +72,13 @@ napi 入口包提供以下脚本：
 }
 ```
 
-`just start` 在安装依赖后、停止旧开发实例前，依次执行所有 `crates/*/napi` 包的 `build:debug`，确保新工作区具备本机原生产物；构建失败时退出并保留旧实例。
+开发态 napi 构建统一在 `scripts/dev/build-desktop-main.mjs` 中执行。`just start` 准备依赖并停止旧开发实例后，由 nodemon 调用该入口，依次执行所有 `crates/*/napi` 包的 `build:debug`，每个包只构建一次；构建失败时不启动新 Electron，修复后可执行 `just rs` 重试。
 
 `pnpm -r build` 执行各工作区包的 `build` 脚本；Electron 声明 `workspace:*` 依赖后，pnpm 按依赖关系先构建 napi 包，再构建桌面端。
 
 `napi build` 默认仅编译当前机器的平台和架构；`--platform` 表示在文件名中加入平台标识，例如 `xiaowei-search.darwin-arm64.node`，不表示编译所有平台。其他目标需要显式指定 target 并准备对应工具链，通常由 CI 分别构建。
 
-修改 Rust 源码、内部依赖 crate、napi 接口或相关依赖与构建配置后，Agent 必须主动执行受影响包的原生构建；当前搜索包执行 `pnpm --filter xiaowei-search build:debug`。`cargo check` 或单测不能代替生成最新 `.node`、JS 入口和类型声明。构建成功后，再按 [AGENTS.md 的运行实例与原生模块规则](../AGENTS.md) 检查归属并执行 `just rs`；没有实例时完成构建并告知用户待验证内容。已加载的原生模块不会随文件更新或前端 HMR 自动替换。`just rs` 仍只触发桌面重建与重启，不附带 Rust 编译，也不新增自动监听机制。
+修改 Rust 源码、内部依赖 crate、napi 接口或相关依赖与构建配置后，Agent 必须主动执行受影响包的原生构建；当前搜索包执行 `pnpm --filter xiaowei-search build:debug`。`cargo check` 或单测不能代替生成最新 `.node`、JS 入口和类型声明。有运行实例时，可按 [AGENTS.md 的运行实例与原生模块规则](../AGENTS.md) 检查归属后直接执行 `just rs`，由共用构建入口完成所有 napi 包的 debug 增量构建；没有实例时单独完成构建并告知用户待验证内容。已加载的原生模块不会随文件更新或前端 HMR 自动替换。`just rs`、终端 `r`／`R` 和应用内 `rs` 最终均通过 `scripts/dev/build-desktop-main.mjs`，先构建 napi，再构建 main/preload，全部成功后启动 Electron；失败时等待修复后再次重启。不新增 Rust 源码自动监听机制。
 
 ## 本地加载与多平台发布
 

@@ -6,12 +6,12 @@
   "main": "out/main/index.js",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "dev": "node ../scripts/dev.mjs",
+    "dev": "node ../scripts/dev/dev.mjs",
     "build": "electron-vite build",
     "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
     "smoke": "electron tests/e2e/smoke.mjs",
     "package": "electron-builder --dir",
-    "dev:main": "node ../scripts/build-desktop-main.mjs && electron .",
+    "dev:main": "node ../scripts/dev/build-desktop-main.mjs && electron .",
     "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open --disable-telemetry",
     "storybook:build": "storybook build --disable-telemetry"
   },
