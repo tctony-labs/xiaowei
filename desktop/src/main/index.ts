@@ -1,17 +1,22 @@
 import { mkdirSync } from "node:fs";
+import { open, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, globalShortcut, ipcMain, screen } from "electron";
+import { app, BrowserWindow, clipboard, globalShortcut, protocol, screen, shell } from "electron";
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
-import type { LauncherMode } from "../shared/launcher-api";
-import { registerClipboard } from "./clipboard";
+import type { LauncherMode } from "../shared/launcher-model";
+import { createApplicationGateway } from "./gateway";
 import { activateLauncherShortcut, positionLauncher, showLauncherWindow } from "./launcher-shortcuts";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { createPaths } from "./paths";
-import { registerSearch } from "./search";
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: "xiaowei-icon", privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
+let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
 let launcher: BrowserWindow | undefined;
 let quitting = false;
 let launcherMode: LauncherMode = "search";
@@ -59,24 +64,27 @@ if (!app.requestSingleInstanceLock()) {
   app
     .whenReady()
     .then(async () => {
-      ipcMain.on("launcher:hide", (event) => {
-        if (event.sender === launcher?.webContents && event.senderFrame === event.sender.mainFrame) {
-          launcher.hide();
-        }
-      });
-      ipcMain.on("launcher:resetPosition", (event) => {
-        if (event.sender === launcher?.webContents && event.senderFrame === event.sender.mainFrame) {
-          resetLauncherPosition();
-          showLauncher();
-        }
-      });
-      registerSearch(
-        () => launcher,
-        (mode) => {
+      gateway = await createApplicationGateway(paths.clipboard, {
+        development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
+        platform: process.platform,
+        openPath: (path) => shell.openPath(path),
+        openExternal: (url) => shell.openExternal(url),
+        writeText: (text) => clipboard.writeText(text),
+        async restart() {
+          const path = join(app.getAppPath(), ".rs");
+          const file = await open(path, "a");
+          await file.close();
+          const now = new Date();
+          await utimes(path, now, now);
+        },
+        resetPosition(window) {
+          const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+          positionLauncher(window, workArea);
+        },
+        modeChanged(mode) {
           launcherMode = mode;
         },
-      );
-      registerClipboard(paths.clipboard, () => launcher);
+      });
       await createWindow();
       const searchWarmup = setTimeout(() => {
         void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));
@@ -90,7 +98,9 @@ if (!app.requestSingleInstanceLock()) {
       for (const [shortcut, mode] of shortcuts) {
         if (
           !globalShortcut.register(shortcut, () => {
-            launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher);
+            launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher, (window, mode) =>
+              gateway?.opened(window, mode),
+            );
           })
         ) {
           console.error(`Launcher shortcut unavailable: ${shortcut} (${mode})`);
@@ -126,6 +136,7 @@ async function createWindow(): Promise<void> {
     },
   });
   launcher = window;
+  gateway?.register(window);
   window.once("ready-to-show", () => {
     resetLauncherPosition();
     showLauncher();
@@ -159,7 +170,15 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => {
+let shutdownComplete = false;
+app.on("before-quit", (event) => {
   quitting = true;
+  if (gateway && !shutdownComplete) {
+    event.preventDefault();
+    void gateway.close().finally(() => {
+      shutdownComplete = true;
+      app.quit();
+    });
+  }
 });
 app.on("will-quit", () => globalShortcut.unregisterAll());

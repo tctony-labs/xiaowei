@@ -12,13 +12,13 @@
 
 应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
-本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的核心／绑定、Plan 02 的 napi 适配／联调和 Plan 03 的响应流，尚未迁移产品业务通信。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；Electron 适配和业务迁移尚未实现，不代表当前产品行为。
+本事项已实现三语言契约工程、核心／绑定、napi 适配、响应流及 Electron 业务通信迁移。搜索、剪贴板和窗口操作已经通过 Gateway 接入，直接使用生成的 typed client 并保留既有 UI 行为。自动化及真实 Electron 边界验证已通过；用户完成本轮试用后反馈整体未发现问题，本轮人工验收收尾。Storage 保持独立事项。当前契约见 [契约说明](../../../contracts/README.md)，运行时和 Electron 接入见 [Gateway](../../../gateway/README.md)。
 
 ## How
 
 ### 当前核心实现
 
-已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、环境无关 TS host 和两个真实 `.node` 间的 TSFN／Promise 链路已通过测试；下文涉及 Electron 和产品业务迁移的部分仍为后续设计。
+已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
 
 ### 统一服务调用
 
@@ -34,7 +34,7 @@ Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成�
 
 使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 的 Gateway 生成适配消费契约包的原生 FileDescriptorSet 和 PB full name→Rust message 路径映射，生成 typed Method 常量，再复用通用 client／handler adapter。该适配不修改 contracts 的消息生成器。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
 
-同一份消息定义支持 optional、oneof、数组和嵌套 bytes。验证中 uint64 映射为 TS bigint／Rust u64，bytes 为 Uint8Array／Vec<u8>；现有业务 facade 的字符串 ID 在接入层显式转换，不强制改产品 API。Proto3 optional 表达缺失与默认值，不天然表达缺失／null／值三态；确有需求时在 proto 中显式定义 oneof／NullValue。Protobuf 编解码负责 wire 格式，业务范围、长度、权限和领域校验仍由运行时／handler 负责，不能把生成类型说成完整校验器。
+同一份消息定义支持 optional、oneof、数组和嵌套 bytes。验证中 uint64 映射为 TS bigint／Rust u64，bytes 为 Uint8Array／Vec<u8>；展示模型的字符串 ID 在页面边界显式转换，通信调用直接使用生成消息。Proto3 optional 表达缺失与默认值，不天然表达缺失／null／值三态；确有需求时在 proto 中显式定义 oneof／NullValue。Protobuf 编解码负责 wire 格式，业务范围、长度、权限和领域校验仍由运行时／handler 负责，不能把生成类型说成完整校验器。
 
 Event 的最低契约就是稳定名称和对应 message。验证使用 message 的 Protobuf full name 作为名称，TS descriptor 与 Rust `prost::Name` 同源生成，无须额外 RPC 或手写两份常量；只有显式导出的 message 才成为事件。需要 filter 时再定义 filter message。若保留 `clipboard.changed` 等业务别名，应从同一份元数据生成映射，具体采用 proto option 还是同源注册描述在正式接入前确定；不为命名再造一套类型 DSL。
 
@@ -72,7 +72,7 @@ Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate�
 
 ### Stream 契约与传输
 
-当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../gateway/README.md#响应流)。下面保留设计边界；产品 renderer 生命周期接线仍待 Electron 接入。
+当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../gateway/README.md#响应流)。下面保留设计边界；renderer 的导航、销毁和取消生命周期已接入。
 
 LLM SSE 场景使用请求绑定的响应 stream；SSE 解析和结构化增量由业务提供，Gateway 不理解 HTTP／SSE。此次实现通用流能力及模拟生产者，不新增实际 LLM provider、网络请求或聊天 UI。
 
@@ -117,7 +117,7 @@ Renderer: xwInvoke("clipboard.list", { query })
     → gateway → 剪贴板 owner → 业务 handler
 ```
 
-上图为业务调用示例，存储实现不属于 Gateway。现有 `window.clipboardHistory` 等强类型业务封装可以保留，内部改用 gateway，组件不直接处理传输细节。
+上图为业务调用示例，存储实现不属于 Gateway。只保留 `window.gateway` 通用 transport，页面使用 lazy getter 获得生成的 typed service client；不保留 `window.clipboardHistory` 等旧 facade。
 
 renderer 使用 `xwOn("clipboard.changed", handler)` 订阅事件。gateway 按实际窗口／frame 投递，在取消订阅、窗口销毁或重载时清理订阅。沿用旧版 best-effort、at-most-once 事件语义；可靠恢复通过重新读取快照或专门的历史接口实现。
 
@@ -184,21 +184,13 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 - 先合并为单一 `.node` 以共享内存状态：并非引入 gateway 的必要条件，当前不要求这样调整。
 - 按 renderer／backend 设置固定权限边界：不采用。当前自有业务默认可信，未来不可信调用方按 IPC 白名单授权。
 
-## Current work
+## 工程接入
 
-Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已确认提交（`40a9308`）；Plan 02 已确认提交（`a874998`）；Plan 03 已完成实施及自动验证，待用户 review 后进入 Plan 04。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
-
-0. 契约生成和测试：已完成，Plan 已删除；当前实现与使用方式见 [契约说明](../../../contracts/README.md)，验证结果见 Outcome。未实现 Gateway 绑定。
-1. Gateway 核心逻辑与测试契约验证：已完成，Plan 已删除；当前接口见 [Gateway 核心](../../../gateway/README.md)，验证结果见 Outcome，已获用户确认。
-2. napi 传输适配与联调：已完成，Plan 已删除；两个独立 `.node` 的调用、事件、关闭与环境销毁已验证，尚未迁移业务通信，已获用户确认。
-3. 响应流：已完成，Plan 已删除；端到端 pull、取消、资源限制、终态及真实双 native 测试通过，待用户 review。
-4. [Electron 与业务迁移](../../plans/2026-09-18-implement-gateway/04-electron-integration.md)：范围已确认，尚未实施；renderer／main／Rust 使用同一 gateway，保留当前强类型业务 API 和 UI 行为。
-
-### 本次实施边界与拟定结构
+### 工程结构
 
 - `gateway/ts`：App 直接使用的 TS 包，提供绑定生成工具、协议、main registry／路由和调用／事件／stream 客户端封装；核心与默认入口不依赖 Electron，Electron 适配通过子路径入口隔离。按现有命名约定使用 `xiaowei-`。
 - `gateway/rust`：Rust registry、typed handler、事件、stream 与传输接口；默认仅编译纯 Rust 核心，不依赖 Tauri、napi 或 Electron。napi 适配放在该 crate 的可选 `napi` feature 中，不另建 `xw-napi-gateway` 包。
-- `desktop/src/main/gateway.ts` 和 `desktop/src/preload/gateway.ts`：调用 Gateway 的环境适配入口，负责应用实例装配与生命周期接线；业务 facade 保持原有调用签名。
+- `desktop/src/main/gateway.ts` 和 `desktop/src/preload/gateway.ts`：调用 Gateway 的环境适配入口，负责应用实例装配与生命周期接线；业务调用改用生成消息与 lazy service getter。
 
 Gateway 集中放在根目录 `gateway/`：`ts/` 是 npm 包，`rust/` 是 Cargo crate，`tests/` 保存跨语言集成测试，`README.md` 说明工程入口。pnpm 与 Cargo workspace 分别显式纳入 `gateway/ts`、`gateway/rust`；包名保持不变。通用契约及生成工具仍在根目录 `contracts/`。后续可增加 `gateway/go/`，本次只记录，不创建目录、占位包或 Go Gateway 实现；Plan 00 的 Go 契约生成范围保持不变。
 
@@ -245,9 +237,9 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 
 每个业务模块显式持有自己的 registry 和服务实例，通过 `Arc` 传给其 napi endpoint；不能在业务层与适配层各创建一份 registry。搜索和剪贴板的 registry 分别位于各自 `.node`，不是进程共享 static。main 则只创建一个 host，接入这些 endpoint；renderer 只创建 client。
 
-### 对外接入契约（拟定）
+### 对外接入契约
 
-以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 已实现，Electron 接入仍待 Plan 04。
+以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 和 Electron 接入均已实现。
 
 | 接口 | 调用方与作用 |
 | --- | --- |
@@ -256,7 +248,7 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 | TS host `registerOwner` | main 注册窗口操作、文件打开等 TS handler |
 | TS host `attachNative` | 读取 endpoint manifest，检查全局重名，绑定宿主分配的 owner 上下文和异步 transport；全部成功后对外发布 |
 | TS host `call`／`subscribe`／`stream` | main 本地业务或 Electron ingress 调用统一入口，按 owner 分发 |
-| TS client `invoke`／`on`／`stream`（由契约生成类型） | renderer 使用 route 和 payload；原有强类型业务 facade 在内部调用它们 |
+| TS client `invoke`／`on`／`stream`（由契约生成类型） | renderer 使用生成的 typed service client；不保留旧业务 facade |
 | owner handle `close` | 停止接入并注销该实例的 routes／events／订阅，释放回调和在途请求；幂等，不能注销后续重新接入的新实例 |
 
 各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/native` 的适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
@@ -298,7 +290,7 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 
 本次不改变数据库所有权、数据目录、表结构、检索语义、图片／长文本存储或 UI；不处理既有剪贴板差异清单。当前不实现 WS／其他 socket、sidecar、Go 服务运行时或 RN 接入；三语言契约产物与远端连接实现是不同范围。Storage 的 DB／KV／Config 设计与验收由其独立 record 承载；本次不先发布占位的 `storage.*` 业务接口。
 
-关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。完整执行、测试和收尾步骤见各 Plan。
+关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。实际验证结果见 Outcome，已完成的 Plan 已删除。
 
 ## Outcome
 
@@ -380,4 +372,51 @@ open 前登记取消，native 同步准备请求后才派发异步任务；每�
 - 可控 Tokio 时钟验证远端 owner 允许的 70 秒生产等待与 2 MiB chunk 成功，不被 unary 30 秒或默认 stream producer idle 错杀。
 - `just check`、`just test` 及 Gateway TS build 通过；最后状态机／policy 调整后重跑对应 Rust 核心、TS check／build 和真实 native 联调通过。两个正常 napi 包均已重新构建，正式声明不含 fixture 探针。
 
-本切片仅在 macOS arm64 验证。正常构建后的当前工作区桌面实例已按归属检查后执行 `just rs`；Electron 从 PID 92115 变为 33412，lsof 确认加载当前工作区两个正常 `.node`；没有冷启动。产品尚未接入 Gateway stream，不能把原生测试或桌面模块重载描述为 renderer 全链路验收。Plan 03 已删除，保留 Plan 04；本切片改动未提交，待用户 review。
+本切片仅在 macOS arm64 验证。正常构建后的当前工作区桌面实例已按归属检查后执行 `just rs`；Electron 从 PID 92115 变为 33412，lsof 确认加载当前工作区两个正常 `.node`；没有冷启动。产品尚未接入 Gateway stream，不能把原生测试或桌面模块重载描述为 renderer 全链路验收。Plan 03 已删除，保留 Plan 04；本切片已获用户确认并提交为 `c90959f`。
+
+
+### Electron 与现有业务通信迁移
+
+2026-09-20 实现 Electron main／preload／renderer 适配和生产业务契约。main 持有唯一 GatewayHost，搜索 endpoint 与原预热共享 SearchService，剪贴板 endpoint 使用既有 Service；未移动或重建用户数据库。业务 route 使用 PB full name，无独立手写 alias 表。初版曾保留 facade，后按用户要求删除（见下节）；搜索 token 和 UI 行为保持原语义；订阅 ready 先于初次列表快照，避免初始化竞态。启动失败回收已接入服务，退出关闭订阅、流和 native callback。
+
+新增测试覆盖真实生产 endpoint 的临时数据库 CRUD／分类／收藏／文本及事件、Rust 图片字节、搜索空白／超长参数、frame 身份与权限、订阅 ready／提前取消／有界初始化、窗口导航／销毁和流取消。修正 typed stream 在首次 next 前取消不释放源的问题，并保留原搜索初始化日志。
+
+验证证据（macOS arm64）：
+
+- `just check`、`just test`、`pnpm gateway:test-native` 通过；后者包含 14 项原生传输／流测试及 2 项生产业务测试，正常两个 napi 包均已重建。
+- 桌面生产 build、Storybook build 和未签名 `electron-builder --dir` 通过；ASAR 解包中恰有搜索、剪贴板两个 `.node`，Node 成功通过包内 JS loader 加载并关闭 endpoint。未启动打包后的应用，签名／其他平台不在本次验证范围。
+- 确认现有 nodemon／Electron 的 cwd 和父子关系后，通过 `just rs` 临时启用本地 main debugger。在当前 Electron 内创建两个隐藏 sandbox／contextIsolation 测试窗口，验证普通 bridge 方法、Node 隔离、PB bytes／uint64、事件定向、native pull 无预取、pending next 取消、open 时导航和销毁释放 producer，全部通过。测试 finally 清理窗口和连接，不触碰业务存储。
+- 现有产品窗口通过新 facade 成功查询计算器结果、剪贴板列表及分类；未执行真实系统动作或写用户数据。调试配置已恢复并重启为普通开发实例，9230 端口关闭，lsof 确认加载当前工作区两个正常原生模块。
+
+用户试用后反馈整体未发现问题，本轮人工验收收尾，实施 Plan 已删除。产品未增加 LLM／Storage 能力，也没有引入第三个 `.node` 或 sidecar。
+
+
+### 业务契约重划与直接 typed 调用
+
+用户要求按能力重划 proto，不沿用旧 napi/IPC 和进程边界。已统一 app.proto / xiaowei.app / App，将主题切换和网页打开归入 System；ClipboardResources 删除，记录资源方法合回 Clipboard，并按完整方法名分属 Rust/main owner。Search 的动作使用 oneof／enum，开发模式由 endpoint 初始化配置注入；Launcher 的展示结果不包含动作或应用路径，保留结果批次校验和执行编排。系统状态、删除／更新结果、时间单位与预览截断都有明确字段。
+
+前端旧 facade 和手写通信接口已删除，preload 只暴露通用 transport，renderer 使用按需缓存的 getClipboard/getLauncher/getApp/getSystem；Storybook 注入独立 GatewayHost。纯 UI 模型只处理字符串 ID、展示时间和预览，不包装业务方法。订阅 ready、迟到清理和布局保序迁入页面生命周期。
+
+图标使用惰性 xiaowei-icon 资源 URL；构造搜索结果时不读取图标，实际图片请求由 main 协议处理器异步读取并缓存。Launcher.Icon 删除，不留兼容 route。真实 Electron 页面验证旧全局 API 为 undefined、typed 搜索与剪贴板查询正常，图标 URL 能加载为 1024×1024 图片。
+
+创建与维护原则已落地 [业务 proto README](../../../contracts/proto/xiaowei/README.md)。自动测试覆盖业务具名结果、长文本摘要与全文、毫秒时间、未知 enum 拒绝、lazy getter 缓存、跨 owner 绑定和图标惰性读取；Storybook 的搜索选择与剪贴板切换已在现有 Electron 隔离窗口执行成功。用户已反馈整体未发现问题，按本轮验收通过收尾。
+
+
+本次重划最终验证：`just check`、`just test`、`pnpm gateway:test-native`、桌面和 Storybook build、未签名打包通过。补充的生产原生测试验证取消收藏的 updated 含义、缺失记录、长文本预览／全文、毫秒时间和非法 enum。真实 Storybook `KeyboardAndComposition`、`OpenClipboard` 返回 success，后者使用延迟订阅初始化验证快照顺序。临时测试窗口与本地静态服务器已关闭，main debugger 启动配置恢复，当前工作区通过 `just rs` 回到正常开发实例；没有冷启动新应用。
+
+
+### 完成与验收
+
+用户在本轮功能验收后反馈整体未发现问题，按本轮人工验收通过记录；该反馈不是逐项测试报告，不扩大为所有平台、所有边界或签名发布均已验证。结合前述自动化、真实 Electron 和 Storybook 验证，Gateway 当前实施范围完成，Plan 04 及其空目录已删除。长期说明维护在 Gateway README、业务 proto README 和工作区文档；主 record 继续留在 active，成果仍生效。Storage 等独立后续事项不在本轮范围。
+
+
+### 后续边界
+
+当前 Plan 00–04 没有遗留实施步骤。以下能力不属于本轮交付承诺，按实际需求另行推进：
+
+- 远端双向 WebSocket transport 与 Go Gateway runtime：目前只有设计约束，尚未实现服务端接入、认证和断线重连。
+- 本地 socket transport 与独立 helper：待出现独立本地进程需求时实施。
+- 不可信第三方插件的隔离宿主：现有调用权限机制不提供任意 Rust／JS 代码的沙箱。
+- 跨平台与签名发布验证：当前证据覆盖 macOS arm64 开发环境及未签名打包，其他平台和签名发布仍需对应验证。
+
+真实 LLM／SSE provider 与 Storage 属于后续业务接入，不是当前 Gateway 核心的缺失功能。

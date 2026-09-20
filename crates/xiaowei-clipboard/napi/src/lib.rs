@@ -1,7 +1,8 @@
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Weak};
 use xiaowei_clipboard::{ClipboardData, Service, SystemClipboard};
+use xw_gateway::{invoke::Owner, XwInvokeRegistry};
 
 pub mod gateway;
 pub mod logging;
@@ -74,6 +75,7 @@ impl From<xiaowei_clipboard::ClipboardCategory> for ClipboardCategory {
 #[napi]
 pub struct ClipboardHistory {
     service: Arc<Service>,
+    gateways: Arc<Mutex<Vec<(Weak<XwInvokeRegistry>, Owner)>>>,
 }
 
 async fn run<T: Send + 'static>(
@@ -97,15 +99,40 @@ impl ClipboardHistory {
     #[napi(factory, ts_args_type = "directory: string, onChange: () => void")]
     pub async fn open(directory: String, on_change: Arc<ChangeCallback>) -> napi::Result<Self> {
         run(move || {
+            let gateways = Arc::new(Mutex::new(Vec::<(Weak<XwInvokeRegistry>, Owner)>::new()));
+            let publishers = gateways.clone();
             let service = Service::open(std::path::Path::new(&directory), SystemClipboard, move || {
+                publishers.lock().unwrap().retain(|(registry, owner)| {
+                    if owner.is_closed() {
+                        return false;
+                    }
+                    if let Some(registry) = registry.upgrade() {
+                        let _ = registry.publish(
+                            owner,
+                            <xw_contracts::xiaowei::clipboard::ClipboardChanged as prost::Name>::full_name().as_str(),
+                            vec![],
+                        );
+                        true
+                    } else {
+                        false
+                    }
+                });
                 // Invalidation is coalesced: a queued event makes the reader fetch the latest state.
                 let _ = on_change.call((), ThreadsafeFunctionCallMode::NonBlocking);
             })?;
             Ok(Self {
                 service: Arc::new(service),
+                gateways,
             })
         })
         .await
+    }
+
+    #[napi]
+    pub fn create_gateway_endpoint(&self, env: napi::Env) -> napi::Result<gateway::GatewayEndpoint> {
+        let (endpoint, registry, owner) = gateway::business_endpoint(&env, self.service.clone())?;
+        self.gateways.lock().unwrap().push((Arc::downgrade(&registry), owner));
+        Ok(endpoint)
     }
 
     #[napi]

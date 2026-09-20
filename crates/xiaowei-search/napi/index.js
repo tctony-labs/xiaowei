@@ -780,6 +780,7 @@ module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __n
 module.exports = nativeBinding
 module.exports.GatewayEndpoint = nativeBinding.GatewayEndpoint
 module.exports.createGatewayEndpoint = nativeBinding.createGatewayEndpoint
+module.exports.createSearchGatewayEndpoint = nativeBinding.createSearchGatewayEndpoint
 module.exports.initializeLogging = nativeBinding.initializeLogging
 module.exports.initializeSearch = nativeBinding.initializeSearch
 module.exports.readAppIcon = nativeBinding.readAppIcon

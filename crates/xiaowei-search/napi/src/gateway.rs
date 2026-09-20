@@ -179,3 +179,22 @@ impl GatewayEndpoint {
         env.spawn_future(async move { Ok(reply(fixture.next().await)) })
     }
 }
+
+#[napi]
+pub fn create_search_gateway_endpoint(env: napi::Env, development: Option<bool>) -> napi::Result<GatewayEndpoint> {
+    let registry = XwInvokeRegistry::new();
+    let owner = registry
+        .register_owner(
+            "search",
+            xiaowei_search::gateway::registrations(crate::service(), development.unwrap_or(false)),
+            vec![],
+        )
+        .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+    let inner = Endpoint::new(registry, owner);
+    inner.install_cleanup(&env)?;
+    Ok(GatewayEndpoint {
+        inner,
+        #[cfg(feature = "gateway-fixtures")]
+        fixture: None,
+    })
+}

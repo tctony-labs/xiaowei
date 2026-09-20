@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useArgs } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import logo from "../../../../resources/logo-clear.png";
-import type { ClipboardItem } from "../../../shared/clipboard-api";
+import type { ClipboardItem } from "../../../shared/clipboard-model";
 import { ClipboardPanel } from "./ClipboardPanel";
 
 const base = { createdAt: 1726502400000, lastUsedAt: 1726502400000, useCount: 2, favorite: false, paths: [] };
 const items: ClipboardItem[] = [
   { ...base, id: "1", kind: "text", text: "XiaoWei 是一个效率工具。", favorite: true },
-  { ...base, id: "2", kind: "largeText", text: "一段很长的文本\n".repeat(60) },
+  { ...base, id: "2", kind: "text", previewTruncated: true, text: "一段很长的文本\n".repeat(60) },
   { ...base, id: "3", kind: "image", width: 512, height: 512 },
   { ...base, id: "4", kind: "file", paths: ["/Users/demo/Documents/设计草案.pdf", "/Users/demo/Documents/README.md"] },
 ];

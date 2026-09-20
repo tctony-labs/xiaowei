@@ -7,6 +7,7 @@ function fixture({ visible = true, focused = true, destroyed = false } = {}) {
   return {
     calls,
     show: () => calls.push(["show"]),
+    opened: (_window, mode) => calls.push(["opened", mode]),
     window: {
       isDestroyed: () => destroyed,
       isVisible: () => visible,
@@ -20,13 +21,13 @@ function fixture({ visible = true, focused = true, destroyed = false } = {}) {
 
 test("same-mode shortcuts hide only when the launcher is visible and focused", () => {
   for (const mode of ["search", "clipboard"]) {
-    const { window, show, calls } = fixture();
-    assert.equal(activateLauncherShortcut(window, mode, mode, show), mode);
+    const { window, show, calls, opened } = fixture();
+    assert.equal(activateLauncherShortcut(window, mode, mode, show, opened), mode);
     assert.deepEqual(calls, [["hide"]]);
     for (const state of [{ visible: false }, { focused: false }]) {
       const next = fixture(state);
-      activateLauncherShortcut(next.window, mode, mode, next.show);
-      assert.deepEqual(next.calls, [["send", "launcher:open", mode], ["show"]]);
+      activateLauncherShortcut(next.window, mode, mode, next.show, next.opened);
+      assert.deepEqual(next.calls, [["opened", mode], ["show"]]);
     }
   }
 });
@@ -36,16 +37,16 @@ test("cross-mode shortcuts resize and switch before showing instead of hiding", 
     ["search", "clipboard", 580],
     ["clipboard", "search", 71],
   ]) {
-    const { window, show, calls } = fixture();
-    assert.equal(activateLauncherShortcut(window, from, to, show), to);
-    assert.deepEqual(calls, [["size", 800, height], ["send", "launcher:open", to], ["show"]]);
+    const { window, show, calls, opened } = fixture();
+    assert.equal(activateLauncherShortcut(window, from, to, show, opened), to);
+    assert.deepEqual(calls, [["size", 800, height], ["opened", to], ["show"]]);
   }
 });
 
 test("missing or destroyed windows are ignored", () => {
-  const { window, show, calls } = fixture({ destroyed: true });
-  assert.equal(activateLauncherShortcut(undefined, "search", "clipboard", show), "search");
-  assert.equal(activateLauncherShortcut(window, "search", "clipboard", show), "search");
+  const { window, show, calls, opened } = fixture({ destroyed: true });
+  assert.equal(activateLauncherShortcut(undefined, "search", "clipboard", show, opened), "search");
+  assert.equal(activateLauncherShortcut(window, "search", "clipboard", show, opened), "search");
   assert.deepEqual(calls, []);
 });
 
@@ -102,11 +103,23 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
   showLauncherWindow(window);
   window.setPosition(120, 300);
   window.hide();
-  activateLauncherShortcut(window, "search", "search", () => showLauncherWindow(window));
+  activateLauncherShortcut(
+    window,
+    "search",
+    "search",
+    () => showLauncherWindow(window),
+    () => {},
+  );
   assert.deepEqual(position, [120, 300]);
   assert.equal(visible, true);
   assert.equal(focused, true);
-  activateLauncherShortcut(window, "search", "clipboard", () => showLauncherWindow(window));
+  activateLauncherShortcut(
+    window,
+    "search",
+    "clipboard",
+    () => showLauncherWindow(window),
+    () => {},
+  );
   assert.deepEqual(position, [120, 300]);
   positionLauncher(window, workArea);
   assert.deepEqual(position, initial);

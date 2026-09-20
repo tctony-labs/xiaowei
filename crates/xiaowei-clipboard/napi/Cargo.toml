@@ -10,6 +10,8 @@ crate-type = ["cdylib"]
 gateway-fixtures = ["xw-gateway/test-fixtures"]
 
 [dependencies]
+prost = "=0.14.4"
+xw-contracts = { path = "../../../contracts/rust" }
 xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 xiaowei-clipboard = { path = ".." }
 napi = { version = "3", features = ["napi8", "async"] }

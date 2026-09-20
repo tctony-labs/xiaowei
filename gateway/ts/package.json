@@ -19,6 +19,18 @@
     "./native": {
       "types": "./dist/main/native.d.ts",
       "import": "./dist/main/native.js"
+    },
+    "./electron": {
+      "types": "./dist/main/electron.d.ts",
+      "import": "./dist/main/electron.js"
+    },
+    "./preload": {
+      "types": "./dist/preload/index.d.ts",
+      "import": "./dist/preload/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js"
     }
   },
   "scripts": {
@@ -32,6 +44,7 @@
   "devDependencies": {
     "xiaowei-contracts": "workspace:*",
     "@types/node": "26.5.1",
-    "tsx": "4.23.13"
+    "tsx": "4.23.13",
+    "electron": "44.3.0"
   }
 }

@@ -1,11 +1,13 @@
 # Protobuf 契约
 
-`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。当前只有 `testing` 测试契约，用于编解码、Gateway 核心及原生传输测试，不注册生产服务。
+`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。`testing` 用于编解码和传输测试；`xiaowei.common`、`xiaowei.search`、`xiaowei.launcher`、`xiaowei.app`、`xiaowei.system`、`xiaowei.clipboard` 描述现有桌面业务。
+
+业务职责划分、消息设计与修改流程见 [业务契约原则](proto/xiaowei/README.md)。
 
 ## 组织与消费
 
 - `proto/testing/fixture.proto`：通用生成与编解码测试，使用独立的 `testing` package，不归属业务项目。
-- `proto/xiaowei/<业务>/`：package 与目录一致，本地协议不预设 `v1`。真正共用的消息以后放 `proto/xiaowei/common/`，业务可依赖 common，common 不依赖业务；目前没有共用消息，不创建占位类型。
+- `proto/xiaowei/{common,search,launcher,app,system,clipboard}.proto`：小规模业务按文件组织，package 为 `xiaowei.<业务>`，本地协议不预设 `v1`。common 目前仅保留 Empty；业务消息使用具名字段，不按标量类型抽象通用包装。
 - `ts/`：npm 包 `xiaowei-contracts`，workspace 消费者添加 `"xiaowei-contracts": "workspace:*"`。入口导出生成的消息及 service descriptor；使用方须支持 TS 源码和 enum 转译（项目 bundler 支持，测试使用固定的 tsx 4.23.13）。
 - `rust/`：crate `xw-contracts`，通过 Cargo path 依赖消费。`testing` 模块导出测试消息，`FILE_DESCRIPTOR_SET` 提供 protoc 原生文件／服务／方法描述；`prost::Name` 提供消息全名。新增 namespace 后在 `src/lib.rs` 显式导出对应模块。
 - `go/`：独立 module `github.com/tctony-labs/xiaowei/contracts/go`。本地 Go 消费者在自己的 go.mod 中 require 该 module，并用 `replace github.com/tctony-labs/xiaowei/contracts/go => ../contracts/go` 指向它（相对路径按消费者位置调整）；不复制生成文件，不要求根 go.work。当前 server 尚未消费它，因此不修改 server/go.mod。

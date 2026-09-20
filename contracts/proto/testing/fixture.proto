@@ -9,10 +9,18 @@ message Envelope {
   string text = 1;
   uint64 id = 2;
   optional string label = 3;
-  message Blob { bytes data = 1; }
+
+  message Blob {
+    bytes data = 1;
+  }
+
   repeated Blob blobs = 4;
+
   // Explicit absent / null / value; proto3 optional alone has no null state.
-  enum Null { NULL_VALUE = 0; }
+  enum Null {
+    NULL_VALUE = 0;
+  }
+
   oneof value {
     string string_value = 5;
     Null null_value = 6;
@@ -20,7 +28,9 @@ message Envelope {
 }
 
 // Its full Protobuf name is the event identity; export is a runtime decision.
-message Changed { Envelope value = 1; }
+message Changed {
+  Envelope value = 1;
+}
 
 service Fixture {
   rpc Echo(Envelope) returns (Envelope);

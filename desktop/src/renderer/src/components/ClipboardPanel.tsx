@@ -1,7 +1,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ClipboardItem, ClipboardResourceAction } from "../../../shared/clipboard-api";
+import type { ClipboardItem, ClipboardResourceAction } from "../../../shared/clipboard-model";
 import { type ClipboardDialog, type ClipboardEditing, ClipboardEditors } from "./ClipboardEditors";
 import {
   AddCircleIcon,
@@ -550,7 +550,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                     )
                   ) : (
                     <div className="flex h-full flex-col gap-4 px-5 pt-5 text-sm leading-[22px] text-ink-secondary">
-                      {(selected.kind === "largeText" ? (selected.text ?? "") : text)
+                      {(selected.previewTruncated ? (selected.text ?? "") : text)
                         .split("\n\n")
                         .map((paragraph, index) => (
                           // biome-ignore lint/suspicious/noArrayIndexKey: text paragraphs are immutable
@@ -558,9 +558,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                             <Highlight text={paragraph} query={props.query} />
                           </p>
                         ))}
-                      {selected.kind === "largeText" && (
-                        <p className="text-[13px] text-muted">...还有{text.length}字</p>
-                      )}
+                      {selected.previewTruncated && <p className="text-[13px] text-muted">...还有{text.length}字</p>}
                     </div>
                   )}
                 </div>
@@ -577,7 +575,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                       <div className="h-[18px] w-px bg-subtle" />
                     </>
                   )}
-                  {selected.kind === "largeText" && (
+                  {selected.previewTruncated && (
                     <>
                       <button
                         type="button"
@@ -592,7 +590,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   )}
                   <div className="flex-1" />
                   <div className="flex items-center gap-2">
-                    {(selected.kind === "text" || selected.kind === "largeText") && (
+                    {selected.kind === "text" && (
                       <button
                         type="button"
                         onClick={() => setDialog({ type: "text", item: selected })}
@@ -668,9 +666,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                       )}
                       <MetaRow label="上次使用" value={new Date(selected.lastUsedAt).toLocaleString("sv-SE")} />
                       <MetaRow label="使用次数" value={String(selected.useCount)} />
-                      {(selected.kind === "text" || selected.kind === "largeText") && (
-                        <MetaRow label="文本长度" value={`${text.length} 字符`} />
-                      )}
+                      {selected.kind === "text" && <MetaRow label="文本长度" value={`${text.length} 字符`} />}
                       {selected.kind === "image" && (
                         <MetaRow label="图片尺寸" value={`${selected.width} × ${selected.height}`} />
                       )}

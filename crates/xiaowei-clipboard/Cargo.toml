@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+xw-gateway = { path = "../../gateway/rust" }
+xw-contracts = { path = "../../contracts/rust" }
+prost = "=0.14.4"
+tokio = { version = "1", features = ["rt"] }
 log = "0.4"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }

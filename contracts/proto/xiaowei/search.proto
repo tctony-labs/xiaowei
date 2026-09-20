@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package xiaowei.search;
+
+import "xiaowei/common.proto";
+
+message HighlightRange {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+message SearchHit {
+  string id = 1;
+  string recency_key = 2;
+  string title = 3;
+  string provider = 4;
+  string label = 5;
+  double score = 6;
+  repeated HighlightRange ranges = 7;
+  reserved 8, 9;
+  reserved "action_type", "action_value";
+  SearchAction action = 10;
+}
+
+enum SearchCommand {
+  SEARCH_COMMAND_UNSPECIFIED = 0;
+  SEARCH_COMMAND_OPEN_CLIPBOARD = 1;
+  SEARCH_COMMAND_TOGGLE_THEME = 2;
+  SEARCH_COMMAND_RESTART_DEVELOPMENT = 3;
+}
+
+message SearchAction {
+  oneof action {
+    string copy_text = 1;
+    string open_url = 2;
+    string launch_app = 3;
+    SearchCommand command = 4;
+  }
+}
+
+message RecordUsageRequest {
+  // Ranking key returned by SearchHit; not necessarily the displayed result ID.
+  string recency_key = 1;
+}
+
+message SearchRequest {
+  string query = 1;
+  reserved 2;
+  reserved "development";
+}
+
+message SearchResults {
+  repeated SearchHit hits = 1;
+}
+
+service Search {
+  rpc Query(SearchRequest) returns (SearchResults);
+  rpc RecordUsage(RecordUsageRequest) returns (xiaowei.common.Empty);
+}

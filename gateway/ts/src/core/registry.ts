@@ -22,7 +22,7 @@ export { type CallContext, createContext, type Permissions } from "./context.js"
 export type { EventExport } from "./event.js";
 export interface Registration {
   route: Route;
-  handler?: (payload: Uint8Array, client: Client) => Promise<Uint8Array> | Uint8Array;
+  handler?: (payload: Uint8Array, client: Client, context: CallContext) => Promise<Uint8Array> | Uint8Array;
   streamHandler?: (
     payload: Uint8Array,
     client: Client,
@@ -287,7 +287,7 @@ export class GatewayHost {
         if (owner.dispatcher) return owner.dispatcher(route, payload, context);
         const handler = registration.handler;
         if (!handler) return failure("WRONG_METHOD_KIND", "handler is not unary");
-        const response = await handler(payload, createClient(this.transport(context)));
+        const response = await handler(payload, createClient(this.transport(context)), context);
         if (!(response instanceof Uint8Array)) return failure("HANDLER_ERROR", "handler did not return PB bytes");
         return success(response);
       };

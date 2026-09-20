@@ -23,6 +23,8 @@ export declare class GatewayEndpoint {
 
 export declare function createGatewayEndpoint(): GatewayEndpoint
 
+export declare function createSearchGatewayEndpoint(development?: boolean | undefined | null): GatewayEndpoint
+
 export interface HighlightRange {
   start: number
   end: number

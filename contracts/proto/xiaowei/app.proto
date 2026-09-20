@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package xiaowei.app;
+
+message ReadIconRequest {
+  string path = 1;
+}
+
+message AppIcon {
+  optional bytes png = 1;
+}
+
+service App {
+  rpc ReadIcon(ReadIconRequest) returns (AppIcon);
+}

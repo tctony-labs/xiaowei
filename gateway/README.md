@@ -1,6 +1,6 @@
 # Gateway 核心
 
-Gateway 提供环境无关的 TS host／client、Rust 本地 registry、PB 调用绑定、响应流、事件和 napi 传输适配。产品业务通信尚未迁移；Electron 适配尚未实现。设计背景与实施进展见 [主事项](../.agent/records/active/2026-09-18-implement-gateway.md)。
+Gateway 提供环境无关的 TS host／client、Rust 本地 registry、PB 调用绑定、响应流、事件和 napi 传输适配。Electron 适配已接入搜索、剪贴板和窗口操作。设计背景与实施进展见 [主事项](../.agent/records/active/2026-09-18-implement-gateway.md)。
 
 ## 工程入口
 
@@ -19,7 +19,7 @@ cargo test -p xw-gateway --no-default-features
 
 ## 调用与绑定
 
-TS 使用契约包的 service descriptor：`bindHandlers(service, handlers)` 创建注册项；`bindClient(service, client)` 推导 unary 方法的请求和返回类型。每个 handler 收到保留原调用权限的 client，嵌套调用应使用它。
+TS 使用契约包的 service descriptor：`bindHandlers(service, handlers)` 创建完整服务注册项；同一服务跨 owner 时显式使用第三个参数 `{ partial: true }`，只注册所提供的方法，默认模式仍要求所有 unary handler。`bindClient(service, client)` 推导 unary 方法的请求和返回类型。每个 handler 收到保留原调用权限的 client，嵌套调用应使用它。
 
 Rust `binding::generate_methods(descriptor, types)` 消费契约的 `FileDescriptorSet`，由调用方提供 PB full name→已生成 Rust message 路径的映射，生成 unary 的 `Method<Req, Res>` 和 server streaming 的 `StreamMethod<Req, Chunk>` 常量；`Method::handler` 和 `Method::call` 提供通用服务端／客户端适配。它不生成消息或 codec，不把测试类型编入 runtime。`StreamMethod::handler`／`stream` 提供流绑定；类型上不提供 unary call。生成工具拒绝 client streaming。
 
@@ -37,7 +37,7 @@ TS transport 返回普通 `{ ok: true, value } | { ok: false, error: { code, mes
 
 ## 注册与请求生命周期
 
-TS main 将持有唯一 `GatewayHost`；各 Rust 模块持有本地 `XwInvokeRegistry`。`registerOwner`／`register_owner` 在同一批次中验证 routes 和 events，全部有效后才替换原 owner。批内重复、跨 owner 重名或无效策略不产生半注册状态。
+TS main 持有唯一 `GatewayHost`；各 Rust 模块持有本地 `XwInvokeRegistry`。`registerOwner`／`register_owner` 在同一批次中验证 routes 和 events，全部有效后才替换原 owner。批内重复、跨 owner 重名或无效策略不产生半注册状态。
 
 每次替换创建新实例。关闭旧句柄不会注销新实例；旧连接投递和迟到响应不作用于新实例。TS 注册可注入 dispatcher，Rust 未命中时调用注入的 remote invoker；入口 `dispatchLocal`／`dispatch_local` 永远不回退，避免转发环。目标 host 未找到 route 立即返回 `UNKNOWN_ROUTE`。
 
@@ -89,12 +89,12 @@ cancel 同步改变终态，再异步等待本地 producer 清理；显式清理
 
 宿主创建可信或精确白名单上下文；业务 payload 不能改变它。TS 上下文使用私有 WeakMap 校验，反序列化对象或复制 trusted 字段无效；client transport 不接受 caller 元数据。Rust 上下文不实现反序列化，字段私有。自有业务使用 trusted 上下文，无 route 白名单。
 
-注册、发布、上下文构造是宿主 API，不能暴露给 renderer 或不可信入口。handler 的嵌套请求使用注入 client 保留权限。直接加载的 Rust／JS 模块拥有所在进程的权限，此机制不提供任意第三方代码的沙箱；native 适配只允许宿主传入上下文；隔离宿主及 Electron ingress 尚未实现。
+注册、发布、上下文构造是宿主 API，不能暴露给 renderer 或不可信入口。handler 的嵌套请求使用注入 client 保留权限。直接加载的 Rust／JS 模块拥有所在进程的权限，此机制不提供任意第三方代码的沙箱；native 适配只允许宿主传入上下文；Electron ingress 由已注册的主 frame 和宿主分配的会话提供上下文；任意第三方代码的隔离宿主尚未实现。
 
 
 ## 原生接入与关闭
 
-`xw-gateway::napi::Endpoint` 持有业务传入的同一份 registry／owner；公共 crate 不注册 addon 导出或跨动态库 static。搜索与剪贴板的 napi 包分别导出 `GatewayEndpoint` 薄封装及 `createGatewayEndpoint()`，每次创建有独立 registry。当前正式工厂只创建空 endpoint，保留原业务 API；实际业务 handler 尚未迁入。
+`xw-gateway::napi::Endpoint` 持有业务传入的同一份 registry／owner；公共 crate 不注册 addon 导出或跨动态库 static。搜索与剪贴板的 napi 包分别导出 `GatewayEndpoint` 薄封装及 `createGatewayEndpoint()`，每次创建有独立 registry。通用工厂创建空 endpoint；生产业务另由搜索的 `createSearchGatewayEndpoint()` 和剪贴板实例的 `createGatewayEndpoint()` 提供，复用既有 Service。
 
 宿主通过 `xiaowei-gateway/native` 的 `attachNative(host, name, endpoint, permissions?)` 接入。顺序为读取并校验 manifest → 预留全局 route／event 名称 → 绑定回调与来源上下文 → 激活 native → 原子发布。预留期间不暴露 route 或 event；失败会撤销预留并关闭新 endpoint，保留同名旧实例。返回的 handle 提供显式异步 `close()`；旧 handle 的关闭不会影响替换后的实例。
 
@@ -121,3 +121,30 @@ pnpm gateway:test-native
 测试脚本退出前总会重新执行两个包的正常 `build:debug`，生成正式 `.node`、JS 加载器及声明。源码中的 napi 注解决定公开类型，生成声明不手改；TS 类型检查同时验证两个生成 endpoint 类型与 NativeEndpoint 接口兼容。
 
 修改原生源码后须完成上述构建，并按工作区运行实例规则执行 `just rs`，已加载的 `.node` 不会自动替换。`just test` 运行常规核心／业务回归；`pnpm gateway:test-native` 是需要构建测试 feature 的独立联调入口。
+
+## Electron 与业务接入
+
+`xiaowei-gateway/electron` 的 `attachElectron(host, ipcMain)` 管理 main 侧会话；创建窗口后、加载页面前调用 `register(webContents)`。只有已注册窗口的主 frame 可连接，信任与权限由宿主提供；请求不能指定权限或目标窗口。`target(context)` 从 handler 第三个参数取得窗口，缺失或过期上下文明确失败。
+
+preload 使用 `xiaowei-gateway/preload` 的 `createPreloadBridge(ipcRenderer)`，通过 contextBridge 暴露 `request`／`listen` 两个普通方法；renderer 使用 `xiaowei-gateway/renderer` 的 `createRendererClient(window.gateway)`。单一请求通道 `xiaowei:gateway` 承载 invoke、subscribe／unsubscribe、stream open／next／cancel；事件走私有通道并定向到所属 frame。AsyncIterator 只在 renderer 内创建，不跨 contextBridge。默认入口及 renderer 运行依赖不包含 Node、Electron 或原生包。
+
+宿主分配 session／generation，导航、renderer 退出、窗口销毁时清理订阅和流。每会话最多 128 个订阅和 128 个流句柄；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。
+
+桌面 main 只创建一个 host。`createSearchGatewayEndpoint()` 与搜索预热共享同一个懒初始化服务；`ClipboardHistory.createGatewayEndpoint()` 使用该 history 已打开的 Service 和数据库，不另开业务实例。renderer 只暴露 `window.gateway`，业务调用使用 `services.ts` 中缓存的 lazy getter；旧 `window.launcher`／`window.clipboardHistory` facade 已删除。剪贴板页面显式等待事件订阅 ready 后查询首轮快照，卸载时关闭迟到订阅；窗口布局调用按序执行并处理 Promise 错误。原业务专用 IPC listener 已移除，日志仍用现有 console-message 链路。
+
+业务契约位于 `contracts/proto/xiaowei/`。实际 route 使用生成的 `package.Service.Method`，事件使用 message full name：例如 `xiaowei.clipboard.Clipboard.List`、`xiaowei.clipboard.ClipboardChanged`。窗口、搜索结果 token、图标缓存、系统资源动作由 main 持有；CRUD、分类、收藏、图片字节及搜索引擎由各 Rust owner 执行。ID 在页面与展示模型的边界显式转换为 bigint，Rust 校验业务有效范围。
+
+Rust 业务绑定更新命令如下；漂移检查已纳入 Rust 测试：
+
+```sh
+cargo run -q -p xw-gateway --example generate_business -- clipboard > crates/xiaowei-clipboard/src/gateway_bindings.rs
+cargo run -q -p xw-gateway --example generate_business -- search > crates/xiaowei-search/src/gateway_bindings.rs
+```
+
+退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check／build 及开发 main 重建会先生成 Gateway 的 dist；桌面打包内联 TS Gateway 与契约代码，现有两个 `.node` 保持外置并从 ASAR 解包加载。
+
+`pnpm gateway:test-native` 还会在恢复正常原生构建后验证生产业务 endpoint，使用临时数据库，不触碰用户剪贴板。`desktop/scripts/gateway-acceptance/build.mjs` 仅构建真实 contextBridge 验收资产；`run.mjs` 供现有开发 main 的调试会话调用，创建隔离测试窗口和 fixture host，finally 清理窗口与连接，不是应用启动入口。
+
+业务 service 按能力而非部署模块划分：Search 为通用查询与使用反馈，Launcher 管理查询批次／执行和窗口布局，App 提供图标读取，System 提供主题／网页打开，Clipboard 包含记录与记录资源操作。当前原生搜索 endpoint 承载 Search／App／System.ToggleTheme；main 承载 System.OpenUrl 及 Clipboard 的资源方法，route 无重复注册。具体原则见 [业务契约维护](../contracts/proto/xiaowei/README.md)。
+
+搜索响应返回展示用 `iconUrl`，不返回 appPath，也不等待图片读取。`xiaowei-icon://app/<opaque-key>` 在 Electron 注册为资源协议，图片请求到来后调用 App.ReadIcon；并发请求共享读取 Promise，最多缓存 256 个图标，失败可重试。页面使用普通 img 和默认图标回退，不调用 Launcher.Icon。路径映射和缓存随 host 生命周期释放。

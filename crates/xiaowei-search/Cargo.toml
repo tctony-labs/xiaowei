@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+log = "0.4"
+xw-gateway = { path = "../../gateway/rust" }
+xw-contracts = { path = "../../contracts/rust" }
+prost = "=0.14.4"
+tokio = { version = "1", features = ["rt"] }
 evalexpr = "11"
 nucleo-matcher = "0.3"
 pinyin = { version = "0.11", features = ["heteronym"] }

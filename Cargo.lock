@@ -1752,11 +1752,15 @@ dependencies = [
  "objc2-app-kit",
  "objc2-foundation",
  "png 0.17.16",
+ "prost",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "tokio",
+ "xw-contracts",
+ "xw-gateway",
 ]
 
 [[package]]
@@ -1766,7 +1770,9 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "prost",
  "xiaowei-clipboard",
+ "xw-contracts",
  "xw-gateway",
  "xw-napi-log",
 ]
@@ -1776,11 +1782,16 @@ name = "xiaowei-search"
 version = "0.1.0"
 dependencies = [
  "evalexpr",
+ "log",
  "nucleo-matcher",
  "pinyin",
+ "prost",
  "tempfile",
+ "tokio",
  "xw-app",
  "xw-bookmark",
+ "xw-contracts",
+ "xw-gateway",
  "xw-platform",
 ]
 

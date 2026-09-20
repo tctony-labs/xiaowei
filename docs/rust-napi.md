@@ -90,3 +90,9 @@ napi 入口包提供以下脚本：
 `napi/npm/<platform>/` 用于组织平台发布包，不是每次递归构建的入口。入口包与平台包的版本、依赖及产物需要一起维护；需要发布时再增加相关配置。当前 npm 包是 private，尚未配置这些平台发布包。
 
 生成的 JS 和类型声明由 napi-rs 更新，不手工维护平台分支或重复的接口声明。桌面打包时须保留加载器及对应原生产物，并确保 `.node` 可从 ASAR 外加载；接入验收应同时覆盖开发环境和打包后的模块加载。
+
+## Gateway 业务入口
+
+搜索的 `createSearchGatewayEndpoint()` 复用搜索初始化和直接 napi 方法所持有的 Service；剪贴板的 `history.createGatewayEndpoint()` 复用当前 history 的 Service。main 通过 `attachNative` 接入 endpoint；生产 PB routes 由 Rust 业务 crate 注册，契约集中在 `contracts/`。既有通用 `createGatewayEndpoint()` 用于空 registry 的传输接入，不等同于搜索业务工厂。
+
+两个原生包分别执行 `pnpm --filter xiaowei-search build:debug`、`pnpm --filter xiaowei-clipboard build:debug`；共享 Gateway Rust 改动需重建两者。业务和原生传输回归可执行 `pnpm gateway:test-native`，测试结束恢复正常构建；fixture 不进入正式接口。打包保留两个 `.node`，不新增 Gateway 动态库。生命周期和 Electron 接入见 [Gateway](../gateway/README.md#electron-与业务接入)。

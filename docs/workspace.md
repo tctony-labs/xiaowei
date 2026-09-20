@@ -134,7 +134,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。`just start` 自动构建所有原生模块；单独安装依赖与 `just rs` 不会编译 Rust。
 
-本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `window.clipboardHistory` 获取分页历史、详情、图片、复制、收藏和删除，并通过 `onChanged` 重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
+本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
 Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。
 
@@ -145,3 +145,9 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/` 和 `logs/`，与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
 
 持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs` 和 `clipboard`。main 入口设置 userData 后，将业务目录传给日志及剪贴板模块；业务接入层不自行拼接应用根路径。Rust 接收剪贴板目录，负责内部 `history.sqlite`、`images/` 等路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
+
+## 桌面 Gateway 通信
+
+搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和两个既有 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
+
+桌面 check、build 和开发 main 重建先构建 Gateway dist；electron-vite 内联 Gateway／契约的 JS，原生模块仍外置。修改 Rust 后仍须先重建对应 napi 包，再重启已有桌面实例；`just rs` 不负责 Rust 编译。

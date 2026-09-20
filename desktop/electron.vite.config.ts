@@ -3,9 +3,19 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
 
 export default defineConfig({
-  main: { build: { externalizeDeps: { include: ["xiaowei-search", "xiaowei-clipboard"] } } },
+  main: {
+    build: {
+      externalizeDeps: {
+        include: ["xiaowei-search", "xiaowei-clipboard"],
+        exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],
+      },
+    },
+  },
   preload: {
-    build: { rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } } },
+    build: {
+      externalizeDeps: { exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"] },
+      rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } },
+    },
   },
   renderer: {
     plugins: [

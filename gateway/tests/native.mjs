@@ -32,3 +32,6 @@ try {
 }
 if (failure) throw failure;
 execFileSync(process.execPath, ["gateway/tests/production.cjs"], { cwd: root, stdio: "inherit" });
+
+run(["--filter", "xiaowei-gateway", "build"]);
+run(["--dir", "gateway/ts", "exec", "tsx", "--test", "test/native/business.test.ts"]);

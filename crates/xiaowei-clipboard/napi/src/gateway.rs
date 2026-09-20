@@ -179,3 +179,28 @@ impl GatewayEndpoint {
         env.spawn_future(async move { Ok(reply(fixture.next().await)) })
     }
 }
+
+pub(crate) fn business_endpoint(
+    env: &napi::Env,
+    service: Arc<xiaowei_clipboard::Service>,
+) -> napi::Result<(GatewayEndpoint, Arc<XwInvokeRegistry>, xw_gateway::invoke::Owner)> {
+    let registry = XwInvokeRegistry::new();
+    let owner = registry
+        .register_owner(
+            "clipboard",
+            xiaowei_clipboard::gateway::registrations(&service),
+            xiaowei_clipboard::gateway::events(),
+        )
+        .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+    let inner = Endpoint::new(registry.clone(), owner.clone());
+    inner.install_cleanup(env)?;
+    Ok((
+        GatewayEndpoint {
+            inner,
+            #[cfg(feature = "gateway-fixtures")]
+            fixture: None,
+        },
+        registry,
+        owner,
+    ))
+}
