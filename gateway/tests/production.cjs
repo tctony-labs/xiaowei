@@ -19,3 +19,7 @@ for (const name of ["search", "clipboard"]) {
       process.exitCode = 1;
     });
 }
+
+const storage = require("../../crates/xiaowei-storage/napi");
+assert.equal(storage.createGatewayFixture, undefined);
+assert.equal(storage.GatewayEndpoint.prototype.fixtureInvoke, undefined);

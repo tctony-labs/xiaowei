@@ -1,0 +1,18 @@
+[package]
+name = "xiaowei-storage-napi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
+log = "0.4"
+xw-napi-log = { path = "../../xw-napi-log" }
+xiaowei-storage = { path = ".." }
+napi = { version = "3", features = ["napi8", "async"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

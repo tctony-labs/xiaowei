@@ -13,6 +13,7 @@
 | `app.proto` / `xiaowei.app` | `App` | 应用能力，当前提供原始 PNG 图标读取 |
 | `system.proto` / `xiaowei.system` | `System` | 系统主题切换、通过系统应用打开 http(s) 网页 |
 | `clipboard.proto` / `xiaowei.clipboard` | `Clipboard` | 历史条目、内容读取／复制、收藏备注分类，以及条目关联的资源操作 |
+| `meta.proto` / `xiaowei.storage` | `Meta` | JSON 键值持久化，setting 使用完整 key 前缀 |
 | `database.proto` / `xiaowei.storage` | `Database` | 参数化 SQLite 查询、原子事务与 migration_v2 管理 |
 | `common.proto` / `xiaowei.common` | 无 | 真正共用的消息，目前只有 `Empty` |
 

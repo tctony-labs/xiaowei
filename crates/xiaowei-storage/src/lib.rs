@@ -2,6 +2,7 @@
 
 pub mod db;
 pub mod gateway;
+pub mod meta;
 pub mod migration;
 mod validation;
 

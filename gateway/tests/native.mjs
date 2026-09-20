@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const run = (args) => execFileSync("pnpm", args, { cwd: root, stdio: "inherit" });
 const packages = ["search", "clipboard"];
 let failure;
+run(["--filter", "xiaowei-storage", "build:debug"]);
 try {
   for (const name of packages) {
     run([
@@ -18,7 +19,7 @@ try {
       `../../../gateway/tests/native/${name}`,
     ]);
   }
-  run(["--dir", "gateway/ts", "exec", "tsx", "--test", "test/native/bridge.test.ts"]);
+  run(["--dir", "gateway/ts", "exec", "tsx", "--test", "test/native/bridge.test.ts", "test/native/storage.test.ts"]);
 } catch (error) {
   failure = error;
 } finally {

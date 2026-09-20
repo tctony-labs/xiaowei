@@ -11,6 +11,8 @@
 
 旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前包含应用本地化名称、应用图标和 macOS 系统主题切换，拼音和匹配留在 `xiaowei-search`。`xiaowei-clipboard` 承载本地剪贴板业务，接入方式与搜索一致；两个原生包复用 `xw-napi-log` 的日志接收器，各自在所属动态库中初始化。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
 
+`xiaowei-storage` 已提供同结构的第三个原生包，使用 `Storage.open(path)` 初始化数据库，再创建 Gateway endpoint；业务查询与 meta 读写只走 typed Gateway。构建使用 `pnpm --filter xiaowei-storage build:debug`。目前桌面生产接线仍在 Storage 后续切片中实施。
+
 ## 目录与职责
 
 ```text

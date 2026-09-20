@@ -9,6 +9,8 @@ Rust `tests/core.rs` 保留旧 invoke／event 测试覆盖的注册、typed 参�
 
 `ts/test/stream.test.ts` 和 `rust/tests/stream.rs` 验证惰性 typed 流、模拟 SSE、单流并发、取消／drop、owner／caller 清理、分阶段可控时钟、配额和主动队列。native 流测试覆盖 TS→Rust、Rust 本地、A→main→B、有序 PB bytes、生产错误、pending open／next 取消、句柄归属及实际 producer 计数归零。`StreamMethod` 的生成漂移检查和两端编译反例验证方法种类与 chunk 类型。
 
+Storage 联调额外构建正式 `xiaowei-storage` addon，`ts/test/native/storage.test.ts` 验证 TS 与另一 Rust addon 经同一 host 访问同一个数据库，覆盖 JSON null／缺失、字面前缀、非法 JSON、SQL 查询和重新打开后的持久化。全部使用临时文件，Storage 不加入 fixture feature。
+
 ## Electron 集成验收
 
 `electron/` 保存真实 contextBridge 验收脚本及 preload／renderer 测试资产。依赖由本目录的私有 workspace 包 `@xiaowei/gateway-tests` 声明，不再借用 desktop 的依赖。

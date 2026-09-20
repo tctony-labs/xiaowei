@@ -252,3 +252,100 @@ impl ::prost::Name for DatabaseRollback {
         "/xiaowei.storage.DatabaseRollback".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct MetaKey {
+    /// Full, case-sensitive key, 1–1024 UTF-8 bytes. Prefixes are not authorization boundaries.
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+impl ::prost::Name for MetaKey {
+    const NAME: &'static str = "MetaKey";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaKey".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaKey".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct MetaEntry {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    /// Valid JSON text, at most 1 MiB. The JSON literal null is a stored value.
+    #[prost(string, tag = "2")]
+    pub json: ::prost::alloc::string::String,
+}
+impl ::prost::Name for MetaEntry {
+    const NAME: &'static str = "MetaEntry";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaEntry".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaEntry".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct MetaValue {
+    /// Missing means no key exists; "null" means the JSON null value exists.
+    #[prost(string, optional, tag = "1")]
+    pub json: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for MetaValue {
+    const NAME: &'static str = "MetaValue";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaValue".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaValue".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct MetaDeleted {
+    #[prost(bool, tag = "1")]
+    pub deleted: bool,
+}
+impl ::prost::Name for MetaDeleted {
+    const NAME: &'static str = "MetaDeleted";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaDeleted".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaDeleted".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct MetaPrefix {
+    /// Literal, case-sensitive prefix; % and _ are ordinary characters. Empty lists all keys.
+    #[prost(string, tag = "1")]
+    pub prefix: ::prost::alloc::string::String,
+}
+impl ::prost::Name for MetaPrefix {
+    const NAME: &'static str = "MetaPrefix";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaPrefix".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaPrefix".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MetaEntries {
+    /// Full keys in binary sort order. Oversize lists fail instead of truncating settings.
+    #[prost(message, repeated, tag = "1")]
+    pub entries: ::prost::alloc::vec::Vec<MetaEntry>,
+}
+impl ::prost::Name for MetaEntries {
+    const NAME: &'static str = "MetaEntries";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.MetaEntries".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.MetaEntries".into()
+    }
+}

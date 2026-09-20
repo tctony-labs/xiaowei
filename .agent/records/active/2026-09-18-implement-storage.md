@@ -104,13 +104,13 @@ Settings 的默认值、类型校验、缓存及业务通知属于上层；meta 
 Gateway 前置条件已完成，用户已确认进入实施阶段。计划依次执行：
 
 1. 00：DB 核心、事务与 migration_v2 已完成，结果见 Outcome。
-2. [01：meta KV 与原生 Gateway 接入](../../plans/2026-09-18-implement-storage/01-meta-and-native.md)。
+2. 01：meta KV 与原生 Gateway 接入已完成，结果见 Outcome。
 3. [02：剪贴板存储接管](../../plans/2026-09-18-implement-storage/02-clipboard-storage.md)。
 4. [03：桌面装配、本机切换与验收](../../plans/2026-09-18-implement-storage/03-desktop-cutover.md)。
 
 临时提醒：本次顺便调整长文本文件存储，细节与数据清理授权见 Plan 02／03；实现完成后删除本提醒，不写入本 record 的长期 How 或 Outcome。
 
-Plan 00 已完成，接下来实施 Plan 01（meta KV 与原生 Gateway 接入）。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
+Plan 00／01 已完成，接下来实施 Plan 02（剪贴板存储接管）。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
 
 FTS／tokenizer 不混入本轮 DB 与 meta 基础。旧版 tokenizer 引用私有 git.woa.com 的 jieba-rs revision，实际接入时需核对 fork 与公开来源，不自行替换技术方案。Config 保持暂缓。
 
@@ -133,3 +133,12 @@ migration_v2 接收完整有序的声明列表（名称、up SQL、down SQL）�
 已实现 SQLx DB 核心、typed Database 契约与 Rust Gateway handlers、受限 SQL 验证、可引用前序结果的原子事务以及 migration_v2。完成标记与 SQL 同事务；长查询取消通过 SQLite progress handler 释放执行和连接。
 
 `cargo test -p xiaowei-storage --locked` 的 5 项测试通过，覆盖 SQLite 值类型、SQL 管理语句拒绝、结果大小、条件合并、失败回滚、并发事务、长查询取消和迁移 up/down。`just check`、`just test` 通过，搜索和剪贴板正式 native 包已重建，现有剪贴板回归通过。未操作本机数据库；当前运行的桌面属于 prometheus 工作区，未重启它，也未冷启动当前工作区。此阶段只需自动验证，无产品人工验收，Plan 00 已删除。
+
+
+### Plan 01：meta KV 与原生 Gateway
+
+Meta.Get／Set／Delete／List 与 Database 共用同一 SQLx pool。key 为 1–1024 字节（前缀可为空），JSON 上限 1 MiB；列表返回完整 key，按 binary 排序，字面匹配前缀，超过 DB 返回预算时报错。缺失 key 用 optional json 缺失表达，已存 JSON null 返回文本 "null"；无独立缓存或 Config 逻辑。
+
+Storage.open(path) 完成 SQLite 初始化，createGatewayEndpoint 生成十条正式 typed route；endpoint.close 先关闭 Gateway，再关闭连接池。新增包纳入两个 workspace、正常原生构建及集成脚本；桌面生产接线尚未切换。
+
+`just check`、`just test` 和 `pnpm gateway:test-native` 通过。新增 Rust meta 测试、Node 原生生命周期测试和真实跨 addon Storage 测试验证初始化失败、幂等关闭、持久化、字面前缀及 TS／另一 Rust addon 共用数据。原 14 项 native 传输／流测试和 2 项生产业务测试通过，搜索／剪贴板／Storage 正式 native 产物已构建。此阶段无需产品人工验收，Plan 01 已删除。

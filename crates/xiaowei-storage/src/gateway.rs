@@ -8,9 +8,26 @@ use xw_gateway::{binding::Method, ErrorCode, GatewayError, InvokeRegistration};
 #[path = "gateway_bindings.rs"]
 pub mod bindings;
 use bindings::xiaowei_storage_database_service as methods;
+use bindings::xiaowei_storage_meta_service as meta;
 
 pub fn registrations(database: &Arc<Database>) -> Vec<InvokeRegistration> {
     vec![
+        handler(
+            database,
+            &meta::GET,
+            |db, request| async move { db.meta_get(request).await },
+        ),
+        handler(
+            database,
+            &meta::SET,
+            |db, request| async move { db.meta_set(request).await },
+        ),
+        handler(database, &meta::DELETE, |db, request| async move {
+            db.meta_delete(request).await
+        }),
+        handler(database, &meta::LIST, |db, request| async move {
+            db.meta_list(request).await
+        }),
         handler(database, &methods::QUERY, |db, request| async move {
             db.query(request).await
         }),
