@@ -1767,6 +1767,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "xiaowei-clipboard",
+ "xw-gateway",
  "xw-napi-log",
 ]
 
@@ -1792,6 +1793,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "xiaowei-search",
+ "xw-gateway",
  "xw-napi-log",
 ]
 
@@ -1840,6 +1842,7 @@ name = "xw-gateway"
 version = "0.1.0"
 dependencies = [
  "heck",
+ "napi",
  "prost",
  "prost-types",
  "serde",

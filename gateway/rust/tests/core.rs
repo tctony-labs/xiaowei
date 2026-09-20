@@ -15,6 +15,7 @@ use xw_gateway::{
     *,
 };
 
+#[allow(dead_code)]
 mod fixture_bindings;
 use fixture_bindings::testing_fixture_service::{ECHO, WATCH};
 fn context() -> CallContext {

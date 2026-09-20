@@ -35,3 +35,10 @@ export function caller(context: CallContext): string {
   if (!permissions) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
   return permissions.caller;
 }
+
+/** Host-only metadata for an authenticated transport; never exposed through Client. */
+export function contextPermissions(context: CallContext): Readonly<Permissions> {
+  const permissions = contexts.get(context);
+  if (!permissions) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
+  return permissions;
+}

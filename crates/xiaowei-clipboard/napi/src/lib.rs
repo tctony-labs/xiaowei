@@ -3,6 +3,7 @@ use napi_derive::napi;
 use std::sync::Arc;
 use xiaowei_clipboard::{ClipboardData, Service, SystemClipboard};
 
+pub mod gateway;
 pub mod logging;
 
 type ChangeCallback = ThreadsafeFunction<(), (), (), napi::Status, false, true, 1>;

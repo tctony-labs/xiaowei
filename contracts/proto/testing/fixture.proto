@@ -26,3 +26,9 @@ service Fixture {
   rpc Echo(Envelope) returns (Envelope);
   rpc Watch(Envelope) returns (stream Changed);
 }
+
+// A second owner for native bridge tests. Both services reuse the same PB messages.
+service PeerFixture {
+  rpc Echo(Envelope) returns (Envelope);
+  rpc Watch(Envelope) returns (stream Changed);
+}

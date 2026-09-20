@@ -20,7 +20,7 @@
 | `crates/xw-platform/` | 内部系统能力：应用名称、原生图标、macOS 主题切换 |
 | `crates/xw-app/`、`crates/xw-bookmark/` | 应用和 Chrome 书签数据源 |
 | `contracts/` | Protobuf 消息与接口描述的 TS／Rust／Go 契约包及固定版本生成工具，见 [契约说明](../contracts/README.md) |
-| `gateway/` | 环境无关的 TS／Rust Gateway 核心、PB 绑定及契约测试，尚未接入产品；见 [Gateway 核心](../gateway/README.md) |
+| `gateway/` | TS／Rust Gateway 核心、PB 绑定、可选 napi 适配及联调测试，尚未迁移产品业务通信；见 [Gateway 核心](../gateway/README.md) |
 | `packages/` | 独立 npm 包的位置，目前无包，仅保留目录 |
 | `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
 | `deploy/` | Go 容器部署示例 |
@@ -72,6 +72,7 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 | `just gen` | 生成 contracts；后续其他生成任务统一加入此入口 |
 | `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
 | `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式、Gateway 默认核心与原生业务包 cargo check、Go 格式与 vet；不修改源码或暂存区 |
+| `pnpm gateway:test-native` | 构建两个测试 feature addon，验证 Gateway 原生双向通信与关闭，结束时恢复正常原生产物 |
 | `just test` | 运行 Rust、Node 原生绑定、三语言契约 codec 与 Go 测试（须先构建原生模块） |
 | `just build` | 先构建本机 napi 模块，再构建 Electron 与 Go 二进制 |
 

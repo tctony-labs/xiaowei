@@ -37,11 +37,13 @@ interface Owner {
   closed: boolean;
   pending: Set<(result: Result<Uint8Array>) => void>;
   dispatcher?: Dispatcher;
+  closedListeners: Set<() => void>;
 }
 export interface OwnerHandle {
   readonly instance: number;
   readonly manifest: Manifest;
   close(): void;
+  onClose(listener: () => void): void;
   publish(event: string, payload: Uint8Array): void;
   dispatchLocal(route: Route, payload: Uint8Array, context: CallContext): Promise<Result<Uint8Array>>;
 }
@@ -52,6 +54,7 @@ export class GatewayHost {
   private owners = new Map<string, Owner>();
   private events = new Events();
   private nextInstance = 0;
+  private reservations = new Map<object, { name: string; routes: Set<string>; events: Set<string> }>();
   constructor(private remote?: Dispatcher) {}
 
   client(permissions: Permissions): Client {
@@ -71,6 +74,55 @@ export class GatewayHost {
     events: readonly EventExport[] = [],
     dispatcher?: Dispatcher,
   ): OwnerHandle {
+    const snapshot = this.validateOwner(name, registrations, events, dispatcher);
+    const old = this.owners.get(name);
+    if (old) this.closeOwner(old);
+    const owner: Owner = {
+      name,
+      instance: ++this.nextInstance,
+      closed: false,
+      pending: new Set(),
+      dispatcher,
+      closedListeners: new Set(),
+    };
+    this.owners.set(name, owner);
+    for (const registration of snapshot) this.entries.set(registration.route.name, { registration, owner, running: 0 });
+    this.events.install(owner, name, events);
+    const manifest: Manifest = Object.freeze({
+      routes: Object.freeze(
+        snapshot.map((entry) =>
+          Object.freeze({
+            ...entry.route,
+            timeoutMs: entry.timeoutMs ?? 30_000,
+            maxConcurrency: entry.maxConcurrency ?? 32,
+          }),
+        ),
+      ),
+      events: Object.freeze(events.map(({ name, policy }) => Object.freeze({ name, policy }))),
+    });
+    return Object.freeze({
+      instance: owner.instance,
+      manifest,
+      close: () => this.closeOwner(owner),
+      onClose: (listener: () => void) => {
+        if (owner.closed) listener();
+        else owner.closedListeners.add(listener);
+      },
+      publish: (event: string, payload: Uint8Array) => {
+        if (owner.closed) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner instance closed" });
+        this.events.publish(owner, event, payload);
+      },
+      dispatchLocal: (route: Route, payload: Uint8Array, context: CallContext) =>
+        this.dispatchLocal(owner, context, route, payload),
+    });
+  }
+
+  private validateOwner(
+    name: string,
+    registrations: readonly Registration[],
+    events: readonly EventExport[],
+    dispatcher?: Dispatcher,
+  ): Registration[] {
     validateName(name);
     const names = new Set<string>();
     const snapshot = registrations.map((registration) => ({
@@ -98,35 +150,43 @@ export class GatewayHost {
       if ((registration.timeoutMs ?? 30_000) > 2_147_483_647) invalid("timeout exceeds timer range");
     }
     this.events.validateOwner(name, events);
-    const old = this.owners.get(name);
-    if (old) this.closeOwner(old);
-    const owner: Owner = { name, instance: ++this.nextInstance, closed: false, pending: new Set(), dispatcher };
-    this.owners.set(name, owner);
-    for (const registration of snapshot) this.entries.set(registration.route.name, { registration, owner, running: 0 });
-    this.events.install(owner, name, events);
-    const manifest: Manifest = Object.freeze({
-      routes: Object.freeze(
-        snapshot.map((entry) =>
-          Object.freeze({
-            ...entry.route,
-            timeoutMs: entry.timeoutMs ?? 30_000,
-            maxConcurrency: entry.maxConcurrency ?? 32,
-          }),
-        ),
-      ),
-      events: Object.freeze(events.map(({ name, policy }) => Object.freeze({ name, policy }))),
+    for (const reserved of this.reservations.values()) {
+      if (
+        reserved.name === name ||
+        snapshot.some((r) => reserved.routes.has(r.route.name)) ||
+        events.some((event) => reserved.events.has(event.name))
+      ) {
+        throw new GatewayFailure({ code: "CONFLICT", message: "owner manifest is reserved" });
+      }
+    }
+    return snapshot;
+  }
+
+  /** Reserve names without publishing routes/events or replacing the running owner. */
+  reserveOwner(
+    name: string,
+    registrations: readonly Registration[],
+    events: readonly EventExport[],
+    dispatcher: Dispatcher,
+  ) {
+    const snapshot = this.validateOwner(name, registrations, events, dispatcher);
+    const eventSnapshot = events.map((event) => ({ ...event }));
+    const token = {};
+    this.reservations.set(token, {
+      name,
+      routes: new Set(snapshot.map((r) => r.route.name)),
+      events: new Set(eventSnapshot.map((e) => e.name)),
     });
-    return Object.freeze({
-      instance: owner.instance,
-      manifest,
-      close: () => this.closeOwner(owner),
-      publish: (event: string, payload: Uint8Array) => {
-        if (owner.closed) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner instance closed" });
-        this.events.publish(owner, event, payload);
+    return {
+      publish: () => {
+        if (!this.reservations.delete(token))
+          throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "reservation closed" });
+        return this.registerOwner(name, snapshot, eventSnapshot, dispatcher);
       },
-      dispatchLocal: (route: Route, payload: Uint8Array, context: CallContext) =>
-        this.dispatchLocal(owner, context, route, payload),
-    });
+      close: () => {
+        this.reservations.delete(token);
+      },
+    };
   }
 
   private closeOwner(owner: Owner): void {
@@ -137,6 +197,14 @@ export class GatewayHost {
     for (const [route, entry] of this.entries) if (entry.owner === owner) this.entries.delete(route);
     if (this.owners.get(owner.name) === owner) this.owners.delete(owner.name);
     this.events.remove(owner);
+    for (const listener of owner.closedListeners) {
+      try {
+        listener();
+      } catch {
+        /* Cleanup of one endpoint must not strand the others. */
+      }
+    }
+    owner.closedListeners.clear();
   }
 
   async invoke(context: CallContext, route: Route, payload: Uint8Array): Promise<Result<Uint8Array>> {

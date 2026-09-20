@@ -12,13 +12,13 @@
 
 应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
-本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的环境无关 Gateway 核心和绑定，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；napi／Electron 适配、响应 stream 执行和业务迁移尚未实现，不代表当前产品行为。
+本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的核心／绑定和 Plan 02 的 napi 适配／联调，尚未迁移产品业务通信。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；Electron 适配、响应 stream 执行和业务迁移尚未实现，不代表当前产品行为。
 
 ## How
 
 ### 当前核心实现
 
-Plan 01 已实现的协议、注册／请求生命周期、事件与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心和环境无关 TS host 已通过测试；下文涉及 napi／Electron、stream 执行和产品通信的部分仍为后续设计。
+已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、环境无关 TS host 和两个真实 `.node` 间的 TSFN／Promise 链路已通过测试；下文涉及 Electron、stream 执行和产品业务迁移的部分仍为后续设计。
 
 ### 统一服务调用
 
@@ -184,11 +184,11 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 
 ## Current work
 
-Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已实施、完成自动验证并经用户确认提交；下一步为 Plan 02。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
+Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已确认提交（`40a9308`）；Plan 02 已完成实施及自动验证，待用户 review 后进入 Plan 03。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
 
 0. 契约生成和测试：已完成，Plan 已删除；当前实现与使用方式见 [契约说明](../../../contracts/README.md)，验证结果见 Outcome。未实现 Gateway 绑定。
 1. Gateway 核心逻辑与测试契约验证：已完成，Plan 已删除；当前接口见 [Gateway 核心](../../../gateway/README.md)，验证结果见 Outcome，已获用户确认。
-2. [napi 传输适配与联调](../../plans/2026-09-18-implement-gateway/02-native-transport.md)：范围已确认，尚未实施；先验证两个独立 `.node` 之间的调用、事件及关闭行为，再接实际业务。
+2. napi 传输适配与联调：已完成，Plan 已删除；两个独立 `.node` 的调用、事件、关闭与环境销毁已验证，尚未迁移业务通信，待用户 review。
 3. [响应流](../../plans/2026-09-18-implement-gateway/03-response-streams.md)：范围已确认，尚未实施；实现端到端 pull、取消、资源限制和终态语义。
 4. [Electron 与业务迁移](../../plans/2026-09-18-implement-gateway/04-electron-integration.md)：范围已确认，尚未实施；renderer／main／Rust 使用同一 gateway，保留当前强类型业务 API 和 UI 行为。
 
@@ -245,7 +245,7 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 
 ### 对外接入契约（拟定）
 
-以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；此表中的 native endpoint、attachNative 和 stream 仍待 Plan 02／03 实施。
+以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 仍待 Plan 03 实施。
 
 | 接口 | 调用方与作用 |
 | --- | --- |
@@ -337,3 +337,24 @@ Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成
 - 权限测试覆盖可信免白名单、精确白名单拒绝、伪造上下文无效及嵌套调用不提权。事件测试覆盖过滤、256 项 Ordered burst、Coalesce／Drop、晚注册／重注册、caller 清理、幂等 close 及旧连接迟到结果。
 
 没有修改 UI、数据库、业务模块或现有 napi 包依赖，未启动或重启桌面；该核心当前没有产品消费者，所以本切片没有受影响的 napi 包需要重建。只验证 macOS arm64 的核心及 fake transport，不宣称已验证真实 Electron／TSFN 链路。Plan 01 已删除，Plan 02–04 保留；用户已确认本切片并要求继续 Plan 02。
+
+
+### Plan 02：napi 传输适配与联调
+
+2026-09-20 完成可选 `xw-gateway::napi` 适配、两个原生包的 endpoint 薄封装、TS `xiaowei-gateway/native` 接入及真实双 `.node` 测试。没有新增 gateway 原生包或 sidecar；两端 registry 按实例持有，不使用跨动态库共享 static。正式 endpoint 暂无业务 routes，现有搜索／剪贴板 API 继续工作。长期接入、控制编码、生成类型、测试构建及关闭约定见 [Gateway 核心](../../../gateway/README.md)。
+
+技术验证确认 Rust future→TSFN→JS Promise→Rust 结果可用，保持 Buffer 字节并捕获 Promise reject 和同步 throw。全局名称先预留，绑定／激活完成后才发布；失败保留旧 owner 并关闭新 native 实例。调用上下文通过 host 维护的 token 沿嵌套请求传播，回退目标仍为来源时立即失败。事件支持 source 晚注册、重连和清理；正常关闭及环境销毁均释放 native 状态与回调。
+
+联调中发现并修复两个实际线程边界问题：同步 JS 清理路径使用 napi 的运行时 spawn，而不是要求当前 Tokio 上下文的 spawn；异步导出方法先克隆 Arc，再通过 Env::spawn_future 返回 Promise，避免 Worker 销毁时跨线程释放 async &self 的 napi 借用保护。环境 cleanup hook 仅持 Weak 引用，同步关闭本地状态且不再调用 JS；显式 close 的 host 确认有 1 秒期限，失败返回控制错误。
+
+新增测试 service `testing.PeerFixture`，与 Fixture 复用相同消息但拥有不同 route 名，以验证真正独立 owner 的双向调用。三语言契约产物和 Gateway 方法绑定由原工具重新生成；fixture 工厂与调用／发布／订阅探针全部由 `gateway-fixtures` feature 隔离。联调脚本构建到忽略目录，结束时恢复两个正常原生包；正常入口检查验证无 fixture 导出且 manifest 为空。
+
+验证证据：
+
+- `cargo test -p xw-gateway --no-default-features --locked` 通过；默认 normal 依赖链仍不包含 napi。
+- `pnpm gateway:test-native` 的 10 项真实原生联调通过：本地不经 JS、A→main→B 和反向调用、重入／循环边界、3 MiB 全字节内容、Promise throw／reject、64 项 TSFN 队列满、timeout 后并发占用、pending 请求关闭、事件过滤／取消／重连及 256 项 Ordered burst、manifest 冲突／预留／回滚、权限传播、Node 自然退出和 Worker 强制销毁。
+- 两个正常 `build:debug` 已生成最新 `.node`、JS 加载器和声明；生成的 endpoint 类型通过 TS 兼容检查，正式产物无测试工厂／方法。
+- `just check`、`just test` 以及 Gateway TS build 通过；原搜索／剪贴板 napi 回归、桌面脚本、三语言契约 codec 和 Go 回归均通过。
+- 通过绝对进程路径、cwd 和父子关系确认当前工作区开发实例后执行 `just rs`。Electron PID 从 17589 变为 92115，cwd 为当前 desktop；lsof 确认新进程已加载当前工作区两个最新 `.node`。没有冷启动或操作其他工作区实例。
+
+未移动数据库、接入 UI 或迁移产品业务通信。Electron 进程重载验证不等于 Electron Gateway 全链路验收；该部分和响应 stream 仍按后续切片实施。仅在 macOS arm64 验证。Plan 02 已删除，Plan 03／04 保留；本次新改动未提交，待用户 review。

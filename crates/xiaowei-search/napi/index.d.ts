@@ -9,6 +9,19 @@
  */
 export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
+export declare class GatewayEndpoint {
+  manifest(): string
+  bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void
+  activate(): Promise<Buffer | string>
+  dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>
+  subscribeLocal(id: string, event: string, filter: Buffer | undefined | null, context: string): Promise<Buffer | string>
+  unsubscribeLocal(id: string): void
+  deliver(id: string, payload: Buffer): Promise<Buffer | string>
+  close(): Promise<Buffer | string>
+}
+
+export declare function createGatewayEndpoint(): GatewayEndpoint
+
 export interface HighlightRange {
   start: number
   end: number

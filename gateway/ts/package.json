@@ -15,6 +15,10 @@
     "./protocol": {
       "types": "./dist/core/protocol.d.ts",
       "import": "./dist/core/protocol.js"
+    },
+    "./native": {
+      "types": "./dist/main/native.d.ts",
+      "import": "./dist/main/native.js"
     }
   },
   "scripts": {

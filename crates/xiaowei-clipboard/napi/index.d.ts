@@ -30,6 +30,17 @@ export declare class ClipboardHistory {
   clearHistory(): Promise<number>
 }
 
+export declare class GatewayEndpoint {
+  manifest(): string
+  bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void
+  activate(): Promise<Buffer | string>
+  dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>
+  subscribeLocal(id: string, event: string, filter: Buffer | undefined | null, context: string): Promise<Buffer | string>
+  unsubscribeLocal(id: string): void
+  deliver(id: string, payload: Buffer): Promise<Buffer | string>
+  close(): Promise<Buffer | string>
+}
+
 export interface ClipboardCategory {
   id: string
   name: string
@@ -60,6 +71,8 @@ export interface ClipboardListOptions {
   limit?: number
   offset?: number
 }
+
+export declare function createGatewayEndpoint(): GatewayEndpoint
 
 export declare function initializeLogging(development: boolean, callback: (entry: NativeLogEntry) => void): void
 

@@ -1,6 +1,6 @@
 # Protobuf 契约
 
-`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。当前只有 `testing` 测试契约，用于编解码和后续 Gateway 核心测试，不注册生产服务。
+`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。当前只有 `testing` 测试契约，用于编解码、Gateway 核心及原生传输测试，不注册生产服务。
 
 ## 组织与消费
 
@@ -11,7 +11,7 @@
 - `go/`：独立 module `github.com/tctony-labs/xiaowei/contracts/go`。本地 Go 消费者在自己的 go.mod 中 require 该 module，并用 `replace github.com/tctony-labs/xiaowei/contracts/go => ../contracts/go` 指向它（相对路径按消费者位置调整）；不复制生成文件，不要求根 go.work。当前 server 尚未消费它，因此不修改 server/go.mod。
 - `tools/`：仅生成时运行的 `xw-contracts-codegen`，调用 prost-build；不是契约运行依赖。没有 build.rs，消费已入库的 Rust 产物无需 protoc。
 
-测试 service 的 Echo 为 unary，Watch 为 server-streaming；Changed 的 message full name 是候选事件名称。这里只定义与读取描述，没有实际调用、事件订阅或流运行时，也没有 Gateway client／handler 绑定。
+测试 service `Fixture` 与 `PeerFixture` 复用相同消息，供独立 owner 双向调用验证。两者的 Echo 为 unary，Watch 为 server-streaming；Changed 的 message full name 是候选事件名称。这里只定义与读取描述，没有实际调用、事件订阅或流运行时，也没有 Gateway client／handler 绑定。
 
 ## 按语言选择 proto
 

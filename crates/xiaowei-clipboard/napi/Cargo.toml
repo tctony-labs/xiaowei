@@ -6,7 +6,11 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+gateway-fixtures = ["xw-gateway/test-fixtures"]
+
 [dependencies]
+xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 xiaowei-clipboard = { path = ".." }
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"

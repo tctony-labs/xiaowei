@@ -1,11 +1,11 @@
 # Gateway 核心
 
-Gateway 提供环境无关的 TS host／client、Rust 本地 registry、PB 调用绑定和事件 transport 接口。产品尚未接入；napi、Electron 适配和响应 stream 执行尚未实现。设计背景与实施进展见 [主事项](../.agent/records/active/2026-09-18-implement-gateway.md)。
+Gateway 提供环境无关的 TS host／client、Rust 本地 registry、PB 调用绑定、事件和 napi 传输适配。产品业务通信尚未迁移；Electron 适配和响应 stream 执行尚未实现。设计背景与实施进展见 [主事项](../.agent/records/active/2026-09-18-implement-gateway.md)。
 
 ## 工程入口
 
-- `ts/`：`xiaowei-gateway`，默认入口提供 client、协议和契约绑定；`xiaowei-gateway/host` 提供宿主管理 API。两者目前都不依赖 Node／Electron。编译到 `dist/` 后通过 runtime／types exports 使用。
-- `rust/`：`xw-gateway`，默认纯 Rust；没有 napi／Tauri 依赖。宿主持有 registry 的 `Arc`，向业务注入带调用上下文的 `Client`。
+- `ts/`：`xiaowei-gateway`，默认入口提供 client、协议和契约绑定；`xiaowei-gateway/host` 提供宿主管理 API。默认入口和 host 不依赖 Node／Electron；`xiaowei-gateway/native` 是使用 Node Buffer 的原生接入入口。编译到 `dist/` 后通过 runtime／types exports 使用。
+- `rust/`：`xw-gateway`，默认纯 Rust，不依赖 napi／Tauri；显式开启 `napi` feature 才编译原生适配。宿主持有 registry 的 `Arc`，向业务注入带调用上下文的 `Client`。
 - `tests/wire-cases.json`：两端共同使用的有效／无效 PB 样例。`ts/test/transport.test.ts` 启动测试 CLI 验证 TS→Rust 和 Rust→TS；该 CLI 不是产品 sidecar，JSON 数字数组仅用于测试进程的帧封装。
 
 ```sh
@@ -59,4 +59,35 @@ owner 重注册会使旧 pending 请求失败；新实例有独立执行状态�
 
 宿主创建可信或精确白名单上下文；业务 payload 不能改变它。TS 上下文使用私有 WeakMap 校验，反序列化对象或复制 trusted 字段无效；client transport 不接受 caller 元数据。Rust 上下文不实现反序列化，字段私有。自有业务使用 trusted 上下文，无 route 白名单。
 
-注册、发布、上下文构造是宿主 API，不能暴露给 renderer 或不可信入口。handler 的嵌套请求使用注入 client 保留权限。直接加载的 Rust／JS 模块拥有所在进程的权限，此机制不提供任意第三方代码的沙箱；隔离宿主及 Electron／napi ingress 尚未实现。
+注册、发布、上下文构造是宿主 API，不能暴露给 renderer 或不可信入口。handler 的嵌套请求使用注入 client 保留权限。直接加载的 Rust／JS 模块拥有所在进程的权限，此机制不提供任意第三方代码的沙箱；native 适配只允许宿主传入上下文；隔离宿主及 Electron ingress 尚未实现。
+
+
+## 原生接入与关闭
+
+`xw-gateway::napi::Endpoint` 持有业务传入的同一份 registry／owner；公共 crate 不注册 addon 导出或跨动态库 static。搜索与剪贴板的 napi 包分别导出 `GatewayEndpoint` 薄封装及 `createGatewayEndpoint()`，每次创建有独立 registry。当前正式工厂只创建空 endpoint，保留原业务 API；实际业务 handler 尚未迁入。
+
+宿主通过 `xiaowei-gateway/native` 的 `attachNative(host, name, endpoint, permissions?)` 接入。顺序为读取并校验 manifest → 预留全局 route／event 名称 → 绑定回调与来源上下文 → 激活 native → 原子发布。预留期间不暴露 route 或 event；失败会撤销预留并关闭新 endpoint，保留同名旧实例。返回的 handle 提供显式异步 `close()`；旧 handle 的关闭不会影响替换后的实例。
+
+manifest 在 endpoint 生命周期内保持固定。运行中新增／删除 route 或 event 时，用包含新 manifest 的 endpoint 重新接入同一 owner；走相同预留与发布流程，不直接修改已经发布的 native registry。业务服务实例可通过 Arc 保持其独立生命周期，但每个 endpoint 对应自己登记的 owner 实例。
+
+原生接口包括 manifest、bind、activate、dispatchLocal、subscribeLocal、unsubscribeLocal、deliver、close。main→native 只执行 dispatchLocal；native 本地未命中才回调 host。host 若发现 fallback 目标仍在来源 manifest 内，返回未知 route，避免重新转发给来源。调用时的权限由 host 创建 opaque token 并保留原上下文，native 嵌套调用沿用该 token；PB payload 不参与授权。
+
+控制 metadata／manifest 用 JSON 字符串，控制版本为 1；请求、响应、事件和 filter 的 PB 字节直接用 Buffer，不编码为 JSON 数组或 Base64。native Promise 成功返回 Buffer，失败返回序列化的 `{ code, message }` 字符串；TS adapter 将其恢复为核心 Result。native 控制响应（如订阅策略）也有明确的编码，不与业务 PB 混用。声明保留 `stream.open`／`stream.next`／`stream.cancel` 操作名称；当前返回方法种类错误，尚无 stream 执行和流控。
+
+TSFN 使用 non-blocking 投递，队列上限 64，并使用 `call_async_catch` 捕获同步 throw，再异步等待 JS Promise；拒绝值不会透传为业务内容。队列满返回 `CONCURRENCY_FULL`，关闭返回 `OWNER_UNAVAILABLE`，其他回调失败返回 `HANDLER_ERROR`。不持有 registry 或 endpoint 锁等待 JS，也不在 Node 主线程同步等待 Rust。现有同步业务仍需保持 spawn_blocking 适配。
+
+napi 薄封装在同步入口克隆 Arc，再用 `Env::spawn_future` 返回 Promise；避免让 JS 对象的 `&self` 借用横跨异步任务与环境销毁。环境清理 hook 只保存 Weak 引用，退出时同步关闭本地状态、不再调用 JS。正常显式 close 会先使 pending 调用失败、释放订阅和 sink，再向 host 通知关闭；关闭确认最多等待 1 秒，投递失败或超时明确返回错误。JS GC 不替代显式 close；host 侧 handle.close 会同时清理路由、caller token 和订阅。
+
+远端事件在 source／host 应用 filter 与队列策略，native 接收端对已经接受的投递使用 Ordered，避免重复 Drop／Coalesce 改变结果。订阅可早于 source 接入；owner 重连后恢复意图，不重放离线数据。异步订阅失败、取消和 endpoint 关闭都会释放本实例的本地 sink；迟到成功只清理其原 lease。
+
+## 原生联调
+
+```sh
+pnpm gateway:test-native
+```
+
+该命令为搜索和剪贴板启用 `gateway-fixtures`，构建到忽略的 `gateway/tests/native/`，在普通 Node 进程中加载两个真实 `.node`。测试契约 `testing.Fixture`／`testing.PeerFixture` 只在该 feature 中注册；正常构建没有 fixture 工厂、方法或测试 routes。测试不创建业务 Service，不访问用户数据库或系统剪贴板。
+
+测试脚本退出前总会重新执行两个包的正常 `build:debug`，生成正式 `.node`、JS 加载器及声明。源码中的 napi 注解决定公开类型，生成声明不手改；TS 类型检查同时验证两个生成 endpoint 类型与 NativeEndpoint 接口兼容。
+
+修改原生源码后须完成上述构建，并按工作区运行实例规则执行 `just rs`，已加载的 `.node` 不会自动替换。`just test` 运行常规核心／业务回归；`pnpm gateway:test-native` 是需要构建测试 feature 的独立联调入口。

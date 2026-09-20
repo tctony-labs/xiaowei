@@ -295,6 +295,9 @@ const file_testing_fixture_proto_rawDesc = "" +
 	"\x05value\x18\x01 \x01(\v2\x11.testing.EnvelopeR\x05value2g\n" +
 	"\aFixture\x12,\n" +
 	"\x04Echo\x12\x11.testing.Envelope\x1a\x11.testing.Envelope\x12.\n" +
+	"\x05Watch\x12\x11.testing.Envelope\x1a\x10.testing.Changed0\x012k\n" +
+	"\vPeerFixture\x12,\n" +
+	"\x04Echo\x12\x11.testing.Envelope\x1a\x11.testing.Envelope\x12.\n" +
 	"\x05Watch\x12\x11.testing.Envelope\x1a\x10.testing.Changed0\x01b\x06proto3"
 
 var (
@@ -323,10 +326,14 @@ var file_testing_fixture_proto_depIdxs = []int32{
 	1, // 2: testing.Changed.value:type_name -> testing.Envelope
 	1, // 3: testing.Fixture.Echo:input_type -> testing.Envelope
 	1, // 4: testing.Fixture.Watch:input_type -> testing.Envelope
-	1, // 5: testing.Fixture.Echo:output_type -> testing.Envelope
-	2, // 6: testing.Fixture.Watch:output_type -> testing.Changed
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
+	1, // 5: testing.PeerFixture.Echo:input_type -> testing.Envelope
+	1, // 6: testing.PeerFixture.Watch:input_type -> testing.Envelope
+	1, // 7: testing.Fixture.Echo:output_type -> testing.Envelope
+	2, // 8: testing.Fixture.Watch:output_type -> testing.Changed
+	1, // 9: testing.PeerFixture.Echo:output_type -> testing.Envelope
+	2, // 10: testing.PeerFixture.Watch:output_type -> testing.Changed
+	7, // [7:11] is the sub-list for method output_type
+	3, // [3:7] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -349,7 +356,7 @@ func file_testing_fixture_proto_init() {
 			NumEnums:      1,
 			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_testing_fixture_proto_goTypes,
 		DependencyIndexes: file_testing_fixture_proto_depIdxs,

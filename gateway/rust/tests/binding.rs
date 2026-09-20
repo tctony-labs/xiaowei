@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod fixture_bindings;
 
 #[test]

@@ -386,6 +386,18 @@ impl Drop for RemoteSubscription {
 }
 
 impl RemoteEvents {
+    /// Permanently release transport and all subscription intents at endpoint shutdown.
+    pub fn close(&self) {
+        let (transport, consumers) = {
+            let mut state = self.0.lock().unwrap();
+            (state.transport.take(), std::mem::take(&mut state.consumers))
+        };
+        for consumer in consumers.values() {
+            consumer.queue.close();
+        }
+        drop(consumers);
+        drop(transport);
+    }
     pub async fn set_transport(&self, transport: Option<EventTransport>) {
         let (bindings, removed, ids) = {
             let mut state = self.0.lock().unwrap();

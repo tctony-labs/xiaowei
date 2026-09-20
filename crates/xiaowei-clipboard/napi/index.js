@@ -779,4 +779,6 @@ function __napiStampBindingTarget(exportsObject, target) {
 module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __napiLoadedBindingTarget)
 module.exports = nativeBinding
 module.exports.ClipboardHistory = nativeBinding.ClipboardHistory
+module.exports.GatewayEndpoint = nativeBinding.GatewayEndpoint
+module.exports.createGatewayEndpoint = nativeBinding.createGatewayEndpoint
 module.exports.initializeLogging = nativeBinding.initializeLogging

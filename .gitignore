@@ -37,3 +37,6 @@ worktrees/
 
 # Compiled Gateway package
 gateway/ts/dist/
+
+# Gateway native integration test builds
+gateway/tests/native/
