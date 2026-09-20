@@ -103,15 +103,33 @@ Settings 的默认值、类型校验、缓存及业务通知属于上层；meta 
 
 Gateway 前置条件已完成，用户已确认进入实施阶段。计划依次执行：
 
-1. [00：DB 核心、事务与 migration_v2](../../plans/2026-09-18-implement-storage/00-db-core-and-migrations.md)。
+1. 00：DB 核心、事务与 migration_v2 已完成，结果见 Outcome。
 2. [01：meta KV 与原生 Gateway 接入](../../plans/2026-09-18-implement-storage/01-meta-and-native.md)。
 3. [02：剪贴板存储接管](../../plans/2026-09-18-implement-storage/02-clipboard-storage.md)。
 4. [03：桌面装配、本机切换与验收](../../plans/2026-09-18-implement-storage/03-desktop-cutover.md)。
 
 临时提醒：本次顺便调整长文本文件存储，细节与数据清理授权见 Plan 02／03；实现完成后删除本提醒，不写入本 record 的长期 How 或 Outcome。
 
-当前仅完成方案与计划整理，尚未开始 Plan 00。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
+Plan 00 已完成，接下来实施 Plan 01（meta KV 与原生 Gateway 接入）。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
 
 FTS／tokenizer 不混入本轮 DB 与 meta 基础。旧版 tokenizer 引用私有 git.woa.com 的 jieba-rs revision，实际接入时需核对 fork 与公开来源，不自行替换技术方案。Config 保持暂缓。
 
 验收包括：新库完整初始化、已有迁移跳过、失败时 SQL 与标记共同回滚、显式 down、参数与 BLOB／int64 往返、事务隔离和业务条件合并、meta 前缀／JSON null／跨重启持久化、跨模块及可信 renderer 访问、剪贴板业务行为回归。本机接管后核对完整性、外键和附件引用。不要求实现任意历史版本升级。
+
+
+### DB 实施细节
+
+SQLx 固定 0.8.6。当前工具链 Rust 1.92 不满足 SQLx 0.9 正式版的 Rust 1.94 要求，SQLx 0.8 的 libsqlite3-sys 0.30 又与旧 rusqlite 0.37 冲突，因此剪贴板在接管前临时使用 rusqlite 0.32.1，共享 libsqlite3-sys 0.30.1；接管后删除 rusqlite，不引入 SQLx alpha 或私有 patch。
+
+Database 提供 Query／Execute／Transaction 和 ApplyMigrations／MigrationStatus／Rollback。事务用 BEGIN IMMEDIATE 持有写锁，参数可引用前序结果的 step／row／column，expected_rows 断言失败回滚整个事务；列按索引返回并保留重名。单 SQL 64 KiB、128 参数，事务最多 64 步，完整结果最多 10000 行／4 MiB。SQLite prepare 时通过 authorizer 拒绝外部事务控制、ATTACH／DETACH、PRAGMA 和动态扩展加载，不靠字符串前缀猜测语句类型。取消查询通过 progress handler 中断执行，事务 Drop 回滚，连接归池前清理 progress handler。
+
+migration_v2 接收完整有序的声明列表（名称、up SQL、down SQL）；当前已执行状态必须是该列表的前缀，未知或顺序不一致的记录拒绝执行。每条迁移及其 meta 标记在同一事务中提交；meta 表先自举，回滚只允许最后一条已执行迁移。
+
+
+## Outcome
+
+### Plan 00：DB 核心与 migration_v2
+
+已实现 SQLx DB 核心、typed Database 契约与 Rust Gateway handlers、受限 SQL 验证、可引用前序结果的原子事务以及 migration_v2。完成标记与 SQL 同事务；长查询取消通过 SQLite progress handler 释放执行和连接。
+
+`cargo test -p xiaowei-storage --locked` 的 5 项测试通过，覆盖 SQLite 值类型、SQL 管理语句拒绝、结果大小、条件合并、失败回滚、并发事务、长查询取消和迁移 up/down。`just check`、`just test` 通过，搜索和剪贴板正式 native 包已重建，现有剪贴板回归通过。未操作本机数据库；当前运行的桌面属于 prometheus 工作区，未重启它，也未冷启动当前工作区。此阶段只需自动验证，无产品人工验收，Plan 00 已删除。

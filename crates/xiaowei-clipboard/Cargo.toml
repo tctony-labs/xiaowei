@@ -9,7 +9,7 @@ xw-contracts = { path = "../../contracts/rust" }
 prost = "=0.14.4"
 tokio = { version = "1", features = ["rt"] }
 log = "0.4"
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "=0.32.1", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

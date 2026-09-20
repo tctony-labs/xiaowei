@@ -13,6 +13,7 @@
 | `app.proto` / `xiaowei.app` | `App` | 应用能力，当前提供原始 PNG 图标读取 |
 | `system.proto` / `xiaowei.system` | `System` | 系统主题切换、通过系统应用打开 http(s) 网页 |
 | `clipboard.proto` / `xiaowei.clipboard` | `Clipboard` | 历史条目、内容读取／复制、收藏备注分类，以及条目关联的资源操作 |
+| `database.proto` / `xiaowei.storage` | `Database` | 参数化 SQLite 查询、原子事务与 migration_v2 管理 |
 | `common.proto` / `xiaowei.common` | 无 | 真正共用的消息，目前只有 `Empty` |
 
 文件和 package 使用单数业务名，service 使用 PascalCase。service 与执行 owner 不要求一一对应：`Clipboard` 的 CRUD 在 Rust，资源打开／定位在 main，仍属于同一个业务服务；Gateway 按完整方法名路由。不得为区分 main／Rust 而重新建立 `ClipboardResources` 等服务。
