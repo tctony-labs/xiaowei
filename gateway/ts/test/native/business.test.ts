@@ -21,7 +21,7 @@ import {
   SetCategoryRequestSchema,
   SetRemarkRequestSchema,
 } from "xiaowei-contracts";
-import { bindClient } from "xiaowei-gateway";
+import { bindClient, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
 
@@ -35,7 +35,12 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
   const directory = await mkdtemp(join(tmpdir(), "gateway-clipboard-"));
   const history = await clipboard.ClipboardHistory.open(directory, () => {});
   const host = new GatewayHost();
+  const { Storage } =
+    require("../../../../crates/xiaowei-storage/napi") as typeof import("../../../../crates/xiaowei-storage/napi/index.js");
+  const storage = await Storage.open(join(directory, "storage.sqlite"));
+  const storageOwner = await attachNative(host, "storage", storage.createGatewayEndpoint());
   const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  await history.initialize();
   const client = host.client({ caller: "test", trusted: true });
   const api = bindClient(Clipboard, client);
   let changed = 0;
@@ -48,6 +53,15 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     const key = BigInt(added.id);
     const item = (id: bigint) => create(ClipboardItemRequestSchema, { id });
     assert.equal((await api.get(item(key))).item?.previewText, added.text);
+    const restricted = bindClient(
+      Clipboard,
+      host.client({
+        caller: "restricted-clipboard",
+        trusted: false,
+        invoke: [methodRoute(Clipboard.method.get).name],
+      }),
+    );
+    await assert.rejects(restricted.get(item(key)), /Unauthorized/);
     assert.equal((await api.readText(item(key))).text, added.text);
     assert.equal((await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: true }))).updated, true);
     assert.equal((await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: false }))).updated, true);
@@ -89,8 +103,9 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     assert.ok(changed > 0);
   } finally {
     subscription.close();
-    history.stopMonitoring();
+    await history.stopMonitoring();
     await owner.close();
+    await storageOwner.close();
     await rm(directory, { recursive: true, force: true });
   }
 });

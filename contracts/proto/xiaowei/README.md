@@ -59,6 +59,8 @@ renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `
    ```sh
    cargo run -q -p xw-gateway --example generate_business -- search > crates/xiaowei-search/src/gateway_bindings.rs
    cargo run -q -p xw-gateway --example generate_business -- clipboard > crates/xiaowei-clipboard/src/gateway_bindings.rs
+   cargo run -q -p xw-gateway --example generate_business -- storage > crates/xiaowei-storage/src/gateway_bindings.rs
+   cargo run -q -p xw-gateway --example generate_business -- storage > crates/xiaowei-clipboard/src/storage_bindings.rs
    ```
 
    当前 search 原生包承载 Search、App、System 的原生方法，是部署事实，不决定契约归属。

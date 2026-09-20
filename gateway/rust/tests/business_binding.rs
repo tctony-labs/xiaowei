@@ -16,4 +16,8 @@ fn business_bindings_match_descriptors() {
         generator::generate("storage"),
         include_str!("../../../crates/xiaowei-storage/src/gateway_bindings.rs")
     );
+    assert_eq!(
+        generator::generate("storage"),
+        include_str!("../../../crates/xiaowei-clipboard/src/storage_bindings.rs")
+    );
 }

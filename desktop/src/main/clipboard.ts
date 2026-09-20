@@ -19,6 +19,7 @@ export async function registerClipboard(host: GatewayHost, directory: string) {
   try {
     history = await ClipboardHistory.open(directory, () => {});
     native = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+    await history.initialize();
     const content = history;
     const resolve = async (id: bigint, index?: number) => {
       if (id <= 0n || id > 0x7fffffffffffffffn) throw new Error("Invalid clipboard item ID");
@@ -62,10 +63,10 @@ export async function registerClipboard(host: GatewayHost, directory: string) {
         { partial: true },
       ),
     ]);
-    if (process.platform === "darwin") history.startMonitoring();
+    if (process.platform === "darwin") await history.startMonitoring();
     console.info("Clipboard history ready");
   } catch (error) {
-    history?.stopMonitoring();
+    await history?.stopMonitoring();
     owner?.close();
     try {
       await native?.close();
@@ -76,7 +77,7 @@ export async function registerClipboard(host: GatewayHost, directory: string) {
   }
   return {
     async close() {
-      history?.stopMonitoring();
+      await history?.stopMonitoring();
       owner?.close();
       try {
         await native?.close();

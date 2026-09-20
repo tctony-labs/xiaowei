@@ -12,7 +12,7 @@ test("text viewer tracks edits; image actions use the original persistent file",
   const imagePath = join(directory, "original.png");
   await writeFile(imagePath, png);
   const history = {
-    get: async (id) => ({ kind: id === "image" ? "image" : "largeText", imagePath }),
+    get: async (id) => ({ kind: id === "image" ? "image" : "text", imagePath }),
     readText: async () => text,
   };
   try {
@@ -51,4 +51,13 @@ test("Markdown links allow web URLs and reject executable or local schemes", () 
   for (const value of ["file:///tmp/a", "javascript:alert(1)", "data:text/html,hi", "app://run", 42]) {
     assert.throws(() => webUrl(value));
   }
+});
+
+test("large text viewer uses the persistent attachment without exporting another copy", async () => {
+  const textPath = "/tmp/clipboard/large_text/hash";
+  const history = {
+    get: async () => ({ kind: "largeText", paths: [], textPath }),
+    readText: async () => assert.fail("viewer must not export the full text"),
+  };
+  assert.deepEqual(await clipboardPaths(history, "/unused", "1"), [textPath]);
 });

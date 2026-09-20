@@ -11,7 +11,7 @@ export default defineConfig({
     plugins: [sourceLocationPlugin()],
     build: {
       externalizeDeps: {
-        include: ["xiaowei-search", "xiaowei-clipboard"],
+        include: ["xiaowei-search", "xiaowei-clipboard", "xiaowei-storage"],
         exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],
       },
     },

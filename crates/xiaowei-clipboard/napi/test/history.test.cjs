@@ -4,12 +4,14 @@ const { mkdtempSync, rmSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 const { test } = require("node:test");
-const { ClipboardHistory, initializeLogging } = require("..");
+const { initializeLogging } = require("..");
+const { open } = require("./setup.cjs");
 
 test("native local history persists across processes and exposes bounded APIs", async () => {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-clipboard-"));
   let changes = 0;
-  const history = await ClipboardHistory.open(directory, () => changes++);
+  const context = await open(directory, () => changes++);
+  const { history } = context;
   try {
     const first = await history.addText("本地 history 100%_");
     const again = await history.addText("本地 history 100%_");
@@ -29,13 +31,15 @@ test("native local history persists across processes and exposes bounded APIs", 
       [
         "-e",
         `
-      const { ClipboardHistory } = require(process.argv[1]);
-      ClipboardHistory.open(process.argv[2], () => {}).then(async history => {
+      const { open } = require(process.argv[1]);
+      open(process.argv[2]).then(async context => {
+        const { history } = context;
         const items = await history.list({ favoritesOnly: true });
         console.log(JSON.stringify(items.map(item => ({ id: item.id, favorite: item.favorite }))));
+        await context.close();
       }).catch(error => { console.error(error); process.exitCode = 1; });
     `,
-        resolve(__dirname, ".."),
+        resolve(__dirname, "setup.cjs"),
         directory,
       ],
       { encoding: "utf8", timeout: 10000 },
@@ -53,7 +57,7 @@ test("native local history persists across processes and exposes bounded APIs", 
     await new Promise((resolve) => setImmediate(resolve));
     assert.ok(changes > 0);
   } finally {
-    history.stopMonitoring();
+    await context.close();
     rmSync(directory, { recursive: true, force: true });
   }
 });
@@ -82,7 +86,8 @@ test("search and clipboard native libraries can install independent log callback
 
 test("native editing, notes and categories round trip through napi", async () => {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-clipboard-edit-"));
-  const history = await ClipboardHistory.open(directory, () => {});
+  const context = await open(directory);
+  const { history } = context;
   try {
     const first = await history.addText("initial");
     const category = await history.saveCategory("工作", "#F5222D");
@@ -105,7 +110,7 @@ test("native editing, notes and categories round trip through napi", async () =>
     await history.setRemark(first.id, "");
     assert.equal((await history.get(first.id)).remark, undefined);
   } finally {
-    history.stopMonitoring();
+    await context.close();
     rmSync(directory, { recursive: true, force: true });
   }
 });

@@ -75,7 +75,7 @@ if (!app.requestSingleInstanceLock()) {
   app
     .whenReady()
     .then(async () => {
-      gateway = await createApplicationGateway(paths.clipboard, paths.appIcons, {
+      gateway = await createApplicationGateway(paths.clipboard, paths.database, paths.appIcons, {
         development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
         platform: process.platform,
         openPath: (path) => shell.openPath(path),

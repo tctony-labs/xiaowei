@@ -1,4 +1,6 @@
+mod database;
 pub mod gateway;
+pub mod migrations;
 mod service;
 mod store;
 mod toolkit;

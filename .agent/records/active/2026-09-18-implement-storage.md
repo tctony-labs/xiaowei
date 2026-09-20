@@ -105,12 +105,12 @@ Gateway 前置条件已完成，用户已确认进入实施阶段。计划依次
 
 1. 00：DB 核心、事务与 migration_v2 已完成，结果见 Outcome。
 2. 01：meta KV 与原生 Gateway 接入已完成，结果见 Outcome。
-3. [02：剪贴板存储接管](../../plans/2026-09-18-implement-storage/02-clipboard-storage.md)。
+3. 02：剪贴板存储接管已完成，结果见 Outcome。
 4. [03：桌面装配、本机切换与验收](../../plans/2026-09-18-implement-storage/03-desktop-cutover.md)。
 
 临时提醒：本次顺便调整长文本文件存储，细节与数据清理授权见 Plan 02／03；实现完成后删除本提醒，不写入本 record 的长期 How 或 Outcome。
 
-Plan 00／01 已完成，接下来实施 Plan 02（剪贴板存储接管）。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
+Plan 00–02 已完成，接下来实施 Plan 03（本机切换与最终验收）。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
 
 FTS／tokenizer 不混入本轮 DB 与 meta 基础。旧版 tokenizer 引用私有 git.woa.com 的 jieba-rs revision，实际接入时需核对 fork 与公开来源，不自行替换技术方案。Config 保持暂缓。
 
@@ -142,3 +142,12 @@ Meta.Get／Set／Delete／List 与 Database 共用同一 SQLx pool。key 为 1�
 Storage.open(path) 完成 SQLite 初始化，createGatewayEndpoint 生成十条正式 typed route；endpoint.close 先关闭 Gateway，再关闭连接池。新增包纳入两个 workspace、正常原生构建及集成脚本；桌面生产接线尚未切换。
 
 `just check`、`just test` 和 `pnpm gateway:test-native` 通过。新增 Rust meta 测试、Node 原生生命周期测试和真实跨 addon Storage 测试验证初始化失败、幂等关闭、持久化、字面前缀及 TS／另一 Rust addon 共用数据。原 14 项 native 传输／流测试和 2 项生产业务测试通过，搜索／剪贴板／Storage 正式 native 产物已构建。此阶段无需产品人工验收，Plan 01 已删除。
+
+
+### Plan 02：剪贴板接管共享数据库
+
+剪贴板已移除 rusqlite、自有 Connection 和旧 user_version 升级链，使用生成的 Database typed client；业务维护最终 clipboard_items／clipboard_categories 基线，通过 migration_v2 初始化。Service 的数据库调用和监控停止改为异步，后台 client 使用 native endpoint 激活后取得的宿主身份，业务嵌套调用通过 task-local 保留请求的权限上下文。查询、条件合并、删除及最终读取在一个事务中完成。
+
+为保持切片可构建，已同步桌面的最小 Storage 依赖与初始化接线；Storage 先打开、剪贴板初始化后启动监控，Storage 最后关闭。当前机器数据库尚未切换，没有重启其他工作区实例。
+
+Rust 业务回归、原生历史／编辑测试、桌面资源适配测试、真实 Gateway native 联调及 `just check`／`just test` 通过；包含跨原生数据库访问及受限调用不能提升数据库权限的回归。三个原生包已重建为正式产物。Plan 02 已删除，产品人工验收与本机调整统一在 Plan 03 执行。

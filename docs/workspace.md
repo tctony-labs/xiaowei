@@ -168,7 +168,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
-本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
+main 先打开统一 `userData/xiaowei/storage.sqlite` 并接入 Storage，再由剪贴板初始化业务基线；macOS 启动 500ms 监听，退出时异步停止监控，Storage 最后关闭。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
 Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。
 
@@ -178,7 +178,7 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/`、`logs/` 和 `cache/app-icons/`（一周有效的应用图标 PNG 缓存），与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
 
-持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs`、`clipboard` 和 `appIcons`。main 入口设置 userData 后，将业务目录传给日志、剪贴板及搜索模块；业务接入层不自行拼接应用根路径。Rust 接收剪贴板目录，负责内部 `history.sqlite`、`images/` 等路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
+持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs`、`database`、`clipboard` 和 `appIcons`。main 入口设置 userData 后，将业务目录传给日志、剪贴板及搜索模块；业务接入层不自行拼接应用根路径。Storage 接收数据库路径；剪贴板接收附件目录，负责内部 `images/`、`large_text/` 路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
 
 ## 桌面 Gateway 通信
 

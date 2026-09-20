@@ -254,6 +254,9 @@ importers:
       xiaowei-search:
         specifier: workspace:*
         version: link:../crates/xiaowei-search/napi
+      xiaowei-storage:
+        specifier: workspace:*
+        version: link:../crates/xiaowei-storage/napi
       zustand:
         specifier: 5.0.8
         version: 5.0.8(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))

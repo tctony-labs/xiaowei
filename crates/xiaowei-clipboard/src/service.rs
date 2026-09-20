@@ -1,8 +1,9 @@
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result, Store};
 use std::path::Path;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread::JoinHandle;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::{oneshot, Mutex};
+use tokio::task::JoinHandle;
 
 pub trait ClipboardBackend: Send + 'static {
     fn change_count(&mut self) -> Result<i64>;
@@ -18,7 +19,7 @@ struct State {
 }
 
 struct Worker {
-    stop: mpsc::Sender<()>,
+    stop: oneshot::Sender<()>,
     thread: JoinHandle<()>,
 }
 
@@ -31,12 +32,13 @@ pub struct Service {
 impl Service {
     pub fn open(
         directory: &Path,
+        client: xw_gateway::invoke::Client,
         clipboard: impl ClipboardBackend,
         on_change: impl Fn() + Send + Sync + 'static,
     ) -> Result<Self> {
         Ok(Self {
             state: Arc::new(Mutex::new(State {
-                store: Store::open(directory)?,
+                store: Store::open(directory, client)?,
                 clipboard: Box::new(clipboard),
                 last_count: None,
                 last_hash: None,
@@ -46,95 +48,100 @@ impl Service {
         })
     }
 
-    pub fn start(&self) -> Result<()> {
-        let mut worker = self.worker.lock().map_err(|_| "Clipboard worker unavailable")?;
+    pub async fn initialize_with_client(&self, client: xw_gateway::invoke::Client) -> Result<()> {
+        let mut state = self.state.lock().await;
+        state.store.set_client(client);
+        state.store.initialize().await
+    }
+
+    pub async fn initialize(&self) -> Result<()> {
+        self.state.lock().await.store.initialize().await
+    }
+
+    pub async fn start(&self) -> Result<()> {
+        let mut worker = self.worker.lock().await;
         if worker.is_some() {
             return Ok(());
         }
-        let state = Arc::clone(&self.state);
-        let on_change = Arc::clone(&self.on_change);
-        let (stop, receiver) = mpsc::channel();
-        let thread = std::thread::Builder::new()
-            .name("clipboard-monitor".into())
-            .spawn(move || {
-                log::info!("Clipboard monitoring started (500 ms)");
-                let mut failed = false;
-                while matches!(
-                    receiver.recv_timeout(Duration::from_millis(500)),
-                    Err(mpsc::RecvTimeoutError::Timeout)
-                ) {
-                    let result = poll(&state);
-                    match result {
-                        Ok(changed) => {
-                            failed = false;
-                            if changed {
-                                on_change();
-                            }
-                        }
-                        Err(error) => {
-                            if !failed {
-                                log::warn!("Clipboard capture failed: {error}");
-                            }
-                            failed = true;
+        let state = self.state.clone();
+        let on_change = self.on_change.clone();
+        let (stop, mut receiver) = oneshot::channel();
+        let thread = tokio::spawn(async move {
+            log::info!("Clipboard monitoring started (500 ms)");
+            let mut failed = false;
+            loop {
+                tokio::select! {
+                    _ = &mut receiver => break,
+                    _ = tokio::time::sleep(Duration::from_millis(500)) => {}
+                }
+                match poll(&state).await {
+                    Ok(changed) => {
+                        failed = false;
+                        if changed {
+                            on_change();
                         }
                     }
+                    Err(error) => {
+                        if !failed {
+                            log::warn!("Clipboard capture failed: {error}");
+                        }
+                        failed = true;
+                    }
                 }
-                log::info!("Clipboard monitoring stopped");
-            })?;
+            }
+            log::info!("Clipboard monitoring stopped");
+        });
         *worker = Some(Worker { stop, thread });
         Ok(())
     }
 
-    pub fn stop(&self) -> Result<()> {
-        let mut slot = self.worker.lock().map_err(|_| "Clipboard worker unavailable")?;
-        if let Some(worker) = slot.take() {
+    pub async fn stop(&self) -> Result<()> {
+        let mut worker = self.worker.lock().await;
+        if let Some(worker) = worker.take() {
             let _ = worker.stop.send(());
-            worker.thread.join().map_err(|_| "Clipboard worker panicked")?;
+            worker.thread.await?;
         }
         Ok(())
     }
 
-    pub fn poll_once(&self) -> Result<bool> {
-        let changed = poll(&self.state)?;
+    pub async fn poll_once(&self) -> Result<bool> {
+        let changed = poll(&self.state).await?;
         if changed {
             (self.on_change)();
         }
         Ok(changed)
     }
 
-    pub fn list(&self, options: &ListOptions) -> Result<Vec<ClipboardItem>> {
-        self.state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .list(options)
+    pub async fn list(&self, options: &ListOptions) -> Result<Vec<ClipboardItem>> {
+        self.state.lock().await.store.list(options).await
     }
 
-    pub fn get(&self, id: i64) -> Result<Option<ClipboardItem>> {
-        self.state.lock().map_err(|_| "Clipboard unavailable")?.store.get(id)
+    pub async fn get(&self, id: i64) -> Result<Option<ClipboardItem>> {
+        self.state.lock().await.store.get(id).await
     }
 
-    pub fn add_text(&self, text: String) -> Result<ClipboardItem> {
+    pub async fn add_text(&self, text: String) -> Result<ClipboardItem> {
         let item = self
             .state
             .lock()
-            .map_err(|_| "Clipboard unavailable")?
+            .await
             .store
-            .capture(&ClipboardData::Text(text))?;
+            .capture(&ClipboardData::Text(text))
+            .await?;
         (self.on_change)();
         Ok(item)
     }
 
-    pub fn data(&self, id: i64) -> Result<ClipboardData> {
-        self.state.lock().map_err(|_| "Clipboard unavailable")?.store.data(id)
+    pub async fn data(&self, id: i64) -> Result<ClipboardData> {
+        self.state.lock().await.store.data(id).await
     }
 
-    pub fn copy(&self, id: i64) -> Result<()> {
+    pub async fn copy(&self, id: i64) -> Result<()> {
         {
-            let mut state = self.state.lock().map_err(|_| "Clipboard unavailable")?;
-            let data = state.store.data(id)?;
+            let mut state = self.state.lock().await;
+            let data = state.store.data(id).await?;
             state.clipboard.write(&data)?;
-            state.store.bump_use(id)?;
+            state.store.bump_use(id).await?;
             // Read the next version normally: another application may write immediately after us.
             state.last_count = None;
             state.last_hash = Some(data.hash());
@@ -143,72 +150,46 @@ impl Service {
         Ok(())
     }
 
-    pub fn set_favorite(&self, id: i64, favorite: bool) -> Result<bool> {
-        let changed = self
-            .state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .set_favorite(id, favorite)?;
+    pub async fn set_favorite(&self, id: i64, favorite: bool) -> Result<bool> {
+        let changed = self.state.lock().await.store.set_favorite(id, favorite).await?;
         if changed {
             (self.on_change)();
         }
         Ok(changed)
     }
 
-    pub fn categories(&self) -> Result<Vec<ClipboardCategory>> {
-        self.state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .categories()
+    pub async fn categories(&self) -> Result<Vec<ClipboardCategory>> {
+        self.state.lock().await.store.categories().await
     }
 
-    pub fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
-        let category = self
-            .state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .save_category(id, name, color)?;
+    pub async fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
+        let category = self.state.lock().await.store.save_category(id, name, color).await?;
         (self.on_change)();
         Ok(category)
     }
 
-    pub fn delete_category(&self, id: i64) -> Result<()> {
-        self.state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .delete_category(id)?;
+    pub async fn delete_category(&self, id: i64) -> Result<()> {
+        self.state.lock().await.store.delete_category(id).await?;
         (self.on_change)();
         Ok(())
     }
 
-    pub fn set_remark(&self, id: i64, remark: &str) -> Result<()> {
-        self.state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .set_remark(id, remark)?;
+    pub async fn set_remark(&self, id: i64, remark: &str) -> Result<()> {
+        self.state.lock().await.store.set_remark(id, remark).await?;
         (self.on_change)();
         Ok(())
     }
 
-    pub fn set_category(&self, id: i64, category: Option<i64>) -> Result<()> {
-        self.state
-            .lock()
-            .map_err(|_| "Clipboard unavailable")?
-            .store
-            .set_category(id, category)?;
+    pub async fn set_category(&self, id: i64, category: Option<i64>) -> Result<()> {
+        self.state.lock().await.store.set_category(id, category).await?;
         (self.on_change)();
         Ok(())
     }
 
-    pub fn edit_text(&self, id: i64, text: String) -> Result<ClipboardItem> {
+    pub async fn edit_text(&self, id: i64, text: String) -> Result<ClipboardItem> {
         let item = {
-            let mut state = self.state.lock().map_err(|_| "Clipboard unavailable")?;
-            let item = state.store.edit_text(id, text)?;
+            let mut state = self.state.lock().await;
+            let item = state.store.edit_text(id, text).await?;
             state.last_hash = None;
             item
         };
@@ -216,10 +197,10 @@ impl Service {
         Ok(item)
     }
 
-    pub fn delete(&self, id: i64) -> Result<bool> {
+    pub async fn delete(&self, id: i64) -> Result<bool> {
         let changed = {
-            let mut state = self.state.lock().map_err(|_| "Clipboard unavailable")?;
-            let changed = state.store.delete(id)?;
+            let mut state = self.state.lock().await;
+            let changed = state.store.delete(id).await?;
             if changed {
                 state.last_hash = None;
             }
@@ -231,10 +212,10 @@ impl Service {
         Ok(changed)
     }
 
-    pub fn clear_history(&self) -> Result<usize> {
+    pub async fn clear_history(&self) -> Result<usize> {
         let count = {
-            let mut state = self.state.lock().map_err(|_| "Clipboard unavailable")?;
-            let count = state.store.clear_history()?;
+            let mut state = self.state.lock().await;
+            let count = state.store.clear_history().await?;
             state.last_hash = None;
             count
         };
@@ -247,12 +228,15 @@ impl Service {
 
 impl Drop for Service {
     fn drop(&mut self) {
-        let _ = self.stop();
+        if let Some(worker) = self.worker.get_mut().take() {
+            let _ = worker.stop.send(());
+            worker.thread.abort();
+        }
     }
 }
 
-fn poll(state: &Mutex<State>) -> Result<bool> {
-    let mut state = state.lock().map_err(|_| "Clipboard unavailable")?;
+async fn poll(state: &Mutex<State>) -> Result<bool> {
+    let mut state = state.lock().await;
     let before = state.clipboard.change_count()?;
     if state.last_count == Some(before) {
         return Ok(false);
@@ -272,7 +256,7 @@ fn poll(state: &Mutex<State>) -> Result<bool> {
         state.last_count = Some(before);
         return Ok(false);
     }
-    let item = state.store.capture(&data)?;
+    let item = state.store.capture(&data).await?;
     state.last_count = Some(before);
     state.last_hash = Some(hash);
     log::debug!("Clipboard captured id={} kind={}", item.id, item.kind);

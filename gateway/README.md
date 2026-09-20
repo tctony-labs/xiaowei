@@ -132,7 +132,7 @@ preload 使用 `xiaowei-gateway/preload` 的 `createPreloadBridge(ipcRenderer)`�
 
 宿主分配 session／generation，导航、renderer 退出、窗口销毁时清理订阅和流。每会话最多 128 个订阅和 128 个流句柄；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。
 
-桌面 main 只创建一个 host。`createSearchGatewayEndpoint()` 与搜索预热共享同一个懒初始化服务；`ClipboardHistory.createGatewayEndpoint()` 使用该 history 已打开的 Service 和数据库，不另开业务实例。renderer 只暴露 `window.gateway`，业务调用使用 `services.ts` 中缓存的 lazy getter；旧 `window.launcher`／`window.clipboardHistory` facade 已删除。剪贴板页面显式等待事件订阅 ready 后查询首轮快照，卸载时关闭迟到订阅；窗口布局调用按序执行并处理 Promise 错误。原业务专用 IPC listener 已移除，日志仍用现有 console-message 链路。
+桌面 main 只创建一个 host。`createSearchGatewayEndpoint()` 与搜索预热共享同一个懒初始化服务；`ClipboardHistory.createGatewayEndpoint()` 使用该 history 的 Service；接入后 initialize 通过 Storage 执行业务基线，数据库连接由 Storage 统一持有。后台调用使用 endpoint 激活后取得的宿主身份，业务嵌套请求保留原始权限。renderer 只暴露 `window.gateway`，业务调用使用 `services.ts` 中缓存的 lazy getter；旧 `window.launcher`／`window.clipboardHistory` facade 已删除。剪贴板页面显式等待事件订阅 ready 后查询首轮快照，卸载时关闭迟到订阅；窗口布局调用按序执行并处理 Promise 错误。原业务专用 IPC listener 已移除，日志仍用现有 console-message 链路。
 
 业务契约位于 `contracts/proto/xiaowei/`。实际 route 使用生成的 `package.Service.Method`，事件使用 message full name：例如 `xiaowei.clipboard.Clipboard.List`、`xiaowei.clipboard.ClipboardChanged`。窗口、搜索结果 token、图标缓存、系统资源动作由 main 持有；CRUD、分类、收藏、图片字节及搜索引擎由各 Rust owner 执行。ID 在页面与展示模型的边界显式转换为 bigint，Rust 校验业务有效范围。
 

@@ -12,8 +12,9 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
 export declare class ClipboardHistory {
   static open(directory: string, onChange: () => void): Promise<ClipboardHistory>
   createGatewayEndpoint(): GatewayEndpoint
-  startMonitoring(): void
-  stopMonitoring(): void
+  initialize(): Promise<void>
+  startMonitoring(): Promise<void>
+  stopMonitoring(): Promise<void>
   list(options: ClipboardListOptions): Promise<Array<ClipboardItem>>
   get(id: string): Promise<ClipboardItem | null>
   readText(id: string): Promise<string>
@@ -53,6 +54,7 @@ export interface ClipboardItem {
   id: string
   kind: string
   imagePath?: string
+  textPath?: string
   text?: string
   paths: Array<string>
   width?: number

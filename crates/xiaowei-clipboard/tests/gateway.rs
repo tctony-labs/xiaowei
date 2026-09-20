@@ -33,10 +33,20 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
         width: 1,
         height: 1,
     })));
-    let service = Arc::new(Service::open(dir.path(), Backend(backend), || {}).unwrap());
-    service.poll_once().unwrap();
-
     let registry = XwInvokeRegistry::new();
+    let database = Arc::new(
+        xiaowei_storage::Database::open(&dir.path().join("storage.sqlite"))
+            .await
+            .unwrap(),
+    );
+    registry
+        .register_owner("storage", xiaowei_storage::gateway::registrations(&database), vec![])
+        .unwrap();
+    let client = registry.client(CallContext::trusted("clipboard"));
+    let service = Arc::new(Service::open(dir.path(), client, Backend(backend), || {}).unwrap());
+    service.initialize().await.unwrap();
+    service.poll_once().await.unwrap();
+
     let owner = registry
         .register_owner(
             "clipboard",
