@@ -71,6 +71,7 @@ if (!app.requestSingleInstanceLock()) {
         }
       });
       registerSearch(
+        paths.appIcons,
         () => launcher,
         (mode) => {
           launcherMode = mode;

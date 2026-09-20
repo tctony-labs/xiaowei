@@ -20,6 +20,8 @@
 
 Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，renderer 不提供任意路径或 URL。旧查询响应不覆盖新查询；输入改变时保留上一轮列表和窗口高度，待新结果替换；清空输入立即收起结果，等待新结果期间不执行旧条目。结果支持上下键、回车、单击选中和双击执行，组合输入期间不处理导航／确认键。应用名称与图标的系统调用已提取到内部 `xw-platform`，由 `xiaowei-search` 对外提供。图标沿用旧版 macOS `NSWorkspace.iconForFile` → TIFF → PNG，经 napi 异步返回 Buffer，Electron 转为 data URL；不再使用按文件关联类型读取图标的 `app.getFileIcon`。读取失败保留通用图标且不缓存失败；renderer 保留已加载图标，避免每轮查询闪回占位图。普通网址只允许 HTTP(S)，系统设置 URL 仅对应用数据源开放。
 
+应用图标由 Electron main 缓存在 `userData/xiaowei/cache/app-icons/`，文件名为应用绝对路径的 SHA-256，内容为 PNG。参考旧版落盘复用方式，新增自写入起一周的有效期（以文件 mtime 判断，读取不续期）；过期后下次请求重新提取并覆盖。主进程不保留已完成的图标内存缓存，每次请求检查磁盘有效期，仅合并进行中的并发请求；提取失败不缓存，磁盘读写失败不阻断原生提取和当前图标显示。该缓存按需填充，不迁移旧版缓存，也不引入旧版的全量图标后台预热。过期文件按需覆盖，不定时扫描删除。
+
 ## Outcome
 
 实现核心 crate、napi 绑定与生成的 JS／类型入口、Electron IPC、结果列表及 Storybook 明暗／滚动／选择场景。`just check`、60 项 Rust 测试、Node 原生绑定测试、Go 测试、桌面和 Storybook 构建通过。本机 macOS arm64 目录包构建通过，已直接加载包内解包出的 `.node` 验证计算结果；未启动打包应用。`just rs` 已在核实当前工作区进程归属后执行，未冷启动。已在实际 Electron 窗口验证 `7*8 = 56`、`wx` 返回应用／系统设置／书签混合结果、窗口随结果展开及 Esc 清空。
@@ -31,6 +33,8 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 平台模块仅迁入当前需要的名称和图标能力；包前缀与依赖方向统一遵循 [Rust 模块接入约定](../../../docs/rust-napi.md)。
 
 `xw-platform` 提取后，Rust 全量测试、`just check` 和两项 Node 绑定测试通过；图标测试覆盖真实 Finder PNG、与 Safari 图标区分及无效路径，并通过 napi 接口检查 PNG 签名与尺寸。未为图标新增 Storybook 场景。
+
+图标磁盘缓存验证：桌面 18 项 Node 测试通过，新增覆盖跨缓存实例复用磁盘、读取不续期、一周后磁盘缓存刷新（包括同一运行实例）、并发合并、提取失败重试和不可写目录降级。
 
 ## 内置命令范围
 

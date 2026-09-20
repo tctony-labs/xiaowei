@@ -140,6 +140,6 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 ## 应用数据目录
 
-应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/` 和 `logs/`，与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
+应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/`、`logs/` 和 `cache/app-icons/`（一周有效的应用图标 PNG 缓存），与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
 
-持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs` 和 `clipboard`。main 入口设置 userData 后，将业务目录传给日志及剪贴板模块；业务接入层不自行拼接应用根路径。Rust 接收剪贴板目录，负责内部 `history.sqlite`、`images/` 等路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
+持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs`、`clipboard` 和 `appIcons`。main 入口设置 userData 后，将业务目录传给日志、剪贴板及搜索模块；业务接入层不自行拼接应用根路径。Rust 接收剪贴板目录，负责内部 `history.sqlite`、`images/` 等路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。

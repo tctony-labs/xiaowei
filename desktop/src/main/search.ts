@@ -3,14 +3,16 @@ import { join } from "node:path";
 import { app, type BrowserWindow, clipboard, type IpcMainInvokeEvent, ipcMain, shell } from "electron";
 import { readAppIcon, recordUsage, type SearchHit, search, toggleSystemTheme } from "xiaowei-search";
 import { type LauncherMode, launcherHeight } from "../shared/launcher-api";
+import { createAppIconCache } from "./app-icon-cache";
 
 export function registerSearch(
+  iconDirectory: string,
   getWindow: () => BrowserWindow | undefined,
   onModeChange: (mode: LauncherMode) => void,
 ): void {
   let token = 0;
   let results = new Map<string, SearchHit>();
-  const icons = new Map<string, Promise<string | null>>();
+  const getIcon = createAppIconCache(iconDirectory, readAppIcon);
   function validate(event: IpcMainInvokeEvent): BrowserWindow {
     const window = getWindow();
     if (!window || event.sender !== window.webContents || event.senderFrame !== event.sender.mainFrame) {
@@ -86,25 +88,7 @@ export function registerSearch(
     validate(event);
     const hit = request === token && typeof id === "string" ? results.get(id) : undefined;
     if (hit?.actionType !== "launchApp") return null;
-    const path = hit.actionValue;
-    let icon = icons.get(path);
-    if (!icon) {
-      icon = readAppIcon(path)
-        .then((png) => {
-          if (!png) {
-            icons.delete(path);
-            return null;
-          }
-          return `data:image/png;base64,${png.toString("base64")}`;
-        })
-        .catch((error: unknown) => {
-          icons.delete(path);
-          console.warn("Application icon unavailable", error);
-          return null;
-        });
-      icons.set(path, icon);
-    }
-    return icon;
+    return getIcon(hit.actionValue);
   });
   ipcMain.on("launcher:resize", (event, count: unknown, mode: unknown) => {
     const window = getWindow();

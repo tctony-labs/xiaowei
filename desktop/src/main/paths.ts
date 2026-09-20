@@ -7,6 +7,7 @@ export function createPaths(systemAppData: string) {
   return {
     userData,
     appData,
+    appIcons: join(appData, "cache", "app-icons"),
     logs: join(appData, "logs"),
     clipboard: join(appData, "clipboard"),
   } as const;
