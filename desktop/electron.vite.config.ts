@@ -1,14 +1,20 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import { sourceLocationPlugin } from "@xiaowei/source-log/vite";
 import { defineConfig } from "electron-vite";
 
 export default defineConfig({
-  main: { build: { externalizeDeps: { include: ["xiaowei-search", "xiaowei-clipboard"] } } },
+  main: {
+    plugins: [sourceLocationPlugin()],
+    build: { externalizeDeps: { include: ["xiaowei-search", "xiaowei-clipboard"] } },
+  },
   preload: {
+    plugins: [sourceLocationPlugin()],
     build: { rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } } },
   },
   renderer: {
     plugins: [
+      sourceLocationPlugin(),
       react(),
       tailwindcss(),
       {

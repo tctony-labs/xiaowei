@@ -6,6 +6,8 @@ pub struct Entry {
     pub level: String,
     pub target: String,
     pub message: String,
+    pub file: Option<String>,
+    pub line: Option<u32>,
 }
 
 type Sink = Box<dyn Fn(Entry) + Send + Sync>;
@@ -29,6 +31,10 @@ impl Log for Logger {
                     level: record.level().as_str().to_lowercase(),
                     target: record.target().into(),
                     message: record.args().to_string(),
+                    file: record
+                        .file()
+                        .map(|file| file.trim_start_matches("./").replace('\\', "/")),
+                    line: record.line(),
                 });
             }
         }

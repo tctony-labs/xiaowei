@@ -74,6 +74,10 @@ test("search and clipboard native libraries can install independent log callback
   ]);
   assert.equal(clipboardEntry.message, "Native logging initialized: xiaowei-clipboard");
   assert.equal(searchEntry.message, "Native logging initialized: xiaowei-search");
+  for (const entry of [clipboardEntry, searchEntry]) {
+    assert.equal(entry.file, "crates/xw-napi-log/src/lib.rs");
+    assert.ok(Number.isInteger(entry.line) && entry.line > 0);
+  }
 });
 
 test("native editing, notes and categories round trip through napi", async () => {

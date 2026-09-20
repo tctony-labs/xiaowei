@@ -30,7 +30,29 @@ Rust 继续使用 `log` facade，当前在搜索 napi 入口安装接收器，�
 
 main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获 console、未处理 Promise 拒绝和渲染进程异常退出。浏览器 console-message 提供的是文本，复杂对象的文件表示受 Chromium 格式限制，需要完整结构时显式序列化。业务日志不主动记录搜索词、剪贴板正文或密钥；调用者仍需避免输出敏感内容。
 
+### 源码位置（方案 A）
+
+自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `build-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
+
+位置格式为 `[desktop/src/main/index.ts:行号]` 或 `[packages/utils/src/index.ts:行号]`，文件路径相对工作区根目录、使用 `/`。调用参数仍交给原 console；首参数为字符串时将位置合并到格式字符串前，保留 `%s`、`%o`、`%c` 等占位符及其参数，其他首参数保持原对象／Error 引用。DevTools 同样显示源码位置前缀，其原生可点击链接仍可能指向包装器或产物。无运行时抓栈或源码映射。
+
+renderer/preload 沿用唯一的 `console-message` 通道：有注入位置前缀时直接记录，不追加产物 URL 和行号；其他消息继续使用 Electron 提供的位置兜底。不另建 IPC 通道，避免双通道去重和对象序列化协议；复杂对象仍受现有 Chromium 文本格式限制。未注入日志内容若自行以同样的源码位置前缀开头，也会被视为已有位置。
+
+插件默认开启。启动或构建前设置 `XIAOWEI_LOG_SOURCE=0` 关闭，改变开关后需重启 Vite；例如 `XIAOWEI_LOG_SOURCE=0 pnpm --filter @xiaowei/desktop build`。关闭后不改写业务调用、不引入包装器调用，也不自动抓栈；main 省略位置，renderer 保留 Electron 提供的脚本位置。仅关闭 TS 插件，不影响 native 源码位置。
+
+native 接收器保留 target 用于 `xw_` / `xiaowei_` 过滤，额外将可选 `file`、`line` 透传到两个 napi 包。main 输出 `[crates/xw-bookmark/src/store.rs:行号]`，不再打印重复的语言或 target；缺少 file 时省略位置。`scripts/build-native.mjs` 为两个包的 debug/release 构建统一追加 `--remap-path-prefix=<工作区>=.`，保留已有 Rust 编译参数；接收器去掉 `./` 并统一分隔符。工作区外的源码位置不匹配该映射，保留原值。首次引入或改变编译参数会触发 Cargo 重编译；直接绕过 npm 构建入口运行 Cargo 不应用该映射。
+
+React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 `@xiaowei/source-log/babel` 入口，由宿主 Babel 解析和生成代码；沿用原有 RN/Expo preset，在源码转换阶段注入位置。默认根目录为当前工作区，可用 `workspaceRoot` 指定绝对路径；通过 `enabled: false` 或环境变量关闭。修改开关后需重启 Metro 并清理转换缓存。插件不依赖 Electron、不安装 Metro、不改变移动端日志传输和落盘。接入示例及 Metro 对工作区源码的可见性要求见 [共享日志定位包](../../../packages/source-log/README.md)。
+
+性能对比入口：`pnpm --filter @xiaowei/desktop exec node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
+
 ## Outcome
+
+2026-09-20 范围修正与 RN 适配：取消 desktop 源码目录限制，共享包覆盖工作区源码；renderer 位置识别同步支持跨包路径。新增 Vite 实际跨包构建开关测试，以及 Babel TSX、作用域过滤、路径排除、嵌套调用与运行输出测试。`just check`、24 项桌面测试、3 项共享包 Babel 测试和桌面正式构建通过。React Native/Metro 尚无项目，未声称已完成真机或 Fast Refresh 验收。
+
+2026-09-20 源码定位：`just check`、`just test`（包含 22 项桌面测试和 8 项 napi 测试）及桌面正式构建通过，两个 native debug 包已重建，回调验证得到工作区相对路径与有效行号。插件开关均通过实际 Vite production/dev 转换验证，测试覆盖 TSX、行号更新、局部 console、指令保留、嵌套调用、格式参数和 renderer 单次写入／不追加产物位置。尚未完成当前工作区 Electron 的端到端验收：现有运行实例属于主工作区，未重启或冷启动。
+
+同进程交替三轮测量：全量构建中位数关闭 417ms、开启 434ms；开发模块失效重转换各轮均值关闭 5.8–7.8ms、开启 5.6–6.5ms。首次冷转换受缓存影响明显（首轮 42ms，后续约 4–5ms），不足以据此判断完整冷启动差异；未观察到稳定的重转换退化，不代表更大项目或实际浏览器 HMR 零成本。
 
 修复退出时 console 写入 `EIO` 经未捕获异常监测反复记录、导致日志持续轮转的问题。新增独立 Node 子进程测试覆盖正常终端、同步 `EPIPE` 和异步 `EIO`，验证异常仍尝试输出 console、无派生未捕获异常及重复日志、后续文件写入继续；14 项桌面测试、桌面类型检查和修改文件的 Biome 检查通过。未启动桌面实例，实际终端关闭时的 Electron 退出行为待运行验证。
 

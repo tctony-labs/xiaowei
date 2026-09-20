@@ -13,8 +13,8 @@
     "binaryName": "xiaowei-clipboard"
   },
   "scripts": {
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build": "node ../../../scripts/build-native.mjs --release",
+    "build:debug": "node ../../../scripts/build-native.mjs",
     "check": "cargo check -p xiaowei-clipboard-napi --locked",
     "test": "node --test test/*.test.cjs"
   },

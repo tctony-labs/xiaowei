@@ -26,6 +26,7 @@
     "zustand": "5.0.8"
   },
   "devDependencies": {
+    "@babel/parser": "7.29.8",
     "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.0.0",
@@ -38,7 +39,8 @@
     "nodemon": "3.1.14",
     "storybook": "10.6.0",
     "tailwindcss": "4.3.3",
-    "vite": "7.3.6"
+    "vite": "7.3.6",
+    "@xiaowei/source-log": "workspace:*"
   },
   "description": "XiaoWei desktop client"
 }
