@@ -1,0 +1,16 @@
+[package]
+name = "xw-gateway"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+heck = "0.5"
+prost = "=0.14.4"
+prost-types = "=0.14.4"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+
+[dev-dependencies]
+xw-contracts = { path = "../../contracts/rust" }
+serde_json = "1"
+

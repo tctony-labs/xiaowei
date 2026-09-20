@@ -12,9 +12,13 @@
 
 应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
-本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway runtime 与业务迁移设计尚未实现，不代表当前产品行为。
+本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的环境无关 Gateway 核心和绑定，尚未修改产品运行代码。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；napi／Electron 适配、响应 stream 执行和业务迁移尚未实现，不代表当前产品行为。
 
 ## How
+
+### 当前核心实现
+
+Plan 01 已实现的协议、注册／请求生命周期、事件与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心和环境无关 TS host 已通过测试；下文涉及 napi／Electron、stream 执行和产品通信的部分仍为后续设计。
 
 ### 统一服务调用
 
@@ -26,9 +30,9 @@ Electron main 可作为当前多个 `.node` 模块之间的路由中心：原生
 
 ### 接口定义与绑定生成：Protobuf 适配方向
 
-Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成熟的 Protobuf 消息定义与生成工具适配现有传输，不再自研 JSON 类型 DSL，也不引入完整 gRPC 网络运行时或直接接入 Mojo。独立适配验证与 Plan 00 的正式消息／接口描述生成已完成；Gateway 专用绑定和 runtime 尚未实现。
+Gateway 保留 invoke、event、stream 三类契约及 route 寻址。先用成熟的 Protobuf 消息定义与生成工具适配现有传输，不再自研 JSON 类型 DSL，也不引入完整 gRPC 网络运行时或直接接入 Mojo。独立适配验证、Plan 00 的正式消息／接口描述生成和 Plan 01 的 Gateway 核心及通用绑定已完成。
 
-使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 使用 prost-build 的 ServiceGenerator 扩展点生成 Gateway method descriptor、typed client／handler adapter。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
+使用 `contracts/proto/**/*.proto` 定义消息、unary RPC 和 server-streaming RPC。TS 使用 Protobuf-ES，Rust 使用 prost／prost-build；它们生成消息类型与二进制 codec。TS 可直接利用生成的 service descriptor 创建 typed client，Rust 的 Gateway 生成适配消费契约包的原生 FileDescriptorSet 和 PB full name→Rust message 路径映射，生成 typed Method 常量，再复用通用 client／handler adapter。该适配不修改 contracts 的消息生成器。我们只补通信绑定，不重写 Protobuf 类型生成器，不生成业务实现。
 
 同一份消息定义支持 optional、oneof、数组和嵌套 bytes。验证中 uint64 映射为 TS bigint／Rust u64，bytes 为 Uint8Array／Vec<u8>；现有业务 facade 的字符串 ID 在接入层显式转换，不强制改产品 API。Proto3 optional 表达缺失与默认值，不天然表达缺失／null／值三态；确有需求时在 proto 中显式定义 oneof／NullValue。Protobuf 编解码负责 wire 格式，业务范围、长度、权限和领域校验仍由运行时／handler 负责，不能把生成类型说成完整校验器。
 
@@ -180,10 +184,10 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 
 ## Current work
 
-Plan 00–04 的范围均已逐项确认。Plan 00 已实现、完成自动验证并经用户确认提交；下一步为 Plan 01。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
+Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已实施、完成自动验证并经用户确认提交；下一步为 Plan 02。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
 
 0. 契约生成和测试：已完成，Plan 已删除；当前实现与使用方式见 [契约说明](../../../contracts/README.md)，验证结果见 Outcome。未实现 Gateway 绑定。
-1. [Gateway 核心逻辑与测试契约验证](../../plans/2026-09-18-implement-gateway/01-gateway-core.md)：范围已确认定稿；实现 TS／Rust Gateway 的注册、路由、通用调用绑定、请求管理和事件机制，复用 Plan 00 的测试契约验证，不接入真实业务。
+1. Gateway 核心逻辑与测试契约验证：已完成，Plan 已删除；当前接口见 [Gateway 核心](../../../gateway/README.md)，验证结果见 Outcome，已获用户确认。
 2. [napi 传输适配与联调](../../plans/2026-09-18-implement-gateway/02-native-transport.md)：范围已确认，尚未实施；先验证两个独立 `.node` 之间的调用、事件及关闭行为，再接实际业务。
 3. [响应流](../../plans/2026-09-18-implement-gateway/03-response-streams.md)：范围已确认，尚未实施；实现端到端 pull、取消、资源限制和终态语义。
 4. [Electron 与业务迁移](../../plans/2026-09-18-implement-gateway/04-electron-integration.md)：范围已确认，尚未实施；renderer／main／Rust 使用同一 gateway，保留当前强类型业务 API 和 UI 行为。
@@ -241,7 +245,7 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 
 ### 对外接入契约（拟定）
 
-以下为本轮接口职责，具体 Rust／TS 类型在 Plan 01／02 中验证后落实，不代表已有可调用 API。
+以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；此表中的 native endpoint、attachNative 和 stream 仍待 Plan 02／03 实施。
 
 | 接口 | 调用方与作用 |
 | --- | --- |
@@ -313,4 +317,23 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 - Go 插件共享缓存首次安装及复用验证通过：缓存命中后将 PATH 中的 go 替换为必失败的测试入口，generate／check 仍通过；缓存文件 inode、mtime 和摘要及全部生成产物保持不变。
 - 连续两次生成产物字节一致。分别修改及删除 TS、Rust descriptor、Go 产物，六种故障均使 check 失败且不改动故障现场；恢复后 check 通过。
 
-本切片仅在 macOS arm64 验证，不宣称其他平台已经验收；未启动桌面实例，也未涉及现有 napi 包的代码或依赖。Plan 00 已经用户确认。整个 Gateway 事项仍在实施中，Plan 01–04 保留，后续从 Plan 01 继续。
+本切片仅在 macOS arm64 验证，不宣称其他平台已经验收；未启动桌面实例，也未涉及现有 napi 包的代码或依赖。Plan 00 已经用户确认。Plan 00 的后续核心实现结果见下一节；整个 Gateway 事项仍在实施中。
+
+
+### Plan 01：Gateway 核心逻辑与测试契约验证
+
+2026-09-20 完成 `gateway/ts` 和 `gateway/rust` 两个环境无关包，显式纳入 workspace。实现 PB typed client／handler、manifest、routes／events 全批原子注册、新 owner 实例与旧句柄隔离、本地优先／单次远端回退、执行端超时与并发限制、显式事件导出、三种每订阅队列及可注入事件 transport。当前接口和运维约定已写入 [Gateway 核心](../../../gateway/README.md)，此处不重复维护。
+
+已完整核对旧版 invoke.rs、event.rs、xw-gateway.md 和 xwIpc.ts，迁入原注册、typed payload、远端调用、并发、filter、Ordered burst、backend 订阅保留／清理和旧 epoch 隔离的测试语义，以 PB 和注入 sink／transport 替换 JSON、Tauri 与 socket 装配。保留默认 30 秒／32 并发、事件 best-effort／at-most-once；补全批内重复检查、跨 routes／events 原子性、owner 关闭 pending 失败，以及迟到订阅成功／失败不得影响新连接。Rust 的超时测试包含真实 spawn_blocking 任务，验证真实结束前不释放并发许可。
+
+Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成 Method 常量并复用通用适配；没有把 Gateway 代码或业务接口写入 contracts，也没有重新生成消息类型。控制／契约版本当前均为 1，按 route 检查版本、方法种类和消息名；兼容字段增加不采用 descriptor 指纹拒绝策略。TS 默认编译入口及 protocol／host 子路径提供 runtime／types exports，浏览器侧入口不引用 Node／Electron。
+
+验证证据：
+
+- `pnpm install --frozen-lockfile`、`just check`、`just test` 通过，包括现有 Rust／Node 原生绑定／桌面脚本／Go 回归和 Plan 00 三语言 codec 测试。
+- `cargo test -p xw-gateway --no-default-features --locked` 通过，包含绑定漂移检查及错误 handler 入参／返回值的 compile-fail；默认 normal 依赖链不含 napi／Tauri。
+- TS 包 check／test／build 通过，包含错误入参／返回值和 stream 误用的编译反例；Node 直接导入编译后的包入口成功。
+- 同一组 wire 样例覆盖两端有效／损坏 PB；测试 CLI 通过通用 adapter 完成 TS→Rust、Rust→TS，覆盖 uint64 上限、Unicode、optional／oneof、嵌套 2 MiB bytes、未知 route、handler 错误及 unary 误调 stream。
+- 权限测试覆盖可信免白名单、精确白名单拒绝、伪造上下文无效及嵌套调用不提权。事件测试覆盖过滤、256 项 Ordered burst、Coalesce／Drop、晚注册／重注册、caller 清理、幂等 close 及旧连接迟到结果。
+
+没有修改 UI、数据库、业务模块或现有 napi 包依赖，未启动或重启桌面；该核心当前没有产品消费者，所以本切片没有受影响的 napi 包需要重建。只验证 macOS arm64 的核心及 fake transport，不宣称已验证真实 Electron／TSFN 链路。Plan 01 已删除，Plan 02–04 保留；用户已确认本切片并要求继续 Plan 02。

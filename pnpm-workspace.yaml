@@ -1,5 +1,6 @@
 packages:
   - contracts/ts
+  - gateway/ts
   - desktop
   - packages/*
   - crates/*/napi

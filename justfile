@@ -8,7 +8,9 @@ prepare:
     shopt -s nullglob
     stamp=".prepare-ts"
     changed=false
-    for file in pnpm-lock.yaml pnpm-workspace.yaml package.json contracts/ts/package.json desktop/package.json packages/*/package.json crates/*/napi/package.json; do
+    for file in pnpm-lock.yaml pnpm-workspace.yaml package.json \
+        contracts/ts/package.json gateway/ts/package.json desktop/package.json \
+        packages/*/package.json crates/*/napi/package.json; do
         if [ ! -f "$stamp" ] || [ "$file" -nt "$stamp" ]; then
             changed=true
             break
@@ -88,6 +90,7 @@ fmt:
 # Check without changing source or the Git index.
 check:
     cargo fmt --all --check
+    cargo check -p xw-gateway --no-default-features --locked
     pnpm check
     cd server && test -z "$(gofmt -l .)"
     cd server && go vet ./...
