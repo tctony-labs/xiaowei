@@ -10,6 +10,7 @@ use tokio::sync::{Semaphore, watch};
 
 use crate::event::{EventExportRegistration, EventState};
 use crate::protocol::*;
+use crate::stream::{self, Admission, ByteStream, RemoteStream, StreamHandler, StreamPolicy};
 
 type InvokeFuture = Pin<Box<dyn Future<Output = WireResult> + Send>>;
 pub type InvokeHandler = Arc<dyn Fn(Vec<u8>, Client) -> InvokeFuture + Send + Sync>;
@@ -20,6 +21,8 @@ pub struct InvokeRegistration {
     pub timeout: Duration,
     pub max_concurrency: usize,
     pub handler: Option<InvokeHandler>,
+    pub stream_handler: Option<StreamHandler>,
+    pub stream_policy: StreamPolicy,
 }
 
 impl InvokeRegistration {
@@ -30,6 +33,8 @@ impl InvokeRegistration {
     {
         Self {
             route,
+            stream_handler: None,
+            stream_policy: StreamPolicy::default(),
             timeout: Duration::from_secs(30),
             max_concurrency: 32,
             handler: Some(Arc::new(move |payload, client| Box::pin(handler(payload, client)))),
@@ -39,10 +44,21 @@ impl InvokeRegistration {
     pub fn stream(route: Route) -> Self {
         Self {
             route,
+            stream_handler: None,
+            stream_policy: StreamPolicy::default(),
             timeout: Duration::from_secs(30),
             max_concurrency: 32,
             handler: None,
         }
+    }
+    pub fn streaming<F, Fut>(route: Route, handler: F) -> Self
+    where
+        F: Fn(Vec<u8>, Client) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<ByteStream, GatewayError>> + Send + 'static,
+    {
+        let mut registration = Self::stream(route);
+        registration.stream_handler = Some(Arc::new(move |payload, client| Box::pin(handler(payload, client))));
+        registration
     }
 }
 
@@ -54,6 +70,8 @@ struct Entry {
     semaphore: Arc<Semaphore>,
     max_concurrency: usize,
     handler: Option<InvokeHandler>,
+    stream_handler: Option<StreamHandler>,
+    stream_policy: StreamPolicy,
 }
 
 #[derive(Clone)]
@@ -91,6 +109,9 @@ pub struct XwInvokeRegistry {
     pub(crate) state: Mutex<State>,
     pub remote_events: crate::event::RemoteEvents,
     remote: RwLock<Option<RemoteInvoker>>,
+    remote_stream: RwLock<Option<RemoteStream>>,
+    admissions: stream::Admissions,
+    streams: Mutex<Vec<std::sync::Weak<stream::Life>>>,
 }
 
 #[derive(Clone)]
@@ -102,6 +123,11 @@ pub struct Client {
 impl Client {
     pub async fn invoke(&self, route: &Route, payload: Vec<u8>) -> WireResult {
         self.registry.call(route, payload, self.context.clone()).await
+    }
+    pub async fn stream(&self, route: &Route, payload: Vec<u8>) -> Result<stream::ResponseStream, GatewayError> {
+        self.registry
+            .open_stream(route, payload, self.context.clone(), None)
+            .await
     }
     pub fn context(&self) -> &CallContext {
         &self.context
@@ -135,6 +161,13 @@ impl XwInvokeRegistry {
         let mut names = HashSet::new();
         for registration in &registrations {
             registration.route.validate()?;
+            registration.stream_policy.validate()?;
+            if registration.stream_handler.is_some() && registration.route.kind != MethodKind::ServerStreaming {
+                return Err(GatewayError::new(
+                    ErrorCode::WrongMethodKind,
+                    "invalid stream handler kind",
+                ));
+            }
             if !names.insert(&registration.route.name)
                 || state
                     .entries
@@ -176,6 +209,8 @@ impl XwInvokeRegistry {
                     semaphore: Arc::new(Semaphore::new(registration.max_concurrency)),
                     max_concurrency: registration.max_concurrency,
                     handler: registration.handler,
+                    stream_handler: registration.stream_handler,
+                    stream_policy: registration.stream_policy,
                 },
             );
         }
@@ -216,6 +251,7 @@ impl XwInvokeRegistry {
                 route: entry.route.clone(),
                 timeout_ms: entry.timeout.as_millis().min(u64::MAX as u128) as u64,
                 max_concurrency: entry.max_concurrency,
+                stream_policy: (entry.route.kind == MethodKind::ServerStreaming).then(|| entry.stream_policy.clone()),
             })
             .collect();
         routes.sort_by(|a, b| a.route.name.cmp(&b.route.name));
@@ -246,6 +282,118 @@ impl XwInvokeRegistry {
         *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context| {
             Box::pin(invoker(route, payload, context))
         }));
+    }
+
+    pub fn set_remote_stream(&self, remote: RemoteStream) {
+        *self.remote_stream.write().unwrap() = Some(remote);
+    }
+    pub fn cleanup_stream_caller(&self, caller: &str) {
+        for admission in self.admissions.lock().unwrap().iter().filter_map(|weak| weak.upgrade()) {
+            if admission.caller == caller {
+                admission.cancel.send_replace(true);
+            }
+        }
+        let mut streams = self.streams.lock().unwrap();
+        streams.retain(|weak| {
+            if let Some(life) = weak.upgrade() {
+                if life.caller == caller {
+                    life.cancel.send_replace(true);
+                }
+                true
+            } else {
+                false
+            }
+        });
+    }
+    pub async fn open_stream(
+        self: &Arc<Self>,
+        route: &Route,
+        payload: Vec<u8>,
+        context: CallContext,
+        local: Option<&Owner>,
+    ) -> Result<stream::ResponseStream, GatewayError> {
+        context.authorize(&route.name, false)?;
+        route.validate()?;
+        if route.kind != MethodKind::ServerStreaming {
+            return Err(GatewayError::new(ErrorCode::WrongMethodKind, "stream route required"));
+        }
+        let entry = self.state.lock().unwrap().entries.get(&route.name).cloned();
+        let Some(entry) = entry else {
+            if local.is_some() {
+                return Err(GatewayError::new(ErrorCode::UnknownRoute, "local stream missing"));
+            }
+            let remote = self
+                .remote_stream
+                .read()
+                .unwrap()
+                .clone()
+                .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "stream route missing"))?;
+            let policy = StreamPolicy::default();
+            let admission = self.admit_stream(&policy, context.caller(), 0)?;
+            let mut cancelled = admission.cancel.subscribe();
+            let source = tokio::select! {
+                _ = cancelled.changed() => return Err(GatewayError::new(ErrorCode::Cancelled, "caller closed")),
+                result = tokio::time::timeout(Duration::from_millis(policy.open_timeout_ms),
+                    remote(route.clone(), payload, context.clone())) =>
+                    result.map_err(|_| GatewayError::new(ErrorCode::Timeout, "remote open timed out"))??,
+            };
+            let owner = Owner {
+                id: 0,
+                name: "remote".into(),
+                closed: watch::channel(false).0,
+            };
+            source.policy.validate()?;
+            let handle = stream::start(source.source, source.policy, context.caller().into(), owner, admission);
+            self.track_stream(&handle);
+            return Ok(stream::ResponseStream::new(handle));
+        };
+        if &entry.route != route {
+            return Err(GatewayError::new(ErrorCode::Incompatible, "stream contract mismatch"));
+        }
+        if entry.owner.is_closed() || local.is_some_and(|owner| !owner.same_instance(&entry.owner)) {
+            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner closed"));
+        }
+        let handler = entry
+            .stream_handler
+            .ok_or_else(|| GatewayError::new(ErrorCode::WrongMethodKind, "stream handler missing"))?;
+        let policy = entry.stream_policy;
+        let admission = self.admit_stream(&policy, context.caller(), entry.owner.id)?;
+        let mut cancelled = admission.cancel.subscribe();
+        let mut closed = entry.owner.closed.subscribe();
+        let source = tokio::select! {
+            biased;
+            _ = cancelled.changed() => return Err(GatewayError::new(ErrorCode::Cancelled, "caller closed")),
+            _ = async { if !*closed.borrow() { let _ = closed.changed().await; } } =>
+                return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner closed")),
+            source = tokio::time::timeout(Duration::from_millis(policy.open_timeout_ms),
+                handler(payload, self.client(context.clone()))) =>
+                source.map_err(|_| GatewayError::new(ErrorCode::Timeout, "stream open timed out"))??,
+        };
+        let handle = stream::start(source, policy, context.caller().into(), entry.owner, admission);
+        self.track_stream(&handle);
+        Ok(stream::ResponseStream::new(handle))
+    }
+    fn track_stream(&self, handle: &stream::StreamHandle) {
+        let mut streams = self.streams.lock().unwrap();
+        streams.retain(|weak| weak.strong_count() > 0);
+        streams.push(Arc::downgrade(&handle.life));
+    }
+    fn admit_stream(&self, policy: &StreamPolicy, caller: &str, owner: u64) -> Result<Arc<Admission>, GatewayError> {
+        let mut admissions = self.admissions.lock().unwrap();
+        admissions.retain(|weak| weak.strong_count() > 0);
+        let active: Vec<_> = admissions.iter().filter_map(|weak| weak.upgrade()).collect();
+        if active.iter().filter(|a| a.owner == owner).count() >= policy.max_owner_streams
+            || active.iter().filter(|a| a.caller == caller).count() >= policy.max_caller_streams
+        {
+            return Err(GatewayError::new(ErrorCode::ResourceExhausted, "stream admission full"));
+        }
+        let admission = Arc::new(Admission {
+            caller: caller.into(),
+            owner,
+            cancel: watch::channel(false).0,
+        });
+        admissions.push(Arc::downgrade(&admission));
+        Ok(admission)
     }
 
     pub async fn call(self: &Arc<Self>, route: &Route, payload: Vec<u8>, context: CallContext) -> WireResult {

@@ -2,6 +2,8 @@ export const CONTROL_VERSION = 1;
 export const CONTRACT_VERSION = 1;
 
 export type ErrorCode =
+  | "CANCELLED"
+  | "RESOURCE_EXHAUSTED"
   | "UNKNOWN_ROUTE"
   | "OWNER_UNAVAILABLE"
   | "INVALID_ARGUMENT"
@@ -74,6 +76,7 @@ export interface EventDescriptor {
   readonly policy: Backpressure;
 }
 export interface RegisteredRoute extends Route {
+  readonly streamPolicy?: Partial<import("./stream.js").StreamPolicy>;
   readonly timeoutMs: number;
   readonly maxConcurrency: number;
 }
@@ -85,6 +88,11 @@ export interface Subscription {
   close(): void;
 }
 export interface Transport {
+  stream?(
+    route: Route,
+    payload: Uint8Array,
+    options?: import("./stream.js").StreamOptions,
+  ): Promise<import("./stream.js").ResponseStream<Uint8Array>>;
   invoke(route: Route, payload: Uint8Array): Promise<Result<Uint8Array>>;
   subscribe(
     event: string,

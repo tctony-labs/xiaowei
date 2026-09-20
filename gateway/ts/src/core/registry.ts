@@ -1,5 +1,5 @@
 import { type Client, createClient } from "./client.js";
-import { authorize, type CallContext, createContext, type Permissions } from "./context.js";
+import { authorize, type CallContext, caller, createContext, type Permissions } from "./context.js";
 import { type EventExport, Events } from "./event.js";
 import {
   accepts,
@@ -16,12 +16,20 @@ import {
   validateName,
   validateRoute,
 } from "./protocol.js";
+import { type ByteSource, openStream, type StreamOptions, type StreamPolicy, streamPolicy } from "./stream.js";
 
 export { type CallContext, createContext, type Permissions } from "./context.js";
 export type { EventExport } from "./event.js";
 export interface Registration {
   route: Route;
   handler?: (payload: Uint8Array, client: Client) => Promise<Uint8Array> | Uint8Array;
+  streamHandler?: (
+    payload: Uint8Array,
+    client: Client,
+    signal: AbortSignal,
+    context: CallContext,
+  ) => ByteSource | Promise<ByteSource>;
+  streamPolicy?: Partial<StreamPolicy>;
   timeoutMs?: number;
   maxConcurrency?: number;
 }
@@ -50,6 +58,7 @@ export interface OwnerHandle {
 
 /** One host per process. Only this host owns the global manifest and owner table. */
 export class GatewayHost {
+  private streams = new Set<{ owner: Owner; caller: string; controller: AbortController }>();
   private entries = new Map<string, Entry>();
   private owners = new Map<string, Owner>();
   private events = new Events();
@@ -62,6 +71,8 @@ export class GatewayHost {
   }
   transport(context: CallContext): Transport {
     return Object.freeze({
+      stream: (route: Route, payload: Uint8Array, options?: StreamOptions) =>
+        this.stream(context, route, payload, options),
       invoke: (route: Route, payload: Uint8Array) => this.invoke(context, route, payload),
       subscribe: (event: string, filter: Uint8Array | undefined, sink: EventSink, persistent = false) =>
         this.subscribe(context, event, filter, sink, persistent),
@@ -95,6 +106,7 @@ export class GatewayHost {
             ...entry.route,
             timeoutMs: entry.timeoutMs ?? 30_000,
             maxConcurrency: entry.maxConcurrency ?? 32,
+            streamPolicy: entry.streamPolicy,
           }),
         ),
       ),
@@ -128,9 +140,12 @@ export class GatewayHost {
     const snapshot = registrations.map((registration) => ({
       ...registration,
       route: Object.freeze({ ...registration.route }),
+      streamPolicy: registration.streamPolicy ? Object.freeze(streamPolicy(registration.streamPolicy)) : undefined,
     }));
     for (const registration of snapshot) {
       const { route } = registration;
+      if (registration.streamPolicy) streamPolicy(registration.streamPolicy);
+      if (registration.streamHandler && route.kind !== "serverStreaming") invalid("invalid stream handler kind");
       validateRoute(route);
       const existing = this.entries.get(route.name);
       if (names.has(route.name) || (existing && existing.owner.name !== name)) {
@@ -192,6 +207,9 @@ export class GatewayHost {
   private closeOwner(owner: Owner): void {
     if (owner.closed) return;
     owner.closed = true;
+    for (const stream of this.streams)
+      if (stream.owner === owner)
+        stream.controller.abort(new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner closed" }));
     for (const finish of owner.pending) finish(failure("OWNER_UNAVAILABLE", "owner instance closed"));
     owner.pending.clear();
     for (const [route, entry] of this.entries) if (entry.owner === owner) this.entries.delete(route);
@@ -211,6 +229,7 @@ export class GatewayHost {
     try {
       authorize(context, route.name);
       validateRoute(route);
+      if (route.kind !== "unary") return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
       if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
       const entry = this.entries.get(route.name);
       if (entry) return this.execute(entry, context, route, payload);
@@ -281,6 +300,43 @@ export class GatewayHost {
     });
   }
 
+  async stream(context: CallContext, route: Route, payload: Uint8Array, options: StreamOptions = {}) {
+    authorize(context, route.name);
+    validateRoute(route);
+    if (route.kind !== "serverStreaming") invalid("stream API requires streaming route");
+    if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
+    const entry = this.entries.get(route.name);
+    if (!entry) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "stream route not registered" });
+    const { registration, owner } = entry;
+    const compatible = accepts({ ...registration.route, kind: "unary" }, { ...route, kind: "unary" });
+    if (!compatible.ok) throw new GatewayFailure(compatible.error);
+    const streamHandler = registration.streamHandler;
+    if (!streamHandler) throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "no stream handler" });
+    const policy = streamPolicy(registration.streamPolicy);
+    const id = caller(context);
+    const active = [...this.streams];
+    if (
+      active.filter((s) => s.owner === owner).length >= policy.maxOwnerStreams ||
+      active.filter((s) => s.caller === id).length >= policy.maxCallerStreams
+    )
+      throw new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "stream admission full" });
+    const controller = new AbortController();
+    const entryState = { owner, caller: id, controller };
+    this.streams.add(entryState);
+    const abort = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
+    return openStream(
+      (signal) => streamHandler(payload, createClient(this.transport(context)), signal, context),
+      policy,
+      { signal: controller.signal },
+      () => {
+        this.streams.delete(entryState);
+        options.signal?.removeEventListener("abort", abort);
+      },
+    );
+  }
+
   private errorResult(error: unknown): Result<never> {
     return error instanceof GatewayFailure
       ? { ok: false, error: { ...error.detail } }
@@ -296,6 +352,7 @@ export class GatewayHost {
     return this.events.subscribe(context, event, filter, sink, persistent);
   }
   cleanupCaller(id: string): void {
+    for (const stream of this.streams) if (stream.caller === id) stream.controller.abort();
     this.events.cleanupCaller(id);
   }
 }

@@ -19,12 +19,14 @@ import {
   type OwnerHandle,
   type Permissions,
 } from "../core/registry.js";
+import { decodeFrame, encodeFrame, type ResponseStream } from "../core/stream.js";
 
 /** Structurally implemented by each addon's generated GatewayEndpoint class. */
 export interface NativeEndpoint {
   manifest(): string;
   bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void;
   activate(): Promise<Buffer | string>;
+  streamControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>;
   dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>;
   subscribeLocal(id: string, event: string, filter: Buffer | null, context: string): Promise<Buffer | string>;
   unsubscribeLocal(id: string): void;
@@ -46,6 +48,7 @@ interface Control {
   route?: Route;
   event?: string;
   subscriptionId?: string;
+  streamId?: string;
   filterPresent: boolean;
 }
 function decode(reply: Buffer | string): Result<Uint8Array> {
@@ -77,6 +80,16 @@ export async function attachNative(
     await endpoint.close();
     throw error;
   }
+  const streams = new Map<
+    string,
+    {
+      context: CallContext;
+      token: string;
+      controller: AbortController;
+      stream?: ResponseStream<Uint8Array>;
+      seq: number;
+    }
+  >();
   const contexts = new Map<string, CallContext>();
   const eventSinks = new Map<string, EventSink>();
   const subscriptions = new Map<string, Subscription>();
@@ -104,6 +117,8 @@ export async function attachNative(
     if (closed) return;
     closed = true;
     ready = false;
+    for (const session of streams.values()) session.controller.abort();
+    streams.clear();
     contexts.clear();
     eventSinks.clear();
     openingSubscriptions.clear();
@@ -155,7 +170,87 @@ export async function attachNative(
   try {
     reservation = host.reserveOwner(
       name,
-      manifest.routes.map((route) => ({ route, timeoutMs: route.timeoutMs, maxConcurrency: route.maxConcurrency })),
+      manifest.routes.map((route) => ({
+        route,
+        timeoutMs: route.timeoutMs,
+        maxConcurrency: route.maxConcurrency,
+        streamPolicy: route.streamPolicy,
+        streamHandler:
+          route.kind !== "serverStreaming"
+            ? undefined
+            : async (payload, _client, signal, hostContext) => {
+                if (!ready || closed) throw unavailable();
+                const id = `stream:${++nextId}`;
+                const token = `stream-context:${++nextId}`;
+                // Context is bound by the host dispatcher below, never reconstructed from payload bytes.
+                const context = hostContext;
+                contexts.set(token, context);
+                const metadata = contextJson(token, context);
+                let seq = 0;
+                let cancelled = false;
+                let cancellation: Promise<void> = Promise.resolve();
+                const control = (operation: string) =>
+                  JSON.stringify({
+                    version: CONTROL_VERSION,
+                    operation,
+                    streamId: id,
+                    route,
+                  });
+                const cancel = () => {
+                  if (cancelled) return cancellation;
+                  cancelled = true;
+                  signal.removeEventListener("abort", abortStream);
+                  contexts.delete(token);
+                  cancellation = endpoint
+                    .streamControl(control("stream.cancel"), Buffer.alloc(0), metadata)
+                    .then((result) => {
+                      unwrap(decode(result));
+                    });
+                  void cancellation.catch(() => {});
+                  return cancellation;
+                };
+                const abortStream = () => {
+                  void cancel();
+                };
+                signal.addEventListener("abort", abortStream, { once: true });
+                // Open is registered synchronously in the addon before cancellation can overtake it.
+                const opening = endpoint.streamControl(control("stream.open"), Buffer.from(payload), metadata);
+                if (signal.aborted) cancel();
+                try {
+                  unwrap(decode(await opening));
+                } catch (error) {
+                  cancel();
+                  throw error;
+                }
+                if (signal.aborted) {
+                  cancel();
+                  throw unavailable();
+                }
+                const source: AsyncIterableIterator<Uint8Array> = {
+                  [Symbol.asyncIterator]() {
+                    return this;
+                  },
+                  async next() {
+                    try {
+                      const bytes = unwrap(
+                        decode(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), metadata)),
+                      );
+                      const item = decodeFrame(bytes, seq++);
+                      if (item.done) cancel();
+                      return item;
+                    } catch (error) {
+                      cancel();
+                      throw error;
+                    }
+                  },
+                  async return() {
+                    await cancel();
+                    return { done: true as const, value: undefined };
+                  },
+                };
+                return source;
+              },
+      })),
       events,
       async (route, payload, context) => {
         if (!ready || closed) return failure("OWNER_UNAVAILABLE", "native endpoint unavailable");
@@ -188,7 +283,10 @@ export async function attachNative(
             subscriptions.delete(id);
             return Buffer.alloc(0);
           }
-          const context = contexts.get(control.contextToken);
+          const cancelling = control.operation === "stream.cancel" ? streams.get(control.streamId ?? "") : undefined;
+          const context =
+            contexts.get(control.contextToken) ??
+            (cancelling?.token === control.contextToken ? cancelling.context : undefined);
           if (!context) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "unknown native caller token" });
           switch (control.operation) {
             case "invoke": {
@@ -198,6 +296,64 @@ export async function attachNative(
                 return encode(failure("UNKNOWN_ROUTE", "native local route missing"));
               }
               return encode(await host.invoke(context, control.route, payload));
+            }
+            case "stream.open": {
+              const id = control.streamId;
+              if (!id || streams.has(id) || !control.route) throw unavailable();
+              if (manifest.routes.some((route) => route.name === control.route?.name))
+                return encode(failure("UNKNOWN_ROUTE", "native local stream missing"));
+              if (streams.size >= 128) return encode(failure("RESOURCE_EXHAUSTED", "endpoint streams full"));
+              const session = {
+                context,
+                token: control.contextToken,
+                controller: new AbortController(),
+                seq: 0,
+                stream: undefined as ResponseStream<Uint8Array> | undefined,
+              };
+              streams.set(id, session);
+              try {
+                const stream = await host.stream(context, control.route, payload, {
+                  signal: session.controller.signal,
+                });
+                if (streams.get(id) !== session) {
+                  await stream.cancel();
+                  throw unavailable();
+                }
+                session.stream = stream;
+                void stream.closed.then(() => {
+                  if (streams.get(id) === session) streams.delete(id);
+                });
+                return Buffer.from(JSON.stringify(stream.policy));
+              } catch (error) {
+                if (streams.get(id) === session) streams.delete(id);
+                throw error;
+              }
+            }
+            case "stream.next":
+            case "stream.cancel": {
+              const id = control.streamId ?? "";
+              const session = streams.get(id);
+              if (!session) {
+                if (control.operation === "stream.cancel") return Buffer.alloc(0);
+                throw unavailable();
+              }
+              if (session.context !== context) return encode(failure("UNAUTHORIZED", "stream caller mismatch"));
+              if (control.operation === "stream.cancel") {
+                streams.delete(id);
+                session.controller.abort();
+                await session.stream?.cancel();
+                return Buffer.alloc(0);
+              }
+              if (!session.stream) throw unavailable();
+              try {
+                const item = await session.stream.next();
+                const frame = encodeFrame(session.seq++, item);
+                if (item.done) streams.delete(id);
+                return Buffer.from(frame);
+              } catch (error) {
+                if (!(error instanceof GatewayFailure && error.detail.code === "CONCURRENCY_FULL")) streams.delete(id);
+                throw error;
+              }
             }
             case "subscribe": {
               const id = control.subscriptionId;

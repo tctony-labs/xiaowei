@@ -9,6 +9,7 @@ napi = ["dep:napi", "dep:serde_json"]
 test-fixtures = ["napi", "dep:xw-contracts"]
 
 [dependencies]
+futures-util = "0.3"
 heck = "0.5"
 napi = { version = "3", features = ["napi8", "async"], optional = true }
 serde_json = { version = "1", optional = true }
@@ -19,5 +20,6 @@ serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
 xw-contracts = { path = "../../contracts/rust" }
 serde_json = "1"

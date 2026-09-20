@@ -76,6 +76,114 @@ where
     }
 }
 
+/// Server-streaming methods expose only streaming adapters, never unary call/handler.
+///
+/// ```compile_fail
+/// use xw_gateway::binding::StreamMethod;
+/// use xw_contracts::testing::{Envelope, Changed};
+/// let watch = StreamMethod::<Envelope, Changed>::new("testing.Fixture.Watch");
+/// watch.handler(|_: Changed, _| async { Ok(futures_util::stream::empty::<Result<Changed, _>>()) });
+/// ```
+pub struct StreamMethod<Req, Chunk> {
+    method: Method<Req, Chunk>,
+    pub kind: MethodKind,
+}
+impl<Req, Chunk> StreamMethod<Req, Chunk>
+where
+    Req: Message + Default + Name + 'static,
+    Chunk: Message + Default + Name + 'static,
+{
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            method: Method::new(name, MethodKind::ServerStreaming),
+            kind: MethodKind::ServerStreaming,
+        }
+    }
+    pub fn route(&self) -> Route {
+        self.method.route()
+    }
+    pub async fn stream(&self, client: &Client, request: Req) -> Result<TypedResponseStream<Chunk>, GatewayError> {
+        let raw = client.stream(&self.route(), request.encode_to_vec()).await?;
+        Ok(TypedResponseStream {
+            raw,
+            ended: false,
+            marker: PhantomData,
+        })
+    }
+    pub fn handler<F, Fut, S>(&self, handler: F) -> InvokeRegistration
+    where
+        F: Fn(Req, Client) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<S, GatewayError>> + Send + 'static,
+        S: futures_util::Stream<Item = Result<Chunk, GatewayError>> + Send + 'static,
+    {
+        use futures_util::StreamExt;
+        let handler = std::sync::Arc::new(handler);
+        InvokeRegistration::streaming(self.route(), move |bytes, client| {
+            let handler = handler.clone();
+            async move {
+                let request = Req::decode(bytes.as_slice())
+                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid request protobuf"))?;
+                let stream = handler(request, client).await?;
+                Ok(Box::pin(stream.map(|chunk| {
+                    chunk.and_then(|value| {
+                        if value.encoded_len() > 64 * 1024 * 1024 {
+                            return Err(GatewayError::new(
+                                ErrorCode::ResourceExhausted,
+                                "encoded chunk exceeds hard limit",
+                            ));
+                        }
+                        Ok(value.encode_to_vec())
+                    })
+                })) as crate::stream::ByteStream)
+            }
+        })
+    }
+}
+
+pub struct TypedResponseStream<T> {
+    raw: crate::stream::ResponseStream,
+    ended: bool,
+    marker: PhantomData<fn() -> T>,
+}
+impl<T> TypedResponseStream<T> {
+    pub fn cancel_handle(&self) -> crate::stream::StreamHandle {
+        self.raw.cancel_handle()
+    }
+    pub async fn cancel(&self) -> Result<(), GatewayError> {
+        self.raw.cancel().await
+    }
+}
+impl<T: Message + Default> futures_util::Stream for TypedResponseStream<T> {
+    type Item = Result<T, GatewayError>;
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        use std::task::Poll;
+        if self.ended {
+            return Poll::Ready(None);
+        }
+        match std::pin::Pin::new(&mut self.raw).poll_next(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(None) => {
+                self.ended = true;
+                Poll::Ready(None)
+            }
+            Poll::Ready(Some(bytes)) => {
+                let result = bytes.and_then(|bytes| {
+                    T::decode(bytes.as_slice())
+                        .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid chunk protobuf"))
+                });
+                if result.is_err() {
+                    self.ended = true;
+                    self.raw.cancel_handle().cancel_now();
+                }
+                Poll::Ready(Some(result))
+            }
+        }
+    }
+}
+
 /// Checked string-ID facade for existing APIs; PB remains u64 on the wire.
 pub fn parse_id(value: &str) -> Result<u64, GatewayError> {
     if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
@@ -143,13 +251,19 @@ pub fn generate_methods(
                         "generated method name collision",
                     ));
                 }
-                output.push_str(&format!(
-                    concat!(
-                        "    pub const {}: xw_gateway::binding::Method<{}, {}> =\n",
-                        "        xw_gateway::binding::Method::new(\"{}.{}\", xw_gateway::MethodKind::{});\n",
-                    ),
-                    constant, input, output_type, full_name, name, kind,
-                ));
+                if kind == "ServerStreaming" {
+                    output.push_str(&format!(
+                        "    pub const {constant}: xw_gateway::binding::StreamMethod<{input}, {output_type}> =\n        xw_gateway::binding::StreamMethod::new(\"{full_name}.{name}\");\n"
+                    ));
+                } else {
+                    output.push_str(&format!(
+                        concat!(
+                            "    pub const {}: xw_gateway::binding::Method<{}, {}> =\n",
+                            "        xw_gateway::binding::Method::new(\"{}.{}\", xw_gateway::MethodKind::{});\n",
+                        ),
+                        constant, input, output_type, full_name, name, kind,
+                    ));
+                }
             }
             output.push_str("}\n");
         }

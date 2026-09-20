@@ -14,6 +14,7 @@ export declare class GatewayEndpoint {
   bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void
   activate(): Promise<Buffer | string>
   dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>
+  streamControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>
   subscribeLocal(id: string, event: string, filter: Buffer | undefined | null, context: string): Promise<Buffer | string>
   unsubscribeLocal(id: string): void
   deliver(id: string, payload: Buffer): Promise<Buffer | string>

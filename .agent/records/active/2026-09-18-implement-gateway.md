@@ -12,13 +12,13 @@
 
 应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
-本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的核心／绑定和 Plan 02 的 napi 适配／联调，尚未迁移产品业务通信。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；Electron 适配、响应 stream 执行和业务迁移尚未实现，不代表当前产品行为。
+本事项已完成 Plan 00 的正式三语言契约工程和编解码验证，以及 Plan 01 的核心／绑定、Plan 02 的 napi 适配／联调和 Plan 03 的响应流，尚未迁移产品业务通信。当前范围覆盖接口定义与绑定生成、registry、响应 stream、Electron／napi 适配及现有业务通信迁移；Storage 已拆为独立事项，不在当前 Plan 中实施。契约工程的当前行为见下文及 [契约说明](../../../contracts/README.md)；Gateway 核心当前行为见 [Gateway 核心](../../../gateway/README.md)；Electron 适配和业务迁移尚未实现，不代表当前产品行为。
 
 ## How
 
 ### 当前核心实现
 
-已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、环境无关 TS host 和两个真实 `.node` 间的 TSFN／Promise 链路已通过测试；下文涉及 Electron、stream 执行和产品业务迁移的部分仍为后续设计。
+已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、环境无关 TS host 和两个真实 `.node` 间的 TSFN／Promise 链路已通过测试；下文涉及 Electron 和产品业务迁移的部分仍为后续设计。
 
 ### 统一服务调用
 
@@ -71,6 +71,8 @@ Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate�
 这证明 PB 消息与 service 定义可绑定到自定义 transport，不依赖 gRPC 运行时。Rust CLI 仅经 stdin／stdout 交换测试字节，不是产品 sidecar；流生命周期使用可控 TS ByteSource，尚未验证真实 Rust 常驻 producer、TSFN、Electron IPC／contextBridge 或 HTTP SSE。生产级 client／handler 生成、全链路背压、取消与资源限额仍按各 Plan 实施，不能据本实验宣称 Gateway 已完成。
 
 ### Stream 契约与传输
+
+当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../gateway/README.md#响应流)。下面保留设计边界；产品 renderer 生命周期接线仍待 Electron 接入。
 
 LLM SSE 场景使用请求绑定的响应 stream；SSE 解析和结构化增量由业务提供，Gateway 不理解 HTTP／SSE。此次实现通用流能力及模拟生产者，不新增实际 LLM provider、网络请求或聊天 UI。
 
@@ -184,12 +186,12 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 
 ## Current work
 
-Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已确认提交（`40a9308`）；Plan 02 已完成实施及自动验证，待用户 review 后进入 Plan 03。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
+Plan 00–04 的范围均已逐项确认。Plan 00 已完成并经用户确认提交；Plan 01 已确认提交（`40a9308`）；Plan 02 已确认提交（`a874998`）；Plan 03 已完成实施及自动验证，待用户 review 后进入 Plan 04。每个 Plan 完成后先回填结果并交给用户 review，用户确认后再进入下一个 Plan：
 
 0. 契约生成和测试：已完成，Plan 已删除；当前实现与使用方式见 [契约说明](../../../contracts/README.md)，验证结果见 Outcome。未实现 Gateway 绑定。
 1. Gateway 核心逻辑与测试契约验证：已完成，Plan 已删除；当前接口见 [Gateway 核心](../../../gateway/README.md)，验证结果见 Outcome，已获用户确认。
-2. napi 传输适配与联调：已完成，Plan 已删除；两个独立 `.node` 的调用、事件、关闭与环境销毁已验证，尚未迁移业务通信，待用户 review。
-3. [响应流](../../plans/2026-09-18-implement-gateway/03-response-streams.md)：范围已确认，尚未实施；实现端到端 pull、取消、资源限制和终态语义。
+2. napi 传输适配与联调：已完成，Plan 已删除；两个独立 `.node` 的调用、事件、关闭与环境销毁已验证，尚未迁移业务通信，已获用户确认。
+3. 响应流：已完成，Plan 已删除；端到端 pull、取消、资源限制、终态及真实双 native 测试通过，待用户 review。
 4. [Electron 与业务迁移](../../plans/2026-09-18-implement-gateway/04-electron-integration.md)：范围已确认，尚未实施；renderer／main／Rust 使用同一 gateway，保留当前强类型业务 API 和 UI 行为。
 
 ### 本次实施边界与拟定结构
@@ -245,7 +247,7 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 
 ### 对外接入契约（拟定）
 
-以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 仍待 Plan 03 实施。
+以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 已实现，Electron 接入仍待 Plan 04。
 
 | 接口 | 调用方与作用 |
 | --- | --- |
@@ -257,7 +259,7 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 | TS client `invoke`／`on`／`stream`（由契约生成类型） | renderer 使用 route 和 payload；原有强类型业务 facade 在内部调用它们 |
 | owner handle `close` | 停止接入并注销该实例的 routes／events／订阅，释放回调和在途请求；幂等，不能注销后续重新接入的新实例 |
 
-各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/main` 的 native 适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
+各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/native` 的适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
 
 ### 实际调用链路
 
@@ -357,4 +359,25 @@ Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成
 - `just check`、`just test` 以及 Gateway TS build 通过；原搜索／剪贴板 napi 回归、桌面脚本、三语言契约 codec 和 Go 回归均通过。
 - 通过绝对进程路径、cwd 和父子关系确认当前工作区开发实例后执行 `just rs`。Electron PID 从 17589 变为 92115，cwd 为当前 desktop；lsof 确认新进程已加载当前工作区两个最新 `.node`。没有冷启动或操作其他工作区实例。
 
-未移动数据库、接入 UI 或迁移产品业务通信。Electron 进程重载验证不等于 Electron Gateway 全链路验收；该部分和响应 stream 仍按后续切片实施。仅在 macOS arm64 验证。Plan 02 已删除，Plan 03／04 保留；本次新改动未提交，待用户 review。
+未移动数据库、接入 UI 或迁移产品业务通信。Electron 进程重载验证不等于 Electron Gateway 全链路验收；Electron 接入仍按后续切片实施。仅在 macOS arm64 验证。Plan 02 已删除，用户确认后已提交为 `a874998`，响应流结果见下一节。
+
+
+### Plan 03：可取消、有背压的响应流
+
+2026-09-20 完成 TS／Rust typed 响应流、stream 专用绑定、owner／caller admission、open／next／cancel 状态机、native 二进制帧与真实跨模块联调。无通用双向 pipe、LLM provider、网络请求或 renderer 接线。默认 policy 与接口说明已回填 [Gateway 核心](../../../gateway/README.md#响应流)，不依赖临时 Plan。
+
+Rust 生成器现在为 streaming 方法生成 `StreamMethod`，编译期区分 unary／stream；TS 提供独立的 bindStreamClient／bindStreamHandlers，unary binder 不再登记空的 stream 占位，两组注册可直接合并。客户端返回的流保留 typed chunk；中转只传原始 PB bytes 和序号，未修改业务消息契约。
+
+open 前登记取消，native 同步准备请求后才派发异步任务；每流最多一个 next，cancel 不占用 next 的锁／队列。终态先同步确定，再清理 source、计时器和句柄。TS 非合作 producer 在退出前保留 admission，并对显式清理返回 1 秒 timeout；Rust owned source／future 被丢弃，独立生产任务需要遵循 channel 关闭。源会话 token 在晚到的嵌套取消时仍按原关联校验，已取消 open 的迟到结果也按实例校验，不会删除复用 ID 的新流。
+
+默认单 chunk 1 MiB，主动队列 16 项／4 MiB，每 owner／caller 128／32 流，open 10 秒、生产／消费 idle 各 60 秒，总时长默认不限。PB 字节和生成对象预算分别检查；主动 send 必须等待，队列外只允许单个待发送和单个正在交付 chunk。native endpoint 有 128 句柄硬上限，Rust 远端握手另有 10 秒期限；远端成功握手返回 owner policy，后续 chunk／idle 使用其配置。Rust Drop 的远端 cancel 是独立的 best-effort 通知，本地取消确认不声称已经回滚远端副作用；这些边界均已写入长期说明。
+
+验证证据：
+
+- Rust `cargo test -p xw-gateway --no-default-features --locked` 通过，包含 6 项新增 stream 测试、绑定漂移及 3 项 compile-fail；本地 remote spy 为零，typed Drop、显式 cancel、caller 清理、pending open、admission 释放和有界队列通过。
+- TS 核心共 20 项测试通过，包括 6 项 stream 测试：模拟 SSE 按需读取及 break 关闭、迟到 open 清理、pending next 取消／并发拒绝、队列字节／项数限额、owner 替换、caller 清理、不合作 producer 的配额保持，以及可控时钟的分阶段 timeout。
+- `pnpm gateway:test-native` 共 14 项测试通过。新增流测试验证 TS→Rust、Rust 本地、A→main→B、空／多项／生产前及生产中错误、PB bytes、嵌套权限不提升、open／next 取消、跨 caller 拒绝、旧 owner／复用 ID 隔离、Worker 销毁。消费者停止后 B 的 poll 计数保持不变；取消后实际 producer 计数归零。
+- 可控 Tokio 时钟验证远端 owner 允许的 70 秒生产等待与 2 MiB chunk 成功，不被 unary 30 秒或默认 stream producer idle 错杀。
+- `just check`、`just test` 及 Gateway TS build 通过；最后状态机／policy 调整后重跑对应 Rust 核心、TS check／build 和真实 native 联调通过。两个正常 napi 包均已重新构建，正式声明不含 fixture 探针。
+
+本切片仅在 macOS arm64 验证。正常构建后的当前工作区桌面实例已按归属检查后执行 `just rs`；Electron 从 PID 92115 变为 33412，lsof 确认加载当前工作区两个正常 `.node`；没有冷启动。产品尚未接入 Gateway stream，不能把原生测试或桌面模块重载描述为 renderer 全链路验收。Plan 03 已删除，保留 Plan 04；本切片改动未提交，待用户 review。

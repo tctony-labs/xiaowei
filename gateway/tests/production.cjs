@@ -4,6 +4,7 @@ for (const name of ["search", "clipboard"]) {
   const addon = require(`../../crates/xiaowei-${name}/napi`);
   assert.equal(addon.createGatewayFixture, undefined);
   assert.equal(addon.GatewayEndpoint.prototype.fixtureInvoke, undefined);
+  assert.equal(addon.GatewayEndpoint.prototype.fixtureStreamUsage, undefined);
   const endpoint = addon.createGatewayEndpoint();
   const manifest = JSON.parse(endpoint.manifest());
   assert.deepEqual(manifest.routes, []);

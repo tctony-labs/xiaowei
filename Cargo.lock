@@ -1841,6 +1841,7 @@ dependencies = [
 name = "xw-gateway"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "heck",
  "napi",
  "prost",

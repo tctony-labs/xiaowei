@@ -12,6 +12,8 @@ use crate::invoke::Owner;
 use crate::protocol::{CONTROL_VERSION, Route, WireResult};
 use crate::{CallContext, ErrorCode, GatewayError, XwInvokeRegistry};
 
+mod streams;
+
 pub type Reply = Either<Buffer, String>;
 pub type Callback = ThreadsafeFunction<
     FnArgs<(String, Buffer)>,
@@ -55,6 +57,8 @@ pub struct Control {
     pub event: Option<String>,
     pub subscription_id: Option<String>,
     pub filter_present: bool,
+    #[serde(default)]
+    pub stream_id: Option<String>,
 }
 
 struct State {
@@ -71,6 +75,7 @@ pub struct Endpoint {
     pub owner: Owner,
     state: Mutex<State>,
     closed: watch::Sender<bool>,
+    streams: streams::Sessions,
 }
 
 fn unavailable() -> GatewayError {
@@ -108,6 +113,7 @@ impl Endpoint {
         Arc::new(Self {
             registry,
             owner,
+            streams: Default::default(),
             closed: watch::channel(false).0,
             state: Mutex::new(State {
                 callback: None,
@@ -149,6 +155,7 @@ impl Endpoint {
                             route: Some(route),
                             event: None,
                             subscription_id: None,
+                            stream_id: None,
                             filter_present: false,
                         },
                         payload,
@@ -156,6 +163,18 @@ impl Endpoint {
                     .await
             }
         });
+        let endpoint = Arc::downgrade(self);
+        self.registry
+            .set_remote_stream(Arc::new(move |route, payload, context| {
+                let endpoint = endpoint.clone();
+                Box::pin(async move {
+                    endpoint
+                        .upgrade()
+                        .ok_or_else(unavailable)?
+                        .remote_stream(route, payload, context)
+                        .await
+                })
+            }));
         Ok(())
     }
     fn ready(&self) -> Result<(), GatewayError> {
@@ -230,6 +249,7 @@ impl Endpoint {
         if self.closed.send_replace(true) {
             return None;
         }
+        self.streams.close();
         self.registry.unregister_owner(&self.owner);
         let (callback, subscriptions) = {
             let mut state = self.state.lock().unwrap();
@@ -251,6 +271,7 @@ impl Endpoint {
                 route: None,
                 event: None,
                 subscription_id: None,
+                stream_id: None,
                 filter_present: false,
             })
             .unwrap();
@@ -297,6 +318,7 @@ impl Endpoint {
                     route: None,
                     event: Some(event),
                     subscription_id: Some(id),
+                    stream_id: None,
                     filter_present: filter.is_some(),
                 },
                 filter.unwrap_or_default(),
@@ -348,6 +370,7 @@ impl Endpoint {
                                     route: None,
                                     event: None,
                                     subscription_id: Some(id),
+                                    stream_id: None,
                                     filter_present: false,
                                 },
                                 payload,
@@ -403,6 +426,7 @@ impl RemoteLease {
                         route: None,
                         event: None,
                         subscription_id: Some(id),
+                        stream_id: None,
                         filter_present: false,
                     },
                     vec![],

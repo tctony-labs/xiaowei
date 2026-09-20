@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, methodRoute } from "../../src/binding/index.js";
+import { bindClient, bindHandlers, bindStreamClient, methodRoute } from "../../src/binding/index.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";
 import { attachNative, type NativeEndpoint } from "../../src/main/native.js";
@@ -19,6 +19,7 @@ interface FixtureEndpoint extends NativeEndpoint {
   fixtureUnsubscribe(): void;
   fixtureNext(): Promise<Buffer | string>;
   fixtureRelease(): void;
+  fixtureStreamUsage(): string;
 }
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -297,6 +298,179 @@ test("worker environment shutdown settles native pending work without retaining 
   const script = `
     const { Worker } = require('node:worker_threads');
     const worker = new Worker(${JSON.stringify(workerScript)}, { eval: true });
+    worker.once('message', async () => { await worker.terminate(); console.log('terminated'); });
+  `;
+  const result = spawnSync(process.execPath, ["-e", script], { timeout: 5000, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /terminated/);
+});
+
+test("native streams: typed bytes, empty/end/error, Rust local and A-main-B pull", async () => {
+  const { host, a, close } = await attachPair();
+  try {
+    const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
+    const payload = create(EnvelopeSchema, { id: 4n, blobs: [{ data: Uint8Array.of(0, 128, 255) }] });
+    const stream = await client.watch(payload);
+    const ids: bigint[] = [];
+    for await (const chunk of stream) {
+      assert.ok(chunk.value);
+      ids.push(chunk.value.id);
+      assert.deepEqual(new Uint8Array(chunk.value.blobs[0].data), payload.blobs[0].data);
+    }
+    assert.deepEqual(ids, [0n, 1n, 2n, 3n]);
+    assert.equal((await stream.next()).done, true);
+    assert.equal((await (await client.watch(create(EnvelopeSchema))).next()).done, true);
+    await assert.rejects(client.watch(create(EnvelopeSchema, { text: "openfail" })), /open failed/);
+    const failed = await client.watch(create(EnvelopeSchema, { text: "fail", id: 3n }));
+    await failed.next();
+    await assert.rejects(failed.next(), /stream failed/);
+    for (const text of ["stream-local", "stream-relay"]) {
+      const response = read(
+        await a.fixtureInvoke(
+          JSON.stringify(echo),
+          Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { text, id: 3n }))),
+        ),
+      );
+      assert.equal(fromBinary(EnvelopeSchema, response).id, 2n);
+    }
+  } finally {
+    await close();
+  }
+});
+
+test("native streams: pending open/next cancellation, caller ownership and owner replacement", async () => {
+  const { host, a, close } = await attachPair();
+  const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
+  try {
+    const abort = new AbortController();
+    const opening = client.watch(create(EnvelopeSchema, { text: "openwait", id: 1n }), { signal: abort.signal });
+    await delay(5);
+    abort.abort();
+    await assert.rejects(opening, isCode("CANCELLED"));
+    const stream = await client.watch(create(EnvelopeSchema, { text: "wait", id: 1n }));
+    const pending = assert.rejects(stream.next(), isCode("CANCELLED"));
+    await delay(5);
+    await assert.rejects(stream.next(), isCode("CONCURRENCY_FULL"));
+    await stream.cancel();
+    await pending;
+    await stream.cancel();
+    const old = await client.watch(create(EnvelopeSchema, { id: 2n }));
+    const replacement = await attachNative(host, "a", search.createGatewayFixture());
+    await assert.rejects(old.next(), isCode("OWNER_UNAVAILABLE"));
+    await replacement.close();
+    // Stream IDs address a caller-owned handle; knowing one cannot authorize another caller.
+    const own = JSON.stringify({ token: "own", trusted: true });
+    const other = JSON.stringify({ token: "other", trusted: true });
+    const endpoint = search.createGatewayFixture();
+    endpoint.bind(async () => Buffer.alloc(0), own);
+    read(await endpoint.activate());
+    const control = (operation: string) =>
+      JSON.stringify({ version: 1, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
+    read(
+      await endpoint.streamControl(
+        control("stream.open"),
+        Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { id: 1n }))),
+        own,
+      ),
+    );
+    assert.equal(
+      readError(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), other)),
+      "UNAUTHORIZED",
+    );
+    assert.equal(
+      readError(await endpoint.streamControl(control("stream.cancel"), Buffer.alloc(0), other)),
+      "UNAUTHORIZED",
+    );
+    read(await endpoint.streamControl(control("stream.cancel"), Buffer.alloc(0), own));
+    read(await endpoint.close());
+    a.fixtureRelease();
+  } finally {
+    await close();
+  }
+});
+
+test("native stream backpressure reaches B and nested cancel releases the actual producer", async () => {
+  const { host, a, b, close } = await attachPair();
+  try {
+    const client = bindStreamClient(Fixture, host.client({ caller: "consumer", trusted: true }));
+    const restricted = bindStreamClient(
+      Fixture,
+      host.client({ caller: "restricted", trusted: false, invoke: [methodRoute(Fixture.method.watch).name] }),
+    );
+    await assert.rejects(
+      restricted.watch(create(EnvelopeSchema, { text: "relay-chunks", id: 1n })),
+      isCode("UNAUTHORIZED"),
+    );
+    const stream = await client.watch(create(EnvelopeSchema, { text: "relay-chunks", id: 100n }));
+    assert.deepEqual(JSON.parse(b.fixtureStreamUsage()), { active: 1, polls: 0 });
+    await stream.next();
+    await delay(10);
+    assert.deepEqual(JSON.parse(b.fixtureStreamUsage()), { active: 1, polls: 1 });
+    await stream.cancel();
+    for (let i = 0; i < 100 && JSON.parse(b.fixtureStreamUsage()).active; i++) await delay(2);
+    assert.equal(JSON.parse(b.fixtureStreamUsage()).active, 0);
+    assert.equal(JSON.parse(a.fixtureStreamUsage()).active, 0);
+    const blocked = await client.watch(create(EnvelopeSchema, { text: "relay-wait", id: 100n }));
+    const pending = assert.rejects(blocked.next(), isCode("CANCELLED"));
+    await delay(5);
+    host.cleanupCaller("consumer");
+    await pending;
+    for (let i = 0; i < 100 && JSON.parse(b.fixtureStreamUsage()).active; i++) await delay(2);
+    assert.equal(JSON.parse(b.fixtureStreamUsage()).active, 0);
+  } finally {
+    await close();
+  }
+});
+
+test("native stream teardown and late cancelled open cannot overwrite a reused handle", async () => {
+  const endpoint = search.createGatewayFixture();
+  const context = JSON.stringify({ token: "owner", trusted: true });
+  endpoint.bind(async () => Buffer.alloc(0), context);
+  read(await endpoint.activate());
+  const control = (operation: string) =>
+    JSON.stringify({ version: 1, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
+  try {
+    const pending = endpoint.streamControl(
+      control("stream.open"),
+      Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "openwait", id: 1n }))),
+      context,
+    );
+    await delay(2);
+    read(await endpoint.streamControl(control("stream.cancel"), Buffer.alloc(0), context));
+    const replacement = endpoint.streamControl(
+      control("stream.open"),
+      Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { id: 1n }))),
+      context,
+    );
+    assert.equal(typeof (await pending), "string");
+    read(await replacement);
+    assert.equal(read(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), context))[0], 1);
+  } finally {
+    read(await endpoint.close());
+  }
+  const metadata = JSON.stringify({
+    version: 1,
+    operation: "stream.open",
+    streamId: "pending",
+    route: methodRoute(Fixture.method.watch),
+  });
+  const payload = [...toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "wait", id: 1n }))];
+  const worker = `
+    const { parentPort } = require('node:worker_threads');
+    const endpoint = require(${JSON.stringify(binary("search"))}).createGatewayFixture();
+    const context = ${JSON.stringify(context)};
+    endpoint.bind(async () => Buffer.alloc(0), context);
+    (async () => {
+      await endpoint.activate();
+      await endpoint.streamControl(${JSON.stringify(metadata)}, Buffer.from(${JSON.stringify(payload)}), context);
+      const next = JSON.parse(${JSON.stringify(metadata)}); next.operation = 'stream.next';
+      endpoint.streamControl(JSON.stringify(next), Buffer.alloc(0), context);
+      parentPort.postMessage('pending');
+    })();
+  `;
+  const script = `
+    const { Worker } = require('node:worker_threads');
+    const worker = new Worker(${JSON.stringify(worker)}, { eval: true });
     worker.once('message', async () => { await worker.terminate(); console.log('terminated'); });
   `;
   const result = spawnSync(process.execPath, ["-e", script], { timeout: 5000, encoding: "utf8" });

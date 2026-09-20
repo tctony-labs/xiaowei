@@ -10,6 +10,8 @@ pub const CONTRACT_VERSION: u32 = 1;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
+    Cancelled,
+    ResourceExhausted,
     UnknownRoute,
     OwnerUnavailable,
     InvalidArgument,
@@ -153,6 +155,8 @@ pub struct RouteRegistration {
     pub route: Route,
     pub timeout_ms: u64,
     pub max_concurrency: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_policy: Option<crate::stream::StreamPolicy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

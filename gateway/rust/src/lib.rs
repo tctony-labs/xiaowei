@@ -5,6 +5,7 @@ pub mod binding;
 pub mod event;
 pub mod invoke;
 pub mod protocol;
+pub mod stream;
 
 pub use invoke::{Client, InvokeRegistration, XwInvokeRegistry};
 pub use protocol::{CallContext, ErrorCode, GatewayError, MethodKind, Route};
