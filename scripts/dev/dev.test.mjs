@@ -4,6 +4,7 @@ import { EventEmitter, once } from "node:events";
 import { readFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
+import { stripVTControlCharacters } from "node:util";
 import { runDevelopment } from "./dev.mjs";
 
 function fixture(context, tty = true) {
@@ -21,7 +22,7 @@ function fixture(context, tty = true) {
   const controller = runDevelopment({
     input,
     signals,
-    print: (message) => output.push(message),
+    print: (message) => output.push(stripVTControlCharacters(message)),
     restartElectron: () => {
       touches++;
     },
@@ -143,7 +144,7 @@ test("start cleanup stops a respawning supervisor without leaving its replacemen
   const closed = once(supervisor, "close");
   const pids = [];
   supervisor.stdout.on("data", (chunk) => {
-    pids.push(...chunk.toString().trim().split(/\s+/).map(Number));
+    pids.push(...stripVTControlCharacters(chunk.toString()).trim().split(/\s+/).map(Number));
   });
   try {
     await once(supervisor.stdout, "data");
@@ -239,7 +240,7 @@ for (const stubborn of [false, true]) {
     let appPid;
     try {
       const [chunk] = await once(supervisor.stdout, "data");
-      appPid = Number(chunk.toString().trim());
+      appPid = Number(stripVTControlCharacters(chunk.toString()).trim());
       const justfile = readFileSync(new URL("../../justfile", import.meta.url), "utf8");
       const start = justfile.indexOf("    kill_tree() {");
       const end = justfile.indexOf("\n    }", start) + "\n    }".length;
