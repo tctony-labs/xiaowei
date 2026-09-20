@@ -30,6 +30,19 @@
 - 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 构建并重启。
 - 没有实例时，告知用户当前没有实例及待验证事项，等待用户启动；不要自行冷启动或操作其他工作区进程。
 
+## 手写代码的排版与可读性
+
+- 手写源码、协议定义、配置和测试脚本以清晰易读、便于 diff 为优先，不为减少行数压缩声明、语句或空白。Agent 编写的代码同样属于手写代码，不属于生成器产物。
+- 独立声明、函数和不同逻辑阶段之间保留适当空行；不要把多条独立语句挤在一行。脚本中作为字符串执行的代码也遵循相同要求。
+- Proto 使用 2 空格缩进，每个字段、枚举值和 RPC 声明各占一行；`syntax`、`package`、import 组及各 message／enum／service 之间留空行。空消息可以写成 `message Empty {}`。
+- 经常追加项目的配置列表（如 Cargo workspace `members`）采用多行形式，每项一行，避免新增一项改动整行。
+- 格式化／lint 通过不代表可读性合格。交付前检查本次修改的手写代码，补齐工具不会自动处理的逻辑分段和排版；不顺带格式化无关代码。
+- 生成器产物不纳入人工排版检查，不为美化排版直接修改产物；源定义变化后通过既有生成流程同步，保留生成一致性检查。
+
+## 业务契约
+
+创建或修改 `contracts/proto/xiaowei/` 下的业务契约前，先完整读取并遵循 [业务契约的创建与维护](contracts/proto/xiaowei/README.md)。
+
 ## Rust 原生模块开发
 
 - 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。搜索包执行 `pnpm --filter xiaowei-search build:debug`，剪贴板包执行 `pnpm --filter xiaowei-clipboard build:debug`；修改共享 `xw-napi-log` 时两者都需重建。以后新增模块执行对应包的构建命令。

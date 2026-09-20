@@ -34,3 +34,9 @@ worktrees/
 
 # Local validation experiments
 /experiments/
+
+# Compiled Gateway package
+gateway/ts/dist/
+
+# Gateway native integration test builds
+gateway/tests/native/

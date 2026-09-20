@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file testing/fixture.proto.
  */
 export const file_testing_fixture: GenFile = /*@__PURE__*/
-  fileDesc("ChV0ZXN0aW5nL2ZpeHR1cmUucHJvdG8SB3Rlc3RpbmcigQIKCEVudmVsb3BlEgwKBHRleHQYASABKAkSCgoCaWQYAiABKAQSEgoFbGFiZWwYAyABKAlIAYgBARIlCgVibG9icxgEIAMoCzIWLnRlc3RpbmcuRW52ZWxvcGUuQmxvYhIWCgxzdHJpbmdfdmFsdWUYBSABKAlIABIsCgpudWxsX3ZhbHVlGAYgASgOMhYudGVzdGluZy5FbnZlbG9wZS5OdWxsSAAaFAoEQmxvYhIMCgRkYXRhGAEgASgMIhYKBE51bGwSDgoKTlVMTF9WQUxVRRAAQgcKBXZhbHVlQggKBl9sYWJlbEoECAkQCkoECAoQC1INcmVtb3ZlZF92YWx1ZSIrCgdDaGFuZ2VkEiAKBXZhbHVlGAEgASgLMhEudGVzdGluZy5FbnZlbG9wZTJnCgdGaXh0dXJlEiwKBEVjaG8SES50ZXN0aW5nLkVudmVsb3BlGhEudGVzdGluZy5FbnZlbG9wZRIuCgVXYXRjaBIRLnRlc3RpbmcuRW52ZWxvcGUaEC50ZXN0aW5nLkNoYW5nZWQwAWIGcHJvdG8z");
+  fileDesc("ChV0ZXN0aW5nL2ZpeHR1cmUucHJvdG8SB3Rlc3RpbmcigQIKCEVudmVsb3BlEgwKBHRleHQYASABKAkSCgoCaWQYAiABKAQSEgoFbGFiZWwYAyABKAlIAYgBARIlCgVibG9icxgEIAMoCzIWLnRlc3RpbmcuRW52ZWxvcGUuQmxvYhIWCgxzdHJpbmdfdmFsdWUYBSABKAlIABIsCgpudWxsX3ZhbHVlGAYgASgOMhYudGVzdGluZy5FbnZlbG9wZS5OdWxsSAAaFAoEQmxvYhIMCgRkYXRhGAEgASgMIhYKBE51bGwSDgoKTlVMTF9WQUxVRRAAQgcKBXZhbHVlQggKBl9sYWJlbEoECAkQCkoECAoQC1INcmVtb3ZlZF92YWx1ZSIrCgdDaGFuZ2VkEiAKBXZhbHVlGAEgASgLMhEudGVzdGluZy5FbnZlbG9wZTJnCgdGaXh0dXJlEiwKBEVjaG8SES50ZXN0aW5nLkVudmVsb3BlGhEudGVzdGluZy5FbnZlbG9wZRIuCgVXYXRjaBIRLnRlc3RpbmcuRW52ZWxvcGUaEC50ZXN0aW5nLkNoYW5nZWQwATJrCgtQZWVyRml4dHVyZRIsCgRFY2hvEhEudGVzdGluZy5FbnZlbG9wZRoRLnRlc3RpbmcuRW52ZWxvcGUSLgoFV2F0Y2gSES50ZXN0aW5nLkVudmVsb3BlGhAudGVzdGluZy5DaGFuZ2VkMAFiBnByb3RvMw");
 
 /**
  * Test-only contract. Never publish this service as a production capability.
@@ -139,4 +139,29 @@ export const Fixture: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_testing_fixture, 0);
+
+/**
+ * A second owner for native bridge tests. Both services reuse the same PB messages.
+ *
+ * @generated from service testing.PeerFixture
+ */
+export const PeerFixture: GenService<{
+  /**
+   * @generated from rpc testing.PeerFixture.Echo
+   */
+  echo: {
+    methodKind: "unary";
+    input: typeof EnvelopeSchema;
+    output: typeof EnvelopeSchema;
+  },
+  /**
+   * @generated from rpc testing.PeerFixture.Watch
+   */
+  watch: {
+    methodKind: "server_streaming";
+    input: typeof EnvelopeSchema;
+    output: typeof ChangedSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_testing_fixture, 1);
 

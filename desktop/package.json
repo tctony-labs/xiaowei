@@ -7,8 +7,8 @@
   "scripts": {
     "test": "node --test scripts/*.test.mjs",
     "dev": "node scripts/dev.mjs",
-    "build": "electron-vite build",
-    "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
+    "build": "pnpm --filter xiaowei-gateway build && electron-vite build",
+    "check": "pnpm --filter xiaowei-gateway build && tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
     "smoke": "electron scripts/smoke.mjs",
     "package": "electron-builder --dir",
     "dev:main": "node scripts/build-main.mjs && electron .",
@@ -23,7 +23,10 @@
     "remark-gfm": "4.0.1",
     "xiaowei-clipboard": "workspace:*",
     "xiaowei-search": "workspace:*",
-    "zustand": "5.0.8"
+    "zustand": "5.0.8",
+    "xiaowei-gateway": "workspace:*",
+    "xiaowei-contracts": "workspace:*",
+    "@bufbuild/protobuf": "2.15.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "10.6.0",

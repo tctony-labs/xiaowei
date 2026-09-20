@@ -5,9 +5,9 @@ import { join } from "node:path";
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 export function createAppIconCache(directory: string, extract: (path: string) => Promise<Buffer | null>) {
-  const pending = new Map<string, Promise<string | null>>();
+  const pending = new Map<string, Promise<Buffer | null>>();
 
-  async function load(path: string): Promise<string | null> {
+  async function load(path: string): Promise<Buffer | null> {
     const file = join(directory, `${createHash("sha256").update(path).digest("hex")}.png`);
     let png: Buffer | null = null;
     try {
@@ -29,10 +29,10 @@ export function createAppIconCache(directory: string, extract: (path: string) =>
         console.warn("Application icon cache write failed", error);
       }
     }
-    return `data:image/png;base64,${png.toString("base64")}`;
+    return png;
   }
 
-  return function getIcon(path: string): Promise<string | null> {
+  return function getIcon(path: string): Promise<Buffer | null> {
     const inflight = pending.get(path);
     if (inflight) return inflight;
     const request = load(path)

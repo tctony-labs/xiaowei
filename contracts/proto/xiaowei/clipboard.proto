@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package xiaowei.clipboard;
+
+import "xiaowei/common.proto";
+
+enum ClipboardKind {
+  CLIPBOARD_KIND_UNSPECIFIED = 0;
+  CLIPBOARD_KIND_TEXT = 1;
+  CLIPBOARD_KIND_IMAGE = 2;
+  CLIPBOARD_KIND_FILE = 3;
+}
+
+// History summary. ReadText and ReadImage return the complete content.
+message ClipboardItem {
+  uint64 id = 1;
+  ClipboardKind kind = 18;
+  reserved 2, 3, 4, 8, 9;
+  reserved "image_path", "text", "created_at", "last_used_at";
+  optional string preview_text = 14;
+  bool preview_truncated = 17;
+  repeated string paths = 5;
+  optional uint32 width = 6;
+  optional uint32 height = 7;
+  int64 created_at_ms = 15;
+  int64 last_used_at_ms = 16;
+  uint32 use_count = 10;
+  bool favorite = 11;
+  optional string remark = 12;
+  optional uint64 category_id = 13;
+}
+
+message ClipboardCategory {
+  uint64 id = 1;
+  string name = 2;
+  string color = 3;
+}
+
+message ClipboardListOptions {
+  optional string query = 1;
+  optional bool favorites_only = 2;
+  reserved 3;
+  // Omitted selects all records; IMAGE and FILE are supported filters.
+  optional ClipboardKind kind = 7;
+  optional uint64 category_id = 4;
+  // Default 50; accepted range 1..100.
+  optional uint32 limit = 5;
+  optional uint32 offset = 6;
+}
+
+message ClipboardItems {
+  repeated ClipboardItem items = 1;
+}
+
+message OptionalItem {
+  ClipboardItem item = 1;
+}
+
+message ClipboardCategories {
+  repeated ClipboardCategory items = 1;
+}
+
+message FavoriteRequest {
+  uint64 id = 1;
+  bool favorite = 2;
+}
+
+message SaveCategoryRequest {
+  optional uint64 id = 1;
+  string name = 2;
+  string color = 3;
+}
+
+message SetRemarkRequest {
+  uint64 id = 1;
+  string remark = 2;
+}
+
+message EditTextRequest {
+  uint64 id = 1;
+  string text = 2;
+}
+
+message SetCategoryRequest {
+  uint64 id = 1;
+  // Omitted clears the category assignment.
+  optional uint64 category_id = 2;
+}
+
+message ClipboardItemRequest {
+  uint64 id = 1;
+}
+
+message ClipboardCategoryRequest {
+  uint64 id = 1;
+}
+
+message ReadTextResponse {
+  string text = 1;
+}
+
+message ReadImageResponse {
+  bytes png = 1;
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+message SetFavoriteResponse {
+  // Whether the record existed and was updated, not its resulting favorite state.
+  bool updated = 1;
+}
+
+message ClearHistoryResponse {
+  // Favorites are retained.
+  uint32 deleted_count = 1;
+}
+
+message ClipboardResourceRequest {
+  uint64 id = 1;
+  // For a file record, omitted means all files; OpenResource requires exactly one file.
+  optional uint32 index = 2;
+}
+
+message CopyResourcePathRequest {
+  uint64 id = 1;
+  optional uint32 index = 2;
+  bool directory = 3;
+}
+
+message ClipboardChanged {}
+
+service Clipboard {
+  rpc List(ClipboardListOptions) returns (ClipboardItems);
+  rpc Get(ClipboardItemRequest) returns (OptionalItem);
+  rpc ReadText(ClipboardItemRequest) returns (ReadTextResponse);
+  rpc ReadImage(ClipboardItemRequest) returns (ReadImageResponse);
+  rpc Copy(ClipboardItemRequest) returns (xiaowei.common.Empty);
+  rpc Delete(ClipboardItemRequest) returns (DeleteResponse);
+  rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
+  rpc ClearHistory(xiaowei.common.Empty) returns (ClearHistoryResponse);
+  rpc Categories(xiaowei.common.Empty) returns (ClipboardCategories);
+  rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
+  rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
+  rpc SetRemark(SetRemarkRequest) returns (xiaowei.common.Empty);
+  rpc EditText(EditTextRequest) returns (ClipboardItem);
+  rpc SetCategory(SetCategoryRequest) returns (xiaowei.common.Empty);
+  rpc OpenResource(ClipboardResourceRequest) returns (xiaowei.common.Empty);
+  rpc RevealResource(ClipboardResourceRequest) returns (xiaowei.common.Empty);
+  rpc CopyResourcePath(CopyResourcePathRequest) returns (xiaowei.common.Empty);
+}

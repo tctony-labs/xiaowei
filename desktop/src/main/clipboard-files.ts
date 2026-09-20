@@ -1,7 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
-import type { ClipboardHistory } from "xiaowei-clipboard";
+
+// Internal content reader; filesystem paths remain on the backend.
+interface ClipboardContentReader {
+  get(id: string): Promise<{ kind: string; paths: string[]; imagePath?: string } | null>;
+  readText(id: string): Promise<string>;
+}
 
 export function webUrl(value: unknown): string {
   if (typeof value !== "string" || value.length > 16384) throw new Error("Invalid URL");
@@ -12,7 +17,7 @@ export function webUrl(value: unknown): string {
 
 // Electron's external viewers require a file; Rust remains the source of clipboard content.
 export async function clipboardPaths(
-  history: Pick<ClipboardHistory, "get" | "readText">,
+  history: ClipboardContentReader,
   directory: string,
   id: string,
   index?: number,

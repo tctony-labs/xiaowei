@@ -1,19 +1,20 @@
 use napi_derive::napi;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use xiaowei_search::{Action, SearchEngine};
 
+pub mod gateway;
 pub mod logging;
 
-static ENGINE: OnceLock<Mutex<SearchEngine>> = OnceLock::new();
-
+static SERVICE: OnceLock<Arc<xiaowei_search::gateway::SearchService>> = OnceLock::new();
+fn service() -> Arc<xiaowei_search::gateway::SearchService> {
+    SERVICE
+        .get_or_init(|| Arc::new(xiaowei_search::gateway::SearchService::default()))
+        .clone()
+}
 fn engine() -> &'static Mutex<SearchEngine> {
-    ENGINE.get_or_init(|| {
-        let start = std::time::Instant::now();
-        log::info!("Search index initialization started");
-        let engine = SearchEngine::open_default();
-        log::info!("Search index initialized in {} ms", start.elapsed().as_millis());
-        Mutex::new(engine)
-    })
+    SERVICE
+        .get_or_init(|| Arc::new(xiaowei_search::gateway::SearchService::default()))
+        .engine()
 }
 
 #[napi]
@@ -90,13 +91,9 @@ pub async fn search(query: String, development: Option<bool>) -> napi::Result<Ve
 
 #[napi]
 pub fn record_usage(id: String) -> napi::Result<()> {
-    if let Some(engine) = ENGINE.get() {
-        engine
-            .lock()
-            .map_err(|_| napi::Error::from_reason("Search engine unavailable"))?
-            .record_usage(&id);
-    }
-    Ok(())
+    service()
+        .record_usage(&id)
+        .map_err(|error| napi::Error::from_reason(error.to_string()))
 }
 
 #[napi]

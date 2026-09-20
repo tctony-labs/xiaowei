@@ -6,7 +6,11 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+gateway-fixtures = ["xw-gateway/test-fixtures"]
+
 [dependencies]
+xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 log = "0.4"
 xw-napi-log = { path = "../../xw-napi-log" }
 xiaowei-search = { path = ".." }

@@ -1,4 +1,5 @@
 //! Launcher 全局搜索核心。数据源与匹配不依赖 Electron 或 napi。
+pub mod gateway;
 pub use xw_platform::app_icon::read_app_icon;
 mod calculator;
 mod commands;

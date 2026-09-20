@@ -1,3 +1,4 @@
+pub mod gateway;
 mod service;
 mod store;
 mod toolkit;

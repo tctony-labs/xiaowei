@@ -209,6 +209,9 @@ importers:
 
   desktop:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: 2.15.0
+        version: 2.15.0
       electron-log:
         specifier: 5.4.4
         version: 5.4.4
@@ -227,6 +230,12 @@ importers:
       xiaowei-clipboard:
         specifier: workspace:*
         version: link:../crates/xiaowei-clipboard/napi
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../contracts/ts
+      xiaowei-gateway:
+        specifier: workspace:*
+        version: link:../gateway/ts
       xiaowei-search:
         specifier: workspace:*
         version: link:../crates/xiaowei-search/napi
@@ -273,6 +282,25 @@ importers:
       vite:
         specifier: 7.3.6
         version: 7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6)
+
+  gateway/ts:
+    dependencies:
+      '@bufbuild/protobuf':
+        specifier: 2.15.0
+        version: 2.15.0
+    devDependencies:
+      '@types/node':
+        specifier: 26.5.1
+        version: 26.5.1
+      electron:
+        specifier: 44.3.0
+        version: 44.3.0(supports-color@7.2.0)
+      tsx:
+        specifier: 4.23.13
+        version: 4.23.13
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../../contracts/ts
 
 packages:
 
@@ -4196,6 +4224,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@electron/get@5.1.0(supports-color@7.2.0)':
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+      env-paths: 3.0.0
+      graceful-fs: 4.2.11
+      progress: 2.0.3
+      semver: 7.8.5
+      sumchecker: 3.0.1(supports-color@7.2.0)
+    optionalDependencies:
+      undici: 7.29.1
+    transitivePeerDependencies:
+      - supports-color
+
   '@electron/notarize@2.5.0(supports-color@5.5.0)':
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
@@ -6003,6 +6044,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  electron@44.3.0(supports-color@7.2.0):
+    dependencies:
+      '@electron-internal/extract-zip': 1.0.5
+      '@electron/get': 5.1.0(supports-color@7.2.0)
+      '@types/node': 24.13.4
+    transitivePeerDependencies:
+      - supports-color
+
   emoji-regex@8.0.0: {}
 
   empathic@2.0.1: {}
@@ -7473,6 +7522,12 @@ snapshots:
   sumchecker@3.0.1(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  sumchecker@3.0.1(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 

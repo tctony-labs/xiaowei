@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package xiaowei.launcher;
+
+import "xiaowei/common.proto";
+import "xiaowei/search.proto";
+
+enum LauncherMode {
+  LAUNCHER_MODE_UNSPECIFIED = 0;
+  LAUNCHER_MODE_SEARCH = 1;
+  LAUNCHER_MODE_CLIPBOARD = 2;
+}
+
+message LauncherQueryRequest {
+  string query = 1;
+}
+
+message LauncherSearchResponse {
+  uint32 token = 1;
+  reserved 2;
+  repeated LauncherHit hits = 3;
+}
+
+message LauncherHit {
+  string id = 1;
+  string title = 2;
+  string provider = 3;
+  string label = 4;
+  double score = 5;
+  repeated xiaowei.search.HighlightRange ranges = 6;
+  optional string icon_url = 7;
+}
+
+message ResultRequest {
+  uint32 token = 1;
+  string id = 2;
+}
+
+message ExecuteResponse {
+  reserved 1;
+  optional LauncherMode mode = 2;
+}
+
+message UpdateLayoutRequest {
+  // Visible result count, not a pixel height. Host owns the layout policy.
+  uint32 result_count = 1;
+  reserved 2;
+  optional LauncherMode mode = 3;
+}
+
+message LauncherOpened {
+  reserved 1;
+  LauncherMode mode = 2;
+}
+
+service Launcher {
+  rpc Query(LauncherQueryRequest) returns (LauncherSearchResponse);
+  rpc Execute(ResultRequest) returns (ExecuteResponse);
+  rpc Hide(xiaowei.common.Empty) returns (xiaowei.common.Empty);
+  rpc UpdateLayout(UpdateLayoutRequest) returns (xiaowei.common.Empty);
+  rpc ResetPosition(xiaowei.common.Empty) returns (xiaowei.common.Empty);
+}

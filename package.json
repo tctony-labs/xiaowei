@@ -14,7 +14,8 @@
     "prepare": "husky",
     "contracts:generate": "node contracts/generate.mjs",
     "contracts:check": "node contracts/generate.mjs --check",
-    "contracts:test": "node contracts/tests/codec.mjs"
+    "contracts:test": "node contracts/tests/codec.mjs",
+    "gateway:test-native": "node gateway/tests/native.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

@@ -1,0 +1,12 @@
+[
+  { "name": "empty message", "payload": [], "id": "0", "valid": true },
+  {
+    "name": "uint64 max",
+    "payload": [16, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1],
+    "id": "18446744073709551615",
+    "valid": true
+  },
+  { "name": "truncated varint", "payload": [16, 128], "valid": false },
+  { "name": "truncated nested bytes", "payload": [34, 4, 10, 2, 1], "valid": false },
+  { "name": "invalid tag", "payload": [255], "valid": false }
+]

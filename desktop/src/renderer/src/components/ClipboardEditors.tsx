@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ClipboardCategory, ClipboardItem } from "../../../shared/clipboard-api";
+import type { ClipboardCategory, ClipboardItem } from "../../../shared/clipboard-model";
 import Modal, { ModalButton } from "./Modal";
 
 export type ClipboardDialog =

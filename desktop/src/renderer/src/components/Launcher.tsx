@@ -1,17 +1,29 @@
+import { create, fromBinary } from "@bufbuild/protobuf";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ClipboardApi } from "../../../shared/clipboard-api";
-import type { LauncherApi, SearchResponse } from "../../../shared/launcher-api";
+import {
+  EmptySchema,
+  LauncherMode,
+  LauncherOpenedSchema,
+  LauncherQueryRequestSchema,
+  ResultRequestSchema,
+  UpdateLayoutRequestSchema,
+} from "xiaowei-contracts";
+import type { Subscription } from "xiaowei-gateway";
+import type { SearchResponse } from "../../../shared/launcher-model";
+import { services as defaultServices, type Services } from "../services";
 import { ClipboardPage } from "./ClipboardPage";
 import { LauncherSearchBar } from "./LauncherSearchBar";
 import { SearchResultList } from "./SearchResultList";
 
-export function Launcher({ api = window.launcher, clipboardApi }: { api?: LauncherApi; clipboardApi?: ClipboardApi }) {
+export function Launcher({ services = defaultServices }: { services?: Services }) {
+  const api = services.getLauncher();
+  const gateway = services.getGateway();
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<SearchResponse>({ token: 0, hits: [] });
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState("");
-  const [icons, setIcons] = useState<Record<string, string>>({});
+  const resizing = useRef(Promise.resolve());
   const revision = useRef(0);
   const executing = useRef(false);
   const pending = useRef(false);
@@ -25,17 +37,39 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
     setError("");
   }, []);
   useEffect(() => {
-    return api.onOpen?.((mode) => {
-      const nextClipboardOpen = mode === "clipboard";
-      if (nextClipboardOpen !== clipboardOpen) changeQuery("");
-      setClipboardOpen(nextClipboardOpen);
-    });
-  }, [api, clipboardOpen, changeQuery]);
+    let active = true;
+    let subscription: Subscription | undefined;
+    void gateway
+      .subscribe(
+        LauncherOpenedSchema.typeName,
+        undefined,
+        (bytes) => {
+          if (!active) return;
+          const { mode } = fromBinary(LauncherOpenedSchema, bytes);
+          if (mode !== LauncherMode.SEARCH && mode !== LauncherMode.CLIPBOARD) return;
+          const nextClipboardOpen = mode === LauncherMode.CLIPBOARD;
+          if (nextClipboardOpen !== clipboardOpen) changeQuery("");
+          setClipboardOpen(nextClipboardOpen);
+        },
+        true,
+      )
+      .then((handle) => {
+        if (active) subscription = handle;
+        else handle.close();
+      })
+      .catch((error) => {
+        if (active) console.error("Launcher subscription failed", error);
+      });
+    return () => {
+      active = false;
+      subscription?.close();
+    };
+  }, [gateway, clipboardOpen, changeQuery]);
   useEffect(() => {
     let active = true;
     const current = revision.current;
     api
-      .search(query)
+      .query(create(LauncherQueryRequestSchema, { query }))
       .then((result) => {
         if (active && current === revision.current) {
           pending.current = false;
@@ -55,31 +89,34 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
     };
   }, [query, api]);
   useEffect(() => {
-    api.resize(error ? 1 : response.hits.length, clipboardOpen ? "clipboard" : undefined);
+    const request = create(UpdateLayoutRequestSchema, {
+      resultCount: error ? 1 : response.hits.length,
+      mode: clipboardOpen ? LauncherMode.CLIPBOARD : LauncherMode.SEARCH,
+    });
+    resizing.current = resizing.current
+      .then(async () => {
+        await api.updateLayout(request);
+      })
+      .catch((error) => console.error("Launcher resize failed", error));
   }, [response.hits.length, error, api, clipboardOpen]);
-  useEffect(() => {
-    let active = true;
-    for (const hit of response.hits) {
-      if (hit.provider !== "app") continue;
-      api
-        .icon(response.token, hit.id)
-        .then((data) => {
-          if (active && data) setIcons((previous) => ({ ...previous, [hit.id]: data }));
-        })
-        .catch(() => {});
-    }
-    return () => {
-      active = false;
-    };
-  }, [response, api]);
+
+  function hide() {
+    void api.hide(create(EmptySchema)).catch((error) => console.error("Launcher hide failed", error));
+  }
+
+  function resetPosition() {
+    void api.resetPosition(create(EmptySchema)).catch((error) => console.error("Launcher position failed", error));
+  }
 
   async function execute(index: number) {
     const hit = response.hits[index];
     if (!hit || pending.current || executing.current) return;
     executing.current = true;
     try {
-      const destination = await api.execute(response.token, hit.id);
-      if (destination === "clipboard") setClipboardOpen(true);
+      const { mode: destination } = await api.execute(
+        create(ResultRequestSchema, { token: response.token, id: hit.id }),
+      );
+      if (destination === LauncherMode.CLIPBOARD) setClipboardOpen(true);
       changeQuery("");
     } catch {
       setError("执行失败，请重试");
@@ -90,9 +127,9 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
   if (clipboardOpen)
     return (
       <ClipboardPage
-        onHide={() => api.hide()}
-        onResetPosition={() => api.resetPosition?.()}
-        api={clipboardApi}
+        onHide={hide}
+        onResetPosition={resetPosition}
+        services={services}
         onBack={() => setClipboardOpen(false)}
       />
     );
@@ -101,8 +138,8 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
       <LauncherSearchBar
         query={query}
         onQueryChange={changeQuery}
-        onDismiss={() => api.hide()}
-        onResetPosition={() => api.resetPosition?.()}
+        onDismiss={hide}
+        onResetPosition={resetPosition}
         onNavigate={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -119,13 +156,7 @@ export function Launcher({ api = window.launcher, clipboardApi }: { api?: Launch
             {error}
           </div>
         ) : (
-          <SearchResultList
-            hits={response.hits}
-            selected={selected}
-            icons={icons}
-            onSelect={setSelected}
-            onConfirm={execute}
-          />
+          <SearchResultList hits={response.hits} selected={selected} onSelect={setSelected} onConfirm={execute} />
         )}
       </LauncherSearchBar>
     </div>

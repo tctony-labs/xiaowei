@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import logo from "../../../../resources/logo-clear.png";
-import type { LauncherHit } from "../../../shared/launcher-api";
+import type { LauncherHit } from "../../../shared/launcher-model";
 import chrome from "../assets/chrome.svg";
 import clipboardIcon from "../assets/clipboard.svg";
 import genericApp from "../assets/macos-generic-app.png";
@@ -9,7 +9,6 @@ import settings from "../assets/macos-system-settings.png";
 export interface SearchResultListProps {
   hits: LauncherHit[];
   selected: number;
-  icons?: Record<string, string>;
   onSelect(index: number): void;
   onConfirm(index: number): void;
 }
@@ -27,7 +26,7 @@ function Highlight({ hit }: { hit: LauncherHit }) {
   ));
 }
 
-export function SearchResultList({ hits, selected, icons = {}, onSelect, onConfirm }: SearchResultListProps) {
+export function SearchResultList({ hits, selected, onSelect, onConfirm }: SearchResultListProps) {
   const container = useRef<HTMLDivElement>(null);
   const rows = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {
@@ -45,7 +44,7 @@ export function SearchResultList({ hits, selected, icons = {}, onSelect, onConfi
       <div className="flex flex-col gap-1" role="listbox" aria-label="搜索结果">
         {hits.map((hit, index) => {
           const icon =
-            icons[hit.id] ??
+            hit.iconUrl ??
             (hit.provider === "command"
               ? hit.id === "command:toggle-system-theme"
                 ? settings
@@ -92,6 +91,11 @@ export function SearchResultList({ hits, selected, icons = {}, onSelect, onConfi
                 <img
                   src={icon}
                   alt=""
+                  onError={(event) => {
+                    if (event.currentTarget.src !== new URL(genericApp, window.location.href).href) {
+                      event.currentTarget.src = genericApp;
+                    }
+                  }}
                   className={`size-[22px] shrink-0 object-contain ${hit.provider === "app" ? "scale-125" : ""}`}
                 />
               )}

@@ -20,11 +20,12 @@
 | `crates/xw-platform/` | 内部系统能力：应用名称、原生图标、macOS 主题切换 |
 | `crates/xw-app/`、`crates/xw-bookmark/` | 应用和 Chrome 书签数据源 |
 | `contracts/` | Protobuf 消息与接口描述的 TS／Rust／Go 契约包及固定版本生成工具，见 [契约说明](../contracts/README.md) |
+| `gateway/` | TS／Rust Gateway 核心、PB 绑定、可选 napi 适配及联调测试，尚未迁移产品业务通信；见 [Gateway 核心](../gateway/README.md) |
 | `packages/` | 独立 npm 包的位置，目前无包，仅保留目录 |
 | `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
 | `deploy/` | Go 容器部署示例 |
 
-根 pnpm workspace 包含 `desktop`、`contracts/ts`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](rust-napi.md)。Go 在 `server/` 与 `contracts/go/` 中分别管理，不使用 `go.work`。`mobile/` 尚未创建。
+根 pnpm workspace 包含 `desktop`、`contracts/ts`、`gateway/ts`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](rust-napi.md)。Go 在 `server/` 与 `contracts/go/` 中分别管理，不使用 `go.work`。`mobile/` 尚未创建。
 
 当前使用 Node **26.3.1**（`.node-version`）、pnpm **12.4.2**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
 
@@ -70,7 +71,8 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 | `just prepare` | 使用 frozen lockfile 安装 pnpm 依赖 |
 | `just gen` | 生成 contracts；后续其他生成任务统一加入此入口 |
 | `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
-| `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式与 cargo check、Go 格式与 vet；不修改源码或暂存区 |
+| `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式、Gateway 默认核心与原生业务包 cargo check、Go 格式与 vet；不修改源码或暂存区 |
+| `pnpm gateway:test-native` | 构建两个测试 feature addon，验证 Gateway 原生双向通信与关闭，结束时恢复正常原生产物 |
 | `just test` | 运行 Rust、Node 原生绑定、三语言契约 codec 与 Go 测试（须先构建原生模块） |
 | `just build` | 先构建本机 napi 模块，再构建 Electron 与 Go 二进制 |
 
@@ -122,7 +124,7 @@ docker compose -f deploy/compose.yaml up --build
 
 Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.0.0:8080`。镜像多阶段构建，不带 Node、数据库或业务凭据。当前环境没有 Docker，容器构建和运行尚未验证。
 
-`just prepare` 使用 `.prepare-ts` 记录上次成功安装时间。锁文件、工作区配置及根、desktop、contracts/ts、packages 和 `crates/*/napi` 下的包清单都不比该时间新，且依赖安装记录与 Hook 入口存在时跳过安装；否则执行 frozen install，成功后更新时间戳。删除 `.prepare-ts` 可强制重新安装。时间戳文件不提交。
+`just prepare` 使用 `.prepare-ts` 记录上次成功安装时间。锁文件、工作区配置及根、desktop、contracts/ts、gateway/ts、packages 和 `crates/*/napi` 下的包清单都不比该时间新，且依赖安装记录与 Hook 入口存在时跳过安装；否则执行 frozen install，成功后更新时间戳。删除 `.prepare-ts` 可强制重新安装。时间戳文件不提交。
 
 窗口首次加载被刷新或关闭取消时，忽略 Electron 的 `ERR_ABORTED`，不将其当作启动失败退出；其他加载错误仍向上传递。
 
@@ -132,7 +134,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。修改 Rust 后显式重新构建 napi 包，再对当前工作区实例执行 `just rs`。`just start` 自动构建所有原生模块；单独安装依赖与 `just rs` 不会编译 Rust。
 
-本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `window.clipboardHistory` 获取分页历史、详情、图片、复制、收藏和删除，并通过 `onChanged` 重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
+本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
 Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。
 
@@ -143,3 +145,9 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/`、`logs/` 和 `cache/app-icons/`（一周有效的应用图标 PNG 缓存），与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
 
 持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs`、`clipboard` 和 `appIcons`。main 入口设置 userData 后，将业务目录传给日志、剪贴板及搜索模块；业务接入层不自行拼接应用根路径。Rust 接收剪贴板目录，负责内部 `history.sqlite`、`images/` 等路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
+
+## 桌面 Gateway 通信
+
+搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和两个既有 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
+
+桌面 check、build 和开发 main 重建先构建 Gateway dist；electron-vite 内联 Gateway／契约的 JS，原生模块仍外置。修改 Rust 后仍须先重建对应 napi 包，再重启已有桌面实例；`just rs` 不负责 Rust 编译。

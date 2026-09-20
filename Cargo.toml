@@ -1,3 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["contracts/rust", "contracts/tools", "crates/*", "crates/xiaowei-search/napi", "crates/xiaowei-clipboard/napi"]
+members = [
+    "contracts/rust",
+    "contracts/tools",
+    "gateway/rust",
+    "crates/*",
+    "crates/xiaowei-search/napi",
+    "crates/xiaowei-clipboard/napi",
+]
