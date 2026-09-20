@@ -164,7 +164,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 `just storybook` 启动独立组件预览，不需要 Electron 或服务端。组件场景、设计变量和验收流程见 [UI 对齐与 Storybook](ui-alignment.md)。
 
-Rust 使用 Cargo.lock 固定依赖，本机验证工具链为 rustc 1.92.0。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
+Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
 本地剪贴板在 main 就绪后打开 `userData/xiaowei/clipboard/history.sqlite`，macOS 启动 500ms 监听，退出时停止。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
