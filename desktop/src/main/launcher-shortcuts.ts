@@ -1,4 +1,4 @@
-import type { BrowserWindow, Rectangle } from "electron";
+import type { BrowserWindow, Rectangle, Screen } from "electron";
 import type { LauncherMode } from "../shared/launcher-model";
 
 export function activateLauncherShortcut(
@@ -30,9 +30,32 @@ export function positionLauncher(window: BrowserWindow, workArea: Rectangle): vo
   );
 }
 
-export function showLauncherWindow(window: BrowserWindow | undefined): void {
+export function showLauncherWindow(
+  window: BrowserWindow | undefined,
+  screen: Pick<Screen, "getCursorScreenPoint" | "getDisplayNearestPoint" | "getDisplayMatching">,
+): void {
   if (!window || window.isDestroyed()) return;
-  // Hiding preserves the native window position, including manual dragging.
+  const targetDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const bounds = window.getBounds();
+  const currentDisplay = screen.getDisplayMatching(bounds);
+  if (currentDisplay.id !== targetDisplay.id) {
+    const source = currentDisplay.workArea;
+    const target = targetDisplay.workArea;
+    const defaultX = Math.round(source.x + (source.width - bounds.width) / 2);
+    const defaultY = Math.round(source.y + source.height * 0.15);
+    if (bounds.x === defaultX && bounds.y === defaultY) {
+      positionLauncher(window, target);
+    } else {
+      // Scale the horizontal center and top edge so panel height does not affect the anchor.
+      const horizontalRatio = (bounds.x + bounds.width / 2 - source.x) / source.width;
+      const verticalRatio = (bounds.y - source.y) / source.height;
+      window.setPosition(
+        Math.round(target.x + target.width * horizontalRatio - bounds.width / 2),
+        Math.round(target.y + target.height * verticalRatio),
+      );
+    }
+  }
+  // Preserve manual dragging when the cursor remains on the same display.
   window.show();
   window.focus();
 }

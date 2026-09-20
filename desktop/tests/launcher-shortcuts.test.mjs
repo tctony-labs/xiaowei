@@ -98,16 +98,22 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
     webContents: { send: () => {} },
   };
   const workArea = { x: 0, y: 25, width: 1440, height: 875 };
+  const screen = {
+    getCursorScreenPoint: () => ({ x: 200, y: 200 }),
+    getDisplayNearestPoint: () => ({ id: 1, workArea }),
+    getDisplayMatching: () => ({ id: 1 }),
+  };
+  window.getBounds = () => ({ x: position[0], y: position[1], width: 800, height: 71 });
   positionLauncher(window, workArea);
   const initial = [...position];
-  showLauncherWindow(window);
+  showLauncherWindow(window, screen);
   window.setPosition(120, 300);
   window.hide();
   activateLauncherShortcut(
     window,
     "search",
     "search",
-    () => showLauncherWindow(window),
+    () => showLauncherWindow(window, screen),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
@@ -117,10 +123,47 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
     window,
     "search",
     "clipboard",
-    () => showLauncherWindow(window),
+    () => showLauncherWindow(window, screen),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
   positionLauncher(window, workArea);
   assert.deepEqual(position, initial);
+});
+
+test("invoking the launcher follows the cursor to another display before showing", () => {
+  for (const [x, y, expected] of [
+    [320, 156, [-1360, -922]],
+    [120, 300, [-1627, -748]],
+  ]) {
+    for (const height of [71, 536, 580]) {
+      const calls = [];
+      const cursor = { x: -1000, y: -500 };
+      const workArea = { x: -1920, y: -1080, width: 1920, height: 1055 };
+      const bounds = { x, y, width: 800, height };
+      const window = {
+        isDestroyed: () => false,
+        getBounds: () => bounds,
+        getSize: () => [800, height],
+        setPosition: (...position) => calls.push(["position", ...position]),
+        show: () => calls.push(["show"]),
+        focus: () => calls.push(["focus"]),
+      };
+      const screen = {
+        getCursorScreenPoint: () => cursor,
+        getDisplayNearestPoint: (point) => {
+          assert.deepEqual(point, cursor);
+          return { id: 2, workArea };
+        },
+        getDisplayMatching: (rectangle) => {
+          assert.deepEqual(rectangle, bounds);
+          return { id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } };
+        },
+      };
+
+      showLauncherWindow(window, screen);
+
+      assert.deepEqual(calls, [["position", ...expected], ["show"], ["focus"]]);
+    }
+  }
 });

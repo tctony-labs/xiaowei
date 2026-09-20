@@ -22,7 +22,7 @@ let quitting = false;
 let launcherMode: LauncherMode = "search";
 
 function showLauncher(): void {
-  showLauncherWindow(launcher);
+  showLauncherWindow(launcher, screen);
 }
 
 function resetLauncherPosition(): void {
