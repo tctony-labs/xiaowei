@@ -9,7 +9,8 @@
   "scripts": {
     "check": "pnpm contracts:check && biome check . && pnpm -r check",
     "fmt": "biome check --write .",
-    "test": "pnpm test:tooling && pnpm -r test",
+    "test": "pnpm build:native && pnpm test:tooling && pnpm -r test",
+    "build:native": "pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug",
     "build": "pnpm -r build",
     "prepare": "husky",
     "contracts:generate": "node contracts/generate.mjs",

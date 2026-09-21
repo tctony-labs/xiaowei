@@ -105,8 +105,10 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 | `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
 | `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式、Gateway 默认核心与原生业务包 cargo check、Go 格式与 vet；不修改源码或暂存区 |
 | `pnpm gateway:test-native` | 构建两个测试 feature addon，验证 Gateway 原生双向通信与关闭，结束时恢复正常原生产物 |
-| `just test` | 运行 Rust、Node 原生绑定、三语言契约 codec 与 Go 测试（须先构建原生模块） |
+| `just test` | 运行 Rust、Node 原生绑定、三语言契约 codec 与 Go 测试；Node 测试前自动构建原生模块 |
 | `just build` | 先构建本机 napi 模块，再构建 Electron 与 Go 二进制 |
+
+根目录 `pnpm test` 先通过 `pnpm build:native` 串行构建所有 `crates/*/napi` 包，成功后再运行工具和工作区测试；任一原生包构建失败即停止。`just test` 复用此入口，无需事先手动构建原生模块。
 
 根 `tsconfig.base.json` 维护共享严格选项；桌面的 `tsconfig.node.json` 与 `tsconfig.web.json` 由 tsgo 分别检查 Node 和浏览器环境。根 `biome.json` 启用 Tailwind 指令解析。代码显示宽度不超过 120；格式工具之外仍需核对含全角字符的行。
 
