@@ -2,14 +2,19 @@
 
 use std::path::Path;
 
+use objc2::rc::autoreleasepool;
 use objc2_foundation::{NSFileManager, NSString};
 
 /// 取 `path` 的本地化显示名（Finder 展示名），去掉 bundle 扩展名；取不到返回 `None`。
 pub fn localized_name(path: &Path) -> Option<String> {
     let p = path.to_str()?;
-    let fm = NSFileManager::defaultManager();
-    let ns_path = NSString::from_str(p);
-    let name = fm.displayNameAtPath(&ns_path).to_string();
+
+    // Rust 工作线程没有默认 pool；Retained 不负责清理 Foundation 内部的 autoreleased 临时对象。
+    let name = autoreleasepool(|_| {
+        let fm = NSFileManager::defaultManager();
+        let ns_path = NSString::from_str(p);
+        fm.displayNameAtPath(&ns_path).to_string()
+    });
 
     // displayName 一般已隐藏扩展名，个别情况仍带，统一剥掉。
     let name = name

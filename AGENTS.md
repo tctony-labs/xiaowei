@@ -49,6 +49,7 @@
 - `cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
 - 有运行实例时，按上面的运行实例规则确认归属后可直接执行 `just rs`，由共用构建入口完成 napi 增量构建并重启；必须确认构建成功且 Electron 加载新模块。已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
 - 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 通过已有 nodemon 流程触发 napi 构建，不新增 Rust 源码自动监听或自动重启机制。
+- Rust 工作线程调用 Objective-C / Foundation / AppKit 时，在同步调用边界使用 `objc2::rc::autoreleasepool`，除非已确认当前线程有会及时 drain 的外层 pool。`Retained<T>` 只管理持有的引用，不能替代 pool 回收框架内部的 autoreleased 临时对象；Electron 主线程的 pool 不覆盖 Rust 工作线程。循环任务按次或按批 drain，不把 pool 包在整个长期线程外，也不跨 `await`；字符串、字节等应在 pool 内转为 Rust 拥有的数据后返回。
 
 ## UI 开发
 

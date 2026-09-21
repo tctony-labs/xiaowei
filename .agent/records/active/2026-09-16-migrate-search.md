@@ -22,7 +22,11 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 应用图标由 Electron main 缓存在 `userData/xiaowei/cache/app-icons/`，文件名为应用绝对路径的 SHA-256，内容为 PNG。参考旧版落盘复用方式，新增自写入起一周的有效期（以文件 mtime 判断，读取不续期）；过期后下次请求重新提取并覆盖。主进程不保留已完成的图标内存缓存，每次请求检查磁盘有效期，仅合并进行中的并发请求；提取失败不缓存，磁盘读写失败不阻断原生提取和当前图标显示。该缓存按需填充，不迁移旧版缓存，也不引入旧版的全量图标后台预热。过期文件按需覆盖，不定时扫描删除。
 
+应用本地化名称读取在 `xw-platform::macos::app_name::localized_name` 内逐次建立 autorelease pool，并在池内转成 Rust `String`，覆盖初始化工作线程及目录变更回调；所有权注意事项见 [Rust 原生模块开发](../../../AGENTS.md#rust-原生模块开发)。
+
 ## Outcome
+
+2026-09-21 补齐本地化名称读取的 autorelease pool；`xw-platform` 4 项测试、该包格式检查、搜索 napi debug 构建及 5 项 Node 原生绑定测试通过。当前工作区没有运行实例，未重启其他工作区的 Electron；桌面内验证待用户启动，未进行 Instruments 内存测量。
 
 实现核心 crate、napi 绑定与生成的 JS／类型入口、Electron IPC、结果列表及 Storybook 明暗／滚动／选择场景。`just check`、60 项 Rust 测试、Node 原生绑定测试、Go 测试、桌面和 Storybook 构建通过。本机 macOS arm64 目录包构建通过，已直接加载包内解包出的 `.node` 验证计算结果；未启动打包应用。`just rs` 已在核实当前工作区进程归属后执行，未冷启动。已在实际 Electron 窗口验证 `7*8 = 56`、`wx` 返回应用／系统设置／书签混合结果、窗口随结果展开及 Esc 清空。
 
