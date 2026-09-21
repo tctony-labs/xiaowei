@@ -7,4 +7,5 @@ members = [
     "crates/*",
     "crates/xiaowei-search/napi",
     "crates/xiaowei-clipboard/napi",
+    "crates/xiaowei-storage/napi",
 ]

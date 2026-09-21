@@ -56,6 +56,7 @@ pub struct ClipboardItem {
     pub id: String,
     pub kind: String,
     pub image_path: Option<String>,
+    pub text_path: Option<String>,
     pub text: Option<String>,
     pub paths: Vec<String>,
     pub width: Option<u32>,

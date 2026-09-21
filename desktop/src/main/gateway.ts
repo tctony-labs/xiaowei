@@ -6,6 +6,7 @@ import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
 import { createSearchGatewayEndpoint } from "xiaowei-search";
+import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "./app-icon-cache";
 import { registerClipboard } from "./clipboard";
 import { createIconResources, ICON_SCHEME } from "./icon-resources";
@@ -13,6 +14,7 @@ import { type LauncherActions, registerSearch } from "./search";
 
 export async function createApplicationGateway(
   directory: string,
+  databasePath: string,
   iconDirectory: string,
   actions: Omit<LauncherActions, "iconUrl">,
 ) {
@@ -23,6 +25,7 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
   let search: Awaited<ReturnType<typeof attachNative>> | undefined;
   let clipboard: Awaited<ReturnType<typeof registerClipboard>> | undefined;
   let launcher: ReturnType<typeof registerSearch>;
@@ -33,6 +36,8 @@ export async function createApplicationGateway(
   });
   const icons = createIconResources(async (path) => (await readIcon(path)) ?? undefined);
   try {
+    const database = await Storage.open(databasePath);
+    storage = await attachNative(host, "storage", database.createGatewayEndpoint());
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
     clipboard = await registerClipboard(host, directory);
     protocol.handle(ICON_SCHEME, (request) => icons.respond(request));
@@ -42,6 +47,7 @@ export async function createApplicationGateway(
     protocol.unhandle(ICON_SCHEME);
     icons.close();
     await Promise.allSettled([clipboard?.close(), search?.close()]);
+    await storage?.close();
     throw error;
   }
   let closing: Promise<void> | undefined;
@@ -57,6 +63,7 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         const results = await Promise.allSettled([clipboard?.close(), search?.close()]);
+        await storage?.close();
         for (const result of results)
           if (result.status === "rejected") console.error("Gateway shutdown failed", result.reason);
       })();

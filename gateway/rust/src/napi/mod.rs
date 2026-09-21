@@ -226,6 +226,13 @@ impl Endpoint {
             .dispatch_local(&self.owner, &parse(route)?, payload, context.core())
             .await
     }
+    /// Client for host-owned background work, using the identity assigned during activation.
+    pub fn client(self: &Arc<Self>) -> Result<crate::invoke::Client, GatewayError> {
+        self.ready()?;
+        let origin = self.state.lock().unwrap().origin.clone().ok_or_else(unavailable)?;
+        Ok(self.registry.client(origin.core()))
+    }
+
     pub async fn invoke(self: &Arc<Self>, route: &str, payload: Vec<u8>) -> WireResult {
         self.ready()?;
         let origin = self.state.lock().unwrap().origin.clone().ok_or_else(unavailable)?;

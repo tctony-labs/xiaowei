@@ -6,7 +6,8 @@ use xw_gateway::XwInvokeRegistry;
 
 #[napi]
 pub struct GatewayEndpoint {
-    inner: Arc<Endpoint>,
+    pub(crate) inner: Arc<Endpoint>,
+    service: Option<Arc<xiaowei_clipboard::Service>>,
     #[cfg(feature = "gateway-fixtures")]
     fixture: Option<Arc<xw_gateway::napi::fixture::Fixture>>,
 }
@@ -20,6 +21,7 @@ pub fn create_gateway_endpoint(env: napi::Env) -> napi::Result<GatewayEndpoint> 
     let inner = Endpoint::new(registry, owner);
     inner.install_cleanup(&env)?;
     Ok(GatewayEndpoint {
+        service: None,
         inner,
         #[cfg(feature = "gateway-fixtures")]
         fixture: None,
@@ -112,7 +114,16 @@ impl GatewayEndpoint {
     #[napi(ts_return_type = "Promise<Buffer | string>")]
     pub fn close<'env>(&self, env: &'env napi::Env) -> napi::Result<PromiseRaw<'env, Reply>> {
         let inner = self.inner.clone();
-        env.spawn_future(async move { Ok(reply(inner.close().await)) })
+        let service = self.service.clone();
+        env.spawn_future(async move {
+            if let Some(service) = service {
+                service
+                    .stop()
+                    .await
+                    .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+            }
+            Ok(reply(inner.close().await))
+        })
     }
 }
 
@@ -122,6 +133,7 @@ pub fn create_gateway_fixture(env: napi::Env) -> napi::Result<GatewayEndpoint> {
     let fixture = Arc::new(xw_gateway::napi::fixture::Fixture::new(true));
     fixture.endpoint.install_cleanup(&env)?;
     Ok(GatewayEndpoint {
+        service: None,
         inner: fixture.endpoint.clone(),
         fixture: Some(fixture),
     })
@@ -183,8 +195,8 @@ impl GatewayEndpoint {
 pub(crate) fn business_endpoint(
     env: &napi::Env,
     service: Arc<xiaowei_clipboard::Service>,
+    registry: Arc<XwInvokeRegistry>,
 ) -> napi::Result<(GatewayEndpoint, Arc<XwInvokeRegistry>, xw_gateway::invoke::Owner)> {
-    let registry = XwInvokeRegistry::new();
     let owner = registry
         .register_owner(
             "clipboard",
@@ -196,6 +208,7 @@ pub(crate) fn business_endpoint(
     inner.install_cleanup(env)?;
     Ok((
         GatewayEndpoint {
+            service: Some(service),
             inner,
             #[cfg(feature = "gateway-fixtures")]
             fixture: None,

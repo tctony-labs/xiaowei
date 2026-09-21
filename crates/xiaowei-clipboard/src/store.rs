@@ -1,95 +1,109 @@
+use crate::database::{reference, statement, value, DatabaseClient, Row};
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result};
-use rusqlite::{params, Connection, OptionalExtension};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
+use xw_gateway::invoke::Client;
 
-const COLUMNS: &str = "id,kind,CASE WHEN kind='largeText' THEN substr(text,1,500) ELSE text END,
-    paths,width,height,created_at,last_used_at,use_count,favorite,remark,category_id,hash";
+const COLUMNS: &str = "id,kind,text,paths,width,height,created_at,last_used_at,
+    use_count,favorite,remark,category_id,hash";
 
 pub struct Store {
-    db: Connection,
+    db: DatabaseClient,
     image_dir: PathBuf,
+    text_dir: PathBuf,
 }
 
 impl Store {
-    pub fn open(directory: &Path) -> Result<Self> {
-        std::fs::create_dir_all(directory)?;
-        let db = Connection::open(directory.join("history.sqlite"))?;
-        db.busy_timeout(Duration::from_secs(5))?;
-        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")?;
-        let version: u32 = db.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if version > 3 {
-            return Err("Clipboard database version is newer than this application".into());
-        }
-        if version == 0 {
-            db.execute_batch(
-                "BEGIN IMMEDIATE;
-                CREATE TABLE items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    hash TEXT NOT NULL UNIQUE, kind TEXT NOT NULL,
-                    text TEXT, png BLOB, paths TEXT NOT NULL DEFAULT '[]', width INTEGER, height INTEGER,
-                    created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL,
-                    use_count INTEGER NOT NULL DEFAULT 0, favorite INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE INDEX items_recency ON items(last_used_at DESC, id DESC);
-                PRAGMA user_version=1;
-                COMMIT;",
-            )?;
-        }
-        if version < 2 {
-            db.execute_batch(
-                "BEGIN IMMEDIATE;
-                CREATE TABLE categories(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, color TEXT NOT NULL);
-                ALTER TABLE items ADD COLUMN remark TEXT;
-                ALTER TABLE items ADD COLUMN category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
-                CREATE INDEX items_category ON items(category_id);
-                PRAGMA user_version=2;
-                COMMIT;",
-            )?;
-        }
-        db.execute_batch("PRAGMA foreign_keys=ON;")?;
+    pub fn open(directory: &Path, client: Client) -> Result<Self> {
         let image_dir = directory.join("images");
+        let text_dir = directory.join("large_text");
         std::fs::create_dir_all(&image_dir)?;
-        if version < 3 {
-            // Keep blobs until every file has been durably written; failures are safe to retry.
-            let mut query = db.prepare("SELECT hash,png FROM items WHERE kind='image'")?;
-            let images = query.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?)))?;
-            for image in images {
-                let (hash, bytes) = image?;
-                write_image(&image_dir.join(format!("{hash}.png")), &bytes)?;
-            }
-            db.execute_batch("BEGIN IMMEDIATE; ALTER TABLE items DROP COLUMN png; PRAGMA user_version=3; COMMIT;")?;
-        }
-        Ok(Self { db, image_dir })
+        std::fs::create_dir_all(&text_dir)?;
+        Ok(Self {
+            db: DatabaseClient(client),
+            image_dir,
+            text_dir,
+        })
     }
 
-    pub fn capture(&self, data: &ClipboardData) -> Result<ClipboardItem> {
+    pub fn set_client(&mut self, client: Client) {
+        self.db = DatabaseClient(client);
+    }
+
+    pub async fn initialize(&self) -> Result<()> {
+        self.db.initialize().await
+    }
+
+    fn attachment(&self, kind: &str, hash: &str) -> Option<PathBuf> {
+        match kind {
+            "image" => Some(self.image_dir.join(format!("{hash}.png"))),
+            "largeText" => Some(self.text_dir.join(hash)),
+            _ => None,
+        }
+    }
+
+    async fn cleanup(&self, kind: &str, hash: &str) -> Result<()> {
+        if let Some(path) = self.attachment(kind, hash) {
+            if self
+                .db
+                .query("SELECT id FROM clipboard_items WHERE hash=?", vec![value(hash)])
+                .await?
+                .is_empty()
+            {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn capture(&self, data: &ClipboardData) -> Result<ClipboardItem> {
         if data.is_empty() {
             return Err("Empty clipboard content".into());
         }
         let now = now_ms()?;
         let hash = data.hash();
         let (text, paths, width, height) = match data {
-            ClipboardData::Text(text) => (Some(text.as_str()), "[]".into(), None, None),
+            ClipboardData::Text(text) => {
+                if data.kind() == "largeText" {
+                    write_file(&self.text_dir.join(&hash), text.as_bytes())?;
+                }
+                let stored = if data.kind() == "largeText" {
+                    text.chars().take(500).collect()
+                } else {
+                    text.clone()
+                };
+                (Some(stored), "[]".into(), None, None)
+            }
             ClipboardData::Image { data, width, height } => {
-                write_image(&self.image_dir.join(format!("{hash}.png")), data)?;
+                write_file(&self.image_dir.join(format!("{hash}.png")), data)?;
                 (None, "[]".into(), Some(*width), Some(*height))
             }
             ClipboardData::Files(paths) => (None, serde_json::to_string(paths)?, None, None),
         };
-        // One atomic statement preserves the identity and favorite state on repeated captures.
-        let id: i64 = self.db.query_row(
-            "INSERT INTO items(hash,kind,text,paths,width,height,created_at,last_used_at)
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?7)
-             ON CONFLICT(hash) DO UPDATE SET last_used_at=excluded.last_used_at,use_count=items.use_count+1
-             RETURNING id",
-            params![hash, data.kind(), text, paths, width, height, now],
-            |row| row.get(0),
-        )?;
-        self.get(id)?.ok_or_else(|| "Clipboard item disappeared".into())
+        let results = self
+            .db
+            .transaction(vec![statement(
+                &format!(
+                    "INSERT INTO clipboard_items(hash,kind,text,paths,width,height,created_at,last_used_at)
+                VALUES(?1,?2,?3,?4,?5,?6,?7,?7)
+                ON CONFLICT(hash) DO UPDATE SET last_used_at=excluded.last_used_at,use_count=clipboard_items.use_count+1
+                RETURNING {COLUMNS}"
+                ),
+                vec![
+                    value(&hash),
+                    value(data.kind()),
+                    value(text),
+                    value(paths),
+                    value(width),
+                    value(height),
+                    value(now),
+                ],
+            )])
+            .await?;
+        self.map(results[0].first().ok_or("Clipboard capture returned no row")?)
     }
 
-    pub fn list(&self, options: &ListOptions) -> Result<Vec<ClipboardItem>> {
+    pub async fn list(&self, options: &ListOptions) -> Result<Vec<ClipboardItem>> {
         if !matches!(options.kind.as_deref(), None | Some("image" | "file")) {
             return Err("Invalid clipboard kind".into());
         }
@@ -97,88 +111,93 @@ impl Store {
             return Err("Invalid clipboard list options".into());
         }
         let sql = format!(
-            "SELECT {COLUMNS} FROM items
-             WHERE (?1=0 OR favorite=1)
-               AND (?2='' OR instr(lower(coalesce(text,'') || ' ' || paths || ' ' || coalesce(remark,'')),lower(?2))>0)
-             AND (?5 IS NULL OR kind=?5) AND (?6 IS NULL OR category_id=?6)
-             ORDER BY last_used_at DESC,id DESC LIMIT ?3 OFFSET ?4"
+            "SELECT {COLUMNS} FROM clipboard_items
+            WHERE (?1=0 OR favorite=1)
+            AND (?2='' OR instr(lower(coalesce(text,'') || ' ' || paths || ' ' || coalesce(remark,'')),lower(?2))>0)
+            AND (?5 IS NULL OR kind=?5) AND (?6 IS NULL OR category_id=?6)
+            ORDER BY last_used_at DESC,id DESC LIMIT ?3 OFFSET ?4"
         );
-        let mut statement = self.db.prepare(&sql)?;
-        let rows = statement.query_map(
-            params![
-                options.favorites_only,
-                options.query.trim(),
-                options.limit,
-                options.offset,
-                options.kind,
-                options.category_id
-            ],
-            |row| map_item(row, &self.image_dir),
-        )?;
-        Ok(rows.collect::<std::result::Result<_, _>>()?)
+        self.db
+            .query(
+                &sql,
+                vec![
+                    value(options.favorites_only),
+                    value(options.query.trim()),
+                    value(options.limit),
+                    value(options.offset),
+                    value(options.kind.clone()),
+                    value(options.category_id.clone()),
+                ],
+            )
+            .await?
+            .iter()
+            .map(|row| self.map(row))
+            .collect()
     }
 
-    pub fn get(&self, id: i64) -> Result<Option<ClipboardItem>> {
-        Ok(self
-            .db
-            .query_row(&format!("SELECT {COLUMNS} FROM items WHERE id=?1"), [id], |row| {
-                map_item(row, &self.image_dir)
-            })
-            .optional()?)
+    pub async fn get(&self, id: i64) -> Result<Option<ClipboardItem>> {
+        self.db
+            .query(
+                &format!("SELECT {COLUMNS} FROM clipboard_items WHERE id=?"),
+                vec![value(id)],
+            )
+            .await?
+            .first()
+            .map(|row| self.map(row))
+            .transpose()
     }
 
-    pub fn data(&self, id: i64) -> Result<ClipboardData> {
-        let kind: String = self
-            .db
-            .query_row("SELECT kind FROM items WHERE id=?1", [id], |row| row.get(0))?;
-        match kind.as_str() {
-            "text" | "largeText" => Ok(ClipboardData::Text(self.db.query_row(
-                "SELECT text FROM items WHERE id=?1",
-                [id],
-                |row| row.get(0),
+    pub async fn data(&self, id: i64) -> Result<ClipboardData> {
+        let item = self.get(id).await?.ok_or("Clipboard item not found")?;
+        match item.kind.as_str() {
+            "text" => Ok(ClipboardData::Text(item.text.ok_or("Missing text")?)),
+            "largeText" => Ok(ClipboardData::Text(std::fs::read_to_string(
+                item.text_path.ok_or("Missing text path")?,
             )?)),
-            "image" => {
-                let item = self.get(id)?.ok_or("Clipboard item not found")?;
-                Ok(ClipboardData::Image {
-                    data: std::fs::read(item.image_path.ok_or("Missing image path")?)?,
-                    width: item.width.ok_or("Missing image width")?,
-                    height: item.height.ok_or("Missing image height")?,
-                })
-            }
-            "file" => {
-                let json: String = self
-                    .db
-                    .query_row("SELECT paths FROM items WHERE id=?1", [id], |row| row.get(0))?;
-                Ok(ClipboardData::Files(serde_json::from_str(&json)?))
-            }
+            "image" => Ok(ClipboardData::Image {
+                data: std::fs::read(item.image_path.ok_or("Missing image path")?)?,
+                width: item.width.ok_or("Missing image width")?,
+                height: item.height.ok_or("Missing image height")?,
+            }),
+            "file" => Ok(ClipboardData::Files(item.paths)),
             _ => Err("Unknown clipboard content type".into()),
         }
     }
 
-    pub fn bump_use(&self, id: i64) -> Result<()> {
-        self.db.execute(
-            "UPDATE items SET last_used_at=?1,use_count=use_count+1 WHERE id=?2",
-            params![now_ms()?, id],
-        )?;
+    pub async fn bump_use(&self, id: i64) -> Result<()> {
+        self.db
+            .execute(
+                "UPDATE clipboard_items SET last_used_at=?1,use_count=use_count+1 WHERE id=?2",
+                vec![value(now_ms()?), value(id)],
+            )
+            .await?;
         Ok(())
     }
 
-    pub fn set_favorite(&self, id: i64, favorite: bool) -> Result<bool> {
+    pub async fn set_favorite(&self, id: i64, favorite: bool) -> Result<bool> {
         Ok(self
             .db
-            .execute("UPDATE items SET favorite=?1 WHERE id=?2", params![favorite, id])?
+            .execute(
+                "UPDATE clipboard_items SET favorite=?1 WHERE id=?2",
+                vec![value(favorite), value(id)],
+            )
+            .await?
             > 0)
     }
 
-    pub fn set_remark(&self, id: i64, remark: &str) -> Result<()> {
+    pub async fn set_remark(&self, id: i64, remark: &str) -> Result<()> {
         if remark.len() > 65536 {
             return Err("Remark is too long".into());
         }
-        let value = remark.trim();
-        let value = if value.is_empty() { None } else { Some(value) };
+        let remark = remark.trim();
+        let remark = if remark.is_empty() { None } else { Some(remark) };
         if self
             .db
-            .execute("UPDATE items SET remark=?1 WHERE id=?2", params![value, id])?
+            .execute(
+                "UPDATE clipboard_items SET remark=?1 WHERE id=?2",
+                vec![value(remark), value(id)],
+            )
+            .await?
             == 0
         {
             return Err("Clipboard item not found".into());
@@ -186,10 +205,14 @@ impl Store {
         Ok(())
     }
 
-    pub fn set_category(&self, id: i64, category: Option<i64>) -> Result<()> {
+    pub async fn set_category(&self, id: i64, category: Option<i64>) -> Result<()> {
         if self
             .db
-            .execute("UPDATE items SET category_id=?1 WHERE id=?2", params![category, id])?
+            .execute(
+                "UPDATE clipboard_items SET category_id=?1 WHERE id=?2",
+                vec![value(category), value(id)],
+            )
+            .await?
             == 0
         {
             return Err("Clipboard item not found".into());
@@ -197,21 +220,16 @@ impl Store {
         Ok(())
     }
 
-    pub fn categories(&self) -> Result<Vec<ClipboardCategory>> {
-        let mut query = self.db.prepare("SELECT id,name,color FROM categories ORDER BY id")?;
-        let categories = query
-            .query_map([], |row| {
-                Ok(ClipboardCategory {
-                    id: row.get::<_, i64>(0)?.to_string(),
-                    name: row.get(1)?,
-                    color: row.get(2)?,
-                })
-            })?
-            .collect::<std::result::Result<_, _>>()?;
-        Ok(categories)
+    pub async fn categories(&self) -> Result<Vec<ClipboardCategory>> {
+        self.db
+            .query("SELECT id,name,color FROM clipboard_categories ORDER BY id", vec![])
+            .await?
+            .iter()
+            .map(map_category)
+            .collect()
     }
 
-    pub fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
+    pub async fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
         let name = name.trim();
         if name.is_empty()
             || name.len() > 256
@@ -221,131 +239,189 @@ impl Store {
         {
             return Err("Invalid category name or color".into());
         }
-        let id = match id {
-            Some(id) => {
-                if self.db.execute(
-                    "UPDATE categories SET name=?1,color=?2 WHERE id=?3",
-                    params![name, color, id],
-                )? == 0
-                {
-                    return Err("Category not found".into());
-                }
-                id
-            }
-            None => {
-                self.db
-                    .execute("INSERT INTO categories(name,color) VALUES(?1,?2)", params![name, color])?;
-                self.db.last_insert_rowid()
-            }
+        let step = if let Some(id) = id {
+            statement(
+                "UPDATE clipboard_categories SET name=?1,color=?2 WHERE id=?3 RETURNING id,name,color",
+                vec![value(name), value(color), value(id)],
+            )
+        } else {
+            statement(
+                "INSERT INTO clipboard_categories(name,color) VALUES(?1,?2) RETURNING id,name,color",
+                vec![value(name), value(color)],
+            )
         };
-        Ok(ClipboardCategory {
-            id: id.to_string(),
-            name: name.into(),
-            color: color.into(),
-        })
+        let rows = self.db.transaction(vec![step]).await?;
+        map_category(rows[0].first().ok_or("Category not found")?)
     }
 
-    pub fn delete_category(&self, id: i64) -> Result<()> {
-        // Foreign key ON DELETE SET NULL preserves the records and their favorite state.
-        if self.db.execute("DELETE FROM categories WHERE id=?1", [id])? == 0 {
+    pub async fn delete_category(&self, id: i64) -> Result<()> {
+        if self
+            .db
+            .execute("DELETE FROM clipboard_categories WHERE id=?", vec![value(id)])
+            .await?
+            == 0
+        {
             return Err("Category not found".into());
         }
         Ok(())
     }
 
-    pub fn edit_text(&mut self, id: i64, text: String) -> Result<ClipboardItem> {
-        let source = self.get(id)?.ok_or("Clipboard item not found")?;
-        if source.kind != "text" && source.kind != "largeText" {
-            return Err("Clipboard item is not text".into());
-        }
+    pub async fn edit_text(&self, id: i64, text: String) -> Result<ClipboardItem> {
         let data = ClipboardData::Text(text.clone());
         if data.is_empty() {
             return Err("Empty clipboard content".into());
         }
         let hash = data.hash();
-        let tx = self.db.transaction()?;
-        let target = tx
-            .query_row(&format!("SELECT {COLUMNS} FROM items WHERE hash=?1"), [&hash], |row| {
-                map_item(row, &self.image_dir)
-            })
-            .optional()?;
-        let result_id = if let Some(target) = target.filter(|item| item.id != source.id) {
-            let remark = match (source.remark.as_deref(), target.remark.as_deref()) {
-                (Some(a), Some(b)) if a != b => Some(format!("{a};{b}")),
-                (Some(a), _) => Some(a.to_string()),
-                (_, b) => b.map(str::to_string),
-            };
-            let target_id: i64 = target.id.parse()?;
-            tx.execute("UPDATE items SET favorite=?1,remark=?2,category_id=?3,last_used_at=?4,use_count=use_count+1 WHERE id=?5",
-                params![source.favorite || target.favorite, remark, source.category_id.or(target.category_id), now_ms()?, target_id])?;
-            tx.execute("DELETE FROM items WHERE id=?1", [id])?;
-            target_id
+        if data.kind() == "largeText" {
+            write_file(&self.text_dir.join(&hash), text.as_bytes())?;
+        }
+        let stored = if data.kind() == "largeText" {
+            text.chars().take(500).collect()
         } else {
-            tx.execute(
-                "UPDATE items SET hash=?1,kind=?2,text=?3,last_used_at=?4,use_count=use_count+1 WHERE id=?5",
-                params![hash, data.kind(), text, now_ms()?, id],
-            )?;
-            id
+            text
         };
-        tx.commit()?;
-        self.get(result_id)?.ok_or_else(|| "Clipboard item disappeared".into())
+        let mut source = statement(
+            "SELECT favorite,remark,category_id,hash,kind FROM clipboard_items
+            WHERE id=? AND kind IN ('text','largeText')",
+            vec![value(id)],
+        );
+        source.expected_rows = Some(1);
+        let mut target = statement(
+            "SELECT coalesce((SELECT id FROM clipboard_items WHERE hash=?1),?2)",
+            vec![value(&hash), value(id)],
+        );
+        target.expected_rows = Some(1);
+        let steps = vec![
+            source,
+            target,
+            statement(
+                "UPDATE clipboard_items SET favorite=favorite OR ?1,
+                remark=CASE WHEN ?2 IS NULL THEN remark WHEN remark IS NULL OR remark=?2 THEN ?2
+                    ELSE ?2||';'||remark END,
+                category_id=coalesce(?3,category_id),last_used_at=?4,use_count=use_count+1
+                WHERE id=?5 AND id<>?6",
+                vec![
+                    reference(0, 0),
+                    reference(0, 1),
+                    reference(0, 2),
+                    value(now_ms()?),
+                    reference(1, 0),
+                    value(id),
+                ],
+            ),
+            statement(
+                "DELETE FROM clipboard_items WHERE id=?1 AND id<>?2",
+                vec![value(id), reference(1, 0)],
+            ),
+            statement(
+                "UPDATE clipboard_items SET hash=?1,kind=?2,text=?3,last_used_at=?4,use_count=use_count+1
+                WHERE id=?5 AND id=?6",
+                vec![
+                    value(&hash),
+                    value(data.kind()),
+                    value(stored),
+                    value(now_ms()?),
+                    value(id),
+                    reference(1, 0),
+                ],
+            ),
+            statement(
+                &format!("SELECT {COLUMNS} FROM clipboard_items WHERE id=?"),
+                vec![reference(1, 0)],
+            ),
+        ];
+        let result = match self.db.transaction(steps).await {
+            Ok(result) => result,
+            Err(error) => {
+                // Never remove a file unless the database confirms it is unreferenced.
+                let _ = self.cleanup(data.kind(), &hash).await;
+                return Err(error);
+            }
+        };
+        self.cleanup(&result[0][0].get::<String>(4)?, &result[0][0].get::<String>(3)?)
+            .await?;
+        self.map(result[5].first().ok_or("Clipboard item disappeared")?)
     }
 
-    pub fn delete(&self, id: i64) -> Result<bool> {
-        if let Some(path) = self.get(id)?.and_then(|item| item.image_path) {
-            // Match the old application's best-effort attachment cleanup.
-            let _ = std::fs::remove_file(path);
+    pub async fn delete(&self, id: i64) -> Result<bool> {
+        let result = self
+            .db
+            .transaction(vec![statement(
+                "DELETE FROM clipboard_items WHERE id=? RETURNING kind,hash",
+                vec![value(id)],
+            )])
+            .await?;
+        for row in &result[0] {
+            self.cleanup(&row.get::<String>(0)?, &row.get::<String>(1)?).await?;
         }
-        Ok(self.db.execute("DELETE FROM items WHERE id=?1", [id])? > 0)
+        Ok(!result[0].is_empty())
     }
 
-    pub fn clear_history(&self) -> Result<usize> {
-        let mut query = self.db.prepare("SELECT id FROM items WHERE favorite=0")?;
-        let ids = query
-            .query_map([], |row| row.get::<_, i64>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for id in &ids {
-            self.delete(*id)?;
+    pub async fn clear_history(&self) -> Result<usize> {
+        // Delete in bounded batches so returned attachment keys cannot exceed DB result limits.
+        let mut count = 0;
+        loop {
+            let result = self
+                .db
+                .transaction(vec![statement(
+                    "DELETE FROM clipboard_items WHERE id IN
+                (SELECT id FROM clipboard_items WHERE favorite=0 LIMIT 100) RETURNING kind,hash",
+                    vec![],
+                )])
+                .await?;
+            for row in &result[0] {
+                self.cleanup(&row.get::<String>(0)?, &row.get::<String>(1)?).await?;
+            }
+            count += result[0].len();
+            if result[0].len() < 100 {
+                return Ok(count);
+            }
         }
-        Ok(ids.len())
     }
+
+    fn map(&self, row: &Row) -> Result<ClipboardItem> {
+        let kind: String = row.get(1)?;
+        let hash: String = row.get(12)?;
+        Ok(ClipboardItem {
+            id: row.get::<i64>(0)?.to_string(),
+            image_path: if kind == "image" {
+                self.attachment(&kind, &hash).map(|p| p.to_string_lossy().into_owned())
+            } else {
+                None
+            },
+            text_path: if kind == "largeText" {
+                self.attachment(&kind, &hash).map(|p| p.to_string_lossy().into_owned())
+            } else {
+                None
+            },
+            kind,
+            text: row.get(2)?,
+            paths: serde_json::from_str(&row.get::<String>(3)?)?,
+            width: row.get(4)?,
+            height: row.get(5)?,
+            created_at: row.get(6)?,
+            last_used_at: row.get(7)?,
+            use_count: row.get(8)?,
+            favorite: row.get(9)?,
+            remark: row.get(10)?,
+            category_id: row.get::<Option<i64>>(11)?.map(|id| id.to_string()),
+        })
+    }
+}
+
+fn map_category(row: &Row) -> Result<ClipboardCategory> {
+    Ok(ClipboardCategory {
+        id: row.get::<i64>(0)?.to_string(),
+        name: row.get(1)?,
+        color: row.get(2)?,
+    })
 }
 
 fn now_ms() -> Result<i64> {
     Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as i64)
 }
 
-fn map_item(row: &rusqlite::Row<'_>, image_dir: &Path) -> rusqlite::Result<ClipboardItem> {
-    let raw: String = row.get(3)?;
-    let paths = serde_json::from_str(&raw)
-        .map_err(|error| rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(error)))?;
-    Ok(ClipboardItem {
-        id: row.get::<_, i64>(0)?.to_string(),
-        kind: row.get(1)?,
-        image_path: if row.get::<_, String>(1)? == "image" {
-            Some(
-                image_dir
-                    .join(format!("{}.png", row.get::<_, String>(12)?))
-                    .to_string_lossy()
-                    .into_owned(),
-            )
-        } else {
-            None
-        },
-        text: row.get(2)?,
-        paths,
-        width: row.get(4)?,
-        height: row.get(5)?,
-        created_at: row.get(6)?,
-        last_used_at: row.get(7)?,
-        use_count: row.get(8)?,
-        favorite: row.get(9)?,
-        remark: row.get(10)?,
-        category_id: row.get::<_, Option<i64>>(11)?.map(|id| id.to_string()),
-    })
-}
-
-fn write_image(path: &Path, bytes: &[u8]) -> Result<()> {
+fn write_file(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
     if path.is_file() {
         return Ok(());
@@ -356,7 +432,7 @@ fn write_image(path: &Path, bytes: &[u8]) -> Result<()> {
         file.write_all(bytes)?;
         file.sync_all()?;
         std::fs::rename(&temporary, path)?;
-        std::fs::File::open(path.parent().ok_or("Missing image directory")?)?.sync_all()?;
+        std::fs::File::open(path.parent().ok_or("Missing attachment directory")?)?.sync_all()?;
         Ok(())
     })();
     let _ = std::fs::remove_file(temporary);

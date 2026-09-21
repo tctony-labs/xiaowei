@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join } from "node:path";
 
 // Internal content reader; filesystem paths remain on the backend.
 interface ClipboardContentReader {
-  get(id: string): Promise<{ kind: string; paths: string[]; imagePath?: string } | null>;
+  get(id: string): Promise<{ kind: string; paths: string[]; imagePath?: string; textPath?: string } | null>;
   readText(id: string): Promise<string>;
 }
 
@@ -37,7 +37,11 @@ export async function clipboardPaths(
     if (!item.imagePath || !isAbsolute(item.imagePath)) throw new Error("Missing clipboard image path");
     return [item.imagePath];
   }
-  if (item.kind !== "largeText" && item.kind !== "text") throw new Error("Unsupported clipboard type");
+  if (item.kind === "largeText") {
+    if (!item.textPath || !isAbsolute(item.textPath)) throw new Error("Missing clipboard text path");
+    return [item.textPath];
+  }
+  if (item.kind !== "text") throw new Error("Unsupported clipboard type");
   const bytes = Buffer.from(await history.readText(id), "utf8");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const hash = createHash("sha256").update(bytes).digest("hex");

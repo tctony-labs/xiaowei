@@ -13,6 +13,8 @@
 | `app.proto` / `xiaowei.app` | `App` | 应用能力，当前提供原始 PNG 图标读取 |
 | `system.proto` / `xiaowei.system` | `System` | 系统主题切换、通过系统应用打开 http(s) 网页 |
 | `clipboard.proto` / `xiaowei.clipboard` | `Clipboard` | 历史条目、内容读取／复制、收藏备注分类，以及条目关联的资源操作 |
+| `meta.proto` / `xiaowei.storage` | `Meta` | JSON 键值持久化，setting 使用完整 key 前缀 |
+| `database.proto` / `xiaowei.storage` | `Database` | 参数化 SQLite 查询、原子事务与 migration_v2 管理 |
 | `common.proto` / `xiaowei.common` | 无 | 真正共用的消息，目前只有 `Empty` |
 
 文件和 package 使用单数业务名，service 使用 PascalCase。service 与执行 owner 不要求一一对应：`Clipboard` 的 CRUD 在 Rust，资源打开／定位在 main，仍属于同一个业务服务；Gateway 按完整方法名路由。不得为区分 main／Rust 而重新建立 `ClipboardResources` 等服务。
@@ -44,7 +46,7 @@
 
 实际路由由 `package.Service.Method` 生成，例如 `xiaowei.clipboard.Clipboard.List`，不复制手写路由别名。事件使用 message full name，且必须由 owner 显式导出。
 
-renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `getClipboard()`、`getLauncher()`、`getApp()`、`getSystem()` 首次使用时绑定，之后缓存，并共享一个 renderer client。import 不连接 Electron 或绑定所有服务。Storybook／测试注入独立 client，不保留旧 `window.clipboardHistory`／`window.launcher` facade。
+renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `getClipboard()`、`getLauncher()`、`getApp()`、`getSystem()`、`getDatabase()`、`getMeta()` 首次使用时绑定，之后缓存，并共享一个 renderer client。import 不连接 Electron 或绑定所有服务。Storybook／测试注入独立 client，不保留旧 `window.clipboardHistory`／`window.launcher` facade。
 
 同一 service 分属多个 owner 时，TS 显式使用 `bindHandlers(..., { partial: true })` 注册本 owner 的方法；默认全量绑定仍检查缺失 handler。Rust 使用生成的具体 Method 注册。禁止两个 owner 发布相同 route；应用装配和集成测试需覆盖完整业务调用。
 
@@ -57,6 +59,8 @@ renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `
    ```sh
    cargo run -q -p xw-gateway --example generate_business -- search > crates/xiaowei-search/src/gateway_bindings.rs
    cargo run -q -p xw-gateway --example generate_business -- clipboard > crates/xiaowei-clipboard/src/gateway_bindings.rs
+   cargo run -q -p xw-gateway --example generate_business -- storage > crates/xiaowei-storage/src/gateway_bindings.rs
+   cargo run -q -p xw-gateway --example generate_business -- storage > crates/xiaowei-clipboard/src/storage_bindings.rs
    ```
 
    当前 search 原生包承载 Search、App、System 的原生方法，是部署事实，不决定契约归属。

@@ -2,6 +2,8 @@ export * from "./gen/testing/fixture_pb.ts";
 export * from "./gen/xiaowei/app_pb.ts";
 export * from "./gen/xiaowei/clipboard_pb.ts";
 export * from "./gen/xiaowei/common_pb.ts";
+export * from "./gen/xiaowei/database_pb.ts";
 export * from "./gen/xiaowei/launcher_pb.ts";
+export * from "./gen/xiaowei/meta_pb.ts";
 export * from "./gen/xiaowei/search_pb.ts";
 export * from "./gen/xiaowei/system_pb.ts";

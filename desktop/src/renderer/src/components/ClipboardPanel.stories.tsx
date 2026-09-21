@@ -67,7 +67,14 @@ export const History: Story = {};
 export const Dark: Story = { globals: { theme: "dark" } };
 export const Empty: Story = { args: { items: [], selectedId: undefined } };
 export const Favorites: Story = { args: { view: "favorites", items: [items[0]] } };
-export const LongText: Story = { args: { selectedId: "2", previewText: "长文本预览，保留原始换行。\n".repeat(100) } };
+export const LongText: Story = {
+  args: { selectedId: "2", previewText: "长文本预览，保留原始换行。\n".repeat(100) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole("button", { name: "查看MARKDOWN" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "查看全部文本" })).toBeInTheDocument();
+  },
+};
 export const Image: Story = { args: { selectedId: "3", previewImage: logo, thumbnails: { "3": logo } } };
 export const Files: Story = { args: { selectedId: "4" } };
 export const Loading: Story = { args: { items: [], loading: true, selectedId: undefined } };

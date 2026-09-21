@@ -7,9 +7,8 @@ edition = "2021"
 xw-gateway = { path = "../../gateway/rust" }
 xw-contracts = { path = "../../contracts/rust" }
 prost = "=0.14.4"
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 log = "0.4"
-rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -22,4 +21,5 @@ objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem
 objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSArray"] }
 
 [dev-dependencies]
+xiaowei-storage = { path = "../xiaowei-storage" }
 tempfile = "3"

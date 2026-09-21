@@ -1,0 +1,24 @@
+{
+  "name": "xiaowei-storage",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "napi": {
+    "binaryName": "xiaowei-storage"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "check": "cargo check -p xiaowei-storage-napi --locked",
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.10.1"
+  }
+}

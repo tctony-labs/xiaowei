@@ -151,6 +151,8 @@ test("service getters are lazy and cache bindings; one service can span owners",
   assert.equal(services.getLauncher(), services.getLauncher());
   assert.equal(services.getApp(), services.getApp());
   assert.equal(services.getSystem(), services.getSystem());
+  assert.equal(services.getDatabase(), services.getDatabase());
+  assert.equal(services.getMeta(), services.getMeta());
   assert.equal(connections, 1);
   host.registerOwner("native", bindHandlers(Clipboard, { copy: () => create(EmptySchema) }, { partial: true }));
   host.registerOwner("main", bindHandlers(Clipboard, { openResource: () => create(EmptySchema) }, { partial: true }));

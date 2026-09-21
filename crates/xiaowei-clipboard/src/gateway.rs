@@ -53,26 +53,20 @@ fn category(value: crate::ClipboardCategory) -> crate::Result<pb::ClipboardCateg
     })
 }
 
-fn handler<Req, Res>(
-    service: &Arc<Service>,
-    method: &Method<Req, Res>,
-    work: impl Fn(&Service, Req) -> crate::Result<Res> + Send + Sync + 'static,
-) -> InvokeRegistration
+fn handler<Req, Res, F, Fut>(service: &Arc<Service>, method: &Method<Req, Res>, work: F) -> InvokeRegistration
 where
     Req: Message + Default + Name + 'static,
     Res: Message + Default + Name + 'static,
+    F: Fn(Arc<Service>, Req) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = crate::Result<Res>> + Send + 'static,
 {
     let service = service.clone();
-    let work = Arc::new(work);
-
-    method.handler(move |request, _| {
-        let service = service.clone();
-        let work = work.clone();
-
+    method.handler(move |request, client| {
+        let future = work(service.clone(), request);
         async move {
-            tokio::task::spawn_blocking(move || work(&service, request))
+            crate::database::CALLER
+                .scope(client, future)
                 .await
-                .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "clipboard task failed"))?
                 .map_err(|error| GatewayError::new(ErrorCode::HandlerError, error.to_string()))
         }
     })
@@ -80,7 +74,7 @@ where
 
 pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
     vec![
-        handler(service, &methods::LIST, |s, r| {
+        handler(service, &methods::LIST, |s, r| async move {
             let options = crate::ListOptions {
                 query: r.query.unwrap_or_default(),
                 favorites_only: r.favorites_only.unwrap_or(false),
@@ -96,66 +90,76 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             };
 
             Ok(pb::ClipboardItems {
-                items: s.list(&options)?.into_iter().map(item).collect::<crate::Result<_>>()?,
+                items: s
+                    .list(&options)
+                    .await?
+                    .into_iter()
+                    .map(item)
+                    .collect::<crate::Result<_>>()?,
             })
         }),
-        handler(service, &methods::GET, |s, r| {
+        handler(service, &methods::GET, |s, r| async move {
             Ok(pb::OptionalItem {
-                item: s.get(id(r.id)?)?.map(item).transpose()?,
+                item: s.get(id(r.id)?).await?.map(item).transpose()?,
             })
         }),
-        handler(service, &methods::READ_TEXT, |s, r| match s.data(id(r.id)?)? {
-            ClipboardData::Text(value) => Ok(pb::ReadTextResponse { text: value }),
-            _ => Err("Clipboard item is not text".into()),
+        handler(service, &methods::READ_TEXT, |s, r| async move {
+            match s.data(id(r.id)?).await? {
+                ClipboardData::Text(value) => Ok(pb::ReadTextResponse { text: value }),
+                _ => Err("Clipboard item is not text".into()),
+            }
         }),
-        handler(service, &methods::READ_IMAGE, |s, r| match s.data(id(r.id)?)? {
-            ClipboardData::Image { data, .. } => Ok(pb::ReadImageResponse { png: data }),
-            _ => Err("Clipboard item is not an image".into()),
+        handler(service, &methods::READ_IMAGE, |s, r| async move {
+            match s.data(id(r.id)?).await? {
+                ClipboardData::Image { data, .. } => Ok(pb::ReadImageResponse { png: data }),
+                _ => Err("Clipboard item is not an image".into()),
+            }
         }),
-        handler(service, &methods::COPY, |s, r| {
-            s.copy(id(r.id)?)?;
+        handler(service, &methods::COPY, |s, r| async move {
+            s.copy(id(r.id)?).await?;
             Ok(c::Empty {})
         }),
-        handler(service, &methods::DELETE, |s, r| {
+        handler(service, &methods::DELETE, |s, r| async move {
             Ok(pb::DeleteResponse {
-                deleted: s.delete(id(r.id)?)?,
+                deleted: s.delete(id(r.id)?).await?,
             })
         }),
-        handler(service, &methods::SET_FAVORITE, |s, r| {
+        handler(service, &methods::SET_FAVORITE, |s, r| async move {
             Ok(pb::SetFavoriteResponse {
-                updated: s.set_favorite(id(r.id)?, r.favorite)?,
+                updated: s.set_favorite(id(r.id)?, r.favorite).await?,
             })
         }),
-        handler(service, &methods::CLEAR_HISTORY, |s, _| {
+        handler(service, &methods::CLEAR_HISTORY, |s, _| async move {
             Ok(pb::ClearHistoryResponse {
-                deleted_count: s.clear_history()? as u32,
+                deleted_count: s.clear_history().await? as u32,
             })
         }),
-        handler(service, &methods::CATEGORIES, |s, _| {
+        handler(service, &methods::CATEGORIES, |s, _| async move {
             Ok(pb::ClipboardCategories {
                 items: s
-                    .categories()?
+                    .categories()
+                    .await?
                     .into_iter()
                     .map(category)
                     .collect::<crate::Result<_>>()?,
             })
         }),
-        handler(service, &methods::SAVE_CATEGORY, |s, r| {
-            category(s.save_category(r.id.map(id).transpose()?, &r.name, &r.color)?)
+        handler(service, &methods::SAVE_CATEGORY, |s, r| async move {
+            category(s.save_category(r.id.map(id).transpose()?, &r.name, &r.color).await?)
         }),
-        handler(service, &methods::DELETE_CATEGORY, |s, r| {
-            s.delete_category(id(r.id)?)?;
+        handler(service, &methods::DELETE_CATEGORY, |s, r| async move {
+            s.delete_category(id(r.id)?).await?;
             Ok(c::Empty {})
         }),
-        handler(service, &methods::SET_REMARK, |s, r| {
-            s.set_remark(id(r.id)?, &r.remark)?;
+        handler(service, &methods::SET_REMARK, |s, r| async move {
+            s.set_remark(id(r.id)?, &r.remark).await?;
             Ok(c::Empty {})
         }),
-        handler(service, &methods::EDIT_TEXT, |s, r| {
-            item(s.edit_text(id(r.id)?, r.text)?)
+        handler(service, &methods::EDIT_TEXT, |s, r| async move {
+            item(s.edit_text(id(r.id)?, r.text).await?)
         }),
-        handler(service, &methods::SET_CATEGORY, |s, r| {
-            s.set_category(id(r.id)?, r.category_id.map(id).transpose()?)?;
+        handler(service, &methods::SET_CATEGORY, |s, r| async move {
+            s.set_category(id(r.id)?, r.category_id.map(id).transpose()?).await?;
             Ok(c::Empty {})
         }),
     ]

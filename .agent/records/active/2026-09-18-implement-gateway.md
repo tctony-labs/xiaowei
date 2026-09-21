@@ -10,7 +10,7 @@
 
 从 `xiaowei-next` 提取 gateway，作为独立的核心通信机制，统一跨进程 IPC 和进程内 RPC，覆盖 renderer、main 和 Rust 模块。Gateway 不依赖具体应用模块，也不包含数据库、配置或其他业务逻辑。调用权限按可信／不可信划分，不按 renderer／backend 划分。
 
-应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](../proposed/2026-09-18-introduce-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
+应用模块通过 Gateway 暴露能力；搜索、剪贴板及后续的 [Storage](2026-09-18-implement-storage.md) 都是调用方／服务提供方。Gateway 不依赖 Storage，也不是它的专用桥接层。
 
 本事项已实现三语言契约工程、核心／绑定、napi 适配、响应流及 Electron 业务通信迁移。搜索、剪贴板和窗口操作已经通过 Gateway 接入，直接使用生成的 typed client 并保留既有 UI 行为。自动化及真实 Electron 边界验证已通过；用户完成本轮试用后反馈整体未发现问题，本轮人工验收收尾。Storage 保持独立事项。当前契约见 [契约说明](../../../contracts/README.md)，运行时和 Electron 接入见 [Gateway](../../../gateway/README.md)。
 

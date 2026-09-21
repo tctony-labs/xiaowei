@@ -11,6 +11,8 @@
 
 旧项目能力按需迁入，保留相关测试，不整包复制尚未使用的平台能力。`xw-platform` 当前包含应用本地化名称、应用图标和 macOS 系统主题切换，拼音和匹配留在 `xiaowei-search`。`xiaowei-clipboard` 承载本地剪贴板业务，接入方式与搜索一致；两个原生包复用 `xw-napi-log` 的日志接收器，各自在所属动态库中初始化。参考源码及相关外部模块位于开发环境的 `~/Develop/XiaoWei/workspace/src/`，构建不依赖这个外部路径。
 
+`xiaowei-storage` 已提供同结构的第三个原生包，使用 `Storage.open(path)` 初始化数据库，再创建 Gateway endpoint；业务查询与 meta 读写只走 typed Gateway。构建使用 `pnpm --filter xiaowei-storage build:debug`。桌面在剪贴板初始化前接入 Storage，退出时先停止剪贴板，再关闭 Storage。
+
 ## 目录与职责
 
 ```text
@@ -45,7 +47,15 @@ Cargo workspace 纳入核心 crate 和其 `napi` 子 crate；新增模块时登�
 ```toml
 [workspace]
 resolver = "2"
-members = ["crates/*", "crates/xiaowei-search/napi", "crates/xiaowei-clipboard/napi"]
+members = [
+  "contracts/rust",
+  "contracts/tools",
+  "gateway/rust",
+  "crates/*",
+  "crates/xiaowei-search/napi",
+  "crates/xiaowei-clipboard/napi",
+  "crates/xiaowei-storage/napi",
+]
 ```
 
 pnpm workspace 纳入含有 `package.json` 的 napi 入口目录：
@@ -95,4 +105,4 @@ napi 入口包提供以下脚本：
 
 搜索的 `createSearchGatewayEndpoint()` 复用搜索初始化和直接 napi 方法所持有的 Service；剪贴板的 `history.createGatewayEndpoint()` 复用当前 history 的 Service。main 通过 `attachNative` 接入 endpoint；生产 PB routes 由 Rust 业务 crate 注册，契约集中在 `contracts/`。既有通用 `createGatewayEndpoint()` 用于空 registry 的传输接入，不等同于搜索业务工厂。
 
-两个原生包分别执行 `pnpm --filter xiaowei-search build:debug`、`pnpm --filter xiaowei-clipboard build:debug`；共享 Gateway Rust 改动需重建两者。业务和原生传输回归可执行 `pnpm gateway:test-native`，测试结束恢复正常构建；fixture 不进入正式接口。打包保留两个 `.node`，不新增 Gateway 动态库。生命周期和 Electron 接入见 [Gateway](../gateway/README.md#electron-与业务接入)。
+三个原生包分别执行 `pnpm --filter xiaowei-search build:debug`、`pnpm --filter xiaowei-clipboard build:debug`、`pnpm --filter xiaowei-storage build:debug`；共享 Gateway Rust 改动需重建三者。业务和原生传输回归可执行 `pnpm gateway:test-native`，测试结束恢复正常构建；fixture 不进入正式接口。打包保留三个 `.node`，不新增 Gateway 动态库。生命周期和 Electron 接入见 [Gateway](../gateway/README.md#electron-与业务接入)。
