@@ -103,9 +103,14 @@ test("main and renderer share one file and console output, with rotation", (cont
     assert.match(text, /Error: preload-marker/);
     assert.equal(output.length, 3);
     const ansiEscape = String.fromCharCode(27);
-    for (const [index, color] of ["36", "33", "31"].entries()) {
-      assert.ok(output[index].data.join(" ").includes(`${ansiEscape}[${color}m`));
+    for (const [index, color] of ["0", "33", "31"].entries()) {
+      const coloredText = output[index].data.join(" ");
+      assert.ok(coloredText.startsWith(`${ansiEscape}[${color}m`));
+      assert.ok(coloredText.endsWith(`${ansiEscape}[0m`));
+      assert.ok(!coloredText.slice(`${ansiEscape}[${color}m`.length, -4).includes(`${ansiEscape}[0m`));
     }
+    assert.match(output[0].data[0], /main-marker.*count: 3/);
+    assert.match(output[2].data[0], /Error: preload-marker\n\s+at /);
     assert.ok(!text.includes(ansiEscape));
     for (const [index, label] of ["[ info]", "[ warn]", "[error]"].entries()) {
       assert.ok(output[index].data.join(" ").includes(label));
@@ -218,7 +223,11 @@ for (const forceColor of [undefined, "0", "1"]) {
           `
           const { createLoggers } = await import(process.argv[1]);
           const { main, renderer } = createLoggers(process.argv[2], true);
+          main.transports.console.level = 'silly';
           main.info('main-color-marker');
+          main.debug('debug-color-marker', { count: 3 });
+          main.verbose('verbose-color-marker');
+          main.silly('silly-color-marker');
           renderer.warn('renderer-color-marker');
         `,
           new URL("../src/main/logging.ts", import.meta.url).href,
@@ -229,6 +238,15 @@ for (const forceColor of [undefined, "0", "1"]) {
       assert.equal(result.status, 0, result.stderr);
       for (const output of [result.stdout, result.stderr]) {
         assert.equal(output.includes("\x1b["), forceColor === "1", output);
+      }
+      if (forceColor === "1") {
+        const lines = [...result.stdout.trimEnd().split("\n"), ...result.stderr.trimEnd().split("\n")];
+        for (const [index, color] of [0, 90, 90, 90, 33].entries()) {
+          assert.ok(lines[index].startsWith(`\x1b[${color}m`));
+          assert.ok(lines[index].endsWith("\x1b[0m"));
+          assert.ok(!lines[index].slice(`\x1b[${color}m`.length, -4).includes("\x1b[0m"));
+        }
+        assert.ok(lines[1].includes("debug-color-marker { count: 3 }"));
       }
       const fileLog = readdirSync(directory)
         .map((name) => readFileSync(join(directory, name), "utf8"))

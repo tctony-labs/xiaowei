@@ -1,6 +1,7 @@
 import { Console } from "node:console";
 import { existsSync, readdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { formatWithOptions } from "node:util";
 import type { WebContents } from "electron";
 import log from "electron-log/node";
 import { hasSourceLocation } from "../../../packages/source-log/runtime.ts";
@@ -97,7 +98,17 @@ export function createLoggers(directory: string, development: boolean) {
     logger.transports.remote.level = false;
     const format = `{y}-{m}-{d} {h}:{i}:{s}.{ms} [{paddedLevel}] [${name}] {text}`;
     logger.transports.file.format = format;
-    logger.transports.console.format = `%c{y}-{m}-{d} {h}:{i}:{s}.{ms} [{paddedLevel}] [${name}]%c {text}`;
+    logger.transports.console.format = format;
+    logger.transports.console.transforms.push(({ data, message }) => {
+      const stream = message.level === "error" || message.level === "warn" ? process.stderr : process.stdout;
+      const useStyles = logger.transports.console.useStyles;
+      if (!(typeof useStyles === "boolean" ? useStyles : stream.isTTY)) return data;
+
+      const colors = { error: 31, warn: 33, info: 0, debug: 90, silly: 90, verbose: 90 };
+      const color = `\x1b[${colors[message.level]}m`;
+      const text = formatWithOptions({ colors: false }, ...data);
+      return [`${color}${text}\x1b[0m`];
+    });
     return logger;
   }
   return { main: create("main"), renderer: create("renderer") };

@@ -18,7 +18,7 @@ main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来�
 
 保留今天及此前 14 个本地自然日的日志；启动以及日期变化后的第一次写入时，按文件名日期清理更早的当天文件和轮转备份。只清理匹配上述命名格式的普通文件，不处理目录、符号链接或其他文件；旧版无日期的日志保留原样。清理失败输出到原始 console，不递归写日志。
 
-日志级别按 5 字符宽度左侧补空格，例如 `[ info]`、`[ warn]`、`[error]`。终端日志前缀按级别着色：debug 灰色、info 青色、warn 黄色、error 红色；自动检测 TTY，重定向时不加颜色，文件保持纯文本。renderer 的 DevTools console 继续使用浏览器自身的级别样式。
+日志级别按 5 字符宽度左侧补空格，例如 `[ info]`、`[ warn]`、`[error]`。终端整条日志（包括正文、对象和多行错误堆栈）按级别着色：debug、verbose、silly 灰色，info 终端默认色，warn 黄色、error 红色；自动检测 TTY，重定向时不加颜色，文件保持纯文本。renderer 的 DevTools console 继续使用浏览器自身的级别样式。
 
 终端输出使用独立的 Node `Console({ ignoreErrors: true })`，保留 electron-log 的格式化与级别映射。异常日志仍尝试写 console；stdout/stderr 同步或异步写入失败时忽略该输出错误，不再次触发未捕获异常或记录派生错误，文件日志继续正常写入。日志清理失败的兜底报告也使用该 Console，避免回到日志链路。
 
@@ -47,6 +47,8 @@ React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 
 性能对比入口：`node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
 
 ## Outcome
+
+2026-09-21 终端染色覆盖整条日志，在最终格式化后按 level 包裹颜色并在末尾重置。10 项日志测试、桌面类型检查和修改文件的 Biome 检查通过，覆盖正文、对象、错误堆栈、颜色开关及文件纯文本输出。
 
 2026-09-20 范围修正与 RN 适配：取消 desktop 源码目录限制，共享包覆盖工作区源码；renderer 位置识别同步支持跨包路径。新增 Vite 实际跨包构建开关测试，以及 Babel TSX、作用域过滤、路径排除、嵌套调用与运行输出测试。`just check`、24 项桌面测试、3 项共享包 Babel 测试和桌面正式构建通过。React Native/Metro 尚无项目，未声称已完成真机或 Fast Refresh 验收。
 
