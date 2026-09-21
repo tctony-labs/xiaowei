@@ -36,3 +36,13 @@ execFileSync(process.execPath, ["gateway/tests/production.cjs"], { cwd: root, st
 
 run(["--filter", "xiaowei-gateway", "build"]);
 run(["--dir", "gateway/ts", "exec", "tsx", "--test", "test/native/business.test.ts"]);
+
+run([
+  "--dir",
+  "gateway/ts",
+  "exec",
+  "tsx",
+  "--experimental-test-module-mocks",
+  "--test",
+  "test/native/lifecycle.test.ts",
+]);

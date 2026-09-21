@@ -176,13 +176,13 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 ## 应用数据目录
 
-应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `clipboard/`、`logs/` 和 `cache/app-icons/`（一周有效的应用图标 PNG 缓存），与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
+应用自建的数据统一放在 `userData/xiaowei/` 下，目前包含 `storage.sqlite`、`clipboard/`、`logs/` 和 `cache/app-icons/`（一周有效的应用图标 PNG 缓存），与 userData 根目录的 Electron／Chromium 数据区分。开发阶段此次调整不提供运行时迁移；现有目录在应用停止后一次性移动，不能在 SQLite 打开时移动目录。
 
 持久目录集中定义在 `desktop/src/main/paths.ts`：`createPaths` 根据 Electron 提供的系统应用数据目录生成 `userData`、`appData`（`userData/xiaowei`）、`logs`、`database`、`clipboard` 和 `appIcons`。main 入口设置 userData 后，将业务目录传给日志、剪贴板及搜索模块；业务接入层不自行拼接应用根路径。Storage 接收数据库路径；剪贴板接收附件目录，负责内部 `images/`、`large_text/` 路径，并通过接口返回需要使用的完整路径，不复制 TS 的平台目录规则。临时外部查看文件仍由其适配层按原有生命周期管理。
 
 ## 桌面 Gateway 通信
 
-搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和两个既有 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
+搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和搜索、剪贴板与 Storage 三个 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
 
 桌面 check 直接检查 Gateway 源码类型；桌面 Vite（包括 main/preload 的 SSR）、Storybook 和验收资源构建通过 `source` 条件加载 Gateway 源码，不再预构建 dist。因此无改动的 `r` 不会因重写 Gateway 产物触发 renderer HMR；真实 Gateway 源码修改仍可触发 renderer HMR。默认 Node 消费仍使用 dist，并需独立构建。electron-vite 内联 Gateway／契约代码，原生模块仍外置。修改 Rust 后对已有桌面实例执行 `just rs`，共用构建入口会先更新 napi 产物，再启动 Electron。
 

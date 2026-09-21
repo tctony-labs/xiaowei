@@ -1,14 +1,17 @@
 // Import this into an existing development main process through its Node inspector.
 // The isolated host, hidden windows and fixture addons never touch product storage.
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { BrowserWindow, ipcMain } from "electron";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
+import { Storage } from "xiaowei-storage";
 
 const require = createRequire(import.meta.url);
 export async function run(directory) {
@@ -56,13 +59,24 @@ export async function run(directory) {
     assert.equal(JSON.parse(native.fixtureStreamUsage()).active, 0);
   };
 
+  const storageDirectory = await mkdtemp(join(tmpdir(), "gateway-storage-acceptance-"));
+  let storageOwner;
   try {
+    const storage = await Storage.open(join(storageDirectory, "storage.sqlite"));
+    storageOwner = await attachNative(host, "storage", storage.createGatewayEndpoint());
     const a = await makeWindow();
     const b = await makeWindow();
     const evaluate = (window, expression) => window.webContents.executeJavaScript(expression);
     assert.deepEqual(await evaluate(a, "Object.keys(window.gateway)"), ["request", "listen"]);
     assert.equal(await evaluate(a, "typeof window.require"), "undefined");
     assert.deepEqual(await evaluate(a, "api.echo()"), { id: "18446744073709551615", bytes: [0, 255] });
+
+    assert.deepEqual(await evaluate(a, "api.storage()"), { json: '{"enabled":true}', answer: "42" });
+
+    await storageOwner.close();
+    const reopened = await Storage.open(join(storageDirectory, "storage.sqlite"));
+    storageOwner = await attachNative(host, "storage", reopened.createGatewayEndpoint());
+    assert.deepEqual(await evaluate(b, "api.storage(false)"), { json: '{"enabled":true}', answer: "42" });
 
     await evaluate(
       a,
@@ -123,6 +137,8 @@ export async function run(directory) {
         "contextBridge ordinary transport",
         "Node isolation",
         "PB bytes/uint64",
+        "typed renderer Database and Meta against temporary Storage",
+        "Meta persistence after closing and reopening Storage",
         "two-frame event targeting",
         "native pull without prefetch",
         "pending next cancellation",
@@ -134,5 +150,7 @@ export async function run(directory) {
     for (const window of windows) if (!window.isDestroyed()) window.destroy();
     adapter.close();
     await endpoint.close();
+    await storageOwner?.close();
+    await rm(storageDirectory, { recursive: true, force: true });
   }
 }

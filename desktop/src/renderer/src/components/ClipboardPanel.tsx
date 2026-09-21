@@ -291,7 +291,8 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
       /* Plain text or Markdown. */
     }
   }
-  const showRendered = renderedId === selected?.id;
+  const hideMarkdown = selected?.previewTruncated && !formattedJson;
+  const showRendered = renderedId === selected?.id && !hideMarkdown;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: launcher mode keyboard delegation
     <div
@@ -563,7 +564,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 border-b border-subtle px-5 py-2.5">
-                  {selected.kind === "text" && (
+                  {selected.kind === "text" && !hideMarkdown && (
                     <>
                       <button
                         type="button"

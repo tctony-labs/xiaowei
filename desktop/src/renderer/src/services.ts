@@ -1,4 +1,4 @@
-import { App, Clipboard, Launcher, System } from "xiaowei-contracts";
+import { App, Clipboard, Database, Launcher, Meta, System } from "xiaowei-contracts";
 import { bindClient, type Client, type ServiceClient } from "xiaowei-gateway";
 import { createRendererClient } from "xiaowei-gateway/renderer";
 import type {} from "../../shared/gateway-api";
@@ -9,6 +9,8 @@ export function createServices(connect: () => Client) {
   let clipboard: ServiceClient<typeof Clipboard> | undefined;
   let resources: ServiceClient<typeof System> | undefined;
   let launcher: ServiceClient<typeof Launcher> | undefined;
+  let database: ServiceClient<typeof Database> | undefined;
+  let meta: ServiceClient<typeof Meta> | undefined;
   let apps: ServiceClient<typeof App> | undefined;
 
   function getGateway(): Client {
@@ -18,6 +20,14 @@ export function createServices(connect: () => Client) {
 
   return {
     getGateway,
+    getDatabase() {
+      database ??= bindClient(Database, getGateway());
+      return database;
+    },
+    getMeta() {
+      meta ??= bindClient(Meta, getGateway());
+      return meta;
+    },
     getClipboard() {
       clipboard ??= bindClient(Clipboard, getGateway());
       return clipboard;
@@ -40,4 +50,4 @@ export function createServices(connect: () => Client) {
 export type Services = ReturnType<typeof createServices>;
 
 export const services = createServices(() => createRendererClient(window.gateway));
-export const { getGateway, getClipboard, getSystem, getLauncher, getApp } = services;
+export const { getGateway, getClipboard, getSystem, getLauncher, getApp, getDatabase, getMeta } = services;

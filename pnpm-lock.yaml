@@ -318,6 +318,9 @@ importers:
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../ts
+      xiaowei-storage:
+        specifier: workspace:*
+        version: link:../../crates/xiaowei-storage/napi
 
   gateway/ts:
     dependencies:

@@ -46,7 +46,7 @@
 
 实际路由由 `package.Service.Method` 生成，例如 `xiaowei.clipboard.Clipboard.List`，不复制手写路由别名。事件使用 message full name，且必须由 owner 显式导出。
 
-renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `getClipboard()`、`getLauncher()`、`getApp()`、`getSystem()` 首次使用时绑定，之后缓存，并共享一个 renderer client。import 不连接 Electron 或绑定所有服务。Storybook／测试注入独立 client，不保留旧 `window.clipboardHistory`／`window.launcher` facade。
+renderer 只通过 `window.gateway` 访问通用 transport；`services.ts` 的 `getClipboard()`、`getLauncher()`、`getApp()`、`getSystem()`、`getDatabase()`、`getMeta()` 首次使用时绑定，之后缓存，并共享一个 renderer client。import 不连接 Electron 或绑定所有服务。Storybook／测试注入独立 client，不保留旧 `window.clipboardHistory`／`window.launcher` facade。
 
 同一 service 分属多个 owner 时，TS 显式使用 `bindHandlers(..., { partial: true })` 注册本 owner 的方法；默认全量绑定仍检查缺失 handler。Rust 使用生成的具体 Method 注册。禁止两个 owner 发布相同 route；应用装配和集成测试需覆盖完整业务调用。
 
