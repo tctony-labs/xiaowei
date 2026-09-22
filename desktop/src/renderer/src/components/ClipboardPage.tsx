@@ -52,6 +52,7 @@ export function ClipboardPage({
   const [preview, setPreview] = useState<{ id?: string; text?: string; image?: string }>({});
   const version = useRef(0);
   const operation = useRef(false);
+  const snapshot = useRef<{ query: string; view: ClipboardView; items: ClipboardItem[] } | undefined>(undefined);
   const refresh = useCallback(async () => {
     if (!subscriptionReady.current) return;
     const request = ++version.current;
@@ -98,9 +99,19 @@ export function ClipboardPage({
         rows.push(...page);
         if (page.length < 50) break;
       }
+      const previous = snapshot.current;
+      const first = rows[0];
+      const previousFirst = first && previous?.items.find((item) => item.id === first.id);
+      const selectLatest =
+        previous?.query === searchQuery &&
+        previous?.view === view &&
+        first &&
+        (!previousFirst || first.lastUsedAt > previousFirst.lastUsedAt || first.useCount > previousFirst.useCount);
+      snapshot.current = { query: searchQuery, view, items: rows };
+
       setContentVersion((value) => value + 1);
       setItems([...new Map(rows.map((item) => [item.id, item])).values()]);
-      setSelectedId((id) => (rows.some((item) => item.id === id) ? id : rows[0]?.id));
+      setSelectedId((id) => (selectLatest || !rows.some((item) => item.id === id) ? rows[0]?.id : id));
       setError("");
     } catch {
       if (request === version.current) setError("读取剪贴板失败，请重新进入重试");

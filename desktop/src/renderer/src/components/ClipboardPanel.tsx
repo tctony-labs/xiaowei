@@ -132,6 +132,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [deleteId, setDeleteId] = useState<string>();
   const [menu, setMenu] = useState<{ x: number; y: number; item: ClipboardItem }>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: copying can reorder items without changing the selected ID
   useEffect(() => {
     const scroll = () => {
       const container = list.current;
@@ -145,7 +146,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
     scroll();
     window.addEventListener("focus", scroll);
     return () => window.removeEventListener("focus", scroll);
-  }, [props.selectedId]);
+  }, [props.selectedId, props.items]);
 
   function navigate(event: KeyboardEvent<HTMLElement>) {
     if (
