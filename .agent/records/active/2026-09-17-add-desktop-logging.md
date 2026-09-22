@@ -30,6 +30,8 @@ Rust 继续使用 `log` facade，当前在搜索 napi 入口安装接收器，�
 
 main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获 console、未处理 Promise 拒绝和渲染进程异常退出。浏览器 console-message 提供的是文本，复杂对象的文件表示受 Chromium 格式限制，需要完整结构时显式序列化。业务日志不主动记录搜索词、剪贴板正文或密钥；调用者仍需避免输出敏感内容。
 
+剪贴板页面分别以 `Clipboard refresh failed` 和 `Clipboard subscription failed` 记录读取与订阅异常，使用 JSON 字符串保留 Gateway 错误码、异常堆栈和耗时。读取日志包含分类／列表阶段、分页偏移、视图、搜索词长度和请求是否已过期；订阅日志包含事件名及页面 effect 是否仍有效。不主动附加搜索词、剪贴板正文或文件路径。日志覆盖已过期请求的失败，页面原有错误提示及重试行为保持不变。
+
 ### 源码位置（方案 A）
 
 自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `scripts/dev/build-desktop-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
@@ -47,6 +49,8 @@ React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 
 性能对比入口：`node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
 
 ## Outcome
+
+2026-09-22 补齐剪贴板页面读取和事件订阅的失败日志，保留原始异常及请求上下文，供“复制文件夹后打开页面报错、重载后恢复”的后续观察使用；本次未确认该偶发异常的根因。桌面类型检查、修改文件的 Biome 检查和 Gateway 异常序列化验证通过，实际故障日志待再次发生时验证。
 
 2026-09-21 终端染色覆盖整条日志，在最终格式化后按 level 包裹颜色并在末尾重置。10 项日志测试、桌面类型检查和修改文件的 Biome 检查通过，覆盖正文、对象、错误堆栈、颜色开关及文件纯文本输出。
 

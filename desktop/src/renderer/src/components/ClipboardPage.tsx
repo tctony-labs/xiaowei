@@ -16,7 +16,7 @@ import {
   SetCategoryRequestSchema,
   SetRemarkRequestSchema,
 } from "xiaowei-contracts";
-import type { Subscription } from "xiaowei-gateway";
+import { GatewayFailure, type Subscription } from "xiaowei-gateway";
 import type { ClipboardCategory, ClipboardItem } from "../../../shared/clipboard-model";
 import { services as defaultServices, type Services } from "../services";
 import { ClipboardPanel, type ClipboardView } from "./ClipboardPanel";
@@ -56,6 +56,9 @@ export function ClipboardPage({
   const refresh = useCallback(async () => {
     if (!subscriptionReady.current) return;
     const request = ++version.current;
+    const startedAt = performance.now();
+    let stage = "categories";
+    let pageOffset: number | undefined;
     setLoading(true);
     try {
       const categoryRows = (await api.categories(create(EmptySchema))).items.map(
@@ -73,6 +76,8 @@ export function ClipboardPage({
       const rows: ClipboardItem[] = [];
       // API pages are capped at 100; reload the visible range to preserve recent-use ordering.
       for (let offset = 0; offset < 200; offset += 50) {
+        stage = "list";
+        pageOffset = offset;
         const page = (
           await api.list(
             create(ClipboardListOptionsSchema, {
@@ -113,7 +118,21 @@ export function ClipboardPage({
       setItems([...new Map(rows.map((item) => [item.id, item])).values()]);
       setSelectedId((id) => (selectLatest || !rows.some((item) => item.id === id) ? rows[0]?.id : id));
       setError("");
-    } catch {
+    } catch (error) {
+      console.error(
+        "Clipboard refresh failed",
+        JSON.stringify({
+          stage,
+          offset: pageOffset,
+          view,
+          queryLength: searchQuery.length,
+          request,
+          stale: request !== version.current,
+          elapsedMs: Math.round(performance.now() - startedAt),
+          code: error instanceof GatewayFailure ? error.detail.code : undefined,
+          error: error instanceof Error ? error.stack || error.message : String(error),
+        }),
+      );
       if (request === version.current) setError("读取剪贴板失败，请重新进入重试");
     } finally {
       if (request === version.current) setLoading(false);
@@ -122,6 +141,7 @@ export function ClipboardPage({
   useEffect(() => {
     let active = true;
     let subscription: Subscription | undefined;
+    const startedAt = performance.now();
     subscriptionReady.current = false;
     void gateway
       .subscribe(
@@ -141,7 +161,17 @@ export function ClipboardPage({
         subscriptionReady.current = true;
         void refresh();
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error(
+          "Clipboard subscription failed",
+          JSON.stringify({
+            event: ClipboardChangedSchema.typeName,
+            active,
+            elapsedMs: Math.round(performance.now() - startedAt),
+            code: error instanceof GatewayFailure ? error.detail.code : undefined,
+            error: error instanceof Error ? error.stack || error.message : String(error),
+          }),
+        );
         if (active) {
           setLoading(false);
           setError("读取剪贴板失败，请重新进入重试");
