@@ -106,14 +106,14 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
   window.getBounds = () => ({ x: position[0], y: position[1], width: 800, height: 71 });
   positionLauncher(window, workArea);
   const initial = [...position];
-  showLauncherWindow(window, screen);
+  showLauncherWindow(window, screen, "linux");
   window.setPosition(120, 300);
   window.hide();
   activateLauncherShortcut(
     window,
     "search",
     "search",
-    () => showLauncherWindow(window, screen),
+    () => showLauncherWindow(window, screen, "linux"),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
@@ -123,7 +123,7 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
     window,
     "search",
     "clipboard",
-    () => showLauncherWindow(window, screen),
+    () => showLauncherWindow(window, screen, "linux"),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
@@ -161,9 +161,30 @@ test("invoking the launcher follows the cursor to another display before showing
         },
       };
 
-      showLauncherWindow(window, screen);
+      showLauncherWindow(window, screen, "linux");
 
       assert.deepEqual(calls, [["position", ...expected], ["show"], ["focus"]]);
     }
   }
+});
+
+test("macOS keeps all-Space visibility enabled while showing the launcher", () => {
+  const calls = [];
+  const workArea = { x: 0, y: 25, width: 1440, height: 875 };
+  const window = {
+    isDestroyed: () => false,
+    getBounds: () => ({ x: 320, y: 156, width: 800, height: 71 }),
+    setVisibleOnAllWorkspaces: (visible) => calls.push(["all-workspaces", visible]),
+    show: () => calls.push(["show"]),
+    focus: () => calls.push(["focus"]),
+  };
+  const screen = {
+    getCursorScreenPoint: () => ({ x: 200, y: 200 }),
+    getDisplayNearestPoint: () => ({ id: 1, workArea }),
+    getDisplayMatching: () => ({ id: 1, workArea }),
+  };
+
+  showLauncherWindow(window, screen, "darwin");
+
+  assert.deepEqual(calls, [["all-workspaces", true], ["show"], ["focus"]]);
 });
