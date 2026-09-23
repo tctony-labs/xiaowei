@@ -1,11 +1,5 @@
 # XiaoWei
 
-## Project Info
-
-当前项目结构、工具链与开发入口见 [工作区开发](docs/workspace.md)，初始化决策与结果见 [初始化项目工作区](.agent/records/active/2026-09-14-setup-workspace.md)。
-
-常用入口：`just prepare`、`just start`、`just rs`、`just server`、`just check`、`just test`、`just build`。格式化使用 `just fmt`，检查不自动修改源码或暂存区。pre-commit 顺序执行格式化和检查；格式化改变待提交文件时需重新暂存，Hook 不自动暂存。
-
 ## 开发记录与文档
 
 - [`.agent/records/`](.agent/records/README.md)：事项的理由、取舍和结果。长期说明默认维护在 active 事项的 `How` 中；提取到 `docs/` 后，record 保留理由、取舍和结果并链接文档，避免重复维护。
@@ -38,6 +32,10 @@
 - 经常追加项目的配置列表（如 Cargo workspace `members`）采用多行形式，每项一行，避免新增一项改动整行。
 - 格式化／lint 通过不代表可读性合格。交付前检查本次修改的手写代码，补齐工具不会自动处理的逻辑分段和排版；不顺带格式化无关代码。
 - 生成器产物不纳入人工排版检查，不为美化排版直接修改产物；源定义变化后通过既有生成流程同步，保留生成一致性检查。
+
+## 工作区模块
+
+开发过程中拟新增 Rust crate 或 npm package 时，先向用户说明其用途、边界和放置位置，获得确认后再创建。
 
 ## 业务契约
 
