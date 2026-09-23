@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
+  inactive?: boolean;
   onClose: () => void;
   onConfirm?: () => void;
   title?: string;
@@ -19,6 +20,7 @@ export function hasOpenModal(): boolean {
 
 export default function Modal({
   open,
+  inactive = false,
   onClose,
   onConfirm,
   title,
@@ -31,7 +33,7 @@ export default function Modal({
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || inactive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
       if (e.key === "Escape") {
@@ -46,7 +48,7 @@ export default function Modal({
     };
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [open, onClose, onConfirm]);
+  }, [open, inactive, onClose, onConfirm]);
 
   if (!open) return null;
 
@@ -57,7 +59,9 @@ export default function Modal({
     <div
       ref={overlayRef}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!inactive}
+      aria-hidden={inactive || undefined}
+      inert={inactive}
       aria-label={title}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
       onMouseDown={(e) => {

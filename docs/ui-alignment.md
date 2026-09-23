@@ -44,7 +44,7 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 
 ## Launcher / SearchResults
 
-结果列表与桌面共用 `SearchResultList`，场景包括 Mixed、Dark、Scroll、SelectAndConfirm；`Launcher / Interaction / KeyboardAndComposition` 使用真实 Launcher 组件和模拟 IPC，覆盖方向键边界、回车确认及合成输入法事件。后者不替代原生输入法验收。
+结果列表与桌面共用 `SearchResultList`，场景包括 Mixed、Dark、Scroll、SelectAndConfirm；`Launcher.test.tsx` 使用真实 Launcher 组件和内存 GatewayHost 服务，覆盖方向键边界、回车确认及合成输入法事件，通过 `pnpm --dir desktop test` 运行，不再作为 Storybook 页面展示。测试基于 Vitest、jsdom 和 Testing Library，按项目的 `source` 条件加载 gateway 源码，不替代原生输入法验收。
 
 旧版结果列表参数已迁入：48px 行高、4px 行间距、14px 标题、22px 图标、应用图标 1.25 倍留白补偿、主题色选中背景（浅色 `#D4F7E6`、深色 `#152B2A`）、8px 键盘滚动余量。新版绿色高亮使用上文的语义变量。真实应用图标仍由 Electron 获取，与旧 NSWorkspace 提取结果需在真机对照。
 
@@ -52,7 +52,7 @@ Storybook 是组件开发和验收入口，与 Electron 共用真实组件及全
 
 `ClipboardPanel` 由桌面与 Storybook 共用，按旧版 launcher 模式标签、收藏／剪贴板／图片／文件导航、列表和底部工具栏布局迁移。尺寸、快捷键、直接复用的旧版组件及未迁移能力以 [剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md) 为准，不自行设计替代交互。尚未获得用户视觉验收。
 
-Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongText、Image、Files、Loading、LoadError、NoMatches、Json。`KeyboardAndActions` 检查选中、回车使用、收藏、删除确认和 Esc 返回；`CategoriesAndContextMenu` 检查左右键分类循环、右键复制、详情折叠、取消删除和空输入 Backspace 返回。`Launcher / Interaction / OpenClipboard` 检查从搜索结果进入面板、尺寸切换及返回。`EditingAndCategories` 检查文本编辑、备注保存、归类、分类创建与改名、删除分类确认。所有弹窗复用从旧版迁入的本地 `Modal` 组件，不依赖 `@tencent` 私有 UI 包。浏览器模拟 IPC 不替代 Electron 真机验收。
+Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongText、Image、Files、Loading、LoadError、NoMatches、Json。`KeyboardAndActions` 检查选中、回车使用、收藏、删除确认和 Esc 返回；`CategoriesAndContextMenu` 检查左右键分类循环、右键复制、详情折叠、取消删除和空输入 Backspace 返回。`Launcher.test.tsx` 的独立交互测试检查从搜索结果进入面板、尺寸切换回调及返回。`EditingAndCategories` 检查文本编辑、备注保存、归类、分类创建与改名、删除分类确认。所有弹窗复用从旧版迁入的本地 `Modal` 组件，不依赖 `@tencent` 私有 UI 包。浏览器模拟 IPC 不替代 Electron 真机验收。
 
 `ResourceMenus` 检查文件卡片操作、图片复制路径子菜单、定位和长文本查看入口；`MarkdownWebContent` 检查 Web 链接回调和远程图片元素，浏览器验收使用固定图片响应。外部应用打开和 Finder 定位仍须真机验收。
 
@@ -61,8 +61,20 @@ Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongTe
 
 设置 UI 位于 `desktop/src/renderer/src/components/settings/`，目前仅在 Storybook 使用，尚未接入产品窗口。范围及旧版源码清单见 [设置 UI 事项](../.agent/records/active/2026-09-18-settings-ui-inventory.md)。
 
-Storybook 的 `Settings` 分组包含 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About，共 81 个场景；扩展和“清空未收藏历史”不在本次范围。各页包含浅色／深色及相关空态、加载、错误、弹窗场景。框架保留 207px 侧栏、固定标题与内容滚动，旧版窗口基准为 800 × 600。
+Storybook 的 `Settings` 分组包含 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About，共 30 个展示场景；扩展不在本次范围。“清理全部”位于剪贴板已用存储空间下方，仅模拟清理中、完成及失败重试，说明保留收藏、备注或标签记录。“从旧版迁移数据”入口及模拟场景已按用户要求移除；旧数据迁移改为离线一次性迁移，对最终用户不可见，业务实现尚未完成。菜单保留默认页面、关键弹窗及必要空态、加载、错误场景；深色统一通过顶部主题按钮切换，其他数据变体通过 Controls 调整。框架保留 207px 侧栏、固定标题与内容滚动，旧版窗口基准为 800 × 600。所有 Settings 场景固定使用同尺寸的 Storybook viewport，使页面、滚动区域和挂到 body 的弹窗均按真实窗口展示；窗口在画布内水平、垂直居中，视口外框使用与 Launcher 一致的 12px 圆角（包含弹窗遮罩裁切），空间不足时滚动查看，不压缩窗口高度。
 
-页面组件通过 props／回调接收数据，`SettingsPreview.tsx` 仅提供预览用内存数据与模拟异步交互；登录、模型下载、联网校验、文件打开、更新和配置保存均不执行真实操作。快捷键录制不注册系统快捷键，归档删除仅删除模拟条目。关于页使用当前 Logo，旧版企业版权未显示。
+页面组件通过 props／回调接收数据，`SettingsPreview.tsx` 仅提供预览用内存数据与模拟异步交互；登录、模型下载、联网校验、文件打开、更新和配置保存均不执行真实操作。预览左上角模拟 macOS 红黄绿窗口按钮，仅作外观展示，不响应点击；真实窗口控制待接入原生窗口时实现。快捷键录制不注册系统快捷键，归档删除仅删除模拟条目。关于页使用当前 Logo，旧版企业版权未显示。
 
-19 个 `play` 场景覆盖导航、快捷键录制与重复处理、迁移与跳转、提供商配置、模型校验、搜索 Key 删除回退及归档操作。已在 Chrome 检查全部场景及代表性明暗截图，构建与代码检查通过，仍待用户视觉确认。未确认的组件没有被产品页面引用。
+30 个交互检查迁入同目录的 8 个 `*.test.tsx`，覆盖导航、快捷键录制与重复处理、保留期限与跳转、提供商配置、模型选择及配置、搜索 Key 删除回退、剪贴板清理反馈和归档操作。使用 `pnpm --dir desktop test` 运行；Storybook 的 `play` 仅用于打开弹窗或展开配置以呈现指定视觉状态，不再展示纯流程测试。组件仍待用户视觉确认，未接入产品页面。
+
+模型提供方配置采用“连接信息 → 获取可用模型 → 搜索、多选添加 → 逐模型配置 → 保存”的顺序，也支持手动添加模型 ID。预设提供方固定地址和协议，自定义提供方允许编辑；协议名称统一为 `openai-completions`、`openai-responses`、`anthropic-messages`。接口上下文上限是可选信息，缺失时允许手动填写；重新获取保留仍存在模型的手动覆盖。具体范围及 dsh 参考见设置 UI record。所有获取操作目前仅为 Storybook 模拟。
+
+模型提供方区域仅管理配置，不再保留“当前提供方”选择框及保存后的切换确认。新增或修改提供方不会自动改变全局默认模型，使用页面上方的默认模型选择器显式选择。
+
+提供方管理只保留“添加”入口；弹窗提供方下拉的首项为“自定义”并默认选中，其他选项为地址和协议固定的预设。
+
+点击获取后立即在提供方弹窗之上叠加选择弹窗，加载动画、失败重试与空结果均在顶层呈现；加载中可取消，迟到的响应不会重新打开弹窗。底层保留表单及展开状态但暂停交互；Esc、回车仅操作顶层。选择弹窗支持搜索、多选及全选当前搜索结果；已添加的模型禁选，取消不会修改配置。已选列表每行可展开编辑图片支持、上下文窗口和最大输出 token，文本支持为默认能力，不显示开关；右侧可删除，底部可手动添加唯一模型 ID。最大输出 token 提供 4K、8K、16K、32K、64K、128K 和自定义档位，不用原生数字步进框；档位只是填写快捷项，实际限制取决于模型。重新获取不会覆盖现有配置，失败或空结果不影响已添加列表。
+
+上下文窗口只按模型配置，不再设置提供方级默认值；手动值优先于接口值，两者均无时显示“上下文窗口：未设置”。
+
+模型选择弹窗将搜索与全选放在同一行，只在添加按钮显示选择数量，移除底层加载文案和重复选择计数。

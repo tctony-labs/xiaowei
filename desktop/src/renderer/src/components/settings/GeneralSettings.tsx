@@ -115,9 +115,9 @@ export function GeneralSettings({
         </SettingRow>
       </SettingCard>
       <SettingCard>
-        <SettingRow title="全局搜索包含浏览器书签">
+        <SettingRow title="全局搜索包含Chrome书签">
           <Toggle
-            ariaLabel="全局搜索包含浏览器书签"
+            ariaLabel="全局搜索包含Chrome书签"
             checked={values.bookmarks}
             onChange={() => onChange({ ...values, bookmarks: !values.bookmarks })}
           />

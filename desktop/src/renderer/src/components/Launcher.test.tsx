@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fireEvent, fn, userEvent, waitFor, within } from "storybook/test";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, expect, test, vi } from "vitest";
 import {
   Clipboard,
   ClipboardCategoriesSchema,
@@ -20,7 +21,7 @@ import { Launcher } from "./Launcher";
 
 function preview(clipboardMode = false) {
   const host = new GatewayHost();
-  const calls = { execute: fn(), resize: fn(), hide: fn() };
+  const calls = { execute: vi.fn(), resize: vi.fn(), hide: vi.fn() };
   host.registerOwner(
     "launcher",
     bindHandlers(LauncherService, {
@@ -95,61 +96,49 @@ function preview(clipboardMode = false) {
     ],
   );
 
-  return { calls, services: createServices(() => host.client({ caller: "storybook", trusted: true })) };
+  return { calls, services: createServices(() => host.client({ caller: "test", trusted: true })) };
 }
 
-const search = preview();
-const clipboard = preview(true);
-const meta = {
-  title: "Launcher/Interaction",
-  component: Launcher,
-  args: { services: search.services },
-  parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof Launcher>;
-export default meta;
-type Story = StoryObj<typeof meta>;
+afterEach(cleanup);
 
-export const KeyboardAndComposition: Story = {
-  play: async ({ canvasElement }) => {
-    search.calls.execute.mockClear();
-    const canvas = within(canvasElement);
-    const input = canvas.getByRole("textbox", { name: "搜索" });
-    await userEvent.type(input, "wx");
-    const second = await canvas.findByRole("option", { name: "微信文档 网页" });
-    await userEvent.keyboard("{ArrowDown}");
-    await waitFor(() => expect(second).toHaveAttribute("aria-selected", "true"));
-    await userEvent.keyboard("{ArrowDown}");
-    await expect(second).toHaveAttribute("aria-selected", "true");
-    await fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
-    await expect(search.calls.execute).not.toHaveBeenCalled();
-    await userEvent.keyboard("{Enter}");
-    await expect(search.calls.execute).toHaveBeenCalledWith(expect.objectContaining({ token: 1, id: "two" }));
-    await waitFor(() => expect(input).toHaveValue(""));
-  },
-};
+test("keyboard selection and composition guard", async () => {
+  const search = preview();
+  const canvas = render(<Launcher services={search.services} />);
+  const user = userEvent.setup();
+  const input = canvas.getByRole("textbox", { name: "搜索" });
+  await user.type(input, "wx");
+  const second = await canvas.findByRole("option", { name: /微\s*信\s*文\s*档\s*网页/ });
+  await user.keyboard("{ArrowDown}");
+  await waitFor(() => expect(second).toHaveAttribute("aria-selected", "true"));
+  await user.keyboard("{ArrowDown}");
+  expect(second).toHaveAttribute("aria-selected", "true");
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
+  expect(search.calls.execute).not.toHaveBeenCalled();
+  await user.keyboard("{Enter}");
+  expect(search.calls.execute).toHaveBeenCalledWith(expect.objectContaining({ token: 1, id: "two" }));
+  await waitFor(() => expect(input).toHaveValue(""));
+});
 
-export const OpenClipboard: Story = {
-  args: { services: clipboard.services },
-  play: async ({ canvasElement }) => {
-    clipboard.calls.hide.mockClear();
-    const canvas = within(canvasElement);
-    await userEvent.type(canvas.getByRole("textbox", { name: "搜索" }), "clipboard");
-    await canvas.findByRole("option", { name: "剪贴板 命令" });
-    await userEvent.keyboard("{Enter}");
-    await canvas.findByRole("navigation", { name: "剪贴板视图" });
-    await waitFor(() =>
-      expect(clipboard.calls.resize).toHaveBeenLastCalledWith(
-        expect.objectContaining({ resultCount: 0, mode: LauncherMode.CLIPBOARD }),
-      ),
-    );
-    await expect(clipboard.calls.hide).not.toHaveBeenCalled();
-    await userEvent.click(canvas.getByRole("textbox", { name: "搜索" }));
-    await userEvent.keyboard("{Backspace}");
-    await waitFor(() =>
-      expect(clipboard.calls.resize).toHaveBeenLastCalledWith(
-        expect.objectContaining({ resultCount: 0, mode: LauncherMode.SEARCH }),
-      ),
-    );
-    await expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
-  },
-};
+test("open clipboard after subscription is ready and return with Backspace", async () => {
+  const clipboard = preview(true);
+  const canvas = render(<Launcher services={clipboard.services} />);
+  const user = userEvent.setup();
+  await user.type(canvas.getByRole("textbox", { name: "搜索" }), "clipboard");
+  await canvas.findByRole("option", { name: /剪\s*贴\s*板\s*命令/ });
+  await user.keyboard("{Enter}");
+  await canvas.findByRole("navigation", { name: "剪贴板视图" });
+  await waitFor(() =>
+    expect(clipboard.calls.resize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ resultCount: 0, mode: LauncherMode.CLIPBOARD }),
+    ),
+  );
+  expect(clipboard.calls.hide).not.toHaveBeenCalled();
+  await user.click(canvas.getByRole("textbox", { name: "搜索" }));
+  await user.keyboard("{Backspace}");
+  await waitFor(() =>
+    expect(clipboard.calls.resize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ resultCount: 0, mode: LauncherMode.SEARCH }),
+    ),
+  );
+  expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
+});

@@ -6,5 +6,5 @@
     "types": ["vite/client"],
     "allowImportingTsExtensions": true
   },
-  "include": ["src/renderer/src/**/*", "src/shared/**/*.ts", ".storybook/preview.tsx"]
+  "include": ["src/renderer/src/**/*", "src/shared/**/*.ts", ".storybook/preview.tsx", "tests/setup.ts"]
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Modal, { ModalButton } from "../Modal";
-import ContextWindowField from "./ContextWindowField";
+import ModelCatalog from "./ModelCatalog";
 import Select from "./Select";
 import SettingCard from "./SettingCard";
 import SettingRow from "./SettingRow";
@@ -9,22 +9,27 @@ import Toggle from "./Toggle";
 
 export interface Provider {
   id: string;
+  preset: string | null;
   name: string;
   baseUrl: string;
   protocol: string;
   transport: string;
   hasApiKey: boolean;
   models: string[];
-  defaultModel: string;
-  contextWindow: number | null;
   modelContextWindows: Record<string, number>;
+  modelContextLimits: Record<string, number>;
+  modelConfigs?: Record<string, { supportsImage: boolean; maxOutput?: number }>;
 }
+export interface ProviderModel {
+  id: string;
+  contextWindow?: number;
+}
+
 export interface ModelValues {
   defaultModel: string;
   smallModel: string;
   reasoning: string;
   imageModel: string;
-  providerId: string;
   localEnabled: boolean;
   localModel: string;
 }
@@ -46,11 +51,12 @@ export interface ModelSettingsProps {
   diskGB: number;
   onChange: (values: ModelValues) => void;
   onSaveProvider: (provider: Provider, key: string) => Promise<Provider>;
+  onFetchModels: (provider: Provider, key: string) => Promise<ProviderModel[]>;
   onDeleteProvider: (id: string) => Promise<void>;
   onSelectLocal: (id: string) => void;
   onOpenDirectory: () => void;
   onTestImage: (id: string) => Promise<void>;
-  initialDialog?: "add" | "edit" | "local" | "switch";
+  initialDialog?: "add" | "edit" | "editCustom" | "local";
   highlightLocal?: boolean;
   imageTesting?: boolean;
 }
@@ -59,29 +65,34 @@ const inputClass =
   "w-full rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] outline-none focus:border-primary";
 const emptyProvider: Provider = {
   id: "",
+  preset: null,
   name: "",
   baseUrl: "",
-  protocol: "openai",
+  protocol: "openai-completions",
   transport: "http",
   hasApiKey: false,
   models: [],
-  defaultModel: "",
-  contextWindow: null,
   modelContextWindows: {},
+  modelContextLimits: {},
 };
+const presets = [
+  { id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", protocol: "openai-completions" },
+  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", protocol: "openai-responses" },
+  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com", protocol: "anthropic-messages" },
+];
+
 export function ModelSettings(props: ModelSettingsProps) {
   const { values, providers, localModels, onChange } = props;
   const [editor, setEditor] = useState<Provider | null>(() =>
     props.initialDialog === "add"
       ? emptyProvider
-      : props.initialDialog === "edit"
-        ? (providers[0] ?? emptyProvider)
-        : null,
+      : props.initialDialog === "editCustom"
+        ? (providers.find((provider) => !provider.preset) ?? emptyProvider)
+        : props.initialDialog === "edit"
+          ? (providers[0] ?? emptyProvider)
+          : null,
   );
   const [picker, setPicker] = useState(props.initialDialog === "local");
-  const [pendingSwitch, setPendingSwitch] = useState<Provider | null>(
-    props.initialDialog === "switch" ? (providers[0] ?? null) : null,
-  );
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState("");
   const remoteOptions = providers
@@ -172,16 +183,6 @@ export function ModelSettings(props: ModelSettingsProps) {
       <SettingCard>
         <SettingRow title="模型提供商">
           <div className="flex items-center gap-2">
-            <Select
-              value={values.providerId}
-              placeholder="未配置"
-              options={providers.map((p) => ({ value: p.id, label: p.hasApiKey ? p.name : `${p.name}（未配置 Key）` }))}
-              onChange={(id) => {
-                const provider = providers.find((p) => p.id === id);
-                if (!provider?.hasApiKey) setMessage("请先配置该模型提供商的 API Key");
-                else onChange({ ...values, providerId: id, defaultModel: `${provider.name}/${provider.defaultModel}` });
-              }}
-            />
             <button
               type="button"
               className="cursor-pointer rounded-md bg-primary px-3 py-1 text-[12px] font-medium text-white"
@@ -198,14 +199,14 @@ export function ModelSettings(props: ModelSettingsProps) {
               className="flex items-center justify-between gap-3 rounded-lg border border-subtle px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium leading-[18px]">{provider.name}</div>
+                <div className="text-[13px] font-medium leading-[18px]">
+                  {provider.name}
+                  <span className="ml-2 rounded bg-hover px-1.5 py-0.5 text-[10px] font-normal text-muted">
+                    {provider.preset ? "预设" : "自定义"}
+                  </span>
+                </div>
                 <div className="mt-0.5 truncate text-[11px] leading-[14px] text-muted">
-                  {provider.baseUrl} ·{" "}
-                  {provider.protocol === "openai"
-                    ? "OpenAI Chat"
-                    : provider.protocol === "responses"
-                      ? "OpenAI Responses"
-                      : "Anthropic"}
+                  {provider.baseUrl} · {provider.protocol}
                 </div>
               </div>
               <button
@@ -262,12 +263,12 @@ export function ModelSettings(props: ModelSettingsProps) {
         <ProviderEditor
           key={editor.id}
           provider={editor}
+          onFetchModels={props.onFetchModels}
           onClose={() => setEditor(null)}
           onSave={async (provider, key) => {
-            const saved = await props.onSaveProvider(provider, key);
+            await props.onSaveProvider(provider, key);
             setEditor(null);
-            if (saved.id !== values.providerId) setPendingSwitch(saved);
-            else setMessage("已保存");
+            setMessage("已保存");
           }}
           onDelete={async () => {
             await props.onDeleteProvider(editor.id);
@@ -276,32 +277,6 @@ export function ModelSettings(props: ModelSettingsProps) {
           }}
         />
       )}
-      <Modal
-        open={!!pendingSwitch}
-        onClose={() => setPendingSwitch(null)}
-        title="切换模型提供商"
-        footer={
-          <>
-            <ModalButton onClick={() => setPendingSwitch(null)}>暂不切换</ModalButton>
-            <ModalButton
-              variant="primary"
-              onClick={() => {
-                if (pendingSwitch)
-                  onChange({
-                    ...values,
-                    providerId: pendingSwitch.id,
-                    defaultModel: `${pendingSwitch.name}/${pendingSwitch.defaultModel}`,
-                  });
-                setPendingSwitch(null);
-              }}
-            >
-              切换
-            </ModalButton>
-          </>
-        }
-      >
-        <p className="text-[13px]">是否切换到 {pendingSwitch?.name}？</p>
-      </Modal>
       <Modal
         open={values.localEnabled && picker}
         onClose={() => setPicker(false)}
@@ -401,25 +376,69 @@ export function ProviderEditor({
   onClose,
   onSave,
   onDelete,
+  onFetchModels,
 }: {
   provider: Provider;
   onClose: () => void;
   onSave: (provider: Provider, key: string) => Promise<void>;
   onDelete: () => Promise<void>;
+  onFetchModels: (provider: Provider, key: string) => Promise<ProviderModel[]>;
 }) {
   const [form, setForm] = useState(provider);
   const [apiKey, setApiKey] = useState("");
-  const [preset, setPreset] = useState(
-    provider.baseUrl === "https://api.deepseek.com/v1" ? "deepseek-openai" : "custom",
-  );
-  const [overrides, setOverrides] = useState(false);
+  const [candidates, setCandidates] = useState<ProviderModel[] | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+  const fetchRequest = useRef(0);
   const [error, setError] = useState("");
-  const update = (next: Partial<Provider>) => setForm({ ...form, ...next });
+  const locked = busy || fetching;
+  const connectionReady =
+    !!form.name.trim() && /^https?:\/\//.test(form.baseUrl.trim()) && (provider.hasApiKey || !!apiKey.trim());
+  const canSave = connectionReady && form.models.length > 0;
+  const update = (next: Partial<Provider>) => setForm((current) => ({ ...current, ...next }));
+
+  function changeConnection(next: Partial<Provider>) {
+    update({
+      ...next,
+      models: [],
+      modelContextWindows: {},
+      modelContextLimits: {},
+      modelConfigs: {},
+    });
+    setError("");
+  }
+
+  async function fetchModels() {
+    if (locked || !connectionReady) return;
+    const request = ++fetchRequest.current;
+    setCandidates([]);
+    setSelected([]);
+    setSearch("");
+    setFetching(true);
+    setFetchError("");
+    try {
+      const fetchedModels = await onFetchModels(form, apiKey);
+      if (request !== fetchRequest.current) return;
+      setCandidates([...new Map(fetchedModels.map((model) => [model.id, model])).values()]);
+    } catch (e) {
+      if (request === fetchRequest.current) setFetchError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (request === fetchRequest.current) setFetching(false);
+    }
+  }
+
+  function closePicker() {
+    ++fetchRequest.current;
+    setFetching(false);
+    setCandidates(null);
+  }
+
   async function submit(remove = false) {
-    if (busy || (!remove && (!form.name.trim() || !form.baseUrl.trim() || (!provider.hasApiKey && !apiKey.trim()))))
-      return;
+    if (locked || (!remove && !canSave)) return;
     setBusy(true);
     setError("");
     try {
@@ -431,184 +450,252 @@ export function ProviderEditor({
       setBusy(false);
     }
   }
+
+  function addSelected() {
+    const added = candidates?.filter((model) => selected.includes(model.id) && !form.models.includes(model.id)) ?? [];
+    update({
+      models: [...form.models, ...added.map((model) => model.id)],
+      modelContextLimits: {
+        ...form.modelContextLimits,
+        ...Object.fromEntries(
+          added.flatMap((model) => (model.contextWindow == null ? [] : [[model.id, model.contextWindow]])),
+        ),
+      },
+    });
+    setCandidates(null);
+  }
+
+  const visible = (candidates ?? []).filter((model) => model.id.toLowerCase().includes(search.toLowerCase()));
+  const available = visible.filter((model) => !form.models.includes(model.id));
+  const allSelected = available.length > 0 && available.every((model) => selected.includes(model.id));
+  const modelPicker =
+    candidates !== null ? (
+      <Modal
+        open
+        title="选择要添加的模型"
+        width="w-[480px] max-h-[calc(100vh-32px)]"
+        onClose={closePicker}
+        onConfirm={selected.length ? addSelected : undefined}
+        contentClassName="min-h-0 px-5 py-3"
+        footer={
+          <>
+            <ModalButton onClick={closePicker}>取消</ModalButton>
+            <ModalButton variant="primary" disabled={!selected.length} onClick={addSelected}>
+              添加{selected.length ? `（${selected.length}）` : ""}
+            </ModalButton>
+          </>
+        }
+      >
+        {fetching ? (
+          <div role="status" aria-label="加载模型" className="flex h-48 items-center justify-center">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-primary" />
+          </div>
+        ) : fetchError ? (
+          <div className="flex h-48 flex-col items-center justify-center gap-3">
+            <p role="alert" className="text-[12px] text-danger">
+              {fetchError}
+            </p>
+            <button type="button" className={actionClass} onClick={() => void fetchModels()}>
+              重试
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center gap-3">
+              <input
+                className={inputClass}
+                aria-label="搜索模型"
+                placeholder="搜索模型"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              <button
+                type="button"
+                className="shrink-0 cursor-pointer text-[12px] text-primary-text disabled:opacity-40"
+                disabled={!available.length}
+                onClick={() => {
+                  const ids = available.map((model) => model.id);
+                  setSelected(
+                    allSelected ? selected.filter((id) => !ids.includes(id)) : [...new Set([...selected, ...ids])],
+                  );
+                }}
+              >
+                {allSelected ? "取消全选" : "全选"}
+              </button>
+            </div>
+            <div className="settings-scrollbar max-h-[320px] space-y-1 overflow-y-auto">
+              {visible.map((model) => {
+                const exists = form.models.includes(model.id);
+                return (
+                  <label
+                    key={model.id}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] hover:bg-hover"
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={exists}
+                      checked={exists || selected.includes(model.id)}
+                      onChange={(event) =>
+                        setSelected(
+                          event.target.checked ? [...selected, model.id] : selected.filter((id) => id !== model.id),
+                        )
+                      }
+                    />
+                    <span className="min-w-0 flex-1 break-all">{model.id}</span>
+                    {exists && <span className="shrink-0 text-[11px] text-muted">已添加</span>}
+                  </label>
+                );
+              })}
+              {!visible.length && (
+                <p role="status" className="py-6 text-center text-[12px] text-muted">
+                  {candidates.length ? "没有匹配的模型" : "未获取到可用模型"}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </Modal>
+    ) : null;
+
   const close = () => {
-    if (!busy) onClose();
+    if (!locked) onClose();
   };
   return (
-    <Modal
-      open
-      onClose={close}
-      onConfirm={() => void submit()}
-      title={provider.id ? "修改模型提供商" : "添加模型提供商"}
-      width="max-h-[calc(100vh-32px)] w-[480px]"
-      contentClassName="settings-scrollbar min-h-0 overflow-y-auto px-5 py-4"
-      footer={
-        <>
-          {provider.id && (
-            <ModalButton
-              variant="danger"
-              disabled={busy}
-              onClick={() => {
-                if (confirmDelete) void submit(true);
-                else setConfirmDelete(true);
-              }}
-            >
-              {confirmDelete ? "确认删除" : "删除"}
+    <>
+      <Modal
+        open
+        inactive={candidates !== null}
+        onClose={close}
+        onConfirm={() => void submit()}
+        title={provider.id ? "修改模型提供商" : "添加模型提供商"}
+        width="max-h-[calc(100vh-32px)] w-[480px]"
+        contentClassName="settings-scrollbar min-h-0 overflow-y-auto px-5 py-4"
+        footer={
+          <>
+            {provider.id && (
+              <ModalButton
+                variant="danger"
+                disabled={locked}
+                onClick={() => {
+                  if (confirmDelete) void submit(true);
+                  else setConfirmDelete(true);
+                }}
+              >
+                {confirmDelete ? "确认删除" : "删除"}
+              </ModalButton>
+            )}
+            <ModalButton onClick={close} disabled={locked}>
+              取消
             </ModalButton>
-          )}
-          <ModalButton onClick={close} disabled={busy}>
-            取消
-          </ModalButton>
-          <ModalButton
-            variant="primary"
-            disabled={busy || !form.name.trim() || !form.baseUrl.trim() || (!provider.hasApiKey && !apiKey.trim())}
-            onClick={() => void submit()}
-          >
-            {busy ? "校验中..." : "保存"}
-          </ModalButton>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between text-[12px] text-ink-secondary">
-          预设 Provider
-          <Select
-            value={preset}
-            options={[
-              { value: "deepseek-openai", label: "deepseek" },
-              { value: "custom", label: "自定义" },
-            ]}
-            onChange={(value) => {
-              setPreset(value);
-              if (value !== "custom")
-                update({
-                  name: "deepseek",
-                  baseUrl: "https://api.deepseek.com/v1",
-                  protocol: "openai",
-                  contextWindow: 1_000_000,
-                  models: [],
-                  defaultModel: "",
-                  modelContextWindows: {},
-                });
-            }}
-            menuPortal
-          />
-        </div>
-        <label className="block space-y-1.5 text-[12px] text-ink-secondary">
-          名称
-          <input
-            className={inputClass}
-            value={form.name}
-            onChange={(e) => update({ name: e.target.value })}
-            placeholder="Provider 名称"
-          />
-        </label>
-        <label className="block space-y-1.5 text-[12px] text-ink-secondary">
-          Base URL
-          <input
-            className={inputClass}
-            type="url"
-            value={form.baseUrl}
-            placeholder="https://api.example.com"
-            onChange={(e) => {
-              setPreset("custom");
-              update({ baseUrl: e.target.value, models: [], defaultModel: "", modelContextWindows: {} });
-            }}
-          />
-        </label>
-        <div className="flex items-center justify-between text-[12px] text-ink-secondary">
-          Protocol
-          <Select
-            value={form.protocol}
-            options={[
-              { value: "openai", label: "OpenAI Chat" },
-              { value: "responses", label: "OpenAI Responses" },
-              { value: "anthropic", label: "Anthropic" },
-            ]}
-            onChange={(protocol) => {
-              setPreset("custom");
-              update({ protocol });
-            }}
-            menuPortal
-          />
-        </div>
-        {form.protocol === "responses" && (
-          <div className="flex items-center justify-between text-[12px]">
-            Transport
+            <ModalButton variant="primary" disabled={locked || !canSave} onClick={() => void submit()}>
+              {busy ? "保存中..." : "保存"}
+            </ModalButton>
+          </>
+        }
+      >
+        <fieldset disabled={locked} className="min-w-0 space-y-4">
+          <div className="flex items-center justify-between text-[12px] text-ink-secondary">
+            提供方
             <Select
-              value={form.transport}
+              value={form.preset ?? "custom"}
+              disabled={locked || !!provider.id}
               options={[
-                { value: "auto", label: "自动（优先 WebSocket）" },
-                { value: "http", label: "仅 HTTP" },
+                { value: "custom", label: "自定义" },
+                ...presets.map((preset) => ({ value: preset.id, label: preset.name })),
               ]}
-              onChange={(transport) => update({ transport })}
+              onChange={(id) => {
+                const preset = presets.find((item) => item.id === id);
+                if (preset) changeConnection({ ...preset, id: form.id, preset: id, transport: "http" });
+                else changeConnection({ ...emptyProvider, id: form.id });
+              }}
               menuPortal
             />
           </div>
-        )}
-        {form.models.length > 0 && (
-          <div className="flex items-center justify-between text-[12px]">
-            默认模型
+          <label className="block space-y-1.5 text-[12px] text-ink-secondary">
+            名称
+            <input
+              className={inputClass}
+              value={form.name}
+              readOnly={!!form.preset}
+              onChange={(e) => update({ name: e.target.value })}
+              placeholder="提供方名称"
+            />
+          </label>
+          <label className="block space-y-1.5 text-[12px] text-ink-secondary">
+            Base URL
+            <input
+              className={inputClass}
+              type="url"
+              value={form.baseUrl}
+              readOnly={!!form.preset}
+              placeholder="https://api.example.com/v1"
+              onChange={(e) => changeConnection({ baseUrl: e.target.value })}
+            />
+          </label>
+          <div className="flex items-center justify-between text-[12px] text-ink-secondary">
+            Protocol
             <Select
-              value={form.defaultModel}
-              options={form.models.map((value) => ({ value, label: value }))}
-              onChange={(defaultModel) => update({ defaultModel })}
+              value={form.protocol}
+              disabled={locked || !!form.preset}
+              options={[
+                { value: "openai-completions", label: "openai-completions" },
+                { value: "openai-responses", label: "openai-responses" },
+                { value: "anthropic-messages", label: "anthropic-messages" },
+              ]}
+              onChange={(protocol) => changeConnection({ protocol })}
               menuPortal
             />
           </div>
-        )}
-        <div className="flex items-center justify-between text-[12px] text-ink-secondary">
-          <button
-            type="button"
-            disabled={!form.models.length}
-            className="cursor-pointer"
-            onClick={() => setOverrides(!overrides)}
-            aria-expanded={overrides}
-            aria-label="上下文窗口"
-          >
-            上下文窗口 {form.models.length > 0 ? (overrides ? "▾" : "▸") : ""}
-          </button>
-          <ContextWindowField
-            value={form.contextWindow ?? undefined}
-            onChange={(contextWindow) => update({ contextWindow: contextWindow ?? null })}
-            unsetLabel="未设置"
-          />
-        </div>
-        {overrides && form.models.length > 0 && (
-          <div className="space-y-2 rounded-lg border border-subtle px-3 py-2">
-            {form.models.map((model) => (
-              <div key={model} className="flex items-center justify-between gap-3 text-[13px]">
-                <span className="min-w-0 flex-1 truncate">{model}</span>
-                <ContextWindowField
-                  value={form.modelContextWindows[model]}
-                  unsetLabel="默认"
-                  onChange={(value) => {
-                    const next = { ...form.modelContextWindows };
-                    if (value == null) delete next[model];
-                    else next[model] = value;
-                    update({ modelContextWindows: next });
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        <label className="block space-y-1.5 text-[12px] text-ink-secondary">
-          API Key
-          <input
-            className={inputClass}
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={provider.hasApiKey ? "留空则保留当前 API Key" : "请输入 API Key"}
-          />
-        </label>
-        {error && (
-          <p role="alert" className="text-[12px] text-danger">
-            {error}
-          </p>
-        )}
-      </div>
-    </Modal>
+          {form.protocol === "openai-responses" && (
+            <div className="flex items-center justify-between text-[12px]">
+              Transport
+              <Select
+                value={form.transport}
+                disabled={locked}
+                options={[
+                  { value: "auto", label: "自动（优先 WebSocket）" },
+                  { value: "http", label: "仅 HTTP" },
+                ]}
+                onChange={(transport) => changeConnection({ transport })}
+                menuPortal
+              />
+            </div>
+          )}
+          <label className="block space-y-1.5 text-[12px] text-ink-secondary">
+            API Key
+            <input
+              className={inputClass}
+              type="password"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                changeConnection({});
+              }}
+              placeholder={provider.hasApiKey ? "留空则保留当前 API Key" : "请输入 API Key"}
+            />
+          </label>
+          <section className="space-y-3 border-t border-subtle pt-3" aria-label="模型列表">
+            <div className="flex items-center justify-between text-[12px]">
+              <span>模型列表 · {form.models.length} 个</span>
+              <button
+                type="button"
+                className={`${actionClass} disabled:opacity-50`}
+                disabled={locked || !connectionReady}
+                onClick={() => void fetchModels()}
+              >
+                获取可用模型
+              </button>
+            </div>
+            <ModelCatalog provider={form} onChange={update} />
+          </section>
+          {error && (
+            <p role="alert" className="text-[12px] text-danger">
+              {error}
+            </p>
+          )}
+        </fieldset>
+      </Modal>
+      {modelPicker}
+    </>
   );
 }

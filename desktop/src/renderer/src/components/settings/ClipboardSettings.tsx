@@ -8,7 +8,7 @@ export interface ClipboardValues {
   autoPaste: boolean;
   retention: number;
 }
-export type MigrationStatus = "idle" | "checking" | "migrating" | "done" | "not_found" | "error";
+export type CleanupStatus = "idle" | "cleaning" | "done" | "error";
 export function ClipboardSettings({
   values,
   onChange,
@@ -17,9 +17,8 @@ export function ClipboardSettings({
   storageBytes,
   refreshing,
   onRefresh,
-  migration,
-  migrationSummary,
-  onMigrate,
+  cleanup,
+  onCleanup,
 }: {
   values: ClipboardValues;
   onChange: (values: ClipboardValues) => void;
@@ -28,18 +27,9 @@ export function ClipboardSettings({
   storageBytes: number;
   refreshing: boolean;
   onRefresh: () => void;
-  migration: MigrationStatus;
-  migrationSummary?: string;
-  onMigrate: () => void;
+  cleanup: CleanupStatus;
+  onCleanup: () => void;
 }) {
-  const busy = migration === "checking" || migration === "migrating";
-  const description = busy
-    ? "..."
-    : migration === "not_found"
-      ? "未找到旧版数据库"
-      : migration === "done" || migration === "error"
-        ? migrationSummary
-        : undefined;
   const units = ["B", "KB", "MB", "GB"];
   let size = storageBytes;
   let unit = 0;
@@ -115,17 +105,27 @@ export function ClipboardSettings({
             </button>
           </div>
         </SettingRow>
-      </SettingCard>
-      <SettingCard>
-        <SettingRow title="从旧版迁移数据" description={description}>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onMigrate}
-            className="cursor-pointer rounded-lg bg-hover px-3 py-1.5 text-[13px] disabled:opacity-50"
-          >
-            {busy ? "迁移中..." : "迁移"}
-          </button>
+        <SettingRow title="清理全部" description="清理当前所有未收藏、无备注、无标签的记录">
+          <div className="flex items-center gap-2">
+            {cleanup === "done" && (
+              <span role="status" className="text-[11px] text-muted">
+                清理完成
+              </span>
+            )}
+            {cleanup === "error" && (
+              <span role="alert" className="text-[11px] text-danger">
+                清理失败，请重试
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={cleanup === "cleaning"}
+              onClick={onCleanup}
+              className="cursor-pointer rounded-lg bg-hover px-3 py-1.5 text-[13px] disabled:opacity-50"
+            >
+              {cleanup === "cleaning" ? "清理中..." : "清理"}
+            </button>
+          </div>
         </SettingRow>
       </SettingCard>
     </SettingsTabLayout>
