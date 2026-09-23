@@ -1,4 +1,4 @@
-use xw_contracts::xiaowei::storage::{DatabaseMigration, DatabaseMigrations};
+use crate::sql::{DatabaseMigration, DatabaseMigrations};
 
 pub fn registry() -> DatabaseMigrations {
     DatabaseMigrations {

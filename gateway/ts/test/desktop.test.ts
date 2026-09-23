@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import type { BrowserWindow } from "electron";
 import {
-  Clipboard,
+  ClipboardBiz,
   ClipboardItemRequestSchema,
   ClipboardResourceRequestSchema,
   EmptySchema,
@@ -92,6 +92,7 @@ test("launcher tokens and execution are preserved; search does not read icons", 
       development: true,
       platform: "darwin",
       iconUrl: icons.url,
+      includeChromeBookmarks: async () => true,
       async openPath(path) {
         actions.push(path);
         return "";
@@ -151,18 +152,20 @@ test("service getters are lazy and cache bindings; one service can span owners",
   assert.equal(services.getLauncher(), services.getLauncher());
   assert.equal(services.getApp(), services.getApp());
   assert.equal(services.getSystem(), services.getSystem());
-  assert.equal(services.getDatabase(), services.getDatabase());
-  assert.equal(services.getMeta(), services.getMeta());
+  assert.equal(services.getKeyValue(), services.getKeyValue());
   assert.equal(connections, 1);
-  host.registerOwner("native", bindHandlers(Clipboard, { copy: () => create(EmptySchema) }, { partial: true }));
-  host.registerOwner("main", bindHandlers(Clipboard, { openResource: () => create(EmptySchema) }, { partial: true }));
+  host.registerOwner("native", bindHandlers(ClipboardBiz, { copy: () => create(EmptySchema) }, { partial: true }));
+  host.registerOwner(
+    "main",
+    bindHandlers(ClipboardBiz, { openResource: () => create(EmptySchema) }, { partial: true }),
+  );
   await services.getClipboard().copy(create(ClipboardItemRequestSchema, { id: 1n }));
   await services.getClipboard().openResource(create(ClipboardResourceRequestSchema, { id: 1n }));
   assert.throws(() =>
     host.registerOwner(
       "duplicate",
       bindHandlers(
-        Clipboard,
+        ClipboardBiz,
         {
           copy: () => create(EmptySchema),
         },

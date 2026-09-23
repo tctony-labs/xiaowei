@@ -15,6 +15,7 @@
 仓库开发与排障流程位于 `.agent/skills/`，约定见 [`.agent/skills/README.md`](.agent/skills/README.md)。命中对应任务时，先完整读取该 `SKILL.md`。
 
 - [inspect-desktop-logs](.agent/skills/inspect-desktop-logs/SKILL.md)：用户要求查桌面日志，或排查桌面运行异常需要日志证据时使用；覆盖 main、renderer 和 Rust，不用于 Go 服务端。
+- [maintain-gateway-contract](.agent/skills/maintain-gateway-contract/SKILL.md)：修改业务 proto service／消息、Rust 模块依赖的 service、Gateway handler 或 typed client 调用时使用；覆盖生成、接入和验证。
 
 ## 运行实例
 

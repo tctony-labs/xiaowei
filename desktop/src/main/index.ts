@@ -2,14 +2,17 @@ import { mkdirSync } from "node:fs";
 import { open, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, clipboard, globalShortcut, protocol, screen, shell } from "electron";
+import { create } from "@bufbuild/protobuf";
+import { app, BrowserWindow, clipboard, globalShortcut, Menu, protocol, screen, shell } from "electron";
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
+import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import type { LauncherMode } from "../shared/launcher-model";
 import { createApplicationGateway } from "./gateway";
 import { activateLauncherShortcut, positionLauncher, showLauncherWindow } from "./launcher-shortcuts";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { createPaths } from "./paths";
+import { createSettingsShortcuts, shortcutConfig } from "./settings-shortcuts";
 
 protocol.registerSchemesAsPrivileged([
   { scheme: "xiaowei-icon", privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -18,8 +21,19 @@ protocol.registerSchemesAsPrivileged([
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
 let launcher: BrowserWindow | undefined;
+let settingsWindow: BrowserWindow | undefined;
 let quitting = false;
 let launcherMode: LauncherMode = "search";
+const shortcuts = createSettingsShortcuts(globalShortcut, process.platform, {
+  main: () => openLauncherMode("search"),
+  clipboard: () => openLauncherMode("clipboard"),
+});
+
+function openLauncherMode(mode: LauncherMode): void {
+  launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher, (window, openedMode) =>
+    gateway?.opened(window, openedMode),
+  );
+}
 
 function showLauncher(): void {
   showLauncherWindow(launcher, screen);
@@ -29,6 +43,84 @@ function resetLauncherPosition(): void {
   if (!launcher || launcher.isDestroyed()) return;
   const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   positionLauncher(launcher, workArea);
+}
+
+async function openSettings(): Promise<void> {
+  launcher?.hide();
+  if (process.platform === "darwin") app.show();
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    return;
+  }
+  const window = new BrowserWindow({
+    width: 800,
+    height: 600,
+    minWidth: 700,
+    minHeight: 500,
+    show: false,
+    title: "设置 - XiaoWei",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    backgroundColor: "#f7f8fa",
+    webPreferences: {
+      preload: join(moduleDir, "../preload/index.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  settingsWindow = window;
+  gateway?.register(window);
+  window.once("ready-to-show", () => window.show());
+  window.on("closed", () => {
+    if (settingsWindow === window) settingsWindow = undefined;
+  });
+  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("will-navigate", (event) => event.preventDefault());
+  window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+  const query = { window: "settings", version: app.getVersion(), development: String(!app.isPackaged) };
+  try {
+    if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
+      const url = new URL(process.env.ELECTRON_RENDERER_URL);
+      for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value);
+      await window.loadURL(url.href);
+    } else {
+      await window.loadFile(join(moduleDir, "../renderer/index.html"), { query });
+    }
+  } catch (error) {
+    window.destroy();
+    throw error;
+  }
+}
+
+function installMenu(): void {
+  const settingsItem = {
+    label: "设置…",
+    accelerator: "CommandOrControl+,",
+    click: () => void openSettings().catch((error: unknown) => console.error("Open settings failed", error)),
+  };
+  const menu = Menu.buildFromTemplate([
+    ...(process.platform === "darwin"
+      ? [
+          { label: app.name, submenu: [settingsItem, { type: "separator" as const }, { role: "quit" as const }] },
+          { label: "文件", submenu: [{ role: "close" as const }] },
+        ]
+      : [
+          {
+            label: "文件",
+            submenu: [
+              settingsItem,
+              { type: "separator" as const },
+              { role: "close" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]),
+    { role: "editMenu" },
+    { role: "viewMenu" },
+    { role: "windowMenu" },
+  ]);
+  Menu.setApplicationMenu(menu);
 }
 
 app.setName("XiaoWei");
@@ -75,6 +167,7 @@ if (!app.requestSingleInstanceLock()) {
   app
     .whenReady()
     .then(async () => {
+      installMenu();
       gateway = await createApplicationGateway(paths.clipboard, paths.database, paths.appIcons, {
         development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
         platform: process.platform,
@@ -95,6 +188,9 @@ if (!app.requestSingleInstanceLock()) {
         modeChanged(mode) {
           launcherMode = mode;
         },
+        updateShortcuts(config) {
+          shortcuts.replace(config);
+        },
       });
       await createWindow();
       const searchWarmup = setTimeout(() => {
@@ -102,21 +198,7 @@ if (!app.requestSingleInstanceLock()) {
       }, 1000);
       searchWarmup.unref();
       app.once("before-quit", () => clearTimeout(searchWarmup));
-      const shortcuts: [string, LauncherMode][] = [
-        [process.platform === "darwin" ? "Command+Space" : "Control+Alt+Space", "search"],
-        ["CommandOrControl+Shift+X", "clipboard"],
-      ];
-      for (const [shortcut, mode] of shortcuts) {
-        if (
-          !globalShortcut.register(shortcut, () => {
-            launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher, (window, mode) =>
-              gateway?.opened(window, mode),
-            );
-          })
-        ) {
-          console.error(`Launcher shortcut unavailable: ${shortcut} (${mode})`);
-        }
-      }
+      shortcuts.registerInitial(shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts));
       app.on("activate", showLauncher);
     })
     .catch((error: unknown) => {
@@ -192,4 +274,7 @@ app.on("before-quit", (event) => {
     });
   }
 });
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  shortcuts.close();
+  globalShortcut.unregisterAll();
+});

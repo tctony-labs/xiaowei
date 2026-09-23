@@ -7,11 +7,13 @@
 ## 组织与消费
 
 - `proto/testing/fixture.proto`：通用生成与编解码测试，使用独立的 `testing` package，不归属业务项目。
-- `proto/xiaowei/{common,search,launcher,app,system,clipboard}.proto`：小规模业务按文件组织，package 为 `xiaowei.<业务>`，本地协议不预设 `v1`。common 目前仅保留 Empty；业务消息使用具名字段，不按标量类型抽象通用包装。
+- `proto/xiaowei/`：业务契约按能力拆分文件，package 按业务边界命名；`kv.proto` 和 `settings.proto` 共用 `xiaowei.storage`。本地协议不预设 `v1`。common 目前仅保留 Empty；业务消息使用具名字段，不按标量类型抽象通用包装。
 - `ts/`：npm 包 `xiaowei-contracts`，workspace 消费者添加 `"xiaowei-contracts": "workspace:*"`。入口导出生成的消息及 service descriptor；使用方须支持 TS 源码和 enum 转译（项目 bundler 支持，测试使用固定的 tsx 4.23.13）。
 - `rust/`：crate `xw-contracts`，通过 Cargo path 依赖消费。`testing` 模块导出测试消息，`FILE_DESCRIPTOR_SET` 提供 protoc 原生文件／服务／方法描述；`prost::Name` 提供消息全名。新增 namespace 后在 `src/lib.rs` 显式导出对应模块。
 - `go/`：独立 module `github.com/tctony-labs/xiaowei/contracts/go`。本地 Go 消费者在自己的 go.mod 中 require 该 module，并用 `replace github.com/tctony-labs/xiaowei/contracts/go => ../contracts/go` 指向它（相对路径按消费者位置调整）；不复制生成文件，不要求根 go.work。当前 server 尚未消费它，因此不修改 server/go.mod。
 - `tools/`：仅生成时运行的 `xw-contracts-codegen`，调用 prost-build；不是契约运行依赖。没有 build.rs，消费已入库的 Rust 产物无需 protoc。
+
+Rust 的 prost-build 按 package 汇总生成文件；`kv.proto` 和 `settings.proto` 都属于 `xiaowei.storage`，共同生成 `rust/src/gen/xiaowei.storage.rs`。TS 按 proto 源文件分别生成。package 同时决定消息全名与 Gateway 路由。
 
 测试 service `Fixture` 与 `PeerFixture` 复用相同消息，供独立 owner 双向调用验证。两者的 Echo 为 unary，Watch 为 server-streaming；Changed 的 message full name 是候选事件名称。这里只定义与读取描述，没有实际调用、事件订阅或流运行时，也没有 Gateway client／handler 绑定。
 

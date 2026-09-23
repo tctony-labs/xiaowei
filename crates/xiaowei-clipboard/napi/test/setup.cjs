@@ -7,7 +7,8 @@ exports.open = async function open(directory, onChange = () => {}) {
   const { attachNative } = await import("../../../../gateway/ts/dist/main/native.js");
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachNative(host, "storage", storage.createGatewayEndpoint());
+  const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachNative(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
   const history = await ClipboardHistory.open(directory, onChange);
   const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
@@ -16,6 +17,7 @@ exports.open = async function open(directory, onChange = () => {}) {
     async close() {
       await history.stopMonitoring();
       await owner.close();
+      await daoOwner.close();
       await storageOwner.close();
     },
   };

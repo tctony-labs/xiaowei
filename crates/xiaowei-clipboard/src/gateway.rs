@@ -10,10 +10,7 @@ use xw_gateway::{
     ErrorCode, GatewayError, InvokeRegistration,
 };
 
-#[allow(dead_code)]
-#[path = "gateway_bindings.rs"]
-mod bindings;
-use bindings::xiaowei_clipboard_clipboard_service as methods;
+use crate::gateway_binding::xiaowei_clipboard_clipboard_biz_service as methods;
 
 fn id(value: u64) -> crate::Result<i64> {
     i64::try_from(value)
@@ -64,7 +61,7 @@ where
     method.handler(move |request, client| {
         let future = work(service.clone(), request);
         async move {
-            crate::database::CALLER
+            crate::dao::CALLER
                 .scope(client, future)
                 .await
                 .map_err(|error| GatewayError::new(ErrorCode::HandlerError, error.to_string()))
@@ -132,6 +129,16 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         handler(service, &methods::CLEAR_HISTORY, |s, _| async move {
             Ok(pb::ClearHistoryResponse {
                 deleted_count: s.clear_history().await? as u32,
+            })
+        }),
+        handler(service, &methods::PURGE_ORDINARY, |s, _| async move {
+            Ok(pb::PurgeOrdinaryResponse {
+                deleted_count: s.purge_ordinary().await? as u32,
+            })
+        }),
+        handler(service, &methods::PURGE_EXPIRED, |s, r| async move {
+            Ok(pb::PurgeOrdinaryResponse {
+                deleted_count: s.purge_expired(r.retention_days).await? as u32,
             })
         }),
         handler(service, &methods::CATEGORIES, |s, _| async move {

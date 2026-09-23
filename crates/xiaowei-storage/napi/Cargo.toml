@@ -11,6 +11,8 @@ xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 log = "0.4"
 xw-napi-log = { path = "../../xw-napi-log" }
 xiaowei-storage = { path = ".." }
+xw-contracts = { path = "../../../contracts/rust" }
+prost = "=0.14.4"
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
 

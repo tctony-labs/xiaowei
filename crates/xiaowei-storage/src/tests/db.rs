@@ -1,5 +1,5 @@
+use crate::{sql::*, Database};
 use std::sync::Arc;
-use xiaowei_storage::{pb::*, Database};
 
 fn statement(sql: &str) -> SqlStatement {
     SqlStatement {

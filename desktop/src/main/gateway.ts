@@ -1,6 +1,7 @@
-import { create } from "@bufbuild/protobuf";
-import { BrowserWindow, ipcMain, protocol } from "electron";
-import { App, ReadIconRequestSchema } from "xiaowei-contracts";
+import { create, fromBinary } from "@bufbuild/protobuf";
+import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { requestAccessibilityPermission } from "xiaowei-clipboard";
+import { App, EmptySchema, ReadIconRequestSchema, Settings, SettingsSnapshotSchema } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
@@ -11,12 +12,15 @@ import { createAppIconCache } from "./app-icon-cache";
 import { registerClipboard } from "./clipboard";
 import { createIconResources, ICON_SCHEME } from "./icon-resources";
 import { type LauncherActions, registerSearch } from "./search";
+import { type ShortcutConfig, shortcutConfig } from "./settings-shortcuts";
 
 export async function createApplicationGateway(
   directory: string,
   databasePath: string,
   iconDirectory: string,
-  actions: Omit<LauncherActions, "iconUrl">,
+  actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
+    updateShortcuts(shortcuts: ShortcutConfig): void;
+  },
 ) {
   const host = new GatewayHost();
   const electron = attachElectron(host, ipcMain);
@@ -26,9 +30,12 @@ export async function createApplicationGateway(
     return window;
   };
   let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let clipboardDao: Awaited<ReturnType<typeof attachNative>> | undefined;
   let search: Awaited<ReturnType<typeof attachNative>> | undefined;
   let clipboard: Awaited<ReturnType<typeof registerClipboard>> | undefined;
   let launcher: ReturnType<typeof registerSearch>;
+  let settings: Awaited<ReturnType<typeof attachNative>> | undefined;
+  const settingsApi = bindClient(Settings, host.client({ caller: "settings-main", trusted: true }));
   const apps = bindClient(App, host.client({ caller: "icon-resources", trusted: true }));
   const readIcon = createAppIconCache(iconDirectory, async (path) => {
     const { png } = await apps.readIcon(create(ReadIconRequestSchema, { path }));
@@ -37,21 +44,54 @@ export async function createApplicationGateway(
   const icons = createIconResources(async (path) => (await readIcon(path)) ?? undefined);
   try {
     const database = await Storage.open(databasePath);
-    storage = await attachNative(host, "storage", database.createGatewayEndpoint());
+    storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
+    clipboardDao = await attachNative(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
+    settings = await attachNative(
+      host,
+      "settings",
+      database.createSettingsGatewayEndpoint(actions.platform, async (before, after) => {
+        const previous = fromBinary(SettingsSnapshotSchema, before);
+        const next = fromBinary(SettingsSnapshotSchema, after);
+        if (actions.platform === "darwin" && !previous.clipboardAutoPaste && next.clipboardAutoPaste) {
+          requestAccessibilityPermission();
+        }
+        if (previous.clipboardEnabled !== next.clipboardEnabled) {
+          await clipboard?.setMonitoring(next.clipboardEnabled);
+        }
+        if (JSON.stringify(previous.shortcuts) !== JSON.stringify(next.shortcuts)) {
+          actions.updateShortcuts(shortcutConfig(next.shortcuts));
+        }
+        if (previous.autostart !== next.autostart) {
+          const oldSystemValue = app.getLoginItemSettings().openAtLogin;
+          app.setLoginItemSettings({ openAtLogin: next.autostart });
+          if (app.isPackaged && app.getLoginItemSettings().openAtLogin !== next.autostart) {
+            app.setLoginItemSettings({ openAtLogin: oldSystemValue });
+            throw new Error("Unable to change login item setting");
+          }
+        }
+      }),
+    );
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
-    clipboard = await registerClipboard(host, directory);
+    clipboard = await registerClipboard(host, directory, databasePath, windowFor);
     protocol.handle(ICON_SCHEME, (request) => icons.respond(request));
-    launcher = registerSearch(host, windowFor, { ...actions, iconUrl: icons.url });
+    launcher = registerSearch(host, windowFor, {
+      ...actions,
+      iconUrl: icons.url,
+      includeChromeBookmarks: async () => (await settingsApi.get(create(EmptySchema))).includeChromeBookmarks,
+    });
   } catch (error) {
     electron.close();
     protocol.unhandle(ICON_SCHEME);
     icons.close();
     await Promise.allSettled([clipboard?.close(), search?.close()]);
+    await settings?.close();
+    await clipboardDao?.close();
     await storage?.close();
     throw error;
   }
   let closing: Promise<void> | undefined;
   return {
+    settings: settingsApi,
     register(window: BrowserWindow) {
       electron.register(window.webContents);
     },
@@ -63,6 +103,8 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         const results = await Promise.allSettled([clipboard?.close(), search?.close()]);
+        await settings?.close();
+        await clipboardDao?.close();
         await storage?.close();
         for (const result of results)
           if (result.status === "rejected") console.error("Gateway shutdown failed", result.reason);

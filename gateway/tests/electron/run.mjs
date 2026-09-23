@@ -63,7 +63,7 @@ export async function run(directory) {
   let storageOwner;
   try {
     const storage = await Storage.open(join(storageDirectory, "storage.sqlite"));
-    storageOwner = await attachNative(host, "storage", storage.createGatewayEndpoint());
+    storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
     const a = await makeWindow();
     const b = await makeWindow();
     const evaluate = (window, expression) => window.webContents.executeJavaScript(expression);
@@ -71,12 +71,12 @@ export async function run(directory) {
     assert.equal(await evaluate(a, "typeof window.require"), "undefined");
     assert.deepEqual(await evaluate(a, "api.echo()"), { id: "18446744073709551615", bytes: [0, 255] });
 
-    assert.deepEqual(await evaluate(a, "api.storage()"), { json: '{"enabled":true}', answer: "42" });
+    assert.deepEqual(await evaluate(a, "api.storage()"), { json: '{"enabled":true}' });
 
     await storageOwner.close();
     const reopened = await Storage.open(join(storageDirectory, "storage.sqlite"));
-    storageOwner = await attachNative(host, "storage", reopened.createGatewayEndpoint());
-    assert.deepEqual(await evaluate(b, "api.storage(false)"), { json: '{"enabled":true}', answer: "42" });
+    storageOwner = await attachNative(host, "storage", reopened.createKeyValueGatewayEndpoint());
+    assert.deepEqual(await evaluate(b, "api.storage(false)"), { json: '{"enabled":true}' });
 
     await evaluate(
       a,
@@ -137,8 +137,8 @@ export async function run(directory) {
         "contextBridge ordinary transport",
         "Node isolation",
         "PB bytes/uint64",
-        "typed renderer Database and Meta against temporary Storage",
-        "Meta persistence after closing and reopening Storage",
+        "typed renderer KeyValue against temporary Storage",
+        "KeyValue persistence after closing and reopening Storage",
         "two-frame event targeting",
         "native pull without prefetch",
         "pending next cancellation",

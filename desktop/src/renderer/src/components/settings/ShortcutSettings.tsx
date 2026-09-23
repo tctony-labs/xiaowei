@@ -8,7 +8,15 @@ const rows = [
   { id: "chat", title: "快速对话" },
   { id: "clipboard", title: "剪贴板" },
 ] as const;
-export function ShortcutSettings({ values, onChange }: { values: Shortcuts; onChange: (value: Shortcuts) => void }) {
+export function ShortcutSettings({
+  values,
+  onChange,
+  showQuickChat = true,
+}: {
+  values: Shortcuts;
+  onChange: (value: Shortcuts) => void;
+  showQuickChat?: boolean;
+}) {
   function update(key: keyof Shortcuts, value: ShortcutValue | null) {
     const next = { ...values, [key]: value };
     if (value) {
@@ -23,15 +31,17 @@ export function ShortcutSettings({ values, onChange }: { values: Shortcuts; onCh
   return (
     <SettingsTabLayout title="快捷键">
       <SettingCard>
-        {rows.map(({ id, title }) => (
-          <SettingRow key={id} title={title}>
-            <ShortcutInput
-              value={values[id]}
-              onChange={(value) => update(id, value)}
-              placeholder={`录制${title}快捷键`}
-            />
-          </SettingRow>
-        ))}
+        {rows
+          .filter(({ id }) => showQuickChat || id !== "chat")
+          .map(({ id, title }) => (
+            <SettingRow key={id} title={title}>
+              <ShortcutInput
+                value={values[id]}
+                onChange={(value) => update(id, value)}
+                placeholder={`录制${title}快捷键`}
+              />
+            </SettingRow>
+          ))}
       </SettingCard>
     </SettingsTabLayout>
   );

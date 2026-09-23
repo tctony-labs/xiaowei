@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AboutSettings } from "./AboutSettings";
 import { AgentSettings, type AgentValues } from "./AgentSettings";
 import { type ArchivedSession, ArchiveSettings } from "./ArchiveSettings";
-import { ClipboardSettings, type ClipboardValues, type MigrationStatus } from "./ClipboardSettings";
+import { type CleanupStatus, ClipboardSettings, type ClipboardValues } from "./ClipboardSettings";
 import { type AccountView, GeneralSettings, type GeneralValues } from "./GeneralSettings";
 import {
   type DownloadState,
@@ -19,27 +19,27 @@ import { ShortcutSettings, type Shortcuts } from "./ShortcutSettings";
 const providersFixture: Provider[] = [
   {
     id: "deepseek",
+    preset: "deepseek",
     name: "deepseek",
     baseUrl: "https://api.deepseek.com/v1",
-    protocol: "openai",
+    protocol: "openai-completions",
     transport: "auto",
     hasApiKey: true,
     models: ["deepseek-chat", "deepseek-reasoner"],
-    defaultModel: "deepseek-chat",
-    contextWindow: 1_000_000,
     modelContextWindows: {},
+    modelContextLimits: {},
   },
   {
     id: "demo",
+    preset: null,
     name: "demo",
     baseUrl: "https://models.example.test/v1",
-    protocol: "responses",
+    protocol: "openai-responses",
     transport: "auto",
     hasApiKey: true,
     models: ["demo-text", "demo-image"],
-    defaultModel: "demo-text",
-    contextWindow: 256000,
     modelContextWindows: {},
+    modelContextLimits: {},
   },
 ];
 const localFixture: LocalModel[] = [
@@ -63,6 +63,7 @@ const sessionsFixture: ArchivedSession[] = [
 ];
 export interface PreviewProps {
   initialTab?: TabId;
+  phaseOne?: boolean;
   loading?: boolean;
   accountStatus?: AccountView["status"];
   loggedIn?: boolean;
@@ -73,13 +74,13 @@ export interface PreviewProps {
   clipboardDisabled?: boolean;
   localEnabled?: boolean;
   storageRefreshing?: boolean;
-  migration?: MigrationStatus;
-  migrationEmpty?: boolean;
+  cleanup?: CleanupStatus;
   emptyModels?: boolean;
   providerWithoutKey?: boolean;
   localState?: DownloadState;
   initialModelDialog?: ModelSettingsProps["initialDialog"];
   imageTesting?: boolean;
+  modelFetch?: "loading" | "empty" | "error" | "metadata";
   searchConfigured?: boolean;
   initialSearchEditor?: string;
   operationFailure?: boolean;
@@ -117,11 +118,11 @@ export function SettingsPreview(props: PreviewProps) {
   );
   const [clipboard, setClipboard] = useState<ClipboardValues>({
     enabled: !props.clipboardDisabled,
-    autoPaste: true,
+    autoPaste: false,
     retention: 30,
   });
   const [refreshing, setRefreshing] = useState(props.storageRefreshing ?? false);
-  const [migration, setMigration] = useState<MigrationStatus>(props.migration ?? "idle");
+  const [cleanup, setCleanup] = useState<CleanupStatus>(props.cleanup ?? "idle");
   const [providers, setProviders] = useState<Provider[]>(() =>
     props.emptyModels
       ? []
@@ -132,7 +133,6 @@ export function SettingsPreview(props: PreviewProps) {
     smallModel: props.emptyModels ? "" : "deepseek/deepseek-chat",
     reasoning: "medium",
     imageModel: "",
-    providerId: props.emptyModels ? "" : "deepseek",
     localEnabled: props.localEnabled ?? false,
     localModel: "small",
   });
@@ -183,6 +183,7 @@ export function SettingsPreview(props: PreviewProps) {
           <GeneralSettings
             values={general}
             account={account}
+            showAccount={!props.phaseOne}
             onChange={(next) => {
               setGeneral(next);
               if (next.theme !== general.theme) document.documentElement.dataset.theme = next.theme;
@@ -203,38 +204,28 @@ export function SettingsPreview(props: PreviewProps) {
           />
         );
       case "shortcut":
-        return <ShortcutSettings values={shortcuts} onChange={setShortcuts} />;
+        return <ShortcutSettings values={shortcuts} onChange={setShortcuts} showQuickChat={!props.phaseOne} />;
       case "clipboard":
         return (
           <ClipboardSettings
             values={clipboard}
             onChange={setClipboard}
             localModelEnabled={models.localEnabled}
+            showImageExtraction={!props.phaseOne}
             onOpenModels={() => {
               setTab("llm");
               setHighlight(true);
             }}
-            storageBytes={134217728}
+            storageBytes={cleanup === "done" ? 33554432 : 134217728}
+            cleanup={cleanup}
+            onCleanup={() => {
+              setCleanup("cleaning");
+              void delay().then(() => setCleanup(props.operationFailure ? "error" : "done"));
+            }}
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
               void delay().then(() => setRefreshing(false));
-            }}
-            migration={migration}
-            migrationSummary={
-              migration === "error"
-                ? "迁移失败：无法读取旧版数据库"
-                : props.migrationEmpty
-                  ? "没有需要迁移的数据"
-                  : "已迁移 3 个分类，128 条数据"
-            }
-            onMigrate={() => {
-              setMigration("checking");
-              void delay().then(async () => {
-                setMigration("migrating");
-                await delay();
-                setMigration(props.operationFailure ? "error" : "done");
-              });
             }}
           />
         );
@@ -259,14 +250,24 @@ export function SettingsPreview(props: PreviewProps) {
                 ),
               );
             }}
+            onFetchModels={async (provider) => {
+              if (props.modelFetch === "loading") return new Promise(() => {});
+              await delay();
+              if (props.modelFetch === "error") throw new Error("获取模型失败，请检查地址、协议和 API Key 后重试");
+              if (props.modelFetch === "empty") return [];
+              const ids =
+                provider.preset === "deepseek" ? ["deepseek-chat", "deepseek-reasoner"] : ["demo-text", "demo-image"];
+              return ids.map((id, index) => ({
+                id,
+                contextWindow: props.modelFetch === "metadata" && index === 0 ? 128000 : undefined,
+              }));
+            }}
             onSaveProvider={async (provider, key) => {
               await operation();
               const saved = {
                 ...provider,
                 id: provider.id || `provider-${providers.length + 1}`,
                 hasApiKey: provider.hasApiKey || !!key,
-                models: provider.models.length ? provider.models : ["demo-text", "demo-image"],
-                defaultModel: provider.defaultModel || "demo-text",
               };
               setProviders((current) => [...current.filter((p) => p.id !== saved.id), saved]);
               return saved;
@@ -274,7 +275,16 @@ export function SettingsPreview(props: PreviewProps) {
             onDeleteProvider={async (id) => {
               await operation();
               setProviders((current) => current.filter((p) => p.id !== id));
-              if (models.providerId === id) setModels({ ...models, providerId: "", defaultModel: "", smallModel: "" });
+              const provider = providers.find((item) => item.id === id);
+              if (provider) {
+                const keep = (model: string) => (model.startsWith(`${provider.name}/`) ? "" : model);
+                setModels((current) => ({
+                  ...current,
+                  defaultModel: keep(current.defaultModel),
+                  smallModel: keep(current.smallModel),
+                  imageModel: keep(current.imageModel),
+                }));
+              }
             }}
           />
         );
@@ -316,15 +326,23 @@ export function SettingsPreview(props: PreviewProps) {
             version={props.noVersion ? "" : "0.1.0"}
             development={props.development ?? false}
             onCheckUpdate={() => setToast("检查更新（预览）")}
+            showCheckUpdate={!props.phaseOne}
           />
         );
     }
   }
   return (
     <div className="relative h-screen min-h-[400px] w-full">
+      {/* Native window controls are decorative in the browser preview. */}
+      <div aria-hidden="true" className="pointer-events-none absolute top-2.5 left-3 z-10 flex gap-2">
+        <span className="size-3 rounded-full border border-black/10 bg-[#ff5f57]" />
+        <span className="size-3 rounded-full border border-black/10 bg-[#febc2e]" />
+        <span className="size-3 rounded-full border border-black/10 bg-[#28c840]" />
+      </div>
       <SettingsLayout
         activeTab={tab}
         loading={props.loading}
+        availableTabs={props.phaseOne ? ["general", "shortcut", "clipboard", "about"] : undefined}
         onNavigate={(next) => {
           setTab(next);
           setHighlight(false);

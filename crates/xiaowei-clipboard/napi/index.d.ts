@@ -87,3 +87,7 @@ export interface NativeLogEntry {
   file?: string
   line?: number
 }
+
+export declare function requestAccessibilityPermission(): boolean
+
+export declare function sendPasteShortcut(): boolean

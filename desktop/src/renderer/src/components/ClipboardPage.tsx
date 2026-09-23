@@ -25,12 +25,10 @@ export function ClipboardPage({
   onBack,
   onResetPosition,
   services = defaultServices,
-  onHide,
 }: {
   onBack(): void;
   onResetPosition?(): void;
   services?: Services;
-  onHide(): void;
 }) {
   const api = services.getClipboard();
   const system = services.getSystem();
@@ -261,14 +259,14 @@ export function ClipboardPage({
     };
   }, [api, selectedId, selectedKind, contentVersion]);
 
-  async function act(action: () => Promise<unknown>, success: string) {
+  async function act(action: () => Promise<unknown>, success: string, refreshAfter = true) {
     if (operation.current) return;
     operation.current = true;
     setBusy(true);
     setMessage("");
     try {
       await action();
-      await refresh();
+      if (refreshAfter) await refresh();
       setMessage(success);
     } catch {
       setError("操作失败，请重试（文件可能已移除）");
@@ -352,10 +350,13 @@ export function ClipboardPage({
         onBack={onBack}
         onResetPosition={onResetPosition}
         onActivate={(id) =>
-          void act(async () => {
-            await api.copy(create(ClipboardItemRequestSchema, { id: BigInt(id) }));
-            onHide();
-          }, "")
+          void act(
+            async () => {
+              await api.select(create(ClipboardItemRequestSchema, { id: BigInt(id) }));
+            },
+            "",
+            false,
+          )
         }
         onCopy={(id) => void act(() => api.copy(create(ClipboardItemRequestSchema, { id: BigInt(id) })), "已复制")}
         onFavorite={(id, favorite) =>

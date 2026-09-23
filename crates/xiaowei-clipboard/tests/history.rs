@@ -93,6 +93,41 @@ async fn literal_search_pagination_and_clear_protect_favorites() {
     assert!(store.list(&filter).await.is_err());
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn ordinary_purge_protects_favorites_remarks_and_categories_and_releases_attachments() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = open_store(dir.path()).await.unwrap();
+    let ordinary = store.capture(&ClipboardData::Text("ordinary".into())).await.unwrap();
+    let image = store
+        .capture(&ClipboardData::Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        })
+        .await
+        .unwrap();
+    let image_path = image.image_path.unwrap();
+    let favorite = store.capture(&ClipboardData::Text("favorite".into())).await.unwrap();
+    let remarked = store.capture(&ClipboardData::Text("remarked".into())).await.unwrap();
+    let categorized = store.capture(&ClipboardData::Text("categorized".into())).await.unwrap();
+    let category = store.save_category(None, "work", "#112233").await.unwrap();
+    store.set_favorite(favorite.id.parse().unwrap(), true).await.unwrap();
+    store.set_remark(remarked.id.parse().unwrap(), "keep").await.unwrap();
+    store
+        .set_category(categorized.id.parse().unwrap(), Some(category.id.parse().unwrap()))
+        .await
+        .unwrap();
+
+    assert_eq!(store.purge_ordinary_before(0).await.unwrap(), 0);
+    assert_eq!(store.purge_ordinary_before(i64::MAX).await.unwrap(), 2);
+    assert!(store.get(ordinary.id.parse().unwrap()).await.unwrap().is_none());
+    assert!(!std::path::Path::new(&image_path).exists());
+    for item in [favorite, remarked, categorized] {
+        assert!(store.get(item.id.parse().unwrap()).await.unwrap().is_some());
+    }
+    assert_eq!(store.purge_ordinary_before(i64::MAX).await.unwrap(), 0);
+}
+
 #[derive(Default)]
 struct FakeState {
     count: i64,
@@ -322,6 +357,15 @@ async fn client(directory: &std::path::Path) -> xw_gateway::invoke::Client {
     let registry = xw_gateway::XwInvokeRegistry::new();
     registry
         .register_owner("storage", xiaowei_storage::gateway::registrations(&db), vec![])
+        .unwrap();
+    registry
+        .register_owner(
+            "clipboard-dao",
+            xiaowei_storage::clipboard_dao_gateway::registrations(&Arc::new(
+                xiaowei_storage::clipboard_dao::ClipboardDao::new(db.clone()),
+            )),
+            vec![],
+        )
         .unwrap();
     registry.client(xw_gateway::CallContext::trusted("clipboard-tests"))
 }

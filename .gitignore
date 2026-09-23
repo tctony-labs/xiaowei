@@ -28,6 +28,8 @@ desktop/storybook-static/
 
 # Native build outputs
 crates/*/napi/*.node
+crates/*/.napi.napi-stage-*/
+crates/*/napi/.*.retired.tmp.*
 
 # Git Worktrees
 worktrees/

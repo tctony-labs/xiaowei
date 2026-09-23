@@ -4,11 +4,13 @@ export function AboutSettings({
   version,
   development,
   onCheckUpdate,
+  showCheckUpdate = true,
   copyright,
 }: {
   version: string;
   development: boolean;
-  onCheckUpdate: () => void;
+  onCheckUpdate?: () => void;
+  showCheckUpdate?: boolean;
   copyright?: string;
 }) {
   return (
@@ -18,7 +20,7 @@ export function AboutSettings({
         <h3 className="mt-3 text-[15px] font-semibold">小微助手</h3>
         {version && <p className="mt-1 text-[13px] text-muted">版本 {version}</p>}
         <div className="mt-3 flex gap-4">
-          {!development && (
+          {showCheckUpdate && !development && (
             <button
               type="button"
               onClick={onCheckUpdate}

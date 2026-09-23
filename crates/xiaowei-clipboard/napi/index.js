@@ -782,3 +782,5 @@ module.exports.ClipboardHistory = nativeBinding.ClipboardHistory
 module.exports.GatewayEndpoint = nativeBinding.GatewayEndpoint
 module.exports.createGatewayEndpoint = nativeBinding.createGatewayEndpoint
 module.exports.initializeLogging = nativeBinding.initializeLogging
+module.exports.requestAccessibilityPermission = nativeBinding.requestAccessibilityPermission
+module.exports.sendPasteShortcut = nativeBinding.sendPasteShortcut

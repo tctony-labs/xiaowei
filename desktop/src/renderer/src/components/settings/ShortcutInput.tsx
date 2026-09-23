@@ -204,7 +204,12 @@ export default function ShortcutInput({ value, onChange, placeholder = "录制�
         {display ? (
           <span className="flex items-center gap-0.5 text-ink">
             {displayKeys.map((code) => (
-              <kbd key={code} className="rounded settings-fill px-1.5 py-0.5 text-[12px] leading-[16px] text-ink">
+              <kbd
+                key={code}
+                className={`rounded settings-fill px-1.5 py-0.5 leading-[16px] text-ink ${
+                  code === "Shift" || code === "Meta" ? "settings-shortcut-modifier text-[10px]" : "text-[12px]"
+                }`}
+              >
                 {displayCode(code)}
               </kbd>
             ))}

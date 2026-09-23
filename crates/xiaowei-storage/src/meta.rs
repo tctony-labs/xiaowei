@@ -1,9 +1,9 @@
-use crate::{invalid, pb, Database, Result};
-use pb::{sql_parameter::Source, sql_value::Kind};
+use crate::{invalid, pb, sql, Database, Result};
+use sql::{sql_parameter::Source, sql_value::Kind};
 
-fn text(value: String) -> pb::SqlParameter {
-    pb::SqlParameter {
-        source: Some(Source::Literal(pb::SqlValue {
+fn text(value: String) -> sql::SqlParameter {
+    sql::SqlParameter {
+        source: Some(Source::Literal(sql::SqlValue {
             kind: Some(Kind::Text(value)),
         })),
     }
@@ -16,7 +16,7 @@ fn key(key: &str, allow_empty: bool) -> Result<()> {
     Ok(())
 }
 
-fn as_text(value: pb::SqlValue) -> Result<String> {
+fn as_text(value: sql::SqlValue) -> Result<String> {
     match value.kind {
         Some(Kind::Text(value)) => Ok(value),
         _ => Err(invalid("Meta contains a non-text value")),
@@ -32,10 +32,10 @@ fn validate_json(json: &str) -> Result<()> {
 }
 
 impl Database {
-    pub async fn meta_get(&self, request: pb::MetaKey) -> Result<pb::MetaValue> {
+    pub(crate) async fn meta_get(&self, request: pb::KvKey) -> Result<pb::KvValue> {
         key(&request.key, false)?;
         let result = self
-            .query(pb::SqlStatement {
+            .query(sql::SqlStatement {
                 sql: "SELECT value FROM meta WHERE key=?".into(),
                 parameters: vec![text(request.key)],
                 expected_rows: None,
@@ -50,13 +50,13 @@ impl Database {
         if let Some(json) = &json {
             validate_json(json)?;
         }
-        Ok(pb::MetaValue { json })
+        Ok(pb::KvValue { json })
     }
 
-    pub async fn meta_set(&self, request: pb::MetaEntry) -> Result<xw_contracts::xiaowei::common::Empty> {
+    pub(crate) async fn meta_set(&self, request: pb::KvEntry) -> Result<xw_contracts::xiaowei::common::Empty> {
         key(&request.key, false)?;
         validate_json(&request.json)?;
-        self.execute(pb::SqlStatement {
+        self.execute(sql::SqlStatement {
             sql: "INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value".into(),
             parameters: vec![text(request.key), text(request.json)],
             expected_rows: None,
@@ -65,24 +65,24 @@ impl Database {
         Ok(Default::default())
     }
 
-    pub async fn meta_delete(&self, request: pb::MetaKey) -> Result<pb::MetaDeleted> {
+    pub(crate) async fn meta_delete(&self, request: pb::KvKey) -> Result<pb::KvDeleted> {
         key(&request.key, false)?;
         let result = self
-            .execute(pb::SqlStatement {
+            .execute(sql::SqlStatement {
                 sql: "DELETE FROM meta WHERE key=?".into(),
                 parameters: vec![text(request.key)],
                 expected_rows: None,
             })
             .await?;
-        Ok(pb::MetaDeleted {
+        Ok(pb::KvDeleted {
             deleted: result.affected_rows != 0,
         })
     }
 
-    pub async fn meta_list(&self, request: pb::MetaPrefix) -> Result<pb::MetaEntries> {
+    pub(crate) async fn meta_list(&self, request: pb::KvPrefix) -> Result<pb::KvEntries> {
         key(&request.prefix, true)?;
         let result = self
-            .query(pb::SqlStatement {
+            .query(sql::SqlStatement {
                 sql: "SELECT key,value FROM meta WHERE substr(key,1,length(?1))=?1 COLLATE BINARY
                 ORDER BY key COLLATE BINARY"
                     .into(),
@@ -94,11 +94,11 @@ impl Database {
         for mut row in result.rows {
             let json = as_text(row.cells.remove(1))?;
             validate_json(&json)?;
-            entries.push(pb::MetaEntry {
+            entries.push(pb::KvEntry {
                 key: as_text(row.cells.remove(0))?,
                 json,
             });
         }
-        Ok(pb::MetaEntries { entries })
+        Ok(pb::KvEntries { entries })
     }
 }

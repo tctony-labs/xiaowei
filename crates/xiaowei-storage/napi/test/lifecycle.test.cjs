@@ -9,9 +9,9 @@ test("Storage opens a real file, exports only typed routes and closes idempotent
   const directory = await mkdtemp(join(tmpdir(), "storage-native-"));
   try {
     const storage = await Storage.open(join(directory, "storage.sqlite"));
-    const endpoint = storage.createGatewayEndpoint();
+    const endpoint = storage.createKeyValueGatewayEndpoint();
     const manifest = JSON.parse(endpoint.manifest());
-    assert.equal(manifest.routes.length, 10);
+    assert.equal(manifest.routes.length, 4);
     assert.ok(manifest.routes.every((route) => route.name.startsWith("xiaowei.storage.")));
     assert.ok(Buffer.isBuffer(await endpoint.close()));
     assert.ok(Buffer.isBuffer(await endpoint.close()));

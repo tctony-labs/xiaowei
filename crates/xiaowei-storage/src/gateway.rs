@@ -1,52 +1,42 @@
-use crate::{Database, Error, Result};
+use crate::{invalid, Database, Error, Result};
 use prost::{Message, Name};
 use std::future::Future;
 use std::sync::Arc;
 use xw_gateway::{binding::Method, ErrorCode, GatewayError, InvokeRegistration};
 
-#[allow(dead_code)]
-#[path = "gateway_bindings.rs"]
-pub mod bindings;
-use bindings::xiaowei_storage_database_service as methods;
-use bindings::xiaowei_storage_meta_service as meta;
+use crate::gateway_binding::xiaowei_storage_key_value_service as kv;
 
 pub fn registrations(database: &Arc<Database>) -> Vec<InvokeRegistration> {
     vec![
-        handler(
-            database,
-            &meta::GET,
-            |db, request| async move { db.meta_get(request).await },
-        ),
-        handler(
-            database,
-            &meta::SET,
-            |db, request| async move { db.meta_set(request).await },
-        ),
-        handler(database, &meta::DELETE, |db, request| async move {
+        handler(database, &kv::GET, |db, request| async move {
+            public_key(&request.key)?;
+            db.meta_get(request).await
+        }),
+        handler(database, &kv::SET, |db, request| async move {
+            public_key(&request.key)?;
+            db.meta_set(request).await
+        }),
+        handler(database, &kv::DELETE, |db, request| async move {
+            public_key(&request.key)?;
             db.meta_delete(request).await
         }),
-        handler(database, &meta::LIST, |db, request| async move {
-            db.meta_list(request).await
-        }),
-        handler(database, &methods::QUERY, |db, request| async move {
-            db.query(request).await
-        }),
-        handler(database, &methods::EXECUTE, |db, request| async move {
-            db.execute(request).await
-        }),
-        handler(database, &methods::TRANSACTION, |db, request| async move {
-            db.transaction(request).await
-        }),
-        handler(database, &methods::APPLY_MIGRATIONS, |db, request| async move {
-            db.apply_migrations(request).await
-        }),
-        handler(database, &methods::MIGRATION_STATUS, |db, request| async move {
-            db.migration_status(request).await
-        }),
-        handler(database, &methods::ROLLBACK, |db, request| async move {
-            db.rollback(request).await
+        handler(database, &kv::LIST, |db, request| async move {
+            let mut result = db.meta_list(request).await?;
+            result.entries.retain(|entry| !reserved(&entry.key));
+            Ok(result)
         }),
     ]
+}
+
+fn reserved(key: &str) -> bool {
+    key.starts_with("setting.") || key.starts_with("migration_v2.")
+}
+
+fn public_key(key: &str) -> Result<()> {
+    if reserved(key) {
+        return Err(invalid("Key is reserved for internal Storage state"));
+    }
+    Ok(())
 }
 
 fn handler<Req, Res, F, Fut>(database: &Arc<Database>, method: &Method<Req, Res>, work: F) -> InvokeRegistration

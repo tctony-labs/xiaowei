@@ -7,6 +7,12 @@
 .settings-scrollbar {
   scrollbar-width: thin;
 }
+.settings-window-drag {
+  -webkit-app-region: drag;
+}
+.settings-shortcut-modifier {
+  font-family: system-ui;
+}
 :root[data-theme="dark"] .settings-layout {
   background: #000;
 }

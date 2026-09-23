@@ -28,6 +28,7 @@ export interface LauncherActions {
   resetPosition(window: BrowserWindow): void;
   modeChanged(mode: LauncherMode): void;
   iconUrl(path: string): string;
+  includeChromeBookmarks(): Promise<boolean>;
 }
 
 export function registerSearch(
@@ -56,9 +57,11 @@ export function registerSearch(
         if (Buffer.byteLength(request.query) > 4096) throw new Error("Invalid search query");
         const token = ++current.token;
         current.results.clear();
+        const includeChromeBookmarks = await actions.includeChromeBookmarks();
         const { hits } = await bindClient(Search, client).query(
           create(SearchRequestSchema, {
             query: request.query,
+            includeChromeBookmarks,
           }),
         );
         windowFor(context);

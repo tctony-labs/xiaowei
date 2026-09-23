@@ -8,40 +8,32 @@ export interface ClipboardValues {
   autoPaste: boolean;
   retention: number;
 }
-export type MigrationStatus = "idle" | "checking" | "migrating" | "done" | "not_found" | "error";
+export type CleanupStatus = "idle" | "cleaning" | "done" | "error";
 export function ClipboardSettings({
   values,
   onChange,
   localModelEnabled,
+  showImageExtraction = true,
   onOpenModels,
   storageBytes,
   refreshing,
   onRefresh,
-  migration,
-  migrationSummary,
-  onMigrate,
+  cleanup,
+  onCleanup,
 }: {
   values: ClipboardValues;
   onChange: (values: ClipboardValues) => void;
-  localModelEnabled: boolean;
-  onOpenModels: () => void;
-  storageBytes: number;
+  localModelEnabled?: boolean;
+  showImageExtraction?: boolean;
+  onOpenModels?: () => void;
+  storageBytes?: number;
   refreshing: boolean;
   onRefresh: () => void;
-  migration: MigrationStatus;
-  migrationSummary?: string;
-  onMigrate: () => void;
+  cleanup: CleanupStatus;
+  onCleanup: () => void;
 }) {
-  const busy = migration === "checking" || migration === "migrating";
-  const description = busy
-    ? "..."
-    : migration === "not_found"
-      ? "未找到旧版数据库"
-      : migration === "done" || migration === "error"
-        ? migrationSummary
-        : undefined;
   const units = ["B", "KB", "MB", "GB"];
-  let size = storageBytes;
+  let size = storageBytes ?? 0;
   let unit = 0;
   while (size >= 1024 && unit < 3) {
     size /= 1024;
@@ -64,19 +56,21 @@ export function ClipboardSettings({
             onChange={() => onChange({ ...values, autoPaste: !values.autoPaste })}
           />
         </SettingRow>
-        <SettingRow title="图片内容提取" description="使用本地模型提取图片上的文字、理解图片内容">
-          {localModelEnabled ? (
-            <span className="text-[13px] text-ink-secondary">已启用</span>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenModels}
-              className="cursor-pointer text-[13px] font-medium text-primary-text hover:underline"
-            >
-              去启用
-            </button>
-          )}
-        </SettingRow>
+        {showImageExtraction && (
+          <SettingRow title="图片内容提取" description="使用本地模型提取图片上的文字、理解图片内容">
+            {localModelEnabled ? (
+              <span className="text-[13px] text-ink-secondary">已启用</span>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenModels}
+                className="cursor-pointer text-[13px] font-medium text-primary-text hover:underline"
+              >
+                去启用
+              </button>
+            )}
+          </SettingRow>
+        )}
         <SettingRow title="数据保留期限" description="超过期限的剪贴板记录将被自动删除">
           <Select
             value={values.retention}
@@ -87,7 +81,9 @@ export function ClipboardSettings({
         </SettingRow>
         <SettingRow title="已用存储空间">
           <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
-            <span>{refreshing ? "计算中..." : `${size.toFixed(2)} ${units[unit]}`}</span>
+            <span>
+              {refreshing ? "计算中..." : storageBytes === undefined ? "计算失败" : `${size.toFixed(2)} ${units[unit]}`}
+            </span>
             <button
               type="button"
               aria-label="刷新存储空间"
@@ -115,17 +111,27 @@ export function ClipboardSettings({
             </button>
           </div>
         </SettingRow>
-      </SettingCard>
-      <SettingCard>
-        <SettingRow title="从旧版迁移数据" description={description}>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onMigrate}
-            className="cursor-pointer rounded-lg bg-hover px-3 py-1.5 text-[13px] disabled:opacity-50"
-          >
-            {busy ? "迁移中..." : "迁移"}
-          </button>
+        <SettingRow title="清理全部" description="清理当前所有未收藏、无备注、无标签的记录">
+          <div className="flex items-center gap-2">
+            {cleanup === "done" && (
+              <span role="status" className="text-[11px] text-muted">
+                清理完成
+              </span>
+            )}
+            {cleanup === "error" && (
+              <span role="alert" className="text-[11px] text-danger">
+                清理失败，请重试
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={cleanup === "cleaning"}
+              onClick={onCleanup}
+              className="cursor-pointer rounded-lg bg-hover px-3 py-1.5 text-[13px] disabled:opacity-50"
+            >
+              {cleanup === "cleaning" ? "清理中..." : "清理"}
+            </button>
+          </div>
         </SettingRow>
       </SettingCard>
     </SettingsTabLayout>

@@ -4,7 +4,14 @@ import "../src/renderer/src/style.css";
 import "./preview.css";
 
 const preview: Preview = {
-  parameters: { layout: "centered" },
+  parameters: {
+    layout: "centered",
+    viewport: {
+      options: {
+        settings: { name: "Settings (800 × 600)", styles: { width: "800px", height: "600px" }, type: "desktop" },
+      },
+    },
+  },
   globalTypes: {
     theme: {
       description: "主题",

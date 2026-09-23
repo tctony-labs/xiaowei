@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package xiaowei.storage;
+
+import "xiaowei/common.proto";
+
+enum ThemeMode {
+  THEME_MODE_UNSPECIFIED = 0;
+  THEME_MODE_SYSTEM = 1;
+  THEME_MODE_LIGHT = 2;
+  THEME_MODE_DARK = 3;
+}
+
+message ShortcutBinding {
+  // KeyboardEvent.code names, including at least one modifier and one non-modifier key.
+  repeated string keys = 1;
+}
+
+message ShortcutConfiguration {
+  // An absent binding disables that action. Quick chat has no default until its target is available.
+  ShortcutBinding main = 1;
+  ShortcutBinding clipboard = 2;
+  ShortcutBinding quick_chat = 3;
+}
+
+message SettingsSnapshot {
+  ThemeMode theme = 1;
+  bool autostart = 2;
+  bool include_chrome_bookmarks = 3;
+  ShortcutConfiguration shortcuts = 4;
+  bool clipboard_enabled = 5;
+  bool clipboard_auto_paste = 6;
+  // Allowed values: 1, 7, 15, 30, -1 (permanent). Default: 30.
+  int32 clipboard_retention_days = 7;
+}
+
+message UpdateSettingsRequest {
+  // Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
+  oneof change {
+    ThemeMode theme = 1;
+    bool autostart = 2;
+    bool include_chrome_bookmarks = 3;
+    ShortcutConfiguration shortcuts = 4;
+    bool clipboard_enabled = 5;
+    bool clipboard_auto_paste = 6;
+    int32 clipboard_retention_days = 7;
+  }
+}
+
+message SettingsChanged {
+  // Complete committed state; consumers subscribe before loading their initial snapshot.
+  SettingsSnapshot snapshot = 1;
+}
+
+service Settings {
+  rpc Get(xiaowei.common.Empty) returns (SettingsSnapshot);
+
+  rpc Update(UpdateSettingsRequest) returns (SettingsSnapshot);
+}

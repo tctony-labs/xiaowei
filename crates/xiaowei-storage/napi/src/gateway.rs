@@ -8,6 +8,7 @@ use xw_gateway::napi::{reply, Callback, Endpoint, Reply};
 pub struct GatewayEndpoint {
     pub(crate) inner: Arc<Endpoint>,
     pub(crate) database: Arc<Database>,
+    pub(crate) close_database: bool,
 }
 
 #[napi]
@@ -105,9 +106,12 @@ impl GatewayEndpoint {
     pub fn close<'env>(&self, env: &'env napi::Env) -> napi::Result<PromiseRaw<'env, Reply>> {
         let inner = self.inner.clone();
         let database = self.database.clone();
+        let close_database = self.close_database;
         env.spawn_future(async move {
             let result = inner.close().await;
-            database.close().await;
+            if close_database {
+                database.close().await;
+            }
             Ok(reply(result))
         })
     }

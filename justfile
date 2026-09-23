@@ -124,9 +124,10 @@ storybook:
 server:
     cd server && go run ./cmd/xiaowei-server
 
-# Generate contracts; add other code generation tasks here as needed.
+# Generate contracts and their Rust Gateway bindings.
 gen:
     pnpm contracts:generate
+    pnpm gateway:generate
 
 # Format source files explicitly.
 fmt:
