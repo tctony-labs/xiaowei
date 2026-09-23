@@ -33,6 +33,7 @@ export function positionLauncher(window: BrowserWindow, workArea: Rectangle): vo
 export function showLauncherWindow(
   window: BrowserWindow | undefined,
   screen: Pick<Screen, "getCursorScreenPoint" | "getDisplayNearestPoint" | "getDisplayMatching">,
+  platform = process.platform,
 ): void {
   if (!window || window.isDestroyed()) return;
   const targetDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -56,6 +57,8 @@ export function showLauncherWindow(
     }
   }
   // Preserve manual dragging when the cursor remains on the same display.
+  // Keep the launcher available on the active Space without moving the user to its original Space.
+  if (platform === "darwin") window.setVisibleOnAllWorkspaces(true);
   window.show();
   window.focus();
 }
