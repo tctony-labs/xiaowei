@@ -1,6 +1,6 @@
-use crate::{invalid, pb, validation, Result};
+use crate::{invalid, sql, validation, Result};
 use futures_util::TryStreamExt;
-use pb::{sql_parameter::Source, sql_value::Kind};
+use sql::{sql_parameter::Source, sql_value::Kind};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::{Either, Row, SqliteConnection, SqlitePool, TypeInfo, ValueRef};
 use std::path::Path;
@@ -74,24 +74,28 @@ impl Database {
         sqlx::query("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
             .execute(&pool)
             .await?;
-        Ok(Self { pool })
+        let database = Self { pool };
+        database
+            .apply_migrations(crate::clipboard_migrations::registry())
+            .await?;
+        Ok(database)
     }
 
     pub async fn close(&self) {
         self.pool.close().await;
     }
 
-    pub async fn query(&self, statement: pb::SqlStatement) -> Result<pb::SqlResult> {
+    pub(crate) async fn query(&self, statement: sql::SqlStatement) -> Result<sql::SqlResult> {
         let mut connection = self.pool.acquire().await?;
         run(&mut connection, &statement, &[], true, &mut Budget::default()).await
     }
 
-    pub async fn execute(&self, statement: pb::SqlStatement) -> Result<pb::SqlResult> {
-        let mut result = self.transaction(pb::SqlTransaction { steps: vec![statement] }).await?;
+    pub(crate) async fn execute(&self, statement: sql::SqlStatement) -> Result<sql::SqlResult> {
+        let mut result = self.transaction(sql::SqlTransaction { steps: vec![statement] }).await?;
         Ok(result.results.remove(0))
     }
 
-    pub async fn transaction(&self, batch: pb::SqlTransaction) -> Result<pb::SqlTransactionResult> {
+    pub(crate) async fn transaction(&self, batch: sql::SqlTransaction) -> Result<sql::SqlTransactionResult> {
         if batch.steps.is_empty() || batch.steps.len() > 64 {
             return Err(invalid("A transaction requires 1 to 64 steps"));
         }
@@ -102,17 +106,17 @@ impl Database {
             results.push(run(&mut transaction, statement, &results, false, &mut budget).await?);
         }
         transaction.commit().await?;
-        Ok(pb::SqlTransactionResult { results })
+        Ok(sql::SqlTransactionResult { results })
     }
 }
 
 pub(crate) async fn run(
     connection: &mut SqliteConnection,
-    statement: &pb::SqlStatement,
-    previous: &[pb::SqlResult],
+    statement: &sql::SqlStatement,
+    previous: &[sql::SqlResult],
     readonly: bool,
     budget: &mut Budget,
-) -> Result<pb::SqlResult> {
+) -> Result<sql::SqlResult> {
     let cancelled = Arc::new(AtomicBool::new(false));
     let progress = cancelled.clone();
     connection
@@ -143,7 +147,7 @@ pub(crate) async fn run(
             _ => return Err(invalid("SQL parameter kind is missing or non-finite")),
         };
     }
-    let mut result = pb::SqlResult {
+    let mut result = sql::SqlResult {
         columns,
         ..Default::default()
     };
@@ -178,9 +182,9 @@ pub(crate) async fn run(
                         _ => 8,
                     };
                     budget.consume(size + 16, 0)?;
-                    cells.push(pb::SqlValue { kind: Some(kind) });
+                    cells.push(sql::SqlValue { kind: Some(kind) });
                 }
-                result.rows.push(pb::SqlRow { cells });
+                result.rows.push(sql::SqlRow { cells });
             }
         }
     }

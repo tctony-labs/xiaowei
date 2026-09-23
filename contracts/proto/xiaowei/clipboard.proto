@@ -117,6 +117,21 @@ message ClearHistoryResponse {
   uint32 deleted_count = 1;
 }
 
+message PurgeOrdinaryResponse {
+  // Count of records older than the request instant with no favorite, remark or category.
+  uint32 deleted_count = 1;
+}
+
+message PurgeExpiredRequest {
+  // Retention policy in days: 1, 7, 15 or 30. Permanent retention skips this operation.
+  int32 retention_days = 1;
+}
+
+message ClipboardStorageUsage {
+  // Bytes occupied by the shared database (including WAL) and clipboard attachments.
+  uint64 used_bytes = 1;
+}
+
 message ClipboardResourceRequest {
   uint64 id = 1;
   // For a file record, omitted means all files; OpenResource requires exactly one file.
@@ -131,15 +146,21 @@ message CopyResourcePathRequest {
 
 message ClipboardChanged {}
 
-service Clipboard {
+service ClipboardBiz {
   rpc List(ClipboardListOptions) returns (ClipboardItems);
   rpc Get(ClipboardItemRequest) returns (OptionalItem);
   rpc ReadText(ClipboardItemRequest) returns (ReadTextResponse);
   rpc ReadImage(ClipboardItemRequest) returns (ReadImageResponse);
   rpc Copy(ClipboardItemRequest) returns (xiaowei.common.Empty);
+  // Copies a selected item, hides the invoking Launcher, then pastes if enabled.
+  rpc Select(ClipboardItemRequest) returns (xiaowei.common.Empty);
   rpc Delete(ClipboardItemRequest) returns (DeleteResponse);
   rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
   rpc ClearHistory(xiaowei.common.Empty) returns (ClearHistoryResponse);
+  // Captures the current instant on the owner, then removes only ordinary records last used before it.
+  rpc PurgeOrdinary(xiaowei.common.Empty) returns (PurgeOrdinaryResponse);
+  rpc PurgeExpired(PurgeExpiredRequest) returns (PurgeOrdinaryResponse);
+  rpc StorageUsage(xiaowei.common.Empty) returns (ClipboardStorageUsage);
   rpc Categories(xiaowei.common.Empty) returns (ClipboardCategories);
   rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
   rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
@@ -149,4 +170,98 @@ service Clipboard {
   rpc OpenResource(ClipboardResourceRequest) returns (xiaowei.common.Empty);
   rpc RevealResource(ClipboardResourceRequest) returns (xiaowei.common.Empty);
   rpc CopyResourcePath(CopyResourcePathRequest) returns (xiaowei.common.Empty);
+}
+
+// Internal persistence boundary for the clipboard owner. No SQL or table names cross it.
+message ClipboardEntity {
+  uint64 id = 1;
+  string kind = 2;
+  optional string text = 3;
+  repeated string paths = 4;
+  optional uint32 width = 5;
+  optional uint32 height = 6;
+  int64 created_at_ms = 7;
+  int64 last_used_at_ms = 8;
+  uint32 use_count = 9;
+  bool favorite = 10;
+  optional string remark = 11;
+  optional uint64 category_id = 12;
+  string hash = 13;
+}
+
+message ClipboardEntityList {
+  repeated ClipboardEntity entities = 1;
+}
+
+message OptionalClipboardEntity {
+  ClipboardEntity entity = 1;
+}
+
+message CaptureClipboardEntityRequest {
+  string hash = 1;
+  string kind = 2;
+  optional string text = 3;
+  repeated string paths = 4;
+  optional uint32 width = 5;
+  optional uint32 height = 6;
+  int64 created_at_ms = 7;
+}
+
+message TouchClipboardEntityRequest {
+  uint64 id = 1;
+  int64 used_at_ms = 2;
+}
+
+message EditClipboardEntityTextRequest {
+  uint64 id = 1;
+  string hash = 2;
+  string kind = 3;
+  string text = 4;
+  int64 edited_at_ms = 5;
+}
+
+message AttachmentReference {
+  string kind = 1;
+  string hash = 2;
+}
+
+message EditClipboardEntityTextResponse {
+  ClipboardEntity entity = 1;
+  AttachmentReference previous_attachment = 2;
+}
+
+message DeletedClipboardEntities {
+  uint32 deleted_count = 1;
+  repeated AttachmentReference attachments = 2;
+}
+
+message PurgeClipboardEntitiesRequest {
+  int64 cutoff_ms = 1;
+}
+
+message ClipboardEntityHashRequest {
+  string hash = 1;
+}
+
+message ClipboardEntityHashReference {
+  bool referenced = 1;
+}
+
+service ClipboardDao {
+  rpc Capture(CaptureClipboardEntityRequest) returns (ClipboardEntity);
+  rpc List(ClipboardListOptions) returns (ClipboardEntityList);
+  rpc Get(ClipboardItemRequest) returns (OptionalClipboardEntity);
+  rpc Touch(TouchClipboardEntityRequest) returns (xiaowei.common.Empty);
+  rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
+  rpc SetRemark(SetRemarkRequest) returns (xiaowei.common.Empty);
+  rpc SetCategory(SetCategoryRequest) returns (xiaowei.common.Empty);
+  rpc Categories(xiaowei.common.Empty) returns (ClipboardCategories);
+  rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
+  rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
+  rpc EditText(EditClipboardEntityTextRequest) returns (EditClipboardEntityTextResponse);
+  rpc Delete(ClipboardItemRequest) returns (DeletedClipboardEntities);
+  // Each delete call removes at most 100 records. The caller repeats until fewer are returned.
+  rpc PurgeOrdinaryBatch(PurgeClipboardEntitiesRequest) returns (DeletedClipboardEntities);
+  rpc ClearHistoryBatch(xiaowei.common.Empty) returns (DeletedClipboardEntities);
+  rpc HashReferenced(ClipboardEntityHashRequest) returns (ClipboardEntityHashReference);
 }

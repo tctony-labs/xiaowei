@@ -6,6 +6,8 @@ use xw_gateway::{invoke::Owner, XwInvokeRegistry};
 
 pub mod gateway;
 pub mod logging;
+mod paste;
+pub use paste::{request_accessibility_permission, send_paste_shortcut};
 
 type ChangeCallback = ThreadsafeFunction<(), (), (), napi::Status, false, true, 1>;
 

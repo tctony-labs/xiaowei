@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/clipboard.proto.
  */
 export const file_xiaowei_clipboard: GenFile = /*@__PURE__*/
-  fileDesc("Chd4aWFvd2VpL2NsaXBib2FyZC5wcm90bxIReGlhb3dlaS5jbGlwYm9hcmQiyAMKDUNsaXBib2FyZEl0ZW0SCgoCaWQYASABKAQSLgoEa2luZBgSIAEoDjIgLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEtpbmQSGQoMcHJldmlld190ZXh0GA4gASgJSACIAQESGQoRcHJldmlld190cnVuY2F0ZWQYESABKAgSDQoFcGF0aHMYBSADKAkSEgoFd2lkdGgYBiABKA1IAYgBARITCgZoZWlnaHQYByABKA1IAogBARIVCg1jcmVhdGVkX2F0X21zGA8gASgDEhcKD2xhc3RfdXNlZF9hdF9tcxgQIAEoAxIRCgl1c2VfY291bnQYCiABKA0SEAoIZmF2b3JpdGUYCyABKAgSEwoGcmVtYXJrGAwgASgJSAOIAQESGAoLY2F0ZWdvcnlfaWQYDSABKARIBIgBAUIPCg1fcHJldmlld190ZXh0QggKBl93aWR0aEIJCgdfaGVpZ2h0QgkKB19yZW1hcmtCDgoMX2NhdGVnb3J5X2lkSgQIAhADSgQIAxAESgQIBBAFSgQICBAJSgQICRAKUgppbWFnZV9wYXRoUgR0ZXh0UgpjcmVhdGVkX2F0UgxsYXN0X3VzZWRfYXQiPAoRQ2xpcGJvYXJkQ2F0ZWdvcnkSCgoCaWQYASABKAQSDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCSKQAgoUQ2xpcGJvYXJkTGlzdE9wdGlvbnMSEgoFcXVlcnkYASABKAlIAIgBARIbCg5mYXZvcml0ZXNfb25seRgCIAEoCEgBiAEBEjMKBGtpbmQYByABKA4yIC54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRLaW5kSAKIAQESGAoLY2F0ZWdvcnlfaWQYBCABKARIA4gBARISCgVsaW1pdBgFIAEoDUgEiAEBEhMKBm9mZnNldBgGIAEoDUgFiAEBQggKBl9xdWVyeUIRCg9fZmF2b3JpdGVzX29ubHlCBwoFX2tpbmRCDgoMX2NhdGVnb3J5X2lkQggKBl9saW1pdEIJCgdfb2Zmc2V0SgQIAxAEIkEKDkNsaXBib2FyZEl0ZW1zEi8KBWl0ZW1zGAEgAygLMiAueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkSXRlbSI+CgxPcHRpb25hbEl0ZW0SLgoEaXRlbRgBIAEoCzIgLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW0iSgoTQ2xpcGJvYXJkQ2F0ZWdvcmllcxIzCgVpdGVtcxgBIAMoCzIkLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3J5Ii8KD0Zhdm9yaXRlUmVxdWVzdBIKCgJpZBgBIAEoBBIQCghmYXZvcml0ZRgCIAEoCCJKChNTYXZlQ2F0ZWdvcnlSZXF1ZXN0Eg8KAmlkGAEgASgESACIAQESDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCUIFCgNfaWQiLgoQU2V0UmVtYXJrUmVxdWVzdBIKCgJpZBgBIAEoBBIOCgZyZW1hcmsYAiABKAkiKwoPRWRpdFRleHRSZXF1ZXN0EgoKAmlkGAEgASgEEgwKBHRleHQYAiABKAkiSgoSU2V0Q2F0ZWdvcnlSZXF1ZXN0EgoKAmlkGAEgASgEEhgKC2NhdGVnb3J5X2lkGAIgASgESACIAQFCDgoMX2NhdGVnb3J5X2lkIiIKFENsaXBib2FyZEl0ZW1SZXF1ZXN0EgoKAmlkGAEgASgEIiYKGENsaXBib2FyZENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBCIgChBSZWFkVGV4dFJlc3BvbnNlEgwKBHRleHQYASABKAkiIAoRUmVhZEltYWdlUmVzcG9uc2USCwoDcG5nGAEgASgMIiEKDkRlbGV0ZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiJgoTU2V0RmF2b3JpdGVSZXNwb25zZRIPCgd1cGRhdGVkGAEgASgIIi0KFENsZWFySGlzdG9yeVJlc3BvbnNlEhUKDWRlbGV0ZWRfY291bnQYASABKA0iRAoYQ2xpcGJvYXJkUmVzb3VyY2VSZXF1ZXN0EgoKAmlkGAEgASgEEhIKBWluZGV4GAIgASgNSACIAQFCCAoGX2luZGV4IlYKF0NvcHlSZXNvdXJjZVBhdGhSZXF1ZXN0EgoKAmlkGAEgASgEEhIKBWluZGV4GAIgASgNSACIAQESEQoJZGlyZWN0b3J5GAMgASgIQggKBl9pbmRleCISChBDbGlwYm9hcmRDaGFuZ2VkKnsKDUNsaXBib2FyZEtpbmQSHgoaQ0xJUEJPQVJEX0tJTkRfVU5TUEVDSUZJRUQQABIXChNDTElQQk9BUkRfS0lORF9URVhUEAESGAoUQ0xJUEJPQVJEX0tJTkRfSU1BR0UQAhIXChNDTElQQk9BUkRfS0lORF9GSUxFEAMymQsKCUNsaXBib2FyZBJSCgRMaXN0EicueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkTGlzdE9wdGlvbnMaIS54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtcxJPCgNHZXQSJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtUmVxdWVzdBofLnhpYW93ZWkuY2xpcGJvYXJkLk9wdGlvbmFsSXRlbRJYCghSZWFkVGV4dBInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GiMueGlhb3dlaS5jbGlwYm9hcmQuUmVhZFRleHRSZXNwb25zZRJaCglSZWFkSW1hZ2USJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtUmVxdWVzdBokLnhpYW93ZWkuY2xpcGJvYXJkLlJlYWRJbWFnZVJlc3BvbnNlEkYKBENvcHkSJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElQKBkRlbGV0ZRInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GiEueGlhb3dlaS5jbGlwYm9hcmQuRGVsZXRlUmVzcG9uc2USWQoLU2V0RmF2b3JpdGUSIi54aWFvd2VpLmNsaXBib2FyZC5GYXZvcml0ZVJlcXVlc3QaJi54aWFvd2VpLmNsaXBib2FyZC5TZXRGYXZvcml0ZVJlc3BvbnNlEk4KDENsZWFySGlzdG9yeRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GicueGlhb3dlaS5jbGlwYm9hcmQuQ2xlYXJIaXN0b3J5UmVzcG9uc2USSwoKQ2F0ZWdvcmllcxIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiYueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkQ2F0ZWdvcmllcxJcCgxTYXZlQ2F0ZWdvcnkSJi54aWFvd2VpLmNsaXBib2FyZC5TYXZlQ2F0ZWdvcnlSZXF1ZXN0GiQueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkQ2F0ZWdvcnkSVAoORGVsZXRlQ2F0ZWdvcnkSKy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRDYXRlZ29yeVJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJHCglTZXRSZW1hcmsSIy54aWFvd2VpLmNsaXBib2FyZC5TZXRSZW1hcmtSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSUAoIRWRpdFRleHQSIi54aWFvd2VpLmNsaXBib2FyZC5FZGl0VGV4dFJlcXVlc3QaIC54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtEksKC1NldENhdGVnb3J5EiUueGlhb3dlaS5jbGlwYm9hcmQuU2V0Q2F0ZWdvcnlSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSUgoMT3BlblJlc291cmNlEisueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkUmVzb3VyY2VSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSVAoOUmV2ZWFsUmVzb3VyY2USKy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRSZXNvdXJjZVJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJVChBDb3B5UmVzb3VyY2VQYXRoEioueGlhb3dlaS5jbGlwYm9hcmQuQ29weVJlc291cmNlUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
+  fileDesc("Chd4aWFvd2VpL2NsaXBib2FyZC5wcm90bxIReGlhb3dlaS5jbGlwYm9hcmQiyAMKDUNsaXBib2FyZEl0ZW0SCgoCaWQYASABKAQSLgoEa2luZBgSIAEoDjIgLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEtpbmQSGQoMcHJldmlld190ZXh0GA4gASgJSACIAQESGQoRcHJldmlld190cnVuY2F0ZWQYESABKAgSDQoFcGF0aHMYBSADKAkSEgoFd2lkdGgYBiABKA1IAYgBARITCgZoZWlnaHQYByABKA1IAogBARIVCg1jcmVhdGVkX2F0X21zGA8gASgDEhcKD2xhc3RfdXNlZF9hdF9tcxgQIAEoAxIRCgl1c2VfY291bnQYCiABKA0SEAoIZmF2b3JpdGUYCyABKAgSEwoGcmVtYXJrGAwgASgJSAOIAQESGAoLY2F0ZWdvcnlfaWQYDSABKARIBIgBAUIPCg1fcHJldmlld190ZXh0QggKBl93aWR0aEIJCgdfaGVpZ2h0QgkKB19yZW1hcmtCDgoMX2NhdGVnb3J5X2lkSgQIAhADSgQIAxAESgQIBBAFSgQICBAJSgQICRAKUgppbWFnZV9wYXRoUgR0ZXh0UgpjcmVhdGVkX2F0UgxsYXN0X3VzZWRfYXQiPAoRQ2xpcGJvYXJkQ2F0ZWdvcnkSCgoCaWQYASABKAQSDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCSKQAgoUQ2xpcGJvYXJkTGlzdE9wdGlvbnMSEgoFcXVlcnkYASABKAlIAIgBARIbCg5mYXZvcml0ZXNfb25seRgCIAEoCEgBiAEBEjMKBGtpbmQYByABKA4yIC54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRLaW5kSAKIAQESGAoLY2F0ZWdvcnlfaWQYBCABKARIA4gBARISCgVsaW1pdBgFIAEoDUgEiAEBEhMKBm9mZnNldBgGIAEoDUgFiAEBQggKBl9xdWVyeUIRCg9fZmF2b3JpdGVzX29ubHlCBwoFX2tpbmRCDgoMX2NhdGVnb3J5X2lkQggKBl9saW1pdEIJCgdfb2Zmc2V0SgQIAxAEIkEKDkNsaXBib2FyZEl0ZW1zEi8KBWl0ZW1zGAEgAygLMiAueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkSXRlbSI+CgxPcHRpb25hbEl0ZW0SLgoEaXRlbRgBIAEoCzIgLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW0iSgoTQ2xpcGJvYXJkQ2F0ZWdvcmllcxIzCgVpdGVtcxgBIAMoCzIkLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3J5Ii8KD0Zhdm9yaXRlUmVxdWVzdBIKCgJpZBgBIAEoBBIQCghmYXZvcml0ZRgCIAEoCCJKChNTYXZlQ2F0ZWdvcnlSZXF1ZXN0Eg8KAmlkGAEgASgESACIAQESDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCUIFCgNfaWQiLgoQU2V0UmVtYXJrUmVxdWVzdBIKCgJpZBgBIAEoBBIOCgZyZW1hcmsYAiABKAkiKwoPRWRpdFRleHRSZXF1ZXN0EgoKAmlkGAEgASgEEgwKBHRleHQYAiABKAkiSgoSU2V0Q2F0ZWdvcnlSZXF1ZXN0EgoKAmlkGAEgASgEEhgKC2NhdGVnb3J5X2lkGAIgASgESACIAQFCDgoMX2NhdGVnb3J5X2lkIiIKFENsaXBib2FyZEl0ZW1SZXF1ZXN0EgoKAmlkGAEgASgEIiYKGENsaXBib2FyZENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBCIgChBSZWFkVGV4dFJlc3BvbnNlEgwKBHRleHQYASABKAkiIAoRUmVhZEltYWdlUmVzcG9uc2USCwoDcG5nGAEgASgMIiEKDkRlbGV0ZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiJgoTU2V0RmF2b3JpdGVSZXNwb25zZRIPCgd1cGRhdGVkGAEgASgIIi0KFENsZWFySGlzdG9yeVJlc3BvbnNlEhUKDWRlbGV0ZWRfY291bnQYASABKA0iLgoVUHVyZ2VPcmRpbmFyeVJlc3BvbnNlEhUKDWRlbGV0ZWRfY291bnQYASABKA0iLQoTUHVyZ2VFeHBpcmVkUmVxdWVzdBIWCg5yZXRlbnRpb25fZGF5cxgBIAEoBSIrChVDbGlwYm9hcmRTdG9yYWdlVXNhZ2USEgoKdXNlZF9ieXRlcxgBIAEoBCJEChhDbGlwYm9hcmRSZXNvdXJjZVJlcXVlc3QSCgoCaWQYASABKAQSEgoFaW5kZXgYAiABKA1IAIgBAUIICgZfaW5kZXgiVgoXQ29weVJlc291cmNlUGF0aFJlcXVlc3QSCgoCaWQYASABKAQSEgoFaW5kZXgYAiABKA1IAIgBARIRCglkaXJlY3RvcnkYAyABKAhCCAoGX2luZGV4IhIKEENsaXBib2FyZENoYW5nZWQiwQIKD0NsaXBib2FyZEVudGl0eRIKCgJpZBgBIAEoBBIMCgRraW5kGAIgASgJEhEKBHRleHQYAyABKAlIAIgBARINCgVwYXRocxgEIAMoCRISCgV3aWR0aBgFIAEoDUgBiAEBEhMKBmhlaWdodBgGIAEoDUgCiAEBEhUKDWNyZWF0ZWRfYXRfbXMYByABKAMSFwoPbGFzdF91c2VkX2F0X21zGAggASgDEhEKCXVzZV9jb3VudBgJIAEoDRIQCghmYXZvcml0ZRgKIAEoCBITCgZyZW1hcmsYCyABKAlIA4gBARIYCgtjYXRlZ29yeV9pZBgMIAEoBEgEiAEBEgwKBGhhc2gYDSABKAlCBwoFX3RleHRCCAoGX3dpZHRoQgkKB19oZWlnaHRCCQoHX3JlbWFya0IOCgxfY2F0ZWdvcnlfaWQiSwoTQ2xpcGJvYXJkRW50aXR5TGlzdBI0CghlbnRpdGllcxgBIAMoCzIiLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEVudGl0eSJNChdPcHRpb25hbENsaXBib2FyZEVudGl0eRIyCgZlbnRpdHkYASABKAsyIi54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRFbnRpdHkiuwEKHUNhcHR1cmVDbGlwYm9hcmRFbnRpdHlSZXF1ZXN0EgwKBGhhc2gYASABKAkSDAoEa2luZBgCIAEoCRIRCgR0ZXh0GAMgASgJSACIAQESDQoFcGF0aHMYBCADKAkSEgoFd2lkdGgYBSABKA1IAYgBARITCgZoZWlnaHQYBiABKA1IAogBARIVCg1jcmVhdGVkX2F0X21zGAcgASgDQgcKBV90ZXh0QggKBl93aWR0aEIJCgdfaGVpZ2h0Ij0KG1RvdWNoQ2xpcGJvYXJkRW50aXR5UmVxdWVzdBIKCgJpZBgBIAEoBBISCgp1c2VkX2F0X21zGAIgASgDImwKHkVkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVxdWVzdBIKCgJpZBgBIAEoBBIMCgRoYXNoGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEdGV4dBgEIAEoCRIUCgxlZGl0ZWRfYXRfbXMYBSABKAMiMQoTQXR0YWNobWVudFJlZmVyZW5jZRIMCgRraW5kGAEgASgJEgwKBGhhc2gYAiABKAkimgEKH0VkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVzcG9uc2USMgoGZW50aXR5GAEgASgLMiIueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkRW50aXR5EkMKE3ByZXZpb3VzX2F0dGFjaG1lbnQYAiABKAsyJi54aWFvd2VpLmNsaXBib2FyZC5BdHRhY2htZW50UmVmZXJlbmNlIm4KGERlbGV0ZWRDbGlwYm9hcmRFbnRpdGllcxIVCg1kZWxldGVkX2NvdW50GAEgASgNEjsKC2F0dGFjaG1lbnRzGAIgAygLMiYueGlhb3dlaS5jbGlwYm9hcmQuQXR0YWNobWVudFJlZmVyZW5jZSIyCh1QdXJnZUNsaXBib2FyZEVudGl0aWVzUmVxdWVzdBIRCgljdXRvZmZfbXMYASABKAMiKgoaQ2xpcGJvYXJkRW50aXR5SGFzaFJlcXVlc3QSDAoEaGFzaBgBIAEoCSIyChxDbGlwYm9hcmRFbnRpdHlIYXNoUmVmZXJlbmNlEhIKCnJlZmVyZW5jZWQYASABKAgqewoNQ2xpcGJvYXJkS2luZBIeChpDTElQQk9BUkRfS0lORF9VTlNQRUNJRklFRBAAEhcKE0NMSVBCT0FSRF9LSU5EX1RFWFQQARIYChRDTElQQk9BUkRfS0lORF9JTUFHRRACEhcKE0NMSVBCT0FSRF9LSU5EX0ZJTEUQAzLrDQoMQ2xpcGJvYXJkQml6ElIKBExpc3QSJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRMaXN0T3B0aW9ucxohLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1zEk8KA0dldBInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0Gh8ueGlhb3dlaS5jbGlwYm9hcmQuT3B0aW9uYWxJdGVtElgKCFJlYWRUZXh0EicueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaIy54aWFvd2VpLmNsaXBib2FyZC5SZWFkVGV4dFJlc3BvbnNlEloKCVJlYWRJbWFnZRInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GiQueGlhb3dlaS5jbGlwYm9hcmQuUmVhZEltYWdlUmVzcG9uc2USRgoEQ29weRInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSAoGU2VsZWN0EicueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJUCgZEZWxldGUSJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtUmVxdWVzdBohLnhpYW93ZWkuY2xpcGJvYXJkLkRlbGV0ZVJlc3BvbnNlElkKC1NldEZhdm9yaXRlEiIueGlhb3dlaS5jbGlwYm9hcmQuRmF2b3JpdGVSZXF1ZXN0GiYueGlhb3dlaS5jbGlwYm9hcmQuU2V0RmF2b3JpdGVSZXNwb25zZRJOCgxDbGVhckhpc3RvcnkSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRonLnhpYW93ZWkuY2xpcGJvYXJkLkNsZWFySGlzdG9yeVJlc3BvbnNlElAKDVB1cmdlT3JkaW5hcnkSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRooLnhpYW93ZWkuY2xpcGJvYXJkLlB1cmdlT3JkaW5hcnlSZXNwb25zZRJgCgxQdXJnZUV4cGlyZWQSJi54aWFvd2VpLmNsaXBib2FyZC5QdXJnZUV4cGlyZWRSZXF1ZXN0GigueGlhb3dlaS5jbGlwYm9hcmQuUHVyZ2VPcmRpbmFyeVJlc3BvbnNlEk8KDFN0b3JhZ2VVc2FnZRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GigueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkU3RvcmFnZVVzYWdlEksKCkNhdGVnb3JpZXMSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRomLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3JpZXMSXAoMU2F2ZUNhdGVnb3J5EiYueGlhb3dlaS5jbGlwYm9hcmQuU2F2ZUNhdGVnb3J5UmVxdWVzdBokLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3J5ElQKDkRlbGV0ZUNhdGVnb3J5EisueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkQ2F0ZWdvcnlSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRwoJU2V0UmVtYXJrEiMueGlhb3dlaS5jbGlwYm9hcmQuU2V0UmVtYXJrUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElAKCEVkaXRUZXh0EiIueGlhb3dlaS5jbGlwYm9hcmQuRWRpdFRleHRSZXF1ZXN0GiAueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkSXRlbRJLCgtTZXRDYXRlZ29yeRIlLnhpYW93ZWkuY2xpcGJvYXJkLlNldENhdGVnb3J5UmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElIKDE9wZW5SZXNvdXJjZRIrLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZFJlc291cmNlUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElQKDlJldmVhbFJlc291cmNlEisueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkUmVzb3VyY2VSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSVQoQQ29weVJlc291cmNlUGF0aBIqLnhpYW93ZWkuY2xpcGJvYXJkLkNvcHlSZXNvdXJjZVBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHky+QoKDENsaXBib2FyZERhbxJfCgdDYXB0dXJlEjAueGlhb3dlaS5jbGlwYm9hcmQuQ2FwdHVyZUNsaXBib2FyZEVudGl0eVJlcXVlc3QaIi54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRFbnRpdHkSVwoETGlzdBInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZExpc3RPcHRpb25zGiYueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkRW50aXR5TGlzdBJaCgNHZXQSJy54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRJdGVtUmVxdWVzdBoqLnhpYW93ZWkuY2xpcGJvYXJkLk9wdGlvbmFsQ2xpcGJvYXJkRW50aXR5Ek4KBVRvdWNoEi4ueGlhb3dlaS5jbGlwYm9hcmQuVG91Y2hDbGlwYm9hcmRFbnRpdHlSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSWQoLU2V0RmF2b3JpdGUSIi54aWFvd2VpLmNsaXBib2FyZC5GYXZvcml0ZVJlcXVlc3QaJi54aWFvd2VpLmNsaXBib2FyZC5TZXRGYXZvcml0ZVJlc3BvbnNlEkcKCVNldFJlbWFyaxIjLnhpYW93ZWkuY2xpcGJvYXJkLlNldFJlbWFya1JlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJLCgtTZXRDYXRlZ29yeRIlLnhpYW93ZWkuY2xpcGJvYXJkLlNldENhdGVnb3J5UmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EksKCkNhdGVnb3JpZXMSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRomLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3JpZXMSXAoMU2F2ZUNhdGVnb3J5EiYueGlhb3dlaS5jbGlwYm9hcmQuU2F2ZUNhdGVnb3J5UmVxdWVzdBokLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZENhdGVnb3J5ElQKDkRlbGV0ZUNhdGVnb3J5EisueGlhb3dlaS5jbGlwYm9hcmQuQ2xpcGJvYXJkQ2F0ZWdvcnlSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkScQoIRWRpdFRleHQSMS54aWFvd2VpLmNsaXBib2FyZC5FZGl0Q2xpcGJvYXJkRW50aXR5VGV4dFJlcXVlc3QaMi54aWFvd2VpLmNsaXBib2FyZC5FZGl0Q2xpcGJvYXJkRW50aXR5VGV4dFJlc3BvbnNlEl4KBkRlbGV0ZRInLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GisueGlhb3dlaS5jbGlwYm9hcmQuRGVsZXRlZENsaXBib2FyZEVudGl0aWVzEnMKElB1cmdlT3JkaW5hcnlCYXRjaBIwLnhpYW93ZWkuY2xpcGJvYXJkLlB1cmdlQ2xpcGJvYXJkRW50aXRpZXNSZXF1ZXN0GisueGlhb3dlaS5jbGlwYm9hcmQuRGVsZXRlZENsaXBib2FyZEVudGl0aWVzElcKEUNsZWFySGlzdG9yeUJhdGNoEhUueGlhb3dlaS5jb21tb24uRW1wdHkaKy54aWFvd2VpLmNsaXBib2FyZC5EZWxldGVkQ2xpcGJvYXJkRW50aXRpZXMScAoOSGFzaFJlZmVyZW5jZWQSLS54aWFvd2VpLmNsaXBib2FyZC5DbGlwYm9hcmRFbnRpdHlIYXNoUmVxdWVzdBovLnhpYW93ZWkuY2xpcGJvYXJkLkNsaXBib2FyZEVudGl0eUhhc2hSZWZlcmVuY2ViBnByb3RvMw", [file_xiaowei_common]);
 
 /**
  * History summary. ReadText and ReadImage return the complete content.
@@ -458,6 +458,63 @@ export const ClearHistoryResponseSchema: GenMessage<ClearHistoryResponse> = /*@_
   messageDesc(file_xiaowei_clipboard, 17);
 
 /**
+ * @generated from message xiaowei.clipboard.PurgeOrdinaryResponse
+ */
+export type PurgeOrdinaryResponse = Message<"xiaowei.clipboard.PurgeOrdinaryResponse"> & {
+  /**
+   * Count of records older than the request instant with no favorite, remark or category.
+   *
+   * @generated from field: uint32 deleted_count = 1;
+   */
+  deletedCount: number;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.PurgeOrdinaryResponse.
+ * Use `create(PurgeOrdinaryResponseSchema)` to create a new message.
+ */
+export const PurgeOrdinaryResponseSchema: GenMessage<PurgeOrdinaryResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 18);
+
+/**
+ * @generated from message xiaowei.clipboard.PurgeExpiredRequest
+ */
+export type PurgeExpiredRequest = Message<"xiaowei.clipboard.PurgeExpiredRequest"> & {
+  /**
+   * Retention policy in days: 1, 7, 15 or 30. Permanent retention skips this operation.
+   *
+   * @generated from field: int32 retention_days = 1;
+   */
+  retentionDays: number;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.PurgeExpiredRequest.
+ * Use `create(PurgeExpiredRequestSchema)` to create a new message.
+ */
+export const PurgeExpiredRequestSchema: GenMessage<PurgeExpiredRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 19);
+
+/**
+ * @generated from message xiaowei.clipboard.ClipboardStorageUsage
+ */
+export type ClipboardStorageUsage = Message<"xiaowei.clipboard.ClipboardStorageUsage"> & {
+  /**
+   * Bytes occupied by the shared database (including WAL) and clipboard attachments.
+   *
+   * @generated from field: uint64 used_bytes = 1;
+   */
+  usedBytes: bigint;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.ClipboardStorageUsage.
+ * Use `create(ClipboardStorageUsageSchema)` to create a new message.
+ */
+export const ClipboardStorageUsageSchema: GenMessage<ClipboardStorageUsage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 20);
+
+/**
  * @generated from message xiaowei.clipboard.ClipboardResourceRequest
  */
 export type ClipboardResourceRequest = Message<"xiaowei.clipboard.ClipboardResourceRequest"> & {
@@ -479,7 +536,7 @@ export type ClipboardResourceRequest = Message<"xiaowei.clipboard.ClipboardResou
  * Use `create(ClipboardResourceRequestSchema)` to create a new message.
  */
 export const ClipboardResourceRequestSchema: GenMessage<ClipboardResourceRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_clipboard, 18);
+  messageDesc(file_xiaowei_clipboard, 21);
 
 /**
  * @generated from message xiaowei.clipboard.CopyResourcePathRequest
@@ -506,7 +563,7 @@ export type CopyResourcePathRequest = Message<"xiaowei.clipboard.CopyResourcePat
  * Use `create(CopyResourcePathRequestSchema)` to create a new message.
  */
 export const CopyResourcePathRequestSchema: GenMessage<CopyResourcePathRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_clipboard, 19);
+  messageDesc(file_xiaowei_clipboard, 22);
 
 /**
  * @generated from message xiaowei.clipboard.ClipboardChanged
@@ -519,7 +576,343 @@ export type ClipboardChanged = Message<"xiaowei.clipboard.ClipboardChanged"> & {
  * Use `create(ClipboardChangedSchema)` to create a new message.
  */
 export const ClipboardChangedSchema: GenMessage<ClipboardChanged> = /*@__PURE__*/
-  messageDesc(file_xiaowei_clipboard, 20);
+  messageDesc(file_xiaowei_clipboard, 23);
+
+/**
+ * Internal persistence boundary for the clipboard owner. No SQL or table names cross it.
+ *
+ * @generated from message xiaowei.clipboard.ClipboardEntity
+ */
+export type ClipboardEntity = Message<"xiaowei.clipboard.ClipboardEntity"> & {
+  /**
+   * @generated from field: uint64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: optional string text = 3;
+   */
+  text?: string | undefined;
+
+  /**
+   * @generated from field: repeated string paths = 4;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: optional uint32 width = 5;
+   */
+  width?: number | undefined;
+
+  /**
+   * @generated from field: optional uint32 height = 6;
+   */
+  height?: number | undefined;
+
+  /**
+   * @generated from field: int64 created_at_ms = 7;
+   */
+  createdAtMs: bigint;
+
+  /**
+   * @generated from field: int64 last_used_at_ms = 8;
+   */
+  lastUsedAtMs: bigint;
+
+  /**
+   * @generated from field: uint32 use_count = 9;
+   */
+  useCount: number;
+
+  /**
+   * @generated from field: bool favorite = 10;
+   */
+  favorite: boolean;
+
+  /**
+   * @generated from field: optional string remark = 11;
+   */
+  remark?: string | undefined;
+
+  /**
+   * @generated from field: optional uint64 category_id = 12;
+   */
+  categoryId?: bigint | undefined;
+
+  /**
+   * @generated from field: string hash = 13;
+   */
+  hash: string;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.ClipboardEntity.
+ * Use `create(ClipboardEntitySchema)` to create a new message.
+ */
+export const ClipboardEntitySchema: GenMessage<ClipboardEntity> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 24);
+
+/**
+ * @generated from message xiaowei.clipboard.ClipboardEntityList
+ */
+export type ClipboardEntityList = Message<"xiaowei.clipboard.ClipboardEntityList"> & {
+  /**
+   * @generated from field: repeated xiaowei.clipboard.ClipboardEntity entities = 1;
+   */
+  entities: ClipboardEntity[];
+};
+
+/**
+ * Describes the message xiaowei.clipboard.ClipboardEntityList.
+ * Use `create(ClipboardEntityListSchema)` to create a new message.
+ */
+export const ClipboardEntityListSchema: GenMessage<ClipboardEntityList> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 25);
+
+/**
+ * @generated from message xiaowei.clipboard.OptionalClipboardEntity
+ */
+export type OptionalClipboardEntity = Message<"xiaowei.clipboard.OptionalClipboardEntity"> & {
+  /**
+   * @generated from field: xiaowei.clipboard.ClipboardEntity entity = 1;
+   */
+  entity?: ClipboardEntity | undefined;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.OptionalClipboardEntity.
+ * Use `create(OptionalClipboardEntitySchema)` to create a new message.
+ */
+export const OptionalClipboardEntitySchema: GenMessage<OptionalClipboardEntity> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 26);
+
+/**
+ * @generated from message xiaowei.clipboard.CaptureClipboardEntityRequest
+ */
+export type CaptureClipboardEntityRequest = Message<"xiaowei.clipboard.CaptureClipboardEntityRequest"> & {
+  /**
+   * @generated from field: string hash = 1;
+   */
+  hash: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: optional string text = 3;
+   */
+  text?: string | undefined;
+
+  /**
+   * @generated from field: repeated string paths = 4;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: optional uint32 width = 5;
+   */
+  width?: number | undefined;
+
+  /**
+   * @generated from field: optional uint32 height = 6;
+   */
+  height?: number | undefined;
+
+  /**
+   * @generated from field: int64 created_at_ms = 7;
+   */
+  createdAtMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.CaptureClipboardEntityRequest.
+ * Use `create(CaptureClipboardEntityRequestSchema)` to create a new message.
+ */
+export const CaptureClipboardEntityRequestSchema: GenMessage<CaptureClipboardEntityRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 27);
+
+/**
+ * @generated from message xiaowei.clipboard.TouchClipboardEntityRequest
+ */
+export type TouchClipboardEntityRequest = Message<"xiaowei.clipboard.TouchClipboardEntityRequest"> & {
+  /**
+   * @generated from field: uint64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: int64 used_at_ms = 2;
+   */
+  usedAtMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.TouchClipboardEntityRequest.
+ * Use `create(TouchClipboardEntityRequestSchema)` to create a new message.
+ */
+export const TouchClipboardEntityRequestSchema: GenMessage<TouchClipboardEntityRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 28);
+
+/**
+ * @generated from message xiaowei.clipboard.EditClipboardEntityTextRequest
+ */
+export type EditClipboardEntityTextRequest = Message<"xiaowei.clipboard.EditClipboardEntityTextRequest"> & {
+  /**
+   * @generated from field: uint64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string hash = 2;
+   */
+  hash: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string text = 4;
+   */
+  text: string;
+
+  /**
+   * @generated from field: int64 edited_at_ms = 5;
+   */
+  editedAtMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.EditClipboardEntityTextRequest.
+ * Use `create(EditClipboardEntityTextRequestSchema)` to create a new message.
+ */
+export const EditClipboardEntityTextRequestSchema: GenMessage<EditClipboardEntityTextRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 29);
+
+/**
+ * @generated from message xiaowei.clipboard.AttachmentReference
+ */
+export type AttachmentReference = Message<"xiaowei.clipboard.AttachmentReference"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string hash = 2;
+   */
+  hash: string;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.AttachmentReference.
+ * Use `create(AttachmentReferenceSchema)` to create a new message.
+ */
+export const AttachmentReferenceSchema: GenMessage<AttachmentReference> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 30);
+
+/**
+ * @generated from message xiaowei.clipboard.EditClipboardEntityTextResponse
+ */
+export type EditClipboardEntityTextResponse = Message<"xiaowei.clipboard.EditClipboardEntityTextResponse"> & {
+  /**
+   * @generated from field: xiaowei.clipboard.ClipboardEntity entity = 1;
+   */
+  entity?: ClipboardEntity | undefined;
+
+  /**
+   * @generated from field: xiaowei.clipboard.AttachmentReference previous_attachment = 2;
+   */
+  previousAttachment?: AttachmentReference | undefined;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.EditClipboardEntityTextResponse.
+ * Use `create(EditClipboardEntityTextResponseSchema)` to create a new message.
+ */
+export const EditClipboardEntityTextResponseSchema: GenMessage<EditClipboardEntityTextResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 31);
+
+/**
+ * @generated from message xiaowei.clipboard.DeletedClipboardEntities
+ */
+export type DeletedClipboardEntities = Message<"xiaowei.clipboard.DeletedClipboardEntities"> & {
+  /**
+   * @generated from field: uint32 deleted_count = 1;
+   */
+  deletedCount: number;
+
+  /**
+   * @generated from field: repeated xiaowei.clipboard.AttachmentReference attachments = 2;
+   */
+  attachments: AttachmentReference[];
+};
+
+/**
+ * Describes the message xiaowei.clipboard.DeletedClipboardEntities.
+ * Use `create(DeletedClipboardEntitiesSchema)` to create a new message.
+ */
+export const DeletedClipboardEntitiesSchema: GenMessage<DeletedClipboardEntities> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 32);
+
+/**
+ * @generated from message xiaowei.clipboard.PurgeClipboardEntitiesRequest
+ */
+export type PurgeClipboardEntitiesRequest = Message<"xiaowei.clipboard.PurgeClipboardEntitiesRequest"> & {
+  /**
+   * @generated from field: int64 cutoff_ms = 1;
+   */
+  cutoffMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.PurgeClipboardEntitiesRequest.
+ * Use `create(PurgeClipboardEntitiesRequestSchema)` to create a new message.
+ */
+export const PurgeClipboardEntitiesRequestSchema: GenMessage<PurgeClipboardEntitiesRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 33);
+
+/**
+ * @generated from message xiaowei.clipboard.ClipboardEntityHashRequest
+ */
+export type ClipboardEntityHashRequest = Message<"xiaowei.clipboard.ClipboardEntityHashRequest"> & {
+  /**
+   * @generated from field: string hash = 1;
+   */
+  hash: string;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.ClipboardEntityHashRequest.
+ * Use `create(ClipboardEntityHashRequestSchema)` to create a new message.
+ */
+export const ClipboardEntityHashRequestSchema: GenMessage<ClipboardEntityHashRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 34);
+
+/**
+ * @generated from message xiaowei.clipboard.ClipboardEntityHashReference
+ */
+export type ClipboardEntityHashReference = Message<"xiaowei.clipboard.ClipboardEntityHashReference"> & {
+  /**
+   * @generated from field: bool referenced = 1;
+   */
+  referenced: boolean;
+};
+
+/**
+ * Describes the message xiaowei.clipboard.ClipboardEntityHashReference.
+ * Use `create(ClipboardEntityHashReferenceSchema)` to create a new message.
+ */
+export const ClipboardEntityHashReferenceSchema: GenMessage<ClipboardEntityHashReference> = /*@__PURE__*/
+  messageDesc(file_xiaowei_clipboard, 35);
 
 /**
  * @generated from enum xiaowei.clipboard.ClipboardKind
@@ -553,11 +946,11 @@ export const ClipboardKindSchema: GenEnum<ClipboardKind> = /*@__PURE__*/
   enumDesc(file_xiaowei_clipboard, 0);
 
 /**
- * @generated from service xiaowei.clipboard.Clipboard
+ * @generated from service xiaowei.clipboard.ClipboardBiz
  */
-export const Clipboard: GenService<{
+export const ClipboardBiz: GenService<{
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.List
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.List
    */
   list: {
     methodKind: "unary";
@@ -565,7 +958,7 @@ export const Clipboard: GenService<{
     output: typeof ClipboardItemsSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.Get
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.Get
    */
   get: {
     methodKind: "unary";
@@ -573,7 +966,7 @@ export const Clipboard: GenService<{
     output: typeof OptionalItemSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.ReadText
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.ReadText
    */
   readText: {
     methodKind: "unary";
@@ -581,7 +974,7 @@ export const Clipboard: GenService<{
     output: typeof ReadTextResponseSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.ReadImage
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.ReadImage
    */
   readImage: {
     methodKind: "unary";
@@ -589,7 +982,7 @@ export const Clipboard: GenService<{
     output: typeof ReadImageResponseSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.Copy
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.Copy
    */
   copy: {
     methodKind: "unary";
@@ -597,7 +990,17 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.Delete
+   * Copies a selected item, hides the invoking Launcher, then pastes if enabled.
+   *
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.Select
+   */
+  select: {
+    methodKind: "unary";
+    input: typeof ClipboardItemRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.Delete
    */
   delete: {
     methodKind: "unary";
@@ -605,7 +1008,7 @@ export const Clipboard: GenService<{
     output: typeof DeleteResponseSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.SetFavorite
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.SetFavorite
    */
   setFavorite: {
     methodKind: "unary";
@@ -613,7 +1016,7 @@ export const Clipboard: GenService<{
     output: typeof SetFavoriteResponseSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.ClearHistory
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.ClearHistory
    */
   clearHistory: {
     methodKind: "unary";
@@ -621,7 +1024,33 @@ export const Clipboard: GenService<{
     output: typeof ClearHistoryResponseSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.Categories
+   * Captures the current instant on the owner, then removes only ordinary records last used before it.
+   *
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.PurgeOrdinary
+   */
+  purgeOrdinary: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof PurgeOrdinaryResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.PurgeExpired
+   */
+  purgeExpired: {
+    methodKind: "unary";
+    input: typeof PurgeExpiredRequestSchema;
+    output: typeof PurgeOrdinaryResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.StorageUsage
+   */
+  storageUsage: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof ClipboardStorageUsageSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.Categories
    */
   categories: {
     methodKind: "unary";
@@ -629,7 +1058,7 @@ export const Clipboard: GenService<{
     output: typeof ClipboardCategoriesSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.SaveCategory
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.SaveCategory
    */
   saveCategory: {
     methodKind: "unary";
@@ -637,7 +1066,7 @@ export const Clipboard: GenService<{
     output: typeof ClipboardCategorySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.DeleteCategory
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.DeleteCategory
    */
   deleteCategory: {
     methodKind: "unary";
@@ -645,7 +1074,7 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.SetRemark
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.SetRemark
    */
   setRemark: {
     methodKind: "unary";
@@ -653,7 +1082,7 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.EditText
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.EditText
    */
   editText: {
     methodKind: "unary";
@@ -661,7 +1090,7 @@ export const Clipboard: GenService<{
     output: typeof ClipboardItemSchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.SetCategory
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.SetCategory
    */
   setCategory: {
     methodKind: "unary";
@@ -669,7 +1098,7 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.OpenResource
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.OpenResource
    */
   openResource: {
     methodKind: "unary";
@@ -677,7 +1106,7 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.RevealResource
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.RevealResource
    */
   revealResource: {
     methodKind: "unary";
@@ -685,7 +1114,7 @@ export const Clipboard: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * @generated from rpc xiaowei.clipboard.Clipboard.CopyResourcePath
+   * @generated from rpc xiaowei.clipboard.ClipboardBiz.CopyResourcePath
    */
   copyResourcePath: {
     methodKind: "unary";
@@ -694,4 +1123,133 @@ export const Clipboard: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_xiaowei_clipboard, 0);
+
+/**
+ * @generated from service xiaowei.clipboard.ClipboardDao
+ */
+export const ClipboardDao: GenService<{
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.Capture
+   */
+  capture: {
+    methodKind: "unary";
+    input: typeof CaptureClipboardEntityRequestSchema;
+    output: typeof ClipboardEntitySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.List
+   */
+  list: {
+    methodKind: "unary";
+    input: typeof ClipboardListOptionsSchema;
+    output: typeof ClipboardEntityListSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.Get
+   */
+  get: {
+    methodKind: "unary";
+    input: typeof ClipboardItemRequestSchema;
+    output: typeof OptionalClipboardEntitySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.Touch
+   */
+  touch: {
+    methodKind: "unary";
+    input: typeof TouchClipboardEntityRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.SetFavorite
+   */
+  setFavorite: {
+    methodKind: "unary";
+    input: typeof FavoriteRequestSchema;
+    output: typeof SetFavoriteResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.SetRemark
+   */
+  setRemark: {
+    methodKind: "unary";
+    input: typeof SetRemarkRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.SetCategory
+   */
+  setCategory: {
+    methodKind: "unary";
+    input: typeof SetCategoryRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.Categories
+   */
+  categories: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof ClipboardCategoriesSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.SaveCategory
+   */
+  saveCategory: {
+    methodKind: "unary";
+    input: typeof SaveCategoryRequestSchema;
+    output: typeof ClipboardCategorySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.DeleteCategory
+   */
+  deleteCategory: {
+    methodKind: "unary";
+    input: typeof ClipboardCategoryRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.EditText
+   */
+  editText: {
+    methodKind: "unary";
+    input: typeof EditClipboardEntityTextRequestSchema;
+    output: typeof EditClipboardEntityTextResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.Delete
+   */
+  delete: {
+    methodKind: "unary";
+    input: typeof ClipboardItemRequestSchema;
+    output: typeof DeletedClipboardEntitiesSchema;
+  },
+  /**
+   * Each delete call removes at most 100 records. The caller repeats until fewer are returned.
+   *
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.PurgeOrdinaryBatch
+   */
+  purgeOrdinaryBatch: {
+    methodKind: "unary";
+    input: typeof PurgeClipboardEntitiesRequestSchema;
+    output: typeof DeletedClipboardEntitiesSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.ClearHistoryBatch
+   */
+  clearHistoryBatch: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof DeletedClipboardEntitiesSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.clipboard.ClipboardDao.HashReferenced
+   */
+  hashReferenced: {
+    methodKind: "unary";
+    input: typeof ClipboardEntityHashRequestSchema;
+    output: typeof ClipboardEntityHashReferenceSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_xiaowei_clipboard, 1);
 

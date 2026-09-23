@@ -47,6 +47,8 @@ message SearchRequest {
   string query = 1;
   reserved 2;
   reserved "development";
+  // Omitted retains bookmark results for callers that do not provide a setting.
+  optional bool include_chrome_bookmarks = 3;
 }
 
 message SearchResults {

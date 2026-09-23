@@ -15,7 +15,13 @@ import { ClipboardPage } from "./ClipboardPage";
 import { LauncherSearchBar } from "./LauncherSearchBar";
 import { SearchResultList } from "./SearchResultList";
 
-export function Launcher({ services = defaultServices }: { services?: Services }) {
+export function Launcher({
+  services = defaultServices,
+  refreshToken = 0,
+}: {
+  services?: Services;
+  refreshToken?: number;
+}) {
   const api = services.getLauncher();
   const gateway = services.getGateway();
   const [clipboardOpen, setClipboardOpen] = useState(false);
@@ -67,18 +73,18 @@ export function Launcher({ services = defaultServices }: { services?: Services }
   }, [gateway, clipboardOpen, changeQuery]);
   useEffect(() => {
     let active = true;
-    const current = revision.current;
+    const current = `${revision.current}:${refreshToken}`;
     api
       .query(create(LauncherQueryRequestSchema, { query }))
       .then((result) => {
-        if (active && current === revision.current) {
+        if (active && current === `${revision.current}:${refreshToken}`) {
           pending.current = false;
           setResponse(result);
           setSelected(0);
         }
       })
       .catch(() => {
-        if (active && current === revision.current) {
+        if (active && current === `${revision.current}:${refreshToken}`) {
           pending.current = false;
           setResponse({ token: 0, hits: [] });
           setError("搜索失败，请重试");
@@ -87,7 +93,7 @@ export function Launcher({ services = defaultServices }: { services?: Services }
     return () => {
       active = false;
     };
-  }, [query, api]);
+  }, [query, api, refreshToken]);
   useEffect(() => {
     const request = create(UpdateLayoutRequestSchema, {
       resultCount: error ? 1 : response.hits.length,
@@ -125,14 +131,7 @@ export function Launcher({ services = defaultServices }: { services?: Services }
     }
   }
   if (clipboardOpen)
-    return (
-      <ClipboardPage
-        onHide={hide}
-        onResetPosition={resetPosition}
-        services={services}
-        onBack={() => setClipboardOpen(false)}
-      />
-    );
+    return <ClipboardPage onResetPosition={resetPosition} services={services} onBack={() => setClipboardOpen(false)} />;
   return (
     <div className="h-screen">
       <LauncherSearchBar

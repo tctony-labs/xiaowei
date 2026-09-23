@@ -4,6 +4,10 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
+import { create } from "@bufbuild/protobuf";
+import { EmptySchema, Settings, SettingsChangedSchema, SettingsSnapshotSchema } from "xiaowei-contracts";
+import { bindEvent, bindHandlers } from "xiaowei-gateway";
+import type { GatewayHost } from "xiaowei-gateway/host";
 
 const require = createRequire(new URL("../../../../desktop/package.json", import.meta.url));
 const calls: string[] = [];
@@ -25,8 +29,12 @@ mock.module(require.resolve("xiaowei-storage"), {
     Storage: {
       async open() {
         calls.push("open-storage");
-        if (failure === "storage") throw new Error("storage failure");
-        return { createGatewayEndpoint: () => ({}) };
+        if (failure === "storage" || failure === "migration") throw new Error(`${failure} failure`);
+        return {
+          createKeyValueGatewayEndpoint: () => ({}),
+          createClipboardDaoGatewayEndpoint: () => ({}),
+          createSettingsGatewayEndpoint: () => ({}),
+        };
       },
     },
   },
@@ -36,6 +44,8 @@ mock.module(require.resolve("xiaowei-search"), {
 });
 mock.module(require.resolve("xiaowei-clipboard"), {
   exports: {
+    sendPasteShortcut: () => true,
+    requestAccessibilityPermission: () => true,
     ClipboardHistory: {
       async open() {
         calls.push("open-clipboard");
@@ -43,7 +53,6 @@ mock.module(require.resolve("xiaowei-clipboard"), {
           createGatewayEndpoint: () => ({}),
           async initialize() {
             calls.push("initialize");
-            if (failure === "migration") throw new Error("migration failure");
           },
           async startMonitoring() {
             calls.push("start");
@@ -59,11 +68,30 @@ mock.module(require.resolve("xiaowei-clipboard"), {
 });
 mock.module(import.meta.resolve("xiaowei-gateway/native"), {
   exports: {
-    async attachNative(_host: unknown, name: string) {
+    async attachNative(host: GatewayHost, name: string) {
       calls.push(`attach-${name}`);
+      const owner =
+        name === "settings"
+          ? host.registerOwner(
+              "settings-test",
+              bindHandlers(Settings, {
+                get: () =>
+                  create(SettingsSnapshotSchema, {
+                    clipboardEnabled: true,
+                    clipboardRetentionDays: 30,
+                    includeChromeBookmarks: true,
+                  }),
+                update: () => {
+                  throw new Error("Unexpected settings update");
+                },
+              }),
+              [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+            )
+          : undefined;
       return {
         async close() {
           calls.push(`close-${name}`);
+          owner?.close();
         },
       };
     },
@@ -91,6 +119,7 @@ const actions = {
   restart: async () => {},
   resetPosition() {},
   modeChanged() {},
+  updateShortcuts() {},
 };
 
 test("desktop startup failures unwind producers and owners before Storage closes", async () => {
@@ -108,15 +137,17 @@ test("desktop startup failures unwind producers and owners before Storage closes
         );
       } else {
         const gateway = await createApplicationGateway(directory, "unused.sqlite", directory, actions);
-        assert.ok(calls.indexOf("attach-storage") < calls.indexOf("initialize"));
+        assert.ok(calls.indexOf("attach-storage") < calls.indexOf("attach-clipboard-dao"));
+        assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
         if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
         await gateway.close();
         await gateway.close();
         assert.equal(calls.filter((call) => call === "close-storage").length, 1);
       }
-      if (stage !== "storage") {
+      if (stage !== "storage" && stage !== "migration") {
         assert.ok(calls.indexOf("stop") < calls.indexOf("close-clipboard"));
-        assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-storage"));
+        assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-clipboard-dao"));
+        assert.ok(calls.indexOf("close-clipboard-dao") < calls.indexOf("close-storage"));
       }
       assert.deepEqual(await readdir(directory), []);
     }

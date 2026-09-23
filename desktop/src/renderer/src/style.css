@@ -22,6 +22,7 @@
   --color-line: #e6e5e5;
   --color-subtle: #f0f0f0;
   --font-sans: "PingFang SC", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -63,6 +64,10 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-variant-ligatures: none;
+}
+
+kbd {
+  font-family: var(--font-mono);
 }
 
 .launcher-card {

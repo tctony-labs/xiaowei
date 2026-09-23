@@ -1,10 +1,25 @@
 //! Shared application persistence, owned by one Gateway endpoint.
 
-pub mod db;
+pub mod clipboard_dao;
+pub mod clipboard_dao_gateway;
+mod clipboard_migrations;
+mod db;
 pub mod gateway;
-pub mod meta;
-pub mod migration;
+#[allow(dead_code)]
+mod gateway_binding;
+mod meta;
+mod migration;
+pub mod settings;
+mod sql;
 mod validation;
+
+#[cfg(test)]
+mod tests {
+    mod db;
+    mod meta;
+    mod migration;
+    mod settings;
+}
 
 pub use db::Database;
 pub use xw_contracts::xiaowei::storage as pb;

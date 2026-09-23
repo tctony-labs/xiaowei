@@ -1,5 +1,7 @@
 //! Launcher 全局搜索核心。数据源与匹配不依赖 Electron 或 napi。
 pub mod gateway;
+#[allow(dead_code)]
+mod gateway_binding;
 pub use xw_platform::app_icon::read_app_icon;
 mod calculator;
 mod commands;
@@ -150,28 +152,34 @@ impl SearchEngine {
     }
 
     pub fn search_with_development(&self, query: &str, development: bool) -> Vec<SearchHit> {
+        self.search_with_options(query, development, true)
+    }
+
+    pub fn search_with_options(&self, query: &str, development: bool, include_bookmarks: bool) -> Vec<SearchHit> {
         let query = query.trim();
         if query.is_empty() || query.len() > 4096 {
             return Vec::new();
         }
         let mut scorer = scoring::FuzzyScorer::new(query);
         let mut hits = Vec::new();
-        if let Ok(items) = self.bookmarks.read() {
-            for (index, item) in items.iter().enumerate() {
-                if let Some(score) = scorer.best(
-                    [item.title.as_str(), item.url.as_str()],
-                    item.pinyin.iter().map(String::as_str),
-                ) {
-                    hits.push(SearchHit {
-                        id: format!("bookmark:{index}:{}", item.url),
-                        recency_key: format!("bookmark:{}", item.url),
-                        title: item.title.clone(),
-                        provider: "bookmark".into(),
-                        label: "网页".into(),
-                        score,
-                        ranges: Vec::new(),
-                        action: Action::OpenUrl(item.url.clone()),
-                    });
+        if include_bookmarks {
+            if let Ok(items) = self.bookmarks.read() {
+                for (index, item) in items.iter().enumerate() {
+                    if let Some(score) = scorer.best(
+                        [item.title.as_str(), item.url.as_str()],
+                        item.pinyin.iter().map(String::as_str),
+                    ) {
+                        hits.push(SearchHit {
+                            id: format!("bookmark:{index}:{}", item.url),
+                            recency_key: format!("bookmark:{}", item.url),
+                            title: item.title.clone(),
+                            provider: "bookmark".into(),
+                            label: "网页".into(),
+                            score,
+                            ranges: Vec::new(),
+                            action: Action::OpenUrl(item.url.clone()),
+                        });
+                    }
                 }
             }
         }

@@ -212,6 +212,33 @@ impl Service {
         Ok(changed)
     }
 
+    pub async fn purge_ordinary(&self) -> Result<usize> {
+        self.purge_ordinary_before(crate::store::current_time_ms()?).await
+    }
+
+    pub async fn purge_expired(&self, retention_days: i32) -> Result<usize> {
+        if !matches!(retention_days, 1 | 7 | 15 | 30) {
+            return Err("Invalid retention period".into());
+        }
+        let cutoff = crate::store::current_time_ms()? - i64::from(retention_days) * 24 * 60 * 60 * 1000;
+        self.purge_ordinary_before(cutoff).await
+    }
+
+    async fn purge_ordinary_before(&self, cutoff: i64) -> Result<usize> {
+        let count = {
+            let mut state = self.state.lock().await;
+            let count = state.store.purge_ordinary_before(cutoff).await?;
+            if count > 0 {
+                state.last_hash = None;
+            }
+            count
+        };
+        if count > 0 {
+            (self.on_change)();
+        }
+        Ok(count)
+    }
+
     pub async fn clear_history(&self) -> Result<usize> {
         let count = {
             let mut state = self.state.lock().await;

@@ -59,13 +59,15 @@ Storybook `Clipboard / Panel` 包含 History、Dark、Empty、Favorites、LongTe
 
 ## Settings
 
-设置 UI 位于 `desktop/src/renderer/src/components/settings/`，目前仅在 Storybook 使用，尚未接入产品窗口。范围及旧版源码清单见 [设置 UI 事项](../.agent/records/active/2026-09-18-settings-ui-inventory.md)。
+设置 UI 位于 `desktop/src/renderer/src/components/settings/`。第一阶段四页已复用同一组组件接入产品设置窗口；模型、智能体、对话归档仍只在 Storybook 展示。范围及旧版源码清单见 [设置 UI 事项](../.agent/records/active/2026-09-18-settings-ui-inventory.md)。
 
 Storybook 的 `Settings` 分组包含 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About，共 30 个展示场景；扩展不在本次范围。“清理全部”位于剪贴板已用存储空间下方，仅模拟清理中、完成及失败重试，说明保留收藏、备注或标签记录。“从旧版迁移数据”入口及模拟场景已按用户要求移除；旧数据迁移改为离线一次性迁移，对最终用户不可见，业务实现尚未完成。菜单保留默认页面、关键弹窗及必要空态、加载、错误场景；深色统一通过顶部主题按钮切换，其他数据变体通过 Controls 调整。框架保留 207px 侧栏、固定标题与内容滚动，旧版窗口基准为 800 × 600。所有 Settings 场景固定使用同尺寸的 Storybook viewport，使页面、滚动区域和挂到 body 的弹窗均按真实窗口展示；窗口在画布内水平、垂直居中，视口外框使用与 Launcher 一致的 12px 圆角（包含弹窗遮罩裁切），空间不足时滚动查看，不压缩窗口高度。
 
 页面组件通过 props／回调接收数据，`SettingsPreview.tsx` 仅提供预览用内存数据与模拟异步交互；登录、模型下载、联网校验、文件打开、更新和配置保存均不执行真实操作。预览左上角模拟 macOS 红黄绿窗口按钮，仅作外观展示，不响应点击；真实窗口控制待接入原生窗口时实现。快捷键录制不注册系统快捷键，归档删除仅删除模拟条目。关于页使用当前 Logo，旧版企业版权未显示。
 
-30 个交互检查迁入同目录的 8 个 `*.test.tsx`，覆盖导航、快捷键录制与重复处理、保留期限与跳转、提供商配置、模型选择及配置、搜索 Key 删除回退、剪贴板清理反馈和归档操作。使用 `pnpm --dir desktop test` 运行；Storybook 的 `play` 仅用于打开弹窗或展开配置以呈现指定视觉状态，不再展示纯流程测试。组件仍待用户视觉确认，未接入产品页面。
+30 个交互检查迁入同目录的 8 个 `*.test.tsx`，覆盖导航、快捷键录制与重复处理、保留期限与跳转、提供商配置、模型选择及配置、搜索 Key 删除回退、剪贴板清理反馈和归档操作。使用 `pnpm --dir desktop test` 运行；Storybook 的 `play` 仅用于打开弹窗或展开配置以呈现指定视觉状态，不再展示纯流程测试。`Settings/Window/PhaseOneScope` 已获用户确认，第一阶段产品沿用四页导航，并隐藏已暂缓的账号区、快速对话、图片提取和检查更新；原有 Storybook 场景继续保留这些 UI 作后续设计参考。产品原生窗口的视觉效果仍待运行验收。
+
+快捷键键帽沿用旧版 `ShortcutInput` 的 `<kbd>` 结构及旧版 `app.css` 的全局等宽字体规则。当前 Chrome 的等宽字体把修饰键符号画得与旧版截图不同；用户确认 Cmd 与 Shift 使用系统字形和 10px 字号，Storybook 与产品复用同一组件与样式。
 
 模型提供方配置采用“连接信息 → 获取可用模型 → 搜索、多选添加 → 逐模型配置 → 保存”的顺序，也支持手动添加模型 ID。预设提供方固定地址和协议，自定义提供方允许编辑；协议名称统一为 `openai-completions`、`openai-responses`、`anthropic-messages`。接口上下文上限是可选信息，缺失时允许手动填写；重新获取保留仍存在模型的手动覆盖。具体范围及 dsh 参考见设置 UI record。所有获取操作目前仅为 Storybook 模拟。
 

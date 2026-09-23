@@ -63,6 +63,7 @@ const sessionsFixture: ArchivedSession[] = [
 ];
 export interface PreviewProps {
   initialTab?: TabId;
+  phaseOne?: boolean;
   loading?: boolean;
   accountStatus?: AccountView["status"];
   loggedIn?: boolean;
@@ -117,7 +118,7 @@ export function SettingsPreview(props: PreviewProps) {
   );
   const [clipboard, setClipboard] = useState<ClipboardValues>({
     enabled: !props.clipboardDisabled,
-    autoPaste: true,
+    autoPaste: false,
     retention: 30,
   });
   const [refreshing, setRefreshing] = useState(props.storageRefreshing ?? false);
@@ -182,6 +183,7 @@ export function SettingsPreview(props: PreviewProps) {
           <GeneralSettings
             values={general}
             account={account}
+            showAccount={!props.phaseOne}
             onChange={(next) => {
               setGeneral(next);
               if (next.theme !== general.theme) document.documentElement.dataset.theme = next.theme;
@@ -202,13 +204,14 @@ export function SettingsPreview(props: PreviewProps) {
           />
         );
       case "shortcut":
-        return <ShortcutSettings values={shortcuts} onChange={setShortcuts} />;
+        return <ShortcutSettings values={shortcuts} onChange={setShortcuts} showQuickChat={!props.phaseOne} />;
       case "clipboard":
         return (
           <ClipboardSettings
             values={clipboard}
             onChange={setClipboard}
             localModelEnabled={models.localEnabled}
+            showImageExtraction={!props.phaseOne}
             onOpenModels={() => {
               setTab("llm");
               setHighlight(true);
@@ -323,6 +326,7 @@ export function SettingsPreview(props: PreviewProps) {
             version={props.noVersion ? "" : "0.1.0"}
             development={props.development ?? false}
             onCheckUpdate={() => setToast("检查更新（预览）")}
+            showCheckUpdate={!props.phaseOne}
           />
         );
     }
@@ -338,6 +342,7 @@ export function SettingsPreview(props: PreviewProps) {
       <SettingsLayout
         activeTab={tab}
         loading={props.loading}
+        availableTabs={props.phaseOne ? ["general", "shortcut", "clipboard", "about"] : undefined}
         onNavigate={(next) => {
           setTab(next);
           setHighlight(false);

@@ -8,6 +8,15 @@ afterEach(() => {
   Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
+test("automatic paste starts disabled and can be enabled manually", async () => {
+  const { container } = render(<SettingsPreview initialTab="clipboard" />);
+  const toggle = within(container).getByRole("switch", { name: "自动粘贴" });
+  expect(toggle).not.toBeChecked();
+
+  await userEvent.click(toggle);
+  expect(toggle).toBeChecked();
+});
+
 test("CleanupInteraction", async () => {
   const { container: canvasElement } = render(<SettingsPreview initialTab="clipboard" />);
   const canvas = within(canvasElement);

@@ -5,10 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use xw_contracts::xiaowei::{app, common as c, search as pb, system};
 use xw_gateway::{ErrorCode, GatewayError, InvokeRegistration};
 
-#[allow(dead_code)]
-#[path = "gateway_bindings.rs"]
-mod bindings;
-use bindings::{
+use crate::gateway_binding::{
     xiaowei_app_app_service as app_methods, xiaowei_search_search_service as methods,
     xiaowei_system_system_service as system_methods,
 };
@@ -67,7 +64,7 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
                         .map_err(|_| error("Search engine unavailable"))?;
                     Ok(pb::SearchResults {
                         hits: engine
-                            .search_with_development(&r.query, development)
+                            .search_with_options(&r.query, development, r.include_chrome_bookmarks.unwrap_or(true))
                             .into_iter()
                             .map(|hit| {
                                 use pb::search_action::Action as WireAction;

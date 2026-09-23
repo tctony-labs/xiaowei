@@ -129,11 +129,13 @@ export default function SettingsLayout({
   onNavigate,
   children,
   loading = false,
+  availableTabs,
 }: {
   activeTab: TabId;
   onNavigate: (tab: TabId) => void;
   children: ReactNode;
   loading?: boolean;
+  availableTabs?: readonly TabId[];
 }) {
   return (
     <div className="settings-layout flex h-full w-full text-ink">
@@ -145,7 +147,7 @@ export default function SettingsLayout({
         <>
           <nav aria-label="设置导航" className="settings-fill flex w-[207px] shrink-0 flex-col pt-8">
             <div className="flex flex-col gap-1.5 px-2">
-              {TABS.map((tab) => (
+              {TABS.filter((tab) => !availableTabs || availableTabs.includes(tab.id)).map((tab) => (
                 <button
                   key={tab.id}
                   type="button"

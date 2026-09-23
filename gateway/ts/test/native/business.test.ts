@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import {
-  Clipboard,
+  ClipboardBiz,
   ClipboardCategoryRequestSchema,
   ClipboardChangedSchema,
   ClipboardItemRequestSchema,
@@ -38,11 +38,12 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
   const { Storage } =
     require("../../../../crates/xiaowei-storage/napi") as typeof import("../../../../crates/xiaowei-storage/napi/index.js");
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachNative(host, "storage", storage.createGatewayEndpoint());
+  const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachNative(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
   const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
   const client = host.client({ caller: "test", trusted: true });
-  const api = bindClient(Clipboard, client);
+  const api = bindClient(ClipboardBiz, client);
   let changed = 0;
   const subscription = await client.subscribe(ClipboardChangedSchema.typeName, undefined, () => {
     changed++;
@@ -54,11 +55,11 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     const item = (id: bigint) => create(ClipboardItemRequestSchema, { id });
     assert.equal((await api.get(item(key))).item?.previewText, added.text);
     const restricted = bindClient(
-      Clipboard,
+      ClipboardBiz,
       host.client({
         caller: "restricted-clipboard",
         trusted: false,
-        invoke: [methodRoute(Clipboard.method.get).name],
+        invoke: [methodRoute(ClipboardBiz.method.get).name],
       }),
     );
     await assert.rejects(restricted.get(item(key)), /Unauthorized/);
@@ -105,6 +106,7 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     subscription.close();
     await history.stopMonitoring();
     await owner.close();
+    await daoOwner.close();
     await storageOwner.close();
     await rm(directory, { recursive: true, force: true });
   }

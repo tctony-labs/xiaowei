@@ -7,7 +7,7 @@
     "node": ">=26.3.1 <27"
   },
   "scripts": {
-    "check": "pnpm contracts:check && biome check . && pnpm -r check",
+    "check": "pnpm contracts:check && pnpm gateway:check && biome check . && pnpm -r check",
     "fmt": "biome check --write .",
     "test": "pnpm build:native && pnpm test:tooling && pnpm -r test",
     "build:native": "pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug",
@@ -16,6 +16,8 @@
     "contracts:generate": "node contracts/generate.mjs",
     "contracts:check": "node contracts/generate.mjs --check",
     "contracts:test": "node contracts/tests/codec.mjs",
+    "gateway:generate": "cargo run --locked -q -p xw-gateway --example generate_business -- --write",
+    "gateway:check": "cargo run --locked -q -p xw-gateway --example generate_business -- --check",
     "gateway:test-native": "node gateway/tests/native.mjs",
     "test:tooling": "node --test scripts/dev/*.test.mjs"
   },

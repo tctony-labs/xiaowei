@@ -1,6 +1,7 @@
-mod database;
+mod dao;
 pub mod gateway;
-pub mod migrations;
+#[allow(dead_code)]
+mod gateway_binding;
 mod service;
 mod store;
 mod toolkit;

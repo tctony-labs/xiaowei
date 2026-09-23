@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package xiaowei.storage;
+
+import "xiaowei/common.proto";
+
+message KvKey {
+  // Full, case-sensitive key, 1–1024 UTF-8 bytes. setting.* and migration_v2.* are reserved.
+  string key = 1;
+}
+
+message KvEntry {
+  string key = 1;
+  // Valid JSON text, at most 1 MiB. The JSON literal null is a stored value.
+  string json = 2;
+}
+
+message KvValue {
+  // Missing means no key exists; "null" means the JSON null value exists.
+  optional string json = 1;
+}
+
+message KvDeleted {
+  bool deleted = 1;
+}
+
+message KvPrefix {
+  // Literal, case-sensitive prefix; % and _ are ordinary characters. Empty lists public keys.
+  string prefix = 1;
+}
+
+message KvEntries {
+  // Full public keys in binary sort order. Oversize lists fail instead of truncating.
+  repeated KvEntry entries = 1;
+}
+
+service KeyValue {
+  rpc Get(KvKey) returns (KvValue);
+
+  rpc Set(KvEntry) returns (xiaowei.common.Empty);
+
+  rpc Delete(KvKey) returns (KvDeleted);
+
+  // At most 10000 rows / 4 MiB, including keys and values.
+  rpc List(KvPrefix) returns (KvEntries);
+}

@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 use xiaowei_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
-use xw_contracts::xiaowei::clipboard::{ClipboardItemRequest, ClipboardListOptions};
+use xw_contracts::xiaowei::clipboard::{ClipboardItemRequest, ClipboardListOptions, PurgeExpiredRequest};
 use xw_gateway::{CallContext, XwInvokeRegistry};
 
 #[allow(dead_code)]
-#[path = "../src/gateway_bindings.rs"]
+#[path = "../src/gateway_binding.rs"]
 mod bindings;
-use bindings::xiaowei_clipboard_clipboard_service as methods;
+use bindings::xiaowei_clipboard_clipboard_biz_service as methods;
 
 struct Backend(Arc<Mutex<Option<ClipboardData>>>);
 impl ClipboardBackend for Backend {
@@ -42,6 +42,15 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
     registry
         .register_owner("storage", xiaowei_storage::gateway::registrations(&database), vec![])
         .unwrap();
+    registry
+        .register_owner(
+            "clipboard-dao",
+            xiaowei_storage::clipboard_dao_gateway::registrations(&Arc::new(
+                xiaowei_storage::clipboard_dao::ClipboardDao::new(database.clone()),
+            )),
+            vec![],
+        )
+        .unwrap();
     let client = registry.client(CallContext::trusted("clipboard"));
     let service = Arc::new(Service::open(dir.path(), client, Backend(backend), || {}).unwrap());
     service.initialize().await.unwrap();
@@ -68,6 +77,19 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
             .unwrap()
             .png,
         data
+    );
+
+    assert!(methods::PURGE_EXPIRED
+        .call(&client, PurgeExpiredRequest { retention_days: 0 })
+        .await
+        .is_err());
+    assert_eq!(
+        methods::PURGE_EXPIRED
+            .call(&client, PurgeExpiredRequest { retention_days: 30 })
+            .await
+            .unwrap()
+            .deleted_count,
+        0
     );
 
     assert!(methods::GET

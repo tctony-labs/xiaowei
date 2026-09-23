@@ -1,12 +1,12 @@
 use crate::db::{run, Budget};
-use crate::{invalid, pb, Database, Result};
+use crate::{invalid, sql, Database, Result};
 use sqlx::SqliteConnection;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const PREFIX: &str = "migration_v2.";
 
-fn validate_registry(migrations: &[pb::DatabaseMigration]) -> Result<()> {
+fn validate_registry(migrations: &[sql::DatabaseMigration]) -> Result<()> {
     let mut names = HashSet::new();
     for migration in migrations {
         let name = migration.name.as_bytes();
@@ -29,8 +29,8 @@ fn validate_registry(migrations: &[pb::DatabaseMigration]) -> Result<()> {
 
 async fn states(
     connection: &mut SqliteConnection,
-    migrations: &[pb::DatabaseMigration],
-) -> Result<pb::DatabaseMigrationStates> {
+    migrations: &[sql::DatabaseMigration],
+) -> Result<sql::DatabaseMigrationStates> {
     let stored: Vec<(String, String)> =
         sqlx::query_as("SELECT key,value FROM meta WHERE substr(key,1,13)='migration_v2.'")
             .fetch_all(&mut *connection)
@@ -54,22 +54,28 @@ async fn states(
             return Err(invalid("Applied migrations are not a prefix of the supplied registry"));
         }
         missing |= applied.is_none();
-        result.push(pb::DatabaseMigrationState {
+        result.push(sql::DatabaseMigrationState {
             name: migration.name.clone(),
             applied_at_seconds: applied.map(|(_, value)| serde_json::from_str(value)).transpose()?,
         });
     }
-    Ok(pb::DatabaseMigrationStates { states: result })
+    Ok(sql::DatabaseMigrationStates { states: result })
 }
 
 impl Database {
-    pub async fn migration_status(&self, request: pb::DatabaseMigrations) -> Result<pb::DatabaseMigrationStates> {
+    pub(crate) async fn migration_status(
+        &self,
+        request: sql::DatabaseMigrations,
+    ) -> Result<sql::DatabaseMigrationStates> {
         validate_registry(&request.migrations)?;
         let mut connection = self.pool.acquire().await?;
         states(&mut connection, &request.migrations).await
     }
 
-    pub async fn apply_migrations(&self, request: pb::DatabaseMigrations) -> Result<pb::DatabaseMigrationStates> {
+    pub(crate) async fn apply_migrations(
+        &self,
+        request: sql::DatabaseMigrations,
+    ) -> Result<sql::DatabaseMigrationStates> {
         validate_registry(&request.migrations)?;
         for migration in &request.migrations {
             let mut transaction = self.pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -96,7 +102,8 @@ impl Database {
         self.migration_status(request).await
     }
 
-    pub async fn rollback(&self, request: pb::DatabaseRollback) -> Result<pb::DatabaseMigrationStates> {
+    #[allow(dead_code)]
+    pub(crate) async fn rollback(&self, request: sql::DatabaseRollback) -> Result<sql::DatabaseMigrationStates> {
         validate_registry(&request.migrations)?;
         let mut transaction = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let current = states(&mut transaction, &request.migrations).await?;
@@ -119,7 +126,7 @@ impl Database {
             .execute(&mut *transaction)
             .await?;
         transaction.commit().await?;
-        self.migration_status(pb::DatabaseMigrations {
+        self.migration_status(sql::DatabaseMigrations {
             migrations: request.migrations,
         })
         .await
@@ -129,7 +136,7 @@ impl Database {
 async fn execute_statements(connection: &mut SqliteConnection, statements: &[String]) -> Result<()> {
     let mut budget = Budget::default();
     for sql in statements {
-        let statement = pb::SqlStatement {
+        let statement = sql::SqlStatement {
             sql: sql.clone(),
             ..Default::default()
         };

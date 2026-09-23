@@ -38,6 +38,14 @@ fn merges_calculator_bookmarks_and_apps_with_pinyin_and_highlight() {
     assert_eq!(hits[0].provider, "calculator");
     assert_eq!(hits[0].action, Action::CopyText("3".into()));
     assert!(hits.iter().any(|h| h.provider == "bookmark"));
+    assert!(!engine
+        .search_with_options("1+2", false, false)
+        .iter()
+        .any(|h| h.provider == "bookmark"));
+    assert!(engine
+        .search_with_options("1+2", false, false)
+        .iter()
+        .any(|h| h.provider == "calculator"));
     assert!(!engine.search("42").iter().any(|h| h.provider == "calculator"));
     let url_match = engine.search("example.test/report");
     assert!(url_match.iter().find(|h| h.id == report.id).unwrap().ranges.is_empty());

@@ -94,6 +94,9 @@ impl ::prost::Name for RecordUsageRequest {
 pub struct SearchRequest {
     #[prost(string, tag = "1")]
     pub query: ::prost::alloc::string::String,
+    /// Omitted retains bookmark results for callers that do not provide a setting.
+    #[prost(bool, optional, tag = "3")]
+    pub include_chrome_bookmarks: ::core::option::Option<bool>,
 }
 impl ::prost::Name for SearchRequest {
     const NAME: &'static str = "SearchRequest";

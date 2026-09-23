@@ -45,4 +45,5 @@ run([
   "--experimental-test-module-mocks",
   "--test",
   "test/native/lifecycle.test.ts",
+  "test/native/selection.test.ts",
 ]);

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import {
-  Clipboard,
+  ClipboardBiz,
   ClipboardCategoriesSchema,
   ClipboardChangedSchema,
   ClipboardItemsSchema,
@@ -61,7 +61,7 @@ function preview(clipboardMode = false) {
   };
   host.registerOwner(
     "clipboard",
-    bindHandlers(Clipboard, {
+    bindHandlers(ClipboardBiz, {
       list: () => create(ClipboardItemsSchema),
       categories: () => {
         if (!subscribed) throw new Error("Snapshot requested before subscription ready");
@@ -71,9 +71,13 @@ function preview(clipboardMode = false) {
       readText: unused,
       readImage: unused,
       copy: unused,
+      select: unused,
       delete: unused,
       setFavorite: unused,
       clearHistory: unused,
+      purgeOrdinary: unused,
+      purgeExpired: unused,
+      storageUsage: unused,
       saveCategory: unused,
       deleteCategory: unused,
       setRemark: unused,
