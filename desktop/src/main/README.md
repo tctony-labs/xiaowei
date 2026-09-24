@@ -40,6 +40,7 @@ desktop/src/main/
 
 ## Gateway 装配与生命周期
 
+- 业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../../../gateway/README.md#接入约定)。
 - main 只创建一个 host。业务 endpoint 复用其模块持有的实例，不能因接入 Gateway 再建一份业务状态。
 - 先接入依赖，再初始化业务模块、启动模块的后台服务；退出时先关闭 Electron 请求入口，再关闭消费者，最后关闭 Storage 等依赖。初始化失败也要关闭尚未完全接入的实例。
 - `app/gateway.ts` 仅调用原生实例的初始化／启动／关闭入口，不判断设置值或编排业务动作。剪贴板的 settings 订阅和 Select 全部在 Rust，main 不再设置剪贴板专属 TS owner。

@@ -4,7 +4,6 @@ pub mod gateway;
 mod gateway_binding;
 mod paste;
 mod resources;
-mod runtime;
 mod service;
 mod store;
 mod toolkit;

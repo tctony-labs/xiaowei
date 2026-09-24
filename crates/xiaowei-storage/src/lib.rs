@@ -1,7 +1,6 @@
 //! Shared application persistence, owned by one Gateway endpoint.
 
 pub mod clipboard_dao;
-pub mod clipboard_dao_gateway;
 mod clipboard_migrations;
 mod db;
 pub mod gateway;

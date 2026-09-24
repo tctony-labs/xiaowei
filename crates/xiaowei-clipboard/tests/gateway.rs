@@ -45,7 +45,7 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
     registry
         .register_owner(
             "clipboard-dao",
-            xiaowei_storage::clipboard_dao_gateway::registrations(&Arc::new(
+            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
                 xiaowei_storage::clipboard_dao::ClipboardDao::new(database.clone()),
             )),
             vec![],
@@ -142,7 +142,7 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     registry
         .register_owner(
             "dao",
-            xiaowei_storage::clipboard_dao_gateway::registrations(&Arc::new(
+            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
                 xiaowei_storage::clipboard_dao::ClipboardDao::new(database),
             )),
             vec![],

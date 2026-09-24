@@ -214,7 +214,7 @@ async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
     registry
         .register_owner(
             "clipboard-dao",
-            crate::clipboard_dao_gateway::registrations(&dao),
+            crate::clipboard_dao::gateway::registrations(&dao),
             vec![],
         )
         .unwrap();
