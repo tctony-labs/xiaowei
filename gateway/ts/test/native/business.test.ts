@@ -9,6 +9,7 @@ import {
   ClipboardBiz,
   ClipboardCategoryRequestSchema,
   ClipboardChangedSchema,
+  ClipboardDao,
   ClipboardItemRequestSchema,
   ClipboardKind,
   ClipboardListOptionsSchema,
@@ -17,6 +18,7 @@ import {
   FavoriteRequestSchema,
   SaveCategoryRequestSchema,
   Search,
+  SearchClipboardEntitiesRequestSchema,
   SearchRequestSchema,
   SetCategoryRequestSchema,
   SetRemarkRequestSchema,
@@ -44,6 +46,7 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
   await history.initialize();
   const client = host.client({ caller: "test", trusted: true });
   const api = bindClient(ClipboardBiz, client);
+  const dao = bindClient(ClipboardDao, client);
   let changed = 0;
   const subscription = await client.subscribe(ClipboardChangedSchema.typeName, undefined, () => {
     changed++;
@@ -87,6 +90,13 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
       (await api.list(create(ClipboardListOptionsSchema, { categoryId: category.id }))).items[0].remark,
       "note",
     );
+    const recalled = await dao.search(create(SearchClipboardEntitiesRequestSchema, { query: "note", limit: 1 }));
+    assert.equal(recalled.hits[0].entity?.id, key);
+    assert.ok(recalled.hits[0].snippet.includes("note"));
+    assert.equal(
+      (await api.list(create(ClipboardListOptionsSchema, { query: "验证 no", categoryId: category.id }))).items[0].id,
+      key,
+    );
     const edited = await api.editText(create(EditTextRequestSchema, { id: key, text: "updated" }));
     assert.equal(edited.previewText, "updated");
     assert.equal((await history.get(String(edited.id)))?.text, "updated");
@@ -96,6 +106,7 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     assert.equal((await api.clearHistory(create(EmptySchema))).deletedCount, 0); // Favorite survives.
     assert.equal((await api.delete(item(edited.id))).deleted, true);
     assert.equal((await api.get(item(edited.id))).item, undefined);
+    assert.deepEqual((await dao.search(create(SearchClipboardEntitiesRequestSchema, { query: "note" }))).hits, []);
     await assert.rejects(api.readImage(item(edited.id)));
     await assert.rejects(api.list(create(ClipboardListOptionsSchema, { limit: 101 })));
     await assert.rejects(api.get(item(9223372036854775808n)));

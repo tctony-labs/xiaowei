@@ -35,16 +35,6 @@ async fn states(
         sqlx::query_as("SELECT key,value FROM meta WHERE substr(key,1,13)='migration_v2.'")
             .fetch_all(&mut *connection)
             .await?;
-    for (key, _) in &stored {
-        if !migrations
-            .iter()
-            .any(|migration| key == &format!("{PREFIX}{}", migration.name))
-        {
-            return Err(invalid(
-                "Database contains a migration absent from the supplied registry",
-            ));
-        }
-    }
     let mut missing = false;
     let mut result = Vec::new();
     for migration in migrations {

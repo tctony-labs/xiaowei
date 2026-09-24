@@ -59,20 +59,25 @@ impl ClipboardDao {
         if limit == 0 || limit > 100 || query.len() > 4096 {
             return Err(invalid("Invalid clipboard list options"));
         }
+        let query = escape_fts5_query(&query);
+        let search_condition = if query.is_empty() {
+            "?2=''"
+        } else {
+            "id IN (SELECT rowid FROM clipboard_fts WHERE clipboard_fts MATCH ?2)"
+        };
         let rows = self
             .database
             .query(statement(
                 &format!(
                     "SELECT {COLUMNS} FROM clipboard_items
                     WHERE (?1=0 OR favorite=1)
-                    AND (?2='' OR instr(lower(coalesce(text,'') || ' ' || paths || ' ' ||
-                        coalesce(remark,'')),lower(?2))>0)
+                    AND {search_condition}
                     AND (?5 IS NULL OR kind=?5) AND (?6 IS NULL OR category_id=?6)
                     ORDER BY last_used_at DESC,id DESC LIMIT ?3 OFFSET ?4"
                 ),
                 vec![
                     value(request.favorites_only.unwrap_or(false)),
-                    value(query.trim()),
+                    value(query),
                     value(limit),
                     value(request.offset.unwrap_or(0)),
                     value(kind),
@@ -83,6 +88,41 @@ impl ClipboardDao {
         Ok(pb::ClipboardEntityList {
             entities: rows.rows.iter().map(record).collect::<Result<_>>()?,
         })
+    }
+
+    pub async fn search(&self, request: pb::SearchClipboardEntitiesRequest) -> Result<pb::ClipboardEntityHits> {
+        let limit = request.limit.unwrap_or(100);
+        if limit == 0 || limit > 100 || request.query.len() > 4096 {
+            return Err(invalid("Invalid clipboard search options"));
+        }
+        let query = escape_fts5_query(&request.query);
+        if query.is_empty() {
+            return Ok(pb::ClipboardEntityHits { hits: vec![] });
+        }
+
+        let rows = self
+            .database
+            .query(statement(
+                &format!(
+                    "SELECT {COLUMNS},snippet(clipboard_fts,0,'','','…',32)
+                    FROM clipboard_items JOIN clipboard_fts ON clipboard_fts.rowid=clipboard_items.id
+                    WHERE clipboard_fts MATCH ?1
+                    ORDER BY clipboard_fts.rank,last_used_at DESC,id DESC LIMIT ?2"
+                ),
+                vec![value(query), value(limit)],
+            ))
+            .await?;
+        let hits = rows
+            .rows
+            .iter()
+            .map(|row| {
+                Ok(pb::ClipboardEntityHit {
+                    entity: Some(record(row)?),
+                    snippet: Row(row).get(13)?,
+                })
+            })
+            .collect::<Result<_>>()?;
+        Ok(pb::ClipboardEntityHits { hits })
     }
 
     pub async fn get(&self, request: pb::ClipboardItemRequest) -> Result<pb::OptionalClipboardEntity> {
@@ -534,4 +574,20 @@ fn category(row: &storage_pb::SqlRow) -> Result<pb::ClipboardCategory> {
         name: row.get(1)?,
         color: row.get(2)?,
     })
+}
+
+// Match the legacy panel: AND whitespace-separated phrases, prefix-match the last term.
+// Quotes make user input literal rather than exposing the FTS5 query language.
+fn escape_fts5_query(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let truncated = &trimmed[..trimmed.floor_char_boundary(200)];
+    let tokens: Vec<_> = truncated
+        .split_whitespace()
+        .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
+        .collect();
+    if tokens.is_empty() {
+        return String::new();
+    }
+
+    format!("{} *", tokens.join(" "))
 }

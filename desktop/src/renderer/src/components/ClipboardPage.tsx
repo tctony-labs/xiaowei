@@ -50,15 +50,39 @@ export function ClipboardPage({
   const [preview, setPreview] = useState<{ id?: string; text?: string; image?: string }>({});
   const version = useRef(0);
   const operation = useRef(false);
-  const snapshot = useRef<{ query: string; view: ClipboardView; items: ClipboardItem[] } | undefined>(undefined);
+  const latestItem = useRef<{ id: bigint; lastUsedAtMs: bigint; useCount: number } | null | undefined>(undefined);
   const refresh = useCallback(async () => {
     if (!subscriptionReady.current) return;
     const request = ++version.current;
     const startedAt = performance.now();
-    let stage = "categories";
+    let stage = "latest";
     let pageOffset: number | undefined;
     setLoading(true);
     try {
+      // Change notifications also cover metadata edits; compare global recency before resetting filters.
+      const latest = (await api.list(create(ClipboardListOptionsSchema, { limit: 1 }))).items[0];
+      if (request !== version.current) return;
+      const previousLatest = latestItem.current;
+      const selectLatest =
+        previousLatest !== undefined &&
+        latest &&
+        (!previousLatest ||
+          latest.lastUsedAtMs > previousLatest.lastUsedAtMs ||
+          (latest.lastUsedAtMs === previousLatest.lastUsedAtMs && latest.id > previousLatest.id) ||
+          (latest.id === previousLatest.id && latest.useCount > previousLatest.useCount));
+      latestItem.current = latest
+        ? { id: latest.id, lastUsedAtMs: latest.lastUsedAtMs, useCount: latest.useCount }
+        : null;
+
+      if (selectLatest) {
+        setSelectedId(String(latest.id));
+        setQuery("");
+        setSearchQuery("");
+        setView("all");
+        if (view !== "all" || searchQuery) return;
+      }
+
+      stage = "categories";
       const categoryRows = (await api.categories(create(EmptySchema))).items.map(
         ({ $typeName: _, id, ...category }) => ({ ...category, id: String(id) }),
       );
@@ -102,19 +126,9 @@ export function ClipboardPage({
         rows.push(...page);
         if (page.length < 50) break;
       }
-      const previous = snapshot.current;
-      const first = rows[0];
-      const previousFirst = first && previous?.items.find((item) => item.id === first.id);
-      const selectLatest =
-        previous?.query === searchQuery &&
-        previous?.view === view &&
-        first &&
-        (!previousFirst || first.lastUsedAt > previousFirst.lastUsedAt || first.useCount > previousFirst.useCount);
-      snapshot.current = { query: searchQuery, view, items: rows };
-
       setContentVersion((value) => value + 1);
       setItems([...new Map(rows.map((item) => [item.id, item])).values()]);
-      setSelectedId((id) => (selectLatest || !rows.some((item) => item.id === id) ? rows[0]?.id : id));
+      setSelectedId((id) => (!rows.some((item) => item.id === id) ? rows[0]?.id : id));
       setError("");
     } catch (error) {
       console.error(

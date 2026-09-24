@@ -168,7 +168,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
-main 在 Electron ready 后、创建窗口前调用 `Storage.open()`，打开统一 `userData/xiaowei/storage.sqlite`，由 Storage 建立 meta 表并完成内部注册的迁移；随后依次接入 KeyValue、ClipboardDao、Settings、Search 和剪贴板业务 endpoint。剪贴板初始化取得 Gateway client 后，macOS 按设置决定是否启动 500ms 监听；退出时异步停止监控，Storage 最后关闭。
+main 在 Electron ready 后、创建窗口前调用 `Storage.open()`，打开统一 `userData/xiaowei/storage.sqlite`，由 Storage 建立 meta 表并完成内部注册的迁移；忽略其他版本的未知迁移标记，只按当前列表初始化；初始化实际失败时记录原始错误并退出。随后依次接入 KeyValue、ClipboardDao、Settings、Search 和剪贴板业务 endpoint。剪贴板初始化取得 Gateway client 后，macOS 按设置决定是否启动 500ms 监听；退出时异步停止监控，Storage 最后关闭。
 
 原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
@@ -184,8 +184,6 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 ## 桌面 Gateway 通信
 
-搜索、剪贴板及窗口操作使用 `contracts/proto/xiaowei/` 生成的契约，经 `gateway/ts` 的 Electron 适配和搜索、剪贴板与 Storage 三个 napi 模块的业务 endpoint 调用。renderer 仅保留 `window.gateway`，各 service 通过 `services.ts` 的 lazy getter 绑定并缓存；业务组件直接使用契约消息调用，不再保留旧 facade。接口、生命周期及验证入口见 [Gateway](../gateway/README.md#electron-与业务接入)。
-
-桌面 check 直接检查 Gateway 源码类型；桌面 Vite（包括 main/preload 的 SSR）、Storybook 和验收资源构建通过 `source` 条件加载 Gateway 源码，不再预构建 dist。因此无改动的 `r` 不会因重写 Gateway 产物触发 renderer HMR；真实 Gateway 源码修改仍可触发 renderer HMR。默认 Node 消费仍使用 dist，并需独立构建。electron-vite 内联 Gateway／契约代码，原生模块仍外置。修改 Rust 后对已有桌面实例执行 `just rs`，共用构建入口会先更新 napi 产物，再启动 Electron。
+桌面业务通过 Gateway 统一通信。owner 装配、renderer service 的按需绑定、源码消费与打包方式统一维护在 [桌面 Gateway 接入](gateway-integration.md)；通用接口与验证入口见 [Gateway](../gateway/README.md)。
 
 开发态 HTML 的 CSP 额外允许 `worker-src 'self' blob:`，供 Vite 在 HMR 连接断开后创建 SharedWorker 等待服务恢复，避免停止／重启时产生 CSP 错误。该设置仅由 `apply: "serve"` 的插件注入，正式构建不添加此权限。

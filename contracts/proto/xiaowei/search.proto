@@ -55,6 +55,8 @@ message SearchResults {
   repeated SearchHit hits = 1;
 }
 
+// Reusable, window-independent search and usage feedback; returns typed actions for the executor.
+// Development-only command availability comes from host initialization, not the query payload.
 service Search {
   rpc Query(SearchRequest) returns (SearchResults);
   rpc RecordUsage(RecordUsageRequest) returns (xiaowei.common.Empty);

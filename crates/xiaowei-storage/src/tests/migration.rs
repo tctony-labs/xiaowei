@@ -23,13 +23,15 @@ async fn migration_and_marker_commit_together_and_down_is_ordered() {
         &["ALTER TABLE example DROP COLUMN label"],
     );
     let mut registry = crate::clipboard_migrations::registry();
+    let first_index = registry.migrations.len();
+    let second_index = first_index + 1;
     registry.migrations.extend([first.clone(), second.clone()]);
     assert!(db.apply_migrations(registry.clone()).await.is_err());
     let state = db.migration_status(registry.clone()).await.unwrap();
-    assert!(state.states[1].applied_at_seconds.is_some());
-    assert!(state.states[2].applied_at_seconds.is_none());
+    assert!(state.states[first_index].applied_at_seconds.is_some());
+    assert!(state.states[second_index].applied_at_seconds.is_none());
     second.up.pop();
-    registry.migrations[2] = second;
+    registry.migrations[second_index] = second;
     let state = db.apply_migrations(registry.clone()).await.unwrap();
     assert_eq!(state, db.apply_migrations(registry.clone()).await.unwrap());
     assert!(db
@@ -42,11 +44,11 @@ async fn migration_and_marker_commit_together_and_down_is_ordered() {
     let state = db
         .rollback(DatabaseRollback {
             migrations: registry.migrations.clone(),
-            name: registry.migrations[2].name.clone(),
+            name: registry.migrations[second_index].name.clone(),
         })
         .await
         .unwrap();
-    assert!(state.states[2].applied_at_seconds.is_none());
+    assert!(state.states[second_index].applied_at_seconds.is_none());
     db.apply_migrations(registry).await.unwrap();
     db.close().await;
 }
@@ -93,4 +95,72 @@ async fn reopening_existing_clipboard_database_preserves_data_and_marker() {
             .unwrap();
     assert_eq!(reopened_schema, schema);
     reopened.close().await;
+}
+
+#[tokio::test]
+async fn initialization_ignores_unknown_migrations_and_applies_known_pending_migrations() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("storage.sqlite");
+    let db = Database::open(&path).await.unwrap();
+    let mut newer_registry = crate::clipboard_migrations::registry();
+    newer_registry.migrations.push(migration(
+        "20260924000000_future",
+        &[
+            "CREATE TABLE future_data(value TEXT)",
+            "INSERT INTO future_data VALUES('keep')",
+        ],
+        &["DROP TABLE future_data"],
+    ));
+    db.apply_migrations(newer_registry).await.unwrap();
+    db.close().await;
+
+    let reopened = Database::open(&path).await.unwrap();
+    let mut current_registry = crate::clipboard_migrations::registry();
+    current_registry.migrations.push(migration(
+        "20260924000001_current",
+        &["CREATE TABLE current_data(value TEXT)"],
+        &["DROP TABLE current_data"],
+    ));
+    let expected_count = current_registry.migrations.len();
+    let states = reopened.apply_migrations(current_registry).await.unwrap();
+    assert_eq!(states.states.len(), expected_count);
+    assert!(states.states.iter().all(|state| state.applied_at_seconds.is_some()));
+
+    let preserved: (String, String) = sqlx::query_as(
+        "SELECT value,(SELECT value FROM meta WHERE key='migration_v2.20260924000000_future') FROM future_data",
+    )
+    .fetch_one(&reopened.pool)
+    .await
+    .unwrap();
+    assert_eq!(preserved.0, "keep");
+    assert!(!preserved.1.is_empty());
+    sqlx::query("INSERT INTO current_data VALUES('initialized')")
+        .execute(&reopened.pool)
+        .await
+        .unwrap();
+    reopened.close().await;
+}
+
+#[tokio::test]
+async fn initialization_reports_actual_migration_sql_failure() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("storage.sqlite");
+    let db = Database::open(&path).await.unwrap();
+    for migration in crate::clipboard_migrations::registry().migrations {
+        sqlx::query("DELETE FROM meta WHERE key=?")
+            .bind(format!("migration_v2.{}", migration.name))
+            .execute(&db.pool)
+            .await
+            .unwrap();
+    }
+    db.close().await;
+
+    let error = Database::open(&path)
+        .await
+        .err()
+        .expect("conflicting schema must fail initialization");
+    assert!(
+        error.to_string().contains("clipboard_categories already exists"),
+        "{error}"
+    );
 }

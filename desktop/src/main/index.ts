@@ -9,7 +9,12 @@ import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import type { LauncherMode } from "../shared/launcher-model";
 import { createApplicationGateway } from "./gateway";
-import { activateLauncherShortcut, positionLauncher, showLauncherWindow } from "./launcher-shortcuts";
+import {
+  activateLauncherShortcut,
+  configureLauncherWorkspaces,
+  positionLauncher,
+  showLauncherWindow,
+} from "./launcher-shortcuts";
 import { attachRendererLogging, createLoggers } from "./logging";
 import { createPaths } from "./paths";
 import { createSettingsShortcuts, shortcutConfig } from "./settings-shortcuts";
@@ -219,6 +224,7 @@ async function createWindow(): Promise<void> {
     alwaysOnTop: true,
     show: false,
     transparent: true,
+    hasShadow: false,
     title: "XiaoWei",
     backgroundColor: "#00000000",
     webPreferences: {
@@ -228,6 +234,7 @@ async function createWindow(): Promise<void> {
       sandbox: true,
     },
   });
+  configureLauncherWorkspaces(window);
   launcher = window;
   gateway?.register(window);
   window.once("ready-to-show", () => {

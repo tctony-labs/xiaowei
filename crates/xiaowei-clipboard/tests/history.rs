@@ -217,6 +217,29 @@ async fn capture_retries_failures_and_inconsistent_snapshots() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn failed_history_save_retries_the_same_clipboard_change() {
+    let dir = tempfile::tempdir().unwrap();
+    let clipboard = Fake::default();
+    let text = "x".repeat(10_000);
+    clipboard.set(&text);
+    let service = open_service(dir.path(), clipboard, || {}).await.unwrap();
+    let path = dir
+        .path()
+        .join("large_text")
+        .join(ClipboardData::Text(text.clone()).hash());
+    std::fs::create_dir(&path).unwrap();
+
+    assert!(service.poll_once().await.is_err());
+    assert!(service.list(&options()).await.unwrap().is_empty());
+
+    std::fs::remove_dir(&path).unwrap();
+    assert!(service.poll_once().await.unwrap());
+    assert!(!service.poll_once().await.unwrap());
+    assert_eq!(service.list(&options()).await.unwrap().len(), 1);
+    assert_eq!(std::fs::read_to_string(path).unwrap(), text);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn monitoring_is_idempotent_and_stops_cleanly() {
     let dir = tempfile::tempdir().unwrap();
     let clipboard = Fake::default();
