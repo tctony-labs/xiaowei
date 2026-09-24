@@ -1,5 +1,7 @@
 //! Clipboard persistence. SQL and migration definitions stay inside Storage.
 
+pub mod gateway;
+
 use crate::{invalid, sql as storage_pb, Database, Result};
 use std::sync::Arc;
 use xw_contracts::xiaowei::{clipboard as pb, common::Empty};

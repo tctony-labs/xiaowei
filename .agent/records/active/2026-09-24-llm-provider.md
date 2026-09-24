@@ -22,6 +22,8 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 ### 已完成的 main 边界整理
 
+剪贴板设置订阅、定时清理调度与服务启停统一维护在现有 `service.rs`，生命周期状态为私有 `ServiceLifecycle`；不再保留独立 `runtime.rs`。这些方法本来属于同一个 `Service`，不因后台执行而另设模块。业务 handler 的统一命名见 [Gateway 接入约定](../../../gateway/README.md#接入约定)。Storage 剪贴板 DAO handler 位于 `clipboard_dao/gateway.rs`；napi owner 注册和事件发布接线集中在 napi 的 `gateway.rs`，`lib.rs` 保留公开入口的薄委托。
+
 剪贴板的业务 handler、资源解析与临时导出、占用统计、设置订阅、监听启停、自动粘贴与保留期限调度均由 Rust `xiaowei-clipboard` 持有。TS `services/clipboard/` 已删除，`app/gateway.ts` 仅负责实例与 endpoint 装配，初始化后调用 `startServices()`，关闭 endpoint 时先停止后台服务和监听，再清理临时资源；失败时也显式关闭 history。
 
 Rust 先订阅 SettingsChanged，再读初始快照，避免初始化漏掉变化。启动 30 秒后开始清理，之后每次完成后等待一小时；保留期限变化立即清理，-1 跳过；保持当前普通记录定义（非收藏、无分类、无备注）与附件删除逻辑。监听及权限请求响应已提交设置，与旧版 Rust 的事件驱动方式一致；后台失败记日志，不把已提交设置回滚。初始设置加载失败会使启动失败并回收订阅。任务串行执行，关闭等待在途工作结束，避免清理依赖已经关闭的 Storage。
@@ -78,3 +80,5 @@ HMR 修复已于本轮前经用户人工验收：设置页热更新后，加载�
 本轮完整边界迁移已通过 Rust 剪贴板／Storage 43 项测试、desktop Node 26 项测试、完整 Gateway 原生联调、三语言契约 codec、desktop 构建和 `just check`。新增回归覆盖：30 秒初次清理及小时周期、重复启动／关闭、永久保留、收藏保护、关闭后停止清理，Select 的复制／隐藏／粘贴顺序与失败短路，以及 Settings 嵌套调用权限和宿主失败回滚。三个 napi 包均完成重建。
 
 确认当前工作区活实例后执行 `just rs`，18:11:04 新 Electron 进程加载三个工作区原生模块，Rust 设置订阅启动、剪贴板监听和 renderer／搜索初始化正常。真实自动粘贴与焦点恢复、修改快捷键和开机启动仍需用户人工验收；未在用户系统上自动切换这些设置。main README 已移除业务细节与历史进度，只保留能力归属、装配、生命周期和开发导航约定。
+
+模块命名与归属整理已完成：移除 clipboard `runtime.rs`，其实现及周期测试合入 `service.rs`；Storage DAO handler 和 napi 接线归入各自的 `gateway` 模块。43 项 Rust 测试、完整 `pnpm gateway:test-native` 和 `just check` 通过，正式 napi 产物已重建。确认工作区实例后执行 `just rs`，18:27:44 新 Electron 启动，剪贴板监听与 renderer 初始化正常；本轮不改变契约或业务行为。

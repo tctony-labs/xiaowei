@@ -1,8 +1,6 @@
 use napi_derive::napi;
-use prost::{Message, Name};
 use std::sync::Arc;
-use xiaowei_storage::{clipboard_dao::ClipboardDao, settings::SettingsService, Database};
-use xw_gateway::{napi::Endpoint, XwInvokeRegistry};
+use xiaowei_storage::Database;
 
 mod gateway;
 use gateway::GatewayEndpoint;
@@ -26,71 +24,16 @@ impl Storage {
 
     #[napi]
     pub fn create_key_value_gateway_endpoint(&self, env: napi::Env) -> napi::Result<GatewayEndpoint> {
-        let registry = XwInvokeRegistry::new();
-        let owner = registry
-            .register_owner(
-                "key-value",
-                xiaowei_storage::gateway::registrations(&self.database),
-                vec![],
-            )
-            .map_err(|error| napi::Error::from_reason(error.to_string()))?;
-        let inner = Endpoint::new(registry, owner);
-        inner.install_cleanup(&env)?;
-        Ok(GatewayEndpoint {
-            inner,
-            database: self.database.clone(),
-            close_database: true,
-        })
+        gateway::create_key_value_endpoint(&self.database, env)
     }
 
     #[napi]
     pub fn create_clipboard_dao_gateway_endpoint(&self, env: napi::Env) -> napi::Result<GatewayEndpoint> {
-        let dao = Arc::new(ClipboardDao::new(self.database.clone()));
-        let registry = XwInvokeRegistry::new();
-        let owner = registry
-            .register_owner(
-                "clipboard-dao",
-                xiaowei_storage::clipboard_dao_gateway::registrations(&dao),
-                vec![],
-            )
-            .map_err(|error| napi::Error::from_reason(error.to_string()))?;
-        let inner = Endpoint::new(registry, owner);
-        inner.install_cleanup(&env)?;
-        Ok(GatewayEndpoint {
-            inner,
-            database: self.database.clone(),
-            close_database: false,
-        })
+        gateway::create_clipboard_dao_endpoint(&self.database, env)
     }
 
     #[napi]
     pub fn create_settings_gateway_endpoint(&self, env: napi::Env, platform: String) -> napi::Result<GatewayEndpoint> {
-        let service = Arc::new(SettingsService::new(self.database.clone(), platform));
-        let registry = XwInvokeRegistry::new();
-        let owner = registry
-            .register_owner(
-                "settings",
-                xiaowei_storage::settings::gateway::registrations(&service),
-                xiaowei_storage::settings::gateway::events(),
-            )
-            .map_err(|error| napi::Error::from_reason(error.to_string()))?;
-        let publisher = Arc::downgrade(&registry);
-        let publisher_owner = owner.clone();
-        service.set_publisher(Arc::new(move |change| {
-            if let Some(registry) = publisher.upgrade() {
-                let _ = registry.publish(
-                    &publisher_owner,
-                    &xw_contracts::xiaowei::storage::SettingsChanged::full_name(),
-                    change.encode_to_vec(),
-                );
-            }
-        }));
-        let inner = Endpoint::new(registry, owner);
-        inner.install_cleanup(&env)?;
-        Ok(GatewayEndpoint {
-            inner,
-            database: self.database.clone(),
-            close_database: false,
-        })
+        gateway::create_settings_endpoint(&self.database, env, platform)
     }
 }

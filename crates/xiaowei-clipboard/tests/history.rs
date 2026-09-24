@@ -384,7 +384,7 @@ async fn client(directory: &std::path::Path) -> xw_gateway::invoke::Client {
     registry
         .register_owner(
             "clipboard-dao",
-            xiaowei_storage::clipboard_dao_gateway::registrations(&Arc::new(
+            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
                 xiaowei_storage::clipboard_dao::ClipboardDao::new(db.clone()),
             )),
             vec![],
