@@ -158,3 +158,7 @@ test:
 build:
     pnpm build
     cd server && go build -trimpath -o bin/xiaowei-server ./cmd/xiaowei-server
+
+# Clean build outputs; the main workspace also cleans its linked worktrees/ workspaces.
+clean:
+    node scripts/clean.mjs
