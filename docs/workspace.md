@@ -164,7 +164,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 ## UI 组件预览
 
-`just storybook` 启动独立组件预览，不需要 Electron 或服务端。组件场景、设计变量和验收流程见 [UI 对齐与 Storybook](ui-alignment.md)。
+`just storybook` 启动独立组件预览，不需要 Electron 或服务端。通用开发与验收约定见 [Renderer UI 开发](../desktop/src/renderer/README.md)；组件场景以相邻 Storybook 文件为准，设计取舍和验收状态见对应事项记录。
 
 Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
@@ -184,6 +184,10 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 ## 桌面 Gateway 通信
 
-桌面业务通过 Gateway 统一通信。owner 装配、renderer service 的按需绑定、源码消费与打包方式统一维护在 [桌面 Gateway 接入](gateway-integration.md)；通用接口与验证入口见 [Gateway](../gateway/README.md)。
+桌面业务通过 Gateway 统一通信。owner 装配与生命周期见 [main 模块组织](../desktop/src/main/README.md#gateway-装配与生命周期)，client 与 service 使用约定见 [Renderer 开发](../desktop/src/renderer/README.md#gateway-业务调用)；通用接口与验证入口见 [Gateway](../gateway/README.md)。
+
+桌面类型检查直接检查 Gateway 源码；main、preload、renderer 和 Storybook 的构建通过 `source` 条件消费 Gateway 源码，main/preload 的 SSR 解析也使用该条件。开发与构建不依赖预先生成或重写 Gateway dist，避免桌面重启因改写 dist 触发无关的 renderer HMR；真实源码变化仍可触发 HMR。普通 Node 消费使用包的 dist 入口，构建流程以对应包脚本为准。
+
+桌面打包内联 TS Gateway 与契约代码，原生 npm 包及其 `.node` 保持外置，`.node` 从 ASAR 解包加载。解析条件和打包配置分别由 `desktop/electron.vite.config.ts`、Storybook 配置和 `desktop/electron-builder.json` 维护。
 
 开发态 HTML 的 CSP 额外允许 `worker-src 'self' blob:`，供 Vite 在 HMR 连接断开后创建 SharedWorker 等待服务恢复，避免停止／重启时产生 CSP 错误。该设置仅由 `apply: "serve"` 的插件注入，正式构建不添加此权限。

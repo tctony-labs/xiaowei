@@ -27,7 +27,7 @@
 
 路由由 `package.Service.Method` 生成，事件使用 message full name，不手写路由别名。调用方使用生成契约和 typed client，renderer 通过统一 Gateway transport 访问业务能力。
 
-方法和事件由 owner 显式注册。同一 service 分属多个 owner 时，各自只注册负责的方法；绑定方式见 [Gateway 运行机制](../../../docs/gateway-runtime.md#调用与绑定)。禁止两个 owner 发布相同 route，集成测试需覆盖实际调用链。
+方法和事件由 owner 显式注册。同一 service 分属多个 owner 时，各自只注册负责的方法；绑定方式见 [Gateway 运行机制](../../../gateway/README.md#调用与绑定)。禁止两个 owner 发布相同 route，集成测试需覆盖实际调用链。
 
 ## 兼容性
 

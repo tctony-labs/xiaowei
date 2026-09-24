@@ -18,7 +18,7 @@
 
 ### 当前核心实现
 
-已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 运行机制](../../../docs/gateway-runtime.md)，业务装配见 [桌面接入](../../../docs/gateway-integration.md)，生成器细节见 [契约生成机制](../../../docs/contracts-generation.md)。README 保留职责、使用入口和稳定约定。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
+已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 运行机制](../../../gateway/README.md)，业务装配见 [main 装配约定](../../../desktop/src/main/README.md#gateway-装配与生命周期)与 [renderer 调用约定](../../../desktop/src/renderer/README.md#gateway-业务调用)，生成器细节见 [契约生成机制](../../../contracts/README.md#文件选择与语言映射)。Gateway 根 README 维护共同语义与协议，TS／Rust README 分别维护语言侧 API 和实现约定。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
 
 ### 统一服务调用
 
@@ -72,7 +72,7 @@ Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate�
 
 ### Stream 契约与传输
 
-当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../docs/gateway-runtime.md#响应流)。下面保留设计边界；renderer 的导航、销毁和取消生命周期已接入。
+当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../gateway/README.md#响应流)。下面保留设计边界；renderer 的导航、销毁和取消生命周期已接入。
 
 LLM SSE 场景使用请求绑定的响应 stream；SSE 解析和结构化增量由业务提供，Gateway 不理解 HTTP／SSE。此次实现通用流能力及模拟生产者，不新增实际 LLM provider、网络请求或聊天 UI。
 
@@ -356,7 +356,7 @@ Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成
 
 ### Plan 03：可取消、有背压的响应流
 
-2026-09-20 完成 TS／Rust typed 响应流、stream 专用绑定、owner／caller admission、open／next／cancel 状态机、native 二进制帧与真实跨模块联调。无通用双向 pipe、LLM provider、网络请求或 renderer 接线。默认 policy 与接口说明已回填 [Gateway 核心](../../../docs/gateway-runtime.md#响应流)，不依赖临时 Plan。
+2026-09-20 完成 TS／Rust typed 响应流、stream 专用绑定、owner／caller admission、open／next／cancel 状态机、native 二进制帧与真实跨模块联调。无通用双向 pipe、LLM provider、网络请求或 renderer 接线。默认 policy 与接口说明已回填 [Gateway 核心](../../../gateway/README.md#响应流)，不依赖临时 Plan。
 
 Rust 生成器现在为 streaming 方法生成 `StreamMethod`，编译期区分 unary／stream；TS 提供独立的 bindStreamClient／bindStreamHandlers，unary binder 不再登记空的 stream 占位，两组注册可直接合并。客户端返回的流保留 typed chunk；中转只传原始 PB bytes 和序号，未修改业务消息契约。
 

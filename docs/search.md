@@ -98,6 +98,12 @@ Electron main 按调用上下文保存最新一轮 token 和结果 ID → 完整
 
 普通 URL 仅允许 HTTP(S)，系统设置 URL 仅允许来自应用 provider。打开应用、URL、复制计算结果及执行主题／重启命令后隐藏窗口；打开剪贴板命令返回模式切换结果。显示交互及图标缓存说明保留在 [搜索迁移 record](../.agent/records/active/2026-09-16-migrate-search.md)。
 
+## 图标资源
+
+搜索响应返回展示用 `iconUrl`，不返回应用路径，也不等待图片读取。main 将路径登记为 `xiaowei-icon://app/<opaque-key>` 资源 URL；renderer 使用普通 `img` 和默认图标回退，不通过业务调用读取图标。
+
+图片请求到来后，main 先查询一周有效的磁盘缓存，缺失或过期时调用 App.ReadIcon。并发请求共享读取 Promise，完成后释放内存中的图片引用，失败可重试。URL 路径映射随应用 Gateway 关闭而释放，磁盘缓存跨启动复用。资源协议和缓存分别由 [protocol.ts](../desktop/src/main/resources/app-icons/protocol.ts) 与 [cache.ts](../desktop/src/main/resources/app-icons/cache.ts) 实现。
+
 ## 与剪贴板搜索的边界
 
 当前全局搜索只提供“打开剪贴板”的命令，不召回剪贴板历史内容。剪贴板面板通过 Storage 的 [ClipboardDao::list](../crates/xiaowei-storage/src/clipboard_dao.rs) 对数据库文本／摘要、备注和文件路径进行 FTS5 查询；多词 AND、末词前缀匹配，收藏、类型和分类过滤发生在分页前，按最近使用时间、ID 降序返回。

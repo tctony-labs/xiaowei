@@ -20,7 +20,7 @@
 - 预览位于 `desktop/src/renderer/src/components/quick-chat/`。`QuickChatTransition` 控制视口与滑轨，`QuickChatTitleBar` 接收纯 props／回调，`QuickChatLauncherPreview` 只由 Storybook 和测试使用。搜索框通过 `LauncherSearchBar` 的 `embedded` 属性复用内容；产品默认结构不变。
 - 内存 mock 覆盖新建、切换、首发建会话、发送、延迟回复、停止、改名、更新标题、归档和删除。最后一条移除后回到“新的对话／输入问题开始对话”空态。输入暂用 textarea，消息暂用文本布局，模型列表为固定数据。
 
-Storybook 分组为 `Quick Chat / Launcher`，场景包含 Search、FirstUse、ExistingConversations、LastConversation、AllArchived、AllDeleted、SearchResults、SessionMenu、More、Rename、DeleteConfirmation。产品与 Storybook 的 UI 对齐约定见 [UI 对齐说明](../../../docs/ui-alignment.md)。
+Storybook 分组为 `Quick Chat / Launcher`，场景包含 Search、FirstUse、ExistingConversations、LastConversation、AllArchived、AllDeleted、SearchResults、SessionMenu、More、Rename、DeleteConfirmation。产品与 Storybook 的 UI 对齐约定见 [Renderer UI 开发](../../../desktop/src/renderer/README.md)。
 
 ## Current work
 

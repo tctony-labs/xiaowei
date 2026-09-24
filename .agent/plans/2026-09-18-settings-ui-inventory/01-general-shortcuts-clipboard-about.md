@@ -3,7 +3,7 @@
 ## 范围与前置
 
 - 本切片建立设置窗口和可供第二部分复用的 setting 模块，并接入通用、快捷键、剪贴板、关于四页。模型、智能体、归档的业务接入在第二部分；旧版数据及附件的离线一次性迁移仍按剪贴板事项单独实施，设置页不提供迁移入口。账号登录／云连接、快速对话、图片内容提取、自动更新和“检查更新”操作按用户 2026-09-23 的要求暂缓，不属于两部分计划的完成条件。相关 Storybook UI 保留，产品本期跳过这些入口。
-- 接入任何真实页面前，按 `docs/ui-alignment.md` 取得本切片 Storybook UI 的用户确认；`Settings/Window/PhaseOneScope` 已于 2026-09-23 获用户确认。逐项核对旧版源码和当前产品能力；已明确暂缓的账号／云连接、快速对话、图片提取和自动更新仅留在 Storybook，产品适配层不渲染对应入口。其他可操作项必须有真实领域能力，不使用预览数据或空操作完成验收。
+- 接入任何真实页面前，按 `desktop/src/renderer/README.md` 取得本切片 Storybook UI 的用户确认；`Settings/Window/PhaseOneScope` 已于 2026-09-23 获用户确认。逐项核对旧版源码和当前产品能力；已明确暂缓的账号／云连接、快速对话、图片提取和自动更新仅留在 Storybook，产品适配层不渲染对应入口。其他可操作项必须有真实领域能力，不使用预览数据或空操作完成验收。
 - 保持现有 `SettingsPreview.tsx` 仅作 Storybook 内存适配；产品接入复用 `GeneralSettings`、`ShortcutSettings`、`ClipboardSettings`、`AboutSettings` 和 `SettingsLayout`，另建产品容器，不复制组件。真正的 macOS 标题栏按钮由原生窗口提供，不渲染预览中的装饰按钮。
 
 ## 实施顺序

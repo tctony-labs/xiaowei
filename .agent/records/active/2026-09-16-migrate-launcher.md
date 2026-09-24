@@ -18,10 +18,12 @@
 - 输入已由后续 [全局搜索事项](2026-09-16-migrate-search.md) 接入 Rust 核心与结果列表；搜索不请求网络服务。
 - Electron/Node 只承载窗口、快捷键及 IPC。原有 Rust 业务逻辑不迁写为 Node；需要接入具体业务时，再讨论 Rust 模块复用及 napi-rs 集成方案。
 
+Launcher 使用透明窗口并关闭原生阴影，避免 macOS 原生阴影产生黑边；卡片圆角、边框和阴影由前端 CSS 绘制。独立搜索框不显示结果列表分隔线，结果容器负责决定分隔线的展示。
+
 ## Outcome
 
 用户于 2026-09-16 确认当前搜索框样式：使用透明 Logo，右内边距 16px。组件层的 Esc 清空关闭、组合输入期间 Esc 不关闭、重新聚焦全选已在 Storybook 中验证 PASS；组合输入测试使用合成事件，不等于原生输入法验收。
 
 已给桌面 Vite 增加与 Storybook 一致的 100ms 轮询。用户重启后确认窗口显示恢复正常，旧实例的 720 × 76 尺寸已更新为 800 × 71；Agent 未执行冷启动。固定全局快捷键已在 2026-09-18 获用户功能确认，见 [固定快捷键](2026-09-18-fixed-launcher-shortcuts.md)。用户于 2026-09-18 确认 Launcher／搜索验收收尾项完成，原生失焦隐藏、拖动、屏幕定位和真实输入法不再列为待验收项；本事项实施完成，成果继续生效。
 
-视觉样例与桌面共用 LauncherSearchBar，样式参数以旧版为基础，不保留此前新增的搜索图标和 Esc 标签；完整场景与验收流程见 [UI 对齐](../../../docs/ui-alignment.md)。桌面与 Storybook 构建、`just check` 通过。
+视觉样例与桌面共用 LauncherSearchBar，样式参数以旧版为基础，不保留此前新增的搜索图标和 Esc 标签；场景以组件旁的 Storybook 文件为准，验收流程见 [Renderer UI 开发](../../../desktop/src/renderer/README.md)。桌面与 Storybook 构建、`just check` 通过。
