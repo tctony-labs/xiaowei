@@ -80,3 +80,10 @@ Storybook 的 `Settings` 分组包含 Window、General、Shortcuts、Clipboard�
 上下文窗口只按模型配置，不再设置提供方级默认值；手动值优先于接口值，两者均无时显示“上下文窗口：未设置”。
 
 模型选择弹窗将搜索与全选放在同一行，只在添加按钮显示选择数量，移除底层加载文案和重复选择计数。
+## Quick Chat / Launcher
+
+组合预览位于 `desktop/src/renderer/src/components/quick-chat/`，范围与旧版基线见 [Quick Chat UI record](../.agent/records/active/2026-09-24-quick-chat-ui-interaction.md)。Storybook 统一为 `Quick Chat / Launcher`，不再保留独立 Title Bar 分组。11 个场景覆盖搜索、首次使用、已有会话、最后一条会话、全部归档／删除、搜索结果、会话菜单、更多、重命名和删除确认。
+
+空搜索 ↓ 展开，Esc／空输入 ↑ 收起；视口和输入区滑轨采用 300ms ease-out，71px 与 580px 之间过渡，收起后恢复搜索框焦点。输入增高时消息区缩小，菜单和弹窗优先消费 Esc，合成输入受保护。24 项相关测试通过，Chrome 已验证动画中间帧、焦点和明暗状态；用户视觉确认待完成。
+
+内部会话操作和延迟回复均为内存 mock，文本输入及消息布局不代表旧版编辑器和消息组件已迁完。所有功能只在 Storybook 中组合，未接入真实 Launcher。真实原生窗口动画与输入法后续在 Electron 验收。
