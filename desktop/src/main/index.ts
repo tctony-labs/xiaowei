@@ -219,6 +219,7 @@ async function createWindow(): Promise<void> {
     alwaysOnTop: true,
     show: false,
     transparent: true,
+    hasShadow: false,
     title: "XiaoWei",
     backgroundColor: "#00000000",
     webPreferences: {
