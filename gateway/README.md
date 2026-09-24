@@ -118,7 +118,7 @@ napi 薄封装在同步入口克隆 Arc，再用 `Env::spawn_future` 返回 Prom
 pnpm gateway:test-native
 ```
 
-该命令为搜索和剪贴板启用 `gateway-fixtures`，构建到忽略的 `gateway/tests/native/`，在普通 Node 进程中加载两个真实 `.node`。测试契约 `testing.Fixture`／`testing.PeerFixture` 只在该 feature 中注册；正常构建没有 fixture 工厂、方法或测试 routes。测试不创建业务 Service，不访问用户数据库或系统剪贴板。
+该命令先构建 Storage 正常原生包，再为搜索和剪贴板启用 `gateway-fixtures`，构建到忽略的 `gateway/tests/native/`，在普通 Node 进程中验证跨模块通信与 Storage 调用。测试契约 `testing.Fixture`／`testing.PeerFixture` 只在该 feature 中注册；正常构建没有 fixture 工厂、方法或测试 routes。随后恢复正常原生产物，执行业务、启动生命周期和剪贴板选择测试。数据库测试使用临时目录。
 
 测试脚本退出前总会重新执行两个包的正常 `build:debug`，生成正式 `.node`、JS 加载器及声明。源码中的 napi 注解决定公开类型，生成声明不手改；TS 类型检查同时验证两个生成 endpoint 类型与 NativeEndpoint 接口兼容。
 
@@ -132,7 +132,9 @@ preload 使用 `xiaowei-gateway/preload` 的 `createPreloadBridge(ipcRenderer)`�
 
 宿主分配 session／generation，导航、renderer 退出、窗口销毁时清理订阅和流。每会话最多 128 个订阅和 128 个流句柄；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。
 
-桌面 main 只创建一个 host。`createSearchGatewayEndpoint()` 与搜索预热共享同一个懒初始化服务；`ClipboardHistory.createGatewayEndpoint()` 使用该 history 的 Service；接入后 initialize 通过 Storage 执行业务基线，数据库连接由 Storage 统一持有。后台调用使用 endpoint 激活后取得的宿主身份，业务嵌套请求保留原始权限。renderer 只暴露 `window.gateway`，业务调用使用 `services.ts` 中缓存的 lazy getter；旧 `window.launcher`／`window.clipboardHistory` facade 已删除。剪贴板页面显式等待事件订阅 ready 后查询首轮快照，卸载时关闭迟到订阅；窗口布局调用按序执行并处理 Promise 错误。原业务专用 IPC listener 已移除，日志仍用现有 console-message 链路。
+桌面 main 只创建一个 host。数据库连接池由 Storage 统一持有，`Storage.open()` 在返回前完成 meta 表自举和内部注册的迁移；随后接入 KeyValue、ClipboardDao、Settings，再接入 Search 和剪贴板业务 endpoint。`createSearchGatewayEndpoint()` 与搜索预热共享同一个懒初始化服务；`ClipboardHistory.createGatewayEndpoint()` 使用该 history 的 Service，接入后的 `initialize()` 为其设置 Gateway client，不再执行数据库迁移。后台调用使用 endpoint 激活后取得的宿主身份，业务嵌套请求保留原始权限。
+
+renderer 只暴露 `window.gateway`，业务调用使用 `services.ts` 中缓存的 lazy getter；旧 `window.launcher`／`window.clipboardHistory` facade 已删除。剪贴板页面显式等待事件订阅 ready 后查询首轮快照，卸载时关闭迟到订阅；窗口布局调用按序执行并处理 Promise 错误。原业务专用 IPC listener 已移除，日志仍用现有 console-message 链路。
 
 业务契约位于 `contracts/proto/xiaowei/`。实际 route 使用生成的 `package.Service.Method`，事件使用 message full name：例如 `xiaowei.clipboard.ClipboardBiz.List`、`xiaowei.clipboard.ClipboardChanged`。窗口、搜索结果 token、图标缓存、系统资源动作由 main 持有；CRUD、分类、收藏、图片字节及搜索引擎由各 Rust owner 执行。ID 在页面与展示模型的边界显式转换为 bigint，Rust 校验业务有效范围。
 
@@ -142,7 +144,7 @@ Rust 业务绑定按 `rust/business_binding_config.rs` 中的模块与 service �
 pnpm gateway:generate
 ```
 
-退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check 直接检查 Gateway 源码类型，main/preload/renderer 的开发与正式 Vite 构建均通过 `source` 条件加载 Gateway 源码，不预构建或改写 dist；Storybook 与验收资源构建同样选择源码入口。main/preload 的 SSR 解析也显式启用该条件。桌面打包内联 TS Gateway 与契约代码，现有两个 `.node` 保持外置并从 ASAR 解包加载。
+退出时先关闭 Electron 接入、停止监听和注销业务 owner，再关闭 native 连接。桌面 check 直接检查 Gateway 源码类型，main/preload/renderer 的开发与正式 Vite 构建均通过 `source` 条件加载 Gateway 源码，不预构建或改写 dist；Storybook 与验收资源构建同样选择源码入口。main/preload 的 SSR 解析也显式启用该条件。桌面打包内联 TS Gateway 与契约代码，搜索、剪贴板和 Storage 三个 `.node` 保持外置并从 ASAR 解包加载。
 
 独立 Node／Electron 验收脚本保持默认 dist 入口，例如 `gateway/tests/electron/run.mjs`；执行前需运行 `pnpm --filter xiaowei-gateway build`。`gateway/tests/native.mjs` 在运行生产业务联调前已显式构建 dist。
 

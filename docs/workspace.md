@@ -101,7 +101,7 @@ pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just che
 | --- | --- |
 | `just` | 列出快捷入口 |
 | `just prepare` | 使用 frozen lockfile 安装 pnpm 依赖 |
-| `just gen` | 生成 contracts；后续其他生成任务统一加入此入口 |
+| `just gen` | 依次生成 contracts 和各 Rust 模块的 Gateway binding |
 | `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
 | `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式、Gateway 默认核心与原生业务包 cargo check、Go 格式与 vet；不修改源码或暂存区 |
 | `pnpm gateway:test-native` | 构建两个测试 feature addon，验证 Gateway 原生双向通信与关闭，结束时恢复正常原生产物 |
@@ -168,7 +168,9 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
-main 先打开统一 `userData/xiaowei/storage.sqlite` 并接入 Storage，再由剪贴板初始化业务基线；macOS 启动 500ms 监听，退出时异步停止监控，Storage 最后关闭。原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
+main 在 Electron ready 后、创建窗口前调用 `Storage.open()`，打开统一 `userData/xiaowei/storage.sqlite`，由 Storage 建立 meta 表并完成内部注册的迁移；随后依次接入 KeyValue、ClipboardDao、Settings、Search 和剪贴板业务 endpoint。剪贴板初始化取得 Gateway client 后，macOS 按设置决定是否启动 500ms 监听；退出时异步停止监控，Storage 最后关闭。
+
+原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 
 Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`（别名 reload/rebuild）；后者只 touch 当前工作区 `.rs`。正式包不提供 `rs`。其余命令及任务搜索暂不接入，范围见 [全局搜索 record](../.agent/records/active/2026-09-16-migrate-search.md)。
 

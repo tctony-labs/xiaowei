@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import {
-  Clipboard,
+  ClipboardBiz,
   ClipboardCategoriesSchema,
   ClipboardChangedSchema,
   ClipboardItemSchema,
@@ -17,6 +17,8 @@ import { bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";
 import { ClipboardPage } from "./ClipboardPage";
+
+const selected = fn();
 
 function preview() {
   const host = new GatewayHost();
@@ -35,9 +37,18 @@ function preview() {
   };
   const changed = () =>
     owner.publish(ClipboardChangedSchema.typeName, toBinary(ClipboardChangedSchema, create(ClipboardChangedSchema)));
+  const copy = (id: bigint) => {
+    const item = rows.find((row) => row.id === id);
+    if (!item) throw new Error("Missing preview item");
+    item.lastUsedAtMs = ++latest;
+    item.useCount++;
+    rows = [item, ...rows.filter((row) => row.id !== id)];
+    changed();
+    return create(EmptySchema);
+  };
   const owner = host.registerOwner(
     "clipboard",
-    bindHandlers(Clipboard, {
+    bindHandlers(ClipboardBiz, {
       list: ({ query, favoritesOnly, offset, limit }) =>
         create(ClipboardItemsSchema, {
           items: rows
@@ -46,14 +57,11 @@ function preview() {
         }),
       categories: () => create(ClipboardCategoriesSchema),
       readText: ({ id }) => create(ReadTextResponseSchema, { text: rows.find((item) => item.id === id)?.previewText }),
-      copy: ({ id }) => {
-        const item = rows.find((row) => row.id === id);
-        if (!item) throw new Error("Missing preview item");
-        item.lastUsedAtMs = ++latest;
-        item.useCount++;
-        rows = [item, ...rows.filter((row) => row.id !== id)];
-        changed();
-        return create(EmptySchema);
+      copy: ({ id }) => copy(id),
+      select: ({ id }) => {
+        const response = copy(id);
+        selected(id);
+        return response;
       },
       setFavorite: ({ id, favorite }) => {
         const item = rows.find((row) => row.id === id);
@@ -66,6 +74,9 @@ function preview() {
       readImage: unused,
       delete: unused,
       clearHistory: unused,
+      purgeOrdinary: unused,
+      purgeExpired: unused,
+      storageUsage: unused,
       saveCategory: unused,
       deleteCategory: unused,
       setRemark: unused,
@@ -100,7 +111,7 @@ function preview() {
 const meta = {
   title: "Clipboard/Page",
   component: ClipboardPage,
-  args: { onBack: fn(), onHide: fn() },
+  args: { onBack: fn() },
   render: function Preview(args) {
     const [fixture] = useState(preview);
     return (
@@ -119,8 +130,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const NewItemSelection: Story = {
-  play: async ({ canvasElement, args }) => {
-    args.onHide.mockClear();
+  play: async ({ canvasElement }) => {
+    selected.mockClear();
     const canvas = within(canvasElement);
     const list = await canvas.findByRole("listbox", { name: "剪贴板记录" });
     const input = canvas.getByRole("textbox", { name: "搜索" });
@@ -147,7 +158,8 @@ export const NewItemSelection: Story = {
     // The third row remains selected after Enter copies it to the top.
     await userEvent.click(input);
     await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-    await waitFor(() => expect(args.onHide).toHaveBeenCalledOnce());
+    await waitFor(() => expect(selected).toHaveBeenCalledOnce());
+    await expect(selected).toHaveBeenCalledWith(2n);
     await assertSelected("历史记录 2", true);
 
     // Metadata-only refreshes preserve the manually selected row.

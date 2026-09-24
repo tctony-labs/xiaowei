@@ -1,6 +1,6 @@
 # Protobuf 契约
 
-`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。`testing` 用于编解码和传输测试；`xiaowei.common`、`xiaowei.search`、`xiaowei.launcher`、`xiaowei.app`、`xiaowei.system`、`xiaowei.clipboard` 描述现有桌面业务。
+`proto/` 是消息和接口的唯一手写来源。TS、Rust、Go 包只包含消息、codec 和接口描述，不依赖 Gateway、Electron、napi 或 gRPC。`testing` 用于编解码和传输测试；`xiaowei.common`、`xiaowei.search`、`xiaowei.launcher`、`xiaowei.app`、`xiaowei.system`、`xiaowei.clipboard`、`xiaowei.storage` 描述现有桌面业务。
 
 业务职责划分、消息设计与修改流程见 [业务契约原则](proto/xiaowei/README.md)。
 
@@ -51,7 +51,7 @@ pnpm contracts:check
 pnpm contracts:test
 ```
 
-`just gen` 当前调用 `pnpm contracts:generate`，后续可统一加入其他生成任务。
+`just gen` 依次执行 `pnpm contracts:generate` 和 `pnpm gateway:generate`，先生成语言契约及 `descriptor.bin`，再生成各 Rust 模块的 Gateway binding。模块使用的 service 配置及接入流程见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
 
 固定工具：protoc **36.2**、Protobuf-ES **2.15.0**、prost／prost-build **0.14.4**、protoc-gen-go／Go protobuf runtime **v1.36.6**。依赖由 pnpm-lock.yaml、Cargo.lock 和 contracts/go/go.sum 锁定。生成脚本不依赖忽略的 experiments 目录。
 
