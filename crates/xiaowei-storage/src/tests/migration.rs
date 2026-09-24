@@ -23,13 +23,15 @@ async fn migration_and_marker_commit_together_and_down_is_ordered() {
         &["ALTER TABLE example DROP COLUMN label"],
     );
     let mut registry = crate::clipboard_migrations::registry();
+    let first_index = registry.migrations.len();
+    let second_index = first_index + 1;
     registry.migrations.extend([first.clone(), second.clone()]);
     assert!(db.apply_migrations(registry.clone()).await.is_err());
     let state = db.migration_status(registry.clone()).await.unwrap();
-    assert!(state.states[1].applied_at_seconds.is_some());
-    assert!(state.states[2].applied_at_seconds.is_none());
+    assert!(state.states[first_index].applied_at_seconds.is_some());
+    assert!(state.states[second_index].applied_at_seconds.is_none());
     second.up.pop();
-    registry.migrations[2] = second;
+    registry.migrations[second_index] = second;
     let state = db.apply_migrations(registry.clone()).await.unwrap();
     assert_eq!(state, db.apply_migrations(registry.clone()).await.unwrap());
     assert!(db
@@ -42,11 +44,11 @@ async fn migration_and_marker_commit_together_and_down_is_ordered() {
     let state = db
         .rollback(DatabaseRollback {
             migrations: registry.migrations.clone(),
-            name: registry.migrations[2].name.clone(),
+            name: registry.migrations[second_index].name.clone(),
         })
         .await
         .unwrap();
-    assert!(state.states[2].applied_at_seconds.is_none());
+    assert!(state.states[second_index].applied_at_seconds.is_none());
     db.apply_migrations(registry).await.unwrap();
     db.close().await;
 }

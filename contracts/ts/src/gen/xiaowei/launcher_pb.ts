@@ -56,6 +56,8 @@ export const LauncherSearchResponseSchema: GenMessage<LauncherSearchResponse> = 
   messageDesc(file_xiaowei_launcher, 1);
 
 /**
+ * Display-only result. Actions and application paths remain with the host.
+ *
  * @generated from message xiaowei.launcher.LauncherHit
  */
 export type LauncherHit = Message<"xiaowei.launcher.LauncherHit"> & {
@@ -90,6 +92,8 @@ export type LauncherHit = Message<"xiaowei.launcher.LauncherHit"> & {
   ranges: HighlightRange[];
 
   /**
+   * Optional image resource URL; clients load it as an image rather than calling an icon RPC.
+   *
    * @generated from field: optional string icon_url = 7;
    */
   iconUrl?: string | undefined;
@@ -103,6 +107,8 @@ export const LauncherHitSchema: GenMessage<LauncherHit> = /*@__PURE__*/
   messageDesc(file_xiaowei_launcher, 2);
 
 /**
+ * Execute only a result from the current query batch; stale token/ID pairs are rejected.
+ *
  * @generated from message xiaowei.launcher.ResultRequest
  */
 export type ResultRequest = Message<"xiaowei.launcher.ResultRequest"> & {
@@ -209,6 +215,8 @@ export const LauncherModeSchema: GenEnum<LauncherMode> = /*@__PURE__*/
   enumDesc(file_xiaowei_launcher, 0);
 
 /**
+ * Window-bound query batches, result execution and presentation lifecycle.
+ *
  * @generated from service xiaowei.launcher.Launcher
  */
 export const Launcher: GenService<{

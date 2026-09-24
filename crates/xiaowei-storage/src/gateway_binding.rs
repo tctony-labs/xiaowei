@@ -5,6 +5,8 @@ pub mod xiaowei_clipboard_clipboard_dao_service {
         xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.Capture", xw_gateway::MethodKind::Unary);
     pub const LIST: xw_gateway::binding::Method<xw_contracts::xiaowei::clipboard::ClipboardListOptions, xw_contracts::xiaowei::clipboard::ClipboardEntityList> =
         xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.List", xw_gateway::MethodKind::Unary);
+    pub const SEARCH: xw_gateway::binding::Method<xw_contracts::xiaowei::clipboard::SearchClipboardEntitiesRequest, xw_contracts::xiaowei::clipboard::ClipboardEntityHits> =
+        xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.Search", xw_gateway::MethodKind::Unary);
     pub const GET: xw_gateway::binding::Method<xw_contracts::xiaowei::clipboard::ClipboardItemRequest, xw_contracts::xiaowei::clipboard::OptionalClipboardEntity> =
         xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.Get", xw_gateway::MethodKind::Unary);
     pub const TOUCH: xw_gateway::binding::Method<xw_contracts::xiaowei::clipboard::TouchClipboardEntityRequest, xw_contracts::xiaowei::common::Empty> =

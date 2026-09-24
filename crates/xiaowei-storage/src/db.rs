@@ -49,6 +49,13 @@ impl Database {
                 Box::pin(async move {
                     let mut handle = connection.lock_handle().await?;
                     unsafe {
+                        let code = xw_tokenizer::register(handle.as_raw_handle().as_ptr());
+                        if code != libsqlite3_sys::SQLITE_OK {
+                            return Err(sqlx::Error::Protocol(format!(
+                                "Failed to register Xiaowei FTS5 tokenizer: SQLite code {code}"
+                            )));
+                        }
+
                         libsqlite3_sys::sqlite3_limit(
                             handle.as_raw_handle().as_ptr(),
                             libsqlite3_sys::SQLITE_LIMIT_LENGTH,

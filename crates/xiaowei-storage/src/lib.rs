@@ -15,6 +15,7 @@ mod validation;
 
 #[cfg(test)]
 mod tests {
+    mod clipboard_search;
     mod db;
     mod meta;
     mod migration;

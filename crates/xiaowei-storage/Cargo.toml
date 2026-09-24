@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+xw-tokenizer = { path = "../xw-tokenizer" }
 xw-gateway = { path = "../../gateway/rust" }
 xw-contracts = { path = "../../contracts/rust" }
 prost = "=0.14.4"

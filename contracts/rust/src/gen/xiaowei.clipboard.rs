@@ -6,8 +6,10 @@ pub struct ClipboardItem {
     pub id: u64,
     #[prost(enumeration = "ClipboardKind", tag = "18")]
     pub kind: i32,
+    /// Text preview; may be truncated. ReadText returns the complete text.
     #[prost(string, optional, tag = "14")]
     pub preview_text: ::core::option::Option<::prost::alloc::string::String>,
+    /// True when preview_text omits part of the stored text.
     #[prost(bool, tag = "17")]
     pub preview_truncated: bool,
     #[prost(string, repeated, tag = "5")]
@@ -60,13 +62,18 @@ impl ::prost::Name for ClipboardCategory {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClipboardListOptions {
+    /// Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+    /// whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
+    /// At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
     #[prost(string, optional, tag = "1")]
     pub query: ::core::option::Option<::prost::alloc::string::String>,
+    /// Omitted or false includes both ordinary and favorite records.
     #[prost(bool, optional, tag = "2")]
     pub favorites_only: ::core::option::Option<bool>,
     /// Omitted selects all records; IMAGE and FILE are supported filters.
     #[prost(enumeration = "ClipboardKind", optional, tag = "7")]
     pub kind: ::core::option::Option<i32>,
+    /// Omitted does not filter by category.
     #[prost(uint64, optional, tag = "4")]
     pub category_id: ::core::option::Option<u64>,
     /// Default 50; accepted range 1..100.
@@ -280,6 +287,7 @@ impl ::prost::Name for ReadImageResponse {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteResponse {
+    /// True if a record existed and was deleted; false if it was already absent.
     #[prost(bool, tag = "1")]
     pub deleted: bool,
 }
@@ -477,6 +485,64 @@ impl ::prost::Name for ClipboardEntityList {
         "/xiaowei.clipboard.ClipboardEntityList".into()
     }
 }
+/// Internal bounded recall for subsequent ranking; this is not the panel list API.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SearchClipboardEntitiesRequest {
+    /// Same literal phrase / last-term-prefix semantics as List. Empty query returns no hits.
+    /// At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
+    #[prost(string, tag = "1")]
+    pub query: ::prost::alloc::string::String,
+    /// Defaults to 100; valid range is 1..100. No pagination for recall.
+    #[prost(uint32, optional, tag = "2")]
+    pub limit: ::core::option::Option<u32>,
+}
+impl ::prost::Name for SearchClipboardEntitiesRequest {
+    const NAME: &'static str = "SearchClipboardEntitiesRequest";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.SearchClipboardEntitiesRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.SearchClipboardEntitiesRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardEntityHit {
+    /// Always present on successful recall; large-text content is still the stored summary.
+    #[prost(message, optional, tag = "1")]
+    pub entity: ::core::option::Option<ClipboardEntity>,
+    /// Plain-text context from indexed text, remark and paths, without highlight markup.
+    /// FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
+    /// Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
+    #[prost(string, tag = "2")]
+    pub snippet: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ClipboardEntityHit {
+    const NAME: &'static str = "ClipboardEntityHit";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.ClipboardEntityHit".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.ClipboardEntityHit".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClipboardEntityHits {
+    /// Ordered by FTS5 relevance, then recent use and ID descending; no nucleo score yet.
+    #[prost(message, repeated, tag = "1")]
+    pub hits: ::prost::alloc::vec::Vec<ClipboardEntityHit>,
+}
+impl ::prost::Name for ClipboardEntityHits {
+    const NAME: &'static str = "ClipboardEntityHits";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.ClipboardEntityHits".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.ClipboardEntityHits".into()
+    }
+}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct OptionalClipboardEntity {
     #[prost(message, optional, tag = "1")]
@@ -655,6 +721,7 @@ impl ::prost::Name for ClipboardEntityHashReference {
         "/xiaowei.clipboard.ClipboardEntityHashReference".into()
     }
 }
+/// Record and category IDs in this package must be in 1..=9223372036854775807.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ClipboardKind {

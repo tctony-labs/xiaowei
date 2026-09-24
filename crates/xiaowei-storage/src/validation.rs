@@ -1,35 +1,11 @@
-//! Prepare under SQLite's authorizer to validate actual syntax, not SQL string prefixes.
+//! Check internal SQL call contracts and collect prepared-statement metadata.
+//! SQL is owned by Storage; this is not an authorization boundary.
 
 use crate::{invalid, Result};
 use libsqlite3_sys as ffi;
 use sqlx::SqliteConnection;
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
+use std::ffi::{CStr, CString};
 use std::ptr;
-
-unsafe extern "C" fn authorize(
-    _context: *mut c_void,
-    action: c_int,
-    _first: *const c_char,
-    second: *const c_char,
-    _database: *const c_char,
-    _trigger: *const c_char,
-) -> c_int {
-    if matches!(
-        action,
-        ffi::SQLITE_TRANSACTION | ffi::SQLITE_SAVEPOINT | ffi::SQLITE_ATTACH | ffi::SQLITE_DETACH | ffi::SQLITE_PRAGMA
-    ) {
-        return ffi::SQLITE_DENY;
-    }
-
-    if action == ffi::SQLITE_FUNCTION && !second.is_null() {
-        let name = unsafe { CStr::from_ptr(second) }.to_bytes();
-        if name.eq_ignore_ascii_case(b"load_extension") {
-            return ffi::SQLITE_DENY;
-        }
-    }
-
-    ffi::SQLITE_OK
-}
 
 pub(crate) async fn validate(
     connection: &mut SqliteConnection,
@@ -46,12 +22,9 @@ pub(crate) async fn validate(
     let mut statement = ptr::null_mut();
     let mut tail = ptr::null();
 
-    // The SQLx worker is paused by lock_handle; reset the authorizer before resuming it.
-    // No await or early return occurs between installation and removal.
+    // Hold exclusive access while preparing, inspecting and finalizing the statement.
     let result = unsafe {
-        ffi::sqlite3_set_authorizer(db, Some(authorize), ptr::null_mut());
         let code = ffi::sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, &mut tail);
-        ffi::sqlite3_set_authorizer(db, None, ptr::null_mut());
 
         let result = if code != ffi::SQLITE_OK {
             Err(invalid(CStr::from_ptr(ffi::sqlite3_errmsg(db)).to_string_lossy()))

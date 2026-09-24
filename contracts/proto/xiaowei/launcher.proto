@@ -21,6 +21,7 @@ message LauncherSearchResponse {
   repeated LauncherHit hits = 3;
 }
 
+// Display-only result. Actions and application paths remain with the host.
 message LauncherHit {
   string id = 1;
   string title = 2;
@@ -28,9 +29,11 @@ message LauncherHit {
   string label = 4;
   double score = 5;
   repeated xiaowei.search.HighlightRange ranges = 6;
+  // Optional image resource URL; clients load it as an image rather than calling an icon RPC.
   optional string icon_url = 7;
 }
 
+// Execute only a result from the current query batch; stale token/ID pairs are rejected.
 message ResultRequest {
   uint32 token = 1;
   string id = 2;
@@ -53,6 +56,7 @@ message LauncherOpened {
   LauncherMode mode = 2;
 }
 
+// Window-bound query batches, result execution and presentation lifecycle.
 service Launcher {
   rpc Query(LauncherQueryRequest) returns (LauncherSearchResponse);
   rpc Execute(ResultRequest) returns (ExecuteResponse);

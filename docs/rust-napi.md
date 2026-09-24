@@ -105,4 +105,4 @@ napi 入口包提供以下脚本：
 
 搜索的 `createSearchGatewayEndpoint()` 复用搜索初始化和直接 napi 方法所持有的 Service；剪贴板的 `history.createGatewayEndpoint()` 复用当前 history 的 Service。main 通过 `attachNative` 接入 endpoint；生产 PB routes 由 Rust 业务 crate 注册，契约集中在 `contracts/`。既有通用 `createGatewayEndpoint()` 用于空 registry 的传输接入，不等同于搜索业务工厂。
 
-三个原生包分别执行 `pnpm --filter xiaowei-search build:debug`、`pnpm --filter xiaowei-clipboard build:debug`、`pnpm --filter xiaowei-storage build:debug`；共享 Gateway Rust 改动需重建三者。业务和原生传输回归可执行 `pnpm gateway:test-native`，测试结束恢复正常构建；fixture 不进入正式接口。打包保留三个 `.node`，不新增 Gateway 动态库。生命周期和 Electron 接入见 [Gateway](../gateway/README.md#electron-与业务接入)。
+三个原生包分别执行 `pnpm --filter xiaowei-search build:debug`、`pnpm --filter xiaowei-clipboard build:debug`、`pnpm --filter xiaowei-storage build:debug`；共享 Gateway Rust 改动需重建三者。业务和原生传输回归可执行 `pnpm gateway:test-native`，测试结束恢复正常构建；fixture 不进入正式接口。打包保留三个 `.node`，不新增 Gateway 动态库。生命周期和 Electron 接入见 [Gateway](../docs/gateway-integration.md)。

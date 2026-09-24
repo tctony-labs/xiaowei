@@ -12,11 +12,11 @@
 
 `crates/xiaowei-clipboard` 是纯 Rust 业务入口，`napi/` 提供 npm 包；Electron 仅负责生命周期、日志与 IPC。旧版参考：`xiaowei-next/crates/xw-domain/src/clipboard/` 的数据类型、toolkit、hash、storage，以及 `src-tauri/src/biz/clipboard/monitor.rs`。系统 I/O 复用 arboard、macOS changeCount 和文件 URL 的方式，业务规则保留空白过滤、内容去重、重复使用更新时间和次数、复制后的自身事件抑制。
 
-SQLite 数据库统一位于 `userData/xiaowei/storage.sqlite`，由 Storage 持有连接池；剪贴板通过 Gateway 执行业务 SQL，不再自行打开数据库。图片按旧版 `storage.rs` 在采集时由 Rust 写入 `userData/xiaowei/clipboard/images/<hash>.png`，数据库只保存哈希、尺寸等元数据，返回的 `imagePath` 由目录和哈希推导。图片读取、复制回系统剪贴板均读取原文件；打开、定位和复制路径也直接使用原文件，退出应用不删除。相同哈希复用文件，删除记录时尽力删除附件；清空普通历史保留收藏及其图片。文件历史只保存路径，不复制用户原文件。
+SQLite 数据库统一位于 `userData/xiaowei/storage.sqlite`，由 Storage 持有连接池；剪贴板通过 Gateway 调用 typed ClipboardDao，SQL 由 Storage 内部维护，不再自行打开数据库。图片按旧版 `storage.rs` 在采集时由 Rust 写入 `userData/xiaowei/clipboard/images/<hash>.png`，数据库只保存哈希、尺寸等元数据，返回的 `imagePath` 由目录和哈希推导。图片读取、复制回系统剪贴板均读取原文件；打开、定位和复制路径也直接使用原文件，退出应用不删除。相同哈希复用文件，删除记录时尽力删除附件；清空普通历史保留收藏及其图片。文件历史只保存路径，不复制用户原文件。
 
 已确认的技术与行为偏差统一记录在下方「待对齐差异」中。这些差异不代表用户批准了替代方案，也不代表已完成全面核对；无法按旧版实现时须报告原因与影响，不能擅自更换技术方案。
 
-基础检索按文本、备注和文件路径进行字面子串匹配，按最近使用顺序返回。收藏仅为本地标记；普通历史不上传。暂不自动清理历史，等待后续明确保留策略。数据库当前不加密，端到端同步的密钥设计不在本轮范围。
+面板内部检索通过 Storage 的 `ClipboardDao.List` 使用 FTS5，索引数据库中的文本、备注和文件路径，按 `last_used_at DESC,id DESC` 返回。空查询走普通列表；非空查询沿用旧版空白分隔的多词 AND、引号转义和末词前缀匹配，使用 `xiaowei std` 分词器。入口拒绝超过 4096 字节的查询，FTS 查询按旧版在 UTF-8 字符边界截取前 200 字节；输入中的 FTS 操作符视为普通文本。收藏、类型、分类过滤在分页前执行。保留当前错误传播，不沿用旧版将所有数据库错误吞为无结果的行为。排序次键保留当前 ID，旧版为创建时间。收藏仅为本地标记；普通历史不上传。暂不自动清理历史，等待后续明确保留策略。数据库当前不加密，端到端同步的密钥设计不在本轮范围。
 
 main 就绪后打开数据库并启动监听，退出时停止线程；初次轮询会读取当前剪贴板。通过 changeCount 避免重复读取，读取前后版本不同则下次重试。连续相同内容忽略，内容再次出现时复用已有记录并更新使用时间和次数；复制历史记录时抑制自身回写造成的重复计数。文件 URL 优先于文本读取，每个文件独立写入一个 NSPasteboardItem。
 
@@ -47,6 +47,14 @@ npm 依赖使用可从公网获取的包，禁止引入 `@tencent` 下无法从�
 
 选中行滚入视口时仅滚动左侧列表，上下保留 8px 留白；首尾行利用列表原有 padding 保持相同间距。
 
+### 剪贴板全文索引与召回
+
+底层分词和连接注册见 [Storage FTS5 能力](2026-09-24-fts5-search.md)。本业务新增 `20260924000000_clipboard_fts` migration，保留原 baseline；建立 `clipboard_fts(content)`，rowid 对应 `clipboard_items.id`。content 拼接正文／摘要、备注和 JSON 文件路径，不引入尚未存在的 OCR／caption 字段，不读取长文本全文文件。
+
+INSERT、UPDATE OF text／remark／paths、DELETE 触发器在业务事务内维护索引；更新先删旧索引再插新内容。采集、备注编辑、正文编辑、合并、删除及清理均经过主表触发器；使用次数、分类、收藏变化不重建文本索引。migration 在同一事务中创建索引、触发器、回填历史记录及写入迁移标记；回滚先删除触发器再删除 FTS 表。
+
+`ClipboardDao.Search` 是独立的内部有界召回接口，返回 `ClipboardEntityHit { entity, snippet }`，不作为页面 API。query 与 List 共用分词查询规则；空白查询返回空 hits，limit 默认 100、允许 1–100，不提供 offset。按 FTS5 rank（BM25）升序召回，同分按最近使用时间、ID 降序。snippet 从合并索引内容提取，最多 32 个 FTS token，使用省略号表示省略内容，不添加高亮标记；单片段可能无法覆盖分散的全部查询词。entity 保留原有字段，长文本依然只是数据库摘要。这里不计算 nucleo 分数，也未把结果接入全局 Search。
+
 ## Current work
 
 本地逻辑和基础面板已实现；已确认当前工作区运行实例并执行 `just rs`。真实系统采集、图片／文件回写和视觉对齐仍待桌面人工验收。
@@ -54,6 +62,8 @@ npm 依赖使用可从公网获取的包，禁止引入 `@tencent` 下无法从�
 在 launcher 搜索「剪贴板 / clipboard」（也支持拼音）并回车进入面板，检查四个默认分类、搜索、预览、右键复制、删除确认和详情展开。Esc 或空输入 Backspace 回到全局搜索；面板回车／双击复制并隐藏窗口，不自动粘贴。复制文本、截图和 Finder 文件后可通过界面检查，也可在应用 DevTools 中执行 `await window.clipboardHistory.list({ limit: 10 })` 检查记录，再以对应 ID 验证 `readText(id)`／`readImage(id)`、`copy(id)` 和 `setFavorite(id, true)`。关闭并重新启动应用，确认记录与收藏保留。图片复制应在图像应用中粘贴检查，文件复制应检查多文件路径；自动化测试没有改写用户的系统剪贴板。
 
 ## Outcome
+
+2026-09-24 剪贴板内部 FTS5 接入：追加索引／触发器／历史回填 migration，List 改用 FTS5 并保持面板筛选、分页和最近使用排序；新增 typed `ClipboardDao.Search` 返回有界 entity + snippet，尚未接入全局 Search 或 nucleo。原生测试暴露旧 tokenizer 的重叠子词位置问题，已在底层桥接修正并覆盖“备注关键词”和“Office使用指南”连续词组查询。验证：`just check`、Rust workspace 测试、`pnpm -r test`、契约 TS／Rust／Go codec 和 Go 服务测试通过；Storage 18 项测试包含新增 4 项剪贴板索引／召回测试，tokenizer 6 项测试通过。`pnpm gateway:test-native` 通过，修正 token 位置后重新构建 Storage 并复验 production business Gateway 通过。`just test` 首次被开发进程测试的 `kill EPERM` 中断，该测试文件单独复跑 3 项全过，后续阶段已分别补跑通过，未修改开发进程代码。受影响原生包已重建；当前 Hermes 无运行实例，确认其他 Electron／nodemon cwd 属于主工作区，未重启或冷启动。用户启动 Hermes 后可验收面板中文多词、备注和路径搜索；全局搜索行为未改变。
 
 - 新内容自动选中修复：真实 `ClipboardPage` 的 Storybook `NewItemSelection` 场景覆盖新内容到来、连续新增、第三条回车复制后置顶并保持选中、收藏刷新保留选择，以及搜索范围外新增不改变选择。预览固定为 800 × 580，检查预览内容和选中行滚动。桌面类型检查、相关文件 Biome 检查与桌面构建通过；当前工作区无运行实例，系统剪贴板采集后的桌面验收待用户启动。
 
@@ -79,7 +89,6 @@ npm 依赖使用可从公网获取的包，禁止引入 `@tencent` 下无法从�
 | --- | --- | --- |
 | 去重哈希 | 带类型前缀的 MD5；文本使用长度与截断内容，大图使用元数据与采样内容，文件路径用逗号拼接 | 完整内容 SHA-256，文件路径使用长度分隔；去重规则、哈希值和图片文件名均不同。图片持久落盘已修正，但哈希规则未对齐 |
 | 数据库访问及结构 | SeaORM 管理业务数据，搜索使用 SQLx；使用旧版实体与迁移结构 | 已改为 [Storage](2026-09-18-implement-storage.md) 统一持有 SQLx pool，业务通过 Gateway 执行 SQL，迁移采用 migration_v2 新基线；不引入 SeaORM，表名使用 clipboard 前缀。这是已明确的重构方案，本机切换验收待 Storage 最后切片完成 |
-| 搜索 | FTS5、自定义分词、空白分隔的多词匹配和末词前缀匹配，按最近使用排序 | SQL 子串匹配，将整段查询作为一个匹配字符串；检索语义和性能未对齐。此前已记录为后续工作，不在本次记录操作中实施 |
 | 分类顺序 | 按创建时间倒序，新建分类在前 | 按 ID 升序，新建分类在后，影响分类导航及菜单顺序 |
 | 编辑后的使用次数 | 编辑成尚不存在的新内容时更新时间但不增加使用次数；内容不变或合并时走 `bump_use` | 编辑成新内容时也增加一次使用次数 |
 | 更新时间 | 独立保存 `update_date`，编辑正文、切换收藏等操作维护相应更新时间 | 只有创建时间和最近使用时间，没有独立更新时间字段，无法表达同样的元数据语义 |
@@ -100,7 +109,7 @@ npm 依赖使用可从公网获取的包，禁止引入 `@tencent` 下无法从�
 - 图片理解：OCR、caption、图片向量索引／语义检索。
 - 独立快捷键、自动粘贴到前台应用。
 - 图片 OCR／描述元数据不伪造，随图片理解事项实现。
-- 旧版自定义 FTS 分词和全文索引。
+- 全局 Search 接入剪贴板的有界召回结果及 nucleo 重排；当前仅 DAO 提供 entity 与 snippet。
 - 定期过期清理、文件失效状态检查。
 - 旧版数据库和附件迁移：按用户 2026-09-20 确认的方案，改为离线一次性迁移，对最终用户不可见；不提供设置入口或面向最终用户的迁移进度、结果界面。当前只移除了 Settings 预览中的迁移 UI，离线迁移逻辑尚未实现。此事项与当前应用数据库的 schema 自动升级分别处理。
 - 来源应用信息、富文本／HTML 格式保真，以及 Windows／Linux 系统剪贴板接入。

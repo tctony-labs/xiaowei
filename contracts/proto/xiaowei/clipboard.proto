@@ -4,6 +4,7 @@ package xiaowei.clipboard;
 
 import "xiaowei/common.proto";
 
+// Record and category IDs in this package must be in 1..=9223372036854775807.
 enum ClipboardKind {
   CLIPBOARD_KIND_UNSPECIFIED = 0;
   CLIPBOARD_KIND_TEXT = 1;
@@ -17,7 +18,9 @@ message ClipboardItem {
   ClipboardKind kind = 18;
   reserved 2, 3, 4, 8, 9;
   reserved "image_path", "text", "created_at", "last_used_at";
+  // Text preview; may be truncated. ReadText returns the complete text.
   optional string preview_text = 14;
+  // True when preview_text omits part of the stored text.
   bool preview_truncated = 17;
   repeated string paths = 5;
   optional uint32 width = 6;
@@ -37,11 +40,16 @@ message ClipboardCategory {
 }
 
 message ClipboardListOptions {
+  // Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+  // whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
+  // At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
   optional string query = 1;
+  // Omitted or false includes both ordinary and favorite records.
   optional bool favorites_only = 2;
   reserved 3;
   // Omitted selects all records; IMAGE and FILE are supported filters.
   optional ClipboardKind kind = 7;
+  // Omitted does not filter by category.
   optional uint64 category_id = 4;
   // Default 50; accepted range 1..100.
   optional uint32 limit = 5;
@@ -104,6 +112,7 @@ message ReadImageResponse {
 }
 
 message DeleteResponse {
+  // True if a record existed and was deleted; false if it was already absent.
   bool deleted = 1;
 }
 
@@ -193,6 +202,29 @@ message ClipboardEntityList {
   repeated ClipboardEntity entities = 1;
 }
 
+// Internal bounded recall for subsequent ranking; this is not the panel list API.
+message SearchClipboardEntitiesRequest {
+  // Same literal phrase / last-term-prefix semantics as List. Empty query returns no hits.
+  // At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
+  string query = 1;
+  // Defaults to 100; valid range is 1..100. No pagination for recall.
+  optional uint32 limit = 2;
+}
+
+message ClipboardEntityHit {
+  // Always present on successful recall; large-text content is still the stored summary.
+  ClipboardEntity entity = 1;
+  // Plain-text context from indexed text, remark and paths, without highlight markup.
+  // FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
+  // Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
+  string snippet = 2;
+}
+
+message ClipboardEntityHits {
+  // Ordered by FTS5 relevance, then recent use and ID descending; no nucleo score yet.
+  repeated ClipboardEntityHit hits = 1;
+}
+
 message OptionalClipboardEntity {
   ClipboardEntity entity = 1;
 }
@@ -250,6 +282,8 @@ message ClipboardEntityHashReference {
 service ClipboardDao {
   rpc Capture(CaptureClipboardEntityRequest) returns (ClipboardEntity);
   rpc List(ClipboardListOptions) returns (ClipboardEntityList);
+  // Invalid input returns InvalidArgument; storage failures are propagated.
+  rpc Search(SearchClipboardEntitiesRequest) returns (ClipboardEntityHits);
   rpc Get(ClipboardItemRequest) returns (OptionalClipboardEntity);
   rpc Touch(TouchClipboardEntityRequest) returns (xiaowei.common.Empty);
   rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);

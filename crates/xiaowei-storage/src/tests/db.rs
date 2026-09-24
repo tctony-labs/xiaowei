@@ -43,18 +43,15 @@ async fn values_columns_and_sql_boundaries() {
             .collect::<Vec<_>>(),
         values
     );
-    for sql in [
-        "BEGIN",
-        "COMMIT",
-        "SAVEPOINT a",
-        "ATTACH ':memory:' AS other",
-        "PRAGMA foreign_keys=OFF",
-        "SELECT 1; SELECT 2",
-        "SELECT ?",
-        "SELECT load_extension('x')",
-    ] {
+    for sql in ["SELECT 1; SELECT 2", "SELECT ?"] {
         assert!(db.execute(statement(sql)).await.is_err(), "{sql}");
     }
+
+    // Internal maintenance SQL is trusted; PRAGMA needs no authorization exception.
+    db.execute(statement("PRAGMA user_version=7")).await.unwrap();
+    let version = db.query(statement("PRAGMA user_version")).await.unwrap();
+    assert_eq!(version.rows[0].cells[0].kind, Some(sql_value::Kind::Integer(7)));
+
     assert!(db.query(statement("CREATE TABLE forbidden(id INTEGER)")).await.is_err());
     let too_large = db.query(statement("SELECT zeroblob(5000000)")).await;
     assert!(too_large.is_err());
@@ -234,4 +231,64 @@ async fn conditional_merge_preserves_metadata_and_rolls_back_as_one_unit() {
     assert_eq!(result.rows[0].cells[1].kind, Some(sql_value::Kind::Text("a;b".into())));
     assert_eq!(result.rows[0].cells[2].kind, Some(sql_value::Kind::Integer(7)));
     db.close().await;
+}
+
+#[tokio::test]
+async fn tokenizer_is_registered_on_every_connection_and_after_reopen() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("fts.sqlite");
+    let db = Database::open(&path).await.unwrap();
+    db.execute(statement(
+        "CREATE VIRTUAL TABLE search_test USING fts5(content, tokenize='xiaowei std')",
+    ))
+    .await
+    .unwrap();
+    db.execute(statement(
+        "INSERT INTO search_test(rowid,content) VALUES
+        (1,'企业微信截图 Report /Users/tony/Documents'),
+        (2,'Office使用指南')",
+    ))
+    .await
+    .unwrap();
+
+    // Keep all five connections checked out to exercise each pool connection.
+    let mut connections = Vec::new();
+    for _ in 0..5 {
+        connections.push(db.pool.acquire().await.unwrap());
+    }
+    for connection in &mut connections {
+        for (query, expected) in [("微信", 1_i64), ("report", 1), ("doc*", 1), ("使用指南", 2)] {
+            let ids: Vec<i64> = sqlx::query_scalar("SELECT rowid FROM search_test WHERE search_test MATCH ?")
+                .bind(query)
+                .fetch_all(&mut **connection)
+                .await
+                .unwrap();
+            assert_eq!(ids, vec![expected], "query: {query}");
+        }
+    }
+    drop(connections);
+
+    // Exercise MATCH and snippet through Storage's internal SQL execution path too.
+    let result = db
+        .query(statement(
+            "SELECT snippet(search_test,0,'[',']','...',8) FROM search_test
+            WHERE search_test MATCH 'report'",
+        ))
+        .await
+        .unwrap();
+    let Some(sql_value::Kind::Text(snippet)) = &result.rows[0].cells[0].kind else {
+        panic!("snippet must be text");
+    };
+    assert!(snippet.contains("[Report]"), "{snippet}");
+    db.close().await;
+
+    let reopened = Database::open(&path).await.unwrap();
+    let result = reopened
+        .query(statement(
+            "SELECT rowid FROM search_test WHERE search_test MATCH '微信'",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(result.rows.len(), 1);
+    reopened.close().await;
 }
