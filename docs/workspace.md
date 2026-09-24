@@ -97,6 +97,8 @@ desktop 固定依赖 Pi `@earendil-works/pi-ai@0.85.1`；第三方补丁通过�
 
 `just rs` 执行 `touch desktop/.rs`。nodemon 使用 `--legacy-watch` 轮询 `.rs`（默认间隔 100ms），收到变更后停止自己启动的应用，依次执行所有 `crates/*/napi` 包的 debug 增量构建和 main/preload 构建，全部成功后启动 Electron；任一步失败时不启动 Electron，等待下次 `rs`。Vite 保持运行，实际监听地址通过环境变量传给 Electron。没有运行实例时，`rs` 只更新文件，不启动应用。
 
+测试入口按模块命名，模块内部由脚本编排测试组；目录和说明明确写出 TS、Rust、napi 或 Electron 的实际职责，避免用 `native` 泛指不同实现。
+
 ## 检查与构建
 
 | 命令 | 行为 |
@@ -106,11 +108,12 @@ desktop 固定依赖 Pi `@earendil-works/pi-ai@0.85.1`；第三方补丁通过�
 | `just gen` | 依次生成 contracts 和各 Rust 模块的 Gateway binding |
 | `just fmt` | Biome 格式化及安全修复、cargo fmt、go fmt；会修改文件 |
 | `just check` | 契约生成漂移检查、Biome、分环境 tsgo 类型检查、Rust 格式、Gateway 默认核心与原生业务包 cargo check、Go 格式与 vet；不修改源码或暂存区 |
-| `pnpm gateway:test-native` | 构建两个测试 feature addon，验证 Gateway 原生双向通信与关闭，结束时恢复正常原生产物 |
+| `pnpm gateway:test` | Gateway Rust／TS 核心、worker 构建产物与 Rust napi 通信测试，结束时恢复正式 addon |
+| `pnpm --dir desktop test` | 桌面模块、组件、装配、LLM 与 Rust 业务联调；内部构建并恢复所需产物，不启动 Electron |
 | `just test` | 运行 Rust、Node 原生绑定、三语言契约 codec 与 Go 测试；Node 测试前自动构建原生模块 |
 | `just build` | 先构建本机 napi 模块，再构建 Electron 与 Go 二进制 |
 
-根目录 `pnpm test` 先通过 `pnpm build:native` 串行构建所有 `crates/*/napi` 包，成功后再运行工具和工作区测试；任一原生包构建失败即停止。`just test` 复用此入口，无需事先手动构建原生模块。
+根目录 `pnpm test` 先通过 `pnpm build:rust` 串行构建所有 `crates/*/napi` 包，成功后再运行工具、补丁和工作区测试；工作区测试串行执行，避免 Gateway 与 desktop 同时改写测试 addon 及正式产物；任一原生包构建失败即停止。`just test` 复用此入口，无需事先手动构建原生模块。
 
 根 `tsconfig.base.json` 维护共享严格选项；桌面的 `tsconfig.node.json` 与 `tsconfig.web.json` 由 tsgo 分别检查 Node 和浏览器环境。根 `biome.json` 启用 Tailwind 指令解析。代码显示宽度不超过 120；格式工具之外仍需核对含全角字符的行。
 
@@ -194,4 +197,4 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 开发态 HTML 的 CSP 额外允许 `worker-src 'self' blob:`，供 Vite 在 HMR 连接断开后创建 SharedWorker 等待服务恢复，避免停止／重启时产生 CSP 错误。该设置仅由 `apply: "serve"` 的插件注入，正式构建不添加此权限。
 
-LLM 的本地 SSE 回归通过 `pnpm --dir desktop test:llm` 运行：先构建 Gateway 和 desktop，再消费真实 worker 产物；也纳入 desktop 测试。测试使用 tsx 加载 TS 契约，worker 本身执行构建后的 JS，不启动 Electron。
+桌面统一测试入口为 `pnpm --dir desktop test`，内部由 `desktop/tests/run.mjs` 安排构建与各组测试，目录归属见 [桌面测试](../desktop/tests/README.md)。Gateway 与桌面共用 `scripts/tests/rust-napi-fixtures.mjs` 的测试 addon 构建／恢复流程；产物统一放在 `target/rust-napi-tests/`，由现有 target 清理规则覆盖。两组测试不可并行执行或与相同 addon 的构建重叠。

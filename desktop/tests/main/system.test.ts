@@ -18,7 +18,7 @@ import {
 import { bindClient, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 
-const require = createRequire(new URL("../../../../desktop/package.json", import.meta.url));
+const require = createRequire(new URL("../../package.json", import.meta.url));
 const opened: string[] = [];
 let fail = false;
 const clipboardTexts: string[] = [];
@@ -57,9 +57,9 @@ mock.module(require.resolve("electron"), {
   },
 });
 
-const { registerSystem } = await import("../../../../desktop/src/main/services/system/gateway.ts");
+const { registerSystem } = await import("../../src/main/services/system/gateway.ts");
 
-test("System opens only web URLs without clipboard and coexists with native theme owner", async () => {
+test("System opens only web URLs without clipboard and coexists with separate theme owner", async () => {
   const host = new GatewayHost();
   const theme = host.registerOwner(
     "native-theme",

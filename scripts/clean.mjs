@@ -16,13 +16,13 @@ if (workspace === worktrees[0]) {
 }
 
 const outputs = [
+  // Includes Rust build artifacts and Rust napi test fixtures.
   "target",
   "desktop/out",
   "desktop/dist",
   "desktop/storybook-static",
   "server/bin",
   "gateway/ts/dist",
-  "gateway/tests/native",
 ];
 
 const cleanups = workspaces.map((root) => ({

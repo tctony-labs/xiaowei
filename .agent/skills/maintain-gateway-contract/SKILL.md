@@ -32,7 +32,7 @@ description: >-
 
 - 仅文档变更：检查路径、锚点和描述是否与源码一致。仅 proto 注释变更：运行生成及两项漂移检查，确认声明未改变。
 - 消息、方法或调用链变更：运行 `just check`，并执行受影响模块的行为测试；编解码或生成规则变化时执行 `pnpm contracts:test`。覆盖本次变化涉及的参数边界、缺失值、错误结果及兼容性。
-- Rust 原生 endpoint、跨模块调用或路由变化：执行 `pnpm gateway:test-native`，核对模块配置、handler/client 和桌面装配指向同一完整路由。
+- Rust 原生 endpoint、跨模块调用或路由变化：业务变更执行 `pnpm --dir desktop test`；涉及 Gateway 通信实现时同时执行 `pnpm gateway:test`。核对模块配置、handler/client 和桌面装配指向同一完整路由。
 - Rust 源码、napi 接口、依赖或构建配置变化（包括生成的 Rust 源码）：按根 [AGENTS.md](../../../AGENTS.md) 重建受影响的 napi 包。类型检查不能替代原生构建，已加载的 `.node` 不会自动更新。
 - UI 视觉变化和桌面实例操作遵循根 `AGENTS.md`；本流程不授权冷启动桌面。
 

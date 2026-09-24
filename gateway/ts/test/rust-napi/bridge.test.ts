@@ -22,9 +22,9 @@ interface FixtureEndpoint extends NativeEndpoint {
   fixtureStreamUsage(): string;
 }
 const require = createRequire(import.meta.url);
-const root = fileURLToPath(new URL("../../../", import.meta.url));
+const root = fileURLToPath(new URL("../../../../", import.meta.url));
 function binary(name: string): string {
-  const directory = `${root}tests/native/${name}`;
+  const directory = `${root}target/rust-napi-tests/${name}`;
   return `${directory}/${readdirSync(directory).find((name) => name.endsWith(".node"))}`;
 }
 const search = require(binary("search")) as {
@@ -90,7 +90,7 @@ function readError(reply: Buffer | string): string {
   return JSON.parse(reply as string).code;
 }
 
-test("pending native handler permits independent control calls and close ends pending requests", async () => {
+test("pending Rust napi handler permits independent control calls and close ends pending requests", async () => {
   const { host, a, b, close } = await attachPair();
   try {
     const pending = a.fixtureInvoke(JSON.stringify(echo), bytes("wait"));
@@ -115,7 +115,7 @@ test("pending native handler permits independent control calls and close ends pe
   }
 });
 
-test("native event source → native subscriber, filter, unsubscribe and owner reconnect", async () => {
+test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and owner reconnect", async () => {
   const pair = await attachPair();
   let replacement: FixtureEndpoint | undefined;
   let replacementHandle: Awaited<ReturnType<typeof attachNative>> | undefined;
@@ -159,7 +159,7 @@ test("manifest conflicts roll back endpoint; same-name reconnection cannot be cl
   await current.close();
 });
 
-test("source permissions survive native reentry and cannot be supplied in PB payload", async () => {
+test("source permissions survive Rust napi reentry and cannot be supplied in PB payload", async () => {
   const { host, close } = await attachPair();
   try {
     const restricted = host.client({ caller: "plugin", trusted: false, invoke: [echo.name] });
@@ -200,7 +200,7 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
   }
 });
 
-test("native Node child closes explicitly and exits without process.exit or leaked callbacks", () => {
+test("Rust napi Node child closes explicitly and exits without process.exit or leaked callbacks", () => {
   const script = `
     const native = require(${JSON.stringify(binary("search"))});
     (async () => {
@@ -265,7 +265,7 @@ test("reservation does not publish early and failed activation preserves the run
   await handle.close();
 });
 
-test("native subscriber can precede source registration; Ordered burst is delivered once", async () => {
+test("Rust napi subscriber can precede source registration; Ordered burst is delivered once", async () => {
   const host = new GatewayHost();
   const b = clipboard.createGatewayFixture();
   const subscriber = await attachNative(host, "b", b);
@@ -283,7 +283,7 @@ test("native subscriber can precede source registration; Ordered burst is delive
   }
 });
 
-test("worker environment shutdown settles native pending work without retaining the process", () => {
+test("worker environment shutdown settles Rust napi pending work without retaining the process", () => {
   const workerScript = `
     const { parentPort } = require('node:worker_threads');
     const native = require(${JSON.stringify(binary("search"))});
@@ -305,7 +305,7 @@ test("worker environment shutdown settles native pending work without retaining 
   assert.match(result.stdout, /terminated/);
 });
 
-test("native streams: typed bytes, empty/end/error, Rust local and A-main-B pull", async () => {
+test("Rust napi streams: typed bytes, empty/end/error, Rust local and A-main-B pull", async () => {
   const { host, a, close } = await attachPair();
   try {
     const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
@@ -338,7 +338,7 @@ test("native streams: typed bytes, empty/end/error, Rust local and A-main-B pull
   }
 });
 
-test("native streams: pending open/next cancellation, caller ownership and owner replacement", async () => {
+test("Rust napi streams: pending open/next cancellation, caller ownership and owner replacement", async () => {
   const { host, a, close } = await attachPair();
   const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
   try {
@@ -389,7 +389,7 @@ test("native streams: pending open/next cancellation, caller ownership and owner
   }
 });
 
-test("native stream backpressure reaches B and nested cancel releases the actual producer", async () => {
+test("Rust napi stream backpressure reaches B and nested cancel releases the actual producer", async () => {
   const { host, a, b, close } = await attachPair();
   try {
     const client = bindStreamClient(Fixture, host.client({ caller: "consumer", trusted: true }));
@@ -422,7 +422,7 @@ test("native stream backpressure reaches B and nested cancel releases the actual
   }
 });
 
-test("native stream teardown and late cancelled open cannot overwrite a reused handle", async () => {
+test("Rust napi stream teardown and late cancelled open cannot overwrite a reused handle", async () => {
   const endpoint = search.createGatewayFixture();
   const context = JSON.stringify({ token: "owner", trusted: true });
   endpoint.bind(async () => Buffer.alloc(0), context);

@@ -9,7 +9,7 @@ import { bindStreamClient } from "xiaowei-gateway";
 import { attachNative } from "xiaowei-gateway/native";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
-const directory = fileURLToPath(new URL("../../../gateway/tests/native/search", import.meta.url));
+const directory = fileURLToPath(new URL("../../../target/rust-napi-tests/search", import.meta.url));
 const require = createRequire(import.meta.url);
 const addon = require(`${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`);
 

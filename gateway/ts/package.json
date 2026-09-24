@@ -52,9 +52,8 @@
   },
   "scripts": {
     "check": "tsgo --noEmit",
-    "test": "tsx --test test/*.test.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "test:worker-built": "pnpm build && node --test test/worker-built.test.mjs"
+    "test": "node ../tests/run.mjs",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0"

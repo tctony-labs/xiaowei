@@ -92,9 +92,9 @@ Gateway 传领域事件，不传 Pi 对象或每次完整 `partial`。内容块�
 
 本片只支持非推理文本模型：system/user UTF-8 合计至多 256 KiB；temperature 缺省不传，显式范围 0–2；maxTokens 缺省 min(1024, 模型上限)，显式范围 1–min(4096, 模型上限)。固定 `max_tokens` 字段，关闭 SDK 重试，保留 Pi contentIndex。成功按文本增量、一次用量、一次 finished 顺序输出，finish reason 区分 stop／length；HTTP 错误和断流输出一次 failed，不泄漏原始上游响应或 Key。输入验证、超限、不支持的推理／工具输出及 Gateway 生命周期失败保留 Gateway 错误通道。
 
-worker 的 stream policy 限制 owner 4 路、caller 2 路，producer／consumer idle 各 30 秒，总时长 120 秒；适配器消费文本累计超过 1 MiB 时中止。取消监听直接连接 Pi AbortController，finally 等待 Pi result 后释放监听；挂起 next 和暂停消费均能取消 HTTP。这些限制仍不构成对 Pi 内部 push 队列的严格内存上界，慢消费者下的有界生产需后续专门处理。
+LLM 不单独覆盖并发上限，沿用 Gateway 通用默认值（owner 128 路、caller 32 路）；该值是框架资源保护，不是本片确定的业务并发策略。初版额外设置的 4／2 缺乏需求依据，已按用户反馈移除。worker 的 stream policy 设置 producer／consumer idle 各 30 秒，总时长 120 秒；适配器消费文本累计超过 1 MiB 时中止。取消监听直接连接 Pi AbortController，finally 等待 Pi result 后释放监听；挂起 next 和暂停消费均能取消 HTTP。这些限制仍不构成对 Pi 内部 push 队列的严格内存上界，慢消费者下的有界生产需后续专门处理。
 
-Electron 构建输出独立 ESM `llm-worker.js`，内联 Gateway／契约、外置已打补丁的 Pi；普通 Node 可以执行该 worker。`pnpm --dir desktop test:llm` 先构建后验证真实 Pi 与本地 SSE，使用 tsx 仅加载测试的 TS 契约。完整 native 测试窗口还验证 Rust typed caller → napi → main → worker → Pi：test-fixtures 内用 Envelope 包装测试入参和结果，Rust 解码为 GenerateRequest 后使用 typed StreamMethod 调用实际 Llm route，不给生产 search 添加 LLM 依赖。
+Electron 构建输出独立 ESM `llm-worker.js`，内联 Gateway／契约、外置已打补丁的 Pi；普通 Node 可以执行该 worker。`pnpm --dir desktop test` 统一构建并验证真实 Pi 与本地 SSE，使用 tsx 仅加载测试的 TS 契约。同一入口的 Rust napi 测试窗口还验证 Rust typed caller → napi → main → worker → Pi：test-fixtures 内用 Envelope 包装测试入参和结果，Rust 解码为 GenerateRequest 后使用 typed StreamMethod 调用实际 Llm route，不给生产 search 添加 LLM 依赖。
 
 真实 provider 凭据、应用包内加载及远端模型验收仍在后续范围；本地 Node mock 通过不等于 Electron 包内或真实模型验收。
 

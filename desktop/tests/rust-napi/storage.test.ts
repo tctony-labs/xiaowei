@@ -23,12 +23,12 @@ import { bindClient, bindHandlers, GatewayFailure, methodRoute } from "xiaowei-g
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
 
-import type * as StorageNative from "../../../../crates/xiaowei-storage/napi/index.js";
+import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
 const require = createRequire(import.meta.url);
-const storageNative = require("../../../../crates/xiaowei-storage/napi") as typeof StorageNative;
+const storageNative = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
 const { Storage } = storageNative;
-const peer = require("../../../tests/native/search") as {
+const peer = require("../../../target/rust-napi-tests/search") as {
   createGatewayFixture(): import("xiaowei-gateway/native").NativeEndpoint & {
     fixtureInvoke(route: string, payload: Buffer): Promise<Buffer | string>;
   };

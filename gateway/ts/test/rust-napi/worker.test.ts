@@ -11,7 +11,7 @@ import { GatewayHost } from "../../src/core/registry.js";
 import { attachNative, type NativeEndpoint } from "../../src/main/native.js";
 import { workerFixture } from "../fixtures/worker-client.js";
 
-const directory = fileURLToPath(new URL("../../../tests/native/search", import.meta.url));
+const directory = fileURLToPath(new URL("../../../../target/rust-napi-tests/search", import.meta.url));
 const require = createRequire(import.meta.url);
 const addon = require(`${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`) as {
   createGatewayFixture(): NativeEndpoint;

@@ -29,16 +29,16 @@ import { attachNative } from "xiaowei-gateway/native";
 
 const require = createRequire(import.meta.url);
 const clipboard =
-  require("../../../../crates/xiaowei-clipboard/napi") as typeof import("../../../../crates/xiaowei-clipboard/napi/index.js");
+  require("../../../crates/xiaowei-clipboard/napi") as typeof import("../../../crates/xiaowei-clipboard/napi/index.js");
 const search =
-  require("../../../../crates/xiaowei-search/napi") as typeof import("../../../../crates/xiaowei-search/napi/index.js");
+  require("../../../crates/xiaowei-search/napi") as typeof import("../../../crates/xiaowei-search/napi/index.js");
 
 test("production clipboard Gateway shares Service, data lifecycle, validation and invalidation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "gateway-clipboard-"));
   const history = await clipboard.ClipboardHistory.open(directory, () => {});
   const host = new GatewayHost();
   const { Storage } =
-    require("../../../../crates/xiaowei-storage/napi") as typeof import("../../../../crates/xiaowei-storage/napi/index.js");
+    require("../../../crates/xiaowei-storage/napi") as typeof import("../../../crates/xiaowei-storage/napi/index.js");
   const storage = await Storage.open(join(directory, "storage.sqlite"));
   const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
   const daoOwner = await attachNative(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());

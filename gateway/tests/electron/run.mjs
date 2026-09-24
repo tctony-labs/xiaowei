@@ -16,9 +16,9 @@ import { Storage } from "xiaowei-storage";
 const require = createRequire(import.meta.url);
 export async function run(directory) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const nativeDirectory = `${root}gateway/tests/native/search`;
-  const filename = (await readdir(nativeDirectory)).find((name) => name.endsWith(".node"));
-  const native = require(`${nativeDirectory}/${filename}`).createGatewayFixture();
+  const rustAddonDirectory = `${root}target/rust-napi-tests/search`;
+  const filename = (await readdir(rustAddonDirectory)).find((name) => name.endsWith(".node"));
+  const native = require(`${rustAddonDirectory}/${filename}`).createGatewayFixture();
   const host = new GatewayHost();
   const endpoint = await attachNative(host, "fixture", native);
   const adapter = attachElectron(host, {

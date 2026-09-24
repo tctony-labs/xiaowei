@@ -20,6 +20,12 @@
 
 已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 运行机制](../../../gateway/README.md)，业务装配见 [main 装配约定](../../../desktop/src/main/README.md#gateway-装配与生命周期)与 [renderer 调用约定](../../../desktop/src/renderer/README.md#gateway-业务调用)，生成器细节见 [契约生成机制](../../../contracts/README.md#文件选择与语言映射)。Gateway 根 README 维护共同语义与协议，TS／Rust README 分别维护语言侧 API 和实现约定。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
 
+### 测试职责与入口
+
+当前统一入口为 `pnpm gateway:test`：覆盖 Gateway Rust／TS 核心、worker 源码／构建产物和 `gateway/ts/test/rust-napi/` 的 TS ↔ Rust napi 通信。Storage、搜索／剪贴板业务、LLM、桌面装配等测试归 desktop，由 `pnpm --dir desktop test` 的内部编排执行。测试目录与说明明确标注实现边界，不再以 `native` 泛指 TS、Rust 或 C++。
+
+两个模块共用 `scripts/tests/rust-napi-fixtures.mjs` 的 fixture 构建与正式产物恢复事务，构建产物在 `target/rust-napi-tests/`。任一阶段失败仍尝试恢复全部指定 Rust addon 并核对正式导出；原失败与恢复失败一并报告。根 `pnpm test` 串行运行 workspace，避免同时改写共享 Rust addon 产物。具体测试位置与运行顺序分别见 [Gateway 测试](../../../gateway/tests/README.md)和 [桌面测试](../../../desktop/tests/README.md)。历史 Outcome 中的旧测试命令仅记录当时的验证入口。
+
 ### 统一服务调用
 
 按全局服务名注册 handler，调用方使用 `route + payload`，不绑定具体实现位置。沿用旧版 `XwInvokeRegistry`、`XwEventRegistry`、`xwInvoke`、`xwOn` 的模型：本地命中时直接调用 handler，未命中时通过传输适配层路由到 owner。
@@ -293,6 +299,10 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。实际验证结果见 Outcome，已完成的 Plan 已删除。
 
 ## Outcome
+
+2026-09-24 测试归属与入口整理：统一 `gateway:test` 覆盖 Rust／TS 核心、worker 构建产物与 TS ↔ Rust napi 通信；Storage、剪贴板业务、LLM、System 和启动生命周期迁至 desktop，由单一 `test` 内部编排。删除按测试实现细分的 package scripts，原 `native` 测试目录改为 `rust-napi`，只 mock 宿主的装配测试归 `main`；根构建入口改为 `build:rust`。迁移保留原测试及断言，未改变产品 API。
+
+验证通过统一 Gateway 入口（28 项 Rust 测试、3 项文档反例、48 项 TS、1 项构建后 Node、15 项 Rust napi 通信）、统一 desktop 入口（26 项模块、5 项装配、3 项 LLM、64 项组件、10 项 Rust 业务联调）、2 项 fixture 构建／测试失败恢复回归及 `just check`。共享构建／恢复逻辑保留各阶段失败并始终尝试恢复全部 addon，正式 Rust 产物已恢复并检查。迁入 TS 测试纳入 desktop 类型检查；根 workspace 测试串行编排，避免两个入口争用相同 Rust 产物。未启动 Electron，未执行 e2e。
 
 ### Plan 00：契约生成和测试
 

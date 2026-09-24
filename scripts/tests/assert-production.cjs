@@ -1,11 +1,12 @@
 // Normal addons must never retain fixture exports after integration-test builds.
 const assert = require("node:assert/strict");
-for (const name of ["search", "clipboard"]) {
+for (const name of process.argv.slice(2)) {
   const addon = require(`../../crates/xiaowei-${name}/napi`);
   assert.equal(addon.createGatewayFixture, undefined);
   assert.equal(addon.GatewayEndpoint.prototype.fixtureInvoke, undefined);
   assert.equal(addon.GatewayEndpoint.prototype.fixtureStreamUsage, undefined);
-  const endpoint = addon.createGatewayEndpoint();
+  const endpoint = addon.createGatewayEndpoint?.();
+  if (!endpoint) continue;
   const manifest = JSON.parse(endpoint.manifest());
   assert.deepEqual(manifest.routes, []);
   assert.deepEqual(manifest.events, []);
@@ -19,7 +20,3 @@ for (const name of ["search", "clipboard"]) {
       process.exitCode = 1;
     });
 }
-
-const storage = require("../../crates/xiaowei-storage/napi");
-assert.equal(storage.createGatewayFixture, undefined);
-assert.equal(storage.GatewayEndpoint.prototype.fixtureInvoke, undefined);

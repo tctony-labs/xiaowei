@@ -25,12 +25,10 @@ TS 类型入口指向源码，支持 `source` 条件的构建器可以直接消�
 
 ```sh
 pnpm --filter xiaowei-gateway check
-pnpm --filter xiaowei-gateway test
-pnpm --filter xiaowei-gateway test:worker-built
-cargo test -p xw-gateway --no-default-features
+pnpm gateway:test
 ```
 
-核心测试无需启动桌面或构建 napi 包。原生跨模块验证使用 `pnpm gateway:test-native`；测试范围、产物恢复及 Electron 验收前提见 [测试说明](tests/README.md)。原生重建和运行实例操作遵循根 [AGENTS.md](../AGENTS.md)。
+统一测试入口包含 Rust／TS 核心、worker 构建产物和 Rust napi 通信联调，不启动桌面；测试范围、产物恢复及 Electron 验收前提见 [测试说明](tests/README.md)。原生重建和运行实例操作遵循根 [AGENTS.md](../AGENTS.md)。
 
 ## 详细说明
 
@@ -63,9 +61,20 @@ owner 重注册会使旧 pending 请求失败；新实例有独立执行状态�
 
 每流只允许一个在途 next；并行 next 返回 `CONCURRENCY_FULL`，不同流互不阻塞。open 不 poll producer，next 每次最多取一条；main 和 napi 不预读。流固定绑定原 owner 实例和 caller，上下文在嵌套开流中保留。跨 caller next／cancel 返回 `UNAUTHORIZED`；owner 替换不转移旧流，也不重试 next。
 
-状态为 opening → active → ended／failed／cancelled。TS 在发送 open 前监听 abort；native 在同步入口登记 open ID，取消不必等待开流或 next 完成。迟到的 open 会丢弃 producer，取消记录随对应请求结束释放。自然 end 后 next 返回 done，错误／取消后 next reject；终态只发生一次。`for await` break／异常通过 return 取消，显式 cancel 幂等。服务端终态清理句柄表，client 保留自己的终态，不在服务端积累 tombstone。
+状态为 opening → active → ended／failed／cancelled。TS 在发送 open 前监听 abort；Rust napi 适配层在同步入口登记 open ID，取消不必等待开流或 next 完成。迟到的 open 会丢弃 producer，取消记录随对应请求结束释放。自然 end 后 next 返回 done，错误／取消后 next reject；终态只发生一次。`for await` break／异常通过 return 取消，显式 cancel 幂等。服务端终态清理句柄表，client 保留自己的终态，不在服务端积累 tombstone。
 
-默认值及可配置范围见 [TS stream policy](ts/src/core/stream.ts) 和 [Rust StreamPolicy](rust/src/stream.rs)。owner 在 registration 的 `streamPolicy`／`stream_policy` 配置，native manifest 同步公布；原生句柄硬上限以 [native streams](rust/src/napi/streams.rs) 为准。限额分别约束 chunk 字节、队列项数与字节、owner／caller 活跃流数及各阶段等待时间。
+当前 TS／Rust 的活跃流默认并发上限如下；它限制同时占用执行名额的流数量，不是每秒请求数，超额开流返回 `RESOURCE_EXHAUSTED`，不排队。
+
+| 配置 | 默认值 | 含义 |
+| --- | --- | --- |
+| `maxOwnerStreams`／`max_owner_streams` | 128 | 同一个服务 owner 的活跃流上限 |
+| `maxCallerStreams`／`max_caller_streams` | 32 | 同一个调用方的活跃流上限 |
+
+这两个数是实现时设置的框架资源保护默认值，当前没有记录对应的内存、连接数或吞吐量测算依据；不是 Pi、Node worker 或 napi 的技术要求，也不代表业务应采用的并发目标。它们不会根据负载自动调整。业务如需覆盖，应先明确资源预算和并发需求，而不是直接沿用或另选一组经验数字。
+
+owner 可在 registration 的 `streamPolicy`／`stream_policy` 覆盖这些值，目前允许范围为 1–4096。统计位于实际执行环境；worker 内的上限不是跨所有 worker 的全局上限。取消／超时结束调用方等待，不代表尚未退出的执行立即释放名额。
+
+完整默认值及校验规则见 [TS stream policy](ts/src/core/stream.ts) 和 [Rust StreamPolicy](rust/src/stream.rs)。限额还约束 chunk 字节、队列项数与字节及各阶段等待时间。TS ↔ Rust napi 接入会通过 manifest 公布 policy；[Rust napi 流句柄管理](rust/src/napi/streams.rs) 另有独立句柄硬上限，提高 service 并发配置并不保证整条调用链能承载同样数量的流。
 
 流不使用 unary 的整次超时。开流握手、pending next 的生产 idle、等待下次 pull 的消费 idle，以及 active 总时长分别计时；慢消费者不会触发生产 idle。远端开流成功后使用 owner 返回的 chunk／idle policy。
 

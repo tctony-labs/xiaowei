@@ -9,8 +9,6 @@ export function llmRegistrations(configs: readonly ModelConfig[]) {
   }).map((registration) => ({
     ...registration,
     streamPolicy: {
-      maxOwnerStreams: 4,
-      maxCallerStreams: 2,
       maxChunkBytes: 1024 * 1024,
       producerIdleMs: 30_000,
       consumerIdleMs: 30_000,

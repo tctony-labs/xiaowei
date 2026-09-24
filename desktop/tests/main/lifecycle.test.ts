@@ -9,7 +9,7 @@ import { EmptySchema, Settings, SettingsChangedSchema, SettingsSnapshotSchema } 
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 
-const require = createRequire(new URL("../../../../desktop/package.json", import.meta.url));
+const require = createRequire(new URL("../../package.json", import.meta.url));
 const calls: string[] = [];
 let failure = "";
 let directory = "";
@@ -113,7 +113,7 @@ mock.module(import.meta.resolve("xiaowei-gateway/electron"), {
   },
 });
 
-mock.module(new URL("../../../../desktop/src/main/services/llm/host.ts", import.meta.url).href, {
+mock.module(new URL("../../src/main/services/llm/host.ts", import.meta.url).href, {
   exports: {
     async attachLlm() {
       calls.push("attach-llm");
@@ -127,7 +127,7 @@ mock.module(new URL("../../../../desktop/src/main/services/llm/host.ts", import.
   },
 });
 
-const { createApplicationGateway } = await import("../../../../desktop/src/main/app/gateway.ts");
+const { createApplicationGateway } = await import("../../src/main/app/gateway.ts");
 const actions = {
   development: false,
   platform: "darwin",
