@@ -63,6 +63,21 @@ impl ::prost::Name for WriteClipboardTextRequest {
         "/xiaowei.system.WriteClipboardTextRequest".into()
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetAutostartRequest {
+    #[prost(bool, tag = "1")]
+    pub enabled: bool,
+}
+impl ::prost::Name for SetAutostartRequest {
+    const NAME: &'static str = "SetAutostartRequest";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.SetAutostartRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.SetAutostartRequest".into()
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Theme {

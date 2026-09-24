@@ -25,5 +25,5 @@ export declare class Storage {
   static open(path: string): Promise<Storage>
   createKeyValueGatewayEndpoint(): GatewayEndpoint
   createClipboardDaoGatewayEndpoint(): GatewayEndpoint
-  createSettingsGatewayEndpoint(platform: string, apply: (previous: Buffer, next: Buffer) => Promise<void>): GatewayEndpoint
+  createSettingsGatewayEndpoint(platform: string): GatewayEndpoint
 }

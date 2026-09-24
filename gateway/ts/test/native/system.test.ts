@@ -9,6 +9,7 @@ import {
   EmptySchema,
   LocalPathRequestSchema,
   OpenUrlRequestSchema,
+  SetAutostartRequestSchema,
   System,
   Theme,
   ToggleThemeResponseSchema,
@@ -23,9 +24,22 @@ let fail = false;
 const clipboardTexts: string[] = [];
 const pathCalls: string[][] = [];
 let pathError = "";
+let autostart = false;
+let rejectAutostart = false;
+let appHidden = 0;
 
 mock.module(require.resolve("electron"), {
   exports: {
+    app: {
+      isPackaged: true,
+      hide() {
+        appHidden++;
+      },
+      getLoginItemSettings: () => ({ openAtLogin: autostart }),
+      setLoginItemSettings({ openAtLogin }: { openAtLogin: boolean }) {
+        if (!rejectAutostart) autostart = openAtLogin;
+      },
+    },
     clipboard: { writeText: (text: string) => clipboardTexts.push(text) },
     shell: {
       async openPath(path: string) {
@@ -55,7 +69,7 @@ test("System opens only web URLs without clipboard and coexists with native them
       { partial: true },
     ),
   );
-  const owner = registerSystem(host);
+  const owner = registerSystem(host, () => ({ hide() {} }));
   const api = bindClient(System, host.client({ caller: "window", trusted: true }));
   try {
     await api.openUrl(create(OpenUrlRequestSchema, { url: "https://example.com" }));
@@ -93,7 +107,7 @@ test("System validates local paths, opens files and directories, and propagates 
   const file = join(directory, "中文 file.txt");
   await writeFile(file, "test");
   const host = new GatewayHost();
-  const owner = registerSystem(host);
+  const owner = registerSystem(host, () => ({ hide() {} }));
   const api = bindClient(System, host.client({ caller: "test", trusted: true }));
   try {
     await api.openPath(create(LocalPathRequestSchema, { path: file }));
@@ -125,13 +139,48 @@ test("System validates local paths, opens files and directories, and propagates 
 
 test("System writes plain clipboard text including empty text", async () => {
   const host = new GatewayHost();
-  const owner = registerSystem(host);
+  const owner = registerSystem(host, () => ({ hide() {} }));
   const api = bindClient(System, host.client({ caller: "clipboard-resources", trusted: true }));
   try {
     await api.writeClipboardText(create(WriteClipboardTextRequestSchema, { text: "/tmp/中文 file.txt" }));
     await api.writeClipboardText(create(WriteClipboardTextRequestSchema));
     assert.deepEqual(clipboardTexts, ["/tmp/中文 file.txt", ""]);
   } finally {
+    owner.close();
+  }
+});
+
+test("System resolves the caller window and propagates OS startup failure", async () => {
+  const host = new GatewayHost();
+  let hidden = 0;
+  let live = true;
+  const owner = registerSystem(host, () => {
+    if (!live) throw new Error("Window unavailable");
+    return {
+      hide() {
+        hidden++;
+      },
+    };
+  });
+  const api = bindClient(System, host.client({ caller: "system-test", trusted: true }));
+  try {
+    const before = appHidden;
+    await api.hideWindow(create(EmptySchema));
+    assert.equal(hidden, 1);
+    assert.equal(appHidden - before, process.platform === "darwin" ? 1 : 0);
+    live = false;
+    await assert.rejects(api.hideWindow(create(EmptySchema)), /handler or transport failed/);
+    assert.equal(hidden, 1);
+    await api.setAutostart(create(SetAutostartRequestSchema, { enabled: true }));
+    assert.equal(autostart, true);
+    rejectAutostart = true;
+    await assert.rejects(
+      api.setAutostart(create(SetAutostartRequestSchema, { enabled: false })),
+      /handler or transport failed/,
+    );
+    assert.equal(autostart, true);
+  } finally {
+    rejectAutostart = false;
     owner.close();
   }
 });

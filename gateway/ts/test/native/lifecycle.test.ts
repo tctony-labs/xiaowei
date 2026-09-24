@@ -54,9 +54,12 @@ mock.module(require.resolve("xiaowei-clipboard"), {
           async initialize() {
             calls.push("initialize");
           },
-          async startMonitoring() {
+          async startServices() {
             calls.push("start");
             if (failure === "monitor") throw new Error("monitor failure");
+          },
+          async stopServices() {
+            calls.push("stop");
           },
           async close() {},
           async stopMonitoring() {

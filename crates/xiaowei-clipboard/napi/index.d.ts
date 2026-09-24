@@ -13,6 +13,8 @@ export declare class ClipboardHistory {
   static open(directory: string, onChange: () => void, temporaryRoot?: string): Promise<ClipboardHistory>
   createGatewayEndpoint(): GatewayEndpoint
   initialize(): Promise<void>
+  startServices(): Promise<void>
+  stopServices(): Promise<void>
   startMonitoring(): Promise<void>
   stopMonitoring(): Promise<void>
   close(): Promise<void>

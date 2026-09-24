@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/system.proto.
  */
 export const file_xiaowei_system: GenFile = /*@__PURE__*/
-  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJKj8KBVRoZW1lEhUKEVRIRU1FX1VOU1BFQ0lGSUVEEAASDwoLVEhFTUVfTElHSFQQARIOCgpUSEVNRV9EQVJLEAIy+QIKBlN5c3RlbRJWChJXcml0ZUNsaXBib2FyZFRleHQSKS54aWFvd2VpLnN5c3RlbS5Xcml0ZUNsaXBib2FyZFRleHRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSQwoIT3BlblBhdGgSIC54aWFvd2VpLnN5c3RlbS5Mb2NhbFBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRQoKUmV2ZWFsUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
+  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIiYKE1NldEF1dG9zdGFydFJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCCo/CgVUaGVtZRIVChFUSEVNRV9VTlNQRUNJRklFRBAAEg8KC1RIRU1FX0xJR0hUEAESDgoKVEhFTUVfREFSSxACMoEECgZTeXN0ZW0SSgoMU2V0QXV0b3N0YXJ0EiMueGlhb3dlaS5zeXN0ZW0uU2V0QXV0b3N0YXJ0UmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EjoKCkhpZGVXaW5kb3cSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElYKEldyaXRlQ2xpcGJvYXJkVGV4dBIpLnhpYW93ZWkuc3lzdGVtLldyaXRlQ2xpcGJvYXJkVGV4dFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJJCgtUb2dnbGVUaGVtZRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zeXN0ZW0uVG9nZ2xlVGhlbWVSZXNwb25zZRJACgdPcGVuVXJsEh4ueGlhb3dlaS5zeXN0ZW0uT3BlblVybFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJDCghPcGVuUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJFCgpSZXZlYWxQYXRoEiAueGlhb3dlaS5zeXN0ZW0uTG9jYWxQYXRoUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5YgZwcm90bzM", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.system.ToggleThemeResponse
@@ -91,6 +91,23 @@ export const WriteClipboardTextRequestSchema: GenMessage<WriteClipboardTextReque
   messageDesc(file_xiaowei_system, 3);
 
 /**
+ * @generated from message xiaowei.system.SetAutostartRequest
+ */
+export type SetAutostartRequest = Message<"xiaowei.system.SetAutostartRequest"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message xiaowei.system.SetAutostartRequest.
+ * Use `create(SetAutostartRequestSchema)` to create a new message.
+ */
+export const SetAutostartRequestSchema: GenMessage<SetAutostartRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 4);
+
+/**
  * @generated from enum xiaowei.system.Theme
  */
 export enum Theme {
@@ -120,6 +137,28 @@ export const ThemeSchema: GenEnum<Theme> = /*@__PURE__*/
  * @generated from service xiaowei.system.System
  */
 export const System: GenService<{
+  /**
+   * Apply OS login startup registration; host failures fail the call.
+   *
+   * @generated from rpc xiaowei.system.System.SetAutostart
+   */
+  setAutostart: {
+    methodKind: "unary";
+    input: typeof SetAutostartRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Hide the invoking window and, on macOS, resign application focus.
+   * The host resolves the window from the original call context; no window ID is accepted.
+   * Calls without a live renderer window fail. Does not copy or send paste keys.
+   *
+   * @generated from rpc xiaowei.system.System.HideWindow
+   */
+  hideWindow: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof EmptySchema;
+  },
   /**
    * @generated from rpc xiaowei.system.System.WriteClipboardText
    */

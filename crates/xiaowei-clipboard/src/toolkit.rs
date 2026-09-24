@@ -3,6 +3,14 @@ use crate::{ClipboardBackend, ClipboardData, Result};
 pub struct SystemClipboard;
 
 impl ClipboardBackend for SystemClipboard {
+    fn paste(&mut self) -> Result<bool> {
+        crate::send_paste_shortcut()
+    }
+
+    fn request_paste_permission(&mut self) {
+        crate::request_accessibility_permission();
+    }
+
     fn change_count(&mut self) -> Result<i64> {
         #[cfg(target_os = "macos")]
         return Ok(objc2::rc::autoreleasepool(|_| macos::get_clipboard_change_count()));

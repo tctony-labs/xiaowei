@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import { BrowserWindow, ipcMain, protocol } from "electron";
+import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { ClipboardHistory } from "xiaowei-clipboard";
 import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
@@ -9,11 +10,10 @@ import { createSearchGatewayEndpoint } from "xiaowei-search";
 import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
-import { registerClipboard } from "../services/clipboard/gateway";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
-import { createSettingsEffects } from "../services/settings/effects";
+import { registerShortcuts } from "../services/shortcuts/gateway";
+import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
-import type { ShortcutConfig } from "./shortcuts";
 
 export async function createApplicationGateway(
   directory: string,
@@ -30,11 +30,13 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
   let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
   let clipboardDao: Awaited<ReturnType<typeof attachNative>> | undefined;
   let search: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let clipboard: Awaited<ReturnType<typeof registerClipboard>> | undefined;
+  let clipboard: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let history: ClipboardHistory | undefined;
   let launcher: ReturnType<typeof registerSearch>;
   let settings: Awaited<ReturnType<typeof attachNative>> | undefined;
   const settingsApi = bindClient(Settings, host.client({ caller: "settings-main", trusted: true }));
@@ -44,26 +46,31 @@ export async function createApplicationGateway(
     return png ? Buffer.from(png) : null;
   });
   const icons = createIconResources(async (path) => (await readIcon(path)) ?? undefined);
+  async function closeClipboard() {
+    try {
+      await history?.stopServices();
+    } finally {
+      try {
+        await clipboard?.close();
+      } finally {
+        await history?.close();
+      }
+    }
+  }
   let iconProtocolHandled = false;
   try {
-    system = registerSystem(host);
+    system = registerSystem(host, windowFor);
+    shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
     clipboardDao = await attachNative(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
-    settings = await attachNative(
-      host,
-      "settings",
-      database.createSettingsGatewayEndpoint(
-        actions.platform,
-        createSettingsEffects({
-          platform: actions.platform,
-          setMonitoring: (enabled) => clipboard?.setMonitoring(enabled),
-          updateShortcuts: actions.updateShortcuts,
-        }),
-      ),
-    );
+    settings = await attachNative(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
-    clipboard = await registerClipboard(host, directory, windowFor);
+    history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
+    clipboard = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+    await history.initialize();
+    await history.startServices();
+    console.info("Clipboard history ready");
     protocol.handle(ICON_SCHEME, (request) => icons.respond(request));
     iconProtocolHandled = true;
     launcher = registerSearch(host, windowFor, {
@@ -75,7 +82,8 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
-    await Promise.allSettled([clipboard?.close(), search?.close()]);
+    await Promise.allSettled([closeClipboard(), search?.close()]);
+    shortcuts?.close();
     system?.close();
     await settings?.close();
     await clipboardDao?.close();
@@ -95,7 +103,8 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
-        const results = await Promise.allSettled([clipboard?.close(), search?.close()]);
+        const results = await Promise.allSettled([closeClipboard(), search?.close()]);
+        shortcuts?.close();
         system?.close();
         await settings?.close();
         await clipboardDao?.close();

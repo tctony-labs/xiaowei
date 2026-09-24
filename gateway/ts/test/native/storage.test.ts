@@ -14,16 +14,20 @@ import {
   KvValueSchema,
   Settings,
   SettingsChangedSchema,
-  SettingsSnapshotSchema,
+  ShortcutConfigurationSchema,
+  Shortcuts,
+  System,
   UpdateSettingsRequestSchema,
 } from "xiaowei-contracts";
-import { bindClient, GatewayFailure, methodRoute } from "xiaowei-gateway";
+import { bindClient, bindHandlers, GatewayFailure, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
 
+import type * as StorageNative from "../../../../crates/xiaowei-storage/napi/index.js";
+
 const require = createRequire(import.meta.url);
-const { Storage } =
-  require("../../../../crates/xiaowei-storage/napi") as typeof import("../../../../crates/xiaowei-storage/napi/index.js");
+const storageNative = require("../../../../crates/xiaowei-storage/napi") as typeof StorageNative;
+const { Storage } = storageNative;
 const peer = require("../../../tests/native/search") as {
   createGatewayFixture(): import("xiaowei-gateway/native").NativeEndpoint & {
     fixtureInvoke(route: string, payload: Buffer): Promise<Buffer | string>;
@@ -85,15 +89,7 @@ test("Rust Settings owns typed updates and publishes committed snapshots", async
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
   const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const applied: boolean[] = [];
-  const settingsOwner = await attachNative(
-    host,
-    "settings",
-    storage.createSettingsGatewayEndpoint("darwin", async (before, after) => {
-      assert.equal(fromBinary(SettingsSnapshotSchema, before).clipboardAutoPaste, false);
-      applied.push(fromBinary(SettingsSnapshotSchema, after).clipboardAutoPaste);
-    }),
-  );
+  const settingsOwner = await attachNative(host, "settings", storage.createSettingsGatewayEndpoint("darwin"));
   const client = host.client({ caller: "settings-test", trusted: true });
   const settings = bindClient(Settings, client);
   let resolveChanged!: (value: boolean) => void;
@@ -114,13 +110,87 @@ test("Rust Settings owns typed updates and publishes committed snapshots", async
     );
     assert.equal(next.clipboardAutoPaste, true);
     assert.equal(await changed, true);
-    assert.deepEqual(applied, [true]);
     assert.equal((await settings.get(create(EmptySchema))).clipboardAutoPaste, true);
     assert.equal((await settings.get(create(EmptySchema))).clipboardAutoPaste, true);
   } finally {
     subscription.close();
     await settingsOwner.close();
     await storageOwner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("Settings preserves permissions and rolls back failed host operations", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "settings-effects-"));
+  const host = new GatewayHost();
+  const database = await Storage.open(join(directory, "db.sqlite"));
+  const storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
+  const owner = await attachNative(host, "settings", database.createSettingsGatewayEndpoint("darwin"));
+  const applied: boolean[] = [];
+  const system = host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        setAutostart(request) {
+          applied.push(request.enabled);
+          if (request.enabled) throw new Error("OS refused startup");
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+  let shortcuts = 0;
+  const shortcutOwner = host.registerOwner(
+    "shortcuts",
+    bindHandlers(Shortcuts, {
+      apply() {
+        shortcuts++;
+        return create(EmptySchema);
+      },
+    }),
+  );
+  const api = bindClient(Settings, host.client({ caller: "settings-effects-test", trusted: true }));
+  try {
+    await assert.rejects(
+      api.update(
+        create(UpdateSettingsRequestSchema, {
+          change: { case: "autostart", value: true },
+        }),
+      ),
+      /HandlerError/,
+    );
+    assert.deepEqual(applied, [true, false]);
+    assert.equal((await api.get(create(EmptySchema))).autostart, false);
+    await api.update(
+      create(UpdateSettingsRequestSchema, {
+        change: { case: "shortcuts", value: create(ShortcutConfigurationSchema) },
+      }),
+    );
+    assert.equal(shortcuts, 1);
+    const denied = bindClient(
+      Settings,
+      host.client({
+        caller: "denied",
+        trusted: false,
+        invoke: [methodRoute(Settings.method.update).name],
+      }),
+    );
+    await assert.rejects(
+      denied.update(
+        create(UpdateSettingsRequestSchema, {
+          change: { case: "autostart", value: true },
+        }),
+      ),
+      /authoriz/i,
+    );
+    assert.deepEqual(applied, [true, false]);
+  } finally {
+    await owner.close();
+    system.close();
+    shortcutOwner.close();
+    await storage.close();
     await rm(directory, { recursive: true, force: true });
   }
 });

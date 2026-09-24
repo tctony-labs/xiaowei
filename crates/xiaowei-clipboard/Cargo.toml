@@ -16,10 +16,13 @@ png = "0.17"
 tempfile = "3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+core-graphics = "0.24"
 arboard = { version = "3", features = ["image-data"] }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
 objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSArray"] }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
 xiaowei-storage = { path = "../xiaowei-storage" }

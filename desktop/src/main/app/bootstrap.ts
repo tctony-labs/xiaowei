@@ -6,6 +6,7 @@ import { app, clipboard, globalShortcut, protocol, screen, shell } from "electro
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
+import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
 import { createSettingsWindow } from "../windows/settings";
@@ -13,7 +14,6 @@ import { createApplicationGateway } from "./gateway";
 import { attachRendererLogging, createLoggers, createNativeLogSink } from "./logging";
 import { installMenu } from "./menu";
 import { createPaths } from "./paths";
-import { createSettingsShortcuts, shortcutConfig } from "./shortcuts";
 
 export function startApplication(moduleDir: string): void {
   protocol.registerSchemesAsPrivileged([

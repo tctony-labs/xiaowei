@@ -46,7 +46,7 @@ async fn old_per_key_values_keep_their_names_and_invalid_values_fall_back() {
         .await
         .unwrap();
 
-    let settings = SettingsService::new(database.clone(), "darwin".into(), allow());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
     let snapshot = settings.get().await.unwrap();
     assert_eq!(snapshot.theme, ThemeMode::System as i32);
     assert!(!snapshot.include_chrome_bookmarks);
@@ -56,7 +56,7 @@ async fn old_per_key_values_keep_their_names_and_invalid_values_fall_back() {
 
     database.close().await;
     let reopened = Arc::new(Database::open(&path).await.unwrap());
-    let settings = SettingsService::new(reopened.clone(), "darwin".into(), allow());
+    let settings = SettingsService::with_apply(reopened.clone(), "darwin".into(), allow());
     assert!(!settings.get().await.unwrap().include_chrome_bookmarks);
     reopened.close().await;
 }
@@ -78,7 +78,7 @@ async fn writes_one_validated_setting_and_rejects_failed_system_changes() {
             }
         })
     });
-    let settings = SettingsService::new(database.clone(), "darwin".into(), apply);
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), apply);
 
     assert!(settings
         .update(UpdateSettingsRequest {
@@ -135,7 +135,7 @@ async fn writes_one_validated_setting_and_rejects_failed_system_changes() {
 async fn invalid_shortcuts_are_rejected_before_system_changes() {
     let directory = tempfile::tempdir().unwrap();
     let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
-    let settings = SettingsService::new(database.clone(), "darwin".into(), allow());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
 
     for keys in [
         vec!["Meta", "Meta"],
@@ -191,7 +191,7 @@ async fn legacy_shortcuts_without_quick_chat_keep_their_bindings() {
         })
         .await
         .unwrap();
-    let settings = SettingsService::new(database.clone(), "darwin".into(), allow());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
     let shortcuts = settings.get().await.unwrap().shortcuts.unwrap();
     assert!(shortcuts.main.is_none());
     assert_eq!(shortcuts.clipboard.unwrap().keys, ["Meta", "Shift", "KeyV"]);
@@ -223,7 +223,7 @@ async fn failed_save_restores_system_state_and_does_not_publish() {
             Ok(())
         })
     });
-    let settings = SettingsService::new(database.clone(), "darwin".into(), apply);
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), apply);
     let published = Arc::new(Mutex::new(0));
     let events = published.clone();
     settings.set_publisher(Arc::new(move |_| *events.lock().unwrap() += 1));
@@ -257,7 +257,7 @@ async fn failed_save_restores_system_state_and_does_not_publish() {
 async fn concurrent_updates_keep_both_settings() {
     let directory = tempfile::tempdir().unwrap();
     let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
-    let settings = SettingsService::new(database.clone(), "darwin".into(), allow());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
     let (autostart, clipboard) = tokio::join!(
         settings.update(UpdateSettingsRequest {
             change: Some(Change::Autostart(true))

@@ -44,6 +44,7 @@ run([
   "test/native/business.test.ts",
   "test/native/resources.test.ts",
   "test/native/usage.test.ts",
+  "test/native/clipboard-runtime.test.ts",
 ]);
 
 run([
@@ -54,6 +55,5 @@ run([
   "--experimental-test-module-mocks",
   "--test",
   "test/native/lifecycle.test.ts",
-  "test/native/selection.test.ts",
   "test/native/system.test.ts",
 ]);

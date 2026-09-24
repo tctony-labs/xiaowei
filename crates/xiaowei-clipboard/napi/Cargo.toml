@@ -18,9 +18,5 @@ napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
 xw-napi-log = { path = "../../xw-napi-log" }
 
-[target.'cfg(target_os = "macos")'.dependencies]
-core-foundation = "0.10"
-core-graphics = "0.24"
-
 [build-dependencies]
 napi-build = "2"

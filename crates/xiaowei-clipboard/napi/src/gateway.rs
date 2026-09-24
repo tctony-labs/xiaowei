@@ -118,7 +118,7 @@ impl GatewayEndpoint {
         env.spawn_future(async move {
             if let Some(service) = &service {
                 service
-                    .stop()
+                    .stop_services()
                     .await
                     .map_err(|error| napi::Error::from_reason(error.to_string()))?;
             }

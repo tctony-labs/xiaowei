@@ -176,6 +176,26 @@ impl ClipboardHistory {
     }
 
     #[napi]
+    pub async fn start_services(&self) -> napi::Result<()> {
+        let endpoint = self
+            .endpoint
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .ok_or_else(|| napi::Error::from_reason("Gateway endpoint unavailable"))?;
+        let client = endpoint
+            .client()
+            .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+        run(self.service.start_services(client)).await
+    }
+
+    #[napi]
+    pub async fn stop_services(&self) -> napi::Result<()> {
+        run(self.service.stop_services()).await
+    }
+
+    #[napi]
     pub async fn start_monitoring(&self) -> napi::Result<()> {
         if !cfg!(target_os = "macos") {
             return Err(napi::Error::from_reason("Clipboard monitoring requires macOS"));
@@ -196,7 +216,7 @@ impl ClipboardHistory {
 
     #[napi]
     pub async fn close(&self) -> napi::Result<()> {
-        let stopped = self.service.stop().await;
+        let stopped = self.service.stop_services().await;
         let cleaned = self.service.close_resources().await;
         run(async {
             stopped?;

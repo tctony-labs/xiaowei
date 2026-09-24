@@ -11,6 +11,7 @@ use xw_gateway::{
 };
 
 use crate::gateway_binding::xiaowei_clipboard_clipboard_biz_service as methods;
+use crate::gateway_binding::xiaowei_storage_settings_service as settings;
 use crate::gateway_binding::xiaowei_storage_storage_service as storage;
 use crate::gateway_binding::xiaowei_system_system_service as system;
 
@@ -73,6 +74,18 @@ where
 
 pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
     vec![
+        handler(service, &methods::SELECT, |s, request| async move {
+            let client = crate::dao::CALLER.with(Clone::clone);
+            s.copy(id(request.id)?).await?;
+            system::HIDE_WINDOW.call(&client, c::Empty {}).await?;
+            if cfg!(target_os = "macos") {
+                let values = settings::GET.call(&client, c::Empty {}).await?;
+                if values.clipboard_auto_paste {
+                    s.paste().await?;
+                }
+            }
+            Ok(c::Empty {})
+        }),
         handler(service, &methods::STORAGE_USAGE, |s, _| async move {
             let client = crate::dao::CALLER.with(Clone::clone);
             let database = storage::DATABASE_USAGE.call(&client, c::Empty {}).await?;

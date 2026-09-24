@@ -9,6 +9,12 @@ pub trait ClipboardBackend: Send + 'static {
     fn change_count(&mut self) -> Result<i64>;
     fn read(&mut self) -> Result<Option<ClipboardData>>;
     fn write(&mut self, data: &ClipboardData) -> Result<()>;
+
+    fn paste(&mut self) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn request_paste_permission(&mut self) {}
 }
 
 struct State {
@@ -36,6 +42,7 @@ struct Worker {
 }
 
 pub struct Service {
+    pub(crate) runtime: Mutex<crate::runtime::Runtime>,
     directory: PathBuf,
     state: Arc<Mutex<State>>,
     worker: Mutex<Option<Worker>>,
@@ -51,6 +58,7 @@ impl Service {
         on_change: impl Fn() + Send + Sync + 'static,
     ) -> Result<Self> {
         Ok(Self {
+            runtime: Mutex::new(crate::runtime::Runtime::default()),
             directory: std::path::absolute(directory)?,
             state: Arc::new(Mutex::new(State {
                 store: Store::open(directory, client)?,
@@ -62,6 +70,18 @@ impl Service {
             worker: Mutex::new(None),
             on_change: Arc::new(on_change),
         })
+    }
+
+    pub(crate) async fn request_paste_permission(&self) {
+        self.state.lock().await.clipboard.request_paste_permission();
+    }
+
+    pub async fn paste(&self) -> Result<()> {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        if !self.state.lock().await.clipboard.paste()? {
+            log::warn!("Automatic paste needs Accessibility permission");
+        }
+        Ok(())
     }
 
     pub async fn initialize_with_client(&self, client: xw_gateway::invoke::Client) -> Result<()> {

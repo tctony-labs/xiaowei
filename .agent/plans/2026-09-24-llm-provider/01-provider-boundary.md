@@ -1,6 +1,6 @@
 # 01：Pi provider 边界核对
 
-对应 [record](../../records/active/2026-09-24-llm-provider.md)。这是保留的 provider 边界核对切片。用户新增的 main 模块整理先按 [组织文档](../../../desktop/src/main/README.md) 顺序逐项实施，再继续本切片。
+对应 [record](../../records/active/2026-09-24-llm-provider.md)。这是下一步的 provider 边界核对切片。main 模块整理、剪贴板业务归 Rust 及设置能力 Gateway 接入已完成；当前组织约定见 [main README](../../../desktop/src/main/README.md)。
 
 ## 范围
 

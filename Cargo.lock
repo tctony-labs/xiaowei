@@ -2520,6 +2520,8 @@ name = "xiaowei-clipboard"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "core-foundation",
+ "core-graphics",
  "log",
  "objc2",
  "objc2-app-kit",
@@ -2540,8 +2542,6 @@ dependencies = [
 name = "xiaowei-clipboard-napi"
 version = "0.1.0"
 dependencies = [
- "core-foundation",
- "core-graphics",
  "napi",
  "napi-build",
  "napi-derive",

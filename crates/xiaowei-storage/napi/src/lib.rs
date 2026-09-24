@@ -1,20 +1,11 @@
-use napi::bindgen_prelude::{Buffer, FnArgs, Promise};
-use napi::threadsafe_function::ThreadsafeFunction;
 use napi_derive::napi;
 use prost::{Message, Name};
 use std::sync::Arc;
-use xiaowei_storage::{
-    clipboard_dao::ClipboardDao,
-    settings::{Apply, SettingsService},
-    Database,
-};
+use xiaowei_storage::{clipboard_dao::ClipboardDao, settings::SettingsService, Database};
 use xw_gateway::{napi::Endpoint, XwInvokeRegistry};
 
 mod gateway;
 use gateway::GatewayEndpoint;
-
-type ApplyCallback =
-    ThreadsafeFunction<FnArgs<(Buffer, Buffer)>, Promise<()>, FnArgs<(Buffer, Buffer)>, napi::Status, false, true, 64>;
 
 #[napi]
 pub struct Storage {
@@ -72,30 +63,9 @@ impl Storage {
         })
     }
 
-    #[napi(ts_args_type = "platform: string, apply: (previous: Buffer, next: Buffer) => Promise<void>")]
-    pub fn create_settings_gateway_endpoint(
-        &self,
-        env: napi::Env,
-        platform: String,
-        apply: Arc<ApplyCallback>,
-    ) -> napi::Result<GatewayEndpoint> {
-        let callback: Apply = Arc::new(move |previous, next| {
-            let callback = apply.clone();
-            Box::pin(async move {
-                let promise = callback
-                    .call_async_catch(
-                        (
-                            Buffer::from(previous.encode_to_vec()),
-                            Buffer::from(next.encode_to_vec()),
-                        )
-                            .into(),
-                    )
-                    .await
-                    .map_err(|error| error.to_string())?;
-                promise.await.map_err(|error| error.to_string())
-            })
-        });
-        let service = Arc::new(SettingsService::new(self.database.clone(), platform, callback));
+    #[napi]
+    pub fn create_settings_gateway_endpoint(&self, env: napi::Env, platform: String) -> napi::Result<GatewayEndpoint> {
+        let service = Arc::new(SettingsService::new(self.database.clone(), platform));
         let registry = XwInvokeRegistry::new();
         let owner = registry
             .register_owner(

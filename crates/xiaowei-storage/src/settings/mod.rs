@@ -45,7 +45,15 @@ pub struct SettingsService {
 }
 
 impl SettingsService {
-    pub fn new(database: Arc<Database>, platform: String, apply: Apply) -> Self {
+    pub fn new(database: Arc<Database>, platform: String) -> Self {
+        Self::with_apply(
+            database,
+            platform,
+            Arc::new(|previous, next| Box::pin(gateway::apply(previous, next))),
+        )
+    }
+
+    pub(crate) fn with_apply(database: Arc<Database>, platform: String, apply: Apply) -> Self {
         Self {
             database,
             platform,
