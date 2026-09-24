@@ -6,6 +6,7 @@ import {
   Launcher,
   LauncherOpenedSchema,
   LauncherSearchResponseSchema,
+  OpenUrlRequestSchema,
   RecordUsageRequestSchema,
   Search,
   SearchCommand,
@@ -112,7 +113,11 @@ export function registerSearch(
             const web = url.protocol === "https:" || url.protocol === "http:";
             const settings = hit.provider === "app" && url.protocol === "x-apple.systempreferences:";
             if (!web && !settings) throw new Error("Unsupported URL scheme");
-            await actions.openExternal(url.href);
+            if (web) {
+              await bindClient(System, client).openUrl(create(OpenUrlRequestSchema, { url: url.href }));
+            } else {
+              await actions.openExternal(url.href);
+            }
             break;
           }
           default:

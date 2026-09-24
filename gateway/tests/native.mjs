@@ -46,4 +46,5 @@ run([
   "--test",
   "test/native/lifecycle.test.ts",
   "test/native/selection.test.ts",
+  "test/native/system.test.ts",
 ]);

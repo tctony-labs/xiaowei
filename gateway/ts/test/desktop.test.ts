@@ -190,3 +190,85 @@ test("icon failures do not poison the cache; unknown URLs never read files", asy
   icons.close();
   assert.equal((await icons.respond(new Request(url))).status, 404);
 });
+
+test("Launcher web actions use System with original context and preserve failure and scheme rules", async () => {
+  const host = new GatewayHost();
+  const context = createContext({ caller: "window", trusted: true });
+  const actions: string[] = [];
+  let url = "https://example.com";
+  let provider = "bookmark";
+  let fail = false;
+  const search = host.registerOwner(
+    "search",
+    bindHandlers(Search, {
+      query: () =>
+        create(SearchResultsSchema, {
+          hits: [
+            {
+              id: "url",
+              provider,
+              recencyKey: "url",
+              action: { action: { case: "openUrl", value: url } },
+            },
+          ],
+        }),
+      recordUsage: () => {
+        actions.push("usage");
+        return create(EmptySchema);
+      },
+    }),
+  );
+  const system = host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        openUrl: (request, _client, caller) => {
+          assert.equal(caller, context);
+          if (fail) throw new Error("Browser unavailable");
+          actions.push(`system:${request.url}`);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+  const window = { hide: () => actions.push("hide") } as unknown as BrowserWindow;
+  const launcher = registerSearch(host, () => window, {
+    development: false,
+    platform: "darwin",
+    iconUrl: () => "",
+    includeChromeBookmarks: async () => true,
+    openPath: async () => "",
+    openExternal: async (url) => {
+      actions.push(`external:${url}`);
+    },
+    writeText() {},
+    restart: async () => {},
+    resetPosition() {},
+    modeChanged() {},
+  });
+  const api = bindClient(Launcher, createClient(host.transport(context)));
+  const execute = async () => {
+    const { token } = await api.query(create(LauncherQueryRequestSchema, { query: "url" }));
+    await api.execute(create(ResultRequestSchema, { token, id: "url" }));
+  };
+  try {
+    await execute();
+    assert.deepEqual(actions, ["system:https://example.com/", "usage", "hide"]);
+    actions.length = 0;
+    fail = true;
+    await assert.rejects(execute());
+    assert.deepEqual(actions, []);
+
+    url = "x-apple.systempreferences:com.apple.preference.general";
+    await assert.rejects(execute());
+    provider = "app";
+    await execute();
+    assert.deepEqual(actions, [`external:${url}`, "usage", "hide"]);
+  } finally {
+    launcher.close();
+    system.close();
+    search.close();
+  }
+});

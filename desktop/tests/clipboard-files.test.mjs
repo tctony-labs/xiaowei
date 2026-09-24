@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clipboardPaths, clipboardPathText, webUrl } from "../src/main/services/clipboard/files.ts";
+import { clipboardPaths, clipboardPathText } from "../src/main/services/clipboard/files.ts";
 
 test("text viewer tracks edits; image actions use the original persistent file", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xw-viewer-test-"));
@@ -44,13 +44,6 @@ test("file actions resolve only paths from the selected stored record", async ()
   await assert.rejects(clipboardPaths({ get: async () => null }, "unused", "1"));
   assert.equal(clipboardPathText(paths, false), paths.join("\n"));
   assert.equal(clipboardPathText(paths, true), "/tmp");
-});
-
-test("Markdown links allow web URLs and reject executable or local schemes", () => {
-  assert.equal(webUrl("https://example.com/path"), "https://example.com/path");
-  for (const value of ["file:///tmp/a", "javascript:alert(1)", "data:text/html,hi", "app://run", 42]) {
-    assert.throws(() => webUrl(value));
-  }
 });
 
 test("large text viewer uses the persistent attachment without exporting another copy", async () => {

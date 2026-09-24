@@ -8,13 +8,6 @@ interface ClipboardContentReader {
   readText(id: string): Promise<string>;
 }
 
-export function webUrl(value: unknown): string {
-  if (typeof value !== "string" || value.length > 16384) throw new Error("Invalid URL");
-  const url = new URL(value);
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Unsupported URL scheme");
-  return url.href;
-}
-
 // Electron's external viewers require a file; Rust remains the source of clipboard content.
 export async function clipboardPaths(
   history: ClipboardContentReader,

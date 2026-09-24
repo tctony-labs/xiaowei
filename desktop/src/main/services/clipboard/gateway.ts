@@ -12,12 +12,11 @@ import {
   PurgeExpiredRequestSchema,
   Settings,
   SettingsChangedSchema,
-  System,
 } from "xiaowei-contracts";
 import { bindClient, bindHandlers, type Subscription } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
-import { clipboardPaths, clipboardPathText, webUrl } from "./files";
+import { clipboardPaths, clipboardPathText } from "./files";
 import { clipboardStorageUsage } from "./storage";
 
 export async function registerClipboard(
@@ -48,16 +47,6 @@ export async function registerClipboard(
     };
     const selectionClient = bindClient(ClipboardBiz, host.client({ caller: "clipboard-selection", trusted: true }));
     owner = host.registerOwner("clipboard-resources", [
-      ...bindHandlers(
-        System,
-        {
-          async openUrl(request) {
-            await shell.openExternal(webUrl(request.url));
-            return create(EmptySchema);
-          },
-        },
-        { partial: true },
-      ),
       ...bindHandlers(
         ClipboardBiz,
         {

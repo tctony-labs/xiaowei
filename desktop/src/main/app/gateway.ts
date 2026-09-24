@@ -12,6 +12,7 @@ import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protoco
 import { registerClipboard } from "../services/clipboard/gateway";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
 import { createSettingsEffects } from "../services/settings/effects";
+import { registerSystem } from "../services/system/gateway";
 import type { ShortcutConfig } from "./shortcuts";
 
 export async function createApplicationGateway(
@@ -29,6 +30,7 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let system: ReturnType<typeof registerSystem> | undefined;
   let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
   let clipboardDao: Awaited<ReturnType<typeof attachNative>> | undefined;
   let search: Awaited<ReturnType<typeof attachNative>> | undefined;
@@ -44,6 +46,7 @@ export async function createApplicationGateway(
   const icons = createIconResources(async (path) => (await readIcon(path)) ?? undefined);
   let iconProtocolHandled = false;
   try {
+    system = registerSystem(host);
     const database = await Storage.open(databasePath);
     storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
     clipboardDao = await attachNative(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
@@ -73,6 +76,7 @@ export async function createApplicationGateway(
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
     await Promise.allSettled([clipboard?.close(), search?.close()]);
+    system?.close();
     await settings?.close();
     await clipboardDao?.close();
     await storage?.close();
@@ -92,6 +96,7 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         const results = await Promise.allSettled([clipboard?.close(), search?.close()]);
+        system?.close();
         await settings?.close();
         await clipboardDao?.close();
         await storage?.close();
