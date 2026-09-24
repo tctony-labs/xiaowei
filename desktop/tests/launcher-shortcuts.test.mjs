@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { activateLauncherShortcut, positionLauncher, showLauncherWindow } from "../src/main/launcher-shortcuts.ts";
+import {
+  activateLauncherShortcut,
+  configureLauncherWorkspaces,
+  positionLauncher,
+  showLauncherWindow,
+} from "../src/main/launcher-shortcuts.ts";
 
 function fixture({ visible = true, focused = true, destroyed = false } = {}) {
   const calls = [];
@@ -106,14 +111,14 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
   window.getBounds = () => ({ x: position[0], y: position[1], width: 800, height: 71 });
   positionLauncher(window, workArea);
   const initial = [...position];
-  showLauncherWindow(window, screen, "linux");
+  showLauncherWindow(window, screen);
   window.setPosition(120, 300);
   window.hide();
   activateLauncherShortcut(
     window,
     "search",
     "search",
-    () => showLauncherWindow(window, screen, "linux"),
+    () => showLauncherWindow(window, screen),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
@@ -123,7 +128,7 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
     window,
     "search",
     "clipboard",
-    () => showLauncherWindow(window, screen, "linux"),
+    () => showLauncherWindow(window, screen),
     () => {},
   );
   assert.deepEqual(position, [120, 300]);
@@ -161,14 +166,14 @@ test("invoking the launcher follows the cursor to another display before showing
         },
       };
 
-      showLauncherWindow(window, screen, "linux");
+      showLauncherWindow(window, screen);
 
       assert.deepEqual(calls, [["position", ...expected], ["show"], ["focus"]]);
     }
   }
 });
 
-test("macOS keeps all-Space visibility enabled while showing the launcher", () => {
+test("macOS configures all-Space visibility once before repeated launcher activation", () => {
   const calls = [];
   const workArea = { x: 0, y: 25, width: 1440, height: 875 };
   const window = {
@@ -184,7 +189,15 @@ test("macOS keeps all-Space visibility enabled while showing the launcher", () =
     getDisplayMatching: () => ({ id: 1, workArea }),
   };
 
-  showLauncherWindow(window, screen, "darwin");
+  configureLauncherWorkspaces(window, "darwin");
+  for (let invocation = 0; invocation < 4; invocation++) {
+    showLauncherWindow(window, screen);
+  }
 
-  assert.deepEqual(calls, [["all-workspaces", true], ["show"], ["focus"]]);
+  assert.deepEqual(calls, [["all-workspaces", true], ...Array.from({ length: 4 }, () => [["show"], ["focus"]]).flat()]);
+});
+
+test("other platforms do not configure macOS workspaces", () => {
+  configureLauncherWorkspaces({}, "linux");
+  configureLauncherWorkspaces({}, "win32");
 });
