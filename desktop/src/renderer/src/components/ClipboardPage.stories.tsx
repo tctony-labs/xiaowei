@@ -172,7 +172,7 @@ export const NewItemSelection: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "模拟复制新内容" }));
     await assertSelected("新复制的内容 33", true);
 
-    // A new item outside the current search must not disrupt selection.
+    // Capturing new content clears search so the latest item is visible.
     await userEvent.type(input, "历史记录");
     await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(30));
     await userEvent.click(
@@ -180,6 +180,13 @@ export const NewItemSelection: Story = {
     );
     await userEvent.click(canvas.getByRole("button", { name: "模拟复制新内容" }));
     await waitFor(() => expect(list).toHaveAttribute("aria-busy", "false"));
-    await assertSelected("历史记录 3");
+    await assertSelected("新复制的内容 34", true);
+    await expect(input).toHaveValue("");
+
+    await userEvent.click(within(canvas.getByRole("navigation")).getByRole("button", { name: "收藏" }));
+    await canvas.findByRole("option", { name: (_name, element) => element.textContent === "历史记录 30" });
+    await userEvent.click(canvas.getByRole("button", { name: "模拟复制新内容" }));
+    await assertSelected("新复制的内容 35", true);
+    await expect(canvas.getByRole("button", { name: "剪贴板" })).toHaveAttribute("aria-pressed", "true");
   },
 };
