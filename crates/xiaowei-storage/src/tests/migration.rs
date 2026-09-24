@@ -121,8 +121,9 @@ async fn initialization_ignores_unknown_migrations_and_applies_known_pending_mig
         &["CREATE TABLE current_data(value TEXT)"],
         &["DROP TABLE current_data"],
     ));
+    let expected_count = current_registry.migrations.len();
     let states = reopened.apply_migrations(current_registry).await.unwrap();
-    assert_eq!(states.states.len(), 2);
+    assert_eq!(states.states.len(), expected_count);
     assert!(states.states.iter().all(|state| state.applied_at_seconds.is_some()));
 
     let preserved: (String, String) = sqlx::query_as(
@@ -145,10 +146,13 @@ async fn initialization_reports_actual_migration_sql_failure() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("storage.sqlite");
     let db = Database::open(&path).await.unwrap();
-    sqlx::query("DELETE FROM meta WHERE key='migration_v2.20260920000000_clipboard_baseline'")
-        .execute(&db.pool)
-        .await
-        .unwrap();
+    for migration in crate::clipboard_migrations::registry().migrations {
+        sqlx::query("DELETE FROM meta WHERE key=?")
+            .bind(format!("migration_v2.{}", migration.name))
+            .execute(&db.pool)
+            .await
+            .unwrap();
+    }
     db.close().await;
 
     let error = Database::open(&path)
