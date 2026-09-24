@@ -18,7 +18,7 @@
 
 ### 当前核心实现
 
-已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 核心](../../../gateway/README.md)。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
+已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 运行机制](../../../docs/gateway-runtime.md)，业务装配见 [桌面接入](../../../docs/gateway-integration.md)，生成器细节见 [契约生成机制](../../../docs/contracts-generation.md)。README 保留职责、使用入口和稳定约定。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
 
 ### 统一服务调用
 
@@ -72,7 +72,7 @@ Electron／React／未来 RN 使用 TS 契约包，Rust 业务使用 Rust crate�
 
 ### Stream 契约与传输
 
-当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../gateway/README.md#响应流)。下面保留设计边界；renderer 的导航、销毁和取消生命周期已接入。
+当前已实现。API、状态机、默认 policy／可配置范围和计量方式统一维护在 [Gateway 核心：响应流](../../../docs/gateway-runtime.md#响应流)。下面保留设计边界；renderer 的导航、销毁和取消生命周期已接入。
 
 LLM SSE 场景使用请求绑定的响应 stream；SSE 解析和结构化增量由业务提供，Gateway 不理解 HTTP／SSE。此次实现通用流能力及模拟生产者，不新增实际 LLM provider、网络请求或聊天 UI。
 
@@ -356,7 +356,7 @@ Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成
 
 ### Plan 03：可取消、有背压的响应流
 
-2026-09-20 完成 TS／Rust typed 响应流、stream 专用绑定、owner／caller admission、open／next／cancel 状态机、native 二进制帧与真实跨模块联调。无通用双向 pipe、LLM provider、网络请求或 renderer 接线。默认 policy 与接口说明已回填 [Gateway 核心](../../../gateway/README.md#响应流)，不依赖临时 Plan。
+2026-09-20 完成 TS／Rust typed 响应流、stream 专用绑定、owner／caller admission、open／next／cancel 状态机、native 二进制帧与真实跨模块联调。无通用双向 pipe、LLM provider、网络请求或 renderer 接线。默认 policy 与接口说明已回填 [Gateway 核心](../../../docs/gateway-runtime.md#响应流)，不依赖临时 Plan。
 
 Rust 生成器现在为 streaming 方法生成 `StreamMethod`，编译期区分 unary／stream；TS 提供独立的 bindStreamClient／bindStreamHandlers，unary binder 不再登记空的 stream 占位，两组注册可直接合并。客户端返回的流保留 typed chunk；中转只传原始 PB bytes 和序号，未修改业务消息契约。
 
@@ -427,3 +427,5 @@ open 前登记取消，native 同步准备请求后才派发异步任务；每�
 2026-09-20 调整桌面 Gateway 加载：package exports 增加 `source` 条件，类型入口直接指向源码；桌面 main/preload（含 SSR）、renderer、Storybook 与验收资源构建选择源码，移除 desktop check/build/dev:main 的 Gateway 预构建。普通 Node import 保留 dist，现有原生业务联调和 Electron 验收脚本仍可使用。无修改的 r 不再重写 renderer 共享依赖，真实源码修改仍触发 HMR；长期说明见 Gateway README。未采用内容比较后写入的构建包装器，保持独立 Node 场景原有 tsc 构建。`just check` 与 38 项桌面测试通过；实际 Vite 构建的模块清单确认三个目标均包含 Gateway src、没有 Gateway dist，默认 Node 解析仍指向 dist。
 
 Electron 集成验收目录迁至 gateway/tests/electron，依赖由 gateway/tests/package.json 私有 workspace 包声明；测试资产构建通过，实际 Electron 验收仍显式在已有实例执行。桌面 source 条件解析测试改名并保留于 scripts/dev/desktop-source-resolution.test.mjs，迁移后通过。
+
+2026-09-24 整理契约、Gateway 与维护技能的文档职责：README 保留工程入口和稳定规则，具体接口语义留在 proto，运行机制、桌面装配与生成器说明提取到 docs，测试步骤集中到测试目录 README，skill 按改动范围选择生成和验证步骤。本次只调整文档组织，不改变运行行为。

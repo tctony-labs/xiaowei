@@ -31,6 +31,7 @@ impl ::prost::Name for LauncherSearchResponse {
         "/xiaowei.launcher.LauncherSearchResponse".into()
     }
 }
+/// Display-only result. Actions and application paths remain with the host.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LauncherHit {
     #[prost(string, tag = "1")]
@@ -45,6 +46,7 @@ pub struct LauncherHit {
     pub score: f64,
     #[prost(message, repeated, tag = "6")]
     pub ranges: ::prost::alloc::vec::Vec<super::search::HighlightRange>,
+    /// Optional image resource URL; clients load it as an image rather than calling an icon RPC.
     #[prost(string, optional, tag = "7")]
     pub icon_url: ::core::option::Option<::prost::alloc::string::String>,
 }
@@ -58,6 +60,7 @@ impl ::prost::Name for LauncherHit {
         "/xiaowei.launcher.LauncherHit".into()
     }
 }
+/// Execute only a result from the current query batch; stale token/ID pairs are rejected.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ResultRequest {
     #[prost(uint32, tag = "1")]

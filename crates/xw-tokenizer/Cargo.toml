@@ -1,0 +1,13 @@
+[package]
+name = "xw-tokenizer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+jieba-rs = { git = "https://github.com/tctony/jieba-rs", rev = "f6d5461001da18039fa0aca73f0b62ac80e130a7" }
+libsqlite3-sys = { version = "=0.30.1", features = ["bundled"] }
+lazy_static = "1.5"
+unicode-segmentation = "1.12"
+
+[build-dependencies]
+cc = "1.0"

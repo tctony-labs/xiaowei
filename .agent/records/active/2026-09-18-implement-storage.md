@@ -112,7 +112,7 @@ Gateway 前置条件已完成，用户已确认进入实施阶段。计划依次
 
 Plan 00–02 已完成并提交。Plan 03 的 lazy clients、启动失败清理测试和桌面打包已完成，本机切换和真实 Electron 接口验证已完成，产品交互人工验收待反馈。此前交付时公开 Database endpoint；后续边界调整已收拢为 Storage 内部 SQL 和有类型的 ClipboardDao endpoint。每个切片完成即回填结果并删除对应 Plan；本机数据库调整仅在最后切换阶段执行，不与前期开发混在一起。
 
-FTS／tokenizer 不混入本轮 DB 与 meta 基础。旧版 tokenizer 引用私有 git.woa.com 的 jieba-rs revision，实际接入时需核对 fork 与公开来源，不自行替换技术方案。Config 保持暂缓。
+FTS／tokenizer 从 DB 与 meta 基础中拆为独立的 [Storage FTS5 全文检索能力](2026-09-24-fts5-search.md)，具体注册、依赖来源和验证在该事项维护。Config 保持暂缓。
 
 验收包括：新库完整初始化、已有迁移跳过、失败时 SQL 与标记共同回滚、显式 down、参数与 BLOB／int64 往返、事务隔离和业务条件合并、meta 前缀／JSON null／跨重启持久化、跨模块及可信 renderer 访问、剪贴板业务行为回归。本机接管后核对完整性、外键和附件引用。不要求实现任意历史版本升级。
 
@@ -121,7 +121,7 @@ FTS／tokenizer 不混入本轮 DB 与 meta 基础。旧版 tokenizer 引用私�
 
 SQLx 固定 0.8.6。初次实施时的工具链 Rust 1.92 不满足 SQLx 0.9 正式版的 Rust 1.94 要求，SQLx 0.8 的 libsqlite3-sys 0.30 又与旧 rusqlite 0.37 冲突，因此剪贴板在接管前临时使用 rusqlite 0.32.1，共享 libsqlite3-sys 0.30.1；接管后删除 rusqlite，不引入 SQLx alpha 或私有 patch。develop 后续已将工具链固定为 Rust 1.98.1，本轮 rebase 保留 SQLx 0.8.6，不顺带升级数据库依赖。
 
-Storage 内部提供 Query／Execute／Transaction 和 ApplyMigrations／MigrationStatus／Rollback。事务用 BEGIN IMMEDIATE 持有写锁，参数可引用前序结果的 step／row／column，expected_rows 断言失败回滚整个事务；列按索引返回并保留重名。单 SQL 64 KiB、128 参数，事务最多 64 步，完整结果最多 10000 行／4 MiB。SQLite prepare 时通过 authorizer 拒绝外部事务控制、ATTACH／DETACH、PRAGMA 和动态扩展加载，不靠字符串前缀猜测语句类型。取消查询通过 progress handler 中断执行，事务 Drop 回滚，连接归池前清理 progress handler。
+Storage 内部提供 Query／Execute／Transaction 和 ApplyMigrations／MigrationStatus／Rollback。事务用 BEGIN IMMEDIATE 持有写锁，参数可引用前序结果的 step／row／column，expected_rows 断言失败回滚整个事务；列按索引返回并保留重名。单 SQL 64 KiB、128 参数，事务最多 64 步，完整结果最多 10000 行／4 MiB。SQL 类型和执行方法仅在 Storage 内部可见，外部通过 typed KV／Settings／DAO 调用，不开放 SQL 或迁移入口。移除旧 SQL Gateway 设计遗留的 authorizer；prepare 只保留单语句、参数数量、Query 只读检查及结果列信息读取，属于内部调用约定，不作为操作授权边界。取消查询通过 progress handler 中断执行，事务 Drop 回滚，连接归池前清理 progress handler。
 
 migration_v2 接收完整有序的声明列表（名称、up SQL、down SQL）；只检查当前列表中的迁移状态，忽略并保留其他版本写入的未知迁移标记。当前列表中的已执行状态仍须满足前缀顺序；已完成的迁移跳过，未完成的迁移按注册顺序执行。初始化实际报错时，桌面记录原始错误并退出，不根据未知迁移推断数据库不兼容，也不自动回滚已有数据。每条迁移及其 meta 标记在同一事务中提交；meta 表先自举，回滚只允许最后一条已执行迁移。
 

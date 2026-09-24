@@ -10,6 +10,7 @@ pub fn registrations(dao: &Arc<ClipboardDao>) -> Vec<InvokeRegistration> {
     vec![
         handler(dao, &methods::CAPTURE, |s, r| async move { s.capture(r).await }),
         handler(dao, &methods::LIST, |s, r| async move { s.list(r).await }),
+        handler(dao, &methods::SEARCH, |s, r| async move { s.search(r).await }),
         handler(dao, &methods::GET, |s, r| async move { s.get(r).await }),
         handler(dao, &methods::TOUCH, |s, r| async move { s.touch(r).await }),
         handler(

@@ -10,13 +10,11 @@
 
 ## How
 
-`crates/xiaowei-search` 是 Launcher 全局搜索的统一业务入口，不承载剪贴板内部搜索或知识库检索。为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../docs/rust-napi.md)。
+当前数据源、初始化、Gateway 调用链、nucleo 评分、拼音高亮、候选截取、使用加权及命令范围统一维护在 [搜索实现](../../../docs/search.md)，本 record 保留迁移取舍、桌面展示与图标行为、验收结果。
 
-内部数据源 crate 位于 `crates/xw-app` 和 `crates/xw-bookmark`。复用旧项目的纯 Rust 数据源、拼音、打分和计算器逻辑，去除 Tauri 耦合；Electron main 负责调用搜索与执行系统动作，preload 暴露受限接口。
+为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；内部数据源拆为 `xw-app` 和 `xw-bookmark`，去除 Tauri 耦合。可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../docs/rust-napi.md)。
 
-原生模块显式构建；`just rs` 不额外编译 Rust。结果列表沿用旧版 48px 行高、4px 行间距、最多九行的窗口布局，保留现有 800 × 71 空搜索框。
-
-桌面窗口加载后延迟 1 秒，通过 napi `initializeSearch()` 在 Rust 后台线程扫描应用、书签并建立索引，保留文件监听；不阻塞 Electron 主线程。空查询直接返回空结果，不触发索引；提前发起非空搜索时立即初始化或等待正在进行的初始化，预热和搜索通过同一个 `OnceLock` 仅建立一次索引。退出时取消尚未触发的预热定时器；初始化起止与耗时写入日志。中文原文、全拼、首字母及多音字共用 nucleo 打分与码点高亮。计算器固定置顶，应用和书签各按基础匹配分（同分按标题）取前 20 条，再做最近使用加权并稳定混排，最多 30 条；同分保持书签先于应用的旧注册顺序，返回的 score 保留基础分；使用记录仅保存在内存，重启清空。同 URL 书签保留不同条目并使用不同结果 ID，最近使用权重仍按 URL 共享；重复应用按稳定键去重。应用搜索当前仅支持 macOS。
+结果列表沿用旧版 48px 行高、4px 行间距、最多九行的窗口布局，保留现有 800 × 71 空搜索框。
 
 Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，renderer 不提供任意路径或 URL。旧查询响应不覆盖新查询；输入改变时保留上一轮列表和窗口高度，待新结果替换；清空输入立即收起结果，等待新结果期间不执行旧条目。结果支持上下键、回车、单击选中和双击执行，组合输入期间不处理导航／确认键。应用名称与图标的系统调用已提取到内部 `xw-platform`，由 `xiaowei-search` 对外提供。图标沿用旧版 macOS `NSWorkspace.iconForFile` → TIFF → PNG，经 napi 异步返回 Buffer，Electron 转为 data URL；不再使用按文件关联类型读取图标的 `app.getFileIcon`。读取失败保留通用图标且不缓存失败；renderer 保留已加载图标，避免每轮查询闪回占位图。普通网址只允许 HTTP(S)，系统设置 URL 仅对应用数据源开放。
 
@@ -25,6 +23,8 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 应用本地化名称读取在 `xw-platform::macos::app_name::localized_name` 内逐次建立 autorelease pool，并在池内转成 Rust `String`，覆盖初始化工作线程及目录变更回调；所有权注意事项见 [Rust 原生模块开发](../../../AGENTS.md#rust-原生模块开发)。
 
 ## Outcome
+
+2026-09-24 对照当前源码，将搜索算法、数据源与调用链整理到 `docs/search.md`，补充基础分与最终名次的区别、候选截取先于使用加权的边界，以及剪贴板搜索尚未合并的现状。本次仅调整文档。
 
 2026-09-21 补齐本地化名称读取的 autorelease pool；`xw-platform` 4 项测试、该包格式检查、搜索 napi debug 构建及 5 项 Node 原生绑定测试通过。当前工作区没有运行实例，未重启其他工作区的 Electron；桌面内验证待用户启动，未进行 Instruments 内存测量。
 
@@ -42,12 +42,7 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 ## 内置命令范围
 
-本轮仅实现两个命令，匹配、拼音、高亮与最近使用排序留在 Rust；Electron 按当前结果回查命令 ID，执行白名单动作。
-
-- `toggle-system-theme`：macOS 切换系统明暗主题，沿用旧版 `System Events` 的固定 AppleScript，通过 `xw-platform` 执行并经 napi 异步导出。支持主题／浅色／深色／theme／dark 等别名。系统若要求自动化授权，由用户处理；失败通过 IPC 返回错误。不在自动测试中改变用户系统主题。
-- `rs`：仅开发实例提供，支持 reload／rebuild 别名；Electron 按 `app.getAppPath()` touch 当前桌面目录的 `.rs`，复用现有 nodemon 流程。正式包不注册、执行侧也拒绝该命令。可见性由 Electron 开发状态决定，不依赖 Rust debug/release 编译模式。
-
-命令按基础分取前 10 条，与书签／应用一起加权混排；同分保留命令、书签、应用的顺序。计算器仍置顶。
+初次迁移接入主题切换和开发重启，后续剪贴板迁移增加打开剪贴板命令。当前匹配、排序与执行范围见 [搜索实现](../../../docs/search.md#内置命令与计算器)。
 
 暂不实现：对话、扩展设置、扩展调试、检查更新、Kitchen 调试入口、Query 历史；切换内部后台环境不迁移。当前没有工作区与任务执行系统，任务搜索本轮不加入。上述入口不作为占位结果暴露。
 

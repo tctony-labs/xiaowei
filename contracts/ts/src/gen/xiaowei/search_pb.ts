@@ -221,6 +221,9 @@ export const SearchCommandSchema: GenEnum<SearchCommand> = /*@__PURE__*/
   enumDesc(file_xiaowei_search, 0);
 
 /**
+ * Reusable, window-independent search and usage feedback; returns typed actions for the executor.
+ * Development-only command availability comes from host initialization, not the query payload.
+ *
  * @generated from service xiaowei.search.Search
  */
 export const Search: GenService<{
