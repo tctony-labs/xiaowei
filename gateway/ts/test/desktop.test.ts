@@ -29,6 +29,7 @@ test("launcher tokens and execution are preserved; search does not read icons", 
   const host = new GatewayHost();
   let slow!: () => void;
   let reads = 0;
+  let failOpen = false;
   const icons = createIconResources(async () => {
     reads++;
     return Uint8Array.of(1, 255);
@@ -65,6 +66,12 @@ test("launcher tokens and execution are preserved; search does not read icons", 
     bindHandlers(
       System,
       {
+        openPath: (request, _client, caller) => {
+          assert.equal(caller, context);
+          if (failOpen) throw new Error("Cannot open application");
+          actions.push(request.path);
+          return create(EmptySchema);
+        },
         toggleTheme: () => create(ToggleThemeResponseSchema, { theme: Theme.DARK }),
       },
       { partial: true },
@@ -93,10 +100,6 @@ test("launcher tokens and execution are preserved; search does not read icons", 
       platform: "darwin",
       iconUrl: icons.url,
       includeChromeBookmarks: async () => true,
-      async openPath(path) {
-        actions.push(path);
-        return "";
-      },
       async openExternal(url) {
         actions.push(url);
       },
@@ -127,6 +130,10 @@ test("launcher tokens and execution are preserved; search does not read icons", 
   assert.equal(b.status, 200);
   assert.equal(reads, 1);
   await assert.rejects(api.execute(create(ResultRequestSchema, { token: current.token - 1, id: "slow" })));
+  failOpen = true;
+  await assert.rejects(api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" })));
+  assert.deepEqual(actions, []);
+  failOpen = false;
   await api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" }));
   assert.deepEqual(actions.slice(0, 3), ["/Applications/Test.app", ["usage", "app:test"], "hide"]);
   await api.updateLayout(create(UpdateLayoutRequestSchema, { resultCount: 2, mode: LauncherMode.SEARCH }));
@@ -239,7 +246,6 @@ test("Launcher web actions use System with original context and preserve failure
     platform: "darwin",
     iconUrl: () => "",
     includeChromeBookmarks: async () => true,
-    openPath: async () => "",
     openExternal: async (url) => {
       actions.push(`external:${url}`);
     },

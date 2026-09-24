@@ -1,8 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { access } from "node:fs/promises";
-import { join } from "node:path";
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { app, type BrowserWindow, clipboard, shell } from "electron";
+import { app, type BrowserWindow } from "electron";
 import { ClipboardHistory, sendPasteShortcut } from "xiaowei-clipboard";
 import {
   ClipboardBiz,
@@ -16,7 +13,6 @@ import {
 import { bindClient, bindHandlers, type Subscription } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
-import { clipboardPaths, clipboardPathText } from "./files";
 import { clipboardStorageUsage } from "./storage";
 
 export async function registerClipboard(
@@ -25,7 +21,6 @@ export async function registerClipboard(
   databasePath: string,
   windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">,
 ) {
-  const exportDirectory = mkdtempSync(join(app.getPath("temp"), "xiaowei-clipboard-"));
   // Legacy callback remains available to existing napi consumers; Gateway publishes from the same Service.
   let history: ClipboardHistory | undefined;
   let native: Awaited<ReturnType<typeof attachNative>> | undefined;
@@ -37,16 +32,11 @@ export async function registerClipboard(
   const settings = bindClient(Settings, settingsGateway);
   const getSettings = () => settings.get(create(EmptySchema));
   try {
-    history = await ClipboardHistory.open(directory, () => {});
+    history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
     native = await attachNative(host, "clipboard", history.createGatewayEndpoint());
     await history.initialize();
-    const content = history;
-    const resolve = async (id: bigint, index?: number) => {
-      if (id <= 0n || id > 0x7fffffffffffffffn) throw new Error("Invalid clipboard item ID");
-      return clipboardPaths(content, exportDirectory, String(id), index);
-    };
     const selectionClient = bindClient(ClipboardBiz, host.client({ caller: "clipboard-selection", trusted: true }));
-    owner = host.registerOwner("clipboard-resources", [
+    owner = host.registerOwner("clipboard-desktop", [
       ...bindHandlers(
         ClipboardBiz,
         {
@@ -68,26 +58,6 @@ export async function registerClipboard(
             return create(ClipboardStorageUsageSchema, {
               usedBytes: await clipboardStorageUsage(directory, databasePath),
             });
-          },
-          async openResource(request) {
-            const paths = await resolve(request.id, request.index);
-            if (paths.length !== 1) throw new Error("Select a single file to open");
-            await access(paths[0]);
-            const error = await shell.openPath(paths[0]);
-            if (error) throw new Error(error);
-            return create(EmptySchema);
-          },
-          async revealResource(request) {
-            for (const path of await resolve(request.id, request.index)) {
-              await access(path);
-              shell.showItemInFolder(path);
-            }
-            return create(EmptySchema);
-          },
-          async copyResourcePath(request) {
-            const paths = await resolve(request.id, request.index);
-            clipboard.writeText(clipboardPathText(paths, request.directory));
-            return create(EmptySchema);
           },
         },
         { partial: true },
@@ -134,7 +104,7 @@ export async function registerClipboard(
     try {
       await native?.close();
     } finally {
-      rmSync(exportDirectory, { recursive: true, force: true });
+      await history?.close();
     }
     throw error;
   }
@@ -153,7 +123,7 @@ export async function registerClipboard(
       try {
         await native?.close();
       } finally {
-        rmSync(exportDirectory, { recursive: true, force: true });
+        await history?.close();
       }
     },
   };

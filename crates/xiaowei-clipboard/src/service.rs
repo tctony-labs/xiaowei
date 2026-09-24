@@ -13,6 +13,7 @@ pub trait ClipboardBackend: Send + 'static {
 
 struct State {
     store: Store,
+    resources: crate::resources::Resources,
     clipboard: Box<dyn ClipboardBackend>,
     last_count: Option<i64>,
     last_hash: Option<String>,
@@ -43,6 +44,7 @@ pub struct Service {
 impl Service {
     pub fn open(
         directory: &Path,
+        temporary_root: &Path,
         client: xw_gateway::invoke::Client,
         clipboard: impl ClipboardBackend,
         on_change: impl Fn() + Send + Sync + 'static,
@@ -50,6 +52,7 @@ impl Service {
         Ok(Self {
             state: Arc::new(Mutex::new(State {
                 store: Store::open(directory, client)?,
+                resources: crate::resources::Resources::new(temporary_root)?,
                 clipboard: Box::new(clipboard),
                 last_count: None,
                 last_hash: None,
@@ -127,6 +130,16 @@ impl Service {
             (self.on_change)();
         }
         Ok(changed)
+    }
+
+    pub async fn resource_paths(&self, id: i64, index: Option<u32>) -> Result<Vec<String>> {
+        let state = self.state.lock().await;
+        let item = state.store.get(id).await?.ok_or("Clipboard item no longer exists")?;
+        state.resources.resolve(item, index)
+    }
+
+    pub async fn close_resources(&self) -> Result<()> {
+        self.state.lock().await.resources.close()
     }
 
     pub async fn list(&self, options: &ListOptions) -> Result<Vec<ClipboardItem>> {

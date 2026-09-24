@@ -1,6 +1,6 @@
 # Electron main 模块组织
 
-本文规定 `desktop/src/main/` 的职责与目标布局。应用、窗口、资源和现有 TS service 已按目录归位；System.OpenUrl 已独立注册；文件系统能力契约、剪贴板职责迁回 Rust 与 LLM 接入仍待后续切片实施。
+本文规定 `desktop/src/main/` 的职责与目标布局。应用、窗口、资源和现有 TS service 已按目录归位；System 网页与本地路径能力已独立注册；剪贴板资源处理已迁回 Rust，统计／业务调度与 LLM 接入仍待后续切片实施。
 
 ## 职责规则
 
@@ -54,14 +54,14 @@ desktop/src/main/
 - `app/bootstrap.ts` 保留应用身份、单实例、日志安装、启动与退出接线；菜单和全局快捷键分别位于 `app/menu.ts`、`app/shortcuts.ts`。
 - `windows/launcher.ts` 持有 Launcher 窗口、模式和退出状态；`windows/launcher-shortcuts.ts` 保留可独立测试的定位／唤起算法。`windows/settings.ts` 持有设置窗口并负责复用和关闭。
 - `app/gateway.ts` 装配现有 owner 和资源协议，保持失败回收与关闭顺序；设置副作用由 `services/settings/effects.ts` 提供，快捷键和登录项失败处理保持原有语义。
-- 原 `search.ts` 移到 `services/launcher/gateway.ts`，其注册的是 Launcher service；搜索核心仍归 Rust。HTTP(S) 打开通过原调用 client 调用 System.OpenUrl；应用打开、系统设置 URL 和写剪贴板暂保留宿主回调，待相应契约切片处理。
+- 原 `search.ts` 移到 `services/launcher/gateway.ts`，其注册的是 Launcher service；搜索核心仍归 Rust。HTTP(S) 和应用打开通过原调用 client 调用 System；系统设置 URL 和写剪贴板暂保留宿主回调，待相应契约切片处理。
 - 图标缓存和资源协议位于 `resources/app-icons/cache.ts`、`protocol.ts`，保留一周过期、不透明 URL 和按需读取行为。
-- 剪贴板旧 TS 实现先归位到 `services/clipboard/gateway.ts`、`files.ts`、`storage.ts`。这只是目录整理，尚未达到薄桌面适配的最终边界：资源解析、文本导出、占用统计、保留期限清理及调度仍需迁入 Rust。
-- `services/system/gateway.ts` 独立注册 System.OpenUrl，持有 HTTP(S) 校验和 Electron shell 调用，不依赖剪贴板初始化。app/gateway.ts 负责装配与失败／退出清理；原生搜索 endpoint 继续独立提供 System.ToggleTheme。新增路径打开／定位契约后，剪贴板 Rust owner 再通过 Gateway 调用。
-- 最终 `services/clipboard/` 只保留需要调用方窗口的 Select 适配，协调 Rust Copy、隐藏窗口与粘贴；`files.ts`、`storage.ts` 随 Rust 迁移删除。
+- 剪贴板资源解析、文本导出与打开／定位／复制路径 handler 已迁入 Rust `xiaowei-clipboard`。`services/clipboard/files.ts` 已删除；TS 仍保留 Select 桌面交互、`storage.ts` 占用统计及保留期限调度，尚未达到薄桌面适配的最终边界。
+- `services/system/gateway.ts` 独立注册网页打开及本地路径打开／定位，持有目标校验和 Electron shell 调用，不依赖剪贴板初始化。app/gateway.ts 负责装配与失败／退出清理；原生搜索 endpoint 继续独立提供 System.ToggleTheme。剪贴板 Rust handler 通过原调用 client 使用路径契约及纯文本剪贴板写入能力，TS 不再读取记录或导出文件。
+- 最终 `services/clipboard/` 只保留需要调用方窗口的 Select 适配，协调 Rust Copy、隐藏窗口与粘贴；剩余的 `storage.ts` 随统计迁移删除。
 - `services/llm/` 尚未创建，不预建空目录。
 
-当前 preload 已只暴露 Gateway；现有 `System` service 包含 Rust 的 ToggleTheme 和 TS 的 OpenUrl。扩展时沿用一个 proto service，按方法注册不同 owner，避免重复注册。打开文件、定位文件等方法尚未定义，实施时遵循业务契约维护流程。
+当前 preload 已只暴露 Gateway；现有 `System` service 包含 Rust 的 ToggleTheme 和 TS 的 OpenUrl。扩展时沿用一个 proto service，按方法注册不同 owner，避免重复注册。已定义本地路径打开／定位，绝对路径和存在性校验由 System 执行；具体方法语义见 System proto。
 
 ## 跨语言调用与所有权
 
@@ -74,7 +74,7 @@ LLM 调用链路为 Rust agent → LLM proto service（TS）→ Pi。请求、�
 ## 顺序与验证
 
 1. 已整理现有 main 的应用、窗口与资源目录，保留业务行为，同步测试导入及文档路径。30 个 desktop Node 测试、3 个 Gateway 桌面测试、2 个生命周期／Select 测试、`just check` 和 desktop 构建通过。当前工作区没有运行实例，窗口唤起、设置窗口复用和退出仍待用户启动后验收。
-2. 已拆出 TS System.OpenUrl；后续扩展必要 System 契约，并把剪贴板资源处理、统计与业务调度迁回对应 Rust owner。先定义缺失契约，再迁 handler；验证 TS↔Rust 调用、失败、临时文件清理和统计口径，构建受影响的 napi 包。
+2. 已拆出 TS System 并接入网页和本地路径操作；已迁移剪贴板资源处理；后续把统计与业务调度迁回对应 Rust owner。先定义缺失契约，再迁 handler；验证 TS↔Rust 调用、失败、临时文件清理和统计口径，构建受影响的 napi 包。
 3. 在上述规则下逐步实现 `services/llm/`，先本地可控模型响应，再 Gateway 跨语言联调。
 
 一次实施一个切片。涉及视觉的变化仍走 Storybook 确认；目录整理不引入视觉变化。桌面冷启动由用户执行，已有实例重启遵循工作区运行规则。

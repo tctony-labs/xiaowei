@@ -36,6 +36,7 @@ mock.module(require.resolve("xiaowei-clipboard"), {
         return {
           createGatewayEndpoint: () => ({}),
           async initialize() {},
+          async close() {},
           async stopMonitoring() {},
         };
       },

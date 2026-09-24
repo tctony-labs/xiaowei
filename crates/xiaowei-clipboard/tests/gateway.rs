@@ -52,7 +52,7 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
         )
         .unwrap();
     let client = registry.client(CallContext::trusted("clipboard"));
-    let service = Arc::new(Service::open(dir.path(), client, Backend(backend), || {}).unwrap());
+    let service = Arc::new(Service::open(dir.path(), dir.path(), client, Backend(backend), || {}).unwrap());
     service.initialize().await.unwrap();
     service.poll_once().await.unwrap();
 

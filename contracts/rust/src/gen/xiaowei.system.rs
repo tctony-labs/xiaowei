@@ -30,6 +30,39 @@ impl ::prost::Name for OpenUrlRequest {
         "/xiaowei.system.OpenUrlRequest".into()
     }
 }
+/// Backend-resolved local resource; never a URL or shell command.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct LocalPathRequest {
+    /// Absolute path without NUL bytes. The target must exist.
+    #[prost(string, tag = "1")]
+    pub path: ::prost::alloc::string::String,
+}
+impl ::prost::Name for LocalPathRequest {
+    const NAME: &'static str = "LocalPathRequest";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.LocalPathRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.LocalPathRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WriteClipboardTextRequest {
+    /// Plain text to replace the system clipboard with; an empty string clears text.
+    #[prost(string, tag = "1")]
+    pub text: ::prost::alloc::string::String,
+}
+impl ::prost::Name for WriteClipboardTextRequest {
+    const NAME: &'static str = "WriteClipboardTextRequest";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.WriteClipboardTextRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.WriteClipboardTextRequest".into()
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Theme {

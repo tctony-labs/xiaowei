@@ -16,6 +16,7 @@ pub const MODULES: &[BindingModule] = &[
     BindingModule {
         name: "xiaowei-clipboard",
         services: &[
+            "xiaowei.system.System",
             "xiaowei.clipboard.ClipboardBiz",
             "xiaowei.clipboard.ClipboardDao",
         ],

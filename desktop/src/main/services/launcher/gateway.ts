@@ -6,6 +6,7 @@ import {
   Launcher,
   LauncherOpenedSchema,
   LauncherSearchResponseSchema,
+  LocalPathRequestSchema,
   OpenUrlRequestSchema,
   RecordUsageRequestSchema,
   Search,
@@ -22,7 +23,6 @@ import { type LauncherMode, launcherHeight } from "../../../shared/launcher-mode
 export interface LauncherActions {
   development: boolean;
   platform: string;
-  openPath(path: string): Promise<string>;
   openExternal(url: string): Promise<void>;
   writeText(text: string): void;
   restart(): Promise<void>;
@@ -104,8 +104,9 @@ export function registerSearch(
             actions.writeText(hit.action.action.value);
             break;
           case "launchApp": {
-            const error = await actions.openPath(hit.action.action.value);
-            if (error) throw new Error(error);
+            await bindClient(System, client).openPath(
+              create(LocalPathRequestSchema, { path: hit.action.action.value }),
+            );
             break;
           }
           case "openUrl": {

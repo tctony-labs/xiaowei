@@ -1,18 +1,40 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { mock, test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { EmptySchema, OpenUrlRequestSchema, System, Theme, ToggleThemeResponseSchema } from "xiaowei-contracts";
+import {
+  EmptySchema,
+  LocalPathRequestSchema,
+  OpenUrlRequestSchema,
+  System,
+  Theme,
+  ToggleThemeResponseSchema,
+  WriteClipboardTextRequestSchema,
+} from "xiaowei-contracts";
 import { bindClient, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 
 const require = createRequire(new URL("../../../../desktop/package.json", import.meta.url));
 const opened: string[] = [];
 let fail = false;
+const clipboardTexts: string[] = [];
+const pathCalls: string[][] = [];
+let pathError = "";
 
 mock.module(require.resolve("electron"), {
   exports: {
+    clipboard: { writeText: (text: string) => clipboardTexts.push(text) },
     shell: {
+      async openPath(path: string) {
+        pathCalls.push(["open", path]);
+        return pathError;
+      },
+      showItemInFolder(path: string) {
+        pathCalls.push(["reveal", path]);
+      },
       async openExternal(url: string) {
         if (fail) throw new Error("Unable to open browser");
         opened.push(url);
@@ -63,5 +85,53 @@ test("System opens only web URLs without clipboard and coexists with native them
   } finally {
     owner.close();
     theme.close();
+  }
+});
+
+test("System validates local paths, opens files and directories, and propagates host failures", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "system-paths-"));
+  const file = join(directory, "中文 file.txt");
+  await writeFile(file, "test");
+  const host = new GatewayHost();
+  const owner = registerSystem(host);
+  const api = bindClient(System, host.client({ caller: "test", trusted: true }));
+  try {
+    await api.openPath(create(LocalPathRequestSchema, { path: file }));
+    await api.openPath(create(LocalPathRequestSchema, { path: directory }));
+    await api.revealPath(create(LocalPathRequestSchema, { path: file }));
+    assert.deepEqual(pathCalls, [
+      ["open", file],
+      ["open", directory],
+      ["reveal", file],
+    ]);
+
+    for (const path of ["", "relative.txt", "file:///tmp/a", `${file}\0`, join(directory, "missing")]) {
+      await assert.rejects(api.openPath(create(LocalPathRequestSchema, { path })));
+      await assert.rejects(api.revealPath(create(LocalPathRequestSchema, { path })));
+    }
+    assert.equal(pathCalls.length, 3);
+    pathError = "No associated application";
+    await assert.rejects(api.openPath(create(LocalPathRequestSchema, { path: file })));
+    assert.equal(pathCalls.length, 4);
+    owner.close();
+    await assert.rejects(api.revealPath(create(LocalPathRequestSchema, { path: file })));
+    assert.equal(pathCalls.length, 4);
+  } finally {
+    pathError = "";
+    owner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("System writes plain clipboard text including empty text", async () => {
+  const host = new GatewayHost();
+  const owner = registerSystem(host);
+  const api = bindClient(System, host.client({ caller: "clipboard-resources", trusted: true }));
+  try {
+    await api.writeClipboardText(create(WriteClipboardTextRequestSchema, { text: "/tmp/中文 file.txt" }));
+    await api.writeClipboardText(create(WriteClipboardTextRequestSchema));
+    assert.deepEqual(clipboardTexts, ["/tmp/中文 file.txt", ""]);
+  } finally {
+    owner.close();
   }
 });

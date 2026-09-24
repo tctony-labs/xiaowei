@@ -79,3 +79,16 @@ pub mod xiaowei_clipboard_clipboard_dao_service {
     pub const HASH_REFERENCED: xw_gateway::binding::Method<xw_contracts::xiaowei::clipboard::ClipboardEntityHashRequest, xw_contracts::xiaowei::clipboard::ClipboardEntityHashReference> =
         xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.HashReferenced", xw_gateway::MethodKind::Unary);
 }
+#[rustfmt::skip]
+pub mod xiaowei_system_system_service {
+    pub const WRITE_CLIPBOARD_TEXT: xw_gateway::binding::Method<xw_contracts::xiaowei::system::WriteClipboardTextRequest, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.WriteClipboardText", xw_gateway::MethodKind::Unary);
+    pub const TOGGLE_THEME: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::system::ToggleThemeResponse> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.ToggleTheme", xw_gateway::MethodKind::Unary);
+    pub const OPEN_URL: xw_gateway::binding::Method<xw_contracts::xiaowei::system::OpenUrlRequest, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.OpenUrl", xw_gateway::MethodKind::Unary);
+    pub const OPEN_PATH: xw_gateway::binding::Method<xw_contracts::xiaowei::system::LocalPathRequest, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.OpenPath", xw_gateway::MethodKind::Unary);
+    pub const REVEAL_PATH: xw_gateway::binding::Method<xw_contracts::xiaowei::system::LocalPathRequest, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.RevealPath", xw_gateway::MethodKind::Unary);
+}

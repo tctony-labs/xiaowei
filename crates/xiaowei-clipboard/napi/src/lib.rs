@@ -97,32 +97,49 @@ fn parse_id(id: &str) -> napi::Result<i64> {
 
 #[napi]
 impl ClipboardHistory {
-    #[napi(factory, ts_args_type = "directory: string, onChange: () => void")]
-    pub async fn open(directory: String, on_change: Arc<ChangeCallback>) -> napi::Result<Self> {
+    #[napi(
+        factory,
+        ts_args_type = "directory: string, onChange: () => void, temporaryRoot?: string"
+    )]
+    pub async fn open(
+        directory: String,
+        on_change: Arc<ChangeCallback>,
+        temporary_root: Option<String>,
+    ) -> napi::Result<Self> {
         run(async move {
             let registry = XwInvokeRegistry::new();
             let client = registry.client(xw_gateway::CallContext::trusted("clipboard"));
             let gateways = Arc::new(Mutex::new(Vec::<(Weak<XwInvokeRegistry>, Owner)>::new()));
             let publishers = gateways.clone();
-            let service = Service::open(std::path::Path::new(&directory), client, SystemClipboard, move || {
-                publishers.lock().unwrap().retain(|(registry, owner)| {
-                    if owner.is_closed() {
-                        return false;
-                    }
-                    if let Some(registry) = registry.upgrade() {
-                        let _ = registry.publish(
-                            owner,
-                            <xw_contracts::xiaowei::clipboard::ClipboardChanged as prost::Name>::full_name().as_str(),
-                            vec![],
-                        );
-                        true
-                    } else {
-                        false
-                    }
-                });
-                // Invalidation is coalesced: a queued event makes the reader fetch the latest state.
-                let _ = on_change.call((), ThreadsafeFunctionCallMode::NonBlocking);
-            })?;
+            let temporary_root = temporary_root
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir);
+            let service = Service::open(
+                std::path::Path::new(&directory),
+                &temporary_root,
+                client,
+                SystemClipboard,
+                move || {
+                    publishers.lock().unwrap().retain(|(registry, owner)| {
+                        if owner.is_closed() {
+                            return false;
+                        }
+                        if let Some(registry) = registry.upgrade() {
+                            let _ = registry.publish(
+                                owner,
+                                <xw_contracts::xiaowei::clipboard::ClipboardChanged as prost::Name>::full_name()
+                                    .as_str(),
+                                vec![],
+                            );
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    // Invalidation is coalesced: a queued event makes the reader fetch the latest state.
+                    let _ = on_change.call((), ThreadsafeFunctionCallMode::NonBlocking);
+                },
+            )?;
             Ok(Self {
                 endpoint: Mutex::new(None),
                 registry,
@@ -175,6 +192,17 @@ impl ClipboardHistory {
             .stop()
             .await
             .map_err(|error| napi::Error::from_reason(error.to_string()))
+    }
+
+    #[napi]
+    pub async fn close(&self) -> napi::Result<()> {
+        let stopped = self.service.stop().await;
+        let cleaned = self.service.close_resources().await;
+        run(async {
+            stopped?;
+            cleaned
+        })
+        .await
     }
 
     #[napi]

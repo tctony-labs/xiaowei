@@ -2,6 +2,7 @@ mod dao;
 pub mod gateway;
 #[allow(dead_code)]
 mod gateway_binding;
+mod resources;
 mod service;
 mod store;
 mod toolkit;

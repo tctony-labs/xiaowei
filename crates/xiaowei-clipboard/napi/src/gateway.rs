@@ -116,13 +116,20 @@ impl GatewayEndpoint {
         let inner = self.inner.clone();
         let service = self.service.clone();
         env.spawn_future(async move {
-            if let Some(service) = service {
+            if let Some(service) = &service {
                 service
                     .stop()
                     .await
                     .map_err(|error| napi::Error::from_reason(error.to_string()))?;
             }
-            Ok(reply(inner.close().await))
+            let result = inner.close().await;
+            if let Some(service) = service {
+                service
+                    .close_resources()
+                    .await
+                    .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+            }
+            Ok(reply(result))
         })
     }
 }

@@ -404,7 +404,7 @@ async fn open_service(
     backend: impl ClipboardBackend,
     on_change: impl Fn() + Send + Sync + 'static,
 ) -> Result<Service> {
-    let service = Service::open(directory, client(directory).await, backend, on_change)?;
+    let service = Service::open(directory, directory, client(directory).await, backend, on_change)?;
     service.initialize().await?;
     Ok(service)
 }

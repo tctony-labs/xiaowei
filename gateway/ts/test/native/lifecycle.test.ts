@@ -58,6 +58,7 @@ mock.module(require.resolve("xiaowei-clipboard"), {
             calls.push("start");
             if (failure === "monitor") throw new Error("monitor failure");
           },
+          async close() {},
           async stopMonitoring() {
             calls.push("stop");
           },
@@ -113,7 +114,6 @@ const { createApplicationGateway } = await import("../../../../desktop/src/main/
 const actions = {
   development: false,
   platform: "darwin",
-  openPath: async () => "",
   openExternal: async () => {},
   writeText() {},
   restart: async () => {},

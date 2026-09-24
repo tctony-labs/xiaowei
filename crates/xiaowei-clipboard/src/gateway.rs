@@ -3,7 +3,7 @@
 use crate::{ClipboardData, Service};
 use prost::{Message, Name};
 use std::sync::Arc;
-use xw_contracts::xiaowei::{clipboard as pb, common as c};
+use xw_contracts::xiaowei::{clipboard as pb, common as c, system as sys};
 use xw_gateway::{
     binding::Method,
     event::{EventBackpressure, EventExportRegistration},
@@ -11,6 +11,7 @@ use xw_gateway::{
 };
 
 use crate::gateway_binding::xiaowei_clipboard_clipboard_biz_service as methods;
+use crate::gateway_binding::xiaowei_system_system_service as system;
 
 fn id(value: u64) -> crate::Result<i64> {
     i64::try_from(value)
@@ -114,6 +115,36 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         }),
         handler(service, &methods::COPY, |s, r| async move {
             s.copy(id(r.id)?).await?;
+            Ok(c::Empty {})
+        }),
+        handler(service, &methods::OPEN_RESOURCE, |s, r| async move {
+            let paths = s.resource_paths(id(r.id)?, r.index).await?;
+            if paths.len() != 1 {
+                return Err("Select a single file to open".into());
+            }
+            let client = crate::dao::CALLER.with(Clone::clone);
+            system::OPEN_PATH
+                .call(&client, sys::LocalPathRequest { path: paths[0].clone() })
+                .await?;
+            Ok(c::Empty {})
+        }),
+        handler(service, &methods::REVEAL_RESOURCE, |s, r| async move {
+            let paths = s.resource_paths(id(r.id)?, r.index).await?;
+            let client = crate::dao::CALLER.with(Clone::clone);
+            for path in paths {
+                system::REVEAL_PATH
+                    .call(&client, sys::LocalPathRequest { path })
+                    .await?;
+            }
+            Ok(c::Empty {})
+        }),
+        handler(service, &methods::COPY_RESOURCE_PATH, |s, r| async move {
+            let paths = s.resource_paths(id(r.id)?, r.index).await?;
+            let text = crate::resources::path_text(paths, r.directory)?;
+            let client = crate::dao::CALLER.with(Clone::clone);
+            system::WRITE_CLIPBOARD_TEXT
+                .call(&client, sys::WriteClipboardTextRequest { text })
+                .await?;
             Ok(c::Empty {})
         }),
         handler(service, &methods::DELETE, |s, r| async move {

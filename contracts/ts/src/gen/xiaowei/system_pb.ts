@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/system.proto.
  */
 export const file_xiaowei_system: GenFile = /*@__PURE__*/
-  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSo/CgVUaGVtZRIVChFUSEVNRV9VTlNQRUNJRklFRBAAEg8KC1RIRU1FX0xJR0hUEAESDgoKVEhFTUVfREFSSxACMpUBCgZTeXN0ZW0SSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHliBnByb3RvMw", [file_xiaowei_common]);
+  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJKj8KBVRoZW1lEhUKEVRIRU1FX1VOU1BFQ0lGSUVEEAASDwoLVEhFTUVfTElHSFQQARIOCgpUSEVNRV9EQVJLEAIy+QIKBlN5c3RlbRJWChJXcml0ZUNsaXBib2FyZFRleHQSKS54aWFvd2VpLnN5c3RlbS5Xcml0ZUNsaXBib2FyZFRleHRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSQwoIT3BlblBhdGgSIC54aWFvd2VpLnN5c3RlbS5Mb2NhbFBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRQoKUmV2ZWFsUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.system.ToggleThemeResponse
@@ -51,6 +51,46 @@ export const OpenUrlRequestSchema: GenMessage<OpenUrlRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_system, 1);
 
 /**
+ * Backend-resolved local resource; never a URL or shell command.
+ *
+ * @generated from message xiaowei.system.LocalPathRequest
+ */
+export type LocalPathRequest = Message<"xiaowei.system.LocalPathRequest"> & {
+  /**
+   * Absolute path without NUL bytes. The target must exist.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message xiaowei.system.LocalPathRequest.
+ * Use `create(LocalPathRequestSchema)` to create a new message.
+ */
+export const LocalPathRequestSchema: GenMessage<LocalPathRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 2);
+
+/**
+ * @generated from message xiaowei.system.WriteClipboardTextRequest
+ */
+export type WriteClipboardTextRequest = Message<"xiaowei.system.WriteClipboardTextRequest"> & {
+  /**
+   * Plain text to replace the system clipboard with; an empty string clears text.
+   *
+   * @generated from field: string text = 1;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message xiaowei.system.WriteClipboardTextRequest.
+ * Use `create(WriteClipboardTextRequestSchema)` to create a new message.
+ */
+export const WriteClipboardTextRequestSchema: GenMessage<WriteClipboardTextRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 3);
+
+/**
  * @generated from enum xiaowei.system.Theme
  */
 export enum Theme {
@@ -81,6 +121,14 @@ export const ThemeSchema: GenEnum<Theme> = /*@__PURE__*/
  */
 export const System: GenService<{
   /**
+   * @generated from rpc xiaowei.system.System.WriteClipboardText
+   */
+  writeClipboardText: {
+    methodKind: "unary";
+    input: typeof WriteClipboardTextRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
    * @generated from rpc xiaowei.system.System.ToggleTheme
    */
   toggleTheme: {
@@ -94,6 +142,28 @@ export const System: GenService<{
   openUrl: {
     methodKind: "unary";
     input: typeof OpenUrlRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Open a file, directory or application using the OS default handler.
+   * Missing targets and host errors fail the call; success does not wait for the application to exit.
+   *
+   * @generated from rpc xiaowei.system.System.OpenPath
+   */
+  openPath: {
+    methodKind: "unary";
+    input: typeof LocalPathRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Reveal an existing target in the system file manager.
+   * Success means the host accepted the request, not that the file manager confirmed selection.
+   *
+   * @generated from rpc xiaowei.system.System.RevealPath
+   */
+  revealPath: {
+    methodKind: "unary";
+    input: typeof LocalPathRequestSchema;
     output: typeof EmptySchema;
   },
 }> = /*@__PURE__*/

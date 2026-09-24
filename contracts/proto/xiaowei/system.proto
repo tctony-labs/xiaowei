@@ -19,7 +19,25 @@ message OpenUrlRequest {
   string url = 1;
 }
 
+// Backend-resolved local resource; never a URL or shell command.
+message LocalPathRequest {
+  // Absolute path without NUL bytes. The target must exist.
+  string path = 1;
+}
+
+message WriteClipboardTextRequest {
+  // Plain text to replace the system clipboard with; an empty string clears text.
+  string text = 1;
+}
+
 service System {
+  rpc WriteClipboardText(WriteClipboardTextRequest) returns (xiaowei.common.Empty);
   rpc ToggleTheme(xiaowei.common.Empty) returns (ToggleThemeResponse);
   rpc OpenUrl(OpenUrlRequest) returns (xiaowei.common.Empty);
+  // Open a file, directory or application using the OS default handler.
+  // Missing targets and host errors fail the call; success does not wait for the application to exit.
+  rpc OpenPath(LocalPathRequest) returns (xiaowei.common.Empty);
+  // Reveal an existing target in the system file manager.
+  // Success means the host accepted the request, not that the file manager confirmed selection.
+  rpc RevealPath(LocalPathRequest) returns (xiaowei.common.Empty);
 }
