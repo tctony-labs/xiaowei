@@ -19,7 +19,7 @@ Renderer → Launcher Gateway（Electron main）
 - [lib.rs](../crates/xiaowei-search/src/lib.rs)：持有数据源、生成内存候选、调用评分、截取和合并结果。
 - [scoring.rs](../crates/xiaowei-search/src/scoring.rs)、[pinyin.rs](../crates/xiaowei-search/src/pinyin.rs)、[usage.rs](../crates/xiaowei-search/src/usage.rs)：共享匹配、拼音及使用加权。
 
-核心逻辑不依赖 Electron；napi 负责原生模块接入，构建与平台约定见 [Rust 模块通过 napi 接入 Electron](rust-napi.md)。
+核心逻辑不依赖 Electron；napi 负责原生模块接入，构建与平台约定见 [Rust 模块通过 napi 接入 Electron](../crates/README.md)。
 
 ## 数据源与初始化
 

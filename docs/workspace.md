@@ -29,7 +29,7 @@
 | `protocol/` | 跨端协议说明，目前只有健康检查，无业务协议 |
 | `deploy/` | Go 容器部署示例 |
 
-根 pnpm workspace 包含 `desktop`、`contracts/ts`、`gateway/ts`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](rust-napi.md)。Go 在 `server/` 与 `contracts/go/` 中分别管理，不使用 `go.work`。`mobile/` 尚未创建。
+根 pnpm workspace 包含 `desktop`、`contracts/ts`、`gateway/ts`、`packages/*` 与 `crates/*/napi`。Rust 核心与 napi 包的分层及构建约定见 [Rust 模块接入](../crates/README.md)。Go 在 `server/` 与 `contracts/go/` 中分别管理，不使用 `go.work`。`mobile/` 尚未创建。
 
 当前使用 Node **26.3.1**（`.node-version`）、pnpm **12.4.2**（根 `package.json`）、Go **1.26.5**（`server/go.mod`）。Node 的 engines 限定为 26.x；Go module 声明 1.26.0 的语言版本并选择 1.26.5 工具链。just 在本机以 **1.46.0** 验证。
 

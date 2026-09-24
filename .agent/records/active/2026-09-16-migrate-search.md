@@ -12,7 +12,7 @@
 
 当前数据源、初始化、Gateway 调用链、nucleo 评分、拼音高亮、候选截取、使用加权及命令范围统一维护在 [搜索实现](../../../docs/search.md)，本 record 保留迁移取舍、桌面展示与图标行为、验收结果。
 
-为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；内部数据源拆为 `xw-app` 和 `xw-bookmark`，去除 Tauri 耦合。可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../docs/rust-napi.md)。
+为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；内部数据源拆为 `xw-app` 和 `xw-bookmark`，去除 Tauri 耦合。可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../crates/README.md)。
 
 结果列表沿用旧版 48px 行高、4px 行间距、最多九行的窗口布局，保留现有 800 × 71 空搜索框。
 
@@ -20,7 +20,7 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 应用图标由 Electron main 缓存在 `userData/xiaowei/cache/app-icons/`，文件名为应用绝对路径的 SHA-256，内容为 PNG。参考旧版落盘复用方式，新增自写入起一周的有效期（以文件 mtime 判断，读取不续期）；过期后下次请求重新提取并覆盖。主进程不保留已完成的图标内存缓存，每次请求检查磁盘有效期，仅合并进行中的并发请求；提取失败不缓存，磁盘读写失败不阻断原生提取和当前图标显示。该缓存按需填充，不迁移旧版缓存，也不引入旧版的全量图标后台预热。过期文件按需覆盖，不定时扫描删除。
 
-应用本地化名称读取在 `xw-platform::macos::app_name::localized_name` 内逐次建立 autorelease pool，并在池内转成 Rust `String`，覆盖初始化工作线程及目录变更回调；所有权注意事项见 [Rust 原生模块开发](../../../AGENTS.md#rust-原生模块开发)。
+应用本地化名称读取在 `xw-platform::macos::app_name::localized_name` 内逐次建立 autorelease pool，并在池内转成 Rust `String`，覆盖初始化工作线程及目录变更回调；所有权注意事项见 [Rust 原生模块开发](../../../crates/README.md#objective-c-内存管理)。
 
 ## Outcome
 
@@ -34,7 +34,7 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 对齐结果列表的源码参数：14px／20px 标题、22px 图标（应用与设置图标放大 1.25 倍补偿透明留白）、8px 图文间距、10px 行左右内边距、主题色选中背景与旧版 hover 色。键盘滚动在上下保留 8px 余量。主题绿色文字使用项目确认的可读性变体，不强制还原旧版浅色低对比高亮。
 
-平台模块仅迁入当前需要的名称和图标能力；包前缀与依赖方向统一遵循 [Rust 模块接入约定](../../../docs/rust-napi.md)。
+平台模块仅迁入当前需要的名称和图标能力；包前缀与依赖方向统一遵循 [Rust 模块接入约定](../../../crates/README.md)。
 
 `xw-platform` 提取后，Rust 全量测试、`just check` 和两项 Node 绑定测试通过；图标测试覆盖真实 Finder PNG、与 Safari 图标区分及无效路径，并通过 napi 接口检查 PNG 签名与尺寸。未为图标新增 Storybook 场景。
 

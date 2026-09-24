@@ -37,17 +37,10 @@
 ## 工作区及模块
 
 - 调整工作区目录、工具链、依赖管理或构建流程前，先完整读取并遵循 [工作区开发](docs/workspace.md)，变更后同步更新该文档。
+- 开发过程中拟新增 Rust crate 或 npm package 时，先向用户说明其用途、边界和放置位置，获得确认后再创建。
 - 创建或修改 `contracts/proto/xiaowei/` 下的业务契约前，先完整读取并遵循 [业务契约的创建与维护](contracts/proto/xiaowei/README.md)。
 - 新增或修改 `desktop/src/main/` 下的代码前，先完整读取 [main 模块组织](desktop/src/main/README.md)，遵循其中的目录职责、service 边界和 Gateway 调用规则。调整模块边界时同步更新该 README。
-- 开发过程中拟新增 Rust crate 或 npm package 时，先向用户说明其用途、边界和放置位置，获得确认后再创建。
-
-## Rust 原生模块开发
-
-- 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。搜索包执行 `pnpm --filter xiaowei-search build:debug`，剪贴板包执行 `pnpm --filter xiaowei-clipboard build:debug`；修改共享 `xw-napi-log` 时两者都需重建。以后新增模块执行对应包的构建命令。
-- `cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
-- 有运行实例时，按上面的运行实例规则确认归属后可直接执行 `just rs`，由共用构建入口完成 napi 增量构建并重启；必须确认构建成功且 Electron 加载新模块。已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
-- 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 通过已有 nodemon 流程触发 napi 构建，不新增 Rust 源码自动监听或自动重启机制。
-- Rust 工作线程调用 Objective-C / Foundation / AppKit 时，在同步调用边界使用 `objc2::rc::autoreleasepool`，除非已确认当前线程有会及时 drain 的外层 pool。`Retained<T>` 只管理持有的引用，不能替代 pool 回收框架内部的 autoreleased 临时对象；Electron 主线程的 pool 不覆盖 Rust 工作线程。循环任务按次或按批 drain，不把 pool 包在整个长期线程外，也不跨 `await`；字符串、字节等应在 pool 内转为 Rust 拥有的数据后返回。
+- 修改 Rust 模块、napi 接口或相关依赖与构建配置前，先完整读取并遵循 [Rust 原生模块开发](crates/README.md)。调整模块边界或接入方式时同步更新该 README。
 
 ## UI 开发
 
