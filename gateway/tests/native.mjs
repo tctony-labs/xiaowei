@@ -8,6 +8,8 @@ const packages = ["search", "clipboard"];
 let failure;
 run(["--filter", "xiaowei-storage", "build:debug"]);
 try {
+  run(["--filter", "xiaowei-gateway", "build"]);
+  run(["--dir", "desktop", "build"]);
   for (const name of packages) {
     run([
       "--filter",
@@ -29,6 +31,7 @@ try {
     "test/native/storage.test.ts",
     "test/native/worker.test.ts",
   ]);
+  run(["--dir", "desktop", "exec", "tsx", "--test", "tests/native/llm.test.mjs"]);
 } catch (error) {
   failure = error;
 } finally {

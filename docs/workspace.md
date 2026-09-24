@@ -35,7 +35,7 @@
 
 Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.9.3**、React **19.3.0**、Tailwind CSS **4.3.3** 和 Zustand **5.0.8** 由包清单与 `pnpm-lock.yaml` 固定依赖解析。Vite 使用 electron-vite 支持的 7.x。类型检查使用固定版本的 `@typescript/native-preview` **7.0.0-dev.20260707.2** 提供的 tsgo；保留 TypeScript 5.9.3 作为工具生态配套依赖。
 
-`pnpm-lock.yaml` 提交到仓库，由工具生成；Go 当前仅依赖标准库，没有 `go.sum`。pnpm 12 安装脚本策略在 `pnpm-workspace.yaml` 的 `allowBuilds` 一处配置：Electron、esbuild 为 `true`，当前未使用的 Squirrel.Windows 依赖 `electron-winstaller` 为 `false`。策略随仓库共享，新 clone 无需交互执行 `pnpm approve-builds`；新增带安装脚本的依赖时，需要明确配置其布尔值。Electron 44 的运行时可能在第一次启动时下载，需要网络。
+`pnpm-lock.yaml` 提交到仓库，由工具生成；Go 当前仅依赖标准库，没有 `go.sum`。pnpm 12 安装脚本策略在 `pnpm-workspace.yaml` 的 `allowBuilds` 一处配置：Electron、esbuild 为 `true`，当前未使用的 Squirrel.Windows 依赖 `electron-winstaller` 为 `false`。Pi 的间接依赖 `@google/genai` 和 `protobufjs` 使用已发布的运行产物，安装脚本显式设为 `false`。策略随仓库共享，新 clone 无需交互执行 `pnpm approve-builds`；新增带安装脚本的依赖时，需要明确配置其布尔值。Electron 44 的运行时可能在第一次启动时下载，需要网络。
 
 ## 开发入口
 
@@ -62,6 +62,8 @@ just server
 根 `package.json` 的 `prepare` 生命周期通过 Husky 安装 `.husky/pre-commit`；`just prepare` 安装依赖时会一并启用，Git 的 `core.hooksPath` 指向 `.husky/_`。生成的 `.husky/_/` 不提交。
 
 pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just check`，任一步失败即阻止提交。若格式化改变了待提交文件，检查通过后仍会中止，提示检查并重新暂存，以免提交格式化前的版本。Hook 不自动 `git add`，保留部分暂存边界；检查针对当前工作区内容，并非暂存区的独立构建。
+
+desktop 固定依赖 Pi `@earendil-works/pi-ai@0.85.1`；第三方补丁通过根 `patchedDependencies` 自动应用，来源、回归与升级步骤见 [补丁维护](../patches/README.md)。
 
 `pnpm install --frozen-lockfile` 只按锁文件安装，清单与锁文件不一致时失败。`Already up to date` 表示依赖已经齐全。`pnpm approve-builds` 用于决定哪些依赖可以执行安装脚本，不是项目编译命令；无需对当前忽略的 `electron-winstaller` 全选放行。以后启用 Squirrel.Windows 打包时再评估该脚本。
 
@@ -188,6 +190,8 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 桌面类型检查直接检查 Gateway 源码；main、preload、renderer 和 Storybook 的构建通过 `source` 条件消费 Gateway 源码，main/preload 的 SSR 解析也使用该条件。开发与构建不依赖预先生成或重写 Gateway dist，避免桌面重启因改写 dist 触发无关的 renderer HMR；真实源码变化仍可触发 HMR。普通 Node 消费使用包的 dist 入口，构建流程以对应包脚本为准。
 
-桌面打包内联 TS Gateway 与契约代码，原生 npm 包及其 `.node` 保持外置，`.node` 从 ASAR 解包加载。解析条件和打包配置分别由 `desktop/electron.vite.config.ts`、Storybook 配置和 `desktop/electron-builder.json` 维护。
+桌面 main 构建同时输出 `index.js` 和 `llm-worker.js` 两个 ESM 入口，内联 TS Gateway 与契约代码；Pi 与原生 npm 包保持外置，`.node` 从 ASAR 解包加载。解析条件和打包配置分别由 `desktop/electron.vite.config.ts`、Storybook 配置和 `desktop/electron-builder.json` 维护。
 
 开发态 HTML 的 CSP 额外允许 `worker-src 'self' blob:`，供 Vite 在 HMR 连接断开后创建 SharedWorker 等待服务恢复，避免停止／重启时产生 CSP 错误。该设置仅由 `apply: "serve"` 的插件注入，正式构建不添加此权限。
+
+LLM 的本地 SSE 回归通过 `pnpm --dir desktop test:llm` 运行：先构建 Gateway 和 desktop，再消费真实 worker 产物；也纳入 desktop 测试。测试使用 tsx 加载 TS 契约，worker 本身执行构建后的 JS，不启动 Electron。

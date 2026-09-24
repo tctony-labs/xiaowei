@@ -6,7 +6,7 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 ## What
 
-建立可供后续 Quick Chat 运行时使用的 Pi provider 边界。最终需能按当前设置选择模型和凭据，处理请求、流式文本／推理／工具调用、使用量、结束／错误与取消，并经 Gateway 供 Rust agent 调用。按用户要求一次只推进一个小切片；本轮已完成适配边界核对；用户选择由 Node worker 运行 LLM service，先准备 Gateway worker 通信接入，再实现最小可独立验证的 Pi 流式调用。
+建立可供后续 Quick Chat 运行时使用的 Pi provider 边界。最终需能按当前设置选择模型和凭据，处理请求、流式文本／推理／工具调用、使用量、结束／错误与取消，并经 Gateway 供 Rust agent 调用。按用户要求一次只推进一个小切片；已完成适配边界核对、Gateway worker 通信、Pi 补丁与最小文本流调用；LLM service 在 Node worker 内运行，宿主配置／凭据及完整消息语义继续分片接入。
 
 本事项不接入 Quick Chat 产品 UI，不改变会话数据，也不以直接模型调用代替旧 agent 的工具与恢复语义。UI 入口预览另见 [Quick Chat UI 事项](2026-09-24-quick-chat-ui-interaction.md)。
 
@@ -16,7 +16,7 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 当前 Gateway 已支持 TypeScript owner、Rust caller 和双向响应流，但尚无 LLM 业务契约。main 的目录规则和现有文件归属维护在 [Electron main 模块组织](../../../desktop/src/main/README.md)。Pi provider 的目标位置为 `desktop/src/main/services/llm/`，由 `app/gateway.ts` 装配和关闭；本阶段不新增 Rust crate 或 npm workspace package。后续 Rust agent 经 Gateway 调用该 owner；具体业务契约需根据旧事件处理和 Pi 输出逐字段核对后决定，特别是交错的文本／推理／工具块、工具参数 JSON、取消、使用量、错误和推理回放。
 
-`@mariozechner/pi-ai` 与 `@earendil-works/pi-ai` 是同一 Pi 项目的旧／新发布名，并非两个并行分支：旧 GitHub 地址 `badlogic/pi-mono` 重定向到 `earendil-works/pi`，两个地址当前指向同一提交；旧 npm 包已标记弃用并提示改用新包。后续使用 `@earendil-works/pi-ai`。用户给出的本地 DSH `/Users/changtang/Develop/LLM/deepseek-harness` 已使用新包（更新后锁定 0.85.1，并携带工具参数流式解析补丁），其 `packages/llm/llm-pi-ai/` 是 DSH 自己的适配层，可参考 `src/context.ts`、`stream.ts`、`provider.ts` 的映射，不复制 Cordis、凭据或会话系统。当前尚未在本项目安装依赖。
+`@mariozechner/pi-ai` 与 `@earendil-works/pi-ai` 是同一 Pi 项目的旧／新发布名，并非两个并行分支：旧 GitHub 地址 `badlogic/pi-mono` 重定向到 `earendil-works/pi`，两个地址当前指向同一提交；旧 npm 包已标记弃用并提示改用新包。后续使用 `@earendil-works/pi-ai`。用户给出的本地 DSH `/Users/changtang/Develop/LLM/deepseek-harness` 已使用新包（更新后锁定 0.85.1，并携带工具参数流式解析补丁），其 `packages/llm/llm-pi-ai/` 是 DSH 自己的适配层，可参考 `src/context.ts`、`stream.ts`、`provider.ts` 的映射，不复制 Cordis、凭据或会话系统。本项目已在 desktop 安装固定版本 `@earendil-works/pi-ai@0.85.1`，并登记同版本 pnpm 补丁。
 
 现有设置模型页仍是 Storybook mock；提供方配置、Key 获取和模型目录由后续切片衔接。Pi 的协议名与设置页的 `openai-completions`、`openai-responses`、`anthropic-messages` 一致，但能力、上下文上限和输出上限需有明确来源。旧版与 Pi 在重试、Responses WebSocket、推理回放和错误细节上的差异要逐项验证并记录。
 
@@ -27,9 +27,9 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 DSH 并非直接裸用 Pi，须区分两层：
 
 - `packages/llm/llm-pi-ai/src/` 是 DSH 自己的适配层：`catalog.ts`／`provider.ts`／`models.ts` 解析模型和协议，`adapter.ts` 冻结配置快照、注入认证、关闭 SDK 重试、管理取消及 idle watchdog，`context.ts`／`stream.ts`／`replay.ts` 转换消息、事件与持久回放。新版另有 `auth.ts`／`login.ts` 承接凭据存储与 OAuth；这些不属于本项目本片范围。
-- `patches/@earendil-works__pi-ai@0.85.1.patch` 通过 `pnpm-workspace.yaml` 的 `patchedDependencies` 修改 Pi 本体。它删除 Anthropic、Bedrock、Mistral、OpenAI Completions、Responses shared、Pi Messages 六处参数 delta 对累计 JSON 的重复解析，保留 delta 字符串和终态解析。DSH 只依赖增量和最终参数，不依赖 partial.arguments 随片更新；其 README 指出大参数会触发累计重解析的 O(n²) CPU 开销，`tests/tool-argument-streaming.spec.ts` 用 Completions／Responses mock 覆盖此约束。本轮未运行该测试，未把补丁带入 XiaoWei。
+- `patches/@earendil-works__pi-ai@0.85.1.patch` 通过 `pnpm-workspace.yaml` 的 `patchedDependencies` 修改 Pi 本体。它删除 Anthropic、Bedrock、Mistral、OpenAI Completions、Responses shared、Pi Messages 六处参数 delta 对累计 JSON 的重复解析，保留 delta 字符串和终态解析。DSH 只依赖增量和最终参数，不依赖 partial.arguments 随片更新；其 README 指出大参数会触发累计重解析的 O(n²) CPU 开销，`tests/tool-argument-streaming.spec.ts` 用 Completions／Responses mock 覆盖此约束。未运行 DSH 的该测试；XiaoWei 已原样引入补丁，并以 补丁 Node 测试独立覆盖两个协议。
 
-因此参考 DSH 时须分别注明 Pi 公共能力、DSH 适配策略和补丁行为。用户认可采用工具参数解析补丁：下一片安装 Pi 时同步处理，不等到工具执行接入。若采用 0.85.1，移植 DSH 的该补丁，通过 pnpm patchedDependencies 绑定精确版本并提交补丁文件与锁文件；若选用更新版本，先检查上游是否已修复，已修复则不重复打补丁。provider 计划在 Node worker 中运行，避免累计 JSON 重解析阻塞该 worker 的事件循环及其他会话是采用理由；线程隔离不消除重复解析开销。补齐 Completions／Responses 多分片参数回归，验证 delta 保留、中间不重复构造参数对象及最终参数完整；这只验证依赖行为，不扩大为工具执行切片。升级 Pi 时重新应用或退役补丁，并保留来源、原因及测试。当前仍未安装或应用补丁。
+因此参考 DSH 时须分别注明 Pi 公共能力、DSH 适配策略和补丁行为。desktop 的运行时依赖固定为 `@earendil-works/pi-ai: "0.85.1"`，根 `patchedDependencies` 绑定原样复制的 DSH 补丁；锁文件由 pnpm 生成。公开运行时窄入口使用 `@earendil-works/pi-ai/api/openai-completions` 等协议入口，类型可从根入口导入；Gateway 不依赖 Pi。provider 计划在 Node worker 中运行，但线程隔离不能消除累计 JSON 重解析开销。Completions／Responses 的本地 SSE 回归验证原始 delta 顺序、中间不构造参数对象、最终参数完整及成功终态；另外四个协议仅复用来源补丁，尚无本项目运行时回归。这只验证依赖行为，不包含工具执行。补丁仅修改发布包的运行时 JS，不改变类型接口；消费方累计原始 delta，在 `toolcall_end` 读取最终参数，不能依赖中间 `partial.arguments` 更新。回归入口为 `pnpm test:patches`（`patches/tests/pi-patch.test.mjs`，从 desktop 解析实际安装的 Pi）。通用修改和升级／退役步骤见 [补丁维护](../../../patches/README.md)。
 
 ### 请求映射（目标边界，尚未实现）
 
@@ -76,7 +76,7 @@ Gateway 传领域事件，不传 Pi 对象或每次完整 `partial`。内容块�
 
 ### Gateway 所有权与已知差异
 
-目标调用方向为 Rust agent → TS ↔ Rust napi 通信适配层 → main GatewayHost → Worker MessagePort 通信适配层 → `services/llm/` worker 内的 typed handler／Pi → 模型服务；响应 chunk 反向返回。Node `worker_threads` 是已选执行方式，utilityProcess 不在当前范围；源码位于 main 目录不表示业务在 main 主线程执行。Gateway 可双向发起响应流，并不意味着本业务需要双向 streaming RPC。最小契约形态是一条生成请求和一条 server stream，暂称 `Llm.Generate`，消息／字段名实施时确定；请求带模型引用、system、历史和采样，响应按 oneof 表达块增量、用量和唯一终态。工具结果通过下一次请求中的历史传回，无须独立 event topic 或取消 RPC。
+目标调用方向为 Rust agent → TS ↔ Rust napi 通信适配层 → main GatewayHost → Worker MessagePort 通信适配层 → `services/llm/` worker 内的 typed handler／Pi → 模型服务；响应 chunk 反向返回。Node `worker_threads` 是已选执行方式，utilityProcess 不在当前范围；源码位于 main 目录不表示业务在 main 主线程执行。Gateway 可双向发起响应流，并不意味着本业务需要双向 streaming RPC。当前最小契约为 `xiaowei.llm.Llm.Generate`，请求只含模型引用、独立 system prompt、单条 user 文本及采样，响应 oneof 表达文本块增量、用量和成功／失败终态。历史与工具结果回放是后续扩展，尚未加入契约；不新增 event topic 或取消 RPC。
 
 - `services/llm/` 在 worker 内持有 Pi 适配、模型调用与在途取消；其中 `gateway.ts` 绑定 typed handler。`app/gateway.ts` 负责启动 worker、挂载 owner 和关闭。main 保持唯一 GatewayHost；worker 不另建全局 host，只持有本地执行 endpoint。Gateway worker 通信适配层属于 `gateway/ts/`，不在 LLM 内另造一套业务消息 RPC。该适配层已实现，接口与关闭约定见 [Worker 接入](../../../gateway/ts/README.md#worker-messageport-通信适配层)。service 及其执行限流、超时、流状态和实际清理整体归 worker；main 只做路由、授权和通信转发，不重复持有 service 执行配额。TS core 的 `ExecutionScope` 由 worker endpoint 和 main 本地 handler 分别持有；main 通过独立 `StreamDispatcher` 转发远端流，不另包 producer 状态机。线程两侧的消息关联、失联超时和连接关闭属于通信管理，与 service 执行状态分开。Rust 持有 agent 循环、会话、工具执行、权限、重试／恢复和落盘，不把这些迁入 TS。不开新 crate／npm workspace package，也不新增 raw napi／IPC 通道。
 - 现有 `gateway/ts/src/binding/index.ts::StreamHandlers` 已给 handler 传 AbortSignal；Rust typed caller 经 napi endpoint 与 main 转发到 worker。AbortSignal 与 CallContext 不跨线程复制：取消通过控制消息触发 worker 内的 AbortController，main 保留原始上下文，嵌套调用凭与连接实例绑定的 opaque token 回到 main 授权。取消监听须在请求准备前建立，owner close、caller drop／cancel、iterator return 都终止上游并清理监听与 reader；不能只靠 async generator 的 finally 等待一个永不返回的 next。初始化失败和重复关闭沿用 main 的显式生命周期规则。
@@ -86,11 +86,17 @@ Gateway 传领域事件，不传 Pi 对象或每次完整 `partial`。内容块�
 - 旧 ResponsesTransport 根据 session_key 复用 WebSocket／chain 并支持 HTTP 路径；Pi 0.85.1 的通用 `api/openai-responses.js` 走 HTTP 流，没有该 WebSocket 分支。其他 Pi API 的 transport 支持不能证明通用 Responses 等价。首片只验 HTTP/SSE，不承诺旧连接池、previous_response_id 或断线恢复语义。
 - Pi error 常将异常压成 errorMessage，无法保证保留旧 HTTP status、Retry-After 和 cause。可保存实际拿到的状态／诊断信息，但不从字符串推断出可靠结构化状态；DSH 的分类仅作为参考。
 
-### 后续 Pi 切片：最小可验证流式调用
+### 已实现：最小 Pi 文本流
 
-实施范围限定为一个显式测试模型配置、一个 `openai-completions` HTTP/SSE 路径、独立 system prompt 和 user 文本、temperature／maxTokens、文本增量、用量、终态／错误／取消；使用无推理模型，不接设置、Key UI、工具执行、历史迁移或 Quick Chat UI。固定实际 Pi 版本、按上述决定同步接入补丁及依赖行为回归，并重核 package exports；DSH 新版 `models.ts` 使用公开窄入口，不能直接照旧根入口示例粘贴。真实 provider 凭据与模型留到明确配置后验收。
+`contracts/proto/xiaowei/llm.proto` 定义 `Llm.Generate`，TS／Rust 契约已生成。`services/llm/host.ts` 创建专用 Worker，`worker.ts` 通过现有 endpoint 暴露 `gateway.ts` 的 handler；`provider.ts` 仅从 Pi 的公开 `api/openai-completions` 入口调用真实 HTTP/SSE。main 的 `app/gateway.ts` 负责接入、启动失败回收与幂等关闭，模型配置通过宿主函数参数注入并由 worker 固定快照；默认空模型列表只注册能力，不发网络请求。请求不接受 base URL 或 Key。未接设置、Key UI、工具执行、推理、历史迁移或 Quick Chat UI。
 
-验证入口使用现有 desktop Node 测试和 Gateway TS ↔ Rust napi 通信联调基础设施，不创建应用实例：本地 mock HTTP/SSE 检查真实 Pi 请求体与多段中文输出、用量和终态；Rust typed caller → main GatewayHost → worker TS owner → Pi → mock 验证编解码、顺序及错误；挂起响应下 cancel／owner close 验证中断与无迟到 chunk；断流、HTTP 失败与慢消费者验证不误报成功、不重复终态。完成时再运行对应生成一致性与仓库必需检查。后续真实远端调用另记证据，mock 通过不等于真实模型验收。
+本片只支持非推理文本模型：system/user UTF-8 合计至多 256 KiB；temperature 缺省不传，显式范围 0–2；maxTokens 缺省 min(1024, 模型上限)，显式范围 1–min(4096, 模型上限)。固定 `max_tokens` 字段，关闭 SDK 重试，保留 Pi contentIndex。成功按文本增量、一次用量、一次 finished 顺序输出，finish reason 区分 stop／length；HTTP 错误和断流输出一次 failed，不泄漏原始上游响应或 Key。输入验证、超限、不支持的推理／工具输出及 Gateway 生命周期失败保留 Gateway 错误通道。
+
+worker 的 stream policy 限制 owner 4 路、caller 2 路，producer／consumer idle 各 30 秒，总时长 120 秒；适配器消费文本累计超过 1 MiB 时中止。取消监听直接连接 Pi AbortController，finally 等待 Pi result 后释放监听；挂起 next 和暂停消费均能取消 HTTP。这些限制仍不构成对 Pi 内部 push 队列的严格内存上界，慢消费者下的有界生产需后续专门处理。
+
+Electron 构建输出独立 ESM `llm-worker.js`，内联 Gateway／契约、外置已打补丁的 Pi；普通 Node 可以执行该 worker。`pnpm --dir desktop test:llm` 先构建后验证真实 Pi 与本地 SSE，使用 tsx 仅加载测试的 TS 契约。完整 native 测试窗口还验证 Rust typed caller → napi → main → worker → Pi：test-fixtures 内用 Envelope 包装测试入参和结果，Rust 解码为 GenerateRequest 后使用 typed StreamMethod 调用实际 Llm route，不给生产 search 添加 LLM 依赖。
+
+真实 provider 凭据、应用包内加载及远端模型验收仍在后续范围；本地 Node mock 通过不等于 Electron 包内或真实模型验收。
 
 ### 已完成的 main 边界整理
 
@@ -113,9 +119,17 @@ Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetA
 
 ## Current work
 
-Pi 适配边界核对和 Gateway worker 通信切片均已完成，对应 Plan 已删除。下一片按上述边界实施 Pi 最小流式调用，包括 `services/llm/` 产品入口、构建接线与 Pi 补丁；尚未安装 Pi、编写 LLM 业务 proto 或启动 provider。Quick Chat UI 继续留在独立事项，不并发推进。
+Pi 适配边界核对、Gateway worker 通信以及 Pi 依赖／补丁引入均已完成。最小 Pi 流式调用已实现并通过自动验证；后续接宿主模型配置／凭据与应用包验收。Quick Chat UI 继续留在独立事项，不并发推进。
 
 ## Outcome
+
+2026-09-24 完成最小 Pi 文本流切片：新增 `Llm.Generate` proto 与 TS／Rust 生成契约，接入 `services/llm/` worker 和 main 启停生命周期。支持单次 system/user 文本、temperature/maxTokens、文本块索引、最终用量、stop／length 及 failed 终态。最终复核按既定双通道区分 provider 业务失败与 Gateway 错误；取消直接中断 Pi HTTP，并等待实际结果清理。配置仅由宿主注入，默认空配置不发请求。模型目录、真实 Key、历史、工具执行及 Quick Chat UI 尚未接入。
+
+验证通过 3 项构建产物 LLM 回归（含多组参数／失败／取消场景）、1 项 Rust typed LLM 跨语言回归及完整 `pnpm gateway:test-native`、desktop 全量测试（26 项原有 Node、3 项 LLM、64 项组件）、20 项工具回归、契约 codec、desktop build、frozen install 和最终 `just check`。覆盖默认采样、中文文本、缓存用量、唯一成功／失败终态、HTTP 错误、断流、拒绝推理／工具输出、1 MiB 超限、pending next／暂停消费取消、owner 关闭及启动失败回收。正式 napi 产物已恢复，03 Plan 已删除。未启动 Electron、未运行应用打包或真实远端模型验收；Pi 内部队列仍不是严格有界背压。新增 tsx 为 desktop 测试依赖，复用仓库现有版本，不改变产品 worker 的 JS 执行方式。
+
+2026-09-24 完成 Pi 依赖及补丁切片：desktop 精确依赖 `@earendil-works/pi-ai@0.85.1`，原样复用 DSH 工具参数解析补丁，通过根 `patchedDependencies` 和 pnpm 生成的锁文件固定。已核对补丁与 DSH 文件一致，且可对实际安装包反向应用。两个新增间接依赖的安装脚本显式禁用：Google SDK 的 prepare 不用于已发布运行产物，protobufjs postinstall 仅提示版本声明；未启用额外 MCP 或服务。维护步骤见 `patches/README.md`。
+
+验证通过 `pnpm install --frozen-lockfile`、2 项真实 Pi + 本地 SSE 回归（Completions／Responses 的多片中文工具参数、原始 delta 顺序、中间参数为空、最终对象及唯一成功终态）、`just check` 和 diff／手写测试行宽检查。只验证依赖与补丁，不包含产品 worker 接线、打包验收、LLM 业务契约或真实远端模型请求；另外四个被补丁修改的协议尚无本项目运行时回归。
 
 2026-09-24 完成 Worker MessagePort 通信切片：新增 `/worker-host` 的 `attachWorker` 和 `/worker` 的 `exposeWorkerEndpoint`，支持 unary、pull 响应流、保留权限的嵌套 unary／stream，以及取消、caller cleanup、owner 替换和异常退出。worker 使用提取的 `ExecutionScope` 持有执行配额与真实清理，main 的等待结束不会提前释放其许可；本地 main 与 worker 的配额互不叠加。握手先预留后激活发布；连接错误保留原 Gateway 错误码；关闭超时明确失败并 terminate 专用 worker。线程协议及资源上限维护在 Gateway TS README。复核后补充授权后的单次预算通知，按实际 service timeout／openTimeout 约束通信等待，避免固定 15／31 秒截断长请求；可控时钟回归覆盖 20 秒开流预算和 60 秒嵌套 unary 预算。unary 保持原有同步开始 handler 的语义。直接已取消信号回归确认原实现会释放 admission 并完成 drained，不将其误记为泄漏修复。
 
@@ -123,7 +137,7 @@ Pi 适配边界核对和 Gateway worker 通信切片均已完成，对应 Plan �
 
 2026-09-24 完成 Pi 适配边界核对：以更新后的 DSH 46a7f68b09、Pi 0.85.1 发布包及 DSH 补丁、旧版 6be131098d 为静态源码证据，明确请求／流事件映射、回放与用量差异、取消生命周期和 TS owner／Rust caller 边界。已回填 How 并删除 01 边界核对 Plan。此次只修改 record 与删除已完成 Plan；未安装 XiaoWei 依赖、定义业务 proto、实现调用、发送模型请求或运行应用。DSH 仅快进更新源码，未同步依赖或运行其测试。
 
-已核对旧 Rust `ChatProvider` 调用入口、当前 Gateway 双向流能力、Pi 公共流事件与 DSH 适配层，并确认 Pi 包从 `@mariozechner/pi-ai` 改名为 `@earendil-works/pi-ai`。尚未定义 LLM 业务契约、安装 Pi 依赖或发送真实模型请求。
+已核对旧 Rust `ChatProvider` 调用入口、当前 Gateway 双向流能力、Pi 公共流事件与 DSH 适配层，并确认 Pi 包从 `@mariozechner/pi-ai` 改名为 `@earendil-works/pi-ai`。Pi 依赖及补丁已安装；尚未定义 LLM 业务契约或发送真实模型请求。
 
 用户确认前端能力统一通过 proto service／Gateway；Electron 系统 API 由 TS System service 提供；剪贴板资源处理和占用统计归 Rust 剪贴板模块，缺失数据库信息由 Storage 提供。已将该决定及 main 全部现有文件的目标归属写入组织文档；已完成源码目录整理和启动／窗口／设置副作用拆分，保持现有业务契约与行为；System.OpenUrl 已从剪贴板 owner 中拆出；本地路径打开／定位已接入 System，剪贴板资源处理已迁回 Rust，统计与调度尚未迁移。
 

@@ -113,6 +113,20 @@ mock.module(import.meta.resolve("xiaowei-gateway/electron"), {
   },
 });
 
+mock.module(new URL("../../../../desktop/src/main/services/llm/host.ts", import.meta.url).href, {
+  exports: {
+    async attachLlm() {
+      calls.push("attach-llm");
+      if (failure === "llm") throw new Error("llm failure");
+      return {
+        async close() {
+          calls.push("close-llm");
+        },
+      };
+    },
+  },
+});
+
 const { createApplicationGateway } = await import("../../../../desktop/src/main/app/gateway.ts");
 const actions = {
   development: false,
@@ -129,7 +143,9 @@ test("desktop startup failures unwind producers and owners before Storage closes
   directory = await mkdtemp(join(tmpdir(), "storage-lifecycle-"));
   try {
     const cases =
-      process.platform === "darwin" ? ["storage", "migration", "monitor", ""] : ["storage", "migration", ""];
+      process.platform === "darwin"
+        ? ["llm", "storage", "migration", "monitor", ""]
+        : ["llm", "storage", "migration", ""];
     for (const stage of cases) {
       failure = stage;
       calls.length = 0;
@@ -147,7 +163,9 @@ test("desktop startup failures unwind producers and owners before Storage closes
         await gateway.close();
         assert.equal(calls.filter((call) => call === "close-storage").length, 1);
       }
-      if (stage !== "storage" && stage !== "migration") {
+      if (stage !== "llm") assert.equal(calls.filter((call) => call === "close-llm").length, 1);
+      if (stage === "llm") assert.ok(!calls.includes("open-storage"));
+      if (stage !== "llm" && stage !== "storage" && stage !== "migration") {
         assert.ok(calls.indexOf("stop") < calls.indexOf("close-clipboard"));
         assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-clipboard-dao"));
         assert.ok(calls.indexOf("close-clipboard-dao") < calls.indexOf("close-storage"));

@@ -38,7 +38,7 @@ worker 的 `ExecutionScope` 负责 unary 执行并发、超时、owner／caller 
 
 接入顺序为 manifest → 名称预留 → endpoint 激活 → 原子发布。失败回收新 worker，不替换旧 owner。返回 handle 的 `close()` 幂等并复用同一 Promise：先停止新请求、结束调用等待，再请求 worker 清理；清理失败或超时明确报错，最终 terminate 专用 worker 并移除监听器。异常退出、损坏帧和 owner 替换会终结所有关联；旧 handle 不影响新 owner。不自动重启或重放。
 
-源码 worker 回归运行 `pnpm --filter xiaowei-gateway test`；plain Node 构建验证运行 `pnpm --filter xiaowei-gateway test:worker-built`。产品 worker 入口、Electron 构建和 LLM service 尚未接线。
+源码 worker 回归运行 `pnpm --filter xiaowei-gateway test`；plain Node 构建验证运行 `pnpm --filter xiaowei-gateway test:worker-built`。LLM service 的产品 worker 入口与 Electron 构建已接线，业务范围和验收见 [LLM provider record](../../.agent/records/active/2026-09-24-llm-provider.md)。
 
 ## Electron 接入
 

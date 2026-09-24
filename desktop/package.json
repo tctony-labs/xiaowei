@@ -5,7 +5,8 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "test": "node --test tests/*.test.mjs && vitest run",
+    "test": "node --test tests/*.test.mjs && pnpm test:llm && vitest run",
+    "test:llm": "pnpm --filter xiaowei-gateway build && pnpm build && tsx --test tests/llm/*.test.mjs",
     "dev": "node ../scripts/dev/dev.mjs",
     "build": "electron-vite build",
     "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
@@ -16,6 +17,7 @@
     "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
+    "@earendil-works/pi-ai": "0.85.1",
     "electron-log": "5.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -30,6 +32,7 @@
     "xiaowei-storage": "workspace:*"
   },
   "devDependencies": {
+    "tsx": "4.23.13",
     "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.0.0",

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package xiaowei.llm;
+
+// Text-only generation. Configuration and credentials belong to the service host.
+service Llm {
+  // Emits text deltas, then one usage and one finished event on success.
+  // Provider failure emits one failed event, possibly after partial text; no finished event.
+  // Validation, quota, unsupported output and transport errors use Gateway stream errors.
+  // Cancellation closes the stream and aborts the provider; no terminal chunk is guaranteed.
+  rpc Generate(GenerateRequest) returns (stream GenerateEvent);
+}
+
+message GenerateRequest {
+  // Required reference to a host-configured non-reasoning text model.
+  string model_ref = 1;
+  // Independent system instruction; empty means no system message.
+  string system_prompt = 2;
+  // Required user text. Combined UTF-8 size with system_prompt is at most 256 KiB.
+  string user_text = 3;
+  // Absent leaves the provider default; finite range [0, 2].
+  optional double temperature = 4;
+  // Absent uses min(1024, model limit); present range [1, min(4096, model limit)].
+  optional uint32 max_tokens = 5;
+}
+
+message TextDelta {
+  // Pi content index, preserved across interleaved text blocks.
+  uint32 content_index = 1;
+  string text = 2;
+}
+
+message TokenUsage {
+  // Pi token categories; input excludes cached reads/writes. Zero may mean unreported.
+  uint64 input = 1;
+  uint64 output = 2;
+  uint64 cache_read = 3;
+  uint64 cache_write = 4;
+  // Provider/Pi total, not recomputed by the caller.
+  uint64 total = 5;
+}
+
+enum FinishReason {
+  FINISH_REASON_UNSPECIFIED = 0;
+  FINISH_REASON_STOP = 1;
+  FINISH_REASON_LENGTH = 2;
+}
+
+message GenerationFinished {
+  FinishReason reason = 1;
+}
+
+message GenerationFailed {
+  // Safe public diagnostic; never contains raw upstream response bodies or credentials.
+  string message = 1;
+}
+
+message GenerateEvent {
+  oneof event {
+    TextDelta text_delta = 1;
+    TokenUsage usage = 2;
+    GenerationFinished finished = 3;
+    GenerationFailed failed = 4;
+  }
+}

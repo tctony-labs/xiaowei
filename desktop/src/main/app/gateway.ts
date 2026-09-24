@@ -11,6 +11,8 @@ import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
+import { attachLlm } from "../services/llm/host";
+import type { ModelConfig } from "../services/llm/provider";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
@@ -22,6 +24,7 @@ export async function createApplicationGateway(
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
   },
+  models: readonly ModelConfig[] = [],
 ) {
   const host = new GatewayHost();
   const electron = attachElectron(host, ipcMain);
@@ -30,6 +33,7 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
   let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
@@ -59,6 +63,7 @@ export async function createApplicationGateway(
   }
   let iconProtocolHandled = false;
   try {
+    llm = await attachLlm(host, models);
     system = registerSystem(host, windowFor);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
@@ -82,7 +87,7 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
-    await Promise.allSettled([closeClipboard(), search?.close()]);
+    await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
     shortcuts?.close();
     system?.close();
     await settings?.close();
@@ -103,7 +108,7 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
-        const results = await Promise.allSettled([closeClipboard(), search?.close()]);
+        const results = await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
         shortcuts?.close();
         system?.close();
         await settings?.close();

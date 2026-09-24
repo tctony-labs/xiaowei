@@ -33,3 +33,5 @@ cargo run -q -p xw-gateway --example generate_fixture > gateway/rust/tests/fixtu
 `electron/` 保存真实 contextBridge 验收脚本及 preload／renderer 测试资产。依赖由本目录的私有 workspace 包 `@xiaowei/gateway-tests` 声明。
 
 `pnpm --filter @xiaowei/gateway-tests build:electron` 只构建测试资产并输出临时目录。`electron/run.mjs` 仍需在已有 Electron 主进程的调试会话中导入并调用 `run(directory)`；执行前构建 Gateway dist 和原生 fixture，沿用现有验收流程。它创建隔离测试窗口，结束后清理，不属于 `pnpm test` 自动执行范围。
+
+`pnpm gateway:test-native` 同时构建 desktop worker，并在 fixture addon 窗口运行 `desktop/tests/native/llm.test.mjs`，验证 Rust typed LLM caller → main → worker → Pi → 本地 SSE 的文本、用量、失败终态及取消。LLM 测试包装仅存在于 `test-fixtures`，正式 Rust 模块不依赖 LLM service。

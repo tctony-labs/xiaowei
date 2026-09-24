@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { sourceLocationPlugin } from "@xiaowei/source-log/vite";
@@ -10,6 +11,13 @@ export default defineConfig({
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
+      rollupOptions: {
+        input: {
+          index: fileURLToPath(new URL("./src/main/index.ts", import.meta.url)),
+          "llm-worker": fileURLToPath(new URL("./src/main/services/llm/worker.ts", import.meta.url)),
+        },
+        output: { format: "es", entryFileNames: "[name].js" },
+      },
       externalizeDeps: {
         include: ["xiaowei-search", "xiaowei-clipboard", "xiaowei-storage"],
         exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],

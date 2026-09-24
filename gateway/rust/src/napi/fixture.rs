@@ -5,6 +5,7 @@ use std::sync::{
 };
 use std::time::Duration;
 
+use prost::Message;
 use tokio::sync::{Notify, mpsc};
 use xw_contracts::testing::{Changed, Envelope};
 
@@ -110,6 +111,32 @@ impl Fixture {
             let gate = stream_gate.clone();
             let usage = usage.clone();
             async move {
+                if request.text == "llm" {
+                    // Test-only typed consumer; no production search dependency on LLM.
+                    use xw_contracts::xiaowei::llm::{GenerateEvent, GenerateRequest};
+                    let method =
+                        crate::binding::StreamMethod::<GenerateRequest, GenerateEvent>::new("xiaowei.llm.Llm.Generate");
+                    let payload = request
+                        .blobs
+                        .first()
+                        .ok_or_else(|| GatewayError::new(ErrorCode::InvalidArgument, "missing generation request"))?;
+                    let input = GenerateRequest::decode(payload.data.as_slice())
+                        .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid generation request"))?;
+                    let stream = method.stream(&client, input).await?;
+                    return Ok(Box::pin(stream.map(|item| {
+                        item.map(|event| Changed {
+                            value: Some(Envelope {
+                                blobs: vec![xw_contracts::testing::envelope::Blob {
+                                    data: event.encode_to_vec(),
+                                }],
+                                ..Default::default()
+                            }),
+                        })
+                    }))
+                        as std::pin::Pin<
+                            Box<dyn futures_util::Stream<Item = Result<Changed, GatewayError>> + Send>,
+                        >);
+                }
                 if let Some(text) = request.text.strip_prefix("relay-") {
                     request.text = text.to_string();
                     let target = if peer {

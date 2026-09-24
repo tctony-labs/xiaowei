@@ -30,13 +30,14 @@ desktop/src/main/
 │   ├── navigation.ts      # 导航限制
 │   └── settings.ts
 ├── services/
+│   ├── llm/               # worker 内的 Pi provider 与宿主接线
 │   ├── launcher/gateway.ts
 │   ├── shortcuts/         # 全局快捷键注册与 Gateway owner
 │   └── system/gateway.ts  # Electron 系统与调用方窗口能力
 └── resources/app-icons/  # 图标缓存与协议
 ```
 
-需要接入 Pi 时，将 TS provider 放在 `services/llm/`，由 `app/gateway.ts` 装配和关闭；目录本身不是独立 npm package，不提前创建占位模块。
+`services/llm/host.ts` 由 `app/gateway.ts` 调用，启动专用 worker 并通过 Gateway 挂载和关闭。worker 内的 `gateway.ts` 绑定 handler，`provider.ts` 调用 Pi；模型配置由宿主注入，默认空配置不发送模型请求。构建生成独立 ESM `llm-worker.js`，Pi 为外置运行时依赖。具体契约范围、参数限制和验证维护在 [LLM provider record](../../../.agent/records/active/2026-09-24-llm-provider.md)。
 
 ## Gateway 装配与生命周期
 
