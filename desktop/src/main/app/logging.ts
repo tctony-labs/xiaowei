@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { formatWithOptions } from "node:util";
 import type { WebContents } from "electron";
 import log from "electron-log/node";
-import { hasSourceLocation } from "../../../packages/source-log/runtime.ts";
+import { hasSourceLocation } from "../../../../packages/source-log/runtime.ts";
 
 // Ignore sync and async terminal write failures without feeding them back into the logger.
 const terminal = new Console({ stdout: process.stdout, stderr: process.stderr, ignoreErrors: true });
@@ -127,4 +127,24 @@ export function attachRendererLogging(contents: WebContents, logger: ReturnType<
   contents.on("preload-error", (_event, path, error) => {
     logger.error("Preload failed", path, error);
   });
+}
+
+export function createNativeLogSink(logger: ReturnType<typeof createLoggers>["main"]) {
+  return ({
+    level,
+    message,
+    file,
+    line,
+  }: {
+    level: string;
+    message: string;
+    file?: string | null;
+    line?: number | null;
+  }) => {
+    const method = level === "trace" ? "debug" : level;
+    if (method === "error" || method === "warn" || method === "info" || method === "debug") {
+      const location = file ? `[${file}${line == null ? "" : `:${line}`}] ` : "";
+      logger[method](`${location}${message}`);
+    }
+  };
 }

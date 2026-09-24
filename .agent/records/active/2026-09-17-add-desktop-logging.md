@@ -24,7 +24,7 @@ main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来�
 
 文件同步写入，记录时间、级别和来源。开发态记录 debug 及以上，正式包记录 info 及以上；renderer 的 DevTools console 保留浏览器原生行为。
 
-调用方式：main 和 renderer 使用 `console.debug/info/warn/error`；main 初始化时接管 console，renderer 保留浏览器 console。Rust 使用 `log::debug!/info!/warn!/error!`，接收器仅转发 `xiaowei_`、`xw_` 开头的 target。main 在业务初始化前分别调用搜索和剪贴板 napi 包的 `initializeLogging` 安装接收器，初始化日志包含业务模块名称：`Native logging initialized: xiaowei-search` / `xiaowei-clipboard`。文件输出位于 `desktop/src/main/logging.ts`，共享 Rust 日志接收器位于 `crates/xw-napi-log/src/lib.rs`，两个 napi 包各自保留线程安全回调适配。
+调用方式：main 和 renderer 使用 `console.debug/info/warn/error`；main 初始化时接管 console，renderer 保留浏览器 console。Rust 使用 `log::debug!/info!/warn!/error!`，接收器仅转发 `xiaowei_`、`xw_` 开头的 target。main 在业务初始化前分别调用搜索和剪贴板 napi 包的 `initializeLogging` 安装接收器，初始化日志包含业务模块名称：`Native logging initialized: xiaowei-search` / `xiaowei-clipboard`。文件输出位于 `desktop/src/main/app/logging.ts`，共享 Rust 日志接收器位于 `crates/xw-napi-log/src/lib.rs`，两个 napi 包各自保留线程安全回调适配。
 
 Rust 继续使用 `log` facade，当前在搜索 napi 入口安装接收器，通过有界、非阻塞、弱引用的线程安全回调转发给 main。回调不阻止进程退出，退出或队列满时不能保证尚未传递的日志落盘；主进程已收到的日志同步写入。后续独立 `.node` 模块须分别安装其日志接收器，不能假设跨动态库共享 Rust 全局 logger。
 
@@ -36,7 +36,7 @@ main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获
 
 自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `scripts/dev/build-desktop-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
 
-位置格式为 `[desktop/src/main/index.ts:行号]` 或 `[packages/utils/src/index.ts:行号]`，文件路径相对工作区根目录、使用 `/`。调用参数仍交给原 console；首参数为字符串时将位置合并到格式字符串前，保留 `%s`、`%o`、`%c` 等占位符及其参数，其他首参数保持原对象／Error 引用。DevTools 同样显示源码位置前缀，其原生可点击链接仍可能指向包装器或产物。无运行时抓栈或源码映射。
+位置格式为 `[desktop/src/main/app/bootstrap.ts:行号]` 或 `[packages/utils/src/index.ts:行号]`，文件路径相对工作区根目录、使用 `/`。调用参数仍交给原 console；首参数为字符串时将位置合并到格式字符串前，保留 `%s`、`%o`、`%c` 等占位符及其参数，其他首参数保持原对象／Error 引用。DevTools 同样显示源码位置前缀，其原生可点击链接仍可能指向包装器或产物。无运行时抓栈或源码映射。
 
 renderer/preload 沿用唯一的 `console-message` 通道：有注入位置前缀时直接记录，不追加产物 URL 和行号；其他消息继续使用 Electron 提供的位置兜底。不另建 IPC 通道，避免双通道去重和对象序列化协议；复杂对象仍受现有 Chromium 文本格式限制。未注入日志内容若自行以同样的源码位置前缀开头，也会被视为已有位置。
 

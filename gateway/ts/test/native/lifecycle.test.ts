@@ -109,7 +109,7 @@ mock.module(import.meta.resolve("xiaowei-gateway/electron"), {
   },
 });
 
-const { createApplicationGateway } = await import("../../../../desktop/src/main/gateway.ts");
+const { createApplicationGateway } = await import("../../../../desktop/src/main/app/gateway.ts");
 const actions = {
   development: false,
   platform: "darwin",

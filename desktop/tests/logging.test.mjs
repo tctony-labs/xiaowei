@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { attachRendererLogging, createLoggers } from "../src/main/logging.ts";
+import { attachRendererLogging, createLoggers } from "../src/main/app/logging.ts";
 
 for (const mode of ["healthy", "sync", "async"]) {
   test(`console ${mode} writes preserve file logging without uncaught exceptions`, () => {
@@ -65,7 +65,7 @@ for (const mode of ["healthy", "sync", "async"]) {
           `,
           mode,
           directory,
-          new URL("../src/main/logging.ts", import.meta.url).href,
+          new URL("../src/main/app/logging.ts", import.meta.url).href,
         ],
         { encoding: "utf8", timeout: 5000 },
       );
@@ -230,7 +230,7 @@ for (const forceColor of [undefined, "0", "1"]) {
           main.silly('silly-color-marker');
           renderer.warn('renderer-color-marker');
         `,
-          new URL("../src/main/logging.ts", import.meta.url).href,
+          new URL("../src/main/app/logging.ts", import.meta.url).href,
           directory,
         ],
         { env, encoding: "utf8" },

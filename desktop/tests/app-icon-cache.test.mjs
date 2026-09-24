@@ -3,8 +3,8 @@ import { mkdtemp, readdir, rm, stat, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createAppIconCache } from "../src/main/app-icon-cache.ts";
-import { createIconResources } from "../src/main/icon-resources.ts";
+import { createAppIconCache } from "../src/main/resources/app-icons/cache.ts";
+import { createIconResources } from "../src/main/resources/app-icons/protocol.ts";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const app = "/Applications/WeChat.app";

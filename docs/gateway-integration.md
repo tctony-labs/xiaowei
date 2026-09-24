@@ -1,6 +1,6 @@
 # 桌面 Gateway 接入
 
-本文说明 XiaoWei 的业务装配、renderer 调用与构建接入。通用传输语义见 [Gateway 运行机制](gateway-runtime.md)，维护入口见 [Gateway README](../gateway/README.md)。实现入口为 [main Gateway](../desktop/src/main/gateway.ts) 和 [renderer services](../desktop/src/renderer/src/services.ts)。
+本文说明 XiaoWei 的业务装配、renderer 调用与构建接入。通用传输语义见 [Gateway 运行机制](gateway-runtime.md)，维护入口见 [Gateway README](../gateway/README.md)。实现入口为 [main Gateway](../desktop/src/main/app/gateway.ts) 和 [renderer services](../desktop/src/renderer/src/services.ts)。
 
 ## 业务装配与调用
 

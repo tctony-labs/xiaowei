@@ -26,7 +26,7 @@ try {
     }
     const buildMs = performance.now() - start;
     const main = await readFile(join(directory, "main/index.js"), "utf8");
-    assert.equal(main.includes("desktop/src/main/index.ts:"), enabled);
+    assert.equal(main.includes("desktop/src/main/app/bootstrap.ts:"), enabled);
     const development = await resolveConfig({}, "serve", "development");
     const devStart = performance.now();
     const server = await createServer({

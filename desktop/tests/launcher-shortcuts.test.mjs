@@ -5,7 +5,7 @@ import {
   configureLauncherWorkspaces,
   positionLauncher,
   showLauncherWindow,
-} from "../src/main/launcher-shortcuts.ts";
+} from "../src/main/windows/launcher-shortcuts.ts";
 
 function fixture({ visible = true, focused = true, destroyed = false } = {}) {
   const calls = [];

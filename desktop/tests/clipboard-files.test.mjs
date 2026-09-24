@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clipboardPaths, clipboardPathText, webUrl } from "../src/main/clipboard-files.ts";
+import { clipboardPaths, clipboardPathText, webUrl } from "../src/main/services/clipboard/files.ts";
 
 test("text viewer tracks edits; image actions use the original persistent file", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xw-viewer-test-"));

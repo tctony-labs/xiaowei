@@ -14,7 +14,7 @@ Renderer → Launcher Gateway（Electron main）
              └─ calculator：表达式计算
 ```
 
-- [desktop/src/main/search.ts](../desktop/src/main/search.ts)：读取书签搜索开关，调用 Search，保存动作并执行结果。
+- [desktop/src/main/services/launcher/gateway.ts](../desktop/src/main/services/launcher/gateway.ts)：读取书签搜索开关，调用 Search，保存动作并执行结果。
 - [gateway.rs](../crates/xiaowei-search/src/gateway.rs)：注册 Rust Search handler，通过 `spawn_blocking` 执行查询，转换契约结果。
 - [lib.rs](../crates/xiaowei-search/src/lib.rs)：持有数据源、生成内存候选、调用评分、截取和合并结果。
 - [scoring.rs](../crates/xiaowei-search/src/scoring.rs)、[pinyin.rs](../crates/xiaowei-search/src/pinyin.rs)、[usage.rs](../crates/xiaowei-search/src/usage.rs)：共享匹配、拼音及使用加权。

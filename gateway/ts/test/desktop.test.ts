@@ -21,8 +21,8 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, bindHandlers, createClient } from "xiaowei-gateway";
 import { createContext, GatewayHost } from "xiaowei-gateway/host";
-import { createIconResources } from "../../../desktop/src/main/icon-resources.js";
-import { registerSearch } from "../../../desktop/src/main/search.js";
+import { createIconResources } from "../../../desktop/src/main/resources/app-icons/protocol.js";
+import { registerSearch } from "../../../desktop/src/main/services/launcher/gateway.js";
 import { createServices } from "../../../desktop/src/renderer/src/services.js";
 
 test("launcher tokens and execution are preserved; search does not read icons", async () => {

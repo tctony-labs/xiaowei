@@ -4,7 +4,7 @@
 
 ## 范围与文件
 
-- `desktop/src/main/{paths,gateway,clipboard,index}.ts`：统一 storage.sqlite 路径，Storage → 业务基线 → 剪贴板监控的启动顺序和反向关闭。
+- `desktop/src/main/app/{paths,gateway,bootstrap}.ts`、`desktop/src/main/services/clipboard/gateway.ts`：统一 storage.sqlite 路径，Storage → 业务基线 → 剪贴板监控的启动顺序和反向关闭。
 - `desktop/src/renderer/src/services.ts`：沿用 lazy getter，为 KeyValue 提供 typed client，不新增 facade。
 - `desktop/package.json`、`desktop/electron.vite.config.ts`、`desktop/scripts/build-main.mjs` 与实际打包配置：第三个 native 包的构建、外置及 ASAR unpack。
 - `gateway/tests/electron/` 与相关 tests：真实 renderer 直接访问、新 endpoint 生命周期；只用临时测试数据库和隔离 host，不写用户 setting 作为测试。

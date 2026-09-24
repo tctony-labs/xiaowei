@@ -1,0 +1,40 @@
+# 基于 Pi 的 LLM provider
+
+## Why
+
+Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内容。用户决定复用成熟的 Pi 模型调用库，并希望通过现有 Gateway 让 TypeScript 的模型生态与 Rust 的 agent／会话能力协作，而不是迁入旧版 `xw-llm` 的自有 HTTP、SSE 和 WebSocket 实现。
+
+## What
+
+建立可供后续 Quick Chat 运行时使用的 Pi provider 边界。最终需能按当前设置选择模型和凭据，处理请求、流式文本／推理／工具调用、使用量、结束／错误与取消，并经 Gateway 供 Rust agent 调用。按用户要求一次只推进一个小切片；当前只核对接口并确定首个可独立验证的适配单元。
+
+本事项不接入 Quick Chat 产品 UI，不改变会话数据，也不以直接模型调用代替旧 agent 的工具与恢复语义。UI 入口预览另见 [Quick Chat UI 事项](2026-09-24-quick-chat-ui-interaction.md)。
+
+## How
+
+旧版源码位于 `/Users/changtang/Develop/XiaoWei/workspace/src/xiaowei-next`，核对时 HEAD `a45f5cd1ba197c76ae6b528d30f382f7080a5100`。旧 `xw-agent-runtime` 通过 Rust `ChatProvider::stream` 接收 `ChatRequest`、`StreamEvent`，`xw-agent-protocol`／rollout 也复用 `xw-llm::types`。采用 Pi 后需保留必要的领域数据语义，并建立 Rust↔TS 适配；不能直接把 TypeScript 库实现为 Rust trait。
+
+当前 Gateway 已支持 TypeScript owner、Rust caller 和双向响应流，但尚无 LLM 业务契约。main 的目录规则、现有文件归属和剪贴板职责调整统一维护在 [Electron main 模块组织](../../../desktop/src/main/README.md)。Pi provider 的目标位置为 `desktop/src/main/services/llm/`，由 `app/gateway.ts` 装配和关闭；本阶段不新增 Rust crate 或 npm workspace package。后续 Rust agent 经 Gateway 调用该 owner；具体业务契约需根据旧事件处理和 Pi 输出逐字段核对后决定，特别是交错的文本／推理／工具块、工具参数 JSON、取消、使用量、错误和推理回放。
+
+`@mariozechner/pi-ai` 与 `@earendil-works/pi-ai` 是同一 Pi 项目的旧／新发布名，并非两个并行分支：旧 GitHub 地址 `badlogic/pi-mono` 重定向到 `earendil-works/pi`，两个地址当前指向同一提交；旧 npm 包已标记弃用并提示改用新包。后续使用 `@earendil-works/pi-ai`。用户给出的本地 DSH `/Users/changtang/Develop/LLM/deepseek-harness` 已使用新包（目前锁定 0.85.1），其 `packages/llm/llm-pi-ai/` 是 DSH 自己的适配层，可参考 `src/context.ts`、`stream.ts`、`provider.ts` 的映射，不复制 Cordis、凭据或会话系统。当前尚未在本项目安装依赖。
+
+现有设置模型页仍是 Storybook mock；提供方配置、Key 获取和模型目录由后续切片衔接。Pi 的协议名与设置页的 `openai-completions`、`openai-responses`、`anthropic-messages` 一致，但能力、上下文上限和输出上限需有明确来源。旧版与 Pi 在重试、Responses WebSocket、推理回放和错误细节上的差异要逐项验证并记录。
+
+## Alternatives considered
+
+- 迁入旧 `crates/xw-llm/` 的协议实现：用户已明确选择复用 Pi，不再推进此方案。
+- 在 renderer 中直接调用模型：无法保住当前 main／Gateway 的调用与凭据边界。
+
+## Current work
+
+已完成 main 的应用、窗口、资源与现有 TS service 目录整理；下一步拆分 System service，并把剪贴板资源处理、统计和调度迁回 Rust，再接 Pi。当前只保留 [01 Pi provider 边界核对](../../plans/2026-09-24-llm-provider/01-provider-boundary.md) 一个活动 Plan。完成后回填本 record、删除 Plan，再取实现切片；不并发推进 UI 工作。
+
+## Outcome
+
+已核对旧 Rust `ChatProvider` 调用入口、当前 Gateway 双向流能力、Pi 公共流事件与 DSH 适配层，并确认 Pi 包从 `@mariozechner/pi-ai` 改名为 `@earendil-works/pi-ai`。尚未定义 LLM 业务契约、安装 Pi 依赖或发送真实模型请求。
+
+用户确认前端能力统一通过 proto service／Gateway；Electron 系统 API 由 TS System service 提供；剪贴板资源处理和占用统计归 Rust 剪贴板模块，缺失数据库信息由 Storage 提供。已将该决定及 main 全部现有文件的目标归属写入组织文档；已完成源码目录整理和启动／窗口／设置副作用拆分，保持现有业务契约与行为；System 和剪贴板职责迁移尚未实施。
+
+main 目录整理已通过 30 个 desktop Node 测试、3 个 Gateway 桌面测试、2 个生命周期／Select 测试、`just check` 与 desktop 构建。当前工作区没有运行实例，未执行冷启动；窗口运行交互仍待用户启动后验收。
+
+合入最新 develop 后已重新通过 desktop 测试（30 个 Node、64 个组件用例）、Gateway 桌面及生命周期回归、全仓检查与桌面构建，并完成全部 napi 包 debug 构建。

@@ -190,7 +190,7 @@ WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并�
 
 - `gateway/ts`：App 直接使用的 TS 包，提供绑定生成工具、协议、main registry／路由和调用／事件／stream 客户端封装；核心与默认入口不依赖 Electron，Electron 适配通过子路径入口隔离。按现有命名约定使用 `xiaowei-`。
 - `gateway/rust`：Rust registry、typed handler、事件、stream 与传输接口；默认仅编译纯 Rust 核心，不依赖 Tauri、napi 或 Electron。napi 适配放在该 crate 的可选 `napi` feature 中，不另建 `xw-napi-gateway` 包。
-- `desktop/src/main/gateway.ts` 和 `desktop/src/preload/gateway.ts`：调用 Gateway 的环境适配入口，负责应用实例装配与生命周期接线；业务调用改用生成消息与 lazy service getter。
+- `desktop/src/main/app/gateway.ts` 和 `desktop/src/preload/gateway.ts`：调用 Gateway 的环境适配入口，负责应用实例装配与生命周期接线；业务调用改用生成消息与 lazy service getter。
 
 Gateway 集中放在根目录 `gateway/`：`ts/` 是 npm 包，`rust/` 是 Cargo crate，`tests/` 保存跨语言集成测试，`README.md` 说明工程入口。pnpm 与 Cargo workspace 分别显式纳入 `gateway/ts`、`gateway/rust`；包名保持不变。通用契约及生成工具仍在根目录 `contracts/`。后续可增加 `gateway/go/`，本次只记录，不创建目录、占位包或 Go Gateway 实现；Plan 00 的 Go 契约生成范围保持不变。
 

@@ -63,7 +63,7 @@ mock.module(import.meta.resolve("xiaowei-gateway/native"), {
   },
 });
 
-const { registerClipboard } = await import("../../../../desktop/src/main/clipboard.ts");
+const { registerClipboard } = await import("../../../../desktop/src/main/services/clipboard/gateway.ts");
 
 test("selection copies, resigns focus and pastes only when enabled; ordinary copy stays separate", async () => {
   const host = new GatewayHost();

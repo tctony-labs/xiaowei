@@ -1,18 +1,18 @@
-import { create, fromBinary } from "@bufbuild/protobuf";
-import { app, BrowserWindow, ipcMain, protocol } from "electron";
-import { requestAccessibilityPermission } from "xiaowei-clipboard";
-import { App, EmptySchema, ReadIconRequestSchema, Settings, SettingsSnapshotSchema } from "xiaowei-contracts";
+import { create } from "@bufbuild/protobuf";
+import { BrowserWindow, ipcMain, protocol } from "electron";
+import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
 import { createSearchGatewayEndpoint } from "xiaowei-search";
 import { Storage } from "xiaowei-storage";
-import { createAppIconCache } from "./app-icon-cache";
-import { registerClipboard } from "./clipboard";
-import { createIconResources, ICON_SCHEME } from "./icon-resources";
-import { type LauncherActions, registerSearch } from "./search";
-import { type ShortcutConfig, shortcutConfig } from "./settings-shortcuts";
+import { createAppIconCache } from "../resources/app-icons/cache";
+import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
+import { registerClipboard } from "../services/clipboard/gateway";
+import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
+import { createSettingsEffects } from "../services/settings/effects";
+import type { ShortcutConfig } from "./shortcuts";
 
 export async function createApplicationGateway(
   directory: string,
@@ -50,27 +50,14 @@ export async function createApplicationGateway(
     settings = await attachNative(
       host,
       "settings",
-      database.createSettingsGatewayEndpoint(actions.platform, async (before, after) => {
-        const previous = fromBinary(SettingsSnapshotSchema, before);
-        const next = fromBinary(SettingsSnapshotSchema, after);
-        if (actions.platform === "darwin" && !previous.clipboardAutoPaste && next.clipboardAutoPaste) {
-          requestAccessibilityPermission();
-        }
-        if (previous.clipboardEnabled !== next.clipboardEnabled) {
-          await clipboard?.setMonitoring(next.clipboardEnabled);
-        }
-        if (JSON.stringify(previous.shortcuts) !== JSON.stringify(next.shortcuts)) {
-          actions.updateShortcuts(shortcutConfig(next.shortcuts));
-        }
-        if (previous.autostart !== next.autostart) {
-          const oldSystemValue = app.getLoginItemSettings().openAtLogin;
-          app.setLoginItemSettings({ openAtLogin: next.autostart });
-          if (app.isPackaged && app.getLoginItemSettings().openAtLogin !== next.autostart) {
-            app.setLoginItemSettings({ openAtLogin: oldSystemValue });
-            throw new Error("Unable to change login item setting");
-          }
-        }
-      }),
+      database.createSettingsGatewayEndpoint(
+        actions.platform,
+        createSettingsEffects({
+          platform: actions.platform,
+          setMonitoring: (enabled) => clipboard?.setMonitoring(enabled),
+          updateShortcuts: actions.updateShortcuts,
+        }),
+      ),
     );
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
     clipboard = await registerClipboard(host, directory, databasePath, windowFor);

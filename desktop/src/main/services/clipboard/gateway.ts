@@ -17,8 +17,8 @@ import {
 import { bindClient, bindHandlers, type Subscription } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
-import { clipboardPaths, clipboardPathText, webUrl } from "./clipboard-files";
-import { clipboardStorageUsage } from "./clipboard-storage";
+import { clipboardPaths, clipboardPathText, webUrl } from "./files";
+import { clipboardStorageUsage } from "./storage";
 
 export async function registerClipboard(
   host: GatewayHost,

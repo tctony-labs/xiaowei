@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { clipboardStorageUsage } from "../src/main/clipboard-storage.ts";
+import { clipboardStorageUsage } from "../src/main/services/clipboard/storage.ts";
 
 test("used space includes the database, WAL and clipboard attachments", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "xiaowei-usage-"));

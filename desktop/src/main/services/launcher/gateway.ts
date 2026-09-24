@@ -16,7 +16,7 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
-import { type LauncherMode, launcherHeight } from "../shared/launcher-model";
+import { type LauncherMode, launcherHeight } from "../../../shared/launcher-model";
 
 export interface LauncherActions {
   development: boolean;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { accelerator, createSettingsShortcuts } from "../src/main/settings-shortcuts.ts";
+import { accelerator, createSettingsShortcuts } from "../src/main/app/shortcuts.ts";
 
 const initial = {
   main: ["Meta", "Space"],

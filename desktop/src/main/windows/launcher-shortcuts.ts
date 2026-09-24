@@ -1,5 +1,5 @@
 import type { BrowserWindow, Rectangle, Screen } from "electron";
-import type { LauncherMode } from "../shared/launcher-model";
+import type { LauncherMode } from "../../shared/launcher-model";
 
 export function activateLauncherShortcut(
   window: BrowserWindow | undefined,
