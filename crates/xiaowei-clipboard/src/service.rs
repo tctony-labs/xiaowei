@@ -18,6 +18,17 @@ struct State {
     last_hash: Option<String>,
 }
 
+struct ClipboardChange {
+    count: i64,
+    hash: String,
+    data: ClipboardData,
+}
+
+enum PollError {
+    Read(Box<dyn std::error::Error + Send + Sync>),
+    Save(Box<dyn std::error::Error + Send + Sync>),
+}
+
 struct Worker {
     stop: oneshot::Sender<()>,
     thread: JoinHandle<()>,
@@ -68,7 +79,7 @@ impl Service {
         let (stop, mut receiver) = oneshot::channel();
         let thread = tokio::spawn(async move {
             log::info!("Clipboard monitoring started (500 ms)");
-            let mut failed = false;
+            let mut failed = None;
             loop {
                 tokio::select! {
                     _ = &mut receiver => break,
@@ -76,16 +87,20 @@ impl Service {
                 }
                 match poll(&state).await {
                     Ok(changed) => {
-                        failed = false;
+                        failed = None;
                         if changed {
                             on_change();
                         }
                     }
                     Err(error) => {
-                        if !failed {
-                            log::warn!("Clipboard capture failed: {error}");
+                        let (level, message, source) = match error {
+                            PollError::Read(source) => (log::Level::Warn, "Clipboard read failed", source),
+                            PollError::Save(source) => (log::Level::Error, "Clipboard history save failed", source),
+                        };
+                        if failed != Some(level) {
+                            log::log!(level, "{message}: {source}");
                         }
-                        failed = true;
+                        failed = Some(level);
                     }
                 }
             }
@@ -105,7 +120,9 @@ impl Service {
     }
 
     pub async fn poll_once(&self) -> Result<bool> {
-        let changed = poll(&self.state).await?;
+        let changed = poll(&self.state).await.map_err(|error| match error {
+            PollError::Read(source) | PollError::Save(source) => source,
+        })?;
         if changed {
             (self.on_change)();
         }
@@ -262,30 +279,42 @@ impl Drop for Service {
     }
 }
 
-async fn poll(state: &Mutex<State>) -> Result<bool> {
-    let mut state = state.lock().await;
+fn read_clipboard_change(state: &mut State) -> Result<Option<ClipboardChange>> {
     let before = state.clipboard.change_count()?;
     if state.last_count == Some(before) {
-        return Ok(false);
+        return Ok(None);
     }
     let data = state.clipboard.read()?;
     // The clipboard can change while a large image is being read; retry that version next time.
     if state.clipboard.change_count()? != before {
-        return Ok(false);
+        return Ok(None);
     }
     let Some(data) = data.filter(|data| !data.is_empty()) else {
         state.last_count = Some(before);
         state.last_hash = None;
-        return Ok(false);
+        return Ok(None);
     };
     let hash = data.hash();
     if state.last_hash.as_ref() == Some(&hash) {
         state.last_count = Some(before);
-        return Ok(false);
+        return Ok(None);
     }
-    let item = state.store.capture(&data).await?;
-    state.last_count = Some(before);
-    state.last_hash = Some(hash);
-    log::debug!("Clipboard captured id={} kind={}", item.id, item.kind);
+    Ok(Some(ClipboardChange {
+        count: before,
+        hash,
+        data,
+    }))
+}
+
+async fn poll(state: &Mutex<State>) -> std::result::Result<bool, PollError> {
+    let mut state = state.lock().await;
+    let Some(change) = read_clipboard_change(&mut state).map_err(PollError::Read)? else {
+        return Ok(false);
+    };
+
+    let item = state.store.capture(&change.data).await.map_err(PollError::Save)?;
+    state.last_count = Some(change.count);
+    state.last_hash = Some(change.hash);
+    log::debug!("Clipboard history saved id={} kind={}", item.id, item.kind);
     Ok(true)
 }

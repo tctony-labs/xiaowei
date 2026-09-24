@@ -168,7 +168,7 @@ Compose 仅对宿主机 `127.0.0.1:8080` 暴露端口，容器内部监听 `0.0.
 
 Rust 通过根目录 `rust-toolchain.toml` 固定工具链为 1.98.1，使用 minimal profile，并显式安装 rustfmt（格式化）、clippy（静态检查）、rust-analyzer（编辑器支持）和 rust-src（标准库源码）；rustup 在项目目录内自动选择该工具链，首次使用时下载缺失组件。`Cargo.lock` 单独固定依赖版本。`just start` 和已有实例的 `just rs` 都会自动构建所有 napi 包，Cargo 负责增量编译；无实例时须单独构建原生模块，`just rs` 不会冷启动。单独安装依赖不会编译 Rust。
 
-main 在 Electron ready 后、创建窗口前调用 `Storage.open()`，打开统一 `userData/xiaowei/storage.sqlite`，由 Storage 建立 meta 表并完成内部注册的迁移；随后依次接入 KeyValue、ClipboardDao、Settings、Search 和剪贴板业务 endpoint。剪贴板初始化取得 Gateway client 后，macOS 按设置决定是否启动 500ms 监听；退出时异步停止监控，Storage 最后关闭。
+main 在 Electron ready 后、创建窗口前调用 `Storage.open()`，打开统一 `userData/xiaowei/storage.sqlite`，由 Storage 建立 meta 表并完成内部注册的迁移；忽略其他版本的未知迁移标记，只按当前列表初始化；初始化实际失败时记录原始错误并退出。随后依次接入 KeyValue、ClipboardDao、Settings、Search 和剪贴板业务 endpoint。剪贴板初始化取得 Gateway client 后，macOS 按设置决定是否启动 500ms 监听；退出时异步停止监控，Storage 最后关闭。
 
 原生构建入口为 `pnpm --filter xiaowei-clipboard build:debug`；renderer 使用 `getClipboard()` 的 typed client 获取分页历史、详情、图片、复制、收藏和删除，并订阅 ClipboardChanged 后重新查询。搜索「剪贴板 / clipboard」进入基础面板，Esc／空输入 Backspace 回到全局搜索；设置、同步、图片理解及其他后续范围见 [本地剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md)。
 

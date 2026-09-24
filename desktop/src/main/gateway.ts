@@ -42,6 +42,7 @@ export async function createApplicationGateway(
     return png ? Buffer.from(png) : null;
   });
   const icons = createIconResources(async (path) => (await readIcon(path)) ?? undefined);
+  let iconProtocolHandled = false;
   try {
     const database = await Storage.open(databasePath);
     storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
@@ -74,6 +75,7 @@ export async function createApplicationGateway(
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
     clipboard = await registerClipboard(host, directory, databasePath, windowFor);
     protocol.handle(ICON_SCHEME, (request) => icons.respond(request));
+    iconProtocolHandled = true;
     launcher = registerSearch(host, windowFor, {
       ...actions,
       iconUrl: icons.url,
@@ -81,7 +83,7 @@ export async function createApplicationGateway(
     });
   } catch (error) {
     electron.close();
-    protocol.unhandle(ICON_SCHEME);
+    if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
     await Promise.allSettled([clipboard?.close(), search?.close()]);
     await settings?.close();

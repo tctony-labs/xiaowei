@@ -123,7 +123,7 @@ SQLx 固定 0.8.6。初次实施时的工具链 Rust 1.92 不满足 SQLx 0.9 正
 
 Storage 内部提供 Query／Execute／Transaction 和 ApplyMigrations／MigrationStatus／Rollback。事务用 BEGIN IMMEDIATE 持有写锁，参数可引用前序结果的 step／row／column，expected_rows 断言失败回滚整个事务；列按索引返回并保留重名。单 SQL 64 KiB、128 参数，事务最多 64 步，完整结果最多 10000 行／4 MiB。SQLite prepare 时通过 authorizer 拒绝外部事务控制、ATTACH／DETACH、PRAGMA 和动态扩展加载，不靠字符串前缀猜测语句类型。取消查询通过 progress handler 中断执行，事务 Drop 回滚，连接归池前清理 progress handler。
 
-migration_v2 接收完整有序的声明列表（名称、up SQL、down SQL）；当前已执行状态必须是该列表的前缀，未知或顺序不一致的记录拒绝执行。每条迁移及其 meta 标记在同一事务中提交；meta 表先自举，回滚只允许最后一条已执行迁移。
+migration_v2 接收完整有序的声明列表（名称、up SQL、down SQL）；只检查当前列表中的迁移状态，忽略并保留其他版本写入的未知迁移标记。当前列表中的已执行状态仍须满足前缀顺序；已完成的迁移跳过，未完成的迁移按注册顺序执行。初始化实际报错时，桌面记录原始错误并退出，不根据未知迁移推断数据库不兼容，也不自动回滚已有数据。每条迁移及其 meta 标记在同一事务中提交；meta 表先自举，回滚只允许最后一条已执行迁移。
 
 
 ## Outcome
@@ -165,3 +165,7 @@ Rust 业务回归、原生历史／编辑测试、桌面资源适配测试、真
 ### 后续边界调整（2026-09-23）
 
 数据库查询、事务、meta、剪贴板基线迁移及记录 SQL 收拢至 `xiaowei-storage`。对外删除通用 Database 契约，保留公开 `KeyValue`，增加剪贴板内部的 `ClipboardDao` 有类型 endpoint；设置实现成为 Storage 内部模块。剪贴板仍维护采集和附件生命周期，但不提交 SQL。原 `storage.sqlite`、表结构、`migration_v2.20260920000000_clipboard_baseline` 标记与记录数据直接沿用，本次不执行旧库数据迁移。以上调整替代前述各 Plan 交付时的跨模块 SQL／Database endpoint 设计；历史验收记录保留当时事实。
+
+### 初始化迁移范围调整（2026-09-24）
+
+初始化忽略当前注册列表之外的迁移标记，只执行当前列表中的待执行迁移；不再根据未知标记拒绝启动。桌面失败清理仅注销已成功注册的图标协议，避免遮蔽原始初始化错误。15 项 Storage Rust 测试通过，覆盖额外迁移的保留、当前待执行迁移的执行及实际 SQL 初始化错误；Storage napi 包已重建，桌面 TypeScript 检查通过。用户启动后已确认初始化通过；后续当前 oracle 实例重建并重启验证，实际数据库写入缺少 tokenizer 的错误发生在后台保存阶段，按剪贴板错误处理记录。

@@ -94,3 +94,67 @@ async fn reopening_existing_clipboard_database_preserves_data_and_marker() {
     assert_eq!(reopened_schema, schema);
     reopened.close().await;
 }
+
+#[tokio::test]
+async fn initialization_ignores_unknown_migrations_and_applies_known_pending_migrations() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("storage.sqlite");
+    let db = Database::open(&path).await.unwrap();
+    let mut newer_registry = crate::clipboard_migrations::registry();
+    newer_registry.migrations.push(migration(
+        "20260924000000_future",
+        &[
+            "CREATE TABLE future_data(value TEXT)",
+            "INSERT INTO future_data VALUES('keep')",
+        ],
+        &["DROP TABLE future_data"],
+    ));
+    db.apply_migrations(newer_registry).await.unwrap();
+    db.close().await;
+
+    let reopened = Database::open(&path).await.unwrap();
+    let mut current_registry = crate::clipboard_migrations::registry();
+    current_registry.migrations.push(migration(
+        "20260924000001_current",
+        &["CREATE TABLE current_data(value TEXT)"],
+        &["DROP TABLE current_data"],
+    ));
+    let states = reopened.apply_migrations(current_registry).await.unwrap();
+    assert_eq!(states.states.len(), 2);
+    assert!(states.states.iter().all(|state| state.applied_at_seconds.is_some()));
+
+    let preserved: (String, String) = sqlx::query_as(
+        "SELECT value,(SELECT value FROM meta WHERE key='migration_v2.20260924000000_future') FROM future_data",
+    )
+    .fetch_one(&reopened.pool)
+    .await
+    .unwrap();
+    assert_eq!(preserved.0, "keep");
+    assert!(!preserved.1.is_empty());
+    sqlx::query("INSERT INTO current_data VALUES('initialized')")
+        .execute(&reopened.pool)
+        .await
+        .unwrap();
+    reopened.close().await;
+}
+
+#[tokio::test]
+async fn initialization_reports_actual_migration_sql_failure() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("storage.sqlite");
+    let db = Database::open(&path).await.unwrap();
+    sqlx::query("DELETE FROM meta WHERE key='migration_v2.20260920000000_clipboard_baseline'")
+        .execute(&db.pool)
+        .await
+        .unwrap();
+    db.close().await;
+
+    let error = Database::open(&path)
+        .await
+        .err()
+        .expect("conflicting schema must fail initialization");
+    assert!(
+        error.to_string().contains("clipboard_categories already exists"),
+        "{error}"
+    );
+}
