@@ -11,6 +11,7 @@ use xw_gateway::{
 };
 
 use crate::gateway_binding::xiaowei_clipboard_clipboard_biz_service as methods;
+use crate::gateway_binding::xiaowei_storage_storage_service as storage;
 use crate::gateway_binding::xiaowei_system_system_service as system;
 
 fn id(value: u64) -> crate::Result<i64> {
@@ -72,6 +73,13 @@ where
 
 pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
     vec![
+        handler(service, &methods::STORAGE_USAGE, |s, _| async move {
+            let client = crate::dao::CALLER.with(Clone::clone);
+            let database = storage::DATABASE_USAGE.call(&client, c::Empty {}).await?;
+            Ok(pb::ClipboardStorageUsage {
+                used_bytes: database.used_bytes + s.attachment_usage().await?,
+            })
+        }),
         handler(service, &methods::LIST, |s, r| async move {
             let options = crate::ListOptions {
                 query: r.query.unwrap_or_default(),

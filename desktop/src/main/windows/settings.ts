@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { app, BrowserWindow } from "electron";
+import { restrictNavigation } from "./navigation";
 
 export function createSettingsWindow(options: {
   moduleDir: string;
@@ -38,9 +39,7 @@ export function createSettingsWindow(options: {
     window.on("closed", () => {
       if (settingsWindow === window) settingsWindow = undefined;
     });
-    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    window.webContents.on("will-navigate", (event) => event.preventDefault());
-    window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+    restrictNavigation(window.webContents, !app.isPackaged);
     const query = { window: "settings", version: app.getVersion(), development: String(!app.isPackaged) };
     try {
       if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {

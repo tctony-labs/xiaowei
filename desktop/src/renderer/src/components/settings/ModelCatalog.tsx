@@ -1,5 +1,6 @@
 import { useState } from "react";
-import ContextWindowField, { COMMON_MAX_OUTPUT_TOKENS } from "./ContextWindowField";
+import ContextWindowField from "./ContextWindowField";
+import { COMMON_MAX_OUTPUT_TOKENS } from "./context-window-presets";
 import type { Provider } from "./ModelSettings";
 
 export default function ModelCatalog({

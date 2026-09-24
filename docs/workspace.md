@@ -45,7 +45,7 @@ Electron **44.3.0**、electron-vite **5.0.0**、Vite **7.3.6**、TypeScript **5.
 just start
 ```
 
-`just start` 先执行 `just prepare`；安装失败时直接退出，不停止旧实例。准备成功后，通过全局 `~/.xiaowei/.dev.pid` 停止上一个开发实例的进程树，并启动当前工作区的独立 Vite 开发服务器与 nodemon，共用启动入口依次增量构建所有 napi 包、构建 main/preload 后启动 Electron，每个包只构建一次。构建失败时旧实例已停止，新 Electron 不会启动，修复后可执行 `just rs` 重试。React 页面支持 HMR，Vite 使用 100ms 轮询避免本机文件事件丢失导致缓存不更新；main/preload 源码修改不自动编译或重启，在另一个终端执行 `just rs` 后才依次增量构建 napi、编译 main/preload 并重启当前工作区 Electron。Vite 服务保持运行，只监听 `127.0.0.1`，默认从 5173 选择可用端口。
+`just start` 先执行 `just prepare`；安装失败时直接退出，不停止旧实例。准备成功后，通过全局 `~/.xiaowei/.dev.pid` 停止上一个开发实例的进程树，并启动当前工作区的独立 Vite 开发服务器与 nodemon，共用启动入口依次增量构建所有 napi 包、构建 main/preload 后启动 Electron，每个包只构建一次。构建失败时旧实例已停止，新 Electron 不会启动，修复后可执行 `just rs` 重试。React 页面支持 HMR，组件边界及 lint 约束见 [Renderer 热更新约定](../desktop/src/renderer/README.md#react-热更新边界)。开发窗口允许当前完整 URL 的原地址重载，供 Vite 在无法 Fast Refresh 时回退；Gateway 只在导航实际提交后清理旧会话。Vite 使用 100ms 轮询避免本机文件事件丢失导致缓存不更新；main/preload 源码修改不自动编译或重启，在另一个终端执行 `just rs` 后才依次增量构建 napi、编译 main/preload 并重启当前工作区 Electron。Vite 服务保持运行，只监听 `127.0.0.1`，默认从 5173 选择可用端口。
 
 另一个终端可独立运行服务端：
 

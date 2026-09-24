@@ -25,6 +25,21 @@
       "preset": "recommended"
     }
   },
+  "overrides": [
+    {
+      "includes": ["desktop/src/renderer/src/**/*.tsx", "!**/*.stories.tsx", "!**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useComponentExportOnlyModules": {
+              "level": "error",
+              "options": { "allowConstantExport": true }
+            }
+          }
+        }
+      }
+    }
+  ],
   "css": {
     "parser": {
       "tailwindDirectives": true

@@ -20,7 +20,8 @@ import {
   TrashIcon,
 } from "./ClipboardIcons";
 import ContextMenu, { type MenuItem } from "./ContextMenu";
-import { FILE_ICON_COLORS, FileIcon, getFileIconType, ImageIcon, LargeFileIcon, TextIcon } from "./FileTypeIcon";
+import { FileIcon, ImageIcon, LargeFileIcon, TextIcon } from "./FileTypeIcon";
+import { FILE_ICON_COLORS, getFileIconType } from "./file-icon";
 import { LauncherSearchBar } from "./LauncherSearchBar";
 import Modal, { ModalButton } from "./Modal";
 

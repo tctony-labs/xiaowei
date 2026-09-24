@@ -1,5 +1,5 @@
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result, Store};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{oneshot, Mutex};
@@ -36,6 +36,7 @@ struct Worker {
 }
 
 pub struct Service {
+    directory: PathBuf,
     state: Arc<Mutex<State>>,
     worker: Mutex<Option<Worker>>,
     on_change: Arc<dyn Fn() + Send + Sync>,
@@ -50,6 +51,7 @@ impl Service {
         on_change: impl Fn() + Send + Sync + 'static,
     ) -> Result<Self> {
         Ok(Self {
+            directory: std::path::absolute(directory)?,
             state: Arc::new(Mutex::new(State {
                 store: Store::open(directory, client)?,
                 resources: crate::resources::Resources::new(temporary_root)?,
@@ -130,6 +132,11 @@ impl Service {
             (self.on_change)();
         }
         Ok(changed)
+    }
+
+    pub async fn attachment_usage(&self) -> Result<u64> {
+        let directory = self.directory.clone();
+        Ok(tokio::task::spawn_blocking(move || crate::usage::attachment_size(&directory)).await??)
     }
 
     pub async fn resource_paths(&self, id: i64, index: Option<u32>) -> Result<Vec<String>> {

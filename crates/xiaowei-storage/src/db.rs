@@ -3,7 +3,7 @@ use futures_util::TryStreamExt;
 use sql::{sql_parameter::Source, sql_value::Kind};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::{Either, Row, SqliteConnection, SqlitePool, TypeInfo, ValueRef};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -12,6 +12,7 @@ use std::time::Duration;
 
 pub struct Database {
     pub(crate) pool: SqlitePool,
+    pub(crate) path: PathBuf,
 }
 
 #[derive(Default)]
@@ -81,7 +82,10 @@ impl Database {
         sqlx::query("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
             .execute(&pool)
             .await?;
-        let database = Self { pool };
+        let database = Self {
+            pool,
+            path: std::path::absolute(path)?,
+        };
         database
             .apply_migrations(crate::clipboard_migrations::registry())
             .await?;

@@ -12,6 +12,7 @@ import {
 } from "xiaowei-contracts";
 import type { Subscription } from "xiaowei-gateway";
 import { services as defaultServices, type Services } from "../../services";
+import { applyTheme, themeValue } from "../../theme";
 import { AboutSettings } from "./AboutSettings";
 import { type CleanupStatus, ClipboardSettings } from "./ClipboardSettings";
 import { GeneralSettings } from "./GeneralSettings";
@@ -19,16 +20,6 @@ import SettingsLayout, { type TabId } from "./SettingsLayout";
 import { ShortcutSettings, type Shortcuts } from "./ShortcutSettings";
 
 const tabs: TabId[] = ["general", "shortcut", "clipboard", "about"];
-
-function themeValue(mode: ThemeMode): "system" | "light" | "dark" {
-  if (mode === ThemeMode.LIGHT) return "light";
-  if (mode === ThemeMode.DARK) return "dark";
-  return "system";
-}
-
-export function applyTheme(mode: ThemeMode): void {
-  document.documentElement.dataset.theme = themeValue(mode);
-}
 
 export function SettingsPage({
   version,
@@ -100,6 +91,8 @@ export function SettingsPage({
 
   const refreshStorage = useCallback(async (): Promise<void> => {
     setRefreshing(true);
+    const minimumLoading = new Promise<void>((resolve) => setTimeout(resolve, 500));
+
     try {
       const result = await clipboard.storageUsage(create(EmptySchema));
       setStorageBytes(Number(result.usedBytes));
@@ -107,6 +100,7 @@ export function SettingsPage({
     } catch (cause) {
       setError(`读取存储空间失败：${String(cause)}`);
     } finally {
+      await minimumLoading;
       setRefreshing(false);
     }
   }, [clipboard]);

@@ -7,6 +7,7 @@ import {
   positionLauncher,
   showLauncherWindow,
 } from "./launcher-shortcuts";
+import { restrictNavigation } from "./navigation";
 
 export function createLauncherWindow(options: {
   moduleDir: string;
@@ -71,9 +72,7 @@ export function createLauncherWindow(options: {
         window.hide();
       }
     });
-    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    window.webContents.on("will-navigate", (event) => event.preventDefault());
-    window.webContents.on("will-attach-webview", (event) => event.preventDefault());
+    restrictNavigation(window.webContents, !app.isPackaged);
     try {
       if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
         await window.loadURL(process.env.ELECTRON_RENDERER_URL);

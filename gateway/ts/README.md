@@ -32,4 +32,4 @@ host 侧 handle.close 同时清理路由、caller token 和订阅。线协议与
 
 preload 使用 `xiaowei-gateway/preload` 的 `createPreloadBridge(ipcRenderer)`，通过 contextBridge 暴露 `request`／`listen` 两个普通方法；renderer 使用 `xiaowei-gateway/renderer` 的 `createRendererClient(window.gateway)`。单一请求通道 `xiaowei:gateway` 承载 invoke、subscribe／unsubscribe、stream open／next／cancel；事件走私有通道并定向到所属 frame。AsyncIterator 只在 renderer 内创建，不跨 contextBridge。默认入口及 renderer 运行依赖不包含 Node、Electron 或原生包。
 
-宿主分配 session／generation，导航、renderer 退出、窗口销毁时清理订阅和流。每会话的订阅和流句柄均有上限，具体限制见 [Electron adapter](src/main/electron.ts)；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。
+宿主分配 session／generation，主 frame 实际提交导航（`did-navigate`）、renderer 退出、窗口销毁时清理订阅和流。不能在 `did-start-navigation` 清理：导航可能随后被窗口策略取消，旧 document 仍需继续使用原会话。提交导航后、新 preload 连接前清理旧会话；新连接分配新 generation，旧 bridge 仍被拒绝。每会话的订阅和流句柄均有上限，具体限制见 [Electron adapter](src/main/electron.ts)；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。

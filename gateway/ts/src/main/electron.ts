@@ -173,9 +173,9 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
   return {
     register(contents: WebContents, permissions: Permissions = { caller: "renderer", trusted: true }) {
       allowed.set(contents, permissions);
-      contents.on("did-start-navigation", (details) => {
-        if (details.isMainFrame && !details.isSameDocument) cleanup(contents);
-      });
+      // A navigation attempt can be cancelled while the current document stays alive.
+      // did-navigate runs after main-frame commit, before the new preload connects.
+      contents.on("did-navigate", () => cleanup(contents));
       contents.on("render-process-gone", () => cleanup(contents));
       contents.once("destroyed", () => {
         cleanup(contents);

@@ -27,7 +27,7 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 ## Current work
 
-已完成 main 的应用、窗口、资源与现有 TS service 目录整理；已独立注册 System.OpenUrl，Launcher 网页打开经 Gateway 复用该服务；已补齐本地路径打开／定位契约并接入现有调用方；已将剪贴板资源处理迁回 Rust；下一步迁移统计和调度，再接 Pi。当前只保留 [01 Pi provider 边界核对](../../plans/2026-09-24-llm-provider/01-provider-boundary.md) 一个活动 Plan。完成后回填本 record、删除 Plan，再取实现切片；不并发推进 UI 工作。
+已完成 main 的应用、窗口、资源与现有 TS service 目录整理；已独立注册 System.OpenUrl，Launcher 网页打开经 Gateway 复用该服务；已补齐本地路径打开／定位契约并接入现有调用方；已将剪贴板资源处理迁回 Rust；占用统计也已迁回 Rust；下一步迁移保留期限调度，再接 Pi。当前只保留 [01 Pi provider 边界核对](../../plans/2026-09-24-llm-provider/01-provider-boundary.md) 一个活动 Plan。完成后回填本 record、删除 Plan，再取实现切片；不并发推进 UI 工作。
 
 ## Outcome
 
@@ -54,3 +54,9 @@ System.OpenUrl 切片已通过 `just check`、29 个 desktop Node 测试、4 个
 资源迁移验证：Rust 剪贴板 17 项测试、desktop Node 26 项测试、完整 Gateway 原生联调（含资源处理、权限拒绝和初始化中止清理）、契约 codec 与 desktop 构建通过。临时目录权限已显式保持 Unix 0700，文件保持 0600；全仓检查需在 napi 产物事务结束后执行，避免扫描构建中的临时文件。
 
 构建事务结束后 `just check` 已通过。确认当前工作区进程归属后执行 `just rs`，17:23:19 新进程加载三个工作区 .node，剪贴板监听、renderer 和搜索初始化正常；真实外部应用打开／Finder 定位仍待人工操作验收。
+
+占用统计切片：新增 `xiaowei.storage.Storage.DatabaseUsage`，由现有 Storage endpoint 报告自身数据库／WAL／SHM 的文件长度总和；Rust 剪贴板保留原请求权限调用该契约，再在 blocking worker 递归汇总附件目录中的普通文件。缺失文件计零，其他文件系统错误向上传递，不跟随符号链接；保持整个共享数据库加附件的原口径，不做业务空间分摊。TS 统计实现及数据库路径参数已移除，临时导出文件不进入附件目录。
+
+统计切片已通过 Rust 剪贴板／Storage 41 项测试、desktop Node 25 项测试、完整原生联调及新增占用统计跨语言测试、三语言 codec 和桌面构建。覆盖 WAL／SHM、缺失文件、目录递归、符号链接、附件删除、导出不计入附件及权限／Storage 关闭错误传播。
+
+统计切片的 `just check` 已在构建结束后通过；确认工作区实例归属并执行 `just rs` 后，17:29:46 新进程加载三个原生模块，剪贴板、renderer 和搜索初始化正常。设置页实际空间显示仍待人工验收。

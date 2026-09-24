@@ -7,6 +7,7 @@ mod service;
 mod store;
 mod toolkit;
 mod types;
+mod usage;
 
 pub use service::{ClipboardBackend, Service};
 pub use store::Store;

@@ -6,4 +6,5 @@ export * from "./gen/xiaowei/kv_pb.ts";
 export * from "./gen/xiaowei/launcher_pb.ts";
 export * from "./gen/xiaowei/search_pb.ts";
 export * from "./gen/xiaowei/settings_pb.ts";
+export * from "./gen/xiaowei/storage_pb.ts";
 export * from "./gen/xiaowei/system_pb.ts";

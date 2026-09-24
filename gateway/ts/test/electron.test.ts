@@ -74,7 +74,7 @@ test("Electron sessions: bytes, trusted access, restricted access and cross-fram
   owner.publish("test.Changed", new Uint8Array());
   await tick();
   assert.deepEqual(deliveries, ["a"]);
-  a.contents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+  a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
   owner.publish("test.Changed", new Uint8Array());
   await tick();
   assert.deepEqual(deliveries, ["a"]);
@@ -115,7 +115,7 @@ test("Electron subscribe ready includes early delivery; late subscribe on naviga
   });
   await tick();
   assert.deepEqual(bytes, [9]);
-  a.contents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+  a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
   release();
   await assert.rejects(subscription, /closed/);
   assert.equal(closed, 1);
@@ -180,7 +180,7 @@ test("Electron stream next/cancel and navigation during open release producers w
   };
   const opening = a.bridge.request(request);
   await tick();
-  a.contents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+  a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
   assert.equal((await opening).ok, false);
   release();
   await tick();
@@ -225,5 +225,49 @@ test("Electron pending subscription cancellation retains bounded admission until
   for (const release of releases) release();
   await Promise.all(pending);
   assert.equal(closed, 128);
+  adapter.close();
+});
+
+test("cancelled navigation keeps the document session; committed reload replaces it", async () => {
+  const { host, frame, adapter } = fixture();
+  const owner = host.registerOwner("fixture", bindHandlers(Fixture, { echo: (request) => request }), [
+    {
+      name: "test.Changed",
+      policy: "coalesce",
+      validate() {},
+      matches: () => true,
+    },
+  ]);
+  const a = frame();
+  const input = create(EnvelopeSchema, { text: "still connected" });
+  let deliveries = 0;
+  await a.client.subscribe("test.Changed", undefined, () => {
+    deliveries++;
+  });
+
+  // will-navigate can prevent the attempt, so did-navigate never follows.
+  a.contents.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+  assert.deepEqual(await bindClient(Fixture, a.client).echo(input), input);
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.equal(deliveries, 1);
+
+  a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
+  await assert.rejects(bindClient(Fixture, a.client).echo(input), /closed/);
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.equal(deliveries, 1);
+
+  const bridge = createPreloadBridge(a.ipcRenderer as unknown as IpcRenderer);
+  const client = createRendererClient(bridge);
+  assert.deepEqual(await bindClient(Fixture, client).echo(input), input);
+  const subscription = await client.subscribe("test.Changed", undefined, () => {
+    deliveries++;
+  });
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.equal(deliveries, 2);
+  await assert.rejects(bindClient(Fixture, a.client).echo(input), /closed/);
+  subscription.close();
   adapter.close();
 });

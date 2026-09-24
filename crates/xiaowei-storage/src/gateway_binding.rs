@@ -52,3 +52,8 @@ pub mod xiaowei_storage_settings_service {
     pub const UPDATE: xw_gateway::binding::Method<xw_contracts::xiaowei::storage::UpdateSettingsRequest, xw_contracts::xiaowei::storage::SettingsSnapshot> =
         xw_gateway::binding::Method::new("xiaowei.storage.Settings.Update", xw_gateway::MethodKind::Unary);
 }
+#[rustfmt::skip]
+pub mod xiaowei_storage_storage_service {
+    pub const DATABASE_USAGE: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::storage::DatabaseUsageResponse> =
+        xw_gateway::binding::Method::new("xiaowei.storage.Storage.DatabaseUsage", xw_gateway::MethodKind::Unary);
+}

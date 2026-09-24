@@ -16,6 +16,7 @@ pub const MODULES: &[BindingModule] = &[
     BindingModule {
         name: "xiaowei-clipboard",
         services: &[
+            "xiaowei.storage.Storage",
             "xiaowei.system.System",
             "xiaowei.clipboard.ClipboardBiz",
             "xiaowei.clipboard.ClipboardDao",
@@ -24,6 +25,7 @@ pub const MODULES: &[BindingModule] = &[
     BindingModule {
         name: "xiaowei-storage",
         services: &[
+            "xiaowei.storage.Storage",
             "xiaowei.storage.KeyValue",
             "xiaowei.storage.Settings",
             "xiaowei.clipboard.ClipboardDao",

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package xiaowei.storage;
+
+import "xiaowei/common.proto";
+
+message DatabaseUsageResponse {
+  // Current byte lengths of the shared database, WAL and SHM files combined.
+  // Missing files count as zero; symbolic links and non-regular files are not followed.
+  // This is a live estimate, not an atomic snapshot or per-feature allocation.
+  uint64 used_bytes = 1;
+}
+
+service Storage {
+  // Reports only files owned by the shared database, without exposing their paths.
+  // Filesystem errors other than missing files fail the call.
+  rpc DatabaseUsage(xiaowei.common.Empty) returns (DatabaseUsageResponse);
+}

@@ -93,7 +93,7 @@ export interface PreviewProps {
   noVersion?: boolean;
   highlighted?: boolean;
 }
-const delay = () => new Promise<void>((resolve) => setTimeout(resolve, 350));
+const delay = (milliseconds = 350) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 export function SettingsPreview(props: PreviewProps) {
   const [tab, setTab] = useState<TabId>(props.initialTab ?? "general");
   const [toast, setToast] = useState("");
@@ -225,7 +225,7 @@ export function SettingsPreview(props: PreviewProps) {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              void delay().then(() => setRefreshing(false));
+              void delay(500).then(() => setRefreshing(false));
             }}
           />
         );

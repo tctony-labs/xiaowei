@@ -11,6 +11,7 @@ mod meta;
 mod migration;
 pub mod settings;
 mod sql;
+mod usage;
 mod validation;
 
 #[cfg(test)]

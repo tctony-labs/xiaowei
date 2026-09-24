@@ -4,7 +4,6 @@ import { ClipboardHistory, sendPasteShortcut } from "xiaowei-clipboard";
 import {
   ClipboardBiz,
   ClipboardItemRequestSchema,
-  ClipboardStorageUsageSchema,
   EmptySchema,
   PurgeExpiredRequestSchema,
   Settings,
@@ -13,12 +12,10 @@ import {
 import { bindClient, bindHandlers, type Subscription } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { attachNative } from "xiaowei-gateway/native";
-import { clipboardStorageUsage } from "./storage";
 
 export async function registerClipboard(
   host: GatewayHost,
   directory: string,
-  databasePath: string,
   windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">,
 ) {
   // Legacy callback remains available to existing napi consumers; Gateway publishes from the same Service.
@@ -53,11 +50,6 @@ export async function registerClipboard(
               if (!sendPasteShortcut()) console.warn("Automatic paste needs Accessibility permission");
             }
             return create(EmptySchema);
-          },
-          async storageUsage() {
-            return create(ClipboardStorageUsageSchema, {
-              usedBytes: await clipboardStorageUsage(directory, databasePath),
-            });
           },
         },
         { partial: true },

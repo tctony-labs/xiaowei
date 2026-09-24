@@ -5,9 +5,15 @@ use std::sync::Arc;
 use xw_gateway::{binding::Method, ErrorCode, GatewayError, InvokeRegistration};
 
 use crate::gateway_binding::xiaowei_storage_key_value_service as kv;
+use crate::gateway_binding::xiaowei_storage_storage_service as storage;
 
 pub fn registrations(database: &Arc<Database>) -> Vec<InvokeRegistration> {
     vec![
+        handler(database, &storage::DATABASE_USAGE, |db, _| async move {
+            Ok(crate::pb::DatabaseUsageResponse {
+                used_bytes: db.database_usage().await?,
+            })
+        }),
         handler(database, &kv::GET, |db, request| async move {
             public_key(&request.key)?;
             db.meta_get(request).await

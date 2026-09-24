@@ -63,7 +63,7 @@ export async function createApplicationGateway(
       ),
     );
     search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
-    clipboard = await registerClipboard(host, directory, databasePath, windowFor);
+    clipboard = await registerClipboard(host, directory, windowFor);
     protocol.handle(ICON_SCHEME, (request) => icons.respond(request));
     iconProtocolHandled = true;
     launcher = registerSearch(host, windowFor, {

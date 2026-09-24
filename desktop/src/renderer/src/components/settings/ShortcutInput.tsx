@@ -239,5 +239,3 @@ export default function ShortcutInput({ value, onChange, placeholder = "录制�
     </div>
   );
 }
-
-export { shortcutToString };

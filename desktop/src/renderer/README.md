@@ -8,6 +8,14 @@
 - 产品与 Storybook 复用同一组件及全局样式，组件与 `.stories.tsx` 放在一起。
 - 预览使用固定模拟数据，不执行真实业务操作；模拟状态应覆盖本次需求，不创建无意义的场景。
 
+## React 热更新边界
+
+- 产品组件模块只导出 React 组件和 TypeScript 类型。共享函数、hooks、数组及对象数据放到职责明确的普通 `.ts` 模块；不要从组件文件重新导出这些值。Vite 支持的字符串／数字等常量可保留。
+- `src/main.tsx` 只负责一次性入口副作用和 `createRoot(...).render(<App />)`，不在入口声明 React 组件。根组件放在 `src/App.tsx`，主题操作放在 `src/theme.ts`。
+- 根 Biome 配置对产品 TSX 启用 `useComponentExportOnlyModules`（error，允许 Vite 常量导出），由常规 check／提交检查拦截混合导出。Storybook 场景和测试不作为产品 Fast Refresh 边界，排除此规则。
+- 修改组件应由 Fast Refresh 更新现有树，不应再次输出 `Renderer starting` 或出现重复 `createRoot()`。普通模块或入口变化可以退回整页重载；重载后须验证设置加载、事件订阅和存储统计，而不只看页面是否显示。
+- 热更新不等于新建 document，不能通过重新连接 Gateway 或无限重试掩盖生命周期错误。窗口的开发重载策略见 [main README](../main/README.md#开发重载与导航)，会话清理时机见 [Gateway TS](../../../gateway/ts/README.md#electron-接入)。
+
 ## 样式与主题
 
 - 设计变量统一维护在 renderer 全局样式中，产品与 Storybook 使用同一份定义。

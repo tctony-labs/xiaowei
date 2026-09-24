@@ -83,7 +83,7 @@ test("selection copies, resigns focus and pastes only when enabled; ordinary cop
     }),
     [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
   );
-  const clipboard = await registerClipboard(host, tmpdir(), "unused.sqlite", () => ({
+  const clipboard = await registerClipboard(host, tmpdir(), () => ({
     hide: () => calls.push("hide"),
   }));
   const api = bindClient(ClipboardBiz, host.client({ caller: "test", trusted: true }));

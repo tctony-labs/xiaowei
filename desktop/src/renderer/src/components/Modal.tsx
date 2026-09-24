@@ -14,10 +14,6 @@ interface ModalProps {
   contentClassName?: string;
 }
 
-export function hasOpenModal(): boolean {
-  return document.querySelector('[role="dialog"][aria-modal="true"]') !== null;
-}
-
 export default function Modal({
   open,
   inactive = false,

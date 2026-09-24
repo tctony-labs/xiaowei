@@ -80,6 +80,11 @@ pub mod xiaowei_clipboard_clipboard_dao_service {
         xw_gateway::binding::Method::new("xiaowei.clipboard.ClipboardDao.HashReferenced", xw_gateway::MethodKind::Unary);
 }
 #[rustfmt::skip]
+pub mod xiaowei_storage_storage_service {
+    pub const DATABASE_USAGE: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::storage::DatabaseUsageResponse> =
+        xw_gateway::binding::Method::new("xiaowei.storage.Storage.DatabaseUsage", xw_gateway::MethodKind::Unary);
+}
+#[rustfmt::skip]
 pub mod xiaowei_system_system_service {
     pub const WRITE_CLIPBOARD_TEXT: xw_gateway::binding::Method<xw_contracts::xiaowei::system::WriteClipboardTextRequest, xw_contracts::xiaowei::common::Empty> =
         xw_gateway::binding::Method::new("xiaowei.system.System.WriteClipboardText", xw_gateway::MethodKind::Unary);

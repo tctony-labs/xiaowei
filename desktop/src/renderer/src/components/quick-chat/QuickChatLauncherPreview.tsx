@@ -1,7 +1,7 @@
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import logo from "../../../../../resources/logo-clear.png";
 import { LauncherSearchBar } from "../LauncherSearchBar";
-import { hasOpenModal } from "../Modal";
+import { hasOpenModal } from "../modal-state";
 import QuickChatTitleBar from "./QuickChatTitleBar";
 import { QuickChatTransition } from "./QuickChatTransition";
 

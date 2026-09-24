@@ -245,3 +245,21 @@ impl ThemeMode {
         }
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DatabaseUsageResponse {
+    /// Current byte lengths of the shared database, WAL and SHM files combined.
+    /// Missing files count as zero; symbolic links and non-regular files are not followed.
+    /// This is a live estimate, not an atomic snapshot or per-feature allocation.
+    #[prost(uint64, tag = "1")]
+    pub used_bytes: u64,
+}
+impl ::prost::Name for DatabaseUsageResponse {
+    const NAME: &'static str = "DatabaseUsageResponse";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.DatabaseUsageResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.DatabaseUsageResponse".into()
+    }
+}

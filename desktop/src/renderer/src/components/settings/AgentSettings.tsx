@@ -4,7 +4,8 @@ import Select from "./Select";
 import SettingCard from "./SettingCard";
 import SettingRow from "./SettingRow";
 import SettingsTabLayout from "./SettingsTabLayout";
-export const searchSources = [
+
+const searchSources = [
   { id: "bing", name: "Bing", description: "默认搜索源，无需配置", url: "" },
   { id: "tavily", name: "Tavily", description: "专为 LLM 优化的搜索结果", url: "https://app.tavily.com/" },
   {

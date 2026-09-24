@@ -39,9 +39,9 @@
 - 调整工作区目录、工具链、依赖管理或构建流程前，先完整读取并遵循 [工作区开发](docs/workspace.md)，变更后同步更新该文档。
 - 开发过程中拟新增 Rust crate 或 npm package 时，先向用户说明其用途、边界和放置位置，获得确认后再创建。
 - 创建或修改 `contracts/proto/xiaowei/` 下的业务契约前，先完整读取并遵循 [业务契约的创建与维护](contracts/proto/xiaowei/README.md)。
+- 修改 Rust 模块、napi 接口或相关依赖与构建配置前，先完整读取并遵循 [Rust 原生模块开发](crates/README.md)。调整模块边界或接入方式时同步更新该 README。
 - 新增或修改 `desktop/src/main/` 下的代码前，先完整读取 [main 模块组织](desktop/src/main/README.md)，遵循其中的目录职责、service 边界和 Gateway 调用规则。调整模块边界时同步更新该 README。
 - 新增或修改 renderer UI、样式、状态展示及交互前，先完整读取并遵循 [Renderer UI 开发](desktop/src/renderer/README.md)。调整通用开发与验收约定时同步更新该 README。
-- 修改 Rust 模块、napi 接口或相关依赖与构建配置前，先完整读取并遵循 [Rust 原生模块开发](crates/README.md)。调整模块边界或接入方式时同步更新该 README。
 
 ## 其他事项
 
