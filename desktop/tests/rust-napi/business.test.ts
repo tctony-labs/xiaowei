@@ -25,7 +25,7 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 
 const require = createRequire(import.meta.url);
 const clipboard =
@@ -40,9 +40,9 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
   const { Storage } =
     require("../../../crates/xiaowei-storage/napi") as typeof import("../../../crates/xiaowei-storage/napi/index.js");
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const daoOwner = await attachNative(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
-  const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachRustNapi(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
+  const owner = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
   const client = host.client({ caller: "test", trusted: true });
   const api = bindClient(ClipboardBiz, client);
@@ -125,7 +125,7 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
 
 test("production search endpoint uses generated contract and rejects invalid query before warming engine", async () => {
   const host = new GatewayHost();
-  const owner = await attachNative(host, "search", search.createSearchGatewayEndpoint());
+  const owner = await attachRustNapi(host, "search", search.createSearchGatewayEndpoint());
   try {
     const client = bindClient(Search, host.client({ caller: "test", trusted: true }));
     assert.deepEqual((await client.query(create(SearchRequestSchema))).hits, []);

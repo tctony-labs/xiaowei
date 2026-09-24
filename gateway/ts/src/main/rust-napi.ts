@@ -22,7 +22,7 @@ import {
 import { decodeFrame, encodeFrame, type ResponseStream } from "../core/stream.js";
 
 /** Structurally implemented by each addon's generated GatewayEndpoint class. */
-export interface NativeEndpoint {
+export interface RustNapiEndpoint {
   manifest(): string;
   bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void;
   activate(): Promise<Buffer | string>;
@@ -55,27 +55,27 @@ function decode(reply: Buffer | string): Result<Uint8Array> {
   if (reply instanceof Uint8Array) return success(reply);
   const error: unknown = JSON.parse(reply);
   if (!error || typeof error !== "object" || !("code" in error) || !("message" in error)) {
-    return failure("HANDLER_ERROR", "invalid native response");
+    return failure("HANDLER_ERROR", "invalid Rust napi response");
   }
   return { ok: false, error: error as GatewayFailure["detail"] };
 }
 function encode(result: Result<Uint8Array>): Buffer | string {
   return result.ok ? Buffer.from(result.value) : JSON.stringify(result.error);
 }
-const unavailable = () => new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "native endpoint unavailable" });
+const unavailable = () => new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "Rust napi endpoint unavailable" });
 
 /** No business addon imports. The application supplies a freshly created endpoint. */
-export async function attachNative(
+export async function attachRustNapi(
   host: GatewayHost,
   name: string,
-  endpoint: NativeEndpoint,
+  endpoint: RustNapiEndpoint,
   permissions: Permissions = { caller: name, trusted: true },
 ) {
   let manifest: Manifest & { controlVersion: number };
   try {
     manifest = JSON.parse(endpoint.manifest());
     if (manifest.controlVersion !== CONTROL_VERSION)
-      throw new GatewayFailure({ code: "INCOMPATIBLE", message: "native control version mismatch" });
+      throw new GatewayFailure({ code: "INCOMPATIBLE", message: "Rust napi control version mismatch" });
   } catch (error) {
     await endpoint.close();
     throw error;
@@ -253,7 +253,7 @@ export async function attachNative(
       })),
       events,
       async (route, payload, context) => {
-        if (!ready || closed) return failure("OWNER_UNAVAILABLE", "native endpoint unavailable");
+        if (!ready || closed) return failure("OWNER_UNAVAILABLE", "Rust napi endpoint unavailable");
         return withContext(context, async (metadata) =>
           decode(await endpoint.dispatchLocal(JSON.stringify(route), Buffer.from(payload), metadata)),
         );
@@ -264,7 +264,7 @@ export async function attachNative(
         try {
           const control: Control = JSON.parse(metadata);
           if (control.version !== CONTROL_VERSION)
-            return encode(failure("INCOMPATIBLE", "native control version mismatch"));
+            return encode(failure("INCOMPATIBLE", "Rust napi control version mismatch"));
           if (control.operation === "closed") {
             cleanup();
             return Buffer.alloc(0);
@@ -287,13 +287,13 @@ export async function attachNative(
           const context =
             contexts.get(control.contextToken) ??
             (cancelling?.token === control.contextToken ? cancelling.context : undefined);
-          if (!context) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "unknown native caller token" });
+          if (!context) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "unknown Rust napi caller token" });
           switch (control.operation) {
             case "invoke": {
               if (!control.route) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing route" });
               // A fallback to an advertised route of the same endpoint is stale, not another dispatch hop.
               if (manifest.routes.some((route) => route.name === control.route?.name)) {
-                return encode(failure("UNKNOWN_ROUTE", "native local route missing"));
+                return encode(failure("UNKNOWN_ROUTE", "Rust napi local route missing"));
               }
               return encode(await host.invoke(context, control.route, payload));
             }
@@ -301,7 +301,7 @@ export async function attachNative(
               const id = control.streamId;
               if (!id || streams.has(id) || !control.route) throw unavailable();
               if (manifest.routes.some((route) => route.name === control.route?.name))
-                return encode(failure("UNKNOWN_ROUTE", "native local stream missing"));
+                return encode(failure("UNKNOWN_ROUTE", "Rust napi local stream missing"));
               if (streams.size >= 128) return encode(failure("RESOURCE_EXHAUSTED", "endpoint streams full"));
               const session = {
                 context,
@@ -358,7 +358,7 @@ export async function attachNative(
             case "subscribe": {
               const id = control.subscriptionId;
               if (!id || !control.event || subscriptions.has(id) || openingSubscriptions.has(id)) {
-                throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid native subscription" });
+                throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid Rust napi subscription" });
               }
               openingSubscriptions.add(id);
               const subscription = await host.subscribe(
@@ -380,13 +380,13 @@ export async function attachNative(
               return Buffer.from(JSON.stringify("ordered"));
             }
             default:
-              return encode(failure("WRONG_METHOD_KIND", "unsupported native control operation"));
+              return encode(failure("WRONG_METHOD_KIND", "unsupported Rust napi control operation"));
           }
         } catch (error) {
           return encode(
             error instanceof GatewayFailure
               ? { ok: false, error: error.detail }
-              : failure("HANDLER_ERROR", "native host callback failed"),
+              : failure("HANDLER_ERROR", "Rust napi host callback failed"),
           );
         }
       },

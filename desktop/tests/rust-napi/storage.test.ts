@@ -21,7 +21,7 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, bindHandlers, GatewayFailure, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
@@ -29,7 +29,7 @@ const require = createRequire(import.meta.url);
 const storageNative = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
 const { Storage } = storageNative;
 const peer = require("../../../target/rust-napi-tests/search") as {
-  createGatewayFixture(): import("xiaowei-gateway/native").NativeEndpoint & {
+  createGatewayFixture(): import("xiaowei-gateway/rust-napi").RustNapiEndpoint & {
     fixtureInvoke(route: string, payload: Buffer): Promise<Buffer | string>;
   };
 };
@@ -39,9 +39,9 @@ test("TS and another Rust addon share Storage, JSON null and persisted settings"
   const path = join(directory, "storage.sqlite");
   const host = new GatewayHost();
   const storage = await Storage.open(path);
-  const owner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const owner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
   const endpoint = peer.createGatewayFixture();
-  const remote = await attachNative(host, "peer", endpoint);
+  const remote = await attachRustNapi(host, "peer", endpoint);
   const client = host.client({ caller: "storage-test", trusted: true });
   const meta = bindClient(KeyValue, client);
   try {
@@ -73,7 +73,7 @@ test("TS and another Rust addon share Storage, JSON null and persisted settings"
   }
   try {
     const reopened = await Storage.open(path);
-    const next = await attachNative(host, "storage", reopened.createKeyValueGatewayEndpoint());
+    const next = await attachRustNapi(host, "storage", reopened.createKeyValueGatewayEndpoint());
     try {
       assert.equal((await meta.get(create(KvKeySchema, { key: "test.%_" }))).json, "null");
     } finally {
@@ -88,8 +88,8 @@ test("Rust Settings owns typed updates and publishes committed snapshots", async
   const directory = await mkdtemp(join(tmpdir(), "gateway-settings-"));
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const settingsOwner = await attachNative(host, "settings", storage.createSettingsGatewayEndpoint("darwin"));
+  const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const settingsOwner = await attachRustNapi(host, "settings", storage.createSettingsGatewayEndpoint("darwin"));
   const client = host.client({ caller: "settings-test", trusted: true });
   const settings = bindClient(Settings, client);
   let resolveChanged!: (value: boolean) => void;
@@ -124,8 +124,8 @@ test("Settings preserves permissions and rolls back failed host operations", asy
   const directory = await mkdtemp(join(tmpdir(), "settings-effects-"));
   const host = new GatewayHost();
   const database = await Storage.open(join(directory, "db.sqlite"));
-  const storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
-  const owner = await attachNative(host, "settings", database.createSettingsGatewayEndpoint("darwin"));
+  const storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+  const owner = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint("darwin"));
   const applied: boolean[] = [];
   const system = host.registerOwner(
     "system",

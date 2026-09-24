@@ -102,7 +102,7 @@ cancel 同步改变终态，再异步等待本地 producer 清理；显式清理
 
 ## TS 与 Rust 的 napi 通信协议
 
-该适配层通过 napi 连接同一进程中的 TS 与 Rust `.node` 模块，不是网络传输或线程间消息通道。代码入口仍为 `xiaowei-gateway/native` 的 `attachNative`，`native` 指 Rust 原生模块；文档统一称为“TS ↔ Rust napi 通信适配层”。
+该适配层通过 napi 连接同一进程中的 TS 与 Rust `.node` 模块，不是网络传输或线程间消息通道。代码入口为 `xiaowei-gateway/rust-napi` 的 `attachRustNapi`，endpoint 类型为 `RustNapiEndpoint`；文件名、导出与文档统一明确标注 Rust napi 边界。
 
 manifest 在 endpoint 生命周期内保持固定。运行中新增／删除 route 或 event 时，用包含新 manifest 的 endpoint 重新接入同一 owner；走相同预留与发布流程，不直接修改已经发布的 native registry。业务服务实例可通过 Arc 保持其独立生命周期，但每个 endpoint 对应自己登记的 owner 实例。
 

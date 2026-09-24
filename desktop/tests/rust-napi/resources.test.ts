@@ -18,7 +18,7 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, bindHandlers, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/index.js";
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
@@ -31,9 +31,9 @@ test("Rust clipboard owns resource resolution, exports, permissions and close cl
   const history = await ClipboardHistory.open(directory, () => {}, directory);
   const host = new GatewayHost();
   const database = await Storage.open(join(directory, "storage.sqlite"));
-  const storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
-  const daoOwner = await attachNative(host, "dao", database.createClipboardDaoGatewayEndpoint());
-  const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  const storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachRustNapi(host, "dao", database.createClipboardDaoGatewayEndpoint());
+  const owner = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
 
   const paths: string[] = [];

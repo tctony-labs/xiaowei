@@ -70,9 +70,9 @@ mock.module(require.resolve("xiaowei-clipboard"), {
     },
   },
 });
-mock.module(import.meta.resolve("xiaowei-gateway/native"), {
+mock.module(import.meta.resolve("xiaowei-gateway/rust-napi"), {
   exports: {
-    async attachNative(host: GatewayHost, name: string) {
+    async attachRustNapi(host: GatewayHost, name: string) {
       calls.push(`attach-${name}`);
       const owner =
         name === "settings"

@@ -4,13 +4,13 @@ const { Storage } = require("../../../xiaowei-storage/napi");
 
 exports.open = async function open(directory, onChange = () => {}) {
   const { GatewayHost } = await import("../../../../gateway/ts/dist/core/registry.js");
-  const { attachNative } = await import("../../../../gateway/ts/dist/main/native.js");
+  const { attachRustNapi } = await import("../../../../gateway/ts/dist/main/rust-napi.js");
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const daoOwner = await attachNative(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
+  const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachRustNapi(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
   const history = await ClipboardHistory.open(directory, onChange);
-  const owner = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  const owner = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
   return {
     history,

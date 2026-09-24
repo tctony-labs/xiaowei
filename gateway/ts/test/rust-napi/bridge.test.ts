@@ -10,9 +10,9 @@ import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-con
 import { bindClient, bindHandlers, bindStreamClient, methodRoute } from "../../src/binding/index.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";
-import { attachNative, type NativeEndpoint } from "../../src/main/native.js";
+import { attachRustNapi, type RustNapiEndpoint } from "../../src/main/rust-napi.js";
 
-interface FixtureEndpoint extends NativeEndpoint {
+interface FixtureEndpoint extends RustNapiEndpoint {
   fixtureInvoke(route: string, bytes: Buffer): Promise<Buffer | string>;
   fixturePublish(bytes: Buffer): Promise<Buffer | string>;
   fixtureSubscribe(filter: Buffer | null): Promise<Buffer | string>;
@@ -46,8 +46,8 @@ async function attachPair() {
   const host = new GatewayHost();
   const a = search.createGatewayFixture();
   const b = clipboard.createGatewayFixture();
-  const aHandle = await attachNative(host, "a", a);
-  const bHandle = await attachNative(host, "b", b);
+  const aHandle = await attachRustNapi(host, "a", a);
+  const bHandle = await attachRustNapi(host, "b", b);
   return {
     host,
     a,
@@ -118,7 +118,7 @@ test("pending Rust napi handler permits independent control calls and close ends
 test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and owner reconnect", async () => {
   const pair = await attachPair();
   let replacement: FixtureEndpoint | undefined;
-  let replacementHandle: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let replacementHandle: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   try {
     read(await pair.b.fixtureSubscribe(Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { id: 2n })))));
     read(await pair.a.fixturePublish(changed(1n)));
@@ -126,7 +126,7 @@ test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and o
     assert.deepEqual(read(await pair.b.fixtureNext()), changed(2n));
     await pair.a.close();
     replacement = search.createGatewayFixture();
-    replacementHandle = await attachNative(pair.host, "a", replacement);
+    replacementHandle = await attachRustNapi(pair.host, "a", replacement);
     await delay(10);
     read(await replacement.fixturePublish(changed(3n)));
     assert.deepEqual(read(await pair.b.fixtureNext()), changed(3n));
@@ -145,15 +145,15 @@ test("manifest conflicts roll back endpoint; same-name reconnection cannot be cl
   const host = new GatewayHost();
   const local = host.registerOwner("ts", bindHandlers(Fixture, { echo: (p) => p }));
   const conflict = search.createGatewayFixture();
-  await assert.rejects(attachNative(host, "native", conflict), isCode("CONFLICT"));
+  await assert.rejects(attachRustNapi(host, "native", conflict), isCode("CONFLICT"));
   assert.equal(readError(await conflict.fixtureInvoke(JSON.stringify(echo), bytes())), "OWNER_UNAVAILABLE");
   local.close();
   const first = search.createGatewayFixture();
-  const old = await attachNative(host, "native", first);
+  const old = await attachRustNapi(host, "native", first);
   const duplicate = search.createGatewayFixture();
-  await assert.rejects(attachNative(host, "another", duplicate), isCode("CONFLICT"));
+  await assert.rejects(attachRustNapi(host, "another", duplicate), isCode("CONFLICT"));
   const second = search.createGatewayFixture();
-  const current = await attachNative(host, "native", second);
+  const current = await attachRustNapi(host, "native", second);
   await old.close();
   read(await second.fixtureInvoke(JSON.stringify(echo), bytes()));
   await current.close();
@@ -235,7 +235,7 @@ test("reservation does not publish early and failed activation preserves the run
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  const attaching = attachNative(host, "a", delayed);
+  const attaching = attachRustNapi(host, "a", delayed);
   assert.equal(
     (
       await host.invoke(
@@ -259,7 +259,7 @@ test("reservation does not publish early and failed activation preserves the run
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
-  await assert.rejects(attachNative(host, "a", broken), isCode("HANDLER_ERROR"));
+  await assert.rejects(attachRustNapi(host, "a", broken), isCode("HANDLER_ERROR"));
   read(await endpoint.fixtureInvoke(JSON.stringify(echo), bytes()));
   assert.equal(readError(await replacement.fixtureInvoke(JSON.stringify(echo), bytes())), "OWNER_UNAVAILABLE");
   await handle.close();
@@ -268,12 +268,12 @@ test("reservation does not publish early and failed activation preserves the run
 test("Rust napi subscriber can precede source registration; Ordered burst is delivered once", async () => {
   const host = new GatewayHost();
   const b = clipboard.createGatewayFixture();
-  const subscriber = await attachNative(host, "b", b);
-  let source: Awaited<ReturnType<typeof attachNative>> | undefined;
+  const subscriber = await attachRustNapi(host, "b", b);
+  let source: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   try {
     read(await b.fixtureSubscribe(null));
     const a = search.createGatewayFixture();
-    source = await attachNative(host, "a", a);
+    source = await attachRustNapi(host, "a", a);
     await delay(10);
     for (let id = 0; id < 256; id++) read(await a.fixturePublish(changed(BigInt(id))));
     for (let id = 0; id < 256; id++) assert.deepEqual(read(await b.fixtureNext()), changed(BigInt(id)));
@@ -355,7 +355,7 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
     await pending;
     await stream.cancel();
     const old = await client.watch(create(EnvelopeSchema, { id: 2n }));
-    const replacement = await attachNative(host, "a", search.createGatewayFixture());
+    const replacement = await attachRustNapi(host, "a", search.createGatewayFixture());
     await assert.rejects(old.next(), isCode("OWNER_UNAVAILABLE"));
     await replacement.close();
     // Stream IDs address a caller-owned handle; knowing one cannot authorize another caller.

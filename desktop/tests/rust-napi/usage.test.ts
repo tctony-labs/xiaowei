@@ -8,7 +8,7 @@ import { create } from "@bufbuild/protobuf";
 import { ClipboardBiz, ClipboardResourceRequestSchema, EmptySchema, Storage, System } from "xiaowei-contracts";
 import { bindClient, bindHandlers, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/index.js";
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
@@ -23,9 +23,9 @@ test("clipboard usage combines Storage file sizes with attachments and preserves
   const database = await nativeStorage.Storage.open(databasePath);
   const history = await ClipboardHistory.open(directory, () => {}, root);
   const host = new GatewayHost();
-  const storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
-  const dao = await attachNative(host, "dao", database.createClipboardDaoGatewayEndpoint());
-  const clipboard = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  const storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+  const dao = await attachRustNapi(host, "dao", database.createClipboardDaoGatewayEndpoint());
+  const clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   const system = host.registerOwner(
     "system",
     bindHandlers(System, { openPath: () => create(EmptySchema) }, { partial: true }),

@@ -19,10 +19,10 @@
       "source": "./src/core/protocol.ts",
       "import": "./dist/core/protocol.js"
     },
-    "./native": {
-      "types": "./src/main/native.ts",
-      "source": "./src/main/native.ts",
-      "import": "./dist/main/native.js"
+    "./rust-napi": {
+      "types": "./src/main/rust-napi.ts",
+      "source": "./src/main/rust-napi.ts",
+      "import": "./dist/main/rust-napi.js"
     },
     "./electron": {
       "types": "./src/main/electron.ts",

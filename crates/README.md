@@ -78,6 +78,6 @@ Electron 通过 `workspace:*` 引用本地 npm 入口包，例如 `"xiaowei-sear
 
 业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../gateway/README.md#接入约定)。
 
-业务核心负责注册生产 PB routes，契约集中在 `contracts/`；napi 适配层导出 endpoint，由 main 通过 `attachNative` 接入。endpoint 应复用所属模块的业务实例，避免为通信入口重复创建业务状态。测试 fixture 不进入正式接口。
+业务核心负责注册生产 PB routes，契约集中在 `contracts/`；napi 适配层导出 endpoint，由 main 通过 `attachRustNapi` 接入。endpoint 应复用所属模块的业务实例，避免为通信入口重复创建业务状态。测试 fixture 不进入正式接口。
 
 共享 Gateway Rust 代码变更时，沿依赖关系重建受影响的原生包。通信与生命周期的通用约定见 [Gateway](../gateway/README.md)，桌面接入约定见 [main 装配与生命周期](../desktop/src/main/README.md#gateway-装配与生命周期)。

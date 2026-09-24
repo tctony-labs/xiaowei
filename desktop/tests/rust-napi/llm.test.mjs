@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { EnvelopeSchema, Fixture, GenerateEventSchema, GenerateRequestSchema } from "xiaowei-contracts";
 import { bindStreamClient } from "xiaowei-gateway";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
 const directory = fileURLToPath(new URL("../../../target/rust-napi-tests/search", import.meta.url));
@@ -17,7 +17,7 @@ const addon = require(`${directory}/${readdirSync(directory).find((path) => path
 // calls Llm.Generate with StreamMethod and encodes each typed GenerateEvent back.
 test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, error and cancellation", async (t) => {
   const fixture = await llmFixture(t);
-  const native = await attachNative(fixture.host, "rust-llm-test", addon.createGatewayFixture());
+  const native = await attachRustNapi(fixture.host, "rust-llm-test", addon.createGatewayFixture());
   t.after(() => native.close());
   const client = bindStreamClient(Fixture, fixture.host.client({ caller: "llm-native-test", trusted: true }));
   const open = (text) =>

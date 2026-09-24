@@ -17,7 +17,7 @@ import {
 } from "xiaowei-contracts";
 import { bindClient, bindEvent, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/index.js";
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
@@ -29,8 +29,8 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
   const directory = await mkdtemp(join(tmpdir(), "clipboard-runtime-"));
   const host = new GatewayHost();
   const db = await Storage.open(join(directory, "db.sqlite"));
-  const daoOwner = await attachNative(host, "dao", db.createClipboardDaoGatewayEndpoint());
-  const storageOwner = await attachNative(host, "storage", db.createKeyValueGatewayEndpoint());
+  const daoOwner = await attachRustNapi(host, "dao", db.createClipboardDaoGatewayEndpoint());
+  const storageOwner = await attachRustNapi(host, "storage", db.createKeyValueGatewayEndpoint());
   let snapshot = create(SettingsSnapshotSchema, { clipboardEnabled: false, clipboardRetentionDays: -1 });
   const settings = host.registerOwner(
     "settings",
@@ -44,7 +44,7 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
     [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
   );
   const history = await ClipboardHistory.open(join(directory, "clipboard"), () => {}, directory);
-  const clipboard = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+  const clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   const dao = bindClient(ClipboardDao, host.client({ caller: "test", trusted: true }));
   const capture = (hash: string) =>
     dao.capture(

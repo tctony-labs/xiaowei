@@ -5,7 +5,7 @@ import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contr
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { createSearchGatewayEndpoint } from "xiaowei-search";
 import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "../resources/app-icons/cache";
@@ -36,13 +36,13 @@ export async function createApplicationGateway(
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
-  let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let clipboardDao: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let search: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let clipboard: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let storage: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let clipboardDao: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let search: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let clipboard: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   let history: ClipboardHistory | undefined;
   let launcher: ReturnType<typeof registerSearch>;
-  let settings: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let settings: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   const settingsApi = bindClient(Settings, host.client({ caller: "settings-main", trusted: true }));
   const apps = bindClient(App, host.client({ caller: "icon-resources", trusted: true }));
   const readIcon = createAppIconCache(iconDirectory, async (path) => {
@@ -67,12 +67,12 @@ export async function createApplicationGateway(
     system = registerSystem(host, windowFor);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
-    storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
-    clipboardDao = await attachNative(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
-    settings = await attachNative(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
-    search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
+    storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+    clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
+    settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
+    search = await attachRustNapi(host, "search", createSearchGatewayEndpoint(actions.development));
     history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
-    clipboard = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+    clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
     await history.initialize();
     await history.startServices();
     console.info("Clipboard history ready");
