@@ -19,7 +19,16 @@ try {
       `../../../gateway/tests/native/${name}`,
     ]);
   }
-  run(["--dir", "gateway/ts", "exec", "tsx", "--test", "test/native/bridge.test.ts", "test/native/storage.test.ts"]);
+  run([
+    "--dir",
+    "gateway/ts",
+    "exec",
+    "tsx",
+    "--test",
+    "test/native/bridge.test.ts",
+    "test/native/storage.test.ts",
+    "test/native/worker.test.ts",
+  ]);
 } catch (error) {
   failure = error;
 } finally {

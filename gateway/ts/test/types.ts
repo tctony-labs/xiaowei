@@ -27,3 +27,15 @@ export function compileExamples(client: Client) {
   // @ts-expect-error Missing unary handler.
   bindHandlers(Fixture, {});
 }
+
+export async function workerRegistrations(port: import("node:worker_threads").MessagePort) {
+  const { exposeWorkerEndpoint } = await import("../src/worker/endpoint.js");
+  exposeWorkerEndpoint(port, [
+    ...bindHandlers(Fixture, { echo: (request) => request }),
+    ...bindStreamHandlers(Fixture, {
+      watch: async function* () {
+        yield create(ChangedSchema);
+      },
+    }),
+  ]);
+}

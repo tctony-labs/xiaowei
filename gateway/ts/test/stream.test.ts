@@ -206,3 +206,32 @@ test("one terminal wins and unfinished producers retain their quota", async (t) 
   const replacement = await host.stream(context, route, new Uint8Array());
   await replacement.cancel();
 });
+
+test("an already aborted signal releases execution admission without starting the factory", async () => {
+  const { ExecutionScope } = await import("../src/core/execution.js");
+  const execution = new ExecutionScope();
+  const owner = {};
+  let started = 0;
+  const registration = {
+    route,
+    streamPolicy: { maxOwnerStreams: 1, maxCallerStreams: 1 },
+    streamHandler: async function* () {
+      started++;
+      yield new Uint8Array();
+    },
+  };
+  const client = new GatewayHost().client({ caller: "test", trusted: true });
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    execution.stream(registration, owner, context, client, new Uint8Array(), { signal: controller.signal }),
+    /cancelled/,
+  );
+  await execution.drained();
+  assert.equal(started, 0);
+  const stream = await execution.stream(registration, owner, context, client, new Uint8Array());
+  await stream.next();
+  assert.equal(started, 1);
+  await stream.cancel();
+  await execution.drained();
+});

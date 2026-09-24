@@ -24,11 +24,11 @@ remote transport 替换时先使旧 delivery 闭包失效，再重建 persistent
 
 上下文字段私有且不实现反序列化；业务不得从 payload 构造权限。
 
-## 原生接入与关闭
+## napi 通信接入与关闭
 
 `xw-gateway::napi::Endpoint` 持有业务传入的同一份 registry／owner；公共 crate 不注册 addon 导出或跨动态库 static。业务 napi 包负责薄封装和 endpoint 工厂，桌面装配见 [main 装配与生命周期](../../desktop/src/main/README.md#gateway-装配与生命周期)。
 
-业务服务可通过 Arc 保持独立生命周期，但每个 endpoint 对应自己的 owner 实例；manifest 与原子发布约定见 [共同协议](../README.md#原生传输协议)。
+业务服务可通过 Arc 保持独立生命周期，但每个 endpoint 对应自己的 owner 实例；manifest 与原子发布约定见 [共同协议](../README.md#ts-与-rust-的-napi-通信协议)。
 
 ## 实现易错点
 

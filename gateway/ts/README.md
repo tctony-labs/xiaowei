@@ -1,6 +1,6 @@
 # Gateway TypeScript
 
-本模块提供 TS host／client、typed 绑定及 native／Electron 适配。共同调用语义与线协议见 [Gateway](../README.md)，产品装配见 [main README](../../desktop/src/main/README.md#gateway-装配与生命周期)，页面调用见 [renderer README](../../desktop/src/renderer/README.md#gateway-业务调用)。
+本模块提供 TS host／client、typed 绑定及 TS ↔ Rust napi／Worker MessagePort／Electron IPC 通信适配层。共同调用语义与线协议见 [Gateway](../README.md)，产品装配见 [main README](../../desktop/src/main/README.md#gateway-装配与生命周期)，页面调用见 [renderer README](../../desktop/src/renderer/README.md#gateway-业务调用)。
 
 ## 调用与绑定
 
@@ -20,11 +20,25 @@ TS 编码前限制对象节点数、深度及字符串／bytes 预算，防止�
 
 上下文使用私有 WeakMap 校验，反序列化对象或复制 trusted 字段无效；client transport 不接受 caller 元数据。
 
-## Native 适配
+## TS ↔ Rust napi 通信适配层
 
 宿主通过 `xiaowei-gateway/native` 的 `attachNative(host, name, endpoint, permissions?)` 接入。顺序为读取并校验 manifest → 预留全局 route／event 名称 → 绑定回调与来源上下文 → 激活 native → 原子发布。预留期间不暴露 route 或 event；失败会撤销预留并关闭新 endpoint，保留同名旧实例。返回的 handle 提供显式异步 `close()`；旧 handle 的关闭不会影响替换后的实例。
 
-host 侧 handle.close 同时清理路由、caller token 和订阅。线协议与固定 manifest 要求见 [共同协议](../README.md#原生传输协议)。
+host 侧 handle.close 同时清理路由、caller token 和订阅。线协议与固定 manifest 要求见 [共同协议](../README.md#ts-与-rust-的-napi-通信协议)。
+
+## Worker MessagePort 通信适配层
+
+main 从 `xiaowei-gateway/worker-host` 导入 `attachWorker(host, name, worker)`，传入一个新建的专用 Node Worker；worker 从 `xiaowei-gateway/worker` 导入 `exposeWorkerEndpoint(parentPort, registrations)`。registration 可直接合并 `bindHandlers` 与 `bindStreamHandlers` 的返回值。main 是唯一全局 GatewayHost；worker 仅保存固定 manifest 和本地执行 endpoint，嵌套 unary／stream 一律经 main 路由并保留原 caller 权限。默认、renderer、preload 入口不引入 Node worker 代码。当前不支持事件导出、订阅或后台自主 client；订阅与事件 manifest 均明确拒绝。
+
+worker 的 `ExecutionScope` 负责 unary 执行并发、超时、owner／caller 流配额与实际清理，复用 core 的 `openStream` 状态机。main 的远端 stream dispatcher 只保存连接关联和读取终态，不重复包 producer 状态机或计算 service 配额。流配额按所在 worker 计算，不是跨所有 worker 的全局配额。本地 main handler 共用另一执行 scope，保持跨本地 owner 的 caller 统计。
+
+线程传控制对象和 PB Uint8Array，使用 structured clone，不转移 Buffer 底层内存。每条连接带随机 generation，回调上下文 token 由 main 随机创建并保存；worker 不能自行声明 trusted。子流在 main 保存自己的授权上下文，父 unary 返回后仍可继续 next／cancel。远端流逐条 pull，不预读；服务端终态主动通知 reader 并删除句柄，不积累 tombstone。
+
+双向业务请求关联表上限 256，清理操作额外预留 32 个槽位，传输 payload 上限 64 MiB。握手／激活和请求接收确认等待 5 秒；接收端在授权及 route 契约校验后，通过一次 `accepted` 帧公布本次 unary timeout 或 openTimeout，通信等待随之调整为该预算加 1 秒，不用固定默认值覆盖 service 策略。main 为嵌套调用从已授权的路由查询只读执行策略；查询与发起执行之间不异步让出。每个请求只接受一次预算通知，仍有有限失联期限。next 等待 producer idle 加 1 秒；取消／关闭等待 1.5 秒。通信超时只代表等待已结束，不代表实际执行停止。service 自身的执行限制仍以 worker 为准；不合作的 factory／next／return 真实退出前继续占用 worker 执行许可。
+
+接入顺序为 manifest → 名称预留 → endpoint 激活 → 原子发布。失败回收新 worker，不替换旧 owner。返回 handle 的 `close()` 幂等并复用同一 Promise：先停止新请求、结束调用等待，再请求 worker 清理；清理失败或超时明确报错，最终 terminate 专用 worker 并移除监听器。异常退出、损坏帧和 owner 替换会终结所有关联；旧 handle 不影响新 owner。不自动重启或重放。
+
+源码 worker 回归运行 `pnpm --filter xiaowei-gateway test`；plain Node 构建验证运行 `pnpm --filter xiaowei-gateway test:worker-built`。产品 worker 入口、Electron 构建和 LLM service 尚未接线。
 
 ## Electron 接入
 

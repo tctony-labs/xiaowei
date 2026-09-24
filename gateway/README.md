@@ -1,11 +1,11 @@
 # Gateway
 
-Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 绑定、响应流和事件，以及 napi／Electron 传输适配。业务消息由 [contracts](../contracts/README.md) 定义，具体 owner 由宿主装配。
+Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 绑定、响应流和事件，以及 TS ↔ Rust napi、Worker MessagePort 和 Electron IPC 通信适配层。业务消息由 [contracts](../contracts/README.md) 定义，具体 owner 由宿主装配。
 
 ## 工程入口
 
-- [`ts/`](ts/README.md)：npm 包 `xiaowei-gateway`。默认入口提供 client、协议和绑定，`/host` 提供宿主管理；两者不依赖 Node／Electron。`/native` 使用 Node Buffer，`/electron`、`/preload`、`/renderer` 分别提供 Electron 各侧接入。
-- [`rust/`](rust/README.md)：crate `xw-gateway`，默认纯 Rust；显式开启 `napi` feature 才编译原生适配。
+- [`ts/`](ts/README.md)：npm 包 `xiaowei-gateway`。默认入口提供 client、协议和绑定，`/host` 提供宿主管理；两者不依赖 Node／Electron。`/native` 使用 Node Buffer，`/worker-host` 与 `/worker` 提供 Node worker 两侧接入，`/electron`、`/preload`、`/renderer` 分别提供 Electron 各侧接入。
+- [`rust/`](rust/README.md)：crate `xw-gateway`，默认纯 Rust；显式开启 `napi` feature 才编译 napi 通信适配层。
 - [`tests/`](tests/README.md)：跨语言、原生模块和 Electron 验收入口。
 
 TS 类型入口指向源码，支持 `source` 条件的构建器可以直接消费源码；普通 Node 默认 import 指向 `dist/`，使用前需要构建。
@@ -26,7 +26,7 @@ TS 类型入口指向源码，支持 `source` 条件的构建器可以直接消�
 ```sh
 pnpm --filter xiaowei-gateway check
 pnpm --filter xiaowei-gateway test
-pnpm --filter xiaowei-gateway build
+pnpm --filter xiaowei-gateway test:worker-built
 cargo test -p xw-gateway --no-default-features
 ```
 
@@ -51,11 +51,11 @@ TS transport 返回普通 `{ ok: true, value } | { ok: false, error: { code, mes
 
 ## 注册与请求生命周期
 
-TS main 持有唯一 `GatewayHost`；各 Rust 模块持有本地 `XwInvokeRegistry`。`registerOwner`／`register_owner` 在同一批次中验证 routes 和 events，全部有效后才替换原 owner。批内重复、跨 owner 重名或无效策略不产生半注册状态。
+TS main 持有唯一 `GatewayHost`；各 Rust 模块持有本地 `XwInvokeRegistry`；worker 仅持有固定本地 endpoint 与执行管理，不创建第二个 GatewayHost。`registerOwner`／`register_owner` 在同一批次中验证 routes 和 events，全部有效后才替换原 owner。批内重复、跨 owner 重名或无效策略不产生半注册状态。
 
 每次替换创建新实例。关闭旧句柄不会注销新实例；旧连接投递和迟到响应不作用于新实例。TS 注册可注入 dispatcher，Rust 未命中时调用注入的 remote invoker；入口 `dispatchLocal`／`dispatch_local` 永远不回退，避免转发环。目标 host 未找到 route 立即返回 `UNKNOWN_ROUTE`。
 
-执行 owner 按 route 限制在途 handler 并设置执行超时，满载立即拒绝；默认策略见 [TS registry](ts/src/core/registry.ts) 和 [Rust invoke](rust/src/invoke.rs)。转发端只跟踪 owner 生命周期，不再次限流或设置执行超时。超时或 owner 关闭会明确结束等待方；底层 handler 继续持有本实例的并发许可，直到真实完成。系统副作用不回滚，写操作不自动重试。
+执行 owner 按 route 限制在途 handler 并设置执行超时，满载立即拒绝；默认策略见 [TS execution](ts/src/core/execution.ts) 和 [Rust invoke](rust/src/invoke.rs)。转发端只跟踪 owner 生命周期，不再次限流或设置执行超时。超时或 owner 关闭会明确结束等待方；底层 handler 继续持有本实例的并发许可，直到真实完成。系统副作用不回滚，写操作不自动重试。
 
 owner 重注册会使旧 pending 请求失败；新实例有独立执行状态，宿主不能把重注册当作取消旧系统任务的方法。
 
@@ -91,7 +91,9 @@ cancel 同步改变终态，再异步等待本地 producer 清理；显式清理
 
 注册、发布、上下文构造是宿主 API，不能暴露给 renderer 或不可信入口。handler 的嵌套请求使用注入 client 保留权限。直接加载的 Rust／JS 模块拥有所在进程的权限，此机制不提供任意第三方代码的沙箱；native 适配只允许宿主传入上下文；Electron ingress 由已注册的主 frame 和宿主分配的会话提供上下文；任意第三方代码的隔离宿主尚未实现。
 
-## 原生传输协议
+## TS 与 Rust 的 napi 通信协议
+
+该适配层通过 napi 连接同一进程中的 TS 与 Rust `.node` 模块，不是网络传输或线程间消息通道。代码入口仍为 `xiaowei-gateway/native` 的 `attachNative`，`native` 指 Rust 原生模块；文档统一称为“TS ↔ Rust napi 通信适配层”。
 
 manifest 在 endpoint 生命周期内保持固定。运行中新增／删除 route 或 event 时，用包含新 manifest 的 endpoint 重新接入同一 owner；走相同预留与发布流程，不直接修改已经发布的 native registry。业务服务实例可通过 Arc 保持其独立生命周期，但每个 endpoint 对应自己登记的 owner 实例。
 
@@ -100,3 +102,9 @@ manifest 在 endpoint 生命周期内保持固定。运行中新增／删除 rou
 控制 metadata／manifest 用 JSON 字符串，控制版本为 1；请求、响应、事件和 filter 的 PB 字节直接用 Buffer，不编码为 JSON 数组或 Base64。native Promise 成功返回 Buffer，失败返回序列化的 `{ code, message }` 字符串；TS adapter 将其恢复为核心 Result。native 控制响应（如订阅策略）也有明确的编码，不与业务 PB 混用。`streamControl(control, payload, context)` 执行 `stream.open`／`stream.next`／`stream.cancel`；stream ID 和 route 位于控制 JSON，chunk 仍是二进制。
 
 控制版本为 1。入站 native open 成功为空 Buffer；native→host open 返回编码在 Buffer 中的 policy JSON，让 Rust caller 使用相同的 chunk／idle 限额；next 的二进制帧为单字节 `0`（end），或 `1 + 大端 u32 seq + 原始 PB chunk`，seq 从 0 开始；error 使用原有结构化错误通道。序号异常和耗尽终止流，不重放；stream 对象不跨 FFI。host 维护上下文 token，流 ID 本身不提供授权。
+
+## Worker 线程通信
+
+Worker MessagePort 通信适配层通过专用 Node Worker 的 parentPort 连接 main 与 worker，不使用 napi，也不跨 Electron contextBridge。它支持 unary、响应流和保留来源权限的嵌套调用；事件能力暂不支持。接入、策略及关闭说明见 [TS Worker 接入](ts/README.md#worker-messageport-通信适配层)。
+
+service handler、执行配额、执行超时、AbortController、iterator 和实际清理归 worker；main 保留全局路由、授权、owner 生命周期及通信等待。worker 与 main 本地 handler 复用环境无关的 `ExecutionScope`，远端流通过独立 `StreamDispatcher` 接口挂载，main 不重复执行流 admission 或 producer 状态机。通信关闭并不提前释放仍在执行的 worker 任务许可。

@@ -403,3 +403,36 @@ test("owner manifest keeps default execution metadata without sharing mutable re
   registrations[0].route = { ...route, name: "mutated.route" };
   assert.equal(owner.manifest.routes[0].name, route.name);
 });
+
+test("local unary starts synchronously before same-turn owner closure", async () => {
+  const host = new GatewayHost();
+  const work = gate();
+  let started = false;
+  const owner = host.registerOwner("sync", [
+    {
+      route,
+      handler: async (payload) => {
+        started = true;
+        await work.promise;
+        return payload;
+      },
+    },
+  ]);
+  const pending = host.invoke(context, route, bytes());
+  assert.equal(started, true);
+  owner.close();
+  assert.equal(code(await pending), "OWNER_UNAVAILABLE");
+  work.release();
+});
+
+test("transport policy metadata requires route permission and contract compatibility", () => {
+  const host = new GatewayHost();
+  host.registerOwner("policy", [{ route, timeoutMs: 60_000, handler: (payload) => payload }]);
+  assert.equal(host.executionPolicy(context, route).timeoutMs, 60_000);
+  const restricted = createContext({ caller: "limited", trusted: false });
+  assert.throws(() => host.executionPolicy(restricted, route), rejectsCode("UNAUTHORIZED"));
+  assert.throws(
+    () => host.executionPolicy(context, { ...route, output: "testing.Other" }),
+    rejectsCode("INCOMPATIBLE"),
+  );
+});

@@ -4,13 +4,21 @@
 
 Rust `tests/core.rs` 覆盖注册、typed 参数、远端回退、并发、filter、Ordered burst、backend 订阅保留／解绑、旧连接投递和 owner 清理语义，以及批内重名、跨 routes／events 原子性、超时后真实任务占用、连接替换与迟到结果、白名单及协议兼容测试。两端有编译期错误入参／返回值反例。
 
-`pnpm gateway:test-native` 先构建正式 Storage addon，再为搜索和剪贴板启用 `gateway-fixtures`，将测试 addon 输出到忽略的 `gateway/tests/native/`。它执行 `ts/test/native/bridge.test.ts` 和 `storage.test.ts`，并在 finally 中尝试恢复两个包的正常 `.node`、JS 加载器和类型声明；恢复失败会使命令失败。成功后检查正式 endpoint，构建 Gateway dist，再执行业务、启动生命周期和剪贴板选择测试。数据库使用临时目录，不触碰用户剪贴板，也不启动 Electron。正常构建不包含 fixture 工厂或测试 routes。
+`pnpm gateway:test-native` 先构建正式 Storage addon，再为搜索和剪贴板启用 `gateway-fixtures`，将测试 addon 输出到忽略的 `gateway/tests/native/`。它执行 `ts/test/native/bridge.test.ts` 、`storage.test.ts` 和 `worker.test.ts`，并在 finally 中尝试恢复两个包的正常 `.node`、JS 加载器和类型声明；恢复失败会使命令失败。成功后检查正式 endpoint，构建 Gateway dist，再执行业务、启动生命周期和剪贴板选择测试。数据库使用临时目录，不触碰用户剪贴板，也不启动 Electron。正常构建不包含 fixture 工厂或测试 routes。
 
-原生传输测试覆盖本地优先、双向调用、重入、PB 大字节、超时／并发、事件过滤／取消／重连、接入回滚、上下文权限、TSFN throw／reject／队列满、显式关闭和 Worker 环境销毁。测试 feature 使用两个同源生成的 Fixture／PeerFixture service。
+TS ↔ Rust napi 通信测试覆盖本地优先、双向调用、重入、PB 大字节、超时／并发、事件过滤／取消／重连、接入回滚、上下文权限、TSFN throw／reject／队列满、显式关闭和 Worker 环境销毁。测试 feature 使用两个同源生成的 Fixture／PeerFixture service。
 
-`ts/test/stream.test.ts` 和 `rust/tests/stream.rs` 验证惰性 typed 流、模拟 SSE、单流并发、取消／drop、owner／caller 清理、分阶段可控时钟、配额和主动队列。native 流测试覆盖 TS→Rust、Rust 本地、A→main→B、有序 PB bytes、生产错误、pending open／next 取消、句柄归属及实际 producer 计数归零。`StreamMethod` 的生成漂移检查和两端编译反例验证方法种类与 chunk 类型。
+`ts/test/stream.test.ts` 和 `rust/tests/stream.rs` 验证惰性 typed 流、模拟 SSE、单流并发、取消／drop、owner／caller 清理、分阶段可控时钟、配额和主动队列。napi 跨语言流测试覆盖 TS→Rust、Rust 本地、A→main→B、有序 PB bytes、生产错误、pending open／next 取消、句柄归属及实际 producer 计数归零。`StreamMethod` 的生成漂移检查和两端编译反例验证方法种类与 chunk 类型。
 
 Storage 联调额外构建正式 `xiaowei-storage` addon，`ts/test/native/storage.test.ts` 验证 TS 与另一 Rust addon 经同一 host 访问同一个数据库，覆盖 JSON null／缺失、字面前缀、非法 JSON、KeyValue typed 接口调用和重新打开后的持久化。全部使用临时文件，Storage 不加入 fixture feature。
+
+## Worker 验证
+
+`ts/test/worker.test.ts` 使用真实 Node Worker，验证 typed handler 的线程归属、交错流、执行配额、超时后仍占许可、pending open／next／return 的取消、权限回传和子流寿命、CPU 阻塞下 main 继续响应、错误／退出／替换、损坏帧与 token 拒绝、传输表及 payload 上限。控制门闩走独立测试 MessagePort，不把测试信号混入 Gateway 协议。
+
+`pnpm --filter xiaowei-gateway test:worker-built` 先构建包，再由 plain Node 消费 `/worker-host` 和 `/worker` 导出，验证实际 dist 路径及 PB 字节往返；该模式不加载 tsx。源码 fixture 由单次 `tsx/esm/api` 的 tsImport 加载，保持 binding、endpoint 与 GatewayFailure 的模块身份一致。
+
+`ts/test/native/worker.test.ts` 在上述 fixture addon 构建窗口执行 Rust typed caller → napi → main → Worker 联调；验证多段 PB 顺序、部分数据后失败、pending next 取消和 worker 退出，不修改业务 proto 或 Rust 生产源码。
 
 ## 更新测试绑定
 

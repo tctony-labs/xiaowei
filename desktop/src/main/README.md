@@ -20,7 +20,7 @@ desktop/src/main/
 ├── index.ts
 ├── app/
 │   ├── bootstrap.ts       # 应用启动、退出、单实例
-│   ├── gateway.ts         # host、owner、native endpoint 装配
+│   ├── gateway.ts         # host、owner、Rust napi endpoint 装配
 │   ├── paths.ts           # 应用路径
 │   ├── logging.ts         # 日志接线
 │   └── menu.ts            # 应用菜单
