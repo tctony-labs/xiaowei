@@ -6,14 +6,14 @@ import { resolveConfig } from "electron-vite";
 import { build } from "vite";
 import storybook from "../../desktop/.storybook/main.ts";
 
-test("desktop bundles Gateway source in all targets; plain Node keeps the dist entry", async () => {
+test("desktop bundles Gateway source in all targets; Node source condition resolves TypeScript", async () => {
   process.chdir(fileURLToPath(new URL("../../desktop", import.meta.url)));
   const nodeEntry = execFileSync(
     process.execPath,
-    ["--input-type=module", "-e", "console.log(import.meta.resolve('xiaowei-gateway'))"],
+    ["--conditions=source", "--input-type=module", "-e", "console.log(import.meta.resolve('xiaowei-gateway'))"],
     { encoding: "utf8" },
   ).trim();
-  assert.match(nodeEntry, /gateway\/ts\/dist\/index\.js$/);
+  assert.match(nodeEntry, /gateway\/ts\/src\/index\.ts$/);
   const { config } = await resolveConfig({}, "build", "production");
   for (const target of ["main", "preload", "renderer"]) {
     const result = await build({

@@ -11,7 +11,7 @@ const execute = (path, mode, id = "test") =>
   new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ["--import", "tsx", "scripts/verify-llm.mjs", "--model", id, "--mode", mode],
+      ["--conditions=source", "--import", "tsx", "scripts/verify-llm.mjs", "--model", id, "--mode", mode],
       {
         cwd: new URL("../../", import.meta.url),
         env: { PATH: process.env.PATH, XIAOWEI_LLM_CONFIG: path, VERIFY_KEY: "test-key" },

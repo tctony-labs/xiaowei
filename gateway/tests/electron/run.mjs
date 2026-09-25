@@ -1,4 +1,4 @@
-// Import this into an existing development main process through its Node inspector.
+// Build first, then import main.mjs into an existing main process through its Node inspector.
 // The isolated host, hidden windows and fixture addons never touch product storage.
 import assert from "node:assert/strict";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
@@ -11,9 +11,9 @@ import { BrowserWindow, ipcMain } from "electron";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
-import { Storage } from "xiaowei-storage";
 
 const require = createRequire(import.meta.url);
+const { Storage } = require("xiaowei-storage");
 export async function run(directory) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
   const rustAddonDirectory = `${root}target/rust-napi-tests/search`;

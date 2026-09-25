@@ -8,7 +8,7 @@ Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 
 - [`rust/`](rust/README.md)：crate `xw-gateway`，默认纯 Rust；显式开启 `napi` feature 才编译 napi 通信适配层。
 - [`tests/`](tests/README.md)：跨语言、原生模块和 Electron 验收入口。
 
-TS 类型入口指向源码，支持 `source` 条件的构建器可以直接消费源码；普通 Node 默认 import 指向 `dist/`，使用前需要构建。
+TS 类型入口指向源码，工作区消费者必须通过 `source` 条件加载源码，Node 同时配置 TS loader；统一规则见 [Workspace 源码消费](../docs/workspace.md#workspace-源码消费)。默认 import 的 `dist/` 入口保留给本包构建产物验收。
 
 ## 接入约定
 

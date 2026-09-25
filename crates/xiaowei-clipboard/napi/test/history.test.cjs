@@ -29,6 +29,9 @@ test("native local history persists across processes and exposes bounded APIs", 
     const output = execFileSync(
       process.execPath,
       [
+        "--conditions=source",
+        "--import",
+        require.resolve("tsx"),
         "-e",
         `
       const { open } = require(process.argv[1]);
@@ -63,7 +66,7 @@ test("native local history persists across processes and exposes bounded APIs", 
 });
 
 test("search and clipboard native libraries can install independent log callbacks", async () => {
-  const search = require("../../../xiaowei-search/napi");
+  const search = require("xiaowei-search");
   const delivered = (initialize) =>
     new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("Native log timed out")), 2000);

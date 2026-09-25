@@ -17,7 +17,7 @@
 | `fixtures/` | 桌面测试共享辅助代码 |
 | `src/renderer/src/**/*.test.tsx`（相对 desktop） | Vitest 组件测试 |
 
-`run.mjs` 构建 Gateway dist 和 desktop worker，再按需要构建正式 Storage／剪贴板 addon。Storage、LLM 的 Rust 测试调用方使用 search 的 `gateway-fixtures`；退出测试窗口后恢复正式 search，其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
+`run.mjs` 通过 `tsx --conditions=source` 加载 Gateway 源码，构建 desktop 自身 worker，再按需要构建正式 Storage／剪贴板 addon。Storage、LLM 的 Rust 测试调用方使用 search 的 `gateway-fixtures`；退出测试窗口后恢复正式 search，其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
 
 测试 addon 的构建、失败回收及正式导出检查复用 `scripts/tests/rust-napi-fixtures.mjs`，输出放在 `target/rust-napi-tests/`。即使测试失败，也尝试恢复全部指定 addon；恢复失败会保留并报告错误。不要与 Gateway 测试或相同 addon 的构建并行运行，根 `pnpm test` 已串行执行 workspace 测试。
 
@@ -25,6 +25,6 @@ Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:
 
 ## LLM 配置与真实模型验收
 
-`llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建 Gateway 和 desktop：`pnpm --filter xiaowei-gateway build`、`pnpm --dir desktop build`，再执行 `pnpm --dir desktop exec tsx --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --test tests/llm/config.test.mjs`。
+`llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建 desktop：`pnpm --dir desktop build`，再执行 `pnpm --dir desktop exec tsx --conditions=source --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/config.test.mjs`。
 
 `llm/verify-provider.test.mjs` 用临时配置、假 Key 和本地 SSE 验证手动验收工具的执行与退出，不继承真实模型凭据。真实模型的手动入口见 [验收脚本](../scripts/README.md)。

@@ -1,10 +1,10 @@
 const { join } = require("node:path");
 const { ClipboardHistory } = require("..");
-const { Storage } = require("../../../xiaowei-storage/napi");
+const { Storage } = require("xiaowei-storage");
 
 exports.open = async function open(directory, onChange = () => {}) {
-  const { GatewayHost } = await import("../../../../gateway/ts/dist/core/registry.js");
-  const { attachRustNapi } = await import("../../../../gateway/ts/dist/main/rust-napi.js");
+  const { GatewayHost } = await import("xiaowei-gateway/host");
+  const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
   const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());

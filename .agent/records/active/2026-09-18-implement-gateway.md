@@ -429,7 +429,7 @@ open 前登记取消，native 同步准备请求后才派发异步任务；每�
 
 合并 develop 的应用图标缓存时，保留一周磁盘有效期与 Gateway 惰性资源 URL：协议处理器先查磁盘，缺失或过期再通过 App.ReadIcon 提取。已完成的读取不常驻 main 内存，避免绕过磁盘过期检查；缓存继续跨应用启动复用。
 
-2026-09-20 调整桌面 Gateway 加载：package exports 增加 `source` 条件，类型入口直接指向源码；桌面 main/preload（含 SSR）、renderer、Storybook 与验收资源构建选择源码，移除 desktop check/build/dev:main 的 Gateway 预构建。普通 Node import 保留 dist，现有原生业务联调和 Electron 验收脚本仍可使用。无修改的 r 不再重写 renderer 共享依赖，真实源码修改仍触发 HMR；长期说明见 Gateway README。未采用内容比较后写入的构建包装器，保持独立 Node 场景原有 tsc 构建。`just check` 与 38 项桌面测试通过；实际 Vite 构建的模块清单确认三个目标均包含 Gateway src、没有 Gateway dist，默认 Node 解析仍指向 dist。
+2026-09-20 调整桌面 Gateway 加载：package exports 增加 `source` 条件，类型入口直接指向源码；桌面 main/preload（含 SSR）、renderer、Storybook 与验收资源构建选择源码，移除 desktop check/build/dev:main 的 Gateway 预构建。普通 Node import 保留 dist 供本包构建产物验收；后续工作区源码消费治理已将原生业务联调改为显式 source 条件，Electron 验收 main 也内联源码，见 [统一约定](../../../docs/workspace.md#workspace-源码消费)。无修改的 r 不再重写 renderer 共享依赖，真实源码修改仍触发 HMR；长期说明见 Gateway README。未采用内容比较后写入的构建包装器，保持独立 Node 场景原有 tsc 构建。`just check` 与 38 项桌面测试通过；实际 Vite 构建的模块清单确认三个目标均包含 Gateway src、没有 Gateway dist，默认 Node 解析仍指向 dist。
 
 Electron 集成验收目录迁至 gateway/tests/electron，依赖由 gateway/tests/package.json 私有 workspace 包声明；测试资产构建通过，实际 Electron 验收仍显式在已有实例执行。桌面 source 条件解析测试改名并保留于 scripts/dev/desktop-source-resolution.test.mjs，迁移后通过。
 

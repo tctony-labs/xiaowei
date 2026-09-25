@@ -18,7 +18,7 @@ Storage、搜索／剪贴板业务、LLM 和桌面装配测试归 [desktop/tests
 
 `ts/test/worker.test.ts` 使用真实 Node Worker，验证 typed handler 的线程归属、交错流、执行配额、超时后仍占许可、pending open／next／return 的取消、权限回传和子流寿命、CPU 阻塞下 main 继续响应、错误／退出／替换、损坏帧与 token 拒绝、传输表及 payload 上限。控制门闩走独立测试 MessagePort，不把测试信号混入 Gateway 协议。
 
-`ts/test/worker-built.test.mjs` 由统一入口在构建后运行，再由 plain Node 消费 `/worker-host` 和 `/worker` 导出，验证实际 dist 路径及 PB 字节往返；该模式不加载 tsx。源码 fixture 由单次 `tsx/esm/api` 的 tsImport 加载，保持 binding、endpoint 与 GatewayFailure 的模块身份一致。
+`ts/test/worker-built.test.mjs` 由统一入口在构建后运行，再由 plain Node 消费 `/worker-host` 和 `/worker` 导出，验证实际 dist 路径及 PB 字节往返；该模式不加载 tsx，也不启用 `source`；其他源码测试显式启用 `source`，不依赖它生成的 dist。源码 fixture 由单次 `tsx/esm/api` 的 tsImport 加载，保持 binding、endpoint 与 GatewayFailure 的模块身份一致。
 
 `ts/test/rust-napi/worker.test.ts` 在上述 fixture addon 构建窗口执行 Rust typed caller → napi → main → Worker 联调；验证多段 PB 顺序、部分数据后失败、pending next 取消和 worker 退出，不修改业务 proto 或 Rust 生产源码。
 
@@ -34,4 +34,4 @@ cargo run -q -p xw-gateway --example generate_fixture > gateway/rust/tests/fixtu
 
 `electron/` 保存真实 contextBridge 验收脚本及 preload／renderer 测试资产。依赖由本目录的私有 workspace 包 `@xiaowei/gateway-tests` 声明。
 
-`pnpm --filter @xiaowei/gateway-tests build:electron` 只构建测试资产并输出临时目录。`electron/run.mjs` 仍需在已有 Electron 主进程的调试会话中导入并调用 `run(directory)`；执行前构建 Gateway dist 和原生 fixture，沿用现有验收流程。它创建隔离测试窗口，结束后清理，不属于 `pnpm test` 自动执行范围。
+`pnpm --filter @xiaowei/gateway-tests build:electron` 只构建测试资产并输出临时目录。main／preload／renderer 均内联 Gateway 源码，无需 Gateway dist。在已有 Electron 主进程的调试会话中导入输出目录的 `main.mjs` 并调用 `run(directory)`；执行前构建原生 fixture 和正式 Storage addon。main 资产中的原生包与 fixture 路径固定到生成它的 checkout，移动 checkout 后需重新构建。它创建隔离测试窗口，结束后清理，不属于 `pnpm test` 自动执行范围。

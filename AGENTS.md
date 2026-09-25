@@ -36,6 +36,8 @@
 
 ## 工作区及模块
 
+- 工作区业务模块与测试必须通过已声明的 workspace 依赖和公开入口消费其他模块源码，不得依赖其他包的 dist 或增加预构建来掩盖源码解析问题。Node loader、source 条件、子进程及本包构建产物验收例外见 [Workspace 源码消费](docs/workspace.md#workspace-源码消费)。
+
 - 调整工作区目录、工具链、依赖管理或构建流程前，先完整读取并遵循 [工作区开发](docs/workspace.md)，变更后同步更新该文档。
 - 开发过程中拟新增 Rust crate 或 npm package 时，先向用户说明其用途、边界和放置位置，获得确认后再创建。
 - 创建或修改 `contracts/proto/xiaowei/` 下的业务契约前，先完整读取并遵循 [业务契约的创建与维护](contracts/proto/xiaowei/README.md)。

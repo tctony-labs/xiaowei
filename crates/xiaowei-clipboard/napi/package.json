@@ -16,9 +16,13 @@
     "build": "node ../../../scripts/dev/build-napi.mjs --release",
     "build:debug": "node ../../../scripts/dev/build-napi.mjs",
     "check": "cargo check -p xiaowei-clipboard-napi --locked",
-    "test": "node --test test/*.test.cjs"
+    "test": "node --conditions=source --import tsx --test test/*.test.cjs"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.10.1"
+    "@napi-rs/cli": "3.10.1",
+    "tsx": "4.23.13",
+    "xiaowei-gateway": "workspace:*",
+    "xiaowei-storage": "workspace:*",
+    "xiaowei-search": "workspace:*"
   }
 }

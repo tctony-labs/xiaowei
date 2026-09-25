@@ -8,10 +8,9 @@
 
 ## 真实 LLM 调用
 
-先构建 Gateway 和 desktop：
+先构建 desktop 自身 worker；Gateway 通过源码条件加载：
 
 ```sh
-pnpm --filter xiaowei-gateway build
 pnpm --dir desktop build
 ```
 
@@ -20,8 +19,8 @@ pnpm --dir desktop build
 先列出 UI 保存的模型引用，再选择调用：
 
 ```sh
-pnpm --dir desktop exec tsx scripts/verify-llm.mjs --config /absolute/path/models.json --list
-pnpm --dir desktop exec tsx scripts/verify-llm.mjs --config /absolute/path/models.json --model <本地模型ID> --mode complete
+pnpm --dir desktop exec tsx --conditions=source scripts/verify-llm.mjs --config /absolute/path/models.json --list
+pnpm --dir desktop exec tsx --conditions=source scripts/verify-llm.mjs --config /absolute/path/models.json --model <本地模型ID> --mode complete
 ```
 
 --list 显示提供方名称、模型显示名称、稳定模型 ID 和当前可用性，不输出凭据。apiKeyEnv 对应非空环境变量优先，否则回退文件 apiKey；两者没有值时不会发送请求。修改 UI 配置后再次运行脚本即可验证保存结果；脚本加载文件不写回、不更改应用正在使用的 worker。

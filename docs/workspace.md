@@ -119,6 +119,14 @@ desktop 固定依赖 Pi `@earendil-works/pi-ai@0.87.1`；第三方补丁通过�
 
 Go 测试保护健康检查路由和方法边界；桌面自动回归通过 `pnpm --dir desktop test` 执行。旧 Electron 冒烟脚本已移除，当前没有应用级 E2E 入口。
 
+## Workspace 源码消费
+
+工作区业务模块、开发工具与测试通过已声明的 `workspace:*` 依赖和公开包入口消费其他 workspace 模块的源码，不得直接引用其他包的 `dist`，也不得通过默认 exports 隐式依赖其预构建产物。不要用跨包私有源码相对路径替代公开入口。
+
+提供源码条件导出的包（如 Gateway），由 bundler 显式启用 `source` 条件；Node 测试使用 `node --conditions=source --import tsx` 或 `tsx --conditions=source`。TS loader 与 export 条件各司其职，只有 loader 不会选择源码 export。通过 `process.execPath` 启动的子进程必须显式传递条件和 loader；不要盲目继承包含 `--test` 的全部父进程参数。同一进程保持统一加载方式，避免 Gateway 注册表和错误类型出现多份模块身份。
+
+包自身的构建产物验收可以显式构建并用 plain Node 检查自己的输出，例如 Gateway 的 `worker-built.test.mjs`；它不启用 `source` 条件，不为其他业务测试提供构建前置。原生 `.node` 和桌面自身 worker 的构建仍是对应测试所需步骤。根测试继续串行运行 workspace，避免共用 napi fixture 互相覆盖。
+
 ## 进程与资源边界
 
 所有工作区通过 `just start` 共用一个开发实例入口，PID 文件与旧 `xiaowei-next` 共用。切换工作区启动时会停止旧实例；启动脚本退出时清理自己拥有的进程树。正常停止先通知开发控制进程走 graceful shutdown；超时后才冻结残留进程树并逐层清理，避免监控器在兜底清理期间重新拉起应用。仅当 PID 文件仍指向自己时删除文件。冷启动由用户操作；Agent 必须先确认当前工作区有活实例，才能执行 `just rs`。
@@ -175,7 +183,7 @@ Launcher 内置命令目前提供 macOS「切换系统主题」和开发态 `rs`
 
 桌面业务通过 Gateway 统一通信。owner 装配与生命周期见 [main 模块组织](../desktop/src/main/README.md#gateway-装配与生命周期)，client 与 service 使用约定见 [Renderer 开发](../desktop/src/renderer/README.md#gateway-业务调用)；通用接口与验证入口见 [Gateway](../gateway/README.md)。
 
-桌面类型检查直接检查 Gateway 源码；main、preload、renderer 和 Storybook 的构建通过 `source` 条件消费 Gateway 源码，main/preload 的 SSR 解析也使用该条件。开发与构建不依赖预先生成或重写 Gateway dist，避免桌面重启因改写 dist 触发无关的 renderer HMR；真实源码变化仍可触发 HMR。普通 Node 消费使用包的 dist 入口，构建流程以对应包脚本为准。
+桌面类型检查直接检查 Gateway 源码；main、preload、renderer 和 Storybook 的构建通过 `source` 条件消费 Gateway 源码，main/preload 的 SSR 解析也使用该条件。开发与构建不依赖预先生成或重写 Gateway dist，避免桌面重启因改写 dist 触发无关的 renderer HMR；真实源码变化仍可触发 HMR。工作区业务模块与测试遵循 [Workspace 源码消费](#workspace-源码消费) 约定。
 
 桌面 main 构建同时输出 `index.js` 和 `llm-worker.js` 两个 ESM 入口，内联 TS Gateway 与契约代码；Pi 与原生 npm 包保持外置，`.node` 从 ASAR 解包加载。解析条件和打包配置分别由 `desktop/electron.vite.config.ts`、Storybook 配置和 `desktop/electron-builder.json` 维护。
 
