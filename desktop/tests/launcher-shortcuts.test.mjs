@@ -201,3 +201,18 @@ test("other platforms do not configure macOS workspaces", () => {
   configureLauncherWorkspaces({}, "linux");
   configureLauncherWorkspaces({}, "win32");
 });
+
+test("search shortcut preserves quick chat when showing or toggling its window", () => {
+  const hidden = fixture({ visible: false });
+  assert.equal(
+    activateLauncherShortcut(hidden.window, "quick-chat", "search", hidden.show, hidden.opened),
+    "quick-chat",
+  );
+  assert.deepEqual(hidden.calls, [["opened", "quick-chat"], ["show"]]);
+  const visible = fixture();
+  activateLauncherShortcut(visible.window, "quick-chat", "search", visible.show, visible.opened);
+  assert.deepEqual(visible.calls, [["hide"]]);
+  const clipboard = fixture();
+  activateLauncherShortcut(clipboard.window, "quick-chat", "clipboard", clipboard.show, clipboard.opened);
+  assert.deepEqual(clipboard.calls, [["size", 800, 580], ["opened", "clipboard"], ["show"]]);
+});

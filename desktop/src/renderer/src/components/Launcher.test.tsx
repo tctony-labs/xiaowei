@@ -9,12 +9,18 @@ import {
   ClipboardItemsSchema,
   EmptySchema,
   ExecuteResponseSchema,
+  FinishReason,
+  GenerateEventSchema,
   LauncherMode,
   LauncherOpenedSchema,
   LauncherSearchResponseSchema,
   Launcher as LauncherService,
+  Llm,
+  ModelSettings,
+  ModelSettingsChangedSchema,
+  ModelSettingsSnapshotSchema,
 } from "xiaowei-contracts";
-import { bindHandlers } from "xiaowei-gateway";
+import { bindEvent, bindHandlers, bindStreamHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";
 import { Launcher } from "./Launcher";
@@ -52,6 +58,39 @@ function preview(clipboardMode = false) {
       resetPosition: () => create(EmptySchema),
     }),
     [{ name: LauncherOpenedSchema.typeName, policy: "coalesce", validate() {}, matches: () => true }],
+  );
+
+  host.registerOwner(
+    "model-settings",
+    bindHandlers(
+      ModelSettings,
+      {
+        get: () =>
+          create(ModelSettingsSnapshotSchema, {
+            defaults: { modelRef: "default-model" },
+            providers: [{ id: "provider", models: [{ id: "default-model" }] }],
+          }),
+      },
+      { partial: true },
+    ),
+    [bindEvent(ModelSettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  host.registerOwner(
+    "llm",
+    bindStreamHandlers(Llm, {
+      async *generate() {
+        yield create(GenerateEventSchema, {
+          event: {
+            case: "finished",
+            value: {
+              reason: FinishReason.STOP,
+              message: { content: [{ content: { case: "text", value: { text: "Hello from LLM" } } }] },
+            },
+          },
+        });
+      },
+      async *modelCatalog() {},
+    }),
   );
 
   let subscribed = false;
@@ -145,4 +184,27 @@ test("open clipboard after subscription is ready and return with Backspace", asy
     ),
   );
   expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
+});
+
+test("empty search opens native chat layout, sends through Llm and preserves history when collapsed", async () => {
+  const app = preview();
+  const canvas = render(<Launcher services={app.services} />);
+  fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown", isComposing: true });
+  expect(canvas.queryByRole("textbox", { name: "快速对话输入" })).toBeNull();
+  fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
+  const input = await canvas.findByRole("textbox", { name: "快速对话输入" });
+  expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }));
+  fireEvent.change(input, { target: { value: "Hello" } });
+  await waitFor(() => expect(canvas.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.keyDown(input, { key: "Enter" });
+  await canvas.findByText("Hello from LLM");
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }));
+  await waitFor(() =>
+    expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.SEARCH })),
+  );
+  fireEvent.keyDown(await canvas.findByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
+  await canvas.findByText("Hello from LLM");
+  fireEvent.click(canvas.getByRole("button", { name: "新建对话" }));
+  expect(canvas.queryByText("Hello from LLM")).toBeNull();
 });

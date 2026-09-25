@@ -9,6 +9,8 @@ enum LauncherMode {
   LAUNCHER_MODE_UNSPECIFIED = 0;
   LAUNCHER_MODE_SEARCH = 1;
   LAUNCHER_MODE_CLIPBOARD = 2;
+  // Quick Chat presentation; conversation state remains in renderer memory.
+  LAUNCHER_MODE_QUICK_CHAT = 3;
 }
 
 message LauncherQueryRequest {

@@ -3,7 +3,7 @@ import type { LauncherHit as Hit } from "xiaowei-contracts";
 export type LauncherHit = Omit<Hit, "$typeName" | "ranges"> & {
   ranges: { start: number; end: number }[];
 };
-export type LauncherMode = "search" | "clipboard";
+export type LauncherMode = "search" | "clipboard" | "quick-chat";
 export interface SearchResponse {
   token: number;
   hits: LauncherHit[];

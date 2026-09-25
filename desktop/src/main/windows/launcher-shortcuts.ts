@@ -9,12 +9,14 @@ export function activateLauncherShortcut(
   opened: (window: BrowserWindow, mode: LauncherMode) => void,
 ): LauncherMode {
   if (!window || window.isDestroyed()) return currentMode;
+  // The search shortcut toggles the active quick-chat window without discarding its presentation.
+  if (targetMode === "search" && currentMode === "quick-chat") targetMode = "quick-chat";
   if (currentMode === targetMode && window.isVisible() && window.isFocused()) {
     window.hide();
     return currentMode;
   }
   if (currentMode !== targetMode) {
-    window.setSize(800, targetMode === "clipboard" ? 580 : 71);
+    window.setSize(800, targetMode === "search" ? 71 : 580);
   }
   opened(window, targetMode);
   show();

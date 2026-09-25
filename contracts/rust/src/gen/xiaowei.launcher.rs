@@ -132,6 +132,8 @@ pub enum LauncherMode {
     Unspecified = 0,
     Search = 1,
     Clipboard = 2,
+    /// Quick Chat presentation; conversation state remains in renderer memory.
+    QuickChat = 3,
 }
 impl LauncherMode {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -143,6 +145,7 @@ impl LauncherMode {
             Self::Unspecified => "LAUNCHER_MODE_UNSPECIFIED",
             Self::Search => "LAUNCHER_MODE_SEARCH",
             Self::Clipboard => "LAUNCHER_MODE_CLIPBOARD",
+            Self::QuickChat => "LAUNCHER_MODE_QUICK_CHAT",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -151,6 +154,7 @@ impl LauncherMode {
             "LAUNCHER_MODE_UNSPECIFIED" => Some(Self::Unspecified),
             "LAUNCHER_MODE_SEARCH" => Some(Self::Search),
             "LAUNCHER_MODE_CLIPBOARD" => Some(Self::Clipboard),
+            "LAUNCHER_MODE_QUICK_CHAT" => Some(Self::QuickChat),
             _ => None,
         }
     }

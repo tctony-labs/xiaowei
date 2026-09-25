@@ -136,11 +136,20 @@ export function registerSearch(
         const window = windowFor(context);
         if (
           request.resultCount > 30 ||
-          (request.mode !== undefined && request.mode !== WireMode.CLIPBOARD && request.mode !== WireMode.SEARCH)
+          (request.mode !== undefined &&
+            request.mode !== WireMode.CLIPBOARD &&
+            request.mode !== WireMode.SEARCH &&
+            request.mode !== WireMode.QUICK_CHAT)
         )
           throw new Error("Invalid resize");
-        actions.modeChanged(request.mode === WireMode.CLIPBOARD ? "clipboard" : "search");
-        window.setSize(800, request.mode === WireMode.CLIPBOARD ? 580 : launcherHeight(request.resultCount));
+        const mode =
+          request.mode === WireMode.CLIPBOARD
+            ? "clipboard"
+            : request.mode === WireMode.QUICK_CHAT
+              ? "quick-chat"
+              : "search";
+        actions.modeChanged(mode);
+        window.setSize(800, mode === "search" ? launcherHeight(request.resultCount) : 580);
         return create(EmptySchema);
       },
       resetPosition(_request, _client, context) {
@@ -173,7 +182,10 @@ export function registerSearch(
     opened(window: BrowserWindow, mode: LauncherMode) {
       const bytes = toBinary(
         LauncherOpenedSchema,
-        create(LauncherOpenedSchema, { mode: mode === "clipboard" ? WireMode.CLIPBOARD : WireMode.SEARCH }),
+        create(LauncherOpenedSchema, {
+          mode:
+            mode === "clipboard" ? WireMode.CLIPBOARD : mode === "quick-chat" ? WireMode.QUICK_CHAT : WireMode.SEARCH,
+        }),
       );
       for (const entry of opened.values())
         if (entry.contents === window.webContents)

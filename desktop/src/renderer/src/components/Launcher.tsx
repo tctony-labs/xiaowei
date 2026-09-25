@@ -9,10 +9,13 @@ import {
   UpdateLayoutRequestSchema,
 } from "xiaowei-contracts";
 import type { Subscription } from "xiaowei-gateway";
-import type { SearchResponse } from "../../../shared/launcher-model";
+import { launcherHeight, type SearchResponse } from "../../../shared/launcher-model";
 import { services as defaultServices, type Services } from "../services";
 import { ClipboardPage } from "./ClipboardPage";
 import { LauncherSearchBar } from "./LauncherSearchBar";
+import { QuickChatPanel } from "./quick-chat/QuickChatPanel";
+import { QUICK_CHAT_TRANSITION_MS } from "./quick-chat/QuickChatTransition";
+import { useQuickChat } from "./quick-chat/use-quick-chat";
 import { SearchResultList } from "./SearchResultList";
 
 export function Launcher({
@@ -25,6 +28,10 @@ export function Launcher({
   const api = services.getLauncher();
   const gateway = services.getGateway();
   const [clipboardOpen, setClipboardOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const chat = useQuickChat(services);
+  const lastLayoutMode = useRef(LauncherMode.SEARCH);
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<SearchResponse>({ token: 0, hits: [] });
   const [selected, setSelected] = useState(0);
@@ -52,7 +59,9 @@ export function Launcher({
         (bytes) => {
           if (!active) return;
           const { mode } = fromBinary(LauncherOpenedSchema, bytes);
-          if (mode !== LauncherMode.SEARCH && mode !== LauncherMode.CLIPBOARD) return;
+          if (![LauncherMode.SEARCH, LauncherMode.CLIPBOARD, LauncherMode.QUICK_CHAT].includes(mode)) return;
+          setChatOpen(mode === LauncherMode.QUICK_CHAT);
+          if (mode !== LauncherMode.QUICK_CHAT) setChatExpanded(false);
           const nextClipboardOpen = mode === LauncherMode.CLIPBOARD;
           if (nextClipboardOpen !== clipboardOpen) changeQuery("");
           setClipboardOpen(nextClipboardOpen);
@@ -95,16 +104,34 @@ export function Launcher({
     };
   }, [query, api, refreshToken]);
   useEffect(() => {
-    const request = create(UpdateLayoutRequestSchema, {
-      resultCount: error ? 1 : response.hits.length,
-      mode: clipboardOpen ? LauncherMode.CLIPBOARD : LauncherMode.SEARCH,
-    });
-    resizing.current = resizing.current
-      .then(async () => {
-        await api.updateLayout(request);
-      })
-      .catch((error) => console.error("Launcher resize failed", error));
-  }, [response.hits.length, error, api, clipboardOpen]);
+    let disposed = false;
+    const mode = clipboardOpen ? LauncherMode.CLIPBOARD : chatOpen ? LauncherMode.QUICK_CHAT : LauncherMode.SEARCH;
+    const shrinking = lastLayoutMode.current === LauncherMode.QUICK_CHAT && mode === LauncherMode.SEARCH;
+    const request = create(UpdateLayoutRequestSchema, { resultCount: error ? 1 : response.hits.length, mode });
+    const apply = () => {
+      resizing.current = resizing.current
+        .then(async () => {
+          if (disposed) return;
+          await api.updateLayout(request);
+          lastLayoutMode.current = mode;
+          if (!disposed && mode === LauncherMode.QUICK_CHAT) setChatExpanded(true);
+        })
+        .catch((error) => {
+          console.error("Launcher resize failed", error);
+          if (!disposed && mode === LauncherMode.QUICK_CHAT) {
+            setChatOpen(false);
+            setError("打开快速对话失败，请重试");
+          }
+        });
+    };
+    // First enlarge the native window; when leaving chat, allow its closing transition to finish.
+    const timer = shrinking ? setTimeout(apply, QUICK_CHAT_TRANSITION_MS) : undefined;
+    if (!shrinking) apply();
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+    };
+  }, [response.hits.length, error, api, clipboardOpen, chatOpen]);
 
   function hide() {
     void api.hide(create(EmptySchema)).catch((error) => console.error("Launcher hide failed", error));
@@ -132,32 +159,46 @@ export function Launcher({
   }
   if (clipboardOpen)
     return <ClipboardPage onResetPosition={resetPosition} services={services} onBack={() => setClipboardOpen(false)} />;
+  const search = (
+    <LauncherSearchBar
+      embedded
+      query={query}
+      onQueryChange={changeQuery}
+      onDismiss={hide}
+      onResetPosition={resetPosition}
+      onNavigate={(event) => {
+        if (event.key === "ArrowDown" && !query.trim()) {
+          event.preventDefault();
+          setChatOpen(true);
+        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          const delta = event.key === "ArrowDown" ? 1 : -1;
+          setSelected((index) => Math.max(0, Math.min(response.hits.length - 1, index + delta)));
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          void execute(selected);
+        }
+      }}
+    >
+      {error ? (
+        <div role="alert" className="px-6 py-3 text-sm text-muted">
+          {error}
+        </div>
+      ) : (
+        <SearchResultList hits={response.hits} selected={selected} onSelect={setSelected} onConfirm={execute} />
+      )}
+    </LauncherSearchBar>
+  );
   return (
-    <div className="h-screen">
-      <LauncherSearchBar
-        query={query}
-        onQueryChange={changeQuery}
-        onDismiss={hide}
-        onResetPosition={resetPosition}
-        onNavigate={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            const delta = event.key === "ArrowDown" ? 1 : -1;
-            setSelected((index) => Math.max(0, Math.min(response.hits.length - 1, index + delta)));
-          } else if (event.key === "Enter") {
-            event.preventDefault();
-            void execute(selected);
-          }
-        }}
-      >
-        {error ? (
-          <div role="alert" className="px-6 py-3 text-sm text-muted">
-            {error}
-          </div>
-        ) : (
-          <SearchResultList hits={response.hits} selected={selected} onSelect={setSelected} onConfirm={execute} />
-        )}
-      </LauncherSearchBar>
-    </div>
+    <QuickChatPanel
+      {...chat}
+      expanded={chatExpanded}
+      search={search}
+      searchHeight={launcherHeight(error ? 1 : response.hits.length)}
+      onCollapse={() => {
+        setChatExpanded(false);
+        setChatOpen(false);
+      }}
+    />
   );
 }

@@ -38,7 +38,7 @@ const iconButtonClass =
   "hover:bg-neutral-200 hover:text-neutral-700 qc-dark:text-neutral-400 " +
   "qc-dark:hover:bg-neutral-700 qc-dark:hover:text-neutral-100";
 
-export default function QuickChatTitleBar({
+function FullQuickChatTitleBar({
   convId,
   title,
   autoTitle,
@@ -637,5 +637,44 @@ export default function QuickChatTitleBar({
         </p>
       </Modal>
     </>
+  );
+}
+
+interface MinimalTitleBarProps {
+  minimal: true;
+  title: string;
+  isGenerating: boolean;
+  onCreateSession: () => void;
+}
+
+export default function QuickChatTitleBar(props: QuickChatTitleBarProps | MinimalTitleBarProps) {
+  if (!("minimal" in props)) return <FullQuickChatTitleBar {...props} />;
+
+  return (
+    <div
+      data-drag-window
+      className="quick-chat-title-bar launcher-drag flex h-10 shrink-0 items-center gap-2 border-b border-subtle px-4"
+    >
+      <span
+        className={`min-w-0 flex-1 truncate text-sm font-medium ${
+          props.isGenerating ? "quick-chat-title-shimmer" : "text-ink"
+        }`}
+      >
+        {props.title}
+      </span>
+      <button
+        type="button"
+        data-no-drag
+        aria-label="新建对话"
+        title="新建对话"
+        onClick={props.onCreateSession}
+        className="flex size-7 cursor-pointer items-center justify-center rounded text-muted
+          hover:bg-hover hover:text-ink [-webkit-app-region:no-drag]"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
   );
 }
