@@ -24,7 +24,7 @@ const app = Object.assign(new EventEmitter(), {
 let quit = false;
 let failed = false;
 let received: unknown;
-const models: unknown[] = [];
+const models = { path: join(directory, "models.json"), document: { version: 1, providers: [], defaults: {} } };
 let created = false;
 const noop = () => {};
 const originalConsole = { ...console };
@@ -72,8 +72,8 @@ replace("services/shortcuts/shortcuts", {
   createSettingsShortcuts: () => ({ replace: noop, registerInitial: noop, close: noop }),
   shortcutConfig: noop,
 });
-replace("services/llm/startup-config", {
-  loadStartupModels: async () => {
+replace("services/llm/config", {
+  loadConfig: async () => {
     if (failed) throw new Error("configuration failure");
     return models;
   },

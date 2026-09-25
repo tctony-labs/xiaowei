@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import { LlmConfiguration } from "xiaowei-contracts";
+import { Llm } from "xiaowei-contracts";
 import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 import { attachWorker } from "xiaowei-gateway/worker-host";
@@ -20,7 +20,7 @@ export async function attachLlm(
     await worker.terminate();
     throw error;
   }
-  const client = bindClient(LlmConfiguration, host.client({ caller: "llm-configuration", trusted: true }));
+  const client = bindClient(Llm, host.client({ caller: "llm-configuration", trusted: true }));
   let queue: Promise<unknown> = Promise.resolve();
   let closing: Promise<void> | undefined;
   return {
@@ -35,7 +35,7 @@ export async function attachLlm(
       }
       const update = queue.then(async () => {
         if (closing) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "LLM service closed" });
-        await client.replaceModels(request);
+        await client.setModels(request);
       });
       queue = update.catch(() => {});
       return update;

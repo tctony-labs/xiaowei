@@ -63,7 +63,7 @@ just server
 
 pre-commit 通过 `scripts/pre-commit.mjs` 顺序运行 `just fmt` 和 `just check`，任一步失败即阻止提交。若格式化改变了待提交文件，检查通过后仍会中止，提示检查并重新暂存，以免提交格式化前的版本。Hook 不自动 `git add`，保留部分暂存边界；检查针对当前工作区内容，并非暂存区的独立构建。
 
-desktop 固定依赖 Pi `@earendil-works/pi-ai@0.85.1`；第三方补丁通过根 `patchedDependencies` 自动应用，来源、回归与升级步骤见 [补丁维护](../patches/README.md)。
+desktop 固定依赖 Pi `@earendil-works/pi-ai@0.87.1`；第三方补丁通过根 `patchedDependencies` 自动应用，来源、回归与升级步骤见 [补丁维护](../patches/README.md)。
 
 `pnpm install --frozen-lockfile` 只按锁文件安装，清单与锁文件不一致时失败。`Already up to date` 表示依赖已经齐全。`pnpm approve-builds` 用于决定哪些依赖可以执行安装脚本，不是项目编译命令；无需对当前忽略的 `electron-winstaller` 全选放行。以后启用 Squirrel.Windows 打包时再评估该脚本。
 

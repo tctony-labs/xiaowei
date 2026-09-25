@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { toBinary } from "@bufbuild/protobuf";
-import type { Model } from "@earendil-works/pi-ai";
+import { type Model, normalizeContext } from "@earendil-works/pi-ai";
 import { GenerateEventSchema, type GenerateRequest } from "xiaowei-contracts";
 import { GatewayFailure } from "xiaowei-gateway";
 import type { ResolvedModelConfig } from "../shared/models";
@@ -59,7 +59,10 @@ export function generate(
       const model = toPiModel(config);
       const api = apis[config.api]();
       const parameters = { ...options.options, apiKey: config.apiKey, signal: controller.signal };
-      events = options.simple ? api.streamSimple(model, context, parameters) : api.stream(model, context, parameters);
+      const transcript = normalizeContext(context);
+      events = options.simple
+        ? api.streamSimple(model, transcript, parameters)
+        : api.stream(model, transcript, parameters);
       let bytes = 0;
       for await (const event of events) {
         if (signal.aborted) throw new GatewayFailure({ code: "CANCELLED", message: "generation cancelled" });

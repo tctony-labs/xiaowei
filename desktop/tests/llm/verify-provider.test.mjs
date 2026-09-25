@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { llmFixture } from "../fixtures/llm.mjs";
+import { configDocument } from "../fixtures/model-config.mjs";
 
 const execute = (path, mode, id = "test") =>
   new Promise((resolve, reject) => {
@@ -36,7 +37,7 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
     t.after(() => rm(directory, { recursive: true, force: true }));
     const path = join(directory, "models.json");
     const { apiKey: _key, ...model } = fixture.model;
-    await writeFile(path, JSON.stringify({ models: [{ ...model, apiKeyEnv: "VERIFY_KEY" }] }));
+    await writeFile(path, JSON.stringify(configDocument([{ ...model, apiKeyEnv: "VERIFY_KEY" }])));
     for (const mode of ["complete", "cancel"]) {
       const result = await execute(path, mode);
       assert.equal(result.code, 0, result.output);

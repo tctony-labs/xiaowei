@@ -157,18 +157,18 @@ impl ::prost::Name for GenerateEvent {
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReplaceModelsRequest {
+pub struct SetModelsRequest {
     #[prost(message, repeated, tag = "1")]
     pub models: ::prost::alloc::vec::Vec<ModelConfiguration>,
 }
-impl ::prost::Name for ReplaceModelsRequest {
-    const NAME: &'static str = "ReplaceModelsRequest";
+impl ::prost::Name for SetModelsRequest {
+    const NAME: &'static str = "SetModelsRequest";
     const PACKAGE: &'static str = "xiaowei.llm";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.llm.ReplaceModelsRequest".into()
+        "xiaowei.llm.SetModelsRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.llm.ReplaceModelsRequest".into()
+        "/xiaowei.llm.SetModelsRequest".into()
     }
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -608,11 +608,14 @@ impl ::prost::Name for ContentDelta {
         "/xiaowei.llm.ContentDelta".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListModelsRequest {
     /// Uses the connection and credentials from this local model configuration.
     #[prost(string, tag = "1")]
     pub model_ref: ::prost::alloc::string::String,
+    /// Exclusive with model_ref. Resolved credentials; never returned or logged.
+    #[prost(message, optional, tag = "4")]
+    pub connection: ::core::option::Option<CatalogConnection>,
     /// Optional absolute list endpoint, used for compatible servers with a separate catalog URL.
     #[prost(string, optional, tag = "2")]
     pub url: ::core::option::Option<::prost::alloc::string::String>,
@@ -642,6 +645,11 @@ pub struct CatalogModel {
     pub max_tokens: ::core::option::Option<f64>,
     #[prost(enumeration = "ModelInput", repeated, tag = "5")]
     pub input: ::prost::alloc::vec::Vec<i32>,
+    /// Absent means the remote catalog did not report this capability.
+    #[prost(bool, optional, tag = "6")]
+    pub reasoning: ::core::option::Option<bool>,
+    #[prost(string, optional, tag = "7")]
+    pub thinking_level_map_json: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for CatalogModel {
     const NAME: &'static str = "CatalogModel";
@@ -666,6 +674,30 @@ impl ::prost::Name for ListModelsResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.llm.ListModelsResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CatalogConnection {
+    #[prost(string, tag = "1")]
+    pub api: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub base_url: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub api_key: ::prost::alloc::string::String,
+    #[prost(map = "string, string", tag = "4")]
+    pub headers: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+}
+impl ::prost::Name for CatalogConnection {
+    const NAME: &'static str = "CatalogConnection";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.CatalogConnection".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.CatalogConnection".into()
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -733,5 +765,253 @@ impl ModelInput {
             "MODEL_INPUT_IMAGE" => Some(Self::Image),
             _ => None,
         }
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ConfiguredModel {
+    /// Empty for new models; assigned on save. Existing IDs cannot move between providers.
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub model_id: ::prost::alloc::string::String,
+    /// Empty displays model_id.
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(enumeration = "ModelInput", repeated, tag = "4")]
+    pub input: ::prost::alloc::vec::Vec<i32>,
+    #[prost(bool, tag = "5")]
+    pub reasoning: bool,
+    #[prost(string, optional, tag = "6")]
+    pub thinking_level_map_json: ::core::option::Option<::prost::alloc::string::String>,
+    /// Absent defaults to 131072 / 16384 tokens. Positive integers, output <= context.
+    #[prost(double, optional, tag = "7")]
+    pub context_window: ::core::option::Option<f64>,
+    #[prost(double, optional, tag = "8")]
+    pub max_tokens: ::core::option::Option<f64>,
+    #[prost(map = "string, string", tag = "9")]
+    pub headers: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    #[prost(string, optional, tag = "10")]
+    pub compat_json: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "11")]
+    pub sampling_params_json: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "12")]
+    pub cost: ::core::option::Option<ModelCostRates>,
+    #[prost(message, repeated, tag = "13")]
+    pub cost_tiers: ::prost::alloc::vec::Vec<ModelCostTier>,
+}
+impl ::prost::Name for ConfiguredModel {
+    const NAME: &'static str = "ConfiguredModel";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ConfiguredModel".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ConfiguredModel".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ConfiguredProvider {
+    /// Empty only in a new draft. Name is trimmed and unique among provider instances.
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "3")]
+    pub preset: ::core::option::Option<::prost::alloc::string::String>,
+    /// SDK provider identity, independent of display name.
+    #[prost(string, tag = "4")]
+    pub provider: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub api: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub base_url: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub api_key_env: ::prost::alloc::string::String,
+    /// Output only; no credential value appears in snapshots or events.
+    #[prost(bool, tag = "8")]
+    pub has_api_key: bool,
+    #[prost(bool, tag = "9")]
+    pub supports_web_socket: bool,
+    /// http or auto; metadata only until a caller applies this preference.
+    #[prost(string, tag = "10")]
+    pub transport: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "11")]
+    pub models: ::prost::alloc::vec::Vec<ConfiguredModel>,
+    /// Output only. Nonempty when the current process cannot resolve credentials.
+    #[prost(string, tag = "12")]
+    pub unavailable_reason: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ConfiguredProvider {
+    const NAME: &'static str = "ConfiguredProvider";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ConfiguredProvider".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ConfiguredProvider".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ApiKeyUpdate {
+    /// Required. Preserve reads the stored key for provider_id; new providers preserve no key.
+    #[prost(oneof = "api_key_update::Operation", tags = "1, 2, 3")]
+    pub operation: ::core::option::Option<api_key_update::Operation>,
+}
+/// Nested message and enum types in `ApiKeyUpdate`.
+pub mod api_key_update {
+    /// Required. Preserve reads the stored key for provider_id; new providers preserve no key.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Operation {
+        #[prost(message, tag = "1")]
+        Preserve(super::super::common::Empty),
+        #[prost(string, tag = "2")]
+        Replace(::prost::alloc::string::String),
+        #[prost(message, tag = "3")]
+        Clear(super::super::common::Empty),
+    }
+}
+impl ::prost::Name for ApiKeyUpdate {
+    const NAME: &'static str = "ApiKeyUpdate";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ApiKeyUpdate".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ApiKeyUpdate".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ModelDefaults {
+    /// Empty means unset. References are stable local model IDs, not upstream IDs.
+    #[prost(string, tag = "1")]
+    pub model_ref: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub small_text_model_ref: ::prost::alloc::string::String,
+    /// Empty means no explicit preference; otherwise must be allowed by the default model.
+    #[prost(string, tag = "3")]
+    pub thinking_level: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ModelDefaults {
+    const NAME: &'static str = "ModelDefaults";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ModelDefaults".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ModelDefaults".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ModelSettingsSnapshot {
+    /// Session revision. Mutations reject stale expected_revision with CONFLICT.
+    #[prost(uint64, tag = "1")]
+    pub revision: u64,
+    #[prost(uint64, tag = "2")]
+    pub applied_revision: u64,
+    #[prost(message, repeated, tag = "3")]
+    pub providers: ::prost::alloc::vec::Vec<ConfiguredProvider>,
+    #[prost(message, optional, tag = "4")]
+    pub defaults: ::core::option::Option<ModelDefaults>,
+    /// Nonempty means saved configuration is not confirmed applied. No upstream diagnostics.
+    #[prost(string, tag = "5")]
+    pub application_error: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ModelSettingsSnapshot {
+    const NAME: &'static str = "ModelSettingsSnapshot";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ModelSettingsSnapshot".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ModelSettingsSnapshot".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ModelSettingsChanged {
+    #[prost(message, optional, tag = "1")]
+    pub snapshot: ::core::option::Option<ModelSettingsSnapshot>,
+}
+impl ::prost::Name for ModelSettingsChanged {
+    const NAME: &'static str = "ModelSettingsChanged";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ModelSettingsChanged".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ModelSettingsChanged".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SaveProviderRequest {
+    #[prost(uint64, tag = "1")]
+    pub expected_revision: u64,
+    #[prost(message, optional, tag = "2")]
+    pub provider: ::core::option::Option<ConfiguredProvider>,
+    #[prost(message, optional, tag = "3")]
+    pub key: ::core::option::Option<ApiKeyUpdate>,
+}
+impl ::prost::Name for SaveProviderRequest {
+    const NAME: &'static str = "SaveProviderRequest";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.SaveProviderRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.SaveProviderRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteProviderRequest {
+    #[prost(uint64, tag = "1")]
+    pub expected_revision: u64,
+    #[prost(string, tag = "2")]
+    pub provider_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for DeleteProviderRequest {
+    const NAME: &'static str = "DeleteProviderRequest";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.DeleteProviderRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.DeleteProviderRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct UpdateModelDefaultsRequest {
+    #[prost(uint64, tag = "1")]
+    pub expected_revision: u64,
+    #[prost(message, optional, tag = "2")]
+    pub defaults: ::core::option::Option<ModelDefaults>,
+}
+impl ::prost::Name for UpdateModelDefaultsRequest {
+    const NAME: &'static str = "UpdateModelDefaultsRequest";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.UpdateModelDefaultsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.UpdateModelDefaultsRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DiscoverModelsRequest {
+    /// A saved ID allows preserving its key; other connection fields come from this draft.
+    #[prost(message, optional, tag = "1")]
+    pub provider: ::core::option::Option<ConfiguredProvider>,
+    #[prost(message, optional, tag = "2")]
+    pub key: ::core::option::Option<ApiKeyUpdate>,
+}
+impl ::prost::Name for DiscoverModelsRequest {
+    const NAME: &'static str = "DiscoverModelsRequest";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.DiscoverModelsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.DiscoverModelsRequest".into()
     }
 }

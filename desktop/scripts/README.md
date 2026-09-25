@@ -15,12 +15,16 @@ pnpm --filter xiaowei-gateway build
 pnpm --dir desktop build
 ```
 
-设置 `XIAOWEI_LLM_CONFIG` 为模型配置 JSON 文件的绝对路径，Key 由条目的 `apiKeyEnv` 引用。配置格式和更新语义见 [LLM record](../../.agent/records/active/2026-09-24-llm-provider.md)。例如：
+配置格式和唯一加载器定义在 [`src/main/services/llm/config.ts`](../src/main/services/llm/config.ts)。应用默认保存到 `~/.xiaowei/models.json`，XIAOWEI_LLM_CONFIG 仍可指定绝对路径覆盖；脚本使用 --config 指定同一文件，或读取该环境变量，不自行寻找 Electron 数据目录。只接受 version: 1 的 providers／models／defaults 格式，旧 models 数组格式已移除，不维护独立测试格式。
+
+先列出 UI 保存的模型引用，再选择调用：
 
 ```sh
-XIAOWEI_LLM_CONFIG=/absolute/path/models.json \
-  pnpm --dir desktop exec tsx scripts/verify-llm.mjs --model <本地配置ID> --mode complete
+pnpm --dir desktop exec tsx scripts/verify-llm.mjs --config /absolute/path/models.json --list
+pnpm --dir desktop exec tsx scripts/verify-llm.mjs --config /absolute/path/models.json --model <本地模型ID> --mode complete
 ```
+
+--list 显示提供方名称、模型显示名称、稳定模型 ID 和当前可用性，不输出凭据。apiKeyEnv 对应非空环境变量优先，否则回退文件 apiKey；两者没有值时不会发送请求。修改 UI 配置后再次运行脚本即可验证保存结果；脚本加载文件不写回、不更改应用正在使用的 worker。
 
 脚本通过 Gateway 调用构建后的 LLM worker 与真实 API，不启动 Electron，只输出脱敏验证结果。
 

@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { type ListModelsRequest, ListModelsResponseSchema, ModelInput } from "xiaowei-contracts";
 import { GatewayFailure } from "xiaowei-gateway";
+import { thinkingLevels } from "../../../../shared/llm-models";
 import type { ResolvedModelConfig } from "../shared/models";
 import { invalid } from "./messages";
 
@@ -9,9 +10,25 @@ export async function* listModels(
   models: ReadonlyMap<string, ResolvedModelConfig>,
   signal: AbortSignal,
 ) {
-  const model = models.get(request.modelRef);
+  if (Boolean(request.modelRef) === Boolean(request.connection)) invalid("provide model reference or connection");
+  const model = request.connection ?? models.get(request.modelRef);
   if (!model) invalid("unknown model reference");
-  const deepseek = new URL(model.baseUrl).hostname === "api.deepseek.com";
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(model.baseUrl);
+  } catch {
+    return invalid("invalid catalog connection");
+  }
+  if (
+    !["http:", "https:"].includes(baseUrl.protocol) ||
+    baseUrl.username ||
+    baseUrl.password ||
+    baseUrl.search ||
+    baseUrl.hash ||
+    !model.apiKey.trim()
+  )
+    invalid("invalid catalog connection");
+  const deepseek = baseUrl.hostname === "api.deepseek.com";
   const openaiCompatible = [
     "openai-completions",
     "openai-responses",
@@ -70,7 +87,19 @@ export async function* listModels(
           throw new GatewayFailure({ code: "HANDLER_ERROR", message: "invalid catalog model" });
         const optionalLimit = (value: unknown) =>
           typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+        const mapping = entry.thinking_level_map;
+        const validMapping =
+          mapping &&
+          typeof mapping === "object" &&
+          !Array.isArray(mapping) &&
+          Object.entries(mapping).every(
+            ([key, value]) =>
+              thinkingLevels.includes(key as (typeof thinkingLevels)[number]) &&
+              (value === null || typeof value === "string"),
+          );
         return {
+          reasoning: typeof entry.reasoning === "boolean" ? entry.reasoning : undefined,
+          thinkingLevelMapJson: validMapping ? JSON.stringify(mapping) : undefined,
           modelId: entry.id,
           name:
             typeof entry.display_name === "string"

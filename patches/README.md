@@ -14,4 +14,4 @@
 
 ## 补丁索引
 
-- [`@earendil-works/pi-ai@0.85.1`](./@earendil-works__pi-ai@0.85.1.patch)：避免工具参数流式输出时重复解析累计 JSON。来源为 deepseek-harness 提交 `46a7f68b0922371ce7144b668b90e377d8e799f4` 的同名补丁。行为、取舍和验证范围见 [LLM provider record](../.agent/records/active/2026-09-24-llm-provider.md)；回归见 [pi-patch.test.mjs](./tests/pi-patch.test.mjs)。
+- [`@earendil-works/pi-ai@0.87.1`](./@earendil-works__pi-ai@0.87.1.patch)：避免工具参数流式输出时重复解析累计 JSON。由 0.85.1 补丁重基至 0.87.1，六处增量解析优化仍需保留；原始来源为 deepseek-harness 提交 `46a7f68b0922371ce7144b668b90e377d8e799f4` 的同名补丁。行为、取舍和验证范围见 [LLM provider record](../.agent/records/active/2026-09-24-llm-provider.md)；回归见 [pi-patch.test.mjs](./tests/pi-patch.test.mjs)。

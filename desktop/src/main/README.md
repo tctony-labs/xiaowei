@@ -66,7 +66,7 @@ services/<service>/
 - main 只创建一个 host。业务 endpoint 复用其模块持有的实例，不能因接入 Gateway 再建一份业务状态。
 - 先接入依赖，再初始化业务模块、启动模块的后台服务；退出时先关闭 Electron 请求入口，再关闭消费者，最后关闭 Storage 等依赖。初始化失败也要关闭尚未完全接入的实例。
 - `app/gateway.ts` 仅调用原生实例的初始化／启动／关闭入口，不判断设置值或编排业务动作。剪贴板的 settings 订阅和 Select 全部在 Rust，main 不再设置剪贴板专属 TS owner。
-- Settings 的校验、持久化和变更协调由 Rust SettingsService 负责；需要立即执行的宿主能力通过 Gateway 调用对应 owner，失败后恢复旧值。owner 不读写设置存储。
+- 通用 Settings 的校验、持久化和变更协调由 Rust SettingsService 负责；需要立即执行的宿主能力通过 Gateway 调用对应 owner，失败后恢复旧值。这些宿主能力 owner 不读写通用设置存储。独立 service 自己拥有的文件配置仍归该 service，其宿主 gateway 模块可持有配置状态和更新协调，文件格式与读写留在配置模块，不按 Settings 页面来源另建模块。
 - handler 的嵌套调用保留原 client 的权限与调用上下文，不能换成高权限宿主 client。窗口目标通过 `electron.target(context)` 取得，不接受请求传入窗口 ID；无有效窗口的调用必须失败。
 - 清理支持重复调用并等待同一次关闭完成。模块后台任务和订阅先停止，再释放 endpoint 与临时资源，避免访问已关闭依赖。
 - preload／renderer 的构建路径从入口传入窗口模块，不能按窗口源码目录推导。

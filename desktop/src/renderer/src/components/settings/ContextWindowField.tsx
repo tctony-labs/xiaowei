@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { COMMON_CONTEXT_WINDOWS } from "./context-window-presets";
 import Select from "./Select";
-
-const CUSTOM = "custom";
 
 interface ContextWindowFieldProps {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
-  /** 未设置时下拉框显示的文案，如「未设置」「跟随默认」。 */
+  /** 输入为空时的占位文案。 */
   unsetLabel: string;
+  suggestedValue?: number;
   presets?: Array<{ tokens: number; label: string }>;
   customLabel?: string;
 }
@@ -18,58 +17,49 @@ export default function ContextWindowField({
   onChange,
   unsetLabel,
   presets = COMMON_CONTEXT_WINDOWS,
-  customLabel = "自定义 token 数",
+  suggestedValue,
+  customLabel = "上下文窗口大小",
 }: ContextWindowFieldProps) {
-  const isCommon = value != null && presets.some((option) => option.tokens === value);
-  // null 表示使用下拉档位；字符串同时承载自定义模式和输入草稿，确保清空输入时不会立刻
-  // 退出自定义模式。
-  const [customDraft, setCustomDraft] = useState<string | null>(value != null && !isCommon ? String(value) : null);
-  const draftMatchesValue =
-    customDraft !== null &&
-    ((value == null && (!customDraft || !Number.isSafeInteger(Number(customDraft)) || Number(customDraft) < 1)) ||
-      Number(customDraft) === value);
-  // 弹窗先挂载、再从 provider 同步表单值，因此最新 value 是自定义值时直接回显，不能只
-  // 依赖 useState 初始化。匹配当前值的 draft 则表示用户主动进入了自定义模式。
-  const customInput = draftMatchesValue ? customDraft : value != null && !isCommon ? String(value) : null;
-
-  const options = [
-    { value: "", label: unsetLabel },
-    ...presets.map((option) => ({ value: String(option.tokens), label: option.label })),
-    { value: CUSTOM, label: "自定义" },
-  ];
-
-  const selected = customInput !== null ? CUSTOM : value != null ? String(value) : "";
-
-  const handleSelect = (next: string) => {
-    if (next === CUSTOM) {
-      setCustomDraft(value == null ? "" : String(value));
-      return;
-    }
-    setCustomDraft(null);
-    onChange(next ? Number(next) : undefined);
-  };
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const choices = [...presets];
+  if (suggestedValue != null && !choices.some((option) => option.tokens === suggestedValue)) {
+    const label = suggestedValue % 1000 === 0 ? `${suggestedValue / 1000}K` : suggestedValue.toLocaleString();
+    choices.push({ tokens: suggestedValue, label });
+    choices.sort((a, b) => a.tokens - b.tokens);
+  }
+  const options = choices.map((option) => ({ value: String(option.tokens), label: option.label }));
 
   return (
-    <div className="flex items-center gap-2">
-      {/* 自定义值直接输入 token 数，避免 number 的上下步进箭头。 */}
-      {customInput !== null && (
-        <input
-          type="text"
-          inputMode="numeric"
-          aria-label={customLabel}
-          value={customInput}
-          onChange={(event) => {
-            const digits = event.target.value.replace(/\D/g, "");
-            setCustomDraft(digits);
-            const tokens = Number(digits);
-            onChange(digits && Number.isSafeInteger(tokens) && tokens > 0 ? tokens : undefined);
-          }}
-          placeholder="tokens"
-          className="w-24 rounded-lg border border-line bg-surface px-2 py-1 text-[13px] text-ink outline-none
-              placeholder:text-muted focus:border-primary"
-        />
-      )}
-      <Select options={options} value={selected} onChange={handleSelect} menuPortal />
+    <div
+      ref={anchorRef}
+      className="flex shrink-0 items-center rounded-lg border border-line bg-surface focus-within:border-primary"
+    >
+      <input
+        type="text"
+        inputMode="numeric"
+        aria-label={customLabel}
+        value={value ?? ""}
+        onChange={(event) => {
+          const digits = event.target.value.replace(/\D/g, "");
+          const tokens = Number(digits);
+          onChange(digits && Number.isSafeInteger(tokens) && tokens > 0 ? tokens : undefined);
+        }}
+        placeholder={unsetLabel}
+        className="w-[calc(8ch+0.75rem)] bg-transparent py-1 pl-1.5 pr-0.5 text-right text-[13px] tabular-nums
+          text-ink outline-none placeholder:text-muted"
+      />
+      <Select
+        options={options}
+        value={value == null ? "" : String(value)}
+        onChange={(next) => onChange(Number(next))}
+        iconOnly
+        ariaLabel={`选择${customLabel}`}
+        className="shrink-0"
+        buttonClassName="!border-0 !rounded-l-none !pl-1.5 !pr-1.5"
+        menuAnchorRef={anchorRef}
+        menuPlacement="top"
+        menuPortal
+      />
     </div>
   );
 }

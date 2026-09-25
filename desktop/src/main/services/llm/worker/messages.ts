@@ -1,6 +1,14 @@
 import { Buffer } from "node:buffer";
 import { create } from "@bufbuild/protobuf";
-import type { Context, Message, AssistantMessage as PiAssistant, Tool, Usage } from "@earendil-works/pi-ai";
+import type {
+  Context,
+  JsonObject,
+  JsonValue,
+  Message,
+  AssistantMessage as PiAssistant,
+  Tool,
+  Usage,
+} from "@earendil-works/pi-ai";
 import {
   type AssistantMessage,
   AssistantMessageSchema,
@@ -17,8 +25,8 @@ export function invalid(message: string): never {
   throw new GatewayFailure({ code: "INVALID_ARGUMENT", message });
 }
 
-export function json(value: string, object = false): unknown {
-  let parsed: unknown;
+export function json(value: string, object = false): JsonValue {
+  let parsed: JsonValue;
   try {
     parsed = JSON.parse(value);
   } catch {
@@ -147,7 +155,7 @@ function decodeBlock(block: ContentBlock): PiBlock | { type: "image"; mimeType: 
         type: "toolCall",
         id: content.value.id,
         name: content.value.name,
-        arguments: json(content.value.argumentsJson, true) as Record<string, unknown>,
+        arguments: json(content.value.argumentsJson, true) as JsonObject,
         thoughtSignature: content.value.thoughtSignature,
         namespace: content.value.namespace,
       };

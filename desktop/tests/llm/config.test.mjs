@@ -3,8 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { loadConfig, normalizeConfig, resolveModels as resolveDocument } from "../../src/main/services/llm/config.ts";
 import { decodeModels, encodeModels } from "../../src/main/services/llm/shared/configuration-codec.ts";
-import { loadStartupModels, resolveModels } from "../../src/main/services/llm/startup-config.ts";
+import { configDocument } from "../fixtures/model-config.mjs";
+
+const resolveModels = (models, env) => resolveDocument(normalizeConfig(configDocument(models)), env);
+
 import { toPiModel } from "../../src/main/services/llm/worker/provider.ts";
 
 const model = {
@@ -47,7 +51,7 @@ test("configuration resolves credentials and preserves independent model snapsho
 
 test("invalid configurations fail without exposing credentials", () => {
   for (const change of [
-    { apiKey: undefined },
+    { apiKey: undefined, apiKeyEnv: undefined },
     { id: "" },
     { api: "unknown" },
     { contextWindow: 1 },
@@ -64,21 +68,21 @@ test("invalid configurations fail without exposing credentials", () => {
   assert.throws(() => resolveModels([model, model], {}), invalid);
 });
 
-test("startup loads only the explicit file and rejects malformed input safely", async (t) => {
+test("startup loads the versioned file and rejects legacy or malformed input", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "llm-config-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const path = join(directory, "models.json");
-  assert.deepEqual(await loadStartupModels({}), []);
+  assert.deepEqual((await loadConfig({}, path)).document.providers, []);
   for (const value of ["", "relative.json", path]) {
-    await assert.rejects(loadStartupModels({ XIAOWEI_LLM_CONFIG: value }), invalid);
+    await assert.rejects(loadConfig({ XIAOWEI_LLM_CONFIG: value }));
   }
-  await writeFile(path, '{"secret":');
-  await assert.rejects(loadStartupModels({ XIAOWEI_LLM_CONFIG: path }), invalid);
-  await writeFile(path, JSON.stringify({ models: [model] }));
-  assert.equal(
-    (await loadStartupModels({ XIAOWEI_LLM_CONFIG: path, TEST_KEY: "file-secret" }))[0].apiKey,
-    "file-secret",
-  );
+  for (const input of ['{"secret":', JSON.stringify({ models: [model] })]) {
+    await writeFile(path, input);
+    await assert.rejects(loadConfig({ XIAOWEI_LLM_CONFIG: path }), invalid);
+  }
+  await writeFile(path, JSON.stringify(configDocument([model])));
+  const { document } = await loadConfig({ XIAOWEI_LLM_CONFIG: path });
+  assert.equal(resolveDocument(document, { TEST_KEY: "file-secret" })[0].apiKey, "file-secret");
 });
 
 test("every configured API has a public lazy Pi adapter", async () => {

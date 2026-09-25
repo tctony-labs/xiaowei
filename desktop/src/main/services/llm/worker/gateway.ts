@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { EmptySchema, Llm, LlmConfiguration, ModelCatalog } from "xiaowei-contracts";
+import { EmptySchema, Llm } from "xiaowei-contracts";
 import { bindHandlers, bindStreamHandlers } from "xiaowei-gateway";
 import { decodeModels } from "../shared/configuration-codec";
 import { configureModels, type ResolvedModelConfig } from "../shared/models";
@@ -10,6 +10,7 @@ export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
   let models = configureModels(configs);
   const streams = bindStreamHandlers(Llm, {
     generate: (request, _client, signal) => generate(request, models, signal),
+    modelCatalog: (request, _client, signal) => listModels(request, models, signal),
   }).map((registration) => ({
     ...registration,
     streamPolicy: {
@@ -21,11 +22,8 @@ export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
   }));
   return [
     ...streams,
-    ...bindStreamHandlers(ModelCatalog, {
-      listModels: (request, _client, signal) => listModels(request, models, signal),
-    }),
-    ...bindHandlers(LlmConfiguration, {
-      replaceModels(request) {
+    ...bindHandlers(Llm, {
+      setModels(request) {
         const next = decodeModels(request.models);
         models = next;
         return create(EmptySchema);

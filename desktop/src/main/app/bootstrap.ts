@@ -6,7 +6,7 @@ import { app, clipboard, globalShortcut, protocol, screen, shell } from "electro
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
-import { loadStartupModels } from "../services/llm/startup-config";
+import { loadConfig } from "../services/llm/config";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
@@ -66,7 +66,7 @@ export function startApplication(moduleDir: string): void {
       .whenReady()
       .then(async () => {
         installMenu(settingsWindow.open);
-        const models = await loadStartupModels(process.env);
+        const models = await loadConfig(process.env, paths.models);
         gateway = await createApplicationGateway(
           paths.clipboard,
           paths.database,

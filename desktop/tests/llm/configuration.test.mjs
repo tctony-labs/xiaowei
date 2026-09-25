@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { LlmConfiguration, ReplaceModelsRequestSchema } from "xiaowei-contracts";
+import { Llm, SetModelsRequestSchema } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
@@ -37,10 +37,10 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
 
   test(`${api}: malformed updates are atomic and later updates still work`, async (t) => {
     const fixture = await llmFixture(t, undefined, api);
-    const configurations = bindClient(LlmConfiguration, fixture.host.client({ caller: "test", trusted: true }));
+    const configurations = bindClient(Llm, fixture.host.client({ caller: "test", trusted: true }));
     await assert.rejects(
-      configurations.replaceModels(
-        create(ReplaceModelsRequestSchema, {
+      configurations.setModels(
+        create(SetModelsRequestSchema, {
           models: [{ id: "bad", apiKey: "secret" }],
         }),
       ),
@@ -135,7 +135,7 @@ for (const api of ["openai-completions", "openai-responses"]) {
 
 test("invalid nested compatibility is rejected atomically by both host and worker", async (t) => {
   const fixture = await llmFixture(t, undefined, "anthropic-messages");
-  const configurations = bindClient(LlmConfiguration, fixture.host.client({ caller: "test", trusted: true }));
+  const configurations = bindClient(Llm, fixture.host.client({ caller: "test", trusted: true }));
   const { encodeModels } = await import("../../src/main/services/llm/shared/configuration-codec.ts");
   const invalidArgument = (error) => error.detail?.code === "INVALID_ARGUMENT";
   for (const compat of [
@@ -154,7 +154,7 @@ test("invalid nested compatibility is rejected atomically by both host and worke
     // Bypass host validation to exercise the actual worker's decoded PB boundary.
     const input = encodeModels([replacement, { ...fixture.model, id: "invalid" }]);
     input.models[1].compatJson = JSON.stringify(compat);
-    await assert.rejects(configurations.replaceModels(input), invalidArgument);
+    await assert.rejects(configurations.setModels(input), invalidArgument);
     assert.equal((await collect(await fixture.client.generate(request("正常")))).at(-1).case, "finished");
     assert.equal(fixture.requests.at(-1).body.model, fixture.model.modelId);
     await assert.rejects(fixture.client.generate(request("正常", { modelRef: "invalid" })), /unknown model/);

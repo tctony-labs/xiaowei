@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 // Main owns application directories; native modules own files within their supplied directory.
@@ -7,6 +8,7 @@ export function createPaths(systemAppData: string) {
   return {
     userData,
     appData,
+    models: join(homedir(), ".xiaowei", "models.json"),
     database: join(appData, "storage.sqlite"),
     appIcons: join(appData, "cache", "app-icons"),
     logs: join(appData, "logs"),

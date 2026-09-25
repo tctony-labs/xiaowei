@@ -11,6 +11,11 @@ service Llm {
   // Validation, quota, unsupported output and transport errors use Gateway stream errors.
   // Cancellation closes the stream and aborts the provider; no terminal chunk is guaranteed.
   rpc Generate(GenerateRequest) returns (stream GenerateEvent);
+  // Sets the complete model collection after validation. Empty clears future models.
+  // In-flight requests retain their snapshot. Transport failure may leave the outcome unknown.
+  rpc SetModels(SetModelsRequest) returns (xiaowei.common.Empty);
+  // Streams remote catalog pages without changing configured models. Cancel aborts HTTP.
+  rpc ModelCatalog(ListModelsRequest) returns (stream ListModelsResponse);
 }
 
 message GenerateRequest {
@@ -83,15 +88,7 @@ message GenerateEvent {
   }
 }
 
-// Configuration operations follow the same trusted calling convention as other application services.
-service LlmConfiguration {
-  // Validates the whole list before replacing it. Empty clears models for future requests.
-  // In-flight requests retain their prior configuration, including credentials.
-  // Success acknowledges the replacement; transport failure may leave the outcome unknown.
-  rpc ReplaceModels(ReplaceModelsRequest) returns (xiaowei.common.Empty);
-}
-
-message ReplaceModelsRequest {
+message SetModelsRequest {
   repeated ModelConfiguration models = 1;
 }
 
@@ -262,15 +259,11 @@ message ContentDelta {
   string delta = 3;
 }
 
-service ModelCatalog {
-  // Streams remote model pages without changing configured models. Cancel aborts HTTP and pagination.
-  // API keys are never returned.
-  rpc ListModels(ListModelsRequest) returns (stream ListModelsResponse);
-}
-
 message ListModelsRequest {
   // Uses the connection and credentials from this local model configuration.
   string model_ref = 1;
+  // Exclusive with model_ref. Resolved credentials; never returned or logged.
+  CatalogConnection connection = 4;
   // Optional absolute list endpoint, used for compatible servers with a separate catalog URL.
   optional string url = 2;
   // openai or anthropic. Absent selects the configured protocol/provider's listing format.
@@ -283,8 +276,18 @@ message CatalogModel {
   optional double context_window = 3;
   optional double max_tokens = 4;
   repeated ModelInput input = 5;
+  // Absent means the remote catalog did not report this capability.
+  optional bool reasoning = 6;
+  optional string thinking_level_map_json = 7;
 }
 
 message ListModelsResponse {
   repeated CatalogModel models = 1;
+}
+
+message CatalogConnection {
+  string api = 1;
+  string base_url = 2;
+  string api_key = 3;
+  map<string, string> headers = 4;
 }

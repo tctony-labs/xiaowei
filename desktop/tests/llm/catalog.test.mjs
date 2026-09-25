@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ListModelsRequestSchema, ModelCatalog } from "xiaowei-contracts";
+import { ListModelsRequestSchema, Llm } from "xiaowei-contracts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { llmFixture, waitFor } from "../fixtures/llm.mjs";
 
@@ -38,6 +38,8 @@ for (const format of ["openai", "anthropic"]) {
                 context_window: 8192,
                 max_output_tokens: 1024,
                 input_modalities: ["text", "image"],
+                reasoning: true,
+                thinking_level_map: { low: "low", high: "high", max: "max" },
               },
             ],
             has_more: true,
@@ -52,9 +54,9 @@ for (const format of ["openai", "anthropic"]) {
       server.close();
     });
     const fixture = await llmFixture(t);
-    const catalog = bindStreamClient(ModelCatalog, fixture.host.client({ caller: "catalog-test", trusted: true }));
+    const catalog = bindStreamClient(Llm, fixture.host.client({ caller: "catalog-test", trusted: true }));
     const open = (path) =>
-      catalog.listModels(
+      catalog.modelCatalog(
         create(ListModelsRequestSchema, {
           modelRef: "test",
           format,
@@ -68,6 +70,13 @@ for (const format of ["openai", "anthropic"]) {
       ["one", "two"],
     );
     assert.equal(pages[1].models[0].contextWindow, undefined);
+    assert.equal(pages[1].models[0].reasoning, undefined);
+    assert.equal(pages[0].models[0].reasoning, true);
+    assert.deepEqual(JSON.parse(pages[0].models[0].thinkingLevelMapJson), {
+      low: "low",
+      high: "high",
+      max: "max",
+    });
     assert.equal(
       calls[0].headers[format === "openai" ? "authorization" : "x-api-key"],
       format === "openai" ? "Bearer test-key" : "test-key",

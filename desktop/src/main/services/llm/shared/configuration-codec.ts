@@ -1,10 +1,10 @@
 import { create } from "@bufbuild/protobuf";
-import { type ModelConfiguration, ModelInput, ReplaceModelsRequestSchema } from "xiaowei-contracts";
+import { type ModelConfiguration, ModelInput, SetModelsRequestSchema } from "xiaowei-contracts";
 import { configureModels, invalidConfig, type ResolvedModelConfig } from "./models";
 
 export function encodeModels(entries: readonly ResolvedModelConfig[]) {
   const models = [...configureModels(entries).values()];
-  return create(ReplaceModelsRequestSchema, {
+  return create(SetModelsRequestSchema, {
     models: models.map(({ cost, compat, thinkingLevelMap, samplingParams, input, ...model }) => ({
       ...model,
       input: input.map((value) => (value === "text" ? ModelInput.TEXT : ModelInput.IMAGE)),
