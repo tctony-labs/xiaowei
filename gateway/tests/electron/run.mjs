@@ -10,17 +10,17 @@ import { fileURLToPath } from "node:url";
 import { BrowserWindow, ipcMain } from "electron";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { Storage } from "xiaowei-storage";
 
 const require = createRequire(import.meta.url);
 export async function run(directory) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const nativeDirectory = `${root}gateway/tests/native/search`;
-  const filename = (await readdir(nativeDirectory)).find((name) => name.endsWith(".node"));
-  const native = require(`${nativeDirectory}/${filename}`).createGatewayFixture();
+  const rustAddonDirectory = `${root}target/rust-napi-tests/search`;
+  const filename = (await readdir(rustAddonDirectory)).find((name) => name.endsWith(".node"));
+  const native = require(`${rustAddonDirectory}/${filename}`).createGatewayFixture();
   const host = new GatewayHost();
-  const endpoint = await attachNative(host, "fixture", native);
+  const endpoint = await attachRustNapi(host, "fixture", native);
   const adapter = attachElectron(host, {
     handle(_channel, handler) {
       ipcMain.handle("xiaowei:gateway:acceptance", handler);
@@ -63,7 +63,7 @@ export async function run(directory) {
   let storageOwner;
   try {
     const storage = await Storage.open(join(storageDirectory, "storage.sqlite"));
-    storageOwner = await attachNative(host, "storage", storage.createKeyValueGatewayEndpoint());
+    storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
     const a = await makeWindow();
     const b = await makeWindow();
     const evaluate = (window, expression) => window.webContents.executeJavaScript(expression);
@@ -75,7 +75,7 @@ export async function run(directory) {
 
     await storageOwner.close();
     const reopened = await Storage.open(join(storageDirectory, "storage.sqlite"));
-    storageOwner = await attachNative(host, "storage", reopened.createKeyValueGatewayEndpoint());
+    storageOwner = await attachRustNapi(host, "storage", reopened.createKeyValueGatewayEndpoint());
     assert.deepEqual(await evaluate(b, "api.storage(false)"), { json: '{"enabled":true}' });
 
     await evaluate(

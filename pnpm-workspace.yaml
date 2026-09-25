@@ -8,5 +8,14 @@ packages:
 allowBuilds:
   electron: true
   esbuild: true
+  # Pi dependencies ship runtime artifacts; no install-time preparation is needed.
+  "@google/genai": false
+  protobufjs: false
   # Squirrel.Windows is not a configured packaging target.
   electron-winstaller: false
+patchedDependencies:
+  '@earendil-works/pi-ai@0.87.1': patches/@earendil-works__pi-ai@0.87.1.patch
+
+# Keep Vite's optional tsx peer aligned with the desktop toolchain.
+overrides:
+  tsx: 4.23.13

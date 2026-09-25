@@ -36,10 +36,40 @@ export const ModelPicker: Story = { args: { initialModelDialog: "editCustom" }, 
 export const ModelConfiguration: Story = {
   args: { initialModelDialog: "edit" },
   play: async () => {
-    await userEvent.click(within(document.body).getByRole("button", { name: "配置 deepseek-chat" }));
+    await userEvent.click(within(document.body).getByRole("button", { name: "编辑 deepseek-chat" }));
+  },
+};
+
+export const AddModel: Story = {
+  args: { initialModelDialog: "editCustom" },
+  play: async () => {
+    await userEvent.click(within(document.body).getByRole("button", { name: "+ 添加模型" }));
   },
 };
 
 async function openModelPicker() {
-  await userEvent.click(within(document.body).getByRole("button", { name: "获取可用模型" }));
+  await userEvent.click(within(document.body).getByRole("button", { name: "导入模型" }));
 }
+
+export const EnvironmentCredential: Story = {
+  args: { initialModelDialog: "editCustom", providerWithoutKey: true },
+  play: async () => {
+    await userEvent.type(within(document.body).getByLabelText("API Key 环境变量名（优先使用）"), "CODEX_PROXY_API_KEY");
+  },
+};
+
+export const DeepSeekResponses: Story = {
+  args: { initialModelDialog: "add" },
+  play: async () => {
+    const page = within(document.body);
+    await userEvent.click(page.getByRole("button", { name: "自定义" }));
+    await userEvent.click(page.getByRole("button", { name: "DeepSeek" }));
+    await userEvent.click(page.getByRole("button", { name: "openai-completions" }));
+    await userEvent.click(page.getByRole("button", { name: "openai-responses" }));
+  },
+};
+
+export const ManyModels: Story = {
+  args: { initialModelDialog: "editCustom", modelFetch: "many" },
+  play: openModelPicker,
+};

@@ -1,5 +1,9 @@
 # 第二部分：模型、智能体、对话归档
 
+## 最新范围调整
+
+2026-09-25 远程模型配置已在 LLM 切片中完成并通过用户验收，见 [LLM record](../../records/active/2026-09-24-llm-provider.md#settings-模型配置与持久化)。该部分不再按下文的 Storage／系统加密方案实施：配置通过 UI 管理，默认写入 `~/.xiaowei/models.json`，保留 XIAOWEI_LLM_CONFIG 覆盖，JSON 格式化保存，API Key 明文保存，不监听文件。下文本地模型、智能体、图片生成与归档仍是后续范围；其他搜索源凭据方案未改变。
+
 ## 范围与前置
 
 - 依赖第一部分的设置窗口、类型／默认值／校验／通知模块及真实数据适配；开始接入前还需取得这三页 Storybook UI 的用户确认。继续复用现有 `ModelSettings`、`ModelCatalog`、`AgentSettings`、`ArchiveSettings`；`SettingsPreview.tsx` 不进入产品调用链。

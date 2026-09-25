@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package xiaowei.llm;
+
+import "xiaowei/common.proto";
+import "xiaowei/llm.proto";
+
+// Host-owned persistent model settings. Keys are write-only through this API.
+service ModelSettings {
+  rpc Get(xiaowei.common.Empty) returns (ModelSettingsSnapshot);
+  rpc SaveProvider(SaveProviderRequest) returns (ModelSettingsSnapshot);
+  rpc DeleteProvider(DeleteProviderRequest) returns (ModelSettingsSnapshot);
+  rpc UpdateDefaults(UpdateModelDefaultsRequest) returns (ModelSettingsSnapshot);
+  // Draft connection; does not save or modify the worker's models. Cancel aborts discovery.
+  rpc ListModels(DiscoverModelsRequest) returns (stream ListModelsResponse);
+  // Retries applying the latest saved snapshot, without reloading the file.
+  rpc Reapply(xiaowei.common.Empty) returns (ModelSettingsSnapshot);
+}
+
+message ConfiguredModel {
+  // Empty for new models; assigned on save. Existing IDs cannot move between providers.
+  string id = 1;
+  string model_id = 2;
+  // Empty displays model_id.
+  string name = 3;
+  repeated ModelInput input = 4;
+  bool reasoning = 5;
+  optional string thinking_level_map_json = 6;
+  // Absent defaults to 131072 / 16384 tokens. Positive integers, output <= context.
+  optional double context_window = 7;
+  optional double max_tokens = 8;
+  map<string, string> headers = 9;
+  optional string compat_json = 10;
+  optional string sampling_params_json = 11;
+  ModelCostRates cost = 12;
+  repeated ModelCostTier cost_tiers = 13;
+}
+
+message ConfiguredProvider {
+  // Empty only in a new draft. Name is trimmed and unique among provider instances.
+  string id = 1;
+  string name = 2;
+  optional string preset = 3;
+  // SDK provider identity, independent of display name.
+  string provider = 4;
+  string api = 5;
+  string base_url = 6;
+  string api_key_env = 7;
+  // Output only; no credential value appears in snapshots or events.
+  bool has_api_key = 8;
+  bool supports_web_socket = 9;
+  // http or auto; metadata only until a caller applies this preference.
+  string transport = 10;
+  repeated ConfiguredModel models = 11;
+  // Output only. Nonempty when the current process cannot resolve credentials.
+  string unavailable_reason = 12;
+}
+
+message ApiKeyUpdate {
+  // Required. Preserve reads the stored key for provider_id; new providers preserve no key.
+  oneof operation {
+    xiaowei.common.Empty preserve = 1;
+    string replace = 2;
+    xiaowei.common.Empty clear = 3;
+  }
+}
+
+message ModelDefaults {
+  // Empty means unset. References are stable local model IDs, not upstream IDs.
+  string model_ref = 1;
+  string small_text_model_ref = 2;
+  // Empty means no explicit preference; otherwise must be allowed by the default model.
+  string thinking_level = 3;
+}
+
+message ModelSettingsSnapshot {
+  // Session revision. Mutations reject stale expected_revision with CONFLICT.
+  uint64 revision = 1;
+  uint64 applied_revision = 2;
+  repeated ConfiguredProvider providers = 3;
+  ModelDefaults defaults = 4;
+  // Nonempty means saved configuration is not confirmed applied. No upstream diagnostics.
+  string application_error = 5;
+}
+
+message ModelSettingsChanged {
+  ModelSettingsSnapshot snapshot = 1;
+}
+
+message SaveProviderRequest {
+  uint64 expected_revision = 1;
+  ConfiguredProvider provider = 2;
+  ApiKeyUpdate key = 3;
+}
+
+message DeleteProviderRequest {
+  uint64 expected_revision = 1;
+  string provider_id = 2;
+}
+
+message UpdateModelDefaultsRequest {
+  uint64 expected_revision = 1;
+  ModelDefaults defaults = 2;
+}
+
+message DiscoverModelsRequest {
+  // A saved ID allows preserving its key; other connection fields come from this draft.
+  ConfiguredProvider provider = 1;
+  ApiKeyUpdate key = 2;
+}

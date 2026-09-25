@@ -20,6 +20,12 @@
 
 已实现的协议、注册／请求生命周期、事件、napi 接入与权限边界集中维护在 [Gateway 运行机制](../../../gateway/README.md)，业务装配见 [main 装配约定](../../../desktop/src/main/README.md#gateway-装配与生命周期)与 [renderer 调用约定](../../../desktop/src/renderer/README.md#gateway-业务调用)，生成器细节见 [契约生成机制](../../../contracts/README.md#文件选择与语言映射)。Gateway 根 README 维护共同语义与协议，TS／Rust README 分别维护语言侧 API 和实现约定。纯 Rust 核心、TS host、两个真实 `.node` 间的 TSFN／Promise 链路及 Electron contextBridge 已通过测试。下文保留设计边界；当前接口和生产路由以 Gateway 文档及代码为准。
 
+### 测试职责与入口
+
+当前统一入口为 `pnpm gateway:test`：覆盖 Gateway Rust／TS 核心、worker 源码／构建产物和 `gateway/ts/test/rust-napi/` 的 TS ↔ Rust napi 通信。Storage、搜索／剪贴板业务、LLM、桌面装配等测试归 desktop，由 `pnpm --dir desktop test` 的内部编排执行。测试目录与说明明确标注实现边界，不再以 `native` 泛指 TS、Rust 或 C++。
+
+两个模块共用 `scripts/tests/rust-napi-fixtures.mjs` 的 fixture 构建与正式产物恢复事务，构建产物在 `target/rust-napi-tests/`。任一阶段失败仍尝试恢复全部指定 Rust addon 并核对正式导出；原失败与恢复失败一并报告。根 `pnpm test` 串行运行 workspace，避免同时改写共享 Rust addon 产物。具体测试位置与运行顺序分别见 [Gateway 测试](../../../gateway/tests/README.md)和 [桌面测试](../../../desktop/tests/README.md)。历史 Outcome 中的旧测试命令仅记录当时的验证入口。
+
 ### 统一服务调用
 
 按全局服务名注册 handler，调用方使用 `route + payload`，不绑定具体实现位置。沿用旧版 `XwInvokeRegistry`、`XwEventRegistry`、`xwInvoke`、`xwOn` 的模型：本地命中时直接调用 handler，未命中时通过传输适配层路由到 owner。
@@ -121,14 +127,7 @@ Renderer: xwInvoke("clipboard.list", { query })
 
 renderer 使用 `xwOn("clipboard.changed", handler)` 订阅事件。gateway 按实际窗口／frame 投递，在取消订阅、窗口销毁或重载时清理订阅。沿用旧版 best-effort、at-most-once 事件语义；可靠恢复通过重新读取快照或专门的历史接口实现。
 
-调用方分为两类：
-
-- 可信：不做 IPC 调用授权或白名单检查。当前调用方均为自有业务，包括 renderer、Electron main 和 Rust 模块，默认可信。
-- 不可信：需要显式授权对应的 IPC 白名单，只允许调用已授权的 route；未授权的调用拒绝执行。
-
-信任分类由宿主接入层确定，不通过业务 payload 自报。当前不为自有业务增加逐 route 授权配置；未来接入不可信调用方时显式标记并配置白名单。可信调用不做授权检查，不影响接口参数校验、业务校验、事务约束或订阅生命周期管理。
-
-上图展示通过业务服务查询数据的常用链路，不是 renderer 的权限限制。可信 renderer 可以调用任意已注册的业务 route，不设置 backend-only 限制；涉及领域规则时仍应使用业务服务，避免重复实现业务逻辑。
+用户决定自有业务默认可信，避免按 renderer／main／worker／Rust 位置重复划分调用权限；上图描述业务职责而非授权边界。当前规则已提取到 [Gateway 权限边界](../../../gateway/README.md#权限边界)，包括仅在用户明确要求时配置权限限制或白名单。
 
 ### 远端服务与双向 WebSocket（仅记录，暂不实现）
 
@@ -239,19 +238,19 @@ Rust 业务包依赖 `xw-gateway` 默认核心；其 `napi/Cargo.toml` 才开启
 
 ### 对外接入契约
 
-以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/native` 的 attachNative 已实现；stream 和 Electron 接入均已实现。
+以下为本轮接口职责，核心 Rust／TS 类型已在 Plan 01 落实，见 [Gateway 核心](../../../gateway/README.md)；native endpoint 与 `xiaowei-gateway/rust-napi` 的 attachRustNapi 已实现；stream 和 Electron 接入均已实现。
 
 | 接口 | 调用方与作用 |
 | --- | --- |
 | Rust `register_owner`／事件导出 | 业务模块注册自己的 typed handler 和可订阅事件；业务规则仍调用现有 Service |
 | Rust `call`／`subscribe`／`publish`／`stream` | 业务模块调用或订阅服务，本地优先；不要求调用方知道 JS、Electron 或目标 `.node` |
 | TS host `registerOwner` | main 注册窗口操作、文件打开等 TS handler |
-| TS host `attachNative` | 读取 endpoint manifest，检查全局重名，绑定宿主分配的 owner 上下文和异步 transport；全部成功后对外发布 |
+| TS host `attachRustNapi` | 读取 endpoint manifest，检查全局重名，绑定宿主分配的 owner 上下文和异步 transport；全部成功后对外发布 |
 | TS host `call`／`subscribe`／`stream` | main 本地业务或 Electron ingress 调用统一入口，按 owner 分发 |
 | TS client `invoke`／`on`／`stream`（由契约生成类型） | renderer 使用生成的 typed service client；不保留旧业务 facade |
 | owner handle `close` | 停止接入并注销该实例的 routes／events／订阅，释放回调和在途请求；幂等，不能注销后续重新接入的新实例 |
 
-各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/native` 的适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
+各 `.node` 的 endpoint 提供 manifest、transport 绑定、本地 dispatch、事件订阅／取消、stream open／next／cancel 及关闭能力，统一由 `xiaowei-gateway/rust-napi` 的适配接入。公共适配实现位于 `xw-gateway::napi`；各业务 napi 包仅保留 `#[napi]` 导出薄封装，避免从公共 crate 隐式注册一套独立模块或全局实例。生命周期工厂继续由业务包导出，不能通过普通业务 route 创建任意服务实例。
 
 ### 实际调用链路
 
@@ -276,7 +275,7 @@ main 调用自己的 TS route
 
 事件由 owner 显式导出；同一 Rust registry 内的订阅直接投递，跨模块／renderer 订阅由 main 路由到对应 endpoint 或窗口／frame。`clipboard.changed` 仍是失效通知，消费者重新查询；不因引入 Gateway 变成可靠消息队列。
 
-新增 Rust 业务模块时，只需用 `xw-gateway` 注册 handler／event，在自己的 napi 入口复用可选适配并返回 endpoint，再由 main 调用 `attachNative`；无需修改 Gateway 来识别新的业务名称。新增 TS 服务只需向 main host 注册 handler／event，不需要创建 Rust 包。后续 Storage 遵循同一方式，不是 Gateway 的特殊分支。
+新增 Rust 业务模块时，只需用 `xw-gateway` 注册 handler／event，在自己的 napi 入口复用可选适配并返回 endpoint，再由 main 调用 `attachRustNapi`；无需修改 Gateway 来识别新的业务名称。新增 TS 服务只需向 main host 注册 handler／event，不需要创建 Rust 包。后续 Storage 遵循同一方式，不是 Gateway 的特殊分支。
 
 ### 路由及执行约束
 
@@ -286,13 +285,19 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 
 旧版 payload 为 JSON，新的业务绑定使用 PB 字节，中转层在 napi 侧传 Buffer、Electron 侧传 Uint8Array，不转 Base64／数字数组，不提供任意 JS 对象传输。本地 typed 调用可保留直接调用路径，但不得改变契约／错误语义；旧 handler 适配与 protobuf 接口是本轮显式扩展，不宣称旧版已有此能力。
 
-当前 renderer、main 和 Rust 自有业务全部可信，无逐 route 授权检查；未来不可信入口由宿主注入上下文并应用精确白名单（调用／开流和事件订阅分别授权），不能靠 payload 自报信任。该上下文在嵌套调用中保留，不能经一次可信模块转发后自动升级。窗口身份用于定向操作和生命周期管理，不等于给可信 renderer 增加 backend-only 限制。
+本轮实现保留了自有业务默认可信、嵌套调用保留上下文的决定；当前约定统一见 [Gateway 权限边界](../../../gateway/README.md#权限边界)。
 
 本次不改变数据库所有权、数据目录、表结构、检索语义、图片／长文本存储或 UI；不处理既有剪贴板差异清单。当前不实现 WS／其他 socket、sidecar、Go 服务运行时或 RN 接入；三语言契约产物与远端连接实现是不同范围。Storage 的 DB／KV／Config 设计与验收由其独立 record 承载；本次不先发布占位的 `storage.*` 业务接口。
 
 关键验收：接口同源生成且陈旧绑定被检查阻止；stream 有序、端到端背压、取消和终态无泄漏；Rust 本地调用不经 JS；两个独立 `.node` 经 main 双向调用与订阅；全局重名检查和原子注册；取消订阅／窗口重载／owner 注销无残留；默认可信、白名单不可伪造；图片字节无损；搜索 token 和窗口动作正确；剪贴板原有行为及数据不变。实际验证结果见 Outcome，已完成的 Plan 已删除。
 
 ## Outcome
+
+2026-09-25 将 TS ↔ Rust napi 适配入口统一改名为 `rust-napi.ts`、`xiaowei-gateway/rust-napi`、`attachRustNapi` 和 `RustNapiEndpoint`，同步调用方、测试与说明，不保留旧导出。`pnpm gateway:test`、`pnpm --dir desktop test`、`pnpm --filter xiaowei-clipboard test`（3 项）及 `just check` 均通过；未执行 Electron 运行验收。
+
+2026-09-24 测试归属与入口整理：统一 `gateway:test` 覆盖 Rust／TS 核心、worker 构建产物与 TS ↔ Rust napi 通信；Storage、剪贴板业务、LLM、System 和启动生命周期迁至 desktop，由单一 `test` 内部编排。删除按测试实现细分的 package scripts，原 `native` 测试目录改为 `rust-napi`，只 mock 宿主的装配测试归 `main`；根构建入口改为 `build:rust`。迁移保留原测试及断言，未改变产品 API。
+
+验证通过统一 Gateway 入口（28 项 Rust 测试、3 项文档反例、48 项 TS、1 项构建后 Node、15 项 Rust napi 通信）、统一 desktop 入口（26 项模块、5 项装配、3 项 LLM、64 项组件、10 项 Rust 业务联调）、2 项 fixture 构建／测试失败恢复回归及 `just check`。共享构建／恢复逻辑保留各阶段失败并始终尝试恢复全部 addon，正式 Rust 产物已恢复并检查。迁入 TS 测试纳入 desktop 类型检查；根 workspace 测试串行编排，避免两个入口争用相同 Rust 产物。未启动 Electron，未执行 e2e。
 
 ### Plan 00：契约生成和测试
 
@@ -335,7 +340,7 @@ Rust 绑定使用 Plan 00 已提供的 FileDescriptorSet，在 Gateway 内生成
 
 ### Plan 02：napi 传输适配与联调
 
-2026-09-20 完成可选 `xw-gateway::napi` 适配、两个原生包的 endpoint 薄封装、TS `xiaowei-gateway/native` 接入及真实双 `.node` 测试。没有新增 gateway 原生包或 sidecar；两端 registry 按实例持有，不使用跨动态库共享 static。正式 endpoint 暂无业务 routes，现有搜索／剪贴板 API 继续工作。长期接入、控制编码、生成类型、测试构建及关闭约定见 [Gateway 核心](../../../gateway/README.md)。
+2026-09-20 完成可选 `xw-gateway::napi` 适配、两个原生包的 endpoint 薄封装、TS `xiaowei-gateway/rust-napi` 接入及真实双 `.node` 测试。没有新增 gateway 原生包或 sidecar；两端 registry 按实例持有，不使用跨动态库共享 static。正式 endpoint 暂无业务 routes，现有搜索／剪贴板 API 继续工作。长期接入、控制编码、生成类型、测试构建及关闭约定见 [Gateway 核心](../../../gateway/README.md)。
 
 技术验证确认 Rust future→TSFN→JS Promise→Rust 结果可用，保持 Buffer 字节并捕获 Promise reject 和同步 throw。全局名称先预留，绑定／激活完成后才发布；失败保留旧 owner 并关闭新 native 实例。调用上下文通过 host 维护的 token 沿嵌套请求传播，回退目标仍为来源时立即失败。事件支持 source 晚注册、重连和清理；正常关闭及环境销毁均释放 native 状态与回调。
 

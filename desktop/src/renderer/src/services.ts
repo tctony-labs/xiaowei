@@ -1,5 +1,5 @@
-import { App, ClipboardBiz, KeyValue, Launcher, Settings, System } from "xiaowei-contracts";
-import { bindClient, type Client, type ServiceClient } from "xiaowei-gateway";
+import { App, ClipboardBiz, KeyValue, Launcher, ModelSettings, Settings, System } from "xiaowei-contracts";
+import { bindClient, bindStreamClient, type Client, type ServiceClient, type StreamClient } from "xiaowei-gateway";
 import { createRendererClient } from "xiaowei-gateway/renderer";
 import type {} from "../../shared/gateway-api";
 
@@ -11,6 +11,8 @@ export function createServices(connect: () => Client) {
   let launcher: ServiceClient<typeof Launcher> | undefined;
   let keyValue: ServiceClient<typeof KeyValue> | undefined;
   let apps: ServiceClient<typeof App> | undefined;
+  let modelSettings: ServiceClient<typeof ModelSettings> | undefined;
+  let modelCatalog: StreamClient<typeof ModelSettings> | undefined;
   let settings: ServiceClient<typeof Settings> | undefined;
 
   function getGateway(): Client {
@@ -35,6 +37,14 @@ export function createServices(connect: () => Client) {
     getLauncher() {
       launcher ??= bindClient(Launcher, getGateway());
       return launcher;
+    },
+    getModelSettings() {
+      modelSettings ??= bindClient(ModelSettings, getGateway());
+      return modelSettings;
+    },
+    getModelCatalog() {
+      modelCatalog ??= bindStreamClient(ModelSettings, getGateway());
+      return modelCatalog;
     },
     getSettings() {
       settings ??= bindClient(Settings, getGateway());

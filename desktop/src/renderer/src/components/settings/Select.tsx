@@ -11,6 +11,8 @@ interface SelectProps<T extends string | number> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
+  iconOnly?: boolean;
+  ariaLabel?: string;
   /** 当前值不在 options 中时显示的占位文案。 */
   placeholder?: string;
   /** 外层容器样式。 */
@@ -21,6 +23,9 @@ interface SelectProps<T extends string | number> {
   menuClassName?: string;
   /** 将菜单渲染到 body，避免撑开祖先滚动容器。 */
   menuPortal?: boolean;
+  /** Portal 菜单使用的完整控件边界；指定时严格匹配其宽度。 */
+  menuAnchorRef?: React.RefObject<HTMLElement | null>;
+  menuPlacement?: "top" | "bottom";
 }
 
 export default function Select<T extends string | number>({
@@ -28,14 +33,18 @@ export default function Select<T extends string | number>({
   value,
   onChange,
   disabled,
+  iconOnly = false,
+  ariaLabel,
   placeholder,
   className,
   buttonClassName,
   menuClassName,
   menuPortal = false,
+  menuAnchorRef,
+  menuPlacement = "bottom",
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
-  const [portalPosition, setPortalPosition] = useState({ top: 0, right: 0, minWidth: 0 });
+  const [portalPosition, setPortalPosition] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -58,12 +67,14 @@ export default function Select<T extends string | number>({
   useLayoutEffect(() => {
     if (!open || !menuPortal) return;
     const updatePosition = () => {
-      const rect = buttonRef.current?.getBoundingClientRect();
+      const rect = (menuAnchorRef?.current ?? buttonRef.current)?.getBoundingClientRect();
       if (!rect) return;
       setPortalPosition({
-        top: rect.bottom + 4,
+        ...(menuPlacement === "top"
+          ? { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(0, rect.top - 12) }
+          : { top: rect.bottom + 4 }),
         right: window.innerWidth - rect.right,
-        minWidth: rect.width,
+        ...(menuAnchorRef ? { width: rect.width } : { minWidth: rect.width }),
       });
     };
     updatePosition();
@@ -73,17 +84,38 @@ export default function Select<T extends string | number>({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [menuPortal, open]);
+  }, [menuPortal, open, menuAnchorRef, menuPlacement]);
 
-  // Escape 关闭
+  // 菜单先处理键盘，外层弹窗在 window 冒泡阶段处理未消费的事件。
   useEffect(() => {
     if (!open) return;
+    const buttons = () => Array.from(menuRef.current?.querySelectorAll("button") ?? []);
+    const selectedIndex = options.findIndex((option) => option.value === value);
+    buttons()[Math.max(0, selectedIndex)]?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.isComposing || e.keyCode === 229) return;
+      if (!["Escape", "Enter", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+        return;
+      }
+      const items = buttons();
+      const index = items.findIndex((item) => item === document.activeElement);
+      if (e.key === "Enter") {
+        if (index >= 0) items[index].click();
+        buttonRef.current?.focus();
+      } else if (items.length) {
+        const next = e.key === "ArrowDown" ? index + 1 : index < 0 ? items.length - 1 : index - 1;
+        items[(next + items.length) % items.length].focus();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
+  }, [open, options, value]);
 
   return (
     <div ref={containerRef} className={`relative inline-block ${className ?? ""}`}>
@@ -93,11 +125,13 @@ export default function Select<T extends string | number>({
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
+        aria-label={ariaLabel}
+        aria-expanded={open}
         className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border bg-surface py-1 pr-2
           pl-2.5 text-[13px] leading-[18px] text-ink transition-colors disabled:cursor-not-allowed
           disabled:opacity-50 ${open ? "border-primary" : "border-line hover:border-muted"} ${buttonClassName ?? ""}`}
       >
-        <span>{selectedLabel}</span>
+        {!iconOnly && <span>{selectedLabel}</span>}
         <svg
           className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}
           width="12"

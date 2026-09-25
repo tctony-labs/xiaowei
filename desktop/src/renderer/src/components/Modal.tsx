@@ -31,19 +31,19 @@ export default function Modal({
   useEffect(() => {
     if (!open || inactive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.isComposing || e.keyCode === 229) return;
+      if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
         onClose();
-      } else if (e.key === "Enter" && onConfirm) {
+      } else if (e.key === "Enter" && onConfirm && !(e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault();
         e.stopImmediatePropagation();
         onConfirm();
       }
     };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, inactive, onClose, onConfirm]);
 
   if (!open) return null;

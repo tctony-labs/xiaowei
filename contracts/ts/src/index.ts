@@ -4,6 +4,8 @@ export * from "./gen/xiaowei/clipboard_pb.ts";
 export * from "./gen/xiaowei/common_pb.ts";
 export * from "./gen/xiaowei/kv_pb.ts";
 export * from "./gen/xiaowei/launcher_pb.ts";
+export * from "./gen/xiaowei/llm_pb.ts";
+export * from "./gen/xiaowei/model-settings_pb.ts";
 export * from "./gen/xiaowei/search_pb.ts";
 export * from "./gen/xiaowei/settings_pb.ts";
 export * from "./gen/xiaowei/shortcuts_pb.js";

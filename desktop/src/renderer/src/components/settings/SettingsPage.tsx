@@ -16,10 +16,11 @@ import { applyTheme, themeValue } from "../../theme";
 import { AboutSettings } from "./AboutSettings";
 import { type CleanupStatus, ClipboardSettings } from "./ClipboardSettings";
 import { GeneralSettings } from "./GeneralSettings";
+import { ModelSettingsPage } from "./ModelSettingsPage";
 import SettingsLayout, { type TabId } from "./SettingsLayout";
 import { ShortcutSettings, type Shortcuts } from "./ShortcutSettings";
 
-const tabs: TabId[] = ["general", "shortcut", "clipboard", "about"];
+const tabs: TabId[] = ["general", "shortcut", "clipboard", "llm", "about"];
 
 export function SettingsPage({
   version,
@@ -194,6 +195,8 @@ export function SettingsPage({
             onCleanup={() => void cleanupOrdinary()}
           />
         );
+      case "llm":
+        return <ModelSettingsPage services={services} />;
       case "about":
         return <AboutSettings version={version} development={development} showCheckUpdate={false} />;
       default:

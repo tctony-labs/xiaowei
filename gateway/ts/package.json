@@ -19,10 +19,10 @@
       "source": "./src/core/protocol.ts",
       "import": "./dist/core/protocol.js"
     },
-    "./native": {
-      "types": "./src/main/native.ts",
-      "source": "./src/main/native.ts",
-      "import": "./dist/main/native.js"
+    "./rust-napi": {
+      "types": "./src/main/rust-napi.ts",
+      "source": "./src/main/rust-napi.ts",
+      "import": "./dist/main/rust-napi.js"
     },
     "./electron": {
       "types": "./src/main/electron.ts",
@@ -38,11 +38,21 @@
       "types": "./src/renderer/index.ts",
       "source": "./src/renderer/index.ts",
       "import": "./dist/renderer/index.js"
+    },
+    "./worker-host": {
+      "types": "./src/main/worker.ts",
+      "source": "./src/main/worker.ts",
+      "import": "./dist/main/worker.js"
+    },
+    "./worker": {
+      "types": "./src/worker/endpoint.ts",
+      "source": "./src/worker/endpoint.ts",
+      "import": "./dist/worker/endpoint.js"
     }
   },
   "scripts": {
     "check": "tsgo --noEmit",
-    "test": "tsx --test test/*.test.ts",
+    "test": "node ../tests/run.mjs",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {

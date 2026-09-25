@@ -20,7 +20,7 @@ desktop/src/main/
 ├── index.ts
 ├── app/
 │   ├── bootstrap.ts       # 应用启动、退出、单实例
-│   ├── gateway.ts         # host、owner、native endpoint 装配
+│   ├── gateway.ts         # host、owner、Rust napi endpoint 装配
 │   ├── paths.ts           # 应用路径
 │   ├── logging.ts         # 日志接线
 │   └── menu.ts            # 应用菜单
@@ -30,13 +30,35 @@ desktop/src/main/
 │   ├── navigation.ts      # 导航限制
 │   └── settings.ts
 ├── services/
+│   ├── llm/               # worker 内的 Pi provider 与宿主接线
 │   ├── launcher/gateway.ts
 │   ├── shortcuts/         # 全局快捷键注册与 Gateway owner
 │   └── system/gateway.ts  # Electron 系统与调用方窗口能力
 └── resources/app-icons/  # 图标缓存与协议
 ```
 
-需要接入 Pi 时，将 TS provider 放在 `services/llm/`，由 `app/gateway.ts` 装配和关闭；目录本身不是独立 npm package，不提前创建占位模块。
+## Host 与 worker 的代码组织
+
+service 使用 worker 执行业务时，按执行位置划分目录，让路径直接表达运行边界。位于 `src/main/` 下只表示由 main 装配，不表示全部在主线程执行。
+
+```text
+services/<service>/
+├── host.ts              # main：创建、挂载、关闭 worker，提供宿主调用入口
+├── <host-module>.ts     # 按需保留宿主专属的输入读取或系统接线
+├── shared/              # 两侧实际共用的类型、纯校验与编解码
+└── worker/
+    ├── index.ts         # worker 启动入口，初始化并暴露 endpoint
+    ├── gateway.ts       # 业务 handler 注册与接入
+    └── <business>.ts    # 业务实现、状态及依赖适配
+```
+
+- **host 负责装配，worker 负责业务执行。** host 持有 worker 生命周期和 Gateway 接入；业务状态、执行配额、超时、流状态与取消清理由 worker 内的 service／endpoint 持有，不在 host 重复维护。宿主输入读取与业务处理分开，文件按职责命名。
+- **通过通信边界调用。** host 不导入 `worker/` 的实现，只创建构建后的 worker 入口并通过 Gateway 调用；worker 不导入宿主实现或 Electron，需要宿主能力时通过 Gateway 调用对应 owner。线程传输机制复用 Gateway，不在 service 内另建业务消息通道。
+- **shared 只放两侧真正共用的代码。** 两侧都可依赖 `shared/`，它不反向依赖 host／worker，不加载业务 SDK，不读取文件、环境变量或调用 Electron。类型、纯数据校验和编解码可放入其中；只被一侧使用的实现留在该侧，不为对称而抽取共享层。
+- **共用代码不等于共享状态。** shared 模块在两侧各自执行；跨线程传递可序列化数据，不依赖可变对象引用或模块单例在两侧共享。状态归属和更新语义由所属 service 明确。
+- **入口与构建保持一致。** worker 的 `index.ts` 只做启动接线，构建配置显式指定独立产物，host 使用该产物路径。移动源码时同步更新构建、调用方、测试和验收工具，验证构建后的 worker 能实际加载并完成 Gateway 调用。
+
+该结构只用于实际使用 worker 的 service；按需创建目录，不为普通 service 预建 host／worker／shared 空层。各 service 的具体文件职责、协议和业务行为维护在所属模块文档或 record。
 
 ## Gateway 装配与生命周期
 
@@ -44,7 +66,7 @@ desktop/src/main/
 - main 只创建一个 host。业务 endpoint 复用其模块持有的实例，不能因接入 Gateway 再建一份业务状态。
 - 先接入依赖，再初始化业务模块、启动模块的后台服务；退出时先关闭 Electron 请求入口，再关闭消费者，最后关闭 Storage 等依赖。初始化失败也要关闭尚未完全接入的实例。
 - `app/gateway.ts` 仅调用原生实例的初始化／启动／关闭入口，不判断设置值或编排业务动作。剪贴板的 settings 订阅和 Select 全部在 Rust，main 不再设置剪贴板专属 TS owner。
-- Settings 的校验、持久化和变更协调由 Rust SettingsService 负责；需要立即执行的宿主能力通过 Gateway 调用对应 owner，失败后恢复旧值。owner 不读写设置存储。
+- 通用 Settings 的校验、持久化和变更协调由 Rust SettingsService 负责；需要立即执行的宿主能力通过 Gateway 调用对应 owner，失败后恢复旧值。这些宿主能力 owner 不读写通用设置存储。独立 service 自己拥有的文件配置仍归该 service，其宿主 gateway 模块可持有配置状态和更新协调，文件格式与读写留在配置模块，不按 Settings 页面来源另建模块。
 - handler 的嵌套调用保留原 client 的权限与调用上下文，不能换成高权限宿主 client。窗口目标通过 `electron.target(context)` 取得，不接受请求传入窗口 ID；无有效窗口的调用必须失败。
 - 清理支持重复调用并等待同一次关闭完成。模块后台任务和订阅先停止，再释放 endpoint 与临时资源，避免访问已关闭依赖。
 - preload／renderer 的构建路径从入口传入窗口模块，不能按窗口源码目录推导。

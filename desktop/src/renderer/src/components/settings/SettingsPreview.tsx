@@ -13,6 +13,7 @@ import {
   type ModelValues,
   type Provider,
 } from "./ModelSettings";
+import { deepseekPresetModels } from "./model-provider-presets";
 import SettingsLayout, { type TabId } from "./SettingsLayout";
 import { ShortcutSettings, type Shortcuts } from "./ShortcutSettings";
 
@@ -21,9 +22,10 @@ const providersFixture: Provider[] = [
     id: "deepseek",
     preset: "deepseek",
     name: "deepseek",
-    baseUrl: "https://api.deepseek.com/v1",
+    baseUrl: "https://api.deepseek.com",
     protocol: "openai-completions",
-    transport: "auto",
+    transport: "http",
+    supportsWebSocket: false,
     hasApiKey: true,
     models: ["deepseek-chat", "deepseek-reasoner"],
     modelContextWindows: {},
@@ -80,7 +82,7 @@ export interface PreviewProps {
   localState?: DownloadState;
   initialModelDialog?: ModelSettingsProps["initialDialog"];
   imageTesting?: boolean;
-  modelFetch?: "loading" | "empty" | "error" | "metadata";
+  modelFetch?: "loading" | "empty" | "error" | "metadata" | "many";
   searchConfigured?: boolean;
   initialSearchEditor?: string;
   operationFailure?: boolean;
@@ -255,8 +257,11 @@ export function SettingsPreview(props: PreviewProps) {
               await delay();
               if (props.modelFetch === "error") throw new Error("获取模型失败，请检查地址、协议和 API Key 后重试");
               if (props.modelFetch === "empty") return [];
-              const ids =
-                provider.preset === "deepseek" ? ["deepseek-chat", "deepseek-reasoner"] : ["demo-text", "demo-image"];
+              if (props.modelFetch === "many") {
+                return Array.from({ length: 40 }, (_, index) => ({ id: `preview-model-${index + 1}` }));
+              }
+              if (provider.preset === "deepseek") return deepseekPresetModels;
+              const ids = ["demo-text", "demo-image"];
               return ids.map((id, index) => ({
                 id,
                 contextWindow: props.modelFetch === "metadata" && index === 0 ? 128000 : undefined,
@@ -270,6 +275,19 @@ export function SettingsPreview(props: PreviewProps) {
                 hasApiKey: provider.hasApiKey || !!key,
               };
               setProviders((current) => [...current.filter((p) => p.id !== saved.id), saved]);
+              const previous = providers.find((item) => item.id === saved.id);
+              if (previous && previous.name !== saved.name) {
+                const rename = (model: string) =>
+                  model.startsWith(`${previous.name}/`)
+                    ? `${saved.name}/${model.slice(previous.name.length + 1)}`
+                    : model;
+                setModels((current) => ({
+                  ...current,
+                  defaultModel: rename(current.defaultModel),
+                  smallModel: rename(current.smallModel),
+                  imageModel: rename(current.imageModel),
+                }));
+              }
               return saved;
             }}
             onDeleteProvider={async (id) => {

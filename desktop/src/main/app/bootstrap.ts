@@ -6,6 +6,7 @@ import { app, clipboard, globalShortcut, protocol, screen, shell } from "electro
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
+import { loadConfig } from "../services/llm/config";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
@@ -65,29 +66,36 @@ export function startApplication(moduleDir: string): void {
       .whenReady()
       .then(async () => {
         installMenu(settingsWindow.open);
-        gateway = await createApplicationGateway(paths.clipboard, paths.database, paths.appIcons, {
-          development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
-          platform: process.platform,
-          openExternal: (url) => shell.openExternal(url),
-          writeText: (text) => clipboard.writeText(text),
-          async restart() {
-            const path = join(app.getAppPath(), ".rs");
-            const file = await open(path, "a");
-            await file.close();
-            const now = new Date();
-            await utimes(path, now, now);
+        const models = await loadConfig(process.env, paths.models);
+        gateway = await createApplicationGateway(
+          paths.clipboard,
+          paths.database,
+          paths.appIcons,
+          {
+            development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
+            platform: process.platform,
+            openExternal: (url) => shell.openExternal(url),
+            writeText: (text) => clipboard.writeText(text),
+            async restart() {
+              const path = join(app.getAppPath(), ".rs");
+              const file = await open(path, "a");
+              await file.close();
+              const now = new Date();
+              await utimes(path, now, now);
+            },
+            resetPosition(window) {
+              const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+              positionLauncher(window, workArea);
+            },
+            modeChanged(mode) {
+              launcher.modeChanged(mode);
+            },
+            updateShortcuts(config) {
+              shortcuts.replace(config);
+            },
           },
-          resetPosition(window) {
-            const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-            positionLauncher(window, workArea);
-          },
-          modeChanged(mode) {
-            launcher.modeChanged(mode);
-          },
-          updateShortcuts(config) {
-            shortcuts.replace(config);
-          },
-        });
+          models,
+        );
         await launcher.create();
         const searchWarmup = setTimeout(() => {
           void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));

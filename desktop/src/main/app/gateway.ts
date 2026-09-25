@@ -5,12 +5,16 @@ import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contr
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
-import { attachNative } from "xiaowei-gateway/native";
+import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { createSearchGatewayEndpoint } from "xiaowei-search";
 import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
+import { emptyConfig, type ModelConfigDocument, resolveModels } from "../services/llm/config";
+import { registerModelSettings } from "../services/llm/gateway";
+import { attachLlm } from "../services/llm/host";
+import type { ResolvedModelConfig } from "../services/llm/shared/models";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
@@ -22,6 +26,7 @@ export async function createApplicationGateway(
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
   },
+  config?: { path: string; document: ModelConfigDocument },
 ) {
   const host = new GatewayHost();
   const electron = attachElectron(host, ipcMain);
@@ -30,15 +35,17 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
+  let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
-  let storage: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let clipboardDao: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let search: Awaited<ReturnType<typeof attachNative>> | undefined;
-  let clipboard: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let storage: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let clipboardDao: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let search: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  let clipboard: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   let history: ClipboardHistory | undefined;
   let launcher: ReturnType<typeof registerSearch>;
-  let settings: Awaited<ReturnType<typeof attachNative>> | undefined;
+  let settings: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   const settingsApi = bindClient(Settings, host.client({ caller: "settings-main", trusted: true }));
   const apps = bindClient(App, host.client({ caller: "icon-resources", trusted: true }));
   const readIcon = createAppIconCache(iconDirectory, async (path) => {
@@ -59,15 +66,17 @@ export async function createApplicationGateway(
   }
   let iconProtocolHandled = false;
   try {
+    llm = await attachLlm(host, resolveModels(config?.document ?? emptyConfig(), process.env));
+    if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
     system = registerSystem(host, windowFor);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
-    storage = await attachNative(host, "storage", database.createKeyValueGatewayEndpoint());
-    clipboardDao = await attachNative(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
-    settings = await attachNative(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
-    search = await attachNative(host, "search", createSearchGatewayEndpoint(actions.development));
+    storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+    clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
+    settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
+    search = await attachRustNapi(host, "search", createSearchGatewayEndpoint(actions.development));
     history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
-    clipboard = await attachNative(host, "clipboard", history.createGatewayEndpoint());
+    clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
     await history.initialize();
     await history.startServices();
     console.info("Clipboard history ready");
@@ -82,7 +91,8 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
-    await Promise.allSettled([closeClipboard(), search?.close()]);
+    await modelSettings?.close();
+    await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
     shortcuts?.close();
     system?.close();
     await settings?.close();
@@ -90,9 +100,11 @@ export async function createApplicationGateway(
     await storage?.close();
     throw error;
   }
+  const llmService = llm;
   let closing: Promise<void> | undefined;
   return {
     settings: settingsApi,
+    updateLlmModels: (models: readonly ResolvedModelConfig[]) => llmService.updateModels(models),
     register(window: BrowserWindow) {
       electron.register(window.webContents);
     },
@@ -103,7 +115,8 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
-        const results = await Promise.allSettled([closeClipboard(), search?.close()]);
+        await modelSettings?.close();
+        const results = await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
         shortcuts?.close();
         system?.close();
         await settings?.close();
