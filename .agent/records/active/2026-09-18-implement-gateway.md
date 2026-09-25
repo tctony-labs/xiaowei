@@ -429,3 +429,10 @@ open 前登记取消，native 同步准备请求后才派发异步任务；每�
 Electron 集成验收目录迁至 gateway/tests/electron，依赖由 gateway/tests/package.json 私有 workspace 包声明；测试资产构建通过，实际 Electron 验收仍显式在已有实例执行。桌面 source 条件解析测试改名并保留于 scripts/dev/desktop-source-resolution.test.mjs，迁移后通过。
 
 2026-09-24 整理契约、Gateway 与维护技能的文档职责：README 保留工程入口和稳定规则，具体接口语义留在 proto，运行机制、桌面装配与生成器说明提取到 docs，测试步骤集中到测试目录 README，skill 按改动范围选择生成和验证步骤。本次只调整文档组织，不改变运行行为。
+
+
+### Renderer client 重建后的句柄隔离
+
+2026-09-25 修复热更新重建 renderer client 时订阅／流 ID 从头计数、与同一 preload 会话旧句柄冲突的问题。每个 client 使用随机 UUID 前缀隔离句柄，保留现有会话、ready 和清理语义；当前行为见 [TS Electron 接入](../../../gateway/ts/README.md#electron-接入)。
+
+新增两项同会话 client 重建回归，修改前分别复现 `invalid subscription` 和 `invalid stream`，修改后验证新旧订阅投递、失败清理、旧订阅关闭及流取消互不干扰。原跨 frame 测试改用实际生成的句柄 ID。Gateway TS 31 项测试、check、build、改动源码 Biome 检查及 diff 空白检查通过。修改仅在主工作区完成，未启动或重启桌面；真实窗口热更新体验待用户启动主工作区实例后验证。

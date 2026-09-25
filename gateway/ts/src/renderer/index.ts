@@ -6,11 +6,13 @@ import { decodeFrame, openStream, streamPolicy } from "../core/stream.js";
 export type { GatewayBridge } from "../core/electron-protocol.js";
 
 export function createRendererClient(bridge: GatewayBridge) {
+  // HMR can recreate clients without replacing the preload session.
+  const clientId = crypto.randomUUID();
   let nextId = 0;
   const transport: Transport = {
     invoke: (route, payload) => bridge.request({ operation: "invoke", route, payload }),
     async subscribe(event, filter, sink, persistent = false) {
-      const id = `event:${++nextId}`;
+      const id = `event:${clientId}:${++nextId}`;
       const unlisten = bridge.listen((received, payload) => {
         if (received === id)
           void Promise.resolve(sink(payload)).catch((error) => console.error("Gateway event failed", error));
@@ -33,7 +35,7 @@ export function createRendererClient(bridge: GatewayBridge) {
       };
     },
     async stream(route, payload, options) {
-      const id = `stream:${++nextId}`;
+      const id = `stream:${clientId}:${++nextId}`;
       let sequence = 0;
       const policy = streamPolicy();
       return openStream(

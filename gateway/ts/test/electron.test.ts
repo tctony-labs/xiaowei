@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import type { IpcMain, IpcMainInvokeEvent, IpcRenderer, WebContents } from "electron";
-import { EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
 import { bindClient, bindHandlers, bindStreamClient, bindStreamHandlers } from "../src/binding/index.js";
 import { type ElectronRequest, GATEWAY_CHANNEL } from "../src/core/electron-protocol.js";
 import { GatewayHost } from "../src/core/registry.js";
@@ -25,6 +25,7 @@ function fixture() {
   let next = 0;
   const frame = (trusted = true) => {
     const renderer = new EventEmitter();
+    const requests: ElectronRequest[] = [];
     const contents = Object.assign(new EventEmitter(), {
       id: ++next,
       isDestroyed: () => false,
@@ -39,11 +40,12 @@ function fixture() {
     const ipcRenderer = Object.assign(renderer, {
       invoke(channel: string, message: unknown) {
         assert.equal(channel, GATEWAY_CHANNEL);
+        requests.push(structuredClone(message) as ElectronRequest);
         return Promise.resolve(handler(event, structuredClone(message))).then((result) => structuredClone(result));
       },
     });
     const bridge = createPreloadBridge(ipcRenderer as unknown as IpcRenderer);
-    return { bridge, contents, client: createRendererClient(bridge), ipcRenderer };
+    return { bridge, contents, client: createRendererClient(bridge), ipcRenderer, requests };
   };
   return { host, adapter, frame };
 }
@@ -70,7 +72,9 @@ test("Electron sessions: bytes, trusted access, restricted access and cross-fram
   const sub = await a.client.subscribe("test.Changed", undefined, () => {
     deliveries.push("a");
   });
-  await b.bridge.request({ operation: "unsubscribe", id: "event:1" });
+  const subscriptionId = a.requests.find((request) => request.operation === "subscribe")?.id;
+  assert.ok(subscriptionId);
+  await b.bridge.request({ operation: "unsubscribe", id: subscriptionId });
   owner.publish("test.Changed", new Uint8Array());
   await tick();
   assert.deepEqual(deliveries, ["a"]);
@@ -160,7 +164,9 @@ test("Electron stream next/cancel and navigation during open release producers w
   assert.equal(polls, 0);
   const pending = assert.rejects(stream.next(), /cancelled/);
   await tick();
-  assert.equal((await b.bridge.request({ operation: "stream.next", id: "stream:1" })).ok, false);
+  const streamId = a.requests.find((request) => request.operation === "stream.open")?.id;
+  assert.ok(streamId);
+  assert.equal((await b.bridge.request({ operation: "stream.next", id: streamId })).ok, false);
   await stream.cancel();
   await pending;
   await tick();
@@ -270,4 +276,78 @@ test("cancelled navigation keeps the document session; committed reload replaces
   await assert.rejects(bindClient(Fixture, a.client).echo(input), /closed/);
   subscription.close();
   adapter.close();
+});
+
+test("recreated renderer clients keep subscriptions independent in the same session", async (t) => {
+  const { host, frame, adapter } = fixture();
+  t.after(() => adapter.close());
+  const owner = host.registerOwner(
+    "source",
+    [],
+    [
+      {
+        name: "test.Changed",
+        policy: "ordered",
+        validate() {},
+        matches: () => true,
+      },
+    ],
+  );
+  const a = frame();
+  const deliveries: string[] = [];
+  const oldSubscription = await a.client.subscribe("test.Changed", undefined, () => {
+    deliveries.push("old");
+  });
+
+  // HMR recreates the client while preload and the main frame session survive.
+  const replacement = createRendererClient(a.bridge);
+  const newSubscription = await replacement.subscribe("test.Changed", undefined, () => {
+    deliveries.push("new");
+  });
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.deepEqual(deliveries, ["old", "new"]);
+
+  const failing = createRendererClient(a.bridge);
+  await assert.rejects(failing.subscribe("test.Missing", undefined, () => {}));
+  await tick();
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.deepEqual(deliveries, ["old", "new", "old", "new"]);
+
+  oldSubscription.close();
+  await tick();
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.deepEqual(deliveries, ["old", "new", "old", "new", "new"]);
+
+  newSubscription.close();
+  await tick();
+  owner.publish("test.Changed", new Uint8Array());
+  await tick();
+  assert.deepEqual(deliveries, ["old", "new", "old", "new", "new"]);
+});
+
+test("recreated renderer clients keep streams and cancellation independent", async (t) => {
+  const { host, frame, adapter } = fixture();
+  t.after(() => adapter.close());
+  host.registerOwner(
+    "source",
+    bindStreamHandlers(Fixture, {
+      async *watch(request) {
+        yield create(ChangedSchema, { value: request });
+        yield create(ChangedSchema, { value: request });
+      },
+    }),
+  );
+  const a = frame();
+  const oldStream = await bindStreamClient(Fixture, a.client).watch(create(EnvelopeSchema, { text: "old" }));
+  const replacement = createRendererClient(a.bridge);
+  const newStream = await bindStreamClient(Fixture, replacement).watch(create(EnvelopeSchema, { text: "new" }));
+
+  assert.equal((await oldStream.next()).value?.value?.text, "old");
+  assert.equal((await newStream.next()).value?.value?.text, "new");
+  await oldStream.cancel();
+  assert.equal((await newStream.next()).value?.value?.text, "new");
+  assert.equal((await newStream.next()).done, true);
 });
