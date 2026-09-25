@@ -17,14 +17,14 @@ const addon = require(`${directory}/${readdirSync(directory).find((path) => path
 // calls Llm.Generate with StreamMethod and encodes each typed GenerateEvent back.
 test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, error and cancellation", async (t) => {
   const fixture = await llmFixture(t);
-  const native = await attachRustNapi(fixture.host, "rust-llm-test", addon.createGatewayFixture());
-  t.after(() => native.close());
-  const client = bindStreamClient(Fixture, fixture.host.client({ caller: "llm-native-test", trusted: true }));
-  const open = (text) =>
+  const endpoint = await attachRustNapi(fixture.host, "rust-llm-test", addon.createGatewayFixture());
+  t.after(() => endpoint.close());
+  const client = bindStreamClient(Fixture, fixture.host.client({ caller: "llm-rust-test", trusted: true }));
+  const open = (text, extra = {}) =>
     client.watch(
       create(EnvelopeSchema, {
         text: "llm",
-        blobs: [{ data: toBinary(GenerateRequestSchema, request(text)) }],
+        blobs: [{ data: toBinary(GenerateRequestSchema, request(text, extra)) }],
       }),
     );
   const stream = await open("正常");
@@ -44,6 +44,30 @@ test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, erro
     "你好",
   );
   assert.equal(events[2].value.total, 10n);
+  const structured = await open("", {
+    messages: [
+      {
+        message: {
+          case: "user",
+          value: {
+            content: [{ content: { case: "text", value: { text: "features" } } }],
+            timestampMs: 1n,
+          },
+        },
+      },
+    ],
+  });
+  const blocks = [];
+  for await (const chunk of structured) {
+    blocks.push(fromBinary(GenerateEventSchema, chunk.value.blobs[0].data).event);
+  }
+  assert.ok(blocks.some((event) => event.case === "blockDelta" && event.value.kind === "thinking"));
+  const final = blocks.at(-1).value.message;
+  const call = final.content.find((block) => block.content.case === "toolCall").content.value;
+  assert.deepEqual(JSON.parse(call.argumentsJson), { text: "中文参数" });
+  assert.equal(final.modelId, "text-model");
+  assert.equal(final.usage.total, 9n);
+
   const broken = await open("truncated");
   const failures = [];
   for await (const chunk of broken) {

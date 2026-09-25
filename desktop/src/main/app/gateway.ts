@@ -12,7 +12,7 @@ import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
 import { attachLlm } from "../services/llm/host";
-import type { ModelConfig } from "../services/llm/provider";
+import type { ResolvedModelConfig } from "../services/llm/shared/models";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
@@ -24,7 +24,7 @@ export async function createApplicationGateway(
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
   },
-  models: readonly ModelConfig[] = [],
+  models: readonly ResolvedModelConfig[] = [],
 ) {
   const host = new GatewayHost();
   const electron = attachElectron(host, ipcMain);
@@ -95,9 +95,11 @@ export async function createApplicationGateway(
     await storage?.close();
     throw error;
   }
+  const llmService = llm;
   let closing: Promise<void> | undefined;
   return {
     settings: settingsApi,
+    updateLlmModels: (models: readonly ResolvedModelConfig[]) => llmService.updateModels(models),
     register(window: BrowserWindow) {
       electron.register(window.webContents);
     },

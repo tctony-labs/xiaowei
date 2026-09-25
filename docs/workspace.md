@@ -12,10 +12,10 @@
 | `desktop/resources/logo-clear.png` | 搜索框在明暗主题下共用的透明 Logo |
 | `desktop/resources/logo.png` | 用户提供的原始 Logo，供打包器使用 |
 | `scripts/`、`scripts/dev/` | 性能测量、提交工具；开发启动、构建及并排放置的回归测试 |
-| `desktop/tests/*.test.mjs` | 桌面应用模块测试，由 desktop 的 test 命令执行 |
+| `desktop/tests/` | 桌面自动回归门禁及其运行器、初始化和 fixture，由 desktop 的 test 命令执行 |
 | `packages/source-log/test/` | 日志源码定位包的 Vite、Babel、runtime 测试 |
 | `gateway/tests/electron/` | Gateway 真实 Electron 环境集成验收，单独显式执行 |
-| `desktop/tests/e2e/smoke.mjs` | 使用真实 Electron 的端到端冒烟入口，不随应用打包 |
+| `desktop/scripts/` | 显式执行的真实 LLM 验收工具，不纳入自动门禁；见 [手动验收](../desktop/scripts/README.md) |
 | `server/cmd/xiaowei-server/` | Go 进程入口、监听与信号退出 |
 | `server/internal/httpapi/` | HTTP 路由及测试 |
 | `crates/xiaowei-search/` | 全局搜索核心及 `napi/` npm 入口 |
@@ -117,23 +117,7 @@ desktop 固定依赖 Pi `@earendil-works/pi-ai@0.85.1`；第三方补丁通过�
 
 根 `tsconfig.base.json` 维护共享严格选项；桌面的 `tsconfig.node.json` 与 `tsconfig.web.json` 由 tsgo 分别检查 Node 和浏览器环境。根 `biome.json` 启用 Tailwind 指令解析。代码显示宽度不超过 120；格式工具之外仍需核对含全角字符的行。
 
-Go 测试保护健康检查路由和方法边界；桌面通过真实 Electron 冒烟测试验证。
-
-以下冒烟验证会启动应用，仅由用户执行：
-
-```sh
-just test
-pnpm build
-pnpm --dir desktop smoke
-```
-
-冒烟脚本启动独立测试进程，加载构建后的页面，验证 Node 隔离、页面挂载和 Logo 加载，保存浅色与深色截图到忽略的 `desktop/out/smoke/`，然后退出。测试同工作区时应先关闭该工作区开发实例，避免单实例锁阻止测试启动。
-
-验证开发服务器路径可运行：
-
-```sh
-pnpm --dir desktop exec electron-vite dev --entry tests/e2e/smoke.mjs
-```
+Go 测试保护健康检查路由和方法边界；桌面自动回归通过 `pnpm --dir desktop test` 执行。旧 Electron 冒烟脚本已移除，当前没有应用级 E2E 入口。
 
 ## 进程与资源边界
 

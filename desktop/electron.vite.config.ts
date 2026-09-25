@@ -14,7 +14,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: fileURLToPath(new URL("./src/main/index.ts", import.meta.url)),
-          "llm-worker": fileURLToPath(new URL("./src/main/services/llm/worker.ts", import.meta.url)),
+          "llm-worker": fileURLToPath(new URL("./src/main/services/llm/worker/index.ts", import.meta.url)),
         },
         output: { format: "es", entryFileNames: "[name].js" },
       },

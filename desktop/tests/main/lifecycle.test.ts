@@ -119,6 +119,9 @@ mock.module(new URL("../../src/main/services/llm/host.ts", import.meta.url).href
       calls.push("attach-llm");
       if (failure === "llm") throw new Error("llm failure");
       return {
+        async updateModels() {
+          calls.push("update-llm");
+        },
         async close() {
           calls.push("close-llm");
         },
@@ -159,6 +162,8 @@ test("desktop startup failures unwind producers and owners before Storage closes
         assert.ok(calls.indexOf("attach-storage") < calls.indexOf("attach-clipboard-dao"));
         assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
         if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
+        await gateway.updateLlmModels([]);
+        assert.ok(calls.includes("update-llm"));
         await gateway.close();
         await gateway.close();
         assert.equal(calls.filter((call) => call === "close-storage").length, 1);

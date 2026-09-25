@@ -4,20 +4,22 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Empty, EmptySchema } from "./common_pb";
+import { file_xiaowei_common } from "./common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file xiaowei/llm.proto.
  */
 export const file_xiaowei_llm: GenFile = /*@__PURE__*/
-  fileDesc("ChF4aWFvd2VpL2xsbS5wcm90bxILeGlhb3dlaS5sbG0ioAEKD0dlbmVyYXRlUmVxdWVzdBIRCgltb2RlbF9yZWYYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIRCgl1c2VyX3RleHQYAyABKAkSGAoLdGVtcGVyYXR1cmUYBCABKAFIAIgBARIXCgptYXhfdG9rZW5zGAUgASgNSAGIAQFCDgoMX3RlbXBlcmF0dXJlQg0KC19tYXhfdG9rZW5zIjAKCVRleHREZWx0YRIVCg1jb250ZW50X2luZGV4GAEgASgNEgwKBHRleHQYAiABKAkiYwoKVG9rZW5Vc2FnZRINCgVpbnB1dBgBIAEoBBIOCgZvdXRwdXQYAiABKAQSEgoKY2FjaGVfcmVhZBgDIAEoBBITCgtjYWNoZV93cml0ZRgEIAEoBBINCgV0b3RhbBgFIAEoBCI/ChJHZW5lcmF0aW9uRmluaXNoZWQSKQoGcmVhc29uGAEgASgOMhkueGlhb3dlaS5sbG0uRmluaXNoUmVhc29uIiMKEEdlbmVyYXRpb25GYWlsZWQSDwoHbWVzc2FnZRgBIAEoCSLWAQoNR2VuZXJhdGVFdmVudBIsCgp0ZXh0X2RlbHRhGAEgASgLMhYueGlhb3dlaS5sbG0uVGV4dERlbHRhSAASKAoFdXNhZ2UYAiABKAsyFy54aWFvd2VpLmxsbS5Ub2tlblVzYWdlSAASMwoIZmluaXNoZWQYAyABKAsyHy54aWFvd2VpLmxsbS5HZW5lcmF0aW9uRmluaXNoZWRIABIvCgZmYWlsZWQYBCABKAsyHS54aWFvd2VpLmxsbS5HZW5lcmF0aW9uRmFpbGVkSABCBwoFZXZlbnQqXwoMRmluaXNoUmVhc29uEh0KGUZJTklTSF9SRUFTT05fVU5TUEVDSUZJRUQQABIWChJGSU5JU0hfUkVBU09OX1NUT1AQARIYChRGSU5JU0hfUkVBU09OX0xFTkdUSBACMk0KA0xsbRJGCghHZW5lcmF0ZRIcLnhpYW93ZWkubGxtLkdlbmVyYXRlUmVxdWVzdBoaLnhpYW93ZWkubGxtLkdlbmVyYXRlRXZlbnQwAWIGcHJvdG8z");
+  fileDesc("ChF4aWFvd2VpL2xsbS5wcm90bxILeGlhb3dlaS5sbG0iqQIKD0dlbmVyYXRlUmVxdWVzdBIRCgltb2RlbF9yZWYYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIRCgl1c2VyX3RleHQYAyABKAkSGAoLdGVtcGVyYXR1cmUYBCABKAFIAIgBARIXCgptYXhfdG9rZW5zGAUgASgNSAGIAQESKgoIbWVzc2FnZXMYBiADKAsyGC54aWFvd2VpLmxsbS5DaGF0TWVzc2FnZRIqCgV0b29scxgHIAMoCzIbLnhpYW93ZWkubGxtLlRvb2xEZWZpbml0aW9uEi8KB29wdGlvbnMYCCABKAsyHi54aWFvd2VpLmxsbS5HZW5lcmF0aW9uT3B0aW9uc0IOCgxfdGVtcGVyYXR1cmVCDQoLX21heF90b2tlbnMiMAoJVGV4dERlbHRhEhUKDWNvbnRlbnRfaW5kZXgYASABKA0SDAoEdGV4dBgCIAEoCSLfAQoKVG9rZW5Vc2FnZRINCgVpbnB1dBgBIAEoBBIOCgZvdXRwdXQYAiABKAQSEgoKY2FjaGVfcmVhZBgDIAEoBBITCgtjYWNoZV93cml0ZRgEIAEoBBINCgV0b3RhbBgFIAEoBBIWCglyZWFzb25pbmcYBiABKARIAIgBARIbCg5jYWNoZV93cml0ZV8xaBgHIAEoBEgBiAEBEiQKBGNvc3QYCCABKAsyFi54aWFvd2VpLmxsbS5Vc2FnZUNvc3RCDAoKX3JlYXNvbmluZ0IRCg9fY2FjaGVfd3JpdGVfMWgibwoSR2VuZXJhdGlvbkZpbmlzaGVkEikKBnJlYXNvbhgBIAEoDjIZLnhpYW93ZWkubGxtLkZpbmlzaFJlYXNvbhIuCgdtZXNzYWdlGAIgASgLMh0ueGlhb3dlaS5sbG0uQXNzaXN0YW50TWVzc2FnZSJTChBHZW5lcmF0aW9uRmFpbGVkEg8KB21lc3NhZ2UYASABKAkSLgoHcGFydGlhbBgCIAEoCzIdLnhpYW93ZWkubGxtLkFzc2lzdGFudE1lc3NhZ2UipQMKDUdlbmVyYXRlRXZlbnQSLAoKdGV4dF9kZWx0YRgBIAEoCzIWLnhpYW93ZWkubGxtLlRleHREZWx0YUgAEigKBXVzYWdlGAIgASgLMhcueGlhb3dlaS5sbG0uVG9rZW5Vc2FnZUgAEjMKCGZpbmlzaGVkGAMgASgLMh8ueGlhb3dlaS5sbG0uR2VuZXJhdGlvbkZpbmlzaGVkSAASLwoGZmFpbGVkGAQgASgLMh0ueGlhb3dlaS5sbG0uR2VuZXJhdGlvbkZhaWxlZEgAEigKB3N0YXJ0ZWQYBSABKAsyFS54aWFvd2VpLmNvbW1vbi5FbXB0eUgAEjcKDWJsb2NrX3N0YXJ0ZWQYBiABKAsyHi54aWFvd2VpLmxsbS5Db250ZW50QmxvY2tFdmVudEgAEjAKC2Jsb2NrX2RlbHRhGAcgASgLMhkueGlhb3dlaS5sbG0uQ29udGVudERlbHRhSAASOAoOYmxvY2tfZmluaXNoZWQYCCABKAsyHi54aWFvd2VpLmxsbS5Db250ZW50QmxvY2tFdmVudEgAQgcKBWV2ZW50IkcKFFJlcGxhY2VNb2RlbHNSZXF1ZXN0Ei8KBm1vZGVscxgBIAMoCzIfLnhpYW93ZWkubGxtLk1vZGVsQ29uZmlndXJhdGlvbiJYCg5Nb2RlbENvc3RSYXRlcxINCgVpbnB1dBgBIAEoARIOCgZvdXRwdXQYAiABKAESEgoKY2FjaGVfcmVhZBgDIAEoARITCgtjYWNoZV93cml0ZRgEIAEoASJXCg1Nb2RlbENvc3RUaWVyEhoKEmlucHV0X3Rva2Vuc19hYm92ZRgBIAEoARIqCgVyYXRlcxgCIAEoCzIbLnhpYW93ZWkubGxtLk1vZGVsQ29zdFJhdGVzItsEChJNb2RlbENvbmZpZ3VyYXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIQCghwcm92aWRlchgDIAEoCRIQCghtb2RlbF9pZBgEIAEoCRILCgNhcGkYBSABKAkSEAoIYmFzZV91cmwYBiABKAkSDwoHYXBpX2tleRgHIAEoCRIRCglyZWFzb25pbmcYCCABKAgSJgoFaW5wdXQYCSADKA4yFy54aWFvd2VpLmxsbS5Nb2RlbElucHV0EhYKDmNvbnRleHRfd2luZG93GAogASgBEhIKCm1heF90b2tlbnMYCyABKAESKQoEY29zdBgMIAEoCzIbLnhpYW93ZWkubGxtLk1vZGVsQ29zdFJhdGVzEi4KCmNvc3RfdGllcnMYDSADKAsyGi54aWFvd2VpLmxsbS5Nb2RlbENvc3RUaWVyEhgKC2NvbXBhdF9qc29uGA4gASgJSACIAQESJAoXdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb24YDyABKAlIAYgBARI9CgdoZWFkZXJzGBAgAygLMiwueGlhb3dlaS5sbG0uTW9kZWxDb25maWd1cmF0aW9uLkhlYWRlcnNFbnRyeRIhChRzYW1wbGluZ19wYXJhbXNfanNvbhgRIAEoCUgCiAEBGi4KDEhlYWRlcnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQg4KDF9jb21wYXRfanNvbkIaChhfdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb25CFwoVX3NhbXBsaW5nX3BhcmFtc19qc29uImIKCVVzYWdlQ29zdBINCgVpbnB1dBgBIAEoARIOCgZvdXRwdXQYAiABKAESEgoKY2FjaGVfcmVhZBgDIAEoARITCgtjYWNoZV93cml0ZRgEIAEoARINCgV0b3RhbBgFIAEoASJBCgtUZXh0Q29udGVudBIMCgR0ZXh0GAEgASgJEhYKCXNpZ25hdHVyZRgCIAEoCUgAiAEBQgwKCl9zaWduYXR1cmUiLwoMSW1hZ2VDb250ZW50EhEKCW1pbWVfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgMIlcKD1RoaW5raW5nQ29udGVudBIMCgR0ZXh0GAEgASgJEhYKCXNpZ25hdHVyZRgCIAEoCUgAiAEBEhAKCHJlZGFjdGVkGAMgASgIQgwKCl9zaWduYXR1cmUitwEKD1Rvb2xDYWxsQ29udGVudBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhsKDmFyZ3VtZW50c19qc29uGAMgASgJSACIAQESHgoRdGhvdWdodF9zaWduYXR1cmUYBCABKAlIAYgBARIWCgluYW1lc3BhY2UYBSABKAlIAogBAUIRCg9fYXJndW1lbnRzX2pzb25CFAoSX3Rob3VnaHRfc2lnbmF0dXJlQgwKCl9uYW1lc3BhY2Ui1AEKDENvbnRlbnRCbG9jaxIoCgR0ZXh0GAEgASgLMhgueGlhb3dlaS5sbG0uVGV4dENvbnRlbnRIABIqCgVpbWFnZRgCIAEoCzIZLnhpYW93ZWkubGxtLkltYWdlQ29udGVudEgAEjAKCHRoaW5raW5nGAMgASgLMhwueGlhb3dlaS5sbG0uVGhpbmtpbmdDb250ZW50SAASMQoJdG9vbF9jYWxsGAQgASgLMhwueGlhb3dlaS5sbG0uVG9vbENhbGxDb250ZW50SABCCQoHY29udGVudCJPCgtVc2VyTWVzc2FnZRIqCgdjb250ZW50GAEgAygLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrEhQKDHRpbWVzdGFtcF9tcxgCIAEoAyLPAwoQQXNzaXN0YW50TWVzc2FnZRIqCgdjb250ZW50GAEgAygLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrEgsKA2FwaRgCIAEoCRIQCghwcm92aWRlchgDIAEoCRIQCghtb2RlbF9pZBgEIAEoCRImCgV1c2FnZRgFIAEoCzIXLnhpYW93ZWkubGxtLlRva2VuVXNhZ2USLgoLc3RvcF9yZWFzb24YBiABKA4yGS54aWFvd2VpLmxsbS5GaW5pc2hSZWFzb24SFAoMdGltZXN0YW1wX21zGAcgASgDEhgKC3Jlc3BvbnNlX2lkGAggASgJSACIAQESGwoOcmVzcG9uc2VfbW9kZWwYCSABKAlIAYgBARIkChdwcm92aWRlcl90aGlua2luZ19sZXZlbBgKIAEoCUgCiAEBEhwKD3Jhd19zdG9wX3JlYXNvbhgLIAEoCUgDiAEBEhUKCGVuZF90dXJuGAwgASgISASIAQFCDgoMX3Jlc3BvbnNlX2lkQhEKD19yZXNwb25zZV9tb2RlbEIaChhfcHJvdmlkZXJfdGhpbmtpbmdfbGV2ZWxCEgoQX3Jhd19zdG9wX3JlYXNvbkILCglfZW5kX3R1cm4i/gEKEVRvb2xSZXN1bHRNZXNzYWdlEhQKDHRvb2xfY2FsbF9pZBgBIAEoCRIRCgl0b29sX25hbWUYAiABKAkSKgoHY29udGVudBgDIAMoCzIZLnhpYW93ZWkubGxtLkNvbnRlbnRCbG9jaxIQCghpc19lcnJvchgEIAEoCBIUCgx0aW1lc3RhbXBfbXMYBSABKAMSGQoMZGV0YWlsc19qc29uGAYgASgJSACIAQESGAoQYWRkZWRfdG9vbF9uYW1lcxgHIAMoCRImCgV1c2FnZRgIIAEoCzIXLnhpYW93ZWkubGxtLlRva2VuVXNhZ2VCDwoNX2RldGFpbHNfanNvbiKtAQoLQ2hhdE1lc3NhZ2USKAoEdXNlchgBIAEoCzIYLnhpYW93ZWkubGxtLlVzZXJNZXNzYWdlSAASMgoJYXNzaXN0YW50GAIgASgLMh0ueGlhb3dlaS5sbG0uQXNzaXN0YW50TWVzc2FnZUgAEjUKC3Rvb2xfcmVzdWx0GAMgASgLMh4ueGlhb3dlaS5sbG0uVG9vbFJlc3VsdE1lc3NhZ2VIAEIJCgdtZXNzYWdlIpIBCg5Ub29sRGVmaW5pdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhcKD3BhcmFtZXRlcnNfanNvbhgDIAEoCRImChljb25zdHJhaW5lZF9zYW1wbGluZ19qc29uGAQgASgJSACIAQFCHAoaX2NvbnN0cmFpbmVkX3NhbXBsaW5nX2pzb24ivQQKEUdlbmVyYXRpb25PcHRpb25zEhYKCXJlYXNvbmluZxgBIAEoCUgAiAEBEiIKFXRoaW5raW5nX2J1ZGdldHNfanNvbhgCIAEoCUgBiAEBEh0KEHRvb2xfY2hvaWNlX2pzb24YAyABKAlIAogBARIhChRzYW1wbGluZ19wYXJhbXNfanNvbhgEIAEoCUgDiAEBEhwKD2NhY2hlX3JldGVudGlvbhgFIAEoCUgEiAEBEhcKCnNlc3Npb25faWQYBiABKAlIBYgBARIWCgl0cmFuc3BvcnQYByABKAlIBogBARIXCgp0aW1lb3V0X21zGAggASgNSAeIAQESKQocd2Vic29ja2V0X2Nvbm5lY3RfdGltZW91dF9tcxgJIAEoDUgIiAEBEhoKDW1ldGFkYXRhX2pzb24YCiABKAlICYgBARIdChBhcGlfb3B0aW9uc19qc29uGAsgASgJSAqIAQFCDAoKX3JlYXNvbmluZ0IYChZfdGhpbmtpbmdfYnVkZ2V0c19qc29uQhMKEV90b29sX2Nob2ljZV9qc29uQhcKFV9zYW1wbGluZ19wYXJhbXNfanNvbkISChBfY2FjaGVfcmV0ZW50aW9uQg0KC19zZXNzaW9uX2lkQgwKCl90cmFuc3BvcnRCDQoLX3RpbWVvdXRfbXNCHwodX3dlYnNvY2tldF9jb25uZWN0X3RpbWVvdXRfbXNCEAoOX21ldGFkYXRhX2pzb25CEwoRX2FwaV9vcHRpb25zX2pzb24iVAoRQ29udGVudEJsb2NrRXZlbnQSFQoNY29udGVudF9pbmRleBgBIAEoDRIoCgVibG9jaxgCIAEoCzIZLnhpYW93ZWkubGxtLkNvbnRlbnRCbG9jayJCCgxDb250ZW50RGVsdGESFQoNY29udGVudF9pbmRleBgBIAEoDRIMCgRraW5kGAIgASgJEg0KBWRlbHRhGAMgASgJImAKEUxpc3RNb2RlbHNSZXF1ZXN0EhEKCW1vZGVsX3JlZhgBIAEoCRIQCgN1cmwYAiABKAlIAIgBARITCgZmb3JtYXQYAyABKAlIAYgBAUIGCgRfdXJsQgkKB19mb3JtYXQirgEKDENhdGFsb2dNb2RlbBIQCghtb2RlbF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhsKDmNvbnRleHRfd2luZG93GAMgASgBSACIAQESFwoKbWF4X3Rva2VucxgEIAEoAUgBiAEBEiYKBWlucHV0GAUgAygOMhcueGlhb3dlaS5sbG0uTW9kZWxJbnB1dEIRCg9fY29udGV4dF93aW5kb3dCDQoLX21heF90b2tlbnMiPwoSTGlzdE1vZGVsc1Jlc3BvbnNlEikKBm1vZGVscxgBIAMoCzIZLnhpYW93ZWkubGxtLkNhdGFsb2dNb2RlbCqvAQoMRmluaXNoUmVhc29uEh0KGUZJTklTSF9SRUFTT05fVU5TUEVDSUZJRUQQABIWChJGSU5JU0hfUkVBU09OX1NUT1AQARIYChRGSU5JU0hfUkVBU09OX0xFTkdUSBACEhoKFkZJTklTSF9SRUFTT05fVE9PTF9VU0UQAxIXChNGSU5JU0hfUkVBU09OX0VSUk9SEAQSGQoVRklOSVNIX1JFQVNPTl9BQk9SVEVEEAUqVgoKTW9kZWxJbnB1dBIbChdNT0RFTF9JTlBVVF9VTlNQRUNJRklFRBAAEhQKEE1PREVMX0lOUFVUX1RFWFQQARIVChFNT0RFTF9JTlBVVF9JTUFHRRACMk0KA0xsbRJGCghHZW5lcmF0ZRIcLnhpYW93ZWkubGxtLkdlbmVyYXRlUmVxdWVzdBoaLnhpYW93ZWkubGxtLkdlbmVyYXRlRXZlbnQwATJdChBMbG1Db25maWd1cmF0aW9uEkkKDVJlcGxhY2VNb2RlbHMSIS54aWFvd2VpLmxsbS5SZXBsYWNlTW9kZWxzUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5Ml8KDE1vZGVsQ2F0YWxvZxJPCgpMaXN0TW9kZWxzEh4ueGlhb3dlaS5sbG0uTGlzdE1vZGVsc1JlcXVlc3QaHy54aWFvd2VpLmxsbS5MaXN0TW9kZWxzUmVzcG9uc2UwAWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.llm.GenerateRequest
  */
 export type GenerateRequest = Message<"xiaowei.llm.GenerateRequest"> & {
   /**
-   * Required reference to a host-configured non-reasoning text model.
+   * Required local model configuration ID.
    *
    * @generated from field: string model_ref = 1;
    */
@@ -31,7 +33,7 @@ export type GenerateRequest = Message<"xiaowei.llm.GenerateRequest"> & {
   systemPrompt: string;
 
   /**
-   * Required user text. Combined UTF-8 size with system_prompt is at most 256 KiB.
+   * Legacy single-turn shorthand. Must be empty when messages is populated.
    *
    * @generated from field: string user_text = 3;
    */
@@ -45,11 +47,29 @@ export type GenerateRequest = Message<"xiaowei.llm.GenerateRequest"> & {
   temperature?: number | undefined;
 
   /**
-   * Absent uses min(1024, model limit); present range [1, min(4096, model limit)].
+   * Absent uses the configured model limit; present range [1, model limit].
+   * Pi may further adjust this budget for context room and protocol-specific thinking.
    *
    * @generated from field: optional uint32 max_tokens = 5;
    */
   maxTokens?: number | undefined;
+
+  /**
+   * Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
+   *
+   * @generated from field: repeated xiaowei.llm.ChatMessage messages = 6;
+   */
+  messages: ChatMessage[];
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ToolDefinition tools = 7;
+   */
+  tools: ToolDefinition[];
+
+  /**
+   * @generated from field: xiaowei.llm.GenerationOptions options = 8;
+   */
+  options?: GenerationOptions | undefined;
 };
 
 /**
@@ -115,6 +135,21 @@ export type TokenUsage = Message<"xiaowei.llm.TokenUsage"> & {
    * @generated from field: uint64 total = 5;
    */
   total: bigint;
+
+  /**
+   * @generated from field: optional uint64 reasoning = 6;
+   */
+  reasoning?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 cache_write_1h = 7;
+   */
+  cacheWrite1h?: bigint | undefined;
+
+  /**
+   * @generated from field: xiaowei.llm.UsageCost cost = 8;
+   */
+  cost?: UsageCost | undefined;
 };
 
 /**
@@ -132,6 +167,11 @@ export type GenerationFinished = Message<"xiaowei.llm.GenerationFinished"> & {
    * @generated from field: xiaowei.llm.FinishReason reason = 1;
    */
   reason: FinishReason;
+
+  /**
+   * @generated from field: xiaowei.llm.AssistantMessage message = 2;
+   */
+  message?: AssistantMessage | undefined;
 };
 
 /**
@@ -151,6 +191,11 @@ export type GenerationFailed = Message<"xiaowei.llm.GenerationFailed"> & {
    * @generated from field: string message = 1;
    */
   message: string;
+
+  /**
+   * @generated from field: xiaowei.llm.AssistantMessage partial = 2;
+   */
+  partial?: AssistantMessage | undefined;
 };
 
 /**
@@ -191,6 +236,30 @@ export type GenerateEvent = Message<"xiaowei.llm.GenerateEvent"> & {
      */
     value: GenerationFailed;
     case: "failed";
+  } | {
+    /**
+     * @generated from field: xiaowei.common.Empty started = 5;
+     */
+    value: Empty;
+    case: "started";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentBlockEvent block_started = 6;
+     */
+    value: ContentBlockEvent;
+    case: "blockStarted";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentDelta block_delta = 7;
+     */
+    value: ContentDelta;
+    case: "blockDelta";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentBlockEvent block_finished = 8;
+     */
+    value: ContentBlockEvent;
+    case: "blockFinished";
   } | { case: undefined; value?: undefined };
 };
 
@@ -200,6 +269,809 @@ export type GenerateEvent = Message<"xiaowei.llm.GenerateEvent"> & {
  */
 export const GenerateEventSchema: GenMessage<GenerateEvent> = /*@__PURE__*/
   messageDesc(file_xiaowei_llm, 5);
+
+/**
+ * @generated from message xiaowei.llm.ReplaceModelsRequest
+ */
+export type ReplaceModelsRequest = Message<"xiaowei.llm.ReplaceModelsRequest"> & {
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelConfiguration models = 1;
+   */
+  models: ModelConfiguration[];
+};
+
+/**
+ * Describes the message xiaowei.llm.ReplaceModelsRequest.
+ * Use `create(ReplaceModelsRequestSchema)` to create a new message.
+ */
+export const ReplaceModelsRequestSchema: GenMessage<ReplaceModelsRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 6);
+
+/**
+ * @generated from message xiaowei.llm.ModelCostRates
+ */
+export type ModelCostRates = Message<"xiaowei.llm.ModelCostRates"> & {
+  /**
+   * Cost per million tokens; nonnegative finite values.
+   *
+   * @generated from field: double input = 1;
+   */
+  input: number;
+
+  /**
+   * @generated from field: double output = 2;
+   */
+  output: number;
+
+  /**
+   * @generated from field: double cache_read = 3;
+   */
+  cacheRead: number;
+
+  /**
+   * @generated from field: double cache_write = 4;
+   */
+  cacheWrite: number;
+};
+
+/**
+ * Describes the message xiaowei.llm.ModelCostRates.
+ * Use `create(ModelCostRatesSchema)` to create a new message.
+ */
+export const ModelCostRatesSchema: GenMessage<ModelCostRates> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 7);
+
+/**
+ * @generated from message xiaowei.llm.ModelCostTier
+ */
+export type ModelCostTier = Message<"xiaowei.llm.ModelCostTier"> & {
+  /**
+   * @generated from field: double input_tokens_above = 1;
+   */
+  inputTokensAbove: number;
+
+  /**
+   * @generated from field: xiaowei.llm.ModelCostRates rates = 2;
+   */
+  rates?: ModelCostRates | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ModelCostTier.
+ * Use `create(ModelCostTierSchema)` to create a new message.
+ */
+export const ModelCostTierSchema: GenMessage<ModelCostTier> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 8);
+
+/**
+ * @generated from message xiaowei.llm.ModelConfiguration
+ */
+export type ModelConfiguration = Message<"xiaowei.llm.ModelConfiguration"> & {
+  /**
+   * Local configuration ID, addressed by GenerateRequest.model_ref. Unique in the list.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string provider = 3;
+   */
+  provider: string;
+
+  /**
+   * Exact upstream model identifier; not derived from the local ID or provider.
+   *
+   * @generated from field: string model_id = 4;
+   */
+  modelId: string;
+
+  /**
+   * One of the application's supported Pi API names; unknown values are rejected.
+   *
+   * @generated from field: string api = 5;
+   */
+  api: string;
+
+  /**
+   * @generated from field: string base_url = 6;
+   */
+  baseUrl: string;
+
+  /**
+   * Resolved nonempty credential, held in memory. Never log or echo this message.
+   *
+   * @generated from field: string api_key = 7;
+   */
+  apiKey: string;
+
+  /**
+   * @generated from field: bool reasoning = 8;
+   */
+  reasoning: boolean;
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelInput input = 9;
+   */
+  input: ModelInput[];
+
+  /**
+   * Positive safe integers, max_tokens <= context_window.
+   *
+   * @generated from field: double context_window = 10;
+   */
+  contextWindow: number;
+
+  /**
+   * @generated from field: double max_tokens = 11;
+   */
+  maxTokens: number;
+
+  /**
+   * @generated from field: xiaowei.llm.ModelCostRates cost = 12;
+   */
+  cost?: ModelCostRates | undefined;
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelCostTier cost_tiers = 13;
+   */
+  costTiers: ModelCostTier[];
+
+  /**
+   * Absent leaves API defaults. JSON object with application-validated compatibility fields.
+   *
+   * @generated from field: optional string compat_json = 14;
+   */
+  compatJson?: string | undefined;
+
+  /**
+   * Absent leaves API defaults. JSON object mapping thinking levels to string or null.
+   *
+   * @generated from field: optional string thinking_level_map_json = 15;
+   */
+  thinkingLevelMapJson?: string | undefined;
+
+  /**
+   * @generated from field: map<string, string> headers = 16;
+   */
+  headers: { [key: string]: string };
+
+  /**
+   * @generated from field: optional string sampling_params_json = 17;
+   */
+  samplingParamsJson?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ModelConfiguration.
+ * Use `create(ModelConfigurationSchema)` to create a new message.
+ */
+export const ModelConfigurationSchema: GenMessage<ModelConfiguration> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 9);
+
+/**
+ * @generated from message xiaowei.llm.UsageCost
+ */
+export type UsageCost = Message<"xiaowei.llm.UsageCost"> & {
+  /**
+   * @generated from field: double input = 1;
+   */
+  input: number;
+
+  /**
+   * @generated from field: double output = 2;
+   */
+  output: number;
+
+  /**
+   * @generated from field: double cache_read = 3;
+   */
+  cacheRead: number;
+
+  /**
+   * @generated from field: double cache_write = 4;
+   */
+  cacheWrite: number;
+
+  /**
+   * @generated from field: double total = 5;
+   */
+  total: number;
+};
+
+/**
+ * Describes the message xiaowei.llm.UsageCost.
+ * Use `create(UsageCostSchema)` to create a new message.
+ */
+export const UsageCostSchema: GenMessage<UsageCost> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 10);
+
+/**
+ * @generated from message xiaowei.llm.TextContent
+ */
+export type TextContent = Message<"xiaowei.llm.TextContent"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+
+  /**
+   * @generated from field: optional string signature = 2;
+   */
+  signature?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.TextContent.
+ * Use `create(TextContentSchema)` to create a new message.
+ */
+export const TextContentSchema: GenMessage<TextContent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 11);
+
+/**
+ * @generated from message xiaowei.llm.ImageContent
+ */
+export type ImageContent = Message<"xiaowei.llm.ImageContent"> & {
+  /**
+   * @generated from field: string mime_type = 1;
+   */
+  mimeType: string;
+
+  /**
+   * @generated from field: bytes data = 2;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message xiaowei.llm.ImageContent.
+ * Use `create(ImageContentSchema)` to create a new message.
+ */
+export const ImageContentSchema: GenMessage<ImageContent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 12);
+
+/**
+ * @generated from message xiaowei.llm.ThinkingContent
+ */
+export type ThinkingContent = Message<"xiaowei.llm.ThinkingContent"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+
+  /**
+   * @generated from field: optional string signature = 2;
+   */
+  signature?: string | undefined;
+
+  /**
+   * @generated from field: bool redacted = 3;
+   */
+  redacted: boolean;
+};
+
+/**
+ * Describes the message xiaowei.llm.ThinkingContent.
+ * Use `create(ThinkingContentSchema)` to create a new message.
+ */
+export const ThinkingContentSchema: GenMessage<ThinkingContent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 13);
+
+/**
+ * @generated from message xiaowei.llm.ToolCallContent
+ */
+export type ToolCallContent = Message<"xiaowei.llm.ToolCallContent"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * Final arguments as a JSON object. At block start this is absent; use deltas until block_finished.
+   *
+   * @generated from field: optional string arguments_json = 3;
+   */
+  argumentsJson?: string | undefined;
+
+  /**
+   * @generated from field: optional string thought_signature = 4;
+   */
+  thoughtSignature?: string | undefined;
+
+  /**
+   * @generated from field: optional string namespace = 5;
+   */
+  namespace?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ToolCallContent.
+ * Use `create(ToolCallContentSchema)` to create a new message.
+ */
+export const ToolCallContentSchema: GenMessage<ToolCallContent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 14);
+
+/**
+ * @generated from message xiaowei.llm.ContentBlock
+ */
+export type ContentBlock = Message<"xiaowei.llm.ContentBlock"> & {
+  /**
+   * @generated from oneof xiaowei.llm.ContentBlock.content
+   */
+  content: {
+    /**
+     * @generated from field: xiaowei.llm.TextContent text = 1;
+     */
+    value: TextContent;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ImageContent image = 2;
+     */
+    value: ImageContent;
+    case: "image";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ThinkingContent thinking = 3;
+     */
+    value: ThinkingContent;
+    case: "thinking";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ToolCallContent tool_call = 4;
+     */
+    value: ToolCallContent;
+    case: "toolCall";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.llm.ContentBlock.
+ * Use `create(ContentBlockSchema)` to create a new message.
+ */
+export const ContentBlockSchema: GenMessage<ContentBlock> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 15);
+
+/**
+ * @generated from message xiaowei.llm.UserMessage
+ */
+export type UserMessage = Message<"xiaowei.llm.UserMessage"> & {
+  /**
+   * @generated from field: repeated xiaowei.llm.ContentBlock content = 1;
+   */
+  content: ContentBlock[];
+
+  /**
+   * @generated from field: int64 timestamp_ms = 2;
+   */
+  timestampMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.llm.UserMessage.
+ * Use `create(UserMessageSchema)` to create a new message.
+ */
+export const UserMessageSchema: GenMessage<UserMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 16);
+
+/**
+ * @generated from message xiaowei.llm.AssistantMessage
+ */
+export type AssistantMessage = Message<"xiaowei.llm.AssistantMessage"> & {
+  /**
+   * @generated from field: repeated xiaowei.llm.ContentBlock content = 1;
+   */
+  content: ContentBlock[];
+
+  /**
+   * @generated from field: string api = 2;
+   */
+  api: string;
+
+  /**
+   * @generated from field: string provider = 3;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string model_id = 4;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: xiaowei.llm.TokenUsage usage = 5;
+   */
+  usage?: TokenUsage | undefined;
+
+  /**
+   * @generated from field: xiaowei.llm.FinishReason stop_reason = 6;
+   */
+  stopReason: FinishReason;
+
+  /**
+   * @generated from field: int64 timestamp_ms = 7;
+   */
+  timestampMs: bigint;
+
+  /**
+   * @generated from field: optional string response_id = 8;
+   */
+  responseId?: string | undefined;
+
+  /**
+   * @generated from field: optional string response_model = 9;
+   */
+  responseModel?: string | undefined;
+
+  /**
+   * @generated from field: optional string provider_thinking_level = 10;
+   */
+  providerThinkingLevel?: string | undefined;
+
+  /**
+   * @generated from field: optional string raw_stop_reason = 11;
+   */
+  rawStopReason?: string | undefined;
+
+  /**
+   * @generated from field: optional bool end_turn = 12;
+   */
+  endTurn?: boolean | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.AssistantMessage.
+ * Use `create(AssistantMessageSchema)` to create a new message.
+ */
+export const AssistantMessageSchema: GenMessage<AssistantMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 17);
+
+/**
+ * @generated from message xiaowei.llm.ToolResultMessage
+ */
+export type ToolResultMessage = Message<"xiaowei.llm.ToolResultMessage"> & {
+  /**
+   * @generated from field: string tool_call_id = 1;
+   */
+  toolCallId: string;
+
+  /**
+   * @generated from field: string tool_name = 2;
+   */
+  toolName: string;
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ContentBlock content = 3;
+   */
+  content: ContentBlock[];
+
+  /**
+   * @generated from field: bool is_error = 4;
+   */
+  isError: boolean;
+
+  /**
+   * @generated from field: int64 timestamp_ms = 5;
+   */
+  timestampMs: bigint;
+
+  /**
+   * @generated from field: optional string details_json = 6;
+   */
+  detailsJson?: string | undefined;
+
+  /**
+   * @generated from field: repeated string added_tool_names = 7;
+   */
+  addedToolNames: string[];
+
+  /**
+   * @generated from field: xiaowei.llm.TokenUsage usage = 8;
+   */
+  usage?: TokenUsage | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ToolResultMessage.
+ * Use `create(ToolResultMessageSchema)` to create a new message.
+ */
+export const ToolResultMessageSchema: GenMessage<ToolResultMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 18);
+
+/**
+ * @generated from message xiaowei.llm.ChatMessage
+ */
+export type ChatMessage = Message<"xiaowei.llm.ChatMessage"> & {
+  /**
+   * @generated from oneof xiaowei.llm.ChatMessage.message
+   */
+  message: {
+    /**
+     * @generated from field: xiaowei.llm.UserMessage user = 1;
+     */
+    value: UserMessage;
+    case: "user";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.AssistantMessage assistant = 2;
+     */
+    value: AssistantMessage;
+    case: "assistant";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ToolResultMessage tool_result = 3;
+     */
+    value: ToolResultMessage;
+    case: "toolResult";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.llm.ChatMessage.
+ * Use `create(ChatMessageSchema)` to create a new message.
+ */
+export const ChatMessageSchema: GenMessage<ChatMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 19);
+
+/**
+ * @generated from message xiaowei.llm.ToolDefinition
+ */
+export type ToolDefinition = Message<"xiaowei.llm.ToolDefinition"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * JSON Schema object, passed to Pi without executing the tool.
+   *
+   * @generated from field: string parameters_json = 3;
+   */
+  parametersJson: string;
+
+  /**
+   * Optional JSON matching Pi constrained sampling (false, json_schema or grammar).
+   *
+   * @generated from field: optional string constrained_sampling_json = 4;
+   */
+  constrainedSamplingJson?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ToolDefinition.
+ * Use `create(ToolDefinitionSchema)` to create a new message.
+ */
+export const ToolDefinitionSchema: GenMessage<ToolDefinition> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 20);
+
+/**
+ * @generated from message xiaowei.llm.GenerationOptions
+ */
+export type GenerationOptions = Message<"xiaowei.llm.GenerationOptions"> & {
+  /**
+   * off, minimal, low, medium, high, xhigh or max. Absent requests no explicit thinking level.
+   *
+   * @generated from field: optional string reasoning = 1;
+   */
+  reasoning?: string | undefined;
+
+  /**
+   * JSON object with minimal/low/medium/high positive integer token budgets.
+   *
+   * @generated from field: optional string thinking_budgets_json = 2;
+   */
+  thinkingBudgetsJson?: string | undefined;
+
+  /**
+   * Provider-neutral JSON tool selection: "auto" or "none". Forced tools use api_options_json.
+   *
+   * @generated from field: optional string tool_choice_json = 3;
+   */
+  toolChoiceJson?: string | undefined;
+
+  /**
+   * @generated from field: optional string sampling_params_json = 4;
+   */
+  samplingParamsJson?: string | undefined;
+
+  /**
+   * @generated from field: optional string cache_retention = 5;
+   */
+  cacheRetention?: string | undefined;
+
+  /**
+   * @generated from field: optional string session_id = 6;
+   */
+  sessionId?: string | undefined;
+
+  /**
+   * @generated from field: optional string transport = 7;
+   */
+  transport?: string | undefined;
+
+  /**
+   * @generated from field: optional uint32 timeout_ms = 8;
+   */
+  timeoutMs?: number | undefined;
+
+  /**
+   * @generated from field: optional uint32 websocket_connect_timeout_ms = 9;
+   */
+  websocketConnectTimeoutMs?: number | undefined;
+
+  /**
+   * @generated from field: optional string metadata_json = 10;
+   */
+  metadataJson?: string | undefined;
+
+  /**
+   * Protocol-specific JSON options. Cannot override credentials, model, messages, signal or callbacks.
+   * Mutually exclusive with reasoning/thinking budgets/tool choice, which use Pi streamSimple.
+   *
+   * @generated from field: optional string api_options_json = 11;
+   */
+  apiOptionsJson?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.GenerationOptions.
+ * Use `create(GenerationOptionsSchema)` to create a new message.
+ */
+export const GenerationOptionsSchema: GenMessage<GenerationOptions> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 21);
+
+/**
+ * @generated from message xiaowei.llm.ContentBlockEvent
+ */
+export type ContentBlockEvent = Message<"xiaowei.llm.ContentBlockEvent"> & {
+  /**
+   * @generated from field: uint32 content_index = 1;
+   */
+  contentIndex: number;
+
+  /**
+   * @generated from field: xiaowei.llm.ContentBlock block = 2;
+   */
+  block?: ContentBlock | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ContentBlockEvent.
+ * Use `create(ContentBlockEventSchema)` to create a new message.
+ */
+export const ContentBlockEventSchema: GenMessage<ContentBlockEvent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 22);
+
+/**
+ * @generated from message xiaowei.llm.ContentDelta
+ */
+export type ContentDelta = Message<"xiaowei.llm.ContentDelta"> & {
+  /**
+   * @generated from field: uint32 content_index = 1;
+   */
+  contentIndex: number;
+
+  /**
+   * thinking or toolcall; text uses GenerateEvent.text_delta.
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string delta = 3;
+   */
+  delta: string;
+};
+
+/**
+ * Describes the message xiaowei.llm.ContentDelta.
+ * Use `create(ContentDeltaSchema)` to create a new message.
+ */
+export const ContentDeltaSchema: GenMessage<ContentDelta> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 23);
+
+/**
+ * @generated from message xiaowei.llm.ListModelsRequest
+ */
+export type ListModelsRequest = Message<"xiaowei.llm.ListModelsRequest"> & {
+  /**
+   * Uses the connection and credentials from this local model configuration.
+   *
+   * @generated from field: string model_ref = 1;
+   */
+  modelRef: string;
+
+  /**
+   * Optional absolute list endpoint, used for compatible servers with a separate catalog URL.
+   *
+   * @generated from field: optional string url = 2;
+   */
+  url?: string | undefined;
+
+  /**
+   * openai or anthropic. Absent selects the configured protocol/provider's listing format.
+   *
+   * @generated from field: optional string format = 3;
+   */
+  format?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.ListModelsRequest.
+ * Use `create(ListModelsRequestSchema)` to create a new message.
+ */
+export const ListModelsRequestSchema: GenMessage<ListModelsRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 24);
+
+/**
+ * @generated from message xiaowei.llm.CatalogModel
+ */
+export type CatalogModel = Message<"xiaowei.llm.CatalogModel"> & {
+  /**
+   * @generated from field: string model_id = 1;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional double context_window = 3;
+   */
+  contextWindow?: number | undefined;
+
+  /**
+   * @generated from field: optional double max_tokens = 4;
+   */
+  maxTokens?: number | undefined;
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelInput input = 5;
+   */
+  input: ModelInput[];
+};
+
+/**
+ * Describes the message xiaowei.llm.CatalogModel.
+ * Use `create(CatalogModelSchema)` to create a new message.
+ */
+export const CatalogModelSchema: GenMessage<CatalogModel> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 25);
+
+/**
+ * @generated from message xiaowei.llm.ListModelsResponse
+ */
+export type ListModelsResponse = Message<"xiaowei.llm.ListModelsResponse"> & {
+  /**
+   * @generated from field: repeated xiaowei.llm.CatalogModel models = 1;
+   */
+  models: CatalogModel[];
+};
+
+/**
+ * Describes the message xiaowei.llm.ListModelsResponse.
+ * Use `create(ListModelsResponseSchema)` to create a new message.
+ */
+export const ListModelsResponseSchema: GenMessage<ListModelsResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 26);
 
 /**
  * @generated from enum xiaowei.llm.FinishReason
@@ -219,6 +1091,21 @@ export enum FinishReason {
    * @generated from enum value: FINISH_REASON_LENGTH = 2;
    */
   LENGTH = 2,
+
+  /**
+   * @generated from enum value: FINISH_REASON_TOOL_USE = 3;
+   */
+  TOOL_USE = 3,
+
+  /**
+   * @generated from enum value: FINISH_REASON_ERROR = 4;
+   */
+  ERROR = 4,
+
+  /**
+   * @generated from enum value: FINISH_REASON_ABORTED = 5;
+   */
+  ABORTED = 5,
 }
 
 /**
@@ -228,13 +1115,39 @@ export const FinishReasonSchema: GenEnum<FinishReason> = /*@__PURE__*/
   enumDesc(file_xiaowei_llm, 0);
 
 /**
- * Text-only generation. Configuration and credentials belong to the service host.
+ * @generated from enum xiaowei.llm.ModelInput
+ */
+export enum ModelInput {
+  /**
+   * @generated from enum value: MODEL_INPUT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODEL_INPUT_TEXT = 1;
+   */
+  TEXT = 1,
+
+  /**
+   * @generated from enum value: MODEL_INPUT_IMAGE = 2;
+   */
+  IMAGE = 2,
+}
+
+/**
+ * Describes the enum xiaowei.llm.ModelInput.
+ */
+export const ModelInputSchema: GenEnum<ModelInput> = /*@__PURE__*/
+  enumDesc(file_xiaowei_llm, 1);
+
+/**
+ * Generation with host-configured models and credentials.
  *
  * @generated from service xiaowei.llm.Llm
  */
 export const Llm: GenService<{
   /**
-   * Emits text deltas, then one usage and one finished event on success.
+   * Emits ordered content deltas/lifecycle, then one usage and one finished event on success.
    * Provider failure emits one failed event, possibly after partial text; no finished event.
    * Validation, quota, unsupported output and transport errors use Gateway stream errors.
    * Cancellation closes the stream and aborts the provider; no terminal chunk is guaranteed.
@@ -248,4 +1161,43 @@ export const Llm: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_xiaowei_llm, 0);
+
+/**
+ * Configuration operations follow the same trusted calling convention as other application services.
+ *
+ * @generated from service xiaowei.llm.LlmConfiguration
+ */
+export const LlmConfiguration: GenService<{
+  /**
+   * Validates the whole list before replacing it. Empty clears models for future requests.
+   * In-flight requests retain their prior configuration, including credentials.
+   * Success acknowledges the replacement; transport failure may leave the outcome unknown.
+   *
+   * @generated from rpc xiaowei.llm.LlmConfiguration.ReplaceModels
+   */
+  replaceModels: {
+    methodKind: "unary";
+    input: typeof ReplaceModelsRequestSchema;
+    output: typeof EmptySchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_xiaowei_llm, 1);
+
+/**
+ * @generated from service xiaowei.llm.ModelCatalog
+ */
+export const ModelCatalog: GenService<{
+  /**
+   * Streams remote model pages without changing configured models. Cancel aborts HTTP and pagination.
+   * API keys are never returned.
+   *
+   * @generated from rpc xiaowei.llm.ModelCatalog.ListModels
+   */
+  listModels: {
+    methodKind: "server_streaming";
+    input: typeof ListModelsRequestSchema;
+    output: typeof ListModelsResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_xiaowei_llm, 2);
 

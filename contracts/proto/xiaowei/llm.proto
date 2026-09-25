@@ -2,9 +2,11 @@ syntax = "proto3";
 
 package xiaowei.llm;
 
-// Text-only generation. Configuration and credentials belong to the service host.
+import "xiaowei/common.proto";
+
+// Generation with host-configured models and credentials.
 service Llm {
-  // Emits text deltas, then one usage and one finished event on success.
+  // Emits ordered content deltas/lifecycle, then one usage and one finished event on success.
   // Provider failure emits one failed event, possibly after partial text; no finished event.
   // Validation, quota, unsupported output and transport errors use Gateway stream errors.
   // Cancellation closes the stream and aborts the provider; no terminal chunk is guaranteed.
@@ -12,16 +14,21 @@ service Llm {
 }
 
 message GenerateRequest {
-  // Required reference to a host-configured non-reasoning text model.
+  // Required local model configuration ID.
   string model_ref = 1;
   // Independent system instruction; empty means no system message.
   string system_prompt = 2;
-  // Required user text. Combined UTF-8 size with system_prompt is at most 256 KiB.
+  // Legacy single-turn shorthand. Must be empty when messages is populated.
   string user_text = 3;
   // Absent leaves the provider default; finite range [0, 2].
   optional double temperature = 4;
-  // Absent uses min(1024, model limit); present range [1, min(4096, model limit)].
+  // Absent uses the configured model limit; present range [1, model limit].
+  // Pi may further adjust this budget for context room and protocol-specific thinking.
   optional uint32 max_tokens = 5;
+  // Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
+  repeated ChatMessage messages = 6;
+  repeated ToolDefinition tools = 7;
+  GenerationOptions options = 8;
 }
 
 message TextDelta {
@@ -38,21 +45,29 @@ message TokenUsage {
   uint64 cache_write = 4;
   // Provider/Pi total, not recomputed by the caller.
   uint64 total = 5;
+  optional uint64 reasoning = 6;
+  optional uint64 cache_write_1h = 7;
+  UsageCost cost = 8;
 }
 
 enum FinishReason {
   FINISH_REASON_UNSPECIFIED = 0;
   FINISH_REASON_STOP = 1;
   FINISH_REASON_LENGTH = 2;
+  FINISH_REASON_TOOL_USE = 3;
+  FINISH_REASON_ERROR = 4;
+  FINISH_REASON_ABORTED = 5;
 }
 
 message GenerationFinished {
   FinishReason reason = 1;
+  AssistantMessage message = 2;
 }
 
 message GenerationFailed {
   // Safe public diagnostic; never contains raw upstream response bodies or credentials.
   string message = 1;
+  AssistantMessage partial = 2;
 }
 
 message GenerateEvent {
@@ -61,5 +76,215 @@ message GenerateEvent {
     TokenUsage usage = 2;
     GenerationFinished finished = 3;
     GenerationFailed failed = 4;
+    xiaowei.common.Empty started = 5;
+    ContentBlockEvent block_started = 6;
+    ContentDelta block_delta = 7;
+    ContentBlockEvent block_finished = 8;
   }
+}
+
+// Configuration operations follow the same trusted calling convention as other application services.
+service LlmConfiguration {
+  // Validates the whole list before replacing it. Empty clears models for future requests.
+  // In-flight requests retain their prior configuration, including credentials.
+  // Success acknowledges the replacement; transport failure may leave the outcome unknown.
+  rpc ReplaceModels(ReplaceModelsRequest) returns (xiaowei.common.Empty);
+}
+
+message ReplaceModelsRequest {
+  repeated ModelConfiguration models = 1;
+}
+
+enum ModelInput {
+  MODEL_INPUT_UNSPECIFIED = 0;
+  MODEL_INPUT_TEXT = 1;
+  MODEL_INPUT_IMAGE = 2;
+}
+
+message ModelCostRates {
+  // Cost per million tokens; nonnegative finite values.
+  double input = 1;
+  double output = 2;
+  double cache_read = 3;
+  double cache_write = 4;
+}
+
+message ModelCostTier {
+  double input_tokens_above = 1;
+  ModelCostRates rates = 2;
+}
+
+message ModelConfiguration {
+  // Local configuration ID, addressed by GenerateRequest.model_ref. Unique in the list.
+  string id = 1;
+  string name = 2;
+  string provider = 3;
+  // Exact upstream model identifier; not derived from the local ID or provider.
+  string model_id = 4;
+  // One of the application's supported Pi API names; unknown values are rejected.
+  string api = 5;
+  string base_url = 6;
+  // Resolved nonempty credential, held in memory. Never log or echo this message.
+  string api_key = 7;
+  bool reasoning = 8;
+  repeated ModelInput input = 9;
+  // Positive safe integers, max_tokens <= context_window.
+  double context_window = 10;
+  double max_tokens = 11;
+  ModelCostRates cost = 12;
+  repeated ModelCostTier cost_tiers = 13;
+  // Absent leaves API defaults. JSON object with application-validated compatibility fields.
+  optional string compat_json = 14;
+  // Absent leaves API defaults. JSON object mapping thinking levels to string or null.
+  optional string thinking_level_map_json = 15;
+  map<string, string> headers = 16;
+  optional string sampling_params_json = 17;
+}
+
+message UsageCost {
+  double input = 1;
+  double output = 2;
+  double cache_read = 3;
+  double cache_write = 4;
+  double total = 5;
+}
+
+message TextContent {
+  string text = 1;
+  optional string signature = 2;
+}
+
+message ImageContent {
+  string mime_type = 1;
+  bytes data = 2;
+}
+
+message ThinkingContent {
+  string text = 1;
+  optional string signature = 2;
+  bool redacted = 3;
+}
+
+message ToolCallContent {
+  string id = 1;
+  string name = 2;
+  // Final arguments as a JSON object. At block start this is absent; use deltas until block_finished.
+  optional string arguments_json = 3;
+  optional string thought_signature = 4;
+  optional string namespace = 5;
+}
+
+message ContentBlock {
+  oneof content {
+    TextContent text = 1;
+    ImageContent image = 2;
+    ThinkingContent thinking = 3;
+    ToolCallContent tool_call = 4;
+  }
+}
+
+message UserMessage {
+  repeated ContentBlock content = 1;
+  int64 timestamp_ms = 2;
+}
+
+message AssistantMessage {
+  repeated ContentBlock content = 1;
+  string api = 2;
+  string provider = 3;
+  string model_id = 4;
+  TokenUsage usage = 5;
+  FinishReason stop_reason = 6;
+  int64 timestamp_ms = 7;
+  optional string response_id = 8;
+  optional string response_model = 9;
+  optional string provider_thinking_level = 10;
+  optional string raw_stop_reason = 11;
+  optional bool end_turn = 12;
+}
+
+message ToolResultMessage {
+  string tool_call_id = 1;
+  string tool_name = 2;
+  repeated ContentBlock content = 3;
+  bool is_error = 4;
+  int64 timestamp_ms = 5;
+  optional string details_json = 6;
+  repeated string added_tool_names = 7;
+  TokenUsage usage = 8;
+}
+
+message ChatMessage {
+  oneof message {
+    UserMessage user = 1;
+    AssistantMessage assistant = 2;
+    ToolResultMessage tool_result = 3;
+  }
+}
+
+message ToolDefinition {
+  string name = 1;
+  string description = 2;
+  // JSON Schema object, passed to Pi without executing the tool.
+  string parameters_json = 3;
+  // Optional JSON matching Pi constrained sampling (false, json_schema or grammar).
+  optional string constrained_sampling_json = 4;
+}
+
+message GenerationOptions {
+  // off, minimal, low, medium, high, xhigh or max. Absent requests no explicit thinking level.
+  optional string reasoning = 1;
+  // JSON object with minimal/low/medium/high positive integer token budgets.
+  optional string thinking_budgets_json = 2;
+  // Provider-neutral JSON tool selection: "auto" or "none". Forced tools use api_options_json.
+  optional string tool_choice_json = 3;
+  optional string sampling_params_json = 4;
+  optional string cache_retention = 5;
+  optional string session_id = 6;
+  optional string transport = 7;
+  optional uint32 timeout_ms = 8;
+  optional uint32 websocket_connect_timeout_ms = 9;
+  optional string metadata_json = 10;
+  // Protocol-specific JSON options. Cannot override credentials, model, messages, signal or callbacks.
+  // Mutually exclusive with reasoning/thinking budgets/tool choice, which use Pi streamSimple.
+  optional string api_options_json = 11;
+}
+
+message ContentBlockEvent {
+  uint32 content_index = 1;
+  ContentBlock block = 2;
+}
+
+message ContentDelta {
+  uint32 content_index = 1;
+  // thinking or toolcall; text uses GenerateEvent.text_delta.
+  string kind = 2;
+  string delta = 3;
+}
+
+service ModelCatalog {
+  // Streams remote model pages without changing configured models. Cancel aborts HTTP and pagination.
+  // API keys are never returned.
+  rpc ListModels(ListModelsRequest) returns (stream ListModelsResponse);
+}
+
+message ListModelsRequest {
+  // Uses the connection and credentials from this local model configuration.
+  string model_ref = 1;
+  // Optional absolute list endpoint, used for compatible servers with a separate catalog URL.
+  optional string url = 2;
+  // openai or anthropic. Absent selects the configured protocol/provider's listing format.
+  optional string format = 3;
+}
+
+message CatalogModel {
+  string model_id = 1;
+  string name = 2;
+  optional double context_window = 3;
+  optional double max_tokens = 4;
+  repeated ModelInput input = 5;
+}
+
+message ListModelsResponse {
+  repeated CatalogModel models = 1;
 }

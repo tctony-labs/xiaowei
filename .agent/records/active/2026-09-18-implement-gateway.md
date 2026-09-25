@@ -127,14 +127,7 @@ Renderer: xwInvoke("clipboard.list", { query })
 
 renderer 使用 `xwOn("clipboard.changed", handler)` 订阅事件。gateway 按实际窗口／frame 投递，在取消订阅、窗口销毁或重载时清理订阅。沿用旧版 best-effort、at-most-once 事件语义；可靠恢复通过重新读取快照或专门的历史接口实现。
 
-调用方分为两类：
-
-- 可信：不做 IPC 调用授权或白名单检查。当前调用方均为自有业务，包括 renderer、Electron main 和 Rust 模块，默认可信。
-- 不可信：需要显式授权对应的 IPC 白名单，只允许调用已授权的 route；未授权的调用拒绝执行。
-
-信任分类由宿主接入层确定，不通过业务 payload 自报。当前不为自有业务增加逐 route 授权配置；未来接入不可信调用方时显式标记并配置白名单。可信调用不做授权检查，不影响接口参数校验、业务校验、事务约束或订阅生命周期管理。
-
-上图展示通过业务服务查询数据的常用链路，不是 renderer 的权限限制。可信 renderer 可以调用任意已注册的业务 route，不设置 backend-only 限制；涉及领域规则时仍应使用业务服务，避免重复实现业务逻辑。
+用户决定自有业务默认可信，避免按 renderer／main／worker／Rust 位置重复划分调用权限；上图描述业务职责而非授权边界。当前规则已提取到 [Gateway 权限边界](../../../gateway/README.md#权限边界)，包括仅在用户明确要求时配置权限限制或白名单。
 
 ### 远端服务与双向 WebSocket（仅记录，暂不实现）
 
@@ -292,7 +285,7 @@ main 持有全局 owner／route／event 表，各 Rust 模块持有自己的 reg
 
 旧版 payload 为 JSON，新的业务绑定使用 PB 字节，中转层在 napi 侧传 Buffer、Electron 侧传 Uint8Array，不转 Base64／数字数组，不提供任意 JS 对象传输。本地 typed 调用可保留直接调用路径，但不得改变契约／错误语义；旧 handler 适配与 protobuf 接口是本轮显式扩展，不宣称旧版已有此能力。
 
-当前 renderer、main 和 Rust 自有业务全部可信，无逐 route 授权检查；未来不可信入口由宿主注入上下文并应用精确白名单（调用／开流和事件订阅分别授权），不能靠 payload 自报信任。该上下文在嵌套调用中保留，不能经一次可信模块转发后自动升级。窗口身份用于定向操作和生命周期管理，不等于给可信 renderer 增加 backend-only 限制。
+本轮实现保留了自有业务默认可信、嵌套调用保留上下文的决定；当前约定统一见 [Gateway 权限边界](../../../gateway/README.md#权限边界)。
 
 本次不改变数据库所有权、数据目录、表结构、检索语义、图片／长文本存储或 UI；不处理既有剪贴板差异清单。当前不实现 WS／其他 socket、sidecar、Go 服务运行时或 RN 接入；三语言契约产物与远端连接实现是不同范围。Storage 的 DB／KV／Config 设计与验收由其独立 record 承载；本次不先发布占位的 `storage.*` 业务接口。
 
