@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import { Worker } from "node:worker_threads";
 import { create } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
@@ -18,6 +19,18 @@ const clients = (host: GatewayHost) => {
   const client = host.client({ caller: "main", trusted: true });
   return { unary: bindClient(Fixture, client), stream: bindStreamClient(Fixture, client) };
 };
+
+async function afterAdmissionReleased<T>(call: () => Promise<T>, fullCode: string): Promise<T> {
+  const deadline = performance.now() + 5000;
+  while (true) {
+    try {
+      return await call();
+    } catch (error) {
+      if (!code(fullCode)(error) || performance.now() >= deadline) throw error;
+      await setImmediate();
+    }
+  }
+}
 
 test("worker typed unary and interleaved streams execute off main and preserve PB", async () => {
   const fixture = await workerFixture();
@@ -56,8 +69,8 @@ test("worker unary timeout retains execution admission until the handler actuall
     await pending;
     await assert.rejects(unary.echo(request()), code("CONCURRENCY_FULL"));
     fixture.release("unary");
-    // Echo ordering after the release crosses the same worker event loop.
-    assert.deepEqual(await unary.echo(request()), request());
+    // Control messages and requests use separate ports; release is not a cleanup acknowledgement.
+    assert.deepEqual(await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"), request());
   } finally {
     await fixture.close();
   }
@@ -87,7 +100,8 @@ test("pending open and next cancel independently while uncooperative work retain
       await assert.rejects(stream.watch(request()), code("RESOURCE_EXHAUSTED"));
       fixture.release(event);
       await fixture.wait("returned");
-      const replacement = await stream.watch(request());
+      // The iterator's return notification precedes the framework's admission cleanup.
+      const replacement = await afterAdmissionReleased(() => stream.watch(request()), "RESOURCE_EXHAUSTED");
       await replacement.cancel();
     } finally {
       await fixture.close();

@@ -9,7 +9,7 @@
   "scripts": {
     "check": "pnpm contracts:check && pnpm gateway:check && biome check . && pnpm -r check",
     "fmt": "biome check --write .",
-    "test": "pnpm build:rust && pnpm test:tooling && pnpm test:patches && pnpm -r --workspace-concurrency=1 test",
+    "test": "pnpm test:patches && pnpm build:rust && pnpm -r --workspace-concurrency=1 test && pnpm test:tooling",
     "build:rust": "pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug",
     "build": "pnpm -r build",
     "prepare": "husky",

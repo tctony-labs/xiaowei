@@ -24,6 +24,8 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 - `mobile/` 留待实际开发，未创建空工程。独立开发文档在工程落地后提取到 `docs/`，不在 record 重复维护当前事实。
 - 开发与打包共用 `com.tctony.xiaowei` 数据目录，不按工作区或 tag 隔离，`just start` 通过全局 PID 切换运行实例；格式化与只读检查分开，不引入自动暂存、提交或内部项目依赖。
 
+GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/workflows/test.yml)：每次 push 到 `develop` 时在 `macos-15` 上执行，也支持手动触发。冷／热缓存验收使用的临时测试分支 push 条件已移除，自动触发仅限 `develop`。Node、pnpm、Rust 和 Go 版本读取仓库已有配置，just 固定为 1.46.0。pnpm 安装后通过 `pnpm store path --silent` 定位 store，使用 `actions/cache` 按系统、架构和 `pnpm-lock.yaml` hash 保存；锁文件变化时可恢复同系统与架构的旧缓存以复用已有包。不缓存 `node_modules`，缓存命中后仍执行 frozen install。安装锁定依赖后直接运行 `just test`；根 `pnpm test` 按补丁测试、原生构建、串行 workspace 测试、工具测试的顺序执行。补丁测试仅依赖安装后已应用补丁的 npm 包及本地 SSE fixture，不依赖构建产物，优先执行以尽早发现失败。业务与测试按 workspace 源码消费约定解析依赖，不预构建其他包的 dist；Gateway 自身的构建产物验收仍由其测试入口独立构建。保持 workspace 串行，避免 Gateway 与 desktop 争用 napi fixture。覆盖现有全部自动回归，不包括需已有 Electron 调试会话或真实外部凭据的手动验收。
+
 ## Alternatives considered
 
 - `apps/desktop/`：不采用；桌面端直接放在根目录，后续移动端与其并列。
@@ -31,6 +33,8 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 - Rust 服务端：资源控制好，但最小服务工程与后续常规 Web 开发选择 Go 更直接；客户端 Rust 集成暂缓。
 
 ## Outcome
+
+2026-09-25 增加 develop push 全量测试流水线，复用现有测试入口，将 `test:tooling` 后移到 workspace 测试之后，CI 无需额外构建 Gateway。actionlint 1.7.7、`just --dry-run test` 与 diff 空白检查通过；当前工作区未安装 Node 依赖，未本地执行全量测试。首轮 GitHub 运行 36155987498 在 7 分 3 秒后失败：剪贴板 napi 测试先于 Gateway 测试运行，缺失 Gateway dist；曾在 workspace 测试入口补充预构建。2026-09-26 rebase 到 develop 的源码消费修复 254116f 后，删除该临时预构建及 test:workspace 包装入口，保留串行测试顺序。此前冷跑 36156904221 全部通过，job 用时 10 分 22 秒；首个热跑 36158104874 在 Worker 取消／配额测试出现 RESOURCE_EXHAUSTED，已保持旧代码不变重跑，结果单独统计，不与 rebase 后代码混作同一基准。
 
 已完成 pnpm 工作区与 Go module、Electron 最小页面与 Logo、preload 入口及 Go 健康检查。工具链版本与依赖锁文件已落地，开发入口见工作区文档。
 
@@ -86,3 +90,11 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 补齐外部停止的终端提示：此前 SIGTERM／SIGINT 直接调用 stop，只有 Ctrl+C 按键打印退出标记，切换工作区时旧终端缺少解释。现在外部信号先打印信号名和停止提示，正常清理完成后打印退出完成；重复信号不重复标记，不推断信号发送方工作区。20 项工具测试通过，覆盖非 TTY 的两种信号、重复信号及真实控制进程的 IPC 清理与提示顺序，Biome 和差异检查通过。未启动或停止其他工作区实例；dev 控制进程需用户重新执行 just start 后加载新提示。Chromium network service 提示保留，现有证据不足以单独确定其终止来源。
 
 一次性修复 workspace 源码消费：剪贴板测试补齐 Gateway、Storage、Search 与 tsx 依赖，通过公开入口加载；桌面、Gateway 源码测试及相关子进程显式启用 source 条件，删除桌面测试的 Gateway 预构建。Electron 验收 main 与 preload／renderer 一起内联 Gateway 源码；保留 Gateway 自身 plain Node 产物验收。统一规则见 [Workspace 源码消费](../../../docs/workspace.md#workspace-源码消费)。在 Gateway dist 不存在时，剪贴板 3 项、桌面 185 项、工具 22 项测试和 Electron 验收资产构建通过；随后 Gateway 完整测试与 just check 通过。未启动 Electron，真实 Electron 运行验收未执行。
+
+2026-09-26 新基准冷跑 36159080442 在 Gateway Worker 测试失败：控制端口释放门闩不保证业务端口下一请求之前完成配额清理，returned 通知也早于异步释放。仅调整两处测试的释放后断言，最多 5 秒等待对应配额错误消失，其他错误和永不释放仍失败；业务实现及释放前占用断言不变。冷／热比较以此修正后的相同代码重新开始。
+
+冷跑 36160233036 的 Gateway、桌面业务与组件测试通过，但 tooling 真实进程重启测试在 15 秒超时后没有退出；取消后日志确认该项失败并遗留测试进程。该测试总预算调整为 45 秒，覆盖三次启动及停止；after hook 无论正常结束或超时都清理本测试的进程组与 session，失败日志包含当前阶段和子进程输出，避免仅依赖无法被超时打断的 finally。
+
+2026-09-26 最终 CI 冷／热缓存验收完成：清空本测试分支 Actions 缓存后，提交 `5b81109` 的[冷跑 36162622149](https://github.com/tctony-labs/xiaowei/actions/runs/36162622149)成功；随后用空提交 `70e213a` 触发同代码树的[热跑 36163686444](https://github.com/tctony-labs/xiaowei/actions/runs/36163686444)，同样成功，pnpm／Go／Rust 缓存均精确命中。按 job 起止时间计算、不含排队，冷跑 552 秒（9 分 12 秒），热跑 285 秒（4 分 45 秒），减少 267 秒、约 48.4%；测试步骤含编译从 448 秒降至 193 秒，减少 255 秒。环境准备及缓存恢复从 49 秒增至 86 秒，测试后缓存保存与收尾从 55 秒降至 6 秒。pnpm 安装从 9 秒降至 7 秒，但热跑 store 恢复另耗 16 秒；不能把总体收益归于 pnpm 缓存。这是一对样本，包含 runner 与网络波动，不视为稳定性能承诺。
+
+两处 Worker 配额时序测试连续 20 轮共 40 项通过，Gateway TS 50 项与类型检查通过；tooling 22 项通过，并通过临时注入永不完成的等待验证超时清理能退出且打印阶段日志。完整提交检查通过，最终两轮 GitHub `just test` 全量通过。冷／热验收后已移除临时测试分支 push 条件，并将 CI、测试稳定性修复和验证记录以单个 squash 提交合入本地 develop；未启动产品应用。

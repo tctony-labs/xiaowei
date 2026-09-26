@@ -68,8 +68,8 @@ for (const stubborn of [false, true]) {
 }
 
 test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning applications", {
-  timeout: 15000,
-}, async () => {
+  timeout: 45000,
+}, async (context) => {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-dev-restart-"));
   const pidFile = join(directory, "app.pid");
   const groupFile = join(directory, "group.pid");
@@ -117,6 +117,25 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
   const groups = [];
   const sessions = [];
   let sessionOutput = "";
+  let phase = "initial startup";
+  function killTestProcesses() {
+    const activeGroups = new Set(groups);
+    if (existsSync(groupFile)) activeGroups.add(Number(readFileSync(groupFile, "utf8")));
+    for (const group of activeGroups) {
+      if (!Number.isInteger(group) || group <= 0) continue;
+      try {
+        process.kill(-group, "SIGKILL");
+      } catch {}
+    }
+    for (const child of sessions) child.kill("SIGKILL");
+  }
+  context.after(() => {
+    // A test timeout does not interrupt an await or enter its finally block.
+    killTestProcesses();
+    if (context.signal.aborted) context.diagnostic(`${phase}\n${output.join("\n")}\n${sessionOutput}`);
+    input.destroy();
+    rmSync(directory, { recursive: true, force: true });
+  });
   const controller = runDevelopment({
     input,
     signals: new EventEmitter(),
@@ -146,16 +165,19 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
       }
       await delay(25);
     }
-    assert.fail("test application did not start");
+    assert.fail(`test application did not start during ${phase}\n${output.join("\n")}\n${sessionOutput}`);
   }
   try {
     let pid = await application();
     for (let i = 0; i < 2; i++) {
+      phase = `restart ${i + 1}: stopping session`;
       input.write("R");
       await controller.idle();
       assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+      phase = `restart ${i + 1}: starting application`;
       pid = await application(pid);
     }
+    phase = "Ctrl+C shutdown";
     input.write("\x03");
     await controller.stop();
     assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
@@ -165,14 +187,7 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
     assert.ok(!sessionOutput.includes("exited with signal SIGTERM"), sessionOutput);
     assert.ok(!/ELIFECYCLE.*Command failed\./.test(sessionOutput), sessionOutput);
   } finally {
-    for (const group of groups) {
-      try {
-        process.kill(-group, "SIGKILL");
-      } catch {}
-    }
-    for (const child of sessions) child.kill("SIGTERM");
+    killTestProcesses();
     await controller.stop();
-    input.destroy();
-    rmSync(directory, { recursive: true, force: true });
   }
 });
