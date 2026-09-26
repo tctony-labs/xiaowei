@@ -18,7 +18,7 @@ export function createLauncherWindow(options: {
   let launcherMode: LauncherMode = "search";
   let quitting = false;
 
-  function openLauncherMode(mode: LauncherMode): void {
+  function openLauncherMode(mode: LauncherMode | "toggle"): void {
     launcherMode = activateLauncherShortcut(launcher, launcherMode, mode, showLauncher, (window, openedMode) =>
       options.opened(window, openedMode),
     );

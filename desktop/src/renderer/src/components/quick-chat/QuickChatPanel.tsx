@@ -41,7 +41,11 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const title = props.messages.find((message) => message.role === "user")?.text ?? "新的对话";
 
   useLayoutEffect(() => {
-    if (props.expanded) composer.current?.focus();
+    if (!props.expanded) return;
+    const focus = () => composer.current?.focus();
+    focus();
+    window.addEventListener("focus", focus);
+    return () => window.removeEventListener("focus", focus);
   }, [props.expanded]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measure the controlled draft after each edit.

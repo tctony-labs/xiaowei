@@ -30,7 +30,10 @@ export class DeliveryQueue implements Subscription {
     this.pending.push(payload.slice());
     if (this.draining) return;
     this.draining = true;
-    queueMicrotask(() => {
+    // Native Node callbacks may return without a microtask checkpoint (e.g. Electron hotkeys).
+    // Schedule a Node turn to start delivery; browser hosts retain microtask scheduling.
+    const schedule = typeof globalThis.setImmediate === "function" ? globalThis.setImmediate : queueMicrotask;
+    schedule(() => {
       void this.drain();
     });
   }

@@ -1,5 +1,5 @@
-import { create } from "@bufbuild/protobuf";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { create, toBinary } from "@bufbuild/protobuf";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import {
@@ -28,7 +28,7 @@ import { Launcher } from "./Launcher";
 function preview(clipboardMode = false) {
   const host = new GatewayHost();
   const calls = { execute: vi.fn(), resize: vi.fn(), hide: vi.fn() };
-  host.registerOwner(
+  const launcher = host.registerOwner(
     "launcher",
     bindHandlers(LauncherService, {
       query: ({ query: value }) =>
@@ -139,7 +139,16 @@ function preview(clipboardMode = false) {
     ],
   );
 
-  return { calls, services: createServices(() => host.client({ caller: "test", trusted: true })) };
+  return {
+    calls,
+    services: createServices(() => host.client({ caller: "test", trusted: true })),
+    openMode(mode: LauncherMode) {
+      launcher.publish(
+        LauncherOpenedSchema.typeName,
+        toBinary(LauncherOpenedSchema, create(LauncherOpenedSchema, { mode })),
+      );
+    },
+  };
 }
 
 afterEach(cleanup);
@@ -194,6 +203,11 @@ test("empty search opens native chat layout, sends through Llm and preserves his
   fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
   const input = await canvas.findByRole("textbox", { name: "快速对话输入" });
   expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }));
+  fireEvent.click(canvas.getByRole("button", { name: "新建对话" }));
+  canvas.getByRole("button", { name: "新建对话" }).focus();
+  expect(input).not.toHaveFocus();
+  fireEvent.focus(window);
+  expect(input).toHaveFocus();
   fireEvent.change(input, { target: { value: "Hello" } });
   await waitFor(() => expect(canvas.getByRole("button", { name: "发送消息" })).toBeEnabled());
   fireEvent.keyDown(input, { key: "Enter" });
@@ -207,4 +221,71 @@ test("empty search opens native chat layout, sends through Llm and preserves his
   await canvas.findByText("Hello from LLM");
   fireEvent.click(canvas.getByRole("button", { name: "新建对话" }));
   expect(canvas.queryByText("Hello from LLM")).toBeNull();
+});
+
+test("clipboard switches directly to expanded quick chat without replaying the search transition", async () => {
+  const app = preview();
+  const canvas = render(<Launcher services={app.services} />);
+  await waitFor(() => expect(app.calls.resize).toHaveBeenCalled());
+
+  await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+  await canvas.findByRole("navigation", { name: "剪贴板视图" });
+  await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+
+  const input = await canvas.findByRole("textbox", { name: "快速对话输入" });
+  const viewport = canvas.getByTestId("quick-chat-viewport");
+  expect(viewport).toHaveAttribute("data-expanded", "true");
+  expect(viewport).toHaveAttribute("data-animating", "false");
+  expect(viewport).toHaveStyle({ height: "580px" });
+  expect(input).toHaveFocus();
+
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(viewport).toHaveAttribute("data-animating", "true");
+  const search = await canvas.findByRole("textbox", { name: "搜索" });
+  fireEvent.keyDown(search, { key: "ArrowDown" });
+  await waitFor(() => expect(viewport).toHaveAttribute("data-expanded", "true"));
+  expect(viewport).toHaveAttribute("data-animating", "true");
+});
+
+test("mode notifications stay connected while switching through clipboard", async () => {
+  const app = preview();
+  const gateway = app.services.getGateway();
+  const subscribe = gateway.subscribe.bind(gateway);
+  let launcherSubscriptions = 0;
+  let releaseReconnect = () => {};
+  const reconnect = new Promise<void>((resolve) => {
+    releaseReconnect = resolve;
+  });
+  const services = createServices(() => ({
+    ...gateway,
+    async subscribe(...args) {
+      if (args[0] === LauncherOpenedSchema.typeName && ++launcherSubscriptions > 1) {
+        // Model a cross-process subscription that has not attached yet.
+        await reconnect;
+      }
+      return subscribe(...args);
+    },
+  }));
+  const canvas = render(<Launcher services={services} />);
+  await waitFor(() => expect(app.calls.resize).toHaveBeenCalled());
+
+  try {
+    await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+    await canvas.findByRole("navigation", { name: "剪贴板视图" });
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+
+    const input = await canvas.findByRole("textbox", { name: "快速对话输入" });
+    expect(input).toHaveFocus();
+    expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
+    expect(canvas.getByTestId("quick-chat-viewport")).toHaveAttribute("data-animating", "false");
+    expect(launcherSubscriptions).toBe(1);
+
+    await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+    await canvas.findByRole("navigation", { name: "剪贴板视图" });
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+    expect(await canvas.findByRole("textbox", { name: "快速对话输入" })).toHaveFocus();
+    expect(launcherSubscriptions).toBe(1);
+  } finally {
+    await act(async () => releaseReconnect());
+  }
 });

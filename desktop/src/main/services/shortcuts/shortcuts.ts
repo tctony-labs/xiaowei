@@ -8,11 +8,15 @@ export interface ShortcutConfig {
   quickChat: ShortcutValue;
 }
 
-export function shortcutConfig(value: ShortcutConfiguration | undefined): ShortcutConfig {
+export function shortcutConfig(
+  value: ShortcutConfiguration | undefined,
+  platform: string = process.platform,
+): ShortcutConfig {
   return {
     main: value?.main?.keys ?? null,
     clipboard: value?.clipboard?.keys ?? null,
-    quickChat: value?.quickChat?.keys ?? null,
+    // Quick Chat has a fixed entry until its shortcut settings are exposed.
+    quickChat: value?.quickChat?.keys ?? [platform === "darwin" ? "Meta" : "Control", "Shift", "KeyC"],
   };
 }
 

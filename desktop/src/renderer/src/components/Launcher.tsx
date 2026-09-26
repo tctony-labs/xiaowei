@@ -1,5 +1,5 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   EmptySchema,
   LauncherMode,
@@ -49,6 +49,23 @@ export function Launcher({
     setSelected(0);
     setError("");
   }, []);
+
+  // Keep the subscription connected across mode changes while reading the latest UI state.
+  const onOpened = useEffectEvent((bytes: Uint8Array) => {
+    const { mode } = fromBinary(LauncherOpenedSchema, bytes);
+    if (![LauncherMode.SEARCH, LauncherMode.CLIPBOARD, LauncherMode.QUICK_CHAT].includes(mode)) return;
+    setChatOpen(mode === LauncherMode.QUICK_CHAT);
+    if (mode !== LauncherMode.QUICK_CHAT) {
+      setChatExpanded(false);
+    } else if (clipboardOpen) {
+      // Clipboard already uses the full panel height; mount chat without a search transition.
+      setChatExpanded(true);
+    }
+    const nextClipboardOpen = mode === LauncherMode.CLIPBOARD;
+    if (nextClipboardOpen !== clipboardOpen) changeQuery("");
+    setClipboardOpen(nextClipboardOpen);
+  });
+
   useEffect(() => {
     let active = true;
     let subscription: Subscription | undefined;
@@ -58,13 +75,7 @@ export function Launcher({
         undefined,
         (bytes) => {
           if (!active) return;
-          const { mode } = fromBinary(LauncherOpenedSchema, bytes);
-          if (![LauncherMode.SEARCH, LauncherMode.CLIPBOARD, LauncherMode.QUICK_CHAT].includes(mode)) return;
-          setChatOpen(mode === LauncherMode.QUICK_CHAT);
-          if (mode !== LauncherMode.QUICK_CHAT) setChatExpanded(false);
-          const nextClipboardOpen = mode === LauncherMode.CLIPBOARD;
-          if (nextClipboardOpen !== clipboardOpen) changeQuery("");
-          setClipboardOpen(nextClipboardOpen);
+          onOpened(bytes);
         },
         true,
       )
@@ -79,7 +90,7 @@ export function Launcher({
       active = false;
       subscription?.close();
     };
-  }, [gateway, clipboardOpen, changeQuery]);
+  }, [gateway]);
   useEffect(() => {
     let active = true;
     const current = `${revision.current}:${refreshToken}`;

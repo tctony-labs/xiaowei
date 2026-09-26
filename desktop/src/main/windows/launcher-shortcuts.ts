@@ -4,13 +4,12 @@ import type { LauncherMode } from "../../shared/launcher-model";
 export function activateLauncherShortcut(
   window: BrowserWindow | undefined,
   currentMode: LauncherMode,
-  targetMode: LauncherMode,
+  target: LauncherMode | "toggle",
   show: () => void,
   opened: (window: BrowserWindow, mode: LauncherMode) => void,
 ): LauncherMode {
   if (!window || window.isDestroyed()) return currentMode;
-  // The search shortcut toggles the active quick-chat window without discarding its presentation.
-  if (targetMode === "search" && currentMode === "quick-chat") targetMode = "quick-chat";
+  const targetMode = target === "toggle" ? currentMode : target;
   if (currentMode === targetMode && window.isVisible() && window.isFocused()) {
     window.hide();
     return currentMode;

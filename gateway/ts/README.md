@@ -18,6 +18,8 @@ TS 编码前限制对象节点数、深度及字符串／bytes 预算，防止�
 
 本地事件使用 `bindEvent`，远端使用含 `attach` 回调的 event export；host 负责远端 owner 重新出现时重新 attach persistent 订阅。
 
+事件投递由 `DeliveryQueue` 异步启动：存在 `globalThis.setImmediate` 时使用它进入 Node 事件循环，避免 Electron 原生回调缺少微任务检查点时通知滞留；浏览器无该 API 时使用 `queueMicrotask`，共享入口不导入 Node 模块。业务直接 publish，不需要包装回调。Ordered／Coalesce／Drop 仍按每个订阅的待投递队列生效；调度前取消订阅或移除 owner 会清理待投递消息。此调度不承诺与其他任务的跨队列顺序或固定毫秒延迟。
+
 上下文使用私有 WeakMap 校验，反序列化对象或复制 trusted 字段无效；client transport 不接受 caller 元数据。
 
 ## TS ↔ Rust napi 通信适配层

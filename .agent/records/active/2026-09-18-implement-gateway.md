@@ -441,3 +441,11 @@ Electron 集成验收目录迁至 gateway/tests/electron，依赖由 gateway/tes
 2026-09-25 修复热更新重建 renderer client 时订阅／流 ID 从头计数、与同一 preload 会话旧句柄冲突的问题。每个 client 使用随机 UUID 前缀隔离句柄，保留现有会话、ready 和清理语义；当前行为见 [TS Electron 接入](../../../gateway/ts/README.md#electron-接入)。
 
 新增两项同会话 client 重建回归，修改前分别复现 `invalid subscription` 和 `invalid stream`，修改后验证新旧订阅投递、失败清理、旧订阅关闭及流取消互不干扰。原跨 frame 测试改用实际生成的句柄 ID。Gateway TS 31 项测试、check、build、改动源码 Biome 检查及 diff 空白检查通过。修改仅在主工作区完成，未启动或重启桌面；真实窗口热更新体验待用户启动主工作区实例后验证。
+
+### 2026-09-26：Node 事件投递调度
+
+Electron 原生快捷键可能在缺少微任务检查点的入口调用 JS，使原先 queueMicrotask 排队的通知等待无关任务。修复归入 Gateway 的 DeliveryQueue，Node 以 setImmediate 启动投递；浏览器仍使用微任务，不向共享入口引入 Node 模块。撤销快捷键业务回调包装，适用于所有经此队列投递的通知。实现约定见 [TS 事件与上下文](../../../gateway/ts/README.md#事件与上下文)，源码依据与真实热键验证边界见 [快捷键事项](2026-09-18-fixed-launcher-shortcuts.md#原生快捷键与微任务调度)。
+
+回归先阻断 queueMicrotask 证明旧实现无法送达，再验证本地／远端投递、取消订阅与浏览器回退；多级投递测试改为等待实际 sink 收到消息，不依赖固定事件循环轮数。
+
+验证：`pnpm gateway:test` 全部通过（31 项 Rust 测试、52 项 TS 测试、1 项构建后 Node worker 测试、15 项真实 napi 联调），原生 fixture 已恢复为生产构建；Gateway／desktop 类型检查、Biome、12 项快捷键测试和 10 项 Launcher／QuickChatPanel 组件测试通过。用户随后通过实际 macOS 热键切换确认卡顿已修复；此结果对应 Gateway 统一调度、无快捷键包装和无调试日志的版本。

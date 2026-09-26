@@ -219,6 +219,78 @@ test("event filters, explicit exports, caller cleanup and idempotent close", asy
   subscription.close();
 });
 
+test("Node event delivery progresses without depending on the native callback's microtask checkpoint", async (t) => {
+  const host = new GatewayHost();
+  const owner = host.registerOwner("a", [], [exported("ordered")]);
+  let remoteSink: ((payload: Uint8Array) => void | Promise<void>) | undefined;
+  host.registerOwner(
+    "native",
+    [],
+    [
+      {
+        name: "testing.NativeChanged",
+        policy: "ordered",
+        attach(_context, _filter, sink) {
+          remoteSink = sink;
+          return Promise.resolve({ close() {} });
+        },
+      },
+    ],
+  );
+  const local: Uint8Array[] = [];
+  const remote: Uint8Array[] = [];
+  const cancelled: Uint8Array[] = [];
+  const localSubscription = await client(host).subscribe("testing.Changed", undefined, (payload) => {
+    local.push(payload);
+  });
+  const remoteSubscription = await client(host).subscribe("testing.NativeChanged", undefined, (payload) => {
+    remote.push(payload);
+  });
+  const cancelledSubscription = await client(host).subscribe("testing.Changed", undefined, (payload) => {
+    cancelled.push(payload);
+  });
+  // Native callbacks may leave this queue pending until an unrelated Node/Chromium task runs.
+  const pendingMicrotasks: VoidFunction[] = [];
+  t.mock.method(globalThis, "queueMicrotask", (callback: VoidFunction) => pendingMicrotasks.push(callback));
+
+  owner.publish("testing.Changed", changed(1n));
+  remoteSink?.(changed(2n));
+  cancelledSubscription.close();
+  assert.deepEqual(local, []);
+  assert.deepEqual(remote, []);
+  await tick();
+  assert.deepEqual(local, [changed(1n)]);
+  assert.deepEqual(remote, [changed(2n)]);
+  assert.deepEqual(cancelled, []);
+  assert.equal(pendingMicrotasks.length, 0);
+  localSubscription.close();
+  remoteSubscription.close();
+});
+
+test("browser event delivery works without Node globals", async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "setImmediate");
+  assert.ok(descriptor);
+  Reflect.deleteProperty(globalThis, "setImmediate");
+  try {
+    const host = new GatewayHost();
+    const owner = host.registerOwner("a", [], [exported("coalesce")]);
+    const delivered = gate();
+    const received: Uint8Array[] = [];
+    const subscription = await client(host).subscribe("testing.Changed", undefined, (payload) => {
+      received.push(payload);
+      delivered.release();
+    });
+    owner.publish("testing.Changed", changed(1n));
+    owner.publish("testing.Changed", changed(2n));
+    assert.deepEqual(received, []);
+    await delivered.promise;
+    assert.deepEqual(received, [changed(2n)]);
+    subscription.close();
+  } finally {
+    Object.defineProperty(globalThis, "setImmediate", descriptor);
+  }
+});
+
 test("Ordered burst, Coalesce latest and Drop first pending preserve per-subscription semantics", async () => {
   for (const policy of ["ordered", "coalesce", "drop"] as const) {
     const host = new GatewayHost();
@@ -266,6 +338,7 @@ test("remote event endpoint validates filters at owner and late binding closes s
   const source = endpoint.registerOwner("source", [], [exported("ordered")]);
   const host = new GatewayHost();
   const received: Uint8Array[] = [];
+  let delivered = gate();
   const registration = {
     name: "testing.Changed",
     policy: "ordered" as const,
@@ -277,6 +350,7 @@ test("remote event endpoint validates filters at owner and late binding closes s
     bytes(2n),
     (p) => {
       received.push(p);
+      delivered.release();
     },
     true,
   );
@@ -284,8 +358,9 @@ test("remote event endpoint validates filters at owner and late binding closes s
   await tick();
   source.publish("testing.Changed", changed(1n));
   source.publish("testing.Changed", changed(2n));
-  await tick();
+  await delivered.promise;
   assert.deepEqual(received, [changed(2n)]);
+  delivered = gate();
   await assert.rejects(
     client(host).subscribe("testing.Changed", new Uint8Array([255]), () => {}),
     rejectsCode("INVALID_ARGUMENT"),
@@ -296,7 +371,7 @@ test("remote event endpoint validates filters at owner and late binding closes s
   owner = host.registerOwner("remote", [], [registration]);
   await tick();
   source.publish("testing.Changed", changed(4n));
-  await tick();
+  await delivered.promise;
   assert.deepEqual(received, [changed(2n), changed(4n)]);
   consumer.close();
   owner.close();

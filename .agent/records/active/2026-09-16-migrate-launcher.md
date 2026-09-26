@@ -11,7 +11,7 @@
 ## How
 
 - 主窗口为 800 × 71 的无边框透明圆角搜索框，不可调整大小，保持置顶。顶部 16px 区域可拖动；浅色和深色随系统切换。
-- macOS 固定使用 `Command+Space` 打开搜索、`Command+Shift+X` 打开剪贴板；其他平台对应 `Control+Alt+Space` 和 `Control+Shift+X`。同模式已显示并聚焦时再次按下隐藏，否则切换到目标模式并显示、聚焦。在鼠标所在显示器的工作区上方居中唤起。当前不提供自定义快捷键；实现及旧版行为差异见 [固定快捷键](2026-09-18-fixed-launcher-shortcuts.md)。
+- macOS 默认 `Command+Space` 切换当前窗口显隐并聚焦输入，不改变模式；`Command+Shift+X` 打开剪贴板，`Command+Shift+C` 打开快速对话。其他平台对应 `Control+Alt+Space`、`Control+Shift+X`、`Control+Shift+C`。模式专用快捷键在同模式已显示并聚焦时隐藏，否则切换并显示。主入口和剪贴板支持设置中的自定义值，快速对话暂用固定入口；窗口定位及细节见 [快捷键行为](2026-09-18-fixed-launcher-shortcuts.md)。
 - 首次等待 `ready-to-show` 才显示；失焦隐藏，开发者工具打开时保留窗口以便调试。关闭窗口隐藏而非销毁；退出应用正常销毁并释放快捷键。快捷键被占用时输出错误，macOS 可从 Dock 再次唤起。
 - 搜索框初次挂载聚焦，再次聚焦时全选已有输入。Esc 清空并隐藏；输入法组合期间不截获 Esc。
 - preload 只暴露 `launcher.hide()`，主进程校验调用来自 launcher 主 frame；不暴露任意 IPC。

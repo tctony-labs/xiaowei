@@ -114,10 +114,15 @@ test("Electron subscribe ready includes early delivery; late subscribe on naviga
   );
   const a = frame();
   const bytes: number[] = [];
+  let markDelivered!: () => void;
+  const delivered = new Promise<void>((resolve) => {
+    markDelivered = resolve;
+  });
   const subscription = a.client.subscribe("test.Changed", undefined, (payload) => {
     bytes.push(payload[0]);
+    markDelivered();
   });
-  await tick();
+  await delivered;
   assert.deepEqual(bytes, [9]);
   a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
   release();

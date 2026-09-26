@@ -33,7 +33,8 @@ export function startApplication(moduleDir: string): void {
     register: (window) => gateway?.register(window),
   });
   const shortcuts = createSettingsShortcuts(globalShortcut, process.platform, {
-    main: () => launcher.openMode("search"),
+    main: () => launcher.openMode("toggle"),
+    quickChat: () => launcher.openMode("quick-chat"),
     clipboard: () => launcher.openMode("clipboard"),
   });
 

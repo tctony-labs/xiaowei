@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { accelerator, createSettingsShortcuts } from "../src/main/services/shortcuts/shortcuts.ts";
+import { accelerator, createSettingsShortcuts, shortcutConfig } from "../src/main/services/shortcuts/shortcuts.ts";
 
 const initial = {
   main: ["Meta", "Space"],
@@ -44,4 +44,33 @@ test("failed registration restores the prior shortcuts", () => {
   assert.throws(() => shortcut.replace({ ...initial, quickChat: ["Meta", "Shift", "KeyC"] }), /action unavailable/);
   shortcut.close();
   assert.equal(registered.size, 0);
+});
+
+test("quick chat registers its default binding on startup and after settings changes", () => {
+  for (const [platform, key] of [
+    ["darwin", "Command+Shift+C"],
+    ["linux", "Control+Shift+C"],
+  ]) {
+    const registered = new Map();
+    let opened = 0;
+    const shortcuts = createSettingsShortcuts(
+      {
+        register: (binding, action) => {
+          registered.set(binding, action);
+          return true;
+        },
+        unregister: (binding) => registered.delete(binding),
+      },
+      platform,
+      { quickChat: () => opened++ },
+    );
+    const config = shortcutConfig(undefined, platform);
+    shortcuts.registerInitial(config);
+    registered.get(key)();
+    shortcuts.replace(config);
+    registered.get(key)();
+    assert.equal(opened, 2);
+    shortcuts.close();
+    assert.equal(registered.size, 0);
+  }
 });

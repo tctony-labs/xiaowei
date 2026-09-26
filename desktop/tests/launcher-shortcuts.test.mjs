@@ -25,7 +25,7 @@ function fixture({ visible = true, focused = true, destroyed = false } = {}) {
 }
 
 test("same-mode shortcuts hide only when the launcher is visible and focused", () => {
-  for (const mode of ["search", "clipboard"]) {
+  for (const mode of ["search", "clipboard", "quick-chat"]) {
     const { window, show, calls, opened } = fixture();
     assert.equal(activateLauncherShortcut(window, mode, mode, show, opened), mode);
     assert.deepEqual(calls, [["hide"]]);
@@ -41,6 +41,9 @@ test("cross-mode shortcuts resize and switch before showing instead of hiding", 
   for (const [from, to, height] of [
     ["search", "clipboard", 580],
     ["clipboard", "search", 71],
+    ["search", "quick-chat", 580],
+    ["clipboard", "quick-chat", 580],
+    ["quick-chat", "clipboard", 580],
   ]) {
     const { window, show, calls, opened } = fixture();
     assert.equal(activateLauncherShortcut(window, from, to, show, opened), to);
@@ -202,17 +205,15 @@ test("other platforms do not configure macOS workspaces", () => {
   configureLauncherWorkspaces({}, "win32");
 });
 
-test("search shortcut preserves quick chat when showing or toggling its window", () => {
-  const hidden = fixture({ visible: false });
-  assert.equal(
-    activateLauncherShortcut(hidden.window, "quick-chat", "search", hidden.show, hidden.opened),
-    "quick-chat",
-  );
-  assert.deepEqual(hidden.calls, [["opened", "quick-chat"], ["show"]]);
-  const visible = fixture();
-  activateLauncherShortcut(visible.window, "quick-chat", "search", visible.show, visible.opened);
-  assert.deepEqual(visible.calls, [["hide"]]);
-  const clipboard = fixture();
-  activateLauncherShortcut(clipboard.window, "quick-chat", "clipboard", clipboard.show, clipboard.opened);
-  assert.deepEqual(clipboard.calls, [["size", 800, 580], ["opened", "clipboard"], ["show"]]);
+test("main shortcut toggles every mode without changing its presentation", () => {
+  for (const mode of ["search", "clipboard", "quick-chat"]) {
+    for (const state of [{ visible: false }, { focused: false }]) {
+      const next = fixture(state);
+      assert.equal(activateLauncherShortcut(next.window, mode, "toggle", next.show, next.opened), mode);
+      assert.deepEqual(next.calls, [["opened", mode], ["show"]]);
+    }
+    const visible = fixture();
+    assert.equal(activateLauncherShortcut(visible.window, mode, "toggle", visible.show, visible.opened), mode);
+    assert.deepEqual(visible.calls, [["hide"]]);
+  }
 });
