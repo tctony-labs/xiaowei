@@ -95,7 +95,7 @@ Gateway 传领域事件，不传 Pi 对象或每次完整 `partial`。内容块�
 - admission、授权、超时与帧错误保留 Gateway 错误通道；已进入模型生成的 provider 失败以业务终态承载，Rust 同时处理两条错误路径。Gateway 的 open 成功只代表开流成功，不代表远端模型已接受请求。
 - Gateway 限流／chunk policy 不会限制 Pi 内部缓存。Pi `utils/event-stream.js` 使用无界 push 队列且 partial 引用累积消息，pull 或额外包一层有界 Gateway 队列不构成端到端背压。当前限制输出上限并验证取消／慢消费者清理；大输出的内存界限仍须专门解决，不能宣称已有严格有界网络背压。
 - 旧 HttpBackend 有 prepare 阶段错误分类、Retry-After 和重试策略；DSH 明确 `maxRetries: 0`，由 agent 记录可见重试。当前同样单次调用、关闭 SDK 重试，之后再对齐 Rust 恢复策略，避免双层重试或重放已输出内容。
-- 旧 ResponsesTransport 根据 session_key 复用 WebSocket／chain 并支持 HTTP 路径；Pi 0.85.1 的通用 `api/openai-responses.js` 走 HTTP 流，没有该 WebSocket 分支。其他 Pi API 的 transport 支持不能证明通用 Responses 等价。当前真实验收覆盖 HTTP/SSE，不承诺旧连接池、previous_response_id 或断线恢复语义。
+- 旧 ResponsesTransport 根据 session_key 复用 WebSocket／chain 并支持 HTTP 路径；Pi 0.85.1 的通用 `api/openai-responses.js` 走 HTTP 流，没有该 WebSocket 分支。其他 Pi API 的 transport 支持不能证明通用 Responses 等价。现已通过补丁实现通用 Responses 连接复用和 previous_response_id；具体隔离及失败边界见 WebSocket 小节，不承诺旧版所有断线恢复语义。
 - Pi error 常将异常压成 errorMessage，无法保证保留旧 HTTP status、Retry-After 和 cause。可保存实际拿到的状态／诊断信息，但不从字符串推断出可靠结构化状态；DSH 的分类仅作为参考。
 
 ### 已实现：生成 service 与模型目录
@@ -161,7 +161,7 @@ Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetA
 - DeepSeek Flash ID 为 deepseek-flash，名称 DeepSeek-V4.1-Flash；保留当前已确认预设数值及 Flash／Pro 各自映射。
 - Headers 为多行 Key/Value；空白行忽略，值非空但名称为空、大小写不敏感的重复名称均拒绝；“+ 添加”在最后一行右侧。
 - compat 暂不提供编辑器；已有 compat、samplingParams、cost 等高级数据在常规编辑中保留，不新增高级 JSON UI。缺少 cost 沿用现有适配器零估算输入，不把它显示为真实免费价格，本片不建立计费系统。
-- supportsWebSocket 缺省 false，预设自动带入，属于连接能力元数据，不塞入 Pi Model。传输偏好也独立保存；http 对应调用层 sse，auto 不承诺 WebSocket。通用 Responses WebSocket 的实现继续留在独立切片，不因保存此字段而宣称已生效。
+- supportsWebSocket 缺省 false，预设自动带入，属于连接能力元数据，不塞入 Pi Model。传输偏好独立保存；http 对应调用层 sse，支持 WebSocket 且选择 auto 时通用 Responses 优先使用 WebSocket，握手失败可回退。具体连接复用及续接规则见 WebSocket 小节。
 - 默认模型、小文本模型引用稳定模型 ID；默认思考等级是调用偏好，与能力映射分开。选择器仅提供所选模型允许的档位；能力或模型删除后清理无效偏好，不保留悬空引用。后续 agent 消费这些默认偏好不在本片内。
 
 ### 唯一文件格式与边界
@@ -224,14 +224,43 @@ revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示�
 
 手动验收工具和应用共用 config.ts。先使用 `--config ~/.xiaowei/models.json --list` 查看稳定 ID，再用 `--model <id> --mode complete` 调用；其他能力模式及构建前置见 [脚本说明](../../../desktop/scripts/README.md)。脚本不写回文件、不修改应用中的 worker，不纳入自动测试门禁。
 
-### 后续独立切片：API Key 代理的 Responses WebSocket
+### WebSocket 切片背景
 
-2026-09-25 用户确认将此缺口留到独立切片处理，不并入当前 Settings UI／配置持久化切片。本次只完成服务端能力验证与记录，尚未修改 Pi 补丁或生成 service。
+2026-09-25 独立客户端确认 API Key 代理 `/v1/responses` 支持 WebSocket，Settings 切片只保存能力与偏好，未接通生成。上游 Pi 0.87.1 的通用 Responses 仍仅支持 SSE，而 Codex 适配器已有连接池与续接，但带有登录认证及后端 URL 规则。2026-09-26 在下面的部署复核基础上按用户确认方案补齐通用 Responses；本节保留起因，当前行为以下节为准。
 
-- 真实验证地址为 `wss://token.edge.tctony.com/v1/responses`，使用环境变量 `CODEX_PROXY_API_KEY` 构造 Bearer 鉴权，不记录 Key 值。`GET https://token.edge.tctony.com/v1/models` 返回 200；WebSocket 握手返回 101。通过独立 WebSocket 客户端发送 `response.create`，模型 `sol` 返回文本 `OK`，并收到 `response.completed`（status 为 completed）。这证明该代理支持 API Key 鉴权的 Responses WebSocket；验证未经过 Pi，不代表当前应用已支持，也未覆盖多轮续接、工具、取消或断线恢复。
-- 当前安装的 Pi 0.87.1 通用 `openai-responses` 适配器仅走 HTTP/SSE，没有根据 `transport` 选择 WebSocket 的分支；设置 `auto` 或 `websocket` 不能启用该能力。`openai-codex-responses` 虽有 WebSocket 实现，但要求从登录 Token 提取 ChatGPT account ID，并使用 `/codex/responses` 路径及专用请求约定，不能直接替代上述 API Key 代理接口。
-- 后续切片需要补齐通用 Responses 的 API Key WebSocket 调用，优先评估在现有 pnpm patch 机制下扩展 Pi 适配器；具体实现与补丁范围届时核对。提供方的 WebSocket 能力／传输偏好应映射为生成调用选项，不塞入 Pi Model；UI 的 `http` 需要转换为 Pi 的 `sse`，`auto` 的选择及回退行为必须以实际适配实现为准。
-- 验收需覆盖真实代理的生成、thinking／工具事件与用量映射、取消、连接失败及流开始前后的回退边界；会话复用和续接语义需明确，不自动承诺重放或恢复。服务端已支持不等于 UI 开关已生效。
+### Responses WebSocket（2026-09-26）
+
+用户明确本次目标是连接复用，不能以“每次请求独立连接、结束即关闭”作为交付。认证继续使用 API Key；通信目标参考 Codex Responses，但不强制复用 `openai-codex-responses` 的代码。`previous_response_id` 是否启用以代理的实际能力为依据。
+
+#### 代理部署与真实验证
+
+已按 `~/.tony/server.md` 登录 edge 核对：CLIProxyAPI 镜像为 `ghcr.io/tctony/cliproxyapi:sha-81e9a1c67bd7`，镜像 revision 为 `81e9a1c67bd74169b23772ee848b215e4e8ee1db`；Nginx 已转发 Upgrade／Connection，关闭请求及响应缓冲，读写超时为 3600 秒；代理 `ws-auth: true`。未修改服务器配置、部署或认证材料。
+
+源码核对使用本地 `~/.git_source/github.com-tctony-CLIProxyAPI` 中对应部署提交，而非直接以更新后的 HEAD 代表服务器行为：
+
+- `internal/api/server_routes.go` 将 `/v1/responses` 与 `/backend-api/codex/responses` 的 GET／POST 分别接到同一 WebSocket／SSE handler，两组均使用 API Key 鉴权；两组另有 `/responses/compact` 的 POST 路由。
+- `sdk/api/handlers/openai/openai_responses_websocket.go` 为下游连接建立 execution session，关闭下游时调用 `CloseExecutionSession`；`openai_responses_websocket_session.go` 按实际路由及凭据的 websockets 能力选择原生 Codex／xAI WebSocket 透传。非透传路径可由代理维护历史并展开请求，因此只看到模型记住上文，不能单独证明上游使用了原生增量传输。
+- 续接引用与连接状态有关；服务端存在 `previous_response_not_found` 和要求完整历史重放的失败路径。不能把上一条已断开连接的 response ID 当成跨连接持久会话，也不能据此承诺自动恢复或“完整 Codex API 已全部兼容”。
+
+独立客户端对 `/v1/responses` 的真实验证：同一连接完成三次生成；首轮输入随机标记，第二轮仅发送新增问题与首轮 `previous_response_id`，模型准确返回标记；第三轮完整请求也完成。这确认客户端到代理的连接复用及增量续接可用。
+
+随后用实际 Pi 0.87.1 Codex 适配器的临时副本验证。副本只增加实验性 API Key 分支：跳过 JWT account ID 提取、不发送 `chatgpt-account-id`；请求构造、连接池、续接比较、事件解析和 SSE 压缩均保留原实现。baseUrl 使用 `https://token.edge.tctony.com/backend-api`，由 Pi 原有 URL 规则生成 `/backend-api/codex/responses`。真实模型 `sol` 的工具调用、工具结果回传及独立 SSE 生成均成功，获得工具参数、文本和用量。观测到两轮 WebSocket 只创建 1 条连接、复用 1 次，第二轮实际帧含 `previous_response_id` 且 input 仅 1 条工具结果，SSE 回退计数为 0。此实验不涉及产品 worker／Gateway 接线，未得到非空 thinking 输出，也未验收图片、取消、断线及 compact／steering 等扩展。
+
+#### 已确认并实现的接入边界
+
+用户最终确认保留现有 `openai-responses` 协议、base URL 和 API Key，开启已有 WebSocket 开关后自动使用连接复用与增量续接。未采用新增 Codex 协议选项或改配 `/backend-api` 的建议。正式实现不调用 Codex 的整个生成入口，而是在 pnpm patch 中让通用 Responses 复用 Codex 的 WebSocket 传输、池与事件归一化；通用适配器继续构造请求、转换历史、持有 `openai-responses` 来源和应用本协议计价。运行时共享 helper 不作为应用依赖的公开入口。
+
+- 现有文件格式和用户文件不变。宿主将提供方 `supportsWebSocket && transport === "auto"` 解析为运行时 `defaultTransport: "auto"`，否则为 sse；`Llm.SetModels` 新增 `ModelTransport` 枚举字段携带该值，未知值拒绝。调用层缺省使用配置，显式 Generate transport 可覆盖。未向 Pi Model 塞入传输元数据，UI 不新增协议或字段。
+- 通用 Responses 请求固定由 `{baseURL}/responses` 得到，WebSocket 仅转换 HTTP(S) scheme；API Key 使用 Bearer，保留既有 headers。模型列表仍为 `/models`。不解析登录 JWT、不添加虚构 account ID、不修改服务器路由，也不在应用修改全局 WebSocket／fetch。
+- 同一会话需提供稳定 sessionId。池按 session、协议入口／provider、完整 URL 与有效握手 headers（包括凭据）隔离。相同身份可跨轮复用；并发忙连接或并发初次握手的额外连接是临时连接，不覆盖池内连接。凭据／地址／headers 变化使用独立连接；在途请求保留旧快照，旧空闲连接按原有 5 分钟 TTL 回收，连接最大年龄沿用 55 分钟。
+- auto 与 websocket-cached 在非 input 参数一致、完整历史匹配“上轮完整输入 + 上轮回复”、且有新增输入时发送 `previous_response_id` 和 delta。每轮消费旧基线，仅成功终态建立新基线；历史修改、参数变化或完整输入模式不会留下可误用的旧基线。websocket 模式复用连接但发送完整输入。缺少 sessionId 时为单次连接；cacheRetention=none 只关闭提示缓存，不关闭通用 Responses 的连接复用。
+- auto 仅在尚未发送 response.create 的连接失败时回退 SSE。websocket／websocket-cached 不回退。发送后普通断线／超时直接失败，即使还没有正文；避免不确定上游是否执行时静默重发。仅增量续接明确返回 previous_response_not_found、且未观察到任何正常响应事件时，允许重新连接并发送完整输入重试一次。共享 Codex 原有对应重试也增加“尚未开流”限制；其他 Codex 调用的认证、请求及 URL 规则保持。
+- 取消关闭该请求连接，不建立续接基线；成功归还池后再 abort 本次 controller 不影响下一轮。显式清理后迟到的归还不能重新留下池外连接。worker 保留 Gateway 的关闭／取消与线程终止流程，并在 parent port 关闭时执行 Pi session resource cleanup；自动回归验证远端连接实际断开。生成失败继续由既有脱敏业务终态表达。
+- SDK 请求构造仍遵循通用 Responses，包括 maxTokens、samplingParams、toolChoice、reasoning 以及 system／developer 历史；没有套用 Codex 专用构造器而丢失参数。Pi 内部 push 队列仍无严格有界背压，不把新增 WebSocket 支持描述为解决了内存界限。compact、steering、跨连接持久续接、OAuth 和产品 agent 不属于本片。
+
+手测脚本为每次运行生成独立 sessionId，工具两轮共用；默认读取原配置，可用 `--transport websocket-cached` 强制验证 WebSocket，或用 `--transport sse` 验证 HTTP。只覆盖本次执行，不写回文件。自动测试检查实际连接数及帧内容，不以“生成成功”替代连接复用／增量验收。补丁维护与升级入口见 patches/README.md。
+
+Quick Chat 在 hook 初始化时生成随机 UUID，作为已有 Generate options.sessionId 传入；同一对话跨轮保持稳定，点击新建对话时更换。不持久化该 ID，不改变提供方配置。此前 Quick Chat 未传 sessionId，即使使用 WebSocket 也只能建立单次连接，不能跨轮复用。补接后通过 5 项 hook／Gateway 测试（含跨轮 ID 稳定及新对话更换断言）和 just check。2026-09-26 18:55:17–18:55:43 的桌面真实对话通过 Pi 内部临时脱敏打点确认：5 轮均使用 connectionId=1，第 2–5 轮 reused=true、previousResponseId=true、inputItems=1；每轮成功后连接保留，未发生 SSE 回退。证据位于当天桌面日志 569–578 行，证明客户端到代理的 WebSocket 连接复用与增量续接，不推断代理到上游的实现。验证后删除 Pi 打点与宿主日志转接，恢复正式补丁。
 
 ### 认证范围：当前仅 API Key，其他方式暂缓
 
@@ -246,7 +275,7 @@ revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示�
 - 一个预设提供方可选择其固定协议／URL 组合；自定义仅展示 OpenAI Completions、OpenAI Responses、Anthropic Messages。不减少底层现有其他 API 适配能力。
 - 提供方表单同时提供环境变量名和 API Key；旧 Key 不回显，明确保留／替换／清除。改变连接或凭据保留已添加模型；导入候选每次打开弹窗重新请求，关闭实际取消 Gateway 流。
 - 模型卡片使用名称或 ID 回退，图片与推理能力以标签展示；编辑／添加复用属性弹窗，删除二次确认，Headers 使用 Key/Value 行。未展示的 compat、samplingParams、cost 数据编辑时保留，不增加高级 JSON 编辑器。
-- 默认模型与小文本模型保存稳定引用；默认思考等级是调用偏好，选项受模型映射限制，不作为模型能力存储。WebSocket 默认不支持，其元数据与请求 transport 分开，真实通用 Responses WebSocket 仍属独立切片。
+- 默认模型与小文本模型保存稳定引用；默认思考等级是调用偏好，选项受模型映射限制，不作为模型能力存储。WebSocket 默认不支持，其元数据与请求 transport 分开，通用 Responses 的传输接入已在后续 WebSocket 切片完成。
 - 图片生成与本地模型暂不实现、不接产品入口。手动验收通过 desktop/scripts/verify-llm.mjs 读取 UI 保存文件，自动测试只用本地 fixture。
 
 ### Settings 模型兼容参数的后续范围
@@ -259,6 +288,13 @@ revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示�
 - 在 renderer 中直接调用模型：无法保住当前 main／Gateway 的调用与凭据边界。
 
 ## Outcome
+
+2026-09-26 完成通用 Responses WebSocket 切片：保留现有协议、base URL、API Key 和用户配置文件；现有开关／auto 偏好通过运行时契约生效。pnpm patch 复用 Codex 传输并修复共享连接池的隔离与并发／清理边界；通用请求／回复来源、参数、SSE 和历史回放保持。手测脚本增加稳定会话与单次传输覆盖。
+
+真实 Node worker／Gateway 使用原 `~/.xiaowei/models.json` 的 sol 条目验证：强制 WebSocket 的工具往返、thinking、文本阶段取消，以及原配置 auto 默认下的工具往返和 thinking 阶段取消均通过。曾有一次并发验收中的 cancel-thinking 返回脱敏失败，具体上游原因未取得；单独诊断重测实际观察到 thinking 增量并完成取消，原脚本默认配置复测也通过。不将该失败描述为已定位的模型行为。未修改服务器或用户配置；未冷启动 Electron，应用包验收与产品 agent 接入不在本片。
+
+验证通过 12 项补丁回归、完整 desktop 测试（28 项模块、7 项 main、55 项 LLM、92 项组件、4 项 Rust typed、6 项业务集成）、TS／Rust／Go codec、desktop 构建、frozen install 和 just check。受影响的 search／storage／clipboard napi 正式产物均已重建／恢复。补丁回归覆盖真实本地 WebSocket 连接数、增量帧、工具／thinking／用量、身份隔离、并发、取消、回退及错误后的完整重试；worker 回归覆盖配置更新和关闭。just check 仅保留既有 Select useIndexOf 非阻断提示。06 Plan 已删除，未提交。随后用户启动当前工作区：2026-09-26 18:44:39 的 Electron PID 37398、nodemon 与 dev-session 的路径及 cwd 均属于 prometheus；18:44:41 日志显示应用启动、原生模块与剪贴板初始化、renderer 启动，18:44:43 搜索初始化完成，本次启动段未发现 warn／error。结合启动代码中配置加载和 LLM worker 挂载必须先 await 成功才进入后续初始化，确认启动链路通过；日志没有独立的 WebSocket 请求证据，不将此次启动检查等同于应用内生成／复用验收。未由 Agent 冷启动或重启。
+
 
 2026-09-25 完成 05 模型设置切片：远程提供商与模型编辑、导入、默认偏好、稳定 ID、JSON 原子保存、脱敏快照与事件、串行 revision 校验、worker 同步和异常重新应用均已接通。应用与手测脚本共用唯一配置格式及加载器；worker service 合并为 Llm（Generate／SetModels／ModelCatalog），宿主 ModelSettings 持有文件配置。
 

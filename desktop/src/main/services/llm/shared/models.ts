@@ -38,6 +38,7 @@ export interface ModelConfig {
   thinkingLevelMap?: Partial<Record<"off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max", string | null>>;
   headers?: Record<string, string>;
   samplingParams?: Record<string, unknown>;
+  defaultTransport?: "sse" | "auto";
   apiKey?: string;
   apiKeyEnv?: string;
 }
@@ -176,6 +177,7 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
     "thinkingLevelMap",
     "headers",
     "samplingParams",
+    "defaultTransport",
     "apiKey",
     "apiKeyEnv",
   ]);
@@ -201,6 +203,8 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
     !item.input.includes("text") ||
     item.input.some((entry) => entry !== "text" && entry !== "image")
   )
+    invalidConfig();
+  if (item.defaultTransport !== undefined && !["sse", "auto"].includes(item.defaultTransport as string))
     invalidConfig();
   cost(item.cost);
   for (const key of ["apiKey", "apiKeyEnv"]) {

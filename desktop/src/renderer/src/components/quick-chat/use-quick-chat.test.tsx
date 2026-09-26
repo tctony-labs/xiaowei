@@ -93,6 +93,7 @@ test("default configuration drives generation; complete assistant metadata is re
   expect(result.current.messages[1].text).toBe("answer");
   expect(requests[0].modelRef).toBe("model");
   expect(requests[0].options?.reasoning).toBe("high");
+  expect(requests[0].options?.sessionId).toMatch(/^[0-9a-f-]{36}$/);
   expect(requests[0].tools).toEqual([]);
   act(() => app.update("other"));
   await waitFor(() => expect(result.current.configured).toBe(true));
@@ -100,6 +101,7 @@ test("default configuration drives generation; complete assistant metadata is re
   await waitFor(() => expect(requests).toHaveLength(2));
   expect(requests[1].modelRef).toBe("other");
   expect(requests[1].options?.reasoning).toBe("low");
+  expect(requests[1].options?.sessionId).toBe(requests[0].options?.sessionId);
   expect(requests[1].messages.map((entry) => entry.message.case)).toEqual(["user", "assistant", "user"]);
   expect(requests[1].messages[1].message.value).toMatchObject({
     responseId: "response-1",
@@ -151,6 +153,8 @@ test("no default blocks requests; opening cancellation, clear and unmount abort 
   await prompt(result, "second");
   await waitFor(() => expect(requests).toHaveLength(2));
   expect(result.current.generating).toBe(true);
+  expect(requests[1].options?.sessionId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(requests[1].options?.sessionId).not.toBe(requests[0].options?.sessionId);
   unmount();
   await waitFor(() => expect(aborted).toHaveLength(2));
 });

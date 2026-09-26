@@ -34,6 +34,167 @@ index 3106c5d470dc3610c05d8ee153026df20f86f66e..c54c1b5dc525715c7b9dc4e780cd74b4
              stream.push({
                  type: "toolcall_delta",
                  contentIndex: toolBlocksByKey.get(key),
+diff --git a/dist/api/openai-codex-responses.js b/dist/api/openai-codex-responses.js
+index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600cb2c99f9 100644
+--- a/dist/api/openai-codex-responses.js
++++ b/dist/api/openai-codex-responses.js
+@@ -217,7 +217,8 @@ export const stream = (model, context, options) => {
+                         const aborted = options?.signal?.aborted;
+                         const connectionLimitBeforeStart = !websocketStarted && isWebSocketConnectionLimitReachedError(error);
+                         const previousResponseNotFound = isPreviousResponseNotFoundError(error);
+-                        if (!aborted && previousResponseNotFound && !retriedMissingWebSocketContinuation) {
++                        if (!aborted && !websocketStarted && previousResponseNotFound &&
++                            !retriedMissingWebSocketContinuation) {
+                             retriedMissingWebSocketContinuation = true;
+                             continue;
+                         }
+@@ -849,6 +850,8 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
+     });
+ }
+ async function acquireWebSocket(url, headers, sessionId, accountId, signal, connectTimeoutMs, env) {
++    // A session can use multiple endpoints or credentials. Never reuse another handshake's socket.
++    accountId = JSON.stringify([url, accountId, [...headers.entries()].sort(([a], [b]) => a.localeCompare(b))]);
+     if (!sessionId) {
+         const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
+         return {
+@@ -886,6 +889,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+                             websocketSessionCache.delete(sessionId);
+                         return;
+                     }
++                    if (websocketSessionCache.get(sessionId)?.get(accountId) !== cached) {
++                        closeWebSocketSilently(cached.socket);
++                        return;
++                    }
+                     cached.busy = false;
+                     scheduleSessionWebSocketExpiry(sessionId, accountId, cached);
+                 },
+@@ -915,6 +922,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+         accountEntries = new Map();
+         websocketSessionCache.set(sessionId, accountEntries);
+     }
++    // Another concurrent acquisition may have completed its handshake first.
++    if (accountEntries.has(accountId)) {
++        return { socket, reused: false, release: () => closeWebSocketSilently(socket) };
++    }
+     accountEntries.set(accountId, entry);
+     return {
+         socket,
+@@ -932,6 +943,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+                     websocketSessionCache.delete(sessionId);
+                 return;
+             }
++            if (websocketSessionCache.get(sessionId)?.get(accountId) !== entry) {
++                closeWebSocketSilently(entry.socket);
++                return;
++            }
+             entry.busy = false;
+             scheduleSessionWebSocketExpiry(sessionId, accountId, entry);
+         },
+@@ -1118,7 +1133,7 @@ function getCachedWebSocketInputDelta(body, continuation) {
+     }
+     const currentInput = body.input ?? [];
+     const baseline = [...(continuation.lastRequestBody.input ?? []), ...continuation.lastResponseItems];
+-    if (currentInput.length < baseline.length) {
++    if (currentInput.length <= baseline.length) {
+         return undefined;
+     }
+     const prefix = currentInput.slice(0, baseline.length);
+@@ -1153,7 +1168,10 @@ async function* startWebSocketOutputOnFirstEvent(events, onStart) {
+         yield event;
+     }
+ }
+-async function processWebSocketStream(url, body, headers, output, stream, model, onStart, idleTimeoutMs, websocketConnectTimeoutMs, cacheSessionId, accountId, grammarToolInputProperties, options) {
++async function processWebSocketStream(
++    url, body, headers, output, stream, model, onStart, idleTimeoutMs, websocketConnectTimeoutMs,
++    cacheSessionId, accountId, grammarToolInputProperties, options, onSend, responseOptions,
++) {
+     const { socket, entry, reused, release } = await acquireWebSocket(url, headers, cacheSessionId, accountId, options?.signal, websocketConnectTimeoutMs, options?.env);
+     let keepConnection = true;
+     const useCachedContext = options?.transport === "websocket-cached" || options?.transport === "auto";
+@@ -1161,7 +1179,11 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+     // WebSocket continuation still works via connection-scoped previous_response_id state.
+     const fullBody = body;
+     const requestBody = useCachedContext && entry ? buildCachedWebSocketRequestBody(entry, fullBody) : fullBody;
+-    const stats = cacheSessionId ? getOrCreateWebSocketDebugStats(cacheSessionId) : undefined;
++    // A baseline is consumed once; non-cached requests must not leave an older continuation behind.
++    if (entry) entry.continuation = undefined;
++    const stats = cacheSessionId && model.api === "openai-codex-responses"
++        ? getOrCreateWebSocketDebugStats(cacheSessionId)
++        : undefined;
+     if (stats) {
+         stats.requests++;
+         if (reused)
+@@ -1185,13 +1207,19 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+         }
+     }
+     try {
++        onSend?.(requestBody);
+         socket.send(JSON.stringify({ type: "response.create", ...requestBody }));
+-        await processResponsesStream(startWebSocketOutputOnFirstEvent(mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output), onStart), output, stream, model, {
+-            serviceTier: options?.serviceTier,
+-            grammarToolInputProperties,
+-            resolveServiceTier: resolveCodexServiceTier,
+-            applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
+-        });
++        const events = mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output);
++        await processResponsesStream(
++            startWebSocketOutputOnFirstEvent(events, onStart), output, stream, model,
++            responseOptions ?? {
++                serviceTier: options?.serviceTier,
++                grammarToolInputProperties,
++                resolveServiceTier: resolveCodexServiceTier,
++                applyServiceTierPricing: (usage, tier) => applyServiceTierPricing(usage, tier, model),
++            },
++        );
++        assertSuccessfulOutput(output);
+         if (options?.signal?.aborted) {
+             keepConnection = false;
+         }
+@@ -1218,6 +1246,44 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+         release({ keep: keepConnection });
+     }
+ }
++// Internal transport entry for generic Responses. Request construction and message identity stay with the caller.
++export async function processResponsesWebSocket(url, params, headers, output, stream, model,
++    grammarToolInputProperties, options, responseOptions) {
++    const { stream: _stream, ...body } = params;
++    let retriedContinuation = false;
++    while (true) {
++        let sent = false;
++        let continued = false;
++        let started = false;
++        try {
++            await processWebSocketStream(
++                url, body, headers, output, stream, model,
++                () => {
++                    started = true;
++                    stream.push({ type: "start", partial: output });
++                },
++                normalizeTimeoutMs(options?.timeoutMs), normalizeTimeoutMs(options?.websocketConnectTimeoutMs),
++                options?.sessionId, `api-key:${model.provider}`, grammarToolInputProperties, options,
++                (requestBody) => {
++                    sent = true;
++                    continued = Boolean(requestBody.previous_response_id);
++                },
++                responseOptions,
++            );
++            return true;
++        }
++        catch (error) {
++            if (options?.signal?.aborted) throw error;
++            if (!started && continued && isPreviousResponseNotFoundError(error) && !retriedContinuation) {
++                retriedContinuation = true;
++                continue;
++            }
++            // Once response.create has been sent, a lost response does not prove the request was rejected.
++            if (!sent && options?.transport === "auto") return false;
++            throw error;
++        }
++    }
++}
+ // ============================================================================
+ // Error Handling
+ // ============================================================================
 diff --git a/dist/api/openai-completions.js b/dist/api/openai-completions.js
 index fc8e89382b75f259eb4f041b522840b0d603c033..f5acd00ff7c0e4db054abfcd1b9e5ac4a6005959 100644
 --- a/dist/api/openai-completions.js
@@ -58,6 +219,114 @@ index 53597d2c3becdd2c03d4fd265c213a36b403f26b..0aa5752a3e4bad3c0c5aa04d0405448e
              pushToolCallDelta(slot, event.delta);
          }
          else if (event.type === "response.function_call_arguments.done") {
+diff --git a/dist/api/openai-responses.d.ts b/dist/api/openai-responses.d.ts
+index 41267bd50904069aa0879cc8634ea94bc1045236..f7aa8171efe7623874cdc3dc306f44864b274afb 100644
+--- a/dist/api/openai-responses.d.ts
++++ b/dist/api/openai-responses.d.ts
+@@ -1,5 +1,10 @@
+ import type { ResponseCreateParamsStreaming } from "openai/resources/responses/responses.js";
+ import type { SimpleStreamOptions, StreamFunction, StreamOptions } from "../types.ts";
++/**
++ * transport defaults to SSE. auto tries WebSocket and falls back only before sending response.create.
++ * With sessionId, auto/websocket-cached reuse connections and matching history via previous_response_id.
++ * websocket reuses connections with full input. cacheRetention does not disable connection reuse.
++ */
+ export interface OpenAIResponsesOptions extends StreamOptions {
+     reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+     reasoningSummary?: "auto" | "detailed" | "concise" | null;
+diff --git a/dist/api/openai-responses.js b/dist/api/openai-responses.js
+index 1396c8d57ffb0e300382281a026d878e6a96b43a..b8d1e3192ba461df08e6a842aa76820fabce67cb 100644
+--- a/dist/api/openai-responses.js
++++ b/dist/api/openai-responses.js
+@@ -114,23 +114,45 @@ export const stream = (model, context, options) => {
+             if (nextParams !== undefined) {
+                 params = nextParams;
+             }
+-            const requestOptions = {
+-                ...(options?.signal ? { signal: options.signal } : {}),
+-                ...(options?.timeoutMs !== undefined ? { timeout: options.timeoutMs } : {}),
+-                maxRetries: 0,
+-            };
+-            const { data: openaiStream, response } = await retryProviderRequest(() => client.responses.create(params, requestOptions).withResponse(), {
+-                maxRetries: options?.maxRetries,
+-                maxRetryDelayMs: options?.maxRetryDelayMs,
+-                signal: options?.signal,
+-            });
+-            await options?.onResponse?.({ status: response.status, headers: headersToRecord(response.headers) }, model);
+-            stream.push({ type: "start", partial: output });
+-            await processResponsesStream(openaiStream, output, stream, model, {
+-                serviceTier: options?.serviceTier,
+-                grammarToolInputProperties,
+-                applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
+-            });
++            let websocketCompleted = false;
++            if (options?.transport && options.transport !== "sse") {
++                const { processResponsesWebSocket } = await import("./openai-codex-responses.js");
++                const headers = new Headers(buildHeaders(model, normalizedContext, options?.headers, cacheSessionId));
++                if (!headers.has("authorization")) headers.set("authorization", `Bearer ${apiKey}`);
++                const url = new URL(`${model.baseUrl.replace(/\/+$/, "")}/responses`);
++                url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
++                websocketCompleted = await processResponsesWebSocket(
++                    url.toString(), params, headers, output, stream, model,
++                    grammarToolInputProperties, options, {
++                        serviceTier: options?.serviceTier,
++                        grammarToolInputProperties,
++                        applyServiceTierPricing: (usage, tier) => applyServiceTierPricing(usage, tier, model),
++                    },
++                );
++            }
++            if (!websocketCompleted) {
++                const requestOptions = {
++                    ...(options?.signal ? { signal: options.signal } : {}),
++                    ...(options?.timeoutMs !== undefined ? { timeout: options.timeoutMs } : {}),
++                    maxRetries: 0,
++                };
++                const { data: openaiStream, response } = await retryProviderRequest(
++                    () => client.responses.create(params, requestOptions).withResponse(), {
++                        maxRetries: options?.maxRetries,
++                        maxRetryDelayMs: options?.maxRetryDelayMs,
++                        signal: options?.signal,
++                    },
++                );
++                await options?.onResponse?.(
++                    { status: response.status, headers: headersToRecord(response.headers) }, model,
++                );
++                stream.push({ type: "start", partial: output });
++                await processResponsesStream(openaiStream, output, stream, model, {
++                    serviceTier: options?.serviceTier,
++                    grammarToolInputProperties,
++                    applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
++                });
++            }
+             if (options?.signal?.aborted) {
+                 throw new Error("Request was aborted");
+             }
+@@ -171,7 +193,7 @@ export const streamSimple = (model, context, options) => {
+         reasoningEffort,
+     });
+ };
+-function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId) {
++function buildHeaders(model, context, optionsHeaders, sessionId) {
+     const compat = getCompat(model);
+     const headers = { "User-Agent": getPiUserAgent(), ...model.headers };
+     if (model.provider === "github-copilot") {
+@@ -197,12 +219,15 @@ function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId)
+     if (optionsHeaders) {
+         Object.assign(headers, optionsHeaders);
+     }
++    return headers;
++}
++function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId) {
+     return new OpenAI({
+         apiKey,
+         baseURL: model.baseUrl,
+         dangerouslyAllowBrowser: true,
+         fetch,
+-        defaultHeaders: headers,
++        defaultHeaders: buildHeaders(model, context, optionsHeaders, sessionId),
+     });
+ }
+ function buildParams(model, context, options, compat = getCompat(model), grammarToolInputProperties = createGrammarToolInputProperties(getDeclaredTools(context.messages), compat.supportsOpenAIGrammarTools)) {
 diff --git a/dist/api/pi-messages.js b/dist/api/pi-messages.js
 index ad5f4605e8e157f12b8948e88e0c66e8a5494fc4..5609d61b49264b26fc86a787ec19780d29cdfcab 100644
 --- a/dist/api/pi-messages.js

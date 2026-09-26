@@ -19,6 +19,7 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
     temperature: request.temperature,
     maxTokens: request.maxTokens ?? config.maxTokens,
     maxRetries: 0,
+    transport: config.defaultTransport,
     samplingParams: config.samplingParams ? structuredClone(config.samplingParams) : undefined,
   };
   if (!options) return { simple: true, options: common as SimpleStreamOptions };

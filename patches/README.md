@@ -14,4 +14,12 @@
 
 ## 补丁索引
 
-- [`@earendil-works/pi-ai@0.87.1`](./@earendil-works__pi-ai@0.87.1.patch)：避免工具参数流式输出时重复解析累计 JSON。由 0.85.1 补丁重基至 0.87.1，六处增量解析优化仍需保留；原始来源为 deepseek-harness 提交 `46a7f68b0922371ce7144b668b90e377d8e799f4` 的同名补丁。行为、取舍和验证范围见 [LLM provider record](../.agent/records/active/2026-09-24-llm-provider.md)；回归见 [pi-patch.test.mjs](./tests/pi-patch.test.mjs)。
+- [`@earendil-works/pi-ai@0.87.1`](./@earendil-works__pi-ai@0.87.1.patch)：避免工具参数流式输出时重复解析累计 JSON，并为通用 Responses 接入可复用的 API Key WebSocket。由 0.85.1 补丁重基至 0.87.1，六处增量解析优化仍需保留；原始来源为 deepseek-harness 提交 `46a7f68b0922371ce7144b668b90e377d8e799f4` 的同名补丁。行为、取舍和验证范围见 [LLM provider record](../.agent/records/active/2026-09-24-llm-provider.md)；回归见 [pi-patch.test.mjs](./tests/pi-patch.test.mjs)。
+
+## Pi Responses WebSocket 补丁
+
+`openai-responses.js` 保留通用请求构造、API Key 认证、消息来源和计价规则，按 transport 调用 `openai-codex-responses.js` 内的共享 WebSocket 传输入口。默认 SSE；auto 握手失败可回退 SSE，websocket／websocket-cached 不回退。sessionId 控制连接复用，auto／websocket-cached 在参数及历史前缀匹配时发送增量。URL 始终由既有 base URL 追加 `/responses` 得到，不要求 Codex 后端地址或登录 Token。
+
+复用 Codex 传输时同时修复共享连接池的握手身份隔离、并发初次连接覆盖、显式清理后的连接归还，以及续接基线消费和成功终态校验。Codex 登录调用的已有请求／URL 规则保持；其 previous_response_not_found 重试增加开流前限制。新增入口为包内部运行时协作，应用仍只调用公开 Responses API，不直接依赖该 helper。
+
+回归入口仍为 `pnpm test:patches`；[WebSocket 回归](./tests/pi-responses-websocket.test.mjs) 使用本地真实 HTTP upgrade 与 WebSocket 帧，覆盖复用、增量、工具／thinking、身份变化、并发、取消和回退边界。升级时除原工具 JSON 补丁外，还需逐项核对这些上游连接池及传输行为，不能只验证补丁能否应用。当前约束和真实代理验收见 LLM provider record。

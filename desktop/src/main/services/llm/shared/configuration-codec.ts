@@ -1,12 +1,18 @@
 import { create } from "@bufbuild/protobuf";
-import { type ModelConfiguration, ModelInput, SetModelsRequestSchema } from "xiaowei-contracts";
+import { type ModelConfiguration, ModelInput, ModelTransport, SetModelsRequestSchema } from "xiaowei-contracts";
 import { configureModels, invalidConfig, type ResolvedModelConfig } from "./models";
 
 export function encodeModels(entries: readonly ResolvedModelConfig[]) {
   const models = [...configureModels(entries).values()];
   return create(SetModelsRequestSchema, {
-    models: models.map(({ cost, compat, thinkingLevelMap, samplingParams, input, ...model }) => ({
+    models: models.map(({ cost, compat, thinkingLevelMap, samplingParams, input, defaultTransport, ...model }) => ({
       ...model,
+      defaultTransport:
+        defaultTransport === undefined
+          ? ModelTransport.UNSPECIFIED
+          : defaultTransport === "sse"
+            ? ModelTransport.SSE
+            : ModelTransport.AUTO,
       input: input.map((value) => (value === "text" ? ModelInput.TEXT : ModelInput.IMAGE)),
       cost,
       costTiers: cost.tiers?.map(({ inputTokensAbove, ...rates }) => ({ inputTokensAbove, rates })),
@@ -21,6 +27,8 @@ export function decodeModels(entries: readonly ModelConfiguration[]) {
   try {
     return configureModels(
       entries.map((entry) => {
+        if (![ModelTransport.UNSPECIFIED, ModelTransport.SSE, ModelTransport.AUTO].includes(entry.defaultTransport))
+          invalidConfig();
         if (!entry.cost || entry.costTiers.some((tier) => !tier.rates)) invalidConfig();
         const { $typeName: _type, ...cost } = entry.cost;
         return {
@@ -32,6 +40,11 @@ export function decodeModels(entries: readonly ModelConfiguration[]) {
           baseUrl: entry.baseUrl,
           apiKey: entry.apiKey,
           headers: entry.headers,
+          ...(entry.defaultTransport === ModelTransport.UNSPECIFIED
+            ? {}
+            : {
+                defaultTransport: entry.defaultTransport === ModelTransport.SSE ? ("sse" as const) : ("auto" as const),
+              }),
           ...(entry.samplingParamsJson === undefined ? {} : { samplingParams: JSON.parse(entry.samplingParamsJson) }),
           reasoning: entry.reasoning,
           contextWindow: entry.contextWindow,

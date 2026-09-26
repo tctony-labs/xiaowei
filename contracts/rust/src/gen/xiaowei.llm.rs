@@ -256,6 +256,10 @@ pub struct ModelConfiguration {
     >,
     #[prost(string, optional, tag = "17")]
     pub sampling_params_json: ::core::option::Option<::prost::alloc::string::String>,
+    /// Default for Generate when transport is absent. UNSPECIFIED preserves the API default.
+    /// The host resolves the provider's capability and preference; unknown enum values are rejected.
+    #[prost(enumeration = "ModelTransport", tag = "18")]
+    pub default_transport: i32,
 }
 impl ::prost::Name for ModelConfiguration {
     const NAME: &'static str = "ModelConfiguration";
@@ -763,6 +767,35 @@ impl ModelInput {
             "MODEL_INPUT_UNSPECIFIED" => Some(Self::Unspecified),
             "MODEL_INPUT_TEXT" => Some(Self::Text),
             "MODEL_INPUT_IMAGE" => Some(Self::Image),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ModelTransport {
+    Unspecified = 0,
+    Sse = 1,
+    Auto = 2,
+}
+impl ModelTransport {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "MODEL_TRANSPORT_UNSPECIFIED",
+            Self::Sse => "MODEL_TRANSPORT_SSE",
+            Self::Auto => "MODEL_TRANSPORT_AUTO",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "MODEL_TRANSPORT_UNSPECIFIED" => Some(Self::Unspecified),
+            "MODEL_TRANSPORT_SSE" => Some(Self::Sse),
+            "MODEL_TRANSPORT_AUTO" => Some(Self::Auto),
             _ => None,
         }
     }

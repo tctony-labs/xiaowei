@@ -16,6 +16,7 @@ export function useQuickChat(services: Services) {
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [draft, setDraft] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const entries = useRef<ChatEntry[]>([]);
   const active = useRef<{ id: string; controller: AbortController } | null>(null);
 
@@ -107,7 +108,7 @@ export function useQuickChat(services: Services) {
         create(GenerateRequestSchema, {
           modelRef,
           messages: history,
-          options: { reasoning: snapshot?.defaults?.thinkingLevel || undefined },
+          options: { sessionId, reasoning: snapshot?.defaults?.thinkingLevel || undefined },
         }),
         { signal: run.controller.signal },
       );
@@ -159,6 +160,7 @@ export function useQuickChat(services: Services) {
     onStop: stop,
     onNewConversation: () => {
       stop();
+      setSessionId(crypto.randomUUID());
       publish([]);
       setDraft("");
     },

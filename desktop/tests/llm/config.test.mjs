@@ -189,3 +189,20 @@ test("complete nested compatibility survives protobuf and independent snapshots"
   assert.equal(decoded.compat.allowedFallbackModels[0].cost.input, 1);
   assert.deepEqual(decoded.compat.openRouterRouting.only, ["p"]);
 });
+
+test("provider transport preference survives runtime protobuf without changing protocol or base URL", () => {
+  for (const supportsWebSocket of [false, true]) {
+    for (const transport of ["http", "auto"]) {
+      const document = configDocument([{ ...model, api: "openai-responses" }]);
+      Object.assign(document.providers[0], { supportsWebSocket, transport });
+      const [runtime] = resolveDocument(normalizeConfig(document), {});
+      const expected = supportsWebSocket && transport === "auto" ? "auto" : "sse";
+      assert.equal(runtime.defaultTransport, expected);
+      const decoded = decodeModels(encodeModels([runtime]).models).get(model.id);
+      assert.equal(decoded.defaultTransport, expected);
+      assert.equal(decoded.api, "openai-responses");
+      assert.equal(decoded.baseUrl, model.baseUrl);
+      assert.ok(!("defaultTransport" in toPiModel(decoded)));
+    }
+  }
+});

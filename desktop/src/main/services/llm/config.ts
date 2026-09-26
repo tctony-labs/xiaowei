@@ -11,7 +11,10 @@ import {
 } from "./shared/models";
 
 export interface ConfiguredModel
-  extends Omit<ModelConfig, "provider" | "api" | "baseUrl" | "apiKey" | "apiKeyEnv" | "name" | "cost"> {
+  extends Omit<
+    ModelConfig,
+    "provider" | "api" | "baseUrl" | "apiKey" | "apiKeyEnv" | "name" | "cost" | "defaultTransport"
+  > {
   name?: string;
   cost?: ModelConfig["cost"];
 }
@@ -79,6 +82,7 @@ function runtimeModel(provider: ConfiguredProvider, model: ConfiguredModel, apiK
     api: provider.api,
     baseUrl: provider.baseUrl,
     apiKey,
+    defaultTransport: provider.supportsWebSocket && provider.transport === "auto" ? "auto" : "sse",
   };
 }
 

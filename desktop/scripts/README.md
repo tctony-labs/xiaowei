@@ -38,3 +38,5 @@ pnpm --dir desktop exec tsx --conditions=source scripts/verify-llm.mjs --config 
 | `catalog` | 通过 Gateway 拉取远端模型列表 |
 
 工具结果由脚本固定提供，service 不执行工具。取消确认不等于上游停止计费；真实 Node worker 验证不能替代 Electron 应用包验收。
+
+WebSocket 验收继续使用原有 `openai-responses` 配置与 base URL。提供方已开启 supportsWebSocket 且 transport 为 auto 时，脚本自动使用该默认值；无需修改文件。每次脚本执行生成独立 sessionId，工具两轮共用该 ID，以验证连接复用和增量续接。可用 `--transport websocket-cached` 强制 WebSocket 与增量续接，排除握手失败后 SSE 回退影响；`--transport sse` 则验证 HTTP。覆盖仅作用于本次脚本，不写回配置。缺少 sessionId 的产品调用不会跨请求复用连接，后续 agent 必须提供稳定的会话 ID。

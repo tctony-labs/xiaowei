@@ -3,6 +3,7 @@
 // Only the versioned providers/models/defaults format is accepted.
 // --config <path> overrides XIAOWEI_LLM_CONFIG; --list prints local IDs for --model <id>.
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { create } from "@bufbuild/protobuf";
@@ -39,8 +40,12 @@ try {
       list: { type: "boolean" },
       model: { type: "string" },
       mode: { type: "string" },
+      transport: { type: "string" },
     },
   });
+  if (values.transport && !["sse", "auto", "websocket", "websocket-cached"].includes(values.transport))
+    throw new Error("invalid transport");
+  const sessionId = randomUUID();
   const modes = ["complete", "cancel", "thinking", "cancel-thinking", "tools", "catalog", "image"];
   if (!values.list && (!values.model || !modes.includes(values.mode))) throw new Error("invalid arguments");
   const env = values.config ? { ...process.env, XIAOWEI_LLM_CONFIG: resolve(values.config) } : process.env;
@@ -73,6 +78,7 @@ try {
           modelRef: model.id,
           maxTokens: Math.min(4096, model.maxTokens),
           ...input,
+          options: { ...input.options, sessionId, ...(values.transport ? { transport: values.transport } : {}) },
         }),
       );
       let text = "";

@@ -57,3 +57,11 @@ test("raw options are protocol specific and cannot replace service credentials o
       (error) => error.detail?.code === "INVALID_ARGUMENT",
     );
 });
+
+test("generation uses resolved transport defaults and allows an explicit request override", () => {
+  const config = { ...model, api: "openai-responses", defaultTransport: "auto" };
+  assert.equal(options({}, config).options.transport, "auto");
+  assert.equal(options({ options: { reasoning: "low" } }, config).options.transport, "auto");
+  assert.equal(options({ options: { apiOptionsJson: "{}" } }, config).options.transport, "auto");
+  assert.equal(options({ options: { transport: "sse" } }, config).options.transport, "sse");
+});

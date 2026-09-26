@@ -111,6 +111,12 @@ message ModelCostTier {
   ModelCostRates rates = 2;
 }
 
+enum ModelTransport {
+  MODEL_TRANSPORT_UNSPECIFIED = 0;
+  MODEL_TRANSPORT_SSE = 1;
+  MODEL_TRANSPORT_AUTO = 2;
+}
+
 message ModelConfiguration {
   // Local configuration ID, addressed by GenerateRequest.model_ref. Unique in the list.
   string id = 1;
@@ -136,6 +142,9 @@ message ModelConfiguration {
   optional string thinking_level_map_json = 15;
   map<string, string> headers = 16;
   optional string sampling_params_json = 17;
+  // Default for Generate when transport is absent. UNSPECIFIED preserves the API default.
+  // The host resolves the provider's capability and preference; unknown enum values are rejected.
+  ModelTransport default_transport = 18;
 }
 
 message UsageCost {

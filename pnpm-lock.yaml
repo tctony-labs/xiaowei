@@ -166,7 +166,7 @@ overrides:
   tsx: 4.23.13
 
 patchedDependencies:
-  '@earendil-works/pi-ai@0.87.1': d61834f2376acae94fb0b468355aa61cc1e260a377c375b6459ec561c3e3d14e
+  '@earendil-works/pi-ai@0.87.1': 5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf
 
 importers:
 
@@ -247,7 +247,7 @@ importers:
         version: 2.15.0
       '@earendil-works/pi-ai':
         specifier: 0.87.1
-        version: 0.87.1(patch_hash=d61834f2376acae94fb0b468355aa61cc1e260a377c375b6459ec561c3e3d14e)(supports-color@5.5.0)(ws@8.21.3)
+        version: 0.87.1(patch_hash=5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf)(supports-color@5.5.0)(ws@8.21.3)
       electron-log:
         specifier: 5.4.4
         version: 5.4.4
@@ -5183,7 +5183,7 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.1': {}
 
-  '@earendil-works/pi-ai@0.87.1(patch_hash=d61834f2376acae94fb0b468355aa61cc1e260a377c375b6459ec561c3e3d14e)(supports-color@5.5.0)(ws@8.21.3)':
+  '@earendil-works/pi-ai@0.87.1(patch_hash=5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf)(supports-color@5.5.0)(ws@8.21.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.124.0
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
