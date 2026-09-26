@@ -1,4 +1,4 @@
-import { Worker } from "node:worker_threads";
+import { createLoggedWorker } from "@xiaowei/source-log/worker";
 import { Llm } from "xiaowei-contracts";
 import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
@@ -12,7 +12,7 @@ export async function attachLlm(
   workerUrl = new URL("./llm-worker.js", import.meta.url),
 ) {
   const snapshot = [...configureModels(models).values()];
-  const worker = new Worker(workerUrl, { workerData: { models: snapshot } });
+  const worker = createLoggedWorker("llm", workerUrl, { workerData: { models: snapshot } });
   let owner: Awaited<ReturnType<typeof attachWorker>>;
   try {
     owner = await attachWorker(host, "llm", worker);

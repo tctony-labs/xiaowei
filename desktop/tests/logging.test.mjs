@@ -1,11 +1,38 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { createLoggedWorker } from "@xiaowei/source-log/worker";
 import { attachRendererLogging, createLoggers } from "../src/main/app/logging.ts";
+
+test("worker logs use the common file sink with original source and production level filtering", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-worker-logs-"));
+  try {
+    const { main } = createLoggers(directory, false);
+    main.transports.console.level = false;
+    const code = `
+      import { initializeWorkerLogging } from ${JSON.stringify(import.meta.resolve("@xiaowei/source-log/worker"))};
+      import { sourceLog } from ${JSON.stringify(import.meta.resolve("@xiaowei/source-log/runtime"))};
+      initializeWorkerLogging();
+      sourceLog("warn", "packages/example/worker.ts:12", "worker-warning %o", { count: 2 });
+      sourceLog("debug", "packages/example/worker.ts:13", "hidden-debug");
+    `;
+    const worker = createLoggedWorker("test", new URL(`data:text/javascript,${encodeURIComponent(code)}`), {}, main);
+    assert.deepEqual(await once(worker, "exit"), [0]);
+    const text = readdirSync(directory)
+      .map((name) => readFileSync(join(directory, name), "utf8"))
+      .join("");
+    assert.match(text, /\[ warn\] \[worker\.test\] \[packages\/example\/worker.ts:12\]/);
+    assert.match(text, /worker-warning \{ count: 2 \}/);
+    assert.equal(text.split("worker-warning").length - 1, 1);
+    assert.doesNotMatch(text, /hidden-debug|host.ts|xiaowei-log:|\[main\]/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 for (const mode of ["healthy", "sync", "async"]) {
   test(`console ${mode} writes preserve file logging without uncaught exceptions`, () => {

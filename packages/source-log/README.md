@@ -30,6 +30,14 @@ plugins: [
 
 Metro 必须能访问工作区共享包和被引用的源码；按未来 RN/Expo 项目的 monorepo 配置确保 `projectRoot` / `watchFolders` 覆盖它们。此处未创建移动端项目或配置 Metro。已验证 Babel 转换和生成代码的执行，实际 Metro、Fast Refresh 和设备日志需在移动端接入时验证。日志收集、等级过滤与落盘由宿主负责。
 
+## Node worker 日志采集
+
+`@xiaowei/source-log/worker` 是独立的 Node 入口，不影响浏览器／Metro runtime。宿主用 `createLoggedWorker(name, filename, options, sink?)` 创建 worker，worker 入口在业务运行前调用 `initializeWorkerLogging()`；业务继续写 `console.log/info/warn/error/debug/trace`，源码位置仍由既有构建插件注入。
+
+采集沿用 Node worker 自带的 stdout/stderr，不在业务 MessagePort 或 Gateway 上新增日志消息。worker 先按 Node console 规则格式化参数，再通过 stdout 的单行 JSON 保留级别及完整多行正文；宿主解码后将 `[worker.<name>]` 和正文交给现有 sink，默认使用宿主 console。转发不再注入宿主位置。`log` 映射为 info、`trace` 映射为 debug 并保留堆栈；直接写 stdout/stderr 的文本分别按 info/error 接收，不推断其原始等级。
+
+主进程继续统一负责等级过滤、文件和终端输出。第三方依赖未经过源码定位插件时，不补造源码位置。worker 强制终止时未传递的日志可能丢失；此通道不提供业务审计或持久化确认。
+
 ## 范围与输出
 
 所有进入已接入构建链的工作区 JS/TS/JSX/TSX 源码均可转换，例如 `packages/utils/src/index.ts`、`contracts/ts/src/index.ts` 和未来移动端源码。不自动处理绕过构建链的 Node 脚本、仅 tsc 编译的包、external 包或预打包依赖。排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录以及日志包装器本身。
@@ -40,4 +48,4 @@ Metro 必须能访问工作区共享包和被引用的源码；按未来 RN/Expo
 
 ## 测试
 
-`pnpm --filter @xiaowei/source-log test` 执行 `test/vite.test.mjs`、`test/babel.test.mjs` 和 `test/runtime.test.mjs`，分别覆盖适配器转换及运行时参数保留。桌面实际构建配置的包入口解析由根目录 `scripts/dev/desktop-source-resolution.test.mjs` 验证；性能对比单独运行 `node scripts/benchmark-log-source.mjs`，不启动 Electron。
+`pnpm --filter @xiaowei/source-log test` 执行 `test/*.test.mjs`，覆盖适配器转换、运行时参数保留，以及真实 Node worker 的源码位置、级别、多行输出和业务消息隔离。桌面实际构建配置的包入口解析由根目录 `scripts/dev/desktop-source-resolution.test.mjs` 验证；性能对比单独运行 `node scripts/benchmark-log-source.mjs`，不启动 Electron。

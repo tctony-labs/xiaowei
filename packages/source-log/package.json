@@ -6,7 +6,8 @@
   "exports": {
     "./vite": "./vite.ts",
     "./babel": "./babel.cjs",
-    "./runtime": "./runtime.ts"
+    "./runtime": "./runtime.ts",
+    "./worker": "./worker.ts"
   },
   "scripts": {
     "check": "tsgo --noEmit",

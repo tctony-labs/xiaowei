@@ -26,6 +26,8 @@ export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
       setModels(request) {
         const next = decodeModels(request.models);
         models = next;
+        const providerCount = new Set([...models.values()].map((model) => model.provider)).size;
+        console.info("LLM models updated: loaded %d models from %d providers", models.size, providerCount);
         return create(EmptySchema);
       },
     }),

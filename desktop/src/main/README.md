@@ -57,6 +57,7 @@ services/<service>/
 - **shared 只放两侧真正共用的代码。** 两侧都可依赖 `shared/`，它不反向依赖 host／worker，不加载业务 SDK，不读取文件、环境变量或调用 Electron。类型、纯数据校验和编解码可放入其中；只被一侧使用的实现留在该侧，不为对称而抽取共享层。
 - **共用代码不等于共享状态。** shared 模块在两侧各自执行；跨线程传递可序列化数据，不依赖可变对象引用或模块单例在两侧共享。状态归属和更新语义由所属 service 明确。
 - **入口与构建保持一致。** worker 的 `index.ts` 只做启动接线，构建配置显式指定独立产物，host 使用该产物路径。移动源码时同步更新构建、调用方、测试和验收工具，验证构建后的 worker 能实际加载并完成 Gateway 调用。
+- **日志使用通用采集。** host 使用 `@xiaowei/source-log/worker` 的 `createLoggedWorker`，worker 入口调用 `initializeWorkerLogging`，业务仍使用 `console.*`。源码位置由既有插件注入；通用采集层通过 Node stdout/stderr 保留等级和正文，交给宿主统一落盘，不在业务 MessagePort 新增日志协议。接入方式见 [source-log](../../../packages/source-log/README.md#node-worker-日志采集)。
 
 该结构只用于实际使用 worker 的 service；按需创建目录，不为普通 service 预建 host／worker／shared 空层。各 service 的具体文件职责、协议和业务行为维护在所属模块文档或 record。
 

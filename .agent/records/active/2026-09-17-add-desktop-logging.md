@@ -6,7 +6,7 @@
 
 ## What
 
-main、renderer 和 Rust 同时输出 console 与同一日志文件，保留来源标记。暂不上传日志，不做日志查看界面；Go 服务端日志不属于本轮范围。
+main、renderer、Node worker 和 Rust 同时输出 console 与同一日志文件，保留来源标记。暂不上传日志，不做日志查看界面；Go 服务端日志不属于本轮范围。
 
 ## How
 
@@ -34,6 +34,10 @@ main 捕获现有 console 调用及未捕获异常监测事件；renderer 捕获
 
 ### 源码位置（方案 A）
 
+Node worker 使用 `@xiaowei/source-log/worker` 的公共采集入口：宿主通过 `createLoggedWorker` 创建实例，worker 入口初始化 console，业务继续使用 `console.*`。沿用 Node 自带 stdout/stderr，不在业务 MessagePort 或 Gateway 另建日志消息。worker 在格式化参数后以 JSON 保留原始等级及多行正文；宿主只解码并通过现有 logger 写入。输出为 `[worker.<name>] [原始文件:行号] ...`；主进程将通用采集器的 worker 标记提升为日志来源，不额外打印 `[main]`，不把转发函数的位置标成调用源。直接写 stdout/stderr 的未包装文本按 info/error 接收；外置依赖没有注入源码位置时不补造位置。强制终止可能丢失尚未传递的日志，不承诺审计级可靠性。
+
+LLM worker 初始化和 SetModels 成功应用配置后均输出 info，分别为 `LLM worker ready: loaded N models from M providers` 和 `LLM models updated: loaded N models from M providers`，携带模型数与去重后的提供商数，不输出凭据或模型配置正文；SetModels 校验失败不打印成功日志。19:12:18.437 的实际启动日志确认 `models=5 providers=2`；构建后的 worker／Gateway 回归确认 SetModels 更新日志，2 项测试和桌面类型检查通过。
+
 自有 TS/TSX 源码继续使用 `console.log/info/warn/error/debug/trace(...)`。`packages/source-log/vite.ts` 在 Vite 的 pre transform 阶段用 Babel 解析原始源码和作用域，通过 magic-string 改写直接调用并生成 source map。处理进入该 Vite 构建链的整个工作区 JS/TS/JSX/TSX 源码（包括 `packages/`、`contracts/ts/` 等跨包源码），排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录、日志包装器和局部声明／导入的同名 console；解构、别名、计算属性、可选调用和 `globalThis.console` 不注入，当前业务源码没有这些调用方式。main、preload、renderer 和独立 `scripts/dev/build-desktop-main.mjs` 共用配置；Storybook 不启用此插件。插件和无平台依赖的 runtime 位于共享包 `@xiaowei/source-log`，Vite/Babel 共用路径与调用筛选规则；未经过该构建链的独立 Node 脚本、tsc 任务和 external/prebundle 包不自动注入，独立 Vite 构建需显式接入插件。
 
 位置格式为 `[desktop/src/main/app/bootstrap.ts:行号]` 或 `[packages/utils/src/index.ts:行号]`，文件路径相对工作区根目录、使用 `/`。调用参数仍交给原 console；首参数为字符串时将位置合并到格式字符串前，保留 `%s`、`%o`、`%c` 等占位符及其参数，其他首参数保持原对象／Error 引用。DevTools 同样显示源码位置前缀，其原生可点击链接仍可能指向包装器或产物。无运行时抓栈或源码映射。
@@ -49,6 +53,8 @@ React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 
 性能对比入口：`node scripts/benchmark-log-source.mjs`。交替开关各三次，构建三个目标到临时目录，并使用 Vite middleware 模式验证 renderer 转换后的位置与失效重转换；不启动 Electron。关闭依赖预打包，保留 OS／依赖缓存，记录的开发转换时间不等于完整应用冷启动或浏览器 HMR 耗时。
 
 ## Outcome
+
+2026-09-26 接入通用 Node worker 日志：source-log 增加独立 worker 入口，LLM 使用公共创建／初始化函数，业务继续使用 console 与既有源码位置注入；未新增业务 IPC，未修改 Pi 补丁。通过共享包 10 项测试、桌面日志 11 项测试、LLM 55 项测试、桌面构建及 just check。覆盖真实 worker 的原始行号、等级、多行／Error 输出、直接 stdout/stderr、尾行、业务消息隔离及统一文件中的生产等级过滤。确认当前工作区实例后执行 just rs；按用户要求将来源统一为 `worker.<name>`，不重复输出 main；21 项日志／共享包测试及桌面类型检查再次通过。重启后 19:11:13.240 的实际文件日志为 `[debug] [worker.llm] [desktop/src/main/services/llm/worker/index.ts:10] LLM worker ready`，启动段正常。该改动与此前 Responses WebSocket 提交独立维护。
 
 2026-09-22 补齐剪贴板页面读取和事件订阅的失败日志，保留原始异常及请求上下文，供“复制文件夹后打开页面报错、重载后恢复”的后续观察使用；本次未确认该偶发异常的根因。桌面类型检查、修改文件的 Biome 检查和 Gateway 异常序列化验证通过，实际故障日志待再次发生时验证。
 

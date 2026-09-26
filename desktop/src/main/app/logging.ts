@@ -70,14 +70,20 @@ export function createLoggers(directory: string, development: boolean) {
   const files = dailyFiles(directory);
   function create(name: string) {
     const logger = log.create({ logId: name });
-    logger.hooks.push((message) => ({
-      ...message,
-      variables: {
-        ...message.variables,
-        processType: message.variables?.processType ?? "main",
-        paddedLevel: message.level.padStart(5, " "),
-      },
-    }));
+    logger.hooks.push((message) => {
+      const first = message.data[0];
+      const worker = name === "main" && typeof first === "string" ? /^\[(worker\.[^\]\r\n]+)\] /.exec(first) : null;
+      return {
+        ...message,
+        data: worker ? [first.slice(worker[0].length), ...message.data.slice(1)] : message.data,
+        variables: {
+          ...message.variables,
+          processType: message.variables?.processType ?? "main",
+          logSource: worker?.[1] ?? name,
+          paddedLevel: message.level.padStart(5, " "),
+        },
+      };
+    });
     const level = development ? "debug" : "info";
     logger.transports.file.resolvePathFn = files.resolvePath;
     logger.transports.file.archiveLogFn = files.archive;
@@ -96,7 +102,7 @@ export function createLoggers(directory: string, development: boolean) {
     };
     if (logger.transports.ipc) logger.transports.ipc.level = false;
     logger.transports.remote.level = false;
-    const format = `{y}-{m}-{d} {h}:{i}:{s}.{ms} [{paddedLevel}] [${name}] {text}`;
+    const format = "{y}-{m}-{d} {h}:{i}:{s}.{ms} [{paddedLevel}] [{logSource}] {text}";
     logger.transports.file.format = format;
     logger.transports.console.format = format;
     logger.transports.console.transforms.push(({ data, message }) => {
