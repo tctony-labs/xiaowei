@@ -144,9 +144,9 @@ export default function ModelEditorDialog({
           />
         </label>
         <div className="grid grid-cols-[112px_1fr] items-center gap-4">
-          <span>思考强度</span>
+          <span>深度思考</span>
           <Select
-            ariaLabel="思考强度"
+            ariaLabel="深度思考"
             className="min-w-0"
             buttonClassName="w-full min-w-0 justify-between [&>span]:truncate [&>svg]:shrink-0"
             value={reasoning ? thinkingPreset : "disabled"}
