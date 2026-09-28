@@ -48,10 +48,16 @@ export const ScrollInLauncher: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("textbox", { name: "搜索" }));
     const rows = canvas.getAllByRole("option");
+    const selectedBackground = getComputedStyle(rows[0]).backgroundColor;
+
     for (let index = 1; index < rows.length; index += 1) {
       await userEvent.keyboard("{ArrowDown}");
       await waitFor(() => expect(rows[index]).toHaveAttribute("aria-selected", "true"));
+      // Selection must switch immediately, without a fading highlight on the scrolled-away row.
+      expect(rows[index - 1].getAnimations()).toHaveLength(0);
+      expect(getComputedStyle(rows[index]).backgroundColor).toBe(selectedBackground);
     }
+
     const last = rows.at(-1);
     await waitFor(() => {
       expect(last).toHaveAttribute("aria-selected", "true");

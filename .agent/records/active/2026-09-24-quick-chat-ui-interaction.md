@@ -24,7 +24,7 @@ Storybook 分组为 `Quick Chat / Launcher`，场景包含 Search、FirstUse、E
 
 ### 最小内存对话（2026-09-25）
 
-`QuickChatTransition` 的绝对定位滑轨同时约束 top 与 bottom，使搜索列表取得剩余可用高度并在内部滚动；不能仅设置 top，否则长列表会撑高滑轨、被外层裁切，键盘选中项无法跟随滚动。`Launcher/SearchResults/ScrollInLauncher` 使用实际滑轨与搜索列表覆盖长列表选中末项的可见状态。
+`QuickChatTransition` 的绝对定位滑轨同时约束 top 与 bottom，使搜索列表取得剩余可用高度并在内部滚动；不能仅设置 top，否则长列表会撑高滑轨、被外层裁切，键盘选中项无法跟随滚动。`Launcher/SearchResults/ScrollInLauncher` 使用实际滑轨与搜索列表覆盖长列表选中末项的可见状态。搜索结果行的选中背景即时切换，不做颜色过渡，避免滚动后旧高亮淡出、新高亮淡入形成上下闪动。
 
 产品 Launcher 已接入 QuickChatPanel；标题栏最小模式仅显示当前首条消息标题与新对话操作，不接会话列表、自动标题、归档或工具能力。消息和草稿由 Launcher 持有的 useQuickChat hook 保存在 renderer 内存；收起、隐藏、切换剪贴板不删除消息，窗口销毁／刷新／退出后丢失。不使用文件、数据库或浏览器持久化存储。
 
@@ -49,6 +49,8 @@ flushSync 同步提交尝试通过了回调结束时 DOM 已更新的检查，�
 延后采样版本再次变顺畅，随后核对到主进程原生热键回调与 Gateway 微任务投递之间缺少确定的 Node 调度边界。现由 Gateway Node 事件队列通过 setImmediate 启动投递，快捷键直接执行业务 action，全部采样、前端开关和 flushSync 已删除；用户已通过实际按键确认卡顿修复；详细源码依据与验证结果见 [快捷键事项](2026-09-18-fixed-launcher-shortcuts.md#原生快捷键与微任务调度)。renderer 保留稳定订阅和剪贴板切聊天直接展开行为。
 
 ## Outcome
+
+2026-09-28 根据用户录屏逐帧定位键盘滚动时高亮上下闪动：旧选中行随列表上移后仍在淡出，新行随后淡入。移除结果行的 `transition-colors`，保留滚动与选中配色；浏览器逐帧采样由新旧高亮交叉渐变变为直接切换。组合 Storybook 增加旧行无残留动画与新行即时高亮断言；22 项相关组件测试、类型检查和 Biome 通过。实际 Electron 中的闪动修复待用户复验。
 
 2026-09-28 修复搜索结果键盘滚动回归：Quick Chat 滑轨缺少 bottom 约束，破坏了原搜索列表的高度边界。Chrome 中对同一组件恢复旧样式复现：15 条结果时列表高 792px、末项超出视口且 scrollTop 为 0；修复后列表高 480px、scrollTop 为 312，末项完整可见，向上返回首项正常。补充组合 Storybook 场景及末项可见断言，22 项 Launcher／QuickChatTransition／QuickChatPanel 测试、桌面类型检查与受影响文件 Biome 检查通过。用户已在实际 Electron 窗口确认滚动恢复正常，本次修复验收完成。
 
