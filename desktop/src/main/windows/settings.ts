@@ -9,13 +9,13 @@ export function createSettingsWindow(options: {
 }) {
   let settingsWindow: BrowserWindow | undefined;
 
-  async function openSettings(): Promise<void> {
+  async function openSettings(): Promise<BrowserWindow> {
     options.hideLauncher();
     if (process.platform === "darwin") app.show();
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       settingsWindow.show();
       settingsWindow.focus();
-      return;
+      return settingsWindow;
     }
     const window = new BrowserWindow({
       width: 800,
@@ -49,6 +49,7 @@ export function createSettingsWindow(options: {
       } else {
         await window.loadFile(join(options.moduleDir, "../renderer/index.html"), { query });
       }
+      return window;
     } catch (error) {
       window.destroy();
       throw error;

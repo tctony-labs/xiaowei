@@ -21,10 +21,12 @@ function send() {
   fireEvent.keyDown(input(), { key: "Enter" });
 }
 
-test("missing default model reports an error and prevents sending without adding selectors", () => {
-  render(<QuickChatChatPreview scenario="missing-default" />);
+test("no available models shows an empty state and prevents sending without adding selectors", () => {
+  render(<QuickChatChatPreview scenario="no-models" />);
   type("你好");
-  expect(screen.getByRole("alert")).toHaveTextContent("未设置默认模型");
+  expect(screen.getByText("暂无可用模型")).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "设置 - 模型" })).toBeVisible();
   expect(screen.getByRole("button", { name: "发送消息" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "对话模型" })).toBeNull();
   expect(screen.queryByRole("button", { name: "思考强度" })).toBeNull();

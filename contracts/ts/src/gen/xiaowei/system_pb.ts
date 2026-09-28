@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/system.proto.
  */
 export const file_xiaowei_system: GenFile = /*@__PURE__*/
-  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIiYKE1NldEF1dG9zdGFydFJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCCo/CgVUaGVtZRIVChFUSEVNRV9VTlNQRUNJRklFRBAAEg8KC1RIRU1FX0xJR0hUEAESDgoKVEhFTUVfREFSSxACMoEECgZTeXN0ZW0SSgoMU2V0QXV0b3N0YXJ0EiMueGlhb3dlaS5zeXN0ZW0uU2V0QXV0b3N0YXJ0UmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EjoKCkhpZGVXaW5kb3cSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRoVLnhpYW93ZWkuY29tbW9uLkVtcHR5ElYKEldyaXRlQ2xpcGJvYXJkVGV4dBIpLnhpYW93ZWkuc3lzdGVtLldyaXRlQ2xpcGJvYXJkVGV4dFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJJCgtUb2dnbGVUaGVtZRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zeXN0ZW0uVG9nZ2xlVGhlbWVSZXNwb25zZRJACgdPcGVuVXJsEh4ueGlhb3dlaS5zeXN0ZW0uT3BlblVybFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJDCghPcGVuUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJFCgpSZXZlYWxQYXRoEiAueGlhb3dlaS5zeXN0ZW0uTG9jYWxQYXRoUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5YgZwcm90bzM", [file_xiaowei_common]);
+  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIiYKE1NldEF1dG9zdGFydFJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCCJFChNPcGVuU2V0dGluZ3NSZXF1ZXN0Ei4KBmFuY2hvchgBIAEoDjIeLnhpYW93ZWkuc3lzdGVtLlNldHRpbmdzQW5jaG9yIh0KG1NldHRpbmdzTmF2aWdhdGlvblJlcXVlc3RlZCJQCh5UYWtlU2V0dGluZ3NOYXZpZ2F0aW9uUmVzcG9uc2USLgoGYW5jaG9yGAEgASgOMh4ueGlhb3dlaS5zeXN0ZW0uU2V0dGluZ3NBbmNob3IqPwoFVGhlbWUSFQoRVEhFTUVfVU5TUEVDSUZJRUQQABIPCgtUSEVNRV9MSUdIVBABEg4KClRIRU1FX0RBUksQAipWCg5TZXR0aW5nc0FuY2hvchIfChtTRVRUSU5HU19BTkNIT1JfVU5TUEVDSUZJRUQQABIjCh9TRVRUSU5HU19BTkNIT1JfTU9ERUxfUFJPVklERVJTEAEyrgUKBlN5c3RlbRJKCgxPcGVuU2V0dGluZ3MSIy54aWFvd2VpLnN5c3RlbS5PcGVuU2V0dGluZ3NSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSXwoWVGFrZVNldHRpbmdzTmF2aWdhdGlvbhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5Gi4ueGlhb3dlaS5zeXN0ZW0uVGFrZVNldHRpbmdzTmF2aWdhdGlvblJlc3BvbnNlEkoKDFNldEF1dG9zdGFydBIjLnhpYW93ZWkuc3lzdGVtLlNldEF1dG9zdGFydFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRI6CgpIaWRlV2luZG93EhUueGlhb3dlaS5jb21tb24uRW1wdHkaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJWChJXcml0ZUNsaXBib2FyZFRleHQSKS54aWFvd2VpLnN5c3RlbS5Xcml0ZUNsaXBib2FyZFRleHRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSQwoIT3BlblBhdGgSIC54aWFvd2VpLnN5c3RlbS5Mb2NhbFBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRQoKUmV2ZWFsUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.system.ToggleThemeResponse
@@ -108,6 +108,60 @@ export const SetAutostartRequestSchema: GenMessage<SetAutostartRequest> = /*@__P
   messageDesc(file_xiaowei_system, 4);
 
 /**
+ * @generated from message xiaowei.system.OpenSettingsRequest
+ */
+export type OpenSettingsRequest = Message<"xiaowei.system.OpenSettingsRequest"> & {
+  /**
+   * Required destination; unspecified and unknown values are rejected.
+   *
+   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   */
+  anchor: SettingsAnchor;
+};
+
+/**
+ * Describes the message xiaowei.system.OpenSettingsRequest.
+ * Use `create(OpenSettingsRequestSchema)` to create a new message.
+ */
+export const OpenSettingsRequestSchema: GenMessage<OpenSettingsRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 5);
+
+/**
+ * Notification only, delivered to the destination settings window. The host
+ * retains the latest pending anchor until that window consumes it.
+ *
+ * @generated from message xiaowei.system.SettingsNavigationRequested
+ */
+export type SettingsNavigationRequested = Message<"xiaowei.system.SettingsNavigationRequested"> & {
+};
+
+/**
+ * Describes the message xiaowei.system.SettingsNavigationRequested.
+ * Use `create(SettingsNavigationRequestedSchema)` to create a new message.
+ */
+export const SettingsNavigationRequestedSchema: GenMessage<SettingsNavigationRequested> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 6);
+
+/**
+ * @generated from message xiaowei.system.TakeSettingsNavigationResponse
+ */
+export type TakeSettingsNavigationResponse = Message<"xiaowei.system.TakeSettingsNavigationResponse"> & {
+  /**
+   * UNSPECIFIED means this window has no pending navigation.
+   *
+   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   */
+  anchor: SettingsAnchor;
+};
+
+/**
+ * Describes the message xiaowei.system.TakeSettingsNavigationResponse.
+ * Use `create(TakeSettingsNavigationResponseSchema)` to create a new message.
+ */
+export const TakeSettingsNavigationResponseSchema: GenMessage<TakeSettingsNavigationResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 7);
+
+/**
  * @generated from enum xiaowei.system.Theme
  */
 export enum Theme {
@@ -134,9 +188,53 @@ export const ThemeSchema: GenEnum<Theme> = /*@__PURE__*/
   enumDesc(file_xiaowei_system, 0);
 
 /**
+ * @generated from enum xiaowei.system.SettingsAnchor
+ */
+export enum SettingsAnchor {
+  /**
+   * @generated from enum value: SETTINGS_ANCHOR_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SETTINGS_ANCHOR_MODEL_PROVIDERS = 1;
+   */
+  MODEL_PROVIDERS = 1,
+}
+
+/**
+ * Describes the enum xiaowei.system.SettingsAnchor.
+ */
+export const SettingsAnchorSchema: GenEnum<SettingsAnchor> = /*@__PURE__*/
+  enumDesc(file_xiaowei_system, 1);
+
+/**
  * @generated from service xiaowei.system.System
  */
 export const System: GenService<{
+  /**
+   * Open/focus settings and request navigation. Success means the window loaded,
+   * not that the renderer has completed scrolling or highlighting.
+   *
+   * @generated from rpc xiaowei.system.System.OpenSettings
+   */
+  openSettings: {
+    methodKind: "unary";
+    input: typeof OpenSettingsRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Atomically read and clear the invoking window's pending destination.
+   * Subscribe to SettingsNavigationRequested before calling, and call again on notifications.
+   * UNSPECIFIED means no pending destination; this does not open a window.
+   *
+   * @generated from rpc xiaowei.system.System.TakeSettingsNavigation
+   */
+  takeSettingsNavigation: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof TakeSettingsNavigationResponseSchema;
+  },
   /**
    * Apply OS login startup registration; host failures fail the call.
    *

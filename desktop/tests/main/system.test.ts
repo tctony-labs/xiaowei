@@ -8,15 +8,18 @@ import { create } from "@bufbuild/protobuf";
 import {
   EmptySchema,
   LocalPathRequestSchema,
+  OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
   SetAutostartRequestSchema,
+  SettingsAnchor,
+  SettingsNavigationRequestedSchema,
   System,
   Theme,
   ToggleThemeResponseSchema,
   WriteClipboardTextRequestSchema,
 } from "xiaowei-contracts";
-import { bindClient, bindHandlers } from "xiaowei-gateway";
-import { GatewayHost } from "xiaowei-gateway/host";
+import { bindClient, bindHandlers, createClient } from "xiaowei-gateway";
+import { createContext, GatewayHost } from "xiaowei-gateway/host";
 
 const require = createRequire(new URL("../../package.json", import.meta.url));
 const opened: string[] = [];
@@ -183,4 +186,60 @@ test("System resolves the caller window and propagates OS startup failure", asyn
     rejectAutostart = false;
     owner.close();
   }
+});
+
+test("settings navigation reaches only the destination and survives opening before subscription", async () => {
+  const host = new GatewayHost();
+  const launcher = { hide() {} };
+  const settings = { hide() {} };
+  const launcherContext = createContext({ caller: "launcher", trusted: true });
+  const settingsContext = createContext({ caller: "settings", trusted: true });
+  let failOpen = false;
+  const owner = registerSystem(
+    host,
+    (context) => (context === settingsContext ? settings : launcher),
+    async () => {
+      if (failOpen) throw new Error("Unable to load settings");
+      return settings;
+    },
+  );
+  const source = createClient(host.transport(launcherContext));
+  const destination = createClient(host.transport(settingsContext));
+  const api = bindClient(System, source);
+  const events: number[] = [];
+  const wrongEvents: number[] = [];
+  const other = await source.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {
+    wrongEvents.push(1);
+  });
+  const request = create(OpenSettingsRequestSchema, { anchor: SettingsAnchor.MODEL_PROVIDERS });
+  await api.openSettings(request);
+  const abandoned = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {});
+  abandoned.close();
+  const subscription = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, (bytes) => {
+    assert.equal(bytes.length, 0);
+    events.push(1);
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [1]);
+  assert.equal((await api.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.UNSPECIFIED);
+  const settingsApi = bindClient(System, destination);
+  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.MODEL_PROVIDERS);
+  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.UNSPECIFIED);
+  await api.openSettings(request);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [1, 1]);
+  assert.deepEqual(wrongEvents, []);
+  await assert.rejects(api.openSettings(create(OpenSettingsRequestSchema)));
+  failOpen = true;
+  await assert.rejects(api.openSettings(request));
+  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.MODEL_PROVIDERS);
+  subscription.close();
+  other.close();
+  const reopened = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {
+    events.push(1);
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(events.length, 2);
+  reopened.close();
+  owner.close();
 });

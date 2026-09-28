@@ -34,7 +34,33 @@ message SetAutostartRequest {
   bool enabled = 1;
 }
 
+enum SettingsAnchor {
+  SETTINGS_ANCHOR_UNSPECIFIED = 0;
+  SETTINGS_ANCHOR_MODEL_PROVIDERS = 1;
+}
+
+message OpenSettingsRequest {
+  // Required destination; unspecified and unknown values are rejected.
+  SettingsAnchor anchor = 1;
+}
+
+// Notification only, delivered to the destination settings window. The host
+// retains the latest pending anchor until that window consumes it.
+message SettingsNavigationRequested {}
+
+message TakeSettingsNavigationResponse {
+  // UNSPECIFIED means this window has no pending navigation.
+  SettingsAnchor anchor = 1;
+}
+
 service System {
+  // Open/focus settings and request navigation. Success means the window loaded,
+  // not that the renderer has completed scrolling or highlighting.
+  rpc OpenSettings(OpenSettingsRequest) returns (xiaowei.common.Empty);
+  // Atomically read and clear the invoking window's pending destination.
+  // Subscribe to SettingsNavigationRequested before calling, and call again on notifications.
+  // UNSPECIFIED means no pending destination; this does not open a window.
+  rpc TakeSettingsNavigation(xiaowei.common.Empty) returns (TakeSettingsNavigationResponse);
   // Apply OS login startup registration; host failures fail the call.
   rpc SetAutostart(SetAutostartRequest) returns (xiaowei.common.Empty);
   // Hide the invoking window and, on macOS, resign application focus.

@@ -26,15 +26,19 @@ Storybook 分组为 `Quick Chat / Launcher`，场景包含 Search、FirstUse、E
 
 产品 Launcher 已接入 QuickChatPanel；标题栏最小模式仅显示当前首条消息标题与新对话操作，不接会话列表、自动标题、归档或工具能力。消息和草稿由 Launcher 持有的 useQuickChat hook 保存在 renderer 内存；收起、隐藏、切换剪贴板不删除消息，窗口销毁／刷新／退出后丢失。不使用文件、数据库或浏览器持久化存储。
 
-前端通过 services.ts 的 Llm stream typed client 调用 Generate；不引入 Rust agent 或后端会话状态。ModelSettings 先订阅 ready 后 Get，处理迟到结果与 revision；每轮捕获当前默认 modelRef／thinkingLevel。不提供模型／思考强度选择控件，无默认模型、模型删除、凭据不可用或配置应用故障时显式报错并禁止发送；设置变更只影响后续请求，不影响在途快照。
+前端通过 services.ts 的 Llm stream typed client 调用 Generate；不引入 Rust agent 或后端会话状态。ModelSettings 先订阅 ready 后 Get，处理迟到结果与 revision；每轮捕获当前使用的 modelRef／thinkingLevel。不提供模型／思考强度选择控件；默认模型未设置或已被删除时，仅在调用处按提供商与模型列表顺序取第一个可用模型，跳过有 unavailableReason 的提供商，不写回默认模型设置，也不沿用原默认模型的思考强度。没有可用模型、显式选中的默认模型凭据不可用或配置应用故障时禁止发送；设置变更只影响后续请求，不影响在途快照。
 
 chat-messages.ts 按块索引累计文本与 thinking，以成功终态中的完整 AssistantMessage 作为回放历史，保留签名、协议元数据与用量。取消或失败的部分回复仅用于显示，不当作成功 assistant 回放；用户消息保留。未收到终态即断流视为失败。请求不声明工具，意外工具输出报错并结束，不执行工具或继续循环。停止、清空及卸载会通过 AbortSignal 取消开流或在途流，旧请求不得覆盖新对话。
 
 LauncherMode.QUICK_CHAT 仅表示原生窗口展示模式。宿主固定聊天高度 580px；从剪贴板切入时直接挂载展开的聊天面板，不重放搜索展开动画；从搜索展开先完成原生扩高再显示动画，收起后等待 300ms 再恢复搜索高度，聊天中搜索结果不缩小窗口。Cmd+Space 在所有模式下仅切换窗口显隐，重新显示时聚焦当前输入；Cmd+Shift+C 按剪贴板入口的同模式显隐／跨模式切换规则唤起快速对话，剪贴板切换保留内存对话。快速对话展开和窗口重新聚焦时聚焦 composer。LauncherOpened 订阅在页面存活期间保持连接，通过 React effect event 读取最新 UI 状态；不得因剪贴板模式变化重建订阅，避免解绑／重绑空档丢失快捷键通知。输入使用纯文本 textarea，Enter 发送、Shift+Enter 换行，输入法合成不发送；Esc／空输入 ↑ 收起，新对话清空并停止在途生成。标题栏提供 Electron 拖动区域。
 
+2026-09-28 用户确认居中空态和设置跳转效果后接入产品。没有可用模型时，消息区以灰色图标和普通文字展示“暂无可用模型”，已有消息保留并在其后显示配置引导；不再以红色错误展示缺少模型。“设置 - 模型”调用 System.OpenSettings(anchor: SettingsAnchor.MODEL_PROVIDERS)，窗口控制器复用／创建设置窗口并隐藏 Launcher。System owner 按实际 BrowserWindow 定向交付空通知 SettingsNavigationRequested；保留最后一个待处理目标，事件仅通知页面读取，订阅和发送通知都不清空目标。有效 SettingsPage 在订阅 ready 后及收到通知时调用 System.TakeSettingsNavigation 原子读取并清除目标，返回 TakeSettingsNavigationResponse.anchor；已清理的 effect 不发起读取，避免 StrictMode 首次订阅清理时提前消费。不写入持久化设置。SettingsPage 切到模型页，ModelSettingsPage 等模型快照加载完成后滚动到模型提供商配置区域（含添加按钮），以主色描边高亮 1.6 秒；重复导航重新计时，手动切页清除本次导航。打开设置失败时在引导下显示错误，可再次点击重试。
+
 新增 Quick Chat / Chat 的 9 个 Storybook 场景仅使用模拟流；产品不导入预览适配器。旧完整标题栏和入口预览继续保留。本片是用户要求的简化实现，不宣称与旧版后端会话、工具循环、富文本消息或持久化全面等价。
 
 ## Current work
+
+2026-09-28 用户已确认空态和设置跳转视觉效果，产品接入、自动验证和当前工作区重启完成；用户反馈首次跳转停留通用页，已复现 StrictMode 订阅清理导致目标丢失，改为显式消费；修复后的 Electron 跳转仍待验证。未为验收修改用户模型配置或发送模型请求。
 
 2026-09-26 用户反馈移除日志后再次卡顿。顺畅期间日志的主进程回调中位数约 4ms、React 提交中位数约 1.9ms，不足以确认卡顿根因。此前同模式通知没有触发提交时，计时引用会一直保留到其他更新，因此出现的 611ms 样本不能当作一次模式切换耗时。
 
@@ -43,6 +47,14 @@ flushSync 同步提交尝试通过了回调结束时 DOM 已更新的检查，�
 延后采样版本再次变顺畅，随后核对到主进程原生热键回调与 Gateway 微任务投递之间缺少确定的 Node 调度边界。现由 Gateway Node 事件队列通过 setImmediate 启动投递，快捷键直接执行业务 action，全部采样、前端开关和 flushSync 已删除；用户已通过实际按键确认卡顿修复；详细源码依据与验证结果见 [快捷键事项](2026-09-18-fixed-launcher-shortcuts.md#原生快捷键与微任务调度)。renderer 保留稳定订阅和剪贴板切聊天直接展开行为。
 
 ## Outcome
+
+2026-09-28 根据“暂无可用模型”的引导语义，将锚点改为模型提供商配置区域，包含添加入口，不再定位默认模型行。契约统一为 SettingsAnchor.MODEL_PROVIDERS 与 anchor 字段，SettingsNavigationRequested 仅作空通知，TakeSettingsNavigationResponse 返回待消费锚点；同步产品、Storybook 与测试。回归验证高亮区域包含“模型提供商”且不包含“默认模型”，并保留 StrictMode 与重复跳转覆盖。完整桌面测试、契约 codec、just check 通过；已确认当前工作区实例并执行 just rs。
+
+2026-09-28 修复首次设置导航停留通用页：StrictMode 的首次 effect 清理会取消订阅，旧实现却在 attach 时提前删除待跳转目标，第二次订阅没有目标可取。main 回归通过“订阅后立即关闭，再次订阅”在修复前得到空事件列表而失败。改为保留待处理目标，由有效页面通过 TakeSettingsNavigation 原子读取并清除；事件只通知读取。保持 StrictMode，页面回归覆盖 StrictMode 首次挂载、延迟加载与重复跳转，完整桌面测试、契约 codec 和 just check 通过；当前工作区已通过 just rs 重启，09:41:29 renderer 与原生服务启动正常，实际点击待用户复验。
+
+2026-09-28 接入居中模型空态与“设置 - 模型”导航。新增 System.OpenSettings 与定向 SettingsNavigated，覆盖先打开后订阅、已打开窗口重复导航、无效目标与打开失败；产品测试覆盖点击链接、延迟加载后定位以及高亮重触发。`just check`、完整 `pnpm --dir desktop test`（含 97 项 renderer 测试）、契约 codec 与生成一致性检查通过，受影响的 storage／search／clipboard napi 正式产物已重建。并行构建中的 Vite／napi 临时文件曾使 Biome 扫描失败，构建结束后重新运行完整检查通过，未修改无关规则。通过 Electron／nodemon 命令、cwd 与父子进程确认实例属于当前工作区后执行 `just rs`；09:37:08 新实例启动，原生模块、LLM worker、renderer 和搜索索引初始化正常。
+
+2026-09-28 按用户澄清实现调用处的临时模型选择：无默认模型／默认模型已删除且仍有可用模型时可以直接对话，不修改持久化默认值。覆盖空默认值、删除后重新选择、跳过不可用提供商、没有可用模型时阻止调用与不修改设置；hook／面板／Launcher 共 18 项测试通过，类型检查和 Biome 通过。视觉预览拆分为 No Models（配置提示）与 Missing Default（正常空对话，可模拟发送），空态／设置跳转随后经用户确认接入，见上述当前行为。
 
 2026-09-26 修复模式通知订阅竞态：旧订阅 effect 依赖 clipboardOpen，进入／离开剪贴板会重建订阅，期间可能丢失 Quick Chat 通知，导致主进程已切换但页面仍留在剪贴板。回归通过延迟重复订阅稳定复现界面未切换；改为稳定订阅和 useEffectEvent 后，21 项 Launcher／QuickChatPanel／QuickChatTransition 测试、类型检查、Biome 通过。当前工作区已热更新；自动桌面按键未触发系统全局快捷键，未以该尝试作为平台验收通过。用户随后确认加日志并重启后已不再卡顿，并要求移除临时调试代码；订阅修复与回归测试保留，未采到卡顿现场，性能根因未确认。
 

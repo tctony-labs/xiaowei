@@ -1,9 +1,15 @@
 import { access } from "node:fs/promises";
 import { isAbsolute } from "node:path";
-import { create } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { app, type BrowserWindow, clipboard, shell } from "electron";
-import { EmptySchema, System } from "xiaowei-contracts";
-import { bindHandlers } from "xiaowei-gateway";
+import {
+  EmptySchema,
+  SettingsAnchor,
+  SettingsNavigationRequestedSchema,
+  System,
+  TakeSettingsNavigationResponseSchema,
+} from "xiaowei-contracts";
+import { bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 
 function webUrl(value: unknown): string {
@@ -19,12 +25,43 @@ async function localPath(path: string): Promise<string> {
   return path;
 }
 
-export function registerSystem(host: GatewayHost, windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">) {
+export function registerSystem(
+  host: GatewayHost,
+  windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">,
+  openSettings?: () => Promise<Pick<BrowserWindow, "hide">>,
+) {
+  const pending = new WeakMap<object, SettingsAnchor>();
+  const listeners = new Map<object, Set<EventSink>>();
+
+  function deliver(window: object, anchor: SettingsAnchor) {
+    pending.set(window, anchor);
+    const sinks = listeners.get(window);
+    if (!sinks?.size) return;
+    const bytes = toBinary(SettingsNavigationRequestedSchema, create(SettingsNavigationRequestedSchema));
+    for (const sink of sinks) {
+      void Promise.resolve(sink(bytes)).catch((error) => console.error("Settings navigation failed", error));
+    }
+  }
+
   return host.registerOwner(
     "system",
     bindHandlers(
       System,
       {
+        async openSettings(request, _client, context) {
+          windowFor(context);
+          if (request.anchor !== SettingsAnchor.MODEL_PROVIDERS) throw new Error("Invalid settings anchor");
+          if (!openSettings) throw new Error("Settings window unavailable");
+          const window = await openSettings();
+          deliver(window, request.anchor);
+          return create(EmptySchema);
+        },
+        takeSettingsNavigation(_request, _client, context) {
+          const window = windowFor(context);
+          const anchor = pending.get(window);
+          pending.delete(window);
+          return create(TakeSettingsNavigationResponseSchema, { anchor });
+        },
         setAutostart(request) {
           const previous = app.getLoginItemSettings().openAtLogin;
           app.setLoginItemSettings({ openAtLogin: request.enabled });
@@ -59,5 +96,25 @@ export function registerSystem(host: GatewayHost, windowFor: (context: CallConte
       },
       { partial: true },
     ),
+    [
+      {
+        name: SettingsNavigationRequestedSchema.typeName,
+        policy: "coalesce",
+        async attach(context, _filter, sink) {
+          const window = windowFor(context);
+          const sinks = listeners.get(window) ?? new Set<EventSink>();
+          sinks.add(sink);
+          listeners.set(window, sinks);
+          const anchor = pending.get(window);
+          if (anchor) deliver(window, anchor);
+          return {
+            close() {
+              sinks.delete(sink);
+              if (!sinks.size) listeners.delete(window);
+            },
+          };
+        },
+      },
+    ],
   );
 }

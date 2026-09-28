@@ -94,9 +94,10 @@ function keyUpdate(provider: Provider, key: string) {
   };
 }
 
-export function ModelSettingsPage({ services }: { services: Services }) {
+export function ModelSettingsPage({ services, navigation = 0 }: { services: Services; navigation?: number }) {
   const api = services.getModelSettings();
   const [snapshot, setSnapshot] = useState<ModelSettingsSnapshot>();
+  const [highlightModelProviders, setHighlightModelProviders] = useState(false);
   const [error, setError] = useState("");
   const active = useRef(false);
   const current = useRef<ModelSettingsSnapshot | undefined>(undefined);
@@ -135,6 +136,18 @@ export function ModelSettingsPage({ services }: { services: Services }) {
       subscription?.close();
     };
   }, [api, services, accept]);
+
+  const loaded = !!snapshot;
+  useEffect(() => {
+    if (!loaded || !navigation) {
+      setHighlightModelProviders(false);
+      return;
+    }
+    setHighlightModelProviders(true);
+    document.getElementById("settings-model-providers")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightModelProviders(false), 1600);
+    return () => clearTimeout(timer);
+  }, [loaded, navigation]);
 
   if (!snapshot)
     return (
@@ -199,6 +212,7 @@ export function ModelSettingsPage({ services }: { services: Services }) {
       )}
       <ModelSettings
         remoteOnly
+        highlightModelProviders={highlightModelProviders}
         values={values}
         providers={providers}
         localModels={[]}

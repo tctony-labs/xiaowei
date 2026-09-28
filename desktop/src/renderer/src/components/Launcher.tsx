@@ -5,7 +5,9 @@ import {
   LauncherMode,
   LauncherOpenedSchema,
   LauncherQueryRequestSchema,
+  OpenSettingsRequestSchema,
   ResultRequestSchema,
+  SettingsAnchor,
   UpdateLayoutRequestSchema,
 } from "xiaowei-contracts";
 import type { Subscription } from "xiaowei-gateway";
@@ -13,6 +15,7 @@ import { launcherHeight, type SearchResponse } from "../../../shared/launcher-mo
 import { services as defaultServices, type Services } from "../services";
 import { ClipboardPage } from "./ClipboardPage";
 import { LauncherSearchBar } from "./LauncherSearchBar";
+import { QuickChatModelEmptyState } from "./quick-chat/QuickChatModelEmptyState";
 import { QuickChatPanel } from "./quick-chat/QuickChatPanel";
 import { QUICK_CHAT_TRANSITION_MS } from "./quick-chat/QuickChatTransition";
 import { useQuickChat } from "./quick-chat/use-quick-chat";
@@ -35,6 +38,7 @@ export function Launcher({
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<SearchResponse>({ token: 0, hits: [] });
   const [selected, setSelected] = useState(0);
+  const [settingsError, setSettingsError] = useState("");
   const [error, setError] = useState("");
   const resizing = useRef(Promise.resolve());
   const revision = useRef(0);
@@ -203,6 +207,24 @@ export function Launcher({
   return (
     <QuickChatPanel
       {...chat}
+      emptyState={
+        chat.noModels ? (
+          <QuickChatModelEmptyState
+            error={settingsError}
+            onOpenSettings={() => {
+              setSettingsError("");
+              void services
+                .getSystem()
+                .openSettings(
+                  create(OpenSettingsRequestSchema, {
+                    anchor: SettingsAnchor.MODEL_PROVIDERS,
+                  }),
+                )
+                .catch((cause: unknown) => setSettingsError(`打开设置失败：${String(cause)}`));
+            }}
+          />
+        ) : undefined
+      }
       expanded={chatExpanded}
       search={search}
       searchHeight={launcherHeight(error ? 1 : response.hits.length)}

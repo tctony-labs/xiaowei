@@ -93,6 +93,10 @@ pub mod xiaowei_storage_storage_service {
 }
 #[rustfmt::skip]
 pub mod xiaowei_system_system_service {
+    pub const OPEN_SETTINGS: xw_gateway::binding::Method<xw_contracts::xiaowei::system::OpenSettingsRequest, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.OpenSettings", xw_gateway::MethodKind::Unary);
+    pub const TAKE_SETTINGS_NAVIGATION: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::system::TakeSettingsNavigationResponse> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.TakeSettingsNavigation", xw_gateway::MethodKind::Unary);
     pub const SET_AUTOSTART: xw_gateway::binding::Method<xw_contracts::xiaowei::system::SetAutostartRequest, xw_contracts::xiaowei::common::Empty> =
         xw_gateway::binding::Method::new("xiaowei.system.System.SetAutostart", xw_gateway::MethodKind::Unary);
     pub const HIDE_WINDOW: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::common::Empty> =

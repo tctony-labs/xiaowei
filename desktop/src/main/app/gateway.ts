@@ -25,6 +25,7 @@ export async function createApplicationGateway(
   iconDirectory: string,
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
+    openSettings(): Promise<BrowserWindow>;
   },
   config?: { path: string; document: ModelConfigDocument },
 ) {
@@ -68,7 +69,7 @@ export async function createApplicationGateway(
   try {
     llm = await attachLlm(host, resolveModels(config?.document ?? emptyConfig(), process.env));
     if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
-    system = registerSystem(host, windowFor);
+    system = registerSystem(host, windowFor, actions.openSettings);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());

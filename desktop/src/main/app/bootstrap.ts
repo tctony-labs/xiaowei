@@ -66,7 +66,9 @@ export function startApplication(moduleDir: string): void {
     app
       .whenReady()
       .then(async () => {
-        installMenu(settingsWindow.open);
+        installMenu(async () => {
+          await settingsWindow.open();
+        });
         const models = await loadConfig(process.env, paths.models);
         gateway = await createApplicationGateway(
           paths.clipboard,
@@ -91,6 +93,7 @@ export function startApplication(moduleDir: string): void {
             modeChanged(mode) {
               launcher.modeChanged(mode);
             },
+            openSettings: settingsWindow.open,
             updateShortcuts(config) {
               shortcuts.replace(config);
             },

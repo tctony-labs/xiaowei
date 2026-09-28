@@ -19,15 +19,30 @@ import {
   ModelSettings,
   ModelSettingsChangedSchema,
   ModelSettingsSnapshotSchema,
+  SettingsAnchor,
+  System,
 } from "xiaowei-contracts";
 import { bindEvent, bindHandlers, bindStreamHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";
 import { Launcher } from "./Launcher";
 
-function preview(clipboardMode = false) {
+function preview(clipboardMode = false, noModels = false) {
   const host = new GatewayHost();
-  const calls = { execute: vi.fn(), resize: vi.fn(), hide: vi.fn() };
+  const calls = { execute: vi.fn(), resize: vi.fn(), hide: vi.fn(), openSettings: vi.fn() };
+  host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        openSettings(request) {
+          calls.openSettings(request);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
   const launcher = host.registerOwner(
     "launcher",
     bindHandlers(LauncherService, {
@@ -68,7 +83,7 @@ function preview(clipboardMode = false) {
         get: () =>
           create(ModelSettingsSnapshotSchema, {
             defaults: { modelRef: "default-model" },
-            providers: [{ id: "provider", models: [{ id: "default-model" }] }],
+            providers: noModels ? [] : [{ id: "provider", models: [{ id: "default-model" }] }],
           }),
       },
       { partial: true },
@@ -288,4 +303,19 @@ test("mode notifications stay connected while switching through clipboard", asyn
   } finally {
     await act(async () => releaseReconnect());
   }
+});
+
+test("empty model state opens the model provider setting through the product Gateway", async () => {
+  const app = preview(false, true);
+  const canvas = render(<Launcher services={app.services} />);
+  fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
+  const link = await canvas.findByRole("button", { name: "设置 - 模型" });
+  expect(canvas.getByText("暂无可用模型")).toBeVisible();
+  expect(canvas.queryByRole("alert")).toBeNull();
+  await userEvent.click(link);
+  await waitFor(() =>
+    expect(app.calls.openSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ anchor: SettingsAnchor.MODEL_PROVIDERS }),
+    ),
+  );
 });

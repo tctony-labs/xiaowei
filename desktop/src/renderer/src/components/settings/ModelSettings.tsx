@@ -87,6 +87,7 @@ export interface ModelSettingsProps {
   onTestImage: (id: string) => Promise<void>;
   initialDialog?: "add" | "edit" | "editCustom" | "local";
   highlightLocal?: boolean;
+  highlightModelProviders?: boolean;
   imageTesting?: boolean;
   remoteOnly?: boolean;
 }
@@ -234,50 +235,55 @@ export function ModelSettings(props: ModelSettingsProps) {
           </SettingRow>
         )}
       </SettingCard>
-      <SettingCard>
-        <SettingRow title="模型提供商">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="cursor-pointer rounded-md bg-primary px-3 py-1 text-[12px] font-medium text-white"
-              onClick={() => setEditor(emptyProvider)}
-            >
-              添加
-            </button>
-          </div>
-        </SettingRow>
-        <div className="space-y-2 px-5 py-3">
-          {!providers.length && <p className="py-2 text-center text-[12px] text-muted">暂无模型提供商，请添加</p>}
-          {providers.map((provider) => (
-            <div
-              key={provider.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-subtle px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium leading-[18px]">
-                  {provider.name}
-                  <span className="ml-2 rounded bg-hover px-1.5 py-0.5 text-[10px] font-normal text-muted">
-                    {provider.preset ? "预设" : "自定义"}
-                  </span>
-                </div>
-                <div className="mt-0.5 truncate text-[11px] leading-[14px] text-muted">
-                  {provider.baseUrl} · {provider.protocol}
-                  {provider.unavailableReason && (
-                    <span className="block text-danger">{provider.unavailableReason}</span>
-                  )}
-                </div>
-              </div>
+      <div
+        id="settings-model-providers"
+        className={`rounded-xl transition-shadow ${props.highlightModelProviders ? "ring-2 ring-primary/60" : ""}`}
+      >
+        <SettingCard>
+          <SettingRow title="模型提供商">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="cursor-pointer rounded-md bg-hover px-3 py-1 text-[12px] font-medium"
-                onClick={() => setEditor(provider)}
+                className="cursor-pointer rounded-md bg-primary px-3 py-1 text-[12px] font-medium text-white"
+                onClick={() => setEditor(emptyProvider)}
               >
-                修改
+                添加
               </button>
             </div>
-          ))}
-        </div>
-      </SettingCard>
+          </SettingRow>
+          <div className="space-y-2 px-5 py-3">
+            {!providers.length && <p className="py-2 text-center text-[12px] text-muted">暂无模型提供商，请添加</p>}
+            {providers.map((provider) => (
+              <div
+                key={provider.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-subtle px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-medium leading-[18px]">
+                    {provider.name}
+                    <span className="ml-2 rounded bg-hover px-1.5 py-0.5 text-[10px] font-normal text-muted">
+                      {provider.preset ? "预设" : "自定义"}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] leading-[14px] text-muted">
+                    {provider.baseUrl} · {provider.protocol}
+                    {provider.unavailableReason && (
+                      <span className="block text-danger">{provider.unavailableReason}</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="cursor-pointer rounded-md bg-hover px-3 py-1 text-[12px] font-medium"
+                  onClick={() => setEditor(provider)}
+                >
+                  修改
+                </button>
+              </div>
+            ))}
+          </div>
+        </SettingCard>
+      </div>
       {!props.remoteOnly && (
         <div id="settings-local-model" className={`rounded-xl ${props.highlightLocal ? "ring-2 ring-primary/60" : ""}`}>
           <SettingCard>

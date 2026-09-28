@@ -2,7 +2,9 @@ import { create, fromBinary } from "@bufbuild/protobuf";
 import { useCallback, useEffect, useState } from "react";
 import {
   EmptySchema,
+  SettingsAnchor,
   SettingsChangedSchema,
+  SettingsNavigationRequestedSchema,
   type SettingsSnapshot,
   ShortcutBindingSchema,
   ShortcutConfigurationSchema,
@@ -31,6 +33,7 @@ export function SettingsPage({
   development: boolean;
   services?: Services;
 }) {
+  const [modelNavigation, setModelNavigation] = useState(0);
   const [tab, setTab] = useState<TabId>("general");
   const [snapshot, setSnapshot] = useState<SettingsSnapshot>();
   const [error, setError] = useState("");
@@ -73,6 +76,42 @@ export function SettingsPage({
       subscription?.close();
     };
   }, [api, services]);
+
+  useEffect(() => {
+    let active = true;
+    let subscription: Subscription | undefined;
+
+    async function takeNavigation() {
+      if (!active) return;
+      const navigation = await services.getSystem().takeSettingsNavigation(create(EmptySchema));
+      if (!active || navigation.anchor !== SettingsAnchor.MODEL_PROVIDERS) return;
+      setTab("llm");
+      setModelNavigation((value) => value + 1);
+    }
+
+    function failed(cause: unknown) {
+      if (active) setError(`设置跳转失败：${String(cause)}`);
+    }
+
+    void (async () => {
+      const handle = await services
+        .getGateway()
+        .subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {
+          void takeNavigation().catch(failed);
+        });
+      if (!active) {
+        handle.close();
+        return;
+      }
+      subscription = handle;
+      await takeNavigation();
+    })().catch(failed);
+
+    return () => {
+      active = false;
+      subscription?.close();
+    };
+  }, [services]);
 
   async function update(change: UpdateSettingsRequest["change"]): Promise<void> {
     setError("");
@@ -196,7 +235,7 @@ export function SettingsPage({
           />
         );
       case "llm":
-        return <ModelSettingsPage services={services} />;
+        return <ModelSettingsPage services={services} navigation={modelNavigation} />;
       case "about":
         return <AboutSettings version={version} development={development} showCheckUpdate={false} />;
       default:
@@ -207,7 +246,15 @@ export function SettingsPage({
   return (
     <div className="relative h-screen w-screen">
       <div aria-hidden="true" className="settings-window-drag absolute inset-x-0 top-0 z-10 h-8" />
-      <SettingsLayout activeTab={tab} onNavigate={setTab} availableTabs={tabs} loading={!snapshot && !error}>
+      <SettingsLayout
+        activeTab={tab}
+        onNavigate={(next) => {
+          setModelNavigation(0);
+          setTab(next);
+        }}
+        availableTabs={tabs}
+        loading={!snapshot && !error}
+      >
         {page()}
       </SettingsLayout>
       {error && (

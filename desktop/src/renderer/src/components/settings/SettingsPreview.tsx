@@ -94,6 +94,7 @@ export interface PreviewProps {
   development?: boolean;
   noVersion?: boolean;
   highlighted?: boolean;
+  highlightModelProviders?: boolean;
 }
 const delay = (milliseconds = 350) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 export function SettingsPreview(props: PreviewProps) {
@@ -146,6 +147,7 @@ export function SettingsPreview(props: PreviewProps) {
       failure: "下载连接中断，请重试",
     })),
   );
+  const [highlightModelProviders, setHighlightModelProviders] = useState(props.highlightModelProviders ?? false);
   const [highlight, setHighlight] = useState(props.highlighted ?? false);
   const [agent, setAgent] = useState<AgentValues>({
     maxCalls: 50,
@@ -174,6 +176,13 @@ export function SettingsPreview(props: PreviewProps) {
     const timer = setTimeout(() => setToast(""), 3000);
     return () => clearTimeout(timer);
   }, [toast]);
+  useEffect(() => {
+    if (!highlightModelProviders || tab !== "llm") return;
+    document.getElementById("settings-model-providers")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightModelProviders(false), 1600);
+    return () => clearTimeout(timer);
+  }, [highlightModelProviders, tab]);
+
   async function operation() {
     await delay();
     if (props.operationFailure) throw new Error("操作失败：模拟服务不可用，请重试");
@@ -241,6 +250,7 @@ export function SettingsPreview(props: PreviewProps) {
             onChange={setModels}
             initialDialog={props.initialModelDialog}
             highlightLocal={highlight}
+            highlightModelProviders={highlightModelProviders}
             imageTesting={props.imageTesting}
             onTestImage={operation}
             onOpenDirectory={() => setToast("打开模型目录（预览）")}

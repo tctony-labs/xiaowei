@@ -64,20 +64,22 @@ export function useQuickChat(services: Services) {
     };
   }, [services]);
 
-  const modelRef = snapshot?.defaults?.modelRef;
-  const provider = snapshot?.providers.find((item) => item.models.some((model) => model.id === modelRef));
+  const defaultModelRef = snapshot?.defaults?.modelRef;
+  const defaultProvider = snapshot?.providers.find((item) => item.models.some((model) => model.id === defaultModelRef));
+  const provider =
+    defaultProvider ?? snapshot?.providers.find((item) => !item.unavailableReason && item.models.length > 0);
+  const modelRef = defaultProvider ? defaultModelRef : provider?.models[0]?.id;
+  const thinkingLevel = defaultProvider ? snapshot?.defaults?.thinkingLevel : undefined;
   const error =
     configError ||
     (snapshot
-      ? !modelRef
-        ? "未设置默认模型，请先在设置 → 模型中配置。"
-        : !provider
-          ? "默认模型已不可用，请在设置中重新配置。"
-          : provider.unavailableReason
+      ? snapshot.applicationError
+        ? "模型配置尚未应用，请在设置中处理。"
+        : !modelRef
+          ? "暂无可用模型，请先在设置 - 模型中配置。"
+          : provider?.unavailableReason
             ? "默认模型的凭据不可用，请检查提供商配置。"
-            : snapshot.applicationError
-              ? "模型配置尚未应用，请在设置中处理。"
-              : ""
+            : ""
       : "");
   const configured = !!snapshot && !error;
 
@@ -108,7 +110,7 @@ export function useQuickChat(services: Services) {
         create(GenerateRequestSchema, {
           modelRef,
           messages: history,
-          options: { sessionId, reasoning: snapshot?.defaults?.thinkingLevel || undefined },
+          options: { sessionId, reasoning: thinkingLevel || undefined },
         }),
         { signal: run.controller.signal },
       );
@@ -153,6 +155,7 @@ export function useQuickChat(services: Services) {
     draft,
     generating,
     configured,
+    noModels: !!snapshot && !modelRef && !snapshot.applicationError && !configError,
     loading: !snapshot && !configError,
     error,
     onDraftChange: setDraft,

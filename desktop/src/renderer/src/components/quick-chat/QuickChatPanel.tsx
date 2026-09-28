@@ -22,6 +22,7 @@ export interface QuickChatPanelProps {
   generating: boolean;
   loading?: boolean;
   error?: string;
+  emptyState?: ReactNode;
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onStop: () => void;
@@ -167,50 +168,55 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
               }}
               className={`min-h-0 flex-1 px-4 ${animating ? "overflow-hidden" : "overflow-y-auto"}`}
             >
-              <div className="flex flex-col gap-3 py-3">
-                {!props.messages.length && !props.error && (
-                  <p className="py-6 text-center text-sm text-muted">
-                    {props.loading ? "正在加载模型" : "输入问题开始对话"}
-                  </p>
-                )}
-                {props.messages.map((message) => (
-                  <article
-                    key={message.id}
-                    aria-label={message.role === "user" ? "用户消息" : "助手消息"}
-                    className={
-                      message.role === "user"
-                        ? "ml-auto max-w-[85%] rounded-xl bg-hover px-3 py-2 text-sm text-ink"
-                        : "text-sm leading-6 text-ink"
-                    }
-                  >
-                    {message.thinking && (
-                      <details className="mb-2 border-l-2 border-line pl-3 text-xs text-muted">
-                        <summary className="cursor-pointer py-1">
-                          {message.status === "generating" && !message.text ? "正在思考" : "思考过程"}
-                        </summary>
-                        <p className="whitespace-pre-wrap break-words">{message.thinking}</p>
-                      </details>
-                    )}
-                    {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
-                    {message.status === "generating" && !message.text && !message.thinking && (
-                      <p role="status" className="text-xs text-muted">
-                        正在等待回复…
-                      </p>
-                    )}
-                    {message.status === "cancelled" && <p className="mt-1 text-xs text-muted">已停止</p>}
-                    {message.error && (
-                      <p role="alert" className="mt-1 text-xs text-danger">
-                        {message.error}
-                      </p>
-                    )}
-                  </article>
-                ))}
-                {props.error && (
-                  <p role="alert" className="text-xs text-danger">
-                    {props.error}
-                  </p>
-                )}
-              </div>
+              {!props.messages.length && props.emptyState ? (
+                <div className="flex min-h-full items-center justify-center py-8">{props.emptyState}</div>
+              ) : (
+                <div className="flex flex-col gap-3 py-3">
+                  {!props.messages.length && !props.error && (
+                    <p className="py-6 text-center text-sm text-muted">
+                      {props.loading ? "正在加载模型" : "输入问题开始对话"}
+                    </p>
+                  )}
+                  {props.messages.map((message) => (
+                    <article
+                      key={message.id}
+                      aria-label={message.role === "user" ? "用户消息" : "助手消息"}
+                      className={
+                        message.role === "user"
+                          ? "ml-auto max-w-[85%] rounded-xl bg-hover px-3 py-2 text-sm text-ink"
+                          : "text-sm leading-6 text-ink"
+                      }
+                    >
+                      {message.thinking && (
+                        <details className="mb-2 border-l-2 border-line pl-3 text-xs text-muted">
+                          <summary className="cursor-pointer py-1">
+                            {message.status === "generating" && !message.text ? "正在思考" : "思考过程"}
+                          </summary>
+                          <p className="whitespace-pre-wrap break-words">{message.thinking}</p>
+                        </details>
+                      )}
+                      {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
+                      {message.status === "generating" && !message.text && !message.thinking && (
+                        <p role="status" className="text-xs text-muted">
+                          正在等待回复…
+                        </p>
+                      )}
+                      {message.status === "cancelled" && <p className="mt-1 text-xs text-muted">已停止</p>}
+                      {message.error && (
+                        <p role="alert" className="mt-1 text-xs text-danger">
+                          {message.error}
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                  {props.emptyState && <div className="flex items-center justify-center py-8">{props.emptyState}</div>}
+                  {props.error && !props.emptyState && (
+                    <p role="alert" className="text-xs text-danger">
+                      {props.error}
+                    </p>
+                  )}
+                </div>
+              )}
             </section>
           </div>
         )}

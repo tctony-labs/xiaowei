@@ -10,6 +10,7 @@ import {
   ModelDefaultsSchema,
   ModelSettings,
   ModelSettingsChangedSchema,
+  type ModelSettingsSnapshot,
   ModelSettingsSnapshotSchema,
 } from "xiaowei-contracts";
 import { bindEvent, bindHandlers, bindStreamHandlers, type StreamHandlers } from "xiaowei-gateway";
@@ -41,12 +42,19 @@ function finished(text = "answer") {
   });
 }
 
-function fixture(generate: StreamHandlers<typeof Llm>["generate"], defaultModel = "model", get?: () => Promise<never>) {
+function fixture(
+  generate: StreamHandlers<typeof Llm>["generate"],
+  defaultModel = "model",
+  get?: () => Promise<never>,
+  providers: ModelSettingsSnapshot["providers"] = create(ModelSettingsSnapshotSchema, {
+    providers: [{ id: "provider", models: [{ id: "model" }, { id: "other" }] }],
+  }).providers,
+) {
   const host = new GatewayHost();
   let snapshot = create(ModelSettingsSnapshotSchema, {
     revision: 1n,
     defaults: { modelRef: defaultModel, thinkingLevel: "high" },
-    providers: [{ id: "provider", models: [{ id: "model" }, { id: "other" }] }],
+    providers,
   });
   const owner = host.registerOwner(
     "settings",
@@ -57,10 +65,12 @@ function fixture(generate: StreamHandlers<typeof Llm>["generate"], defaultModel 
   const services = createServices(() => host.client({ caller: "test", trusted: true }));
   return {
     services,
-    update(modelRef: string) {
+    getSnapshot: () => snapshot,
+    update(modelRef: string, nextProviders = snapshot.providers) {
       snapshot = create(ModelSettingsSnapshotSchema, {
         ...snapshot,
         revision: snapshot.revision + 1n,
+        providers: nextProviders,
         defaults: create(ModelDefaultsSchema, { modelRef, thinkingLevel: "low" }),
       });
       owner.publish(
@@ -109,38 +119,51 @@ test("default configuration drives generation; complete assistant metadata is re
   });
   await waitFor(() => expect(result.current.generating).toBe(false));
   act(() => app.update(""));
-  await waitFor(() => expect(result.current.error).toContain("未设置默认模型"));
+  await waitFor(() => expect(result.current.configured).toBe(true));
+  expect(app.getSnapshot().defaults?.modelRef).toBe("");
   expect(result.current.messages).toHaveLength(4);
 });
 
-test("no default blocks requests; opening cancellation, clear and unmount abort the real Gateway stream", async () => {
+test("no models blocks requests; opening cancellation, clear and unmount abort the real Gateway stream", async () => {
   const requests: GenerateRequest[] = [];
   const aborted: string[] = [];
-  const app = fixture(async (request, _client, signal) => {
-    requests.push(request);
-    const text =
-      request.messages[0].message.case === "user"
-        ? request.messages[0].message.value.content[0].content.value
-        : undefined;
-    await new Promise<void>((resolve) =>
-      signal.addEventListener(
-        "abort",
-        () => {
-          aborted.push(String(text));
-          resolve();
-        },
-        { once: true },
-      ),
-    );
-    return (async function* () {
-      yield finished("late reply");
-    })();
-  }, "");
+  const app = fixture(
+    async (request, _client, signal) => {
+      requests.push(request);
+      const text =
+        request.messages[0].message.case === "user"
+          ? request.messages[0].message.value.content[0].content.value
+          : undefined;
+      await new Promise<void>((resolve) =>
+        signal.addEventListener(
+          "abort",
+          () => {
+            aborted.push(String(text));
+            resolve();
+          },
+          { once: true },
+        ),
+      );
+      return (async function* () {
+        yield finished("late reply");
+      })();
+    },
+    "",
+    undefined,
+    [],
+  );
   const { result, unmount } = renderHook(() => useQuickChat(app.services));
   await waitFor(() => expect(result.current.loading).toBe(false));
   await prompt(result, "blocked");
   expect(requests).toHaveLength(0);
-  act(() => app.update("model"));
+  act(() =>
+    app.update(
+      "model",
+      create(ModelSettingsSnapshotSchema, {
+        providers: [{ id: "provider", models: [{ id: "model" }] }],
+      }).providers,
+    ),
+  );
   await waitFor(() => expect(result.current.configured).toBe(true));
   act(() => {
     result.current.onSend();
@@ -217,3 +240,70 @@ for (const eventFirst of [true, false]) {
     expect(result.current.error).toBe("");
   });
 }
+
+for (const defaultModel of ["", "deleted"]) {
+  test(`missing default (${defaultModel || "empty"}) uses the first available model without changing settings`, async () => {
+    const requests: GenerateRequest[] = [];
+    const providers = create(ModelSettingsSnapshotSchema, {
+      providers: [
+        { id: "empty", models: [] },
+        { id: "unavailable", unavailableReason: "Missing API key", models: [{ id: "blocked" }] },
+        { id: "available", models: [{ id: "first" }, { id: "second" }] },
+      ],
+    }).providers;
+    const app = fixture(
+      async function* (request) {
+        requests.push(request);
+        yield finished();
+      },
+      defaultModel,
+      undefined,
+      providers,
+    );
+    const { result } = renderHook(() => useQuickChat(app.services));
+    await waitFor(() => expect(result.current.configured).toBe(true));
+    await prompt(result, "hello");
+    await waitFor(() => expect(result.current.generating).toBe(false));
+    expect(requests[0].modelRef).toBe("first");
+    expect(requests[0].options?.reasoning).toBeUndefined();
+    expect(app.getSnapshot().defaults?.modelRef).toBe(defaultModel);
+    expect(app.getSnapshot().revision).toBe(1n);
+
+    const beforeDeletion = result.current;
+    act(() =>
+      app.update(
+        "",
+        create(ModelSettingsSnapshotSchema, {
+          providers: [{ id: "available", models: [{ id: "second" }] }],
+        }).providers,
+      ),
+    );
+    await waitFor(() => expect(result.current).not.toBe(beforeDeletion));
+    await prompt(result, "after deletion");
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1].modelRef).toBe("second");
+    expect(app.getSnapshot().defaults?.modelRef).toBe("");
+    await waitFor(() => expect(result.current.generating).toBe(false));
+  });
+}
+
+test("no default and only unavailable models still blocks generation", async () => {
+  const requests: GenerateRequest[] = [];
+  const providers = create(ModelSettingsSnapshotSchema, {
+    providers: [{ id: "unavailable", unavailableReason: "Missing API key", models: [{ id: "blocked" }] }],
+  }).providers;
+  const app = fixture(
+    async function* (request) {
+      requests.push(request);
+      yield finished();
+    },
+    "",
+    undefined,
+    providers,
+  );
+  const { result } = renderHook(() => useQuickChat(app.services));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.error).toContain("暂无可用模型");
+  await prompt(result, "blocked");
+  expect(requests).toHaveLength(0);
+});

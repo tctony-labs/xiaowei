@@ -1,14 +1,26 @@
 import { useEffect, useState } from "react";
 import { LauncherSearchBar } from "../LauncherSearchBar";
+import { SettingsPreview } from "../settings/SettingsPreview";
+import { QuickChatModelEmptyState } from "./QuickChatModelEmptyState";
 import { type QuickChatMessage, QuickChatPanel } from "./QuickChatPanel";
 
 export interface QuickChatChatPreviewProps {
-  scenario?: "empty" | "missing-default" | "loading" | "text" | "thinking" | "complete" | "error" | "stopped";
+  scenario?:
+    | "empty"
+    | "no-models"
+    | "missing-default"
+    | "loading"
+    | "text"
+    | "thinking"
+    | "complete"
+    | "error"
+    | "stopped";
   initiallyExpanded?: boolean;
 }
 
 function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): QuickChatMessage[] {
-  if (scenario === "empty" || scenario === "missing-default" || scenario === "loading") return [];
+  if (scenario === "empty" || scenario === "no-models" || scenario === "missing-default" || scenario === "loading")
+    return [];
   return [
     { id: "user", role: "user", text: "帮我把今天的工作安排成三个步骤。" },
     {
@@ -41,9 +53,10 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState(() => initialMessages(scenario));
   const [run, setRun] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const generating = messages.some((message) => message.status === "generating");
-  const configured = scenario !== "missing-default";
+  const configured = scenario !== "no-models";
 
   useEffect(() => {
     if (!run) return;
@@ -89,6 +102,22 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
     );
   }
 
+  if (settingsOpen) {
+    return (
+      <div className="w-full max-w-[800px]">
+        <button
+          type="button"
+          className="m-3 cursor-pointer rounded-md px-3 py-1 text-sm text-primary-text
+            focus-visible:ring-2 focus-visible:ring-primary/60"
+          onClick={() => setSettingsOpen(false)}
+        >
+          返回快速对话（预览）
+        </button>
+        <SettingsPreview initialTab="llm" emptyModels highlightModelProviders />
+      </div>
+    );
+  }
+
   if (hidden) {
     return (
       <button type="button" className="m-4 rounded-lg bg-elevated px-4 py-2 text-ink" onClick={() => setHidden(false)}>
@@ -121,7 +150,7 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
         configured={configured}
         generating={generating}
         loading={scenario === "loading"}
-        error={!configured ? "未设置默认模型，请先在设置 → 模型中配置。" : undefined}
+        emptyState={!configured ? <QuickChatModelEmptyState onOpenSettings={() => setSettingsOpen(true)} /> : undefined}
         onDraftChange={setDraft}
         onSend={send}
         onStop={stop}

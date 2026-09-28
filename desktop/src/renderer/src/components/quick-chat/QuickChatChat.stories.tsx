@@ -19,6 +19,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {};
 export const Search: Story = { args: { initiallyExpanded: false } };
+export const NoModels: Story = { args: { scenario: "no-models" } };
 export const MissingDefault: Story = { args: { scenario: "missing-default" } };
 export const Loading: Story = { args: { scenario: "loading" } };
 export const StreamingText: Story = { args: { scenario: "text" } };

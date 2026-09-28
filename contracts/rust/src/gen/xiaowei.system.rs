@@ -78,6 +78,52 @@ impl ::prost::Name for SetAutostartRequest {
         "/xiaowei.system.SetAutostartRequest".into()
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct OpenSettingsRequest {
+    /// Required destination; unspecified and unknown values are rejected.
+    #[prost(enumeration = "SettingsAnchor", tag = "1")]
+    pub anchor: i32,
+}
+impl ::prost::Name for OpenSettingsRequest {
+    const NAME: &'static str = "OpenSettingsRequest";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.OpenSettingsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.OpenSettingsRequest".into()
+    }
+}
+/// Notification only, delivered to the destination settings window. The host
+/// retains the latest pending anchor until that window consumes it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SettingsNavigationRequested {}
+impl ::prost::Name for SettingsNavigationRequested {
+    const NAME: &'static str = "SettingsNavigationRequested";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.SettingsNavigationRequested".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.SettingsNavigationRequested".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TakeSettingsNavigationResponse {
+    /// UNSPECIFIED means this window has no pending navigation.
+    #[prost(enumeration = "SettingsAnchor", tag = "1")]
+    pub anchor: i32,
+}
+impl ::prost::Name for TakeSettingsNavigationResponse {
+    const NAME: &'static str = "TakeSettingsNavigationResponse";
+    const PACKAGE: &'static str = "xiaowei.system";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.system.TakeSettingsNavigationResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.system.TakeSettingsNavigationResponse".into()
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Theme {
@@ -103,6 +149,32 @@ impl Theme {
             "THEME_UNSPECIFIED" => Some(Self::Unspecified),
             "THEME_LIGHT" => Some(Self::Light),
             "THEME_DARK" => Some(Self::Dark),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SettingsAnchor {
+    Unspecified = 0,
+    ModelProviders = 1,
+}
+impl SettingsAnchor {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SETTINGS_ANCHOR_UNSPECIFIED",
+            Self::ModelProviders => "SETTINGS_ANCHOR_MODEL_PROVIDERS",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SETTINGS_ANCHOR_UNSPECIFIED" => Some(Self::Unspecified),
+            "SETTINGS_ANCHOR_MODEL_PROVIDERS" => Some(Self::ModelProviders),
             _ => None,
         }
     }

@@ -1,15 +1,23 @@
-import { create } from "@bufbuild/protobuf";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { create, toBinary } from "@bufbuild/protobuf";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import {
   ClipboardBiz,
   ClipboardStorageUsageSchema,
   EmptySchema,
+  ModelSettings,
+  ModelSettingsChangedSchema,
+  ModelSettingsSnapshotSchema,
   PurgeOrdinaryResponseSchema,
   Settings,
+  SettingsAnchor,
   SettingsChangedSchema,
+  SettingsNavigationRequestedSchema,
   SettingsSnapshotSchema,
+  System,
+  TakeSettingsNavigationResponseSchema,
   ThemeMode,
 } from "xiaowei-contracts";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
@@ -21,6 +29,16 @@ afterEach(cleanup);
 
 test("product settings loads saved values and sends changes and cleanup to services", async () => {
   const host = new GatewayHost();
+  host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        takeSettingsNavigation: () => create(TakeSettingsNavigationResponseSchema),
+      },
+      { partial: true },
+    ),
+  );
   const updates = vi.fn();
   const purge = vi.fn(() => create(PurgeOrdinaryResponseSchema));
   let snapshot = create(SettingsSnapshotSchema, {
@@ -47,7 +65,10 @@ test("product settings loads saved values and sends changes and cleanup to servi
         return snapshot;
       },
     }),
-    [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+    [
+      bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true),
+      bindEvent(SettingsNavigationRequestedSchema, EmptySchema, "coalesce", () => true),
+    ],
   );
   host.registerOwner(
     "clipboard-test",
@@ -75,4 +96,85 @@ test("product settings loads saved values and sends changes and cleanup to servi
   await userEvent.click(screen.getByRole("button", { name: "关于" }));
   expect(screen.getByText("版本 0.1.0")).toBeVisible();
   expect(screen.queryByRole("button", { name: "检查更新" })).not.toBeInTheDocument();
+});
+
+test("navigation waits for models to load and repeated navigation restarts the highlight", async () => {
+  const scroll = vi.fn();
+  const original = HTMLElement.prototype.scrollIntoView;
+  HTMLElement.prototype.scrollIntoView = scroll;
+  const host = new GatewayHost();
+  let pending = true;
+  host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        takeSettingsNavigation: () => {
+          const anchor = pending ? SettingsAnchor.MODEL_PROVIDERS : SettingsAnchor.UNSPECIFIED;
+          pending = false;
+          return create(TakeSettingsNavigationResponseSchema, { anchor });
+        },
+      },
+      { partial: true },
+    ),
+  );
+  const owner = host.registerOwner(
+    "settings",
+    bindHandlers(Settings, {
+      get: () => create(SettingsSnapshotSchema),
+      update: () => create(SettingsSnapshotSchema),
+    }),
+    [
+      bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true),
+      bindEvent(SettingsNavigationRequestedSchema, EmptySchema, "coalesce", () => true),
+    ],
+  );
+  let release: (() => void) | undefined;
+  host.registerOwner(
+    "models",
+    bindHandlers(
+      ModelSettings,
+      {
+        get: async () => {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          return create(ModelSettingsSnapshotSchema);
+        },
+      },
+      { partial: true },
+    ),
+    [bindEvent(ModelSettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  const services = createServices(() => host.client({ caller: "settings-test", trusted: true }));
+  try {
+    render(
+      <StrictMode>
+        <SettingsPage version="test" development services={services} />
+      </StrictMode>,
+    );
+    const navigate = () => {
+      pending = true;
+      owner.publish(
+        SettingsNavigationRequestedSchema.typeName,
+        toBinary(SettingsNavigationRequestedSchema, create(SettingsNavigationRequestedSchema)),
+      );
+    };
+    await waitFor(() => expect(release).toBeDefined());
+    expect(scroll).not.toHaveBeenCalled();
+    await act(async () => release?.());
+    const row = document.getElementById("settings-model-providers");
+    expect(row).toHaveTextContent("模型提供商");
+    expect(row).not.toHaveTextContent("默认模型");
+    await waitFor(() => expect(row).toHaveClass("ring-primary/60"));
+    expect(scroll).toHaveBeenCalledOnce();
+    await waitFor(() => expect(row).not.toHaveClass("ring-primary/60"), { timeout: 2500 });
+    act(navigate);
+    await waitFor(() => expect(row).toHaveClass("ring-primary/60"));
+    expect(scroll).toHaveBeenCalledTimes(2);
+  } finally {
+    cleanup();
+    HTMLElement.prototype.scrollIntoView = original;
+    owner.close();
+  }
 });

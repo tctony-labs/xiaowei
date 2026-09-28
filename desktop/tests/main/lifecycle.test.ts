@@ -140,6 +140,9 @@ const actions = {
   resetPosition() {},
   modeChanged() {},
   updateShortcuts() {},
+  async openSettings() {
+    throw new Error("Unused settings window");
+  },
 };
 
 test("desktop startup failures unwind producers and owners before Storage closes", async () => {
