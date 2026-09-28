@@ -63,7 +63,9 @@ service System {
   rpc TakeSettingsNavigation(xiaowei.common.Empty) returns (TakeSettingsNavigationResponse);
   // Apply OS login startup registration; host failures fail the call.
   rpc SetAutostart(SetAutostartRequest) returns (xiaowei.common.Empty);
-  // Hide the invoking window and, on macOS, resign application focus.
+  // Hide the invoking launcher and restore its invocation source on macOS.
+  // Success confirms focus restoration; failure or cancellation prevents automatic paste.
+  // Does not hide other windows of this application.
   // The host resolves the window from the original call context; no window ID is accepted.
   // Calls without a live renderer window fail. Does not copy or send paste keys.
   rpc HideWindow(xiaowei.common.Empty) returns (xiaowei.common.Empty);

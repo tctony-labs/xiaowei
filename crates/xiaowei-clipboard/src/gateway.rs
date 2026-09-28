@@ -77,12 +77,14 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         handler(service, &methods::SELECT, |s, request| async move {
             let client = crate::dao::CALLER.with(Clone::clone);
             s.copy(id(request.id)?).await?;
+            let auto_paste = if cfg!(target_os = "macos") {
+                settings::GET.call(&client, c::Empty {}).await?.clipboard_auto_paste
+            } else {
+                false
+            };
             system::HIDE_WINDOW.call(&client, c::Empty {}).await?;
-            if cfg!(target_os = "macos") {
-                let values = settings::GET.call(&client, c::Empty {}).await?;
-                if values.clipboard_auto_paste {
-                    s.paste().await?;
-                }
+            if auto_paste {
+                s.paste().await?;
             }
             Ok(c::Empty {})
         }),

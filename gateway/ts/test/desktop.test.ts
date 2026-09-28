@@ -96,6 +96,10 @@ test("launcher tokens and execution are preserved; search does not read icons", 
       return window;
     },
     {
+      windowGeneration: () => 0,
+      async dismiss(window) {
+        window.hide();
+      },
       development: true,
       platform: "darwin",
       iconUrl: icons.url,
@@ -242,6 +246,10 @@ test("Launcher web actions use System with original context and preserve failure
   );
   const window = { hide: () => actions.push("hide") } as unknown as BrowserWindow;
   const launcher = registerSearch(host, () => window, {
+    windowGeneration: () => 0,
+    async dismiss(window) {
+      window.hide();
+    },
     development: false,
     platform: "darwin",
     iconUrl: () => "",

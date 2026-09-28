@@ -16,6 +16,8 @@ test("Launcher host uses a fixed chat height and restores search height", async 
     development: false,
     platform: process.platform,
     async openExternal() {},
+    async dismiss() {},
+    windowGeneration: () => 0,
     writeText() {},
     async restart() {},
     resetPosition() {},

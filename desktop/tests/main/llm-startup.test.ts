@@ -13,6 +13,7 @@ const app = Object.assign(new EventEmitter(), {
   setAppUserModelId() {},
   setPath() {},
   getPath: () => directory,
+  getAppPath: () => directory,
   requestSingleInstanceLock: () => true,
   whenReady: () => Promise.resolve(),
   isPackaged: false,
@@ -53,6 +54,8 @@ replace("app/logging", {
   attachRendererLogging: noop,
 });
 replace("app/menu", { installMenu: noop });
+replace("app/tray", { createTray: () => ({ close: noop }) });
+replace("windows/system-focus", { createSystemFocus: () => ({ abandon: noop }) });
 replace("windows/launcher", {
   createLauncherWindow: () => ({
     show: noop,

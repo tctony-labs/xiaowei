@@ -228,6 +228,12 @@ importers:
         specifier: workspace:*
         version: link:../../xiaowei-storage/napi
 
+  crates/xiaowei-platform/napi:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: 3.10.1
+        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
+
   crates/xiaowei-search/napi:
     devDependencies:
       '@napi-rs/cli':
@@ -272,6 +278,9 @@ importers:
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../gateway/ts
+      xiaowei-platform:
+        specifier: workspace:*
+        version: link:../crates/xiaowei-platform/napi
       xiaowei-search:
         specifier: workspace:*
         version: link:../crates/xiaowei-search/napi

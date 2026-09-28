@@ -7,11 +7,12 @@ export function activateLauncherShortcut(
   target: LauncherMode | "toggle",
   show: () => void,
   opened: (window: BrowserWindow, mode: LauncherMode) => void,
+  hide: () => void = () => window?.hide(),
 ): LauncherMode {
   if (!window || window.isDestroyed()) return currentMode;
   const targetMode = target === "toggle" ? currentMode : target;
   if (currentMode === targetMode && window.isVisible() && window.isFocused()) {
-    window.hide();
+    hide();
     return currentMode;
   }
   if (currentMode !== targetMode) {

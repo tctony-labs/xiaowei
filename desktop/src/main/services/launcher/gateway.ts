@@ -21,6 +21,8 @@ import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { type LauncherMode, launcherHeight } from "../../../shared/launcher-model";
 
 export interface LauncherActions {
+  windowGeneration(): number;
+  dismiss(window: BrowserWindow, restore: boolean): Promise<void>;
   development: boolean;
   platform: string;
   openExternal(url: string): Promise<void>;
@@ -39,6 +41,7 @@ export function registerSearch(
 ) {
   const states = new WeakMap<CallContext, { token: number; results: Map<string, SearchHit> }>();
   const opened = new Map<object, { contents: WebContents; sink: EventSink }>();
+  let presentation = 0;
 
   function state(context: CallContext) {
     windowFor(context);
@@ -83,6 +86,8 @@ export function registerSearch(
         });
       },
       async execute(request, client, context) {
+        const currentPresentation = presentation;
+        const currentGeneration = actions.windowGeneration();
         const current = state(context);
         const hit = request.token === current.token ? current.results.get(request.id) : undefined;
         if (!hit) throw new Error("Search result expired");
@@ -125,11 +130,14 @@ export function registerSearch(
             throw new Error("Unsupported search action");
         }
         if (hit.provider !== "calculator") await record();
-        windowFor(context).hide();
+        if (currentPresentation === presentation && currentGeneration === actions.windowGeneration()) {
+          const action = hit.action?.action.case;
+          await actions.dismiss(windowFor(context), action !== "launchApp" && action !== "openUrl");
+        }
         return create(ExecuteResponseSchema);
       },
-      hide(_request, _client, context) {
-        windowFor(context).hide();
+      async hide(_request, _client, context) {
+        await actions.dismiss(windowFor(context), true);
         return create(EmptySchema);
       },
       updateLayout(request, _client, context) {
@@ -180,6 +188,7 @@ export function registerSearch(
   return {
     close: () => owner.close(),
     opened(window: BrowserWindow, mode: LauncherMode) {
+      presentation++;
       const bytes = toBinary(
         LauncherOpenedSchema,
         create(LauncherOpenedSchema, {

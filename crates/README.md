@@ -1,6 +1,28 @@
 # Rust 原生模块开发
 
-本文说明 `crates/` 下 Rust 模块的组织结构、依赖边界、原生接入方式和开发约定。Rust 模块采用业务核心与 napi 适配层分离的结构。
+## 模块索引
+
+| 模块 | 职责 |
+| --- | --- |
+| [xiaowei-search](xiaowei-search/) | 全局搜索核心与 napi 入口 |
+| [xiaowei-clipboard](xiaowei-clipboard/) | 本地剪贴板业务与 napi 入口 |
+| [xiaowei-storage](xiaowei-storage/) | 存储、设置与 napi 入口 |
+| [xiaowei-platform](xiaowei-platform/README.md) | 平台能力的 napi 包裹层 |
+| [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
+| [xw-app](xw-app/) | 应用数据源 |
+| [xw-bookmark](xw-bookmark/) | 浏览器书签数据源 |
+| [xw-tokenizer](xw-tokenizer/README.md) | SQLite FTS5 分词 |
+| [xw-napi-log](xw-napi-log/) | 原生模块日志接收器 |
+
+## 开发约定大纲
+
+- [命名与依赖方向](#命名与依赖方向)
+- [目录与职责](#目录与职责)
+- [两套 workspace](#两套-workspace)
+- [构建与开发](#构建与开发)
+- [实现易错点](#实现易错点)
+- [本地加载与多平台发布](#本地加载与多平台发布)
+- [Gateway 业务入口](#gateway-业务入口)
 
 ## 命名与依赖方向
 

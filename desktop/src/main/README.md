@@ -23,10 +23,14 @@ desktop/src/main/
 │   ├── gateway.ts         # host、owner、Rust napi endpoint 装配
 │   ├── paths.ts           # 应用路径
 │   ├── logging.ts         # 日志接线
+│   ├── tray.ts            # Tray 图标、菜单与生命周期
 │   └── menu.ts            # 应用菜单
 ├── windows/
 │   ├── launcher.ts
 │   ├── launcher-shortcuts.ts # 唤起、焦点与定位
+│   ├── ordinary-windows.ts # 普通窗口登记、Dock 显隐与轮换
+│   ├── focus-session.ts  # Launcher 唤起来源、归还与取消策略
+│   ├── system-focus.ts   # Electron 窗口与平台 napi 焦点快照适配
 │   ├── navigation.ts      # 导航限制
 │   └── settings.ts
 ├── services/
@@ -62,6 +66,8 @@ services/<service>/
 该结构只用于实际使用 worker 的 service；按需创建目录，不为普通 service 预建 host／worker／shared 空层。各 service 的具体文件职责、协议和业务行为维护在所属模块文档或 record。
 
 ## Gateway 装配与生命周期
+
+平台原语的直接 napi 调用边界见 [xiaowei-platform](../../../crates/xiaowei-platform/README.md#模块边界)。窗口策略与唤起会话由 `windows/` 管理；System.HideWindow 等宿主业务入口仍由 TS Gateway owner 提供，不在平台包注册服务。
 
 - 业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../../../gateway/README.md#接入约定)。
 - main 只创建一个 host。业务 endpoint 复用其模块持有的实例，不能因接入 Gateway 再建一份业务状态。

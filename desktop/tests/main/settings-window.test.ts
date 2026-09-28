@@ -43,6 +43,10 @@ class FakeWindow extends EventEmitter {
     return false;
   }
 
+  isMinimized() {
+    return false;
+  }
+
   show() {
     this.shownBounds.push(this.getBounds());
   }

@@ -5,6 +5,7 @@
     "output": "dist"
   },
   "files": ["out/**/*"],
+  "extraResources": [{ "from": "resources/logo-clear.png", "to": "tray/logo-clear.png" }],
   "mac": {
     "category": "public.app-category.productivity",
     "icon": "resources/logo.png"

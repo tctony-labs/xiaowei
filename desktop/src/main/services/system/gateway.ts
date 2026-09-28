@@ -29,6 +29,7 @@ export function registerSystem(
   host: GatewayHost,
   windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">,
   openSettings?: () => Promise<Pick<BrowserWindow, "hide">>,
+  hideWindow?: (window: Pick<BrowserWindow, "hide">) => Promise<void>,
 ) {
   const pending = new WeakMap<object, SettingsAnchor>();
   const listeners = new Map<object, Set<EventSink>>();
@@ -71,9 +72,10 @@ export function registerSystem(
           }
           return create(EmptySchema);
         },
-        hideWindow(_request, _client, context) {
-          windowFor(context).hide();
-          if (process.platform === "darwin") app.hide();
+        async hideWindow(_request, _client, context) {
+          const window = windowFor(context);
+          if (!hideWindow) throw new Error("Window focus handoff unavailable");
+          await hideWindow(window);
           return create(EmptySchema);
         },
         writeClipboardText(request) {

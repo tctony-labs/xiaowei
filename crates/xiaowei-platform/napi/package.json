@@ -1,0 +1,24 @@
+{
+  "name": "xiaowei-platform",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "napi": {
+    "binaryName": "xiaowei-platform"
+  },
+  "scripts": {
+    "build": "node ../../../scripts/dev/build-napi.mjs --release",
+    "build:debug": "node ../../../scripts/dev/build-napi.mjs",
+    "check": "cargo check -p xiaowei-platform-napi --locked",
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.10.1"
+  }
+}

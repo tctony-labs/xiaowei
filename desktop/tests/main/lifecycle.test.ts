@@ -132,6 +132,9 @@ mock.module(new URL("../../src/main/services/llm/host.ts", import.meta.url).href
 
 const { createApplicationGateway } = await import("../../src/main/app/gateway.ts");
 const actions = {
+  async dismiss() {},
+  windowGeneration: () => 0,
+  async hideWindow() {},
   development: false,
   platform: "darwin",
   openExternal: async () => {},

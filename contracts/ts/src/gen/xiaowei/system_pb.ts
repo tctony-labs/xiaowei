@@ -246,7 +246,9 @@ export const System: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * Hide the invoking window and, on macOS, resign application focus.
+   * Hide the invoking launcher and restore its invocation source on macOS.
+   * Success confirms focus restoration; failure or cancellation prevents automatic paste.
+   * Does not hide other windows of this application.
    * The host resolves the window from the original call context; no window ID is accepted.
    * Calls without a live renderer window fail. Does not copy or send paste keys.
    *

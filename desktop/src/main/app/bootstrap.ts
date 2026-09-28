@@ -10,11 +10,14 @@ import { loadConfig } from "../services/llm/config";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
+import { createOrdinaryWindows } from "../windows/ordinary-windows";
 import { createSettingsWindow } from "../windows/settings";
+import { createSystemFocus } from "../windows/system-focus";
 import { createApplicationGateway } from "./gateway";
 import { attachRendererLogging, createLoggers, createNativeLogSink } from "./logging";
 import { installMenu } from "./menu";
 import { createPaths } from "./paths";
+import { createTray } from "./tray";
 
 export function startApplication(moduleDir: string): void {
   protocol.registerSchemesAsPrivileged([
@@ -22,15 +25,21 @@ export function startApplication(moduleDir: string): void {
   ]);
 
   let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
+  let tray: ReturnType<typeof createTray> | undefined;
+  const ordinaryWindows = createOrdinaryWindows(process.platform === "darwin" ? app.dock : undefined);
   const launcher = createLauncherWindow({
     moduleDir,
+    focus: process.platform === "darwin" ? createSystemFocus() : undefined,
     register: (window) => gateway?.register(window),
     opened: (window, mode) => gateway?.opened(window, mode),
   });
   const settingsWindow = createSettingsWindow({
     moduleDir,
     hideLauncher: launcher.hide,
-    register: (window) => gateway?.register(window),
+    register(window) {
+      ordinaryWindows.register(window);
+      gateway?.register(window);
+    },
   });
   const shortcuts = createSettingsShortcuts(globalShortcut, process.platform, {
     main: () => launcher.openMode("toggle"),
@@ -62,10 +71,11 @@ export function startApplication(moduleDir: string): void {
       logs: paths.logs,
     });
     app.on("will-quit", () => console.info("Application stopping"));
-    app.on("second-instance", launcher.show);
+    app.on("second-instance", process.platform === "darwin" ? ordinaryWindows.activate : launcher.show);
     app
       .whenReady()
       .then(async () => {
+        ordinaryWindows.initialize();
         installMenu(async () => {
           await settingsWindow.open();
         });
@@ -94,6 +104,15 @@ export function startApplication(moduleDir: string): void {
               launcher.modeChanged(mode);
             },
             openSettings: settingsWindow.open,
+            windowGeneration: launcher.generation,
+            async dismiss(window, restore) {
+              if (!launcher.owns(window)) throw new Error("Not a launcher window");
+              await launcher.dismiss(restore);
+            },
+            async hideWindow(window) {
+              if (!launcher.owns(window)) throw new Error("Window has no focus session");
+              if (!(await launcher.dismiss(true))) throw new Error("Unable to restore focus; clipboard remains copied");
+            },
             updateShortcuts(config) {
               shortcuts.replace(config);
             },
@@ -101,13 +120,24 @@ export function startApplication(moduleDir: string): void {
           models,
         );
         await launcher.create();
+        ordinaryWindows.initialize();
+        if (process.platform === "darwin") {
+          tray = createTray({
+            resourceDirectory: app.isPackaged
+              ? join(process.resourcesPath, "tray")
+              : join(app.getAppPath(), "resources"),
+            showLauncher: launcher.show,
+            openSettings: settingsWindow.open,
+            quit: () => app.quit(),
+          });
+        }
         const searchWarmup = setTimeout(() => {
           void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));
         }, 1000);
         searchWarmup.unref();
         app.once("before-quit", () => clearTimeout(searchWarmup));
         shortcuts.registerInitial(shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts));
-        app.on("activate", launcher.show);
+        app.on("activate", ordinaryWindows.activate);
       })
       .catch((error: unknown) => {
         console.error("Application startup failed", error);
@@ -122,6 +152,8 @@ export function startApplication(moduleDir: string): void {
   let shutdownComplete = false;
   app.on("before-quit", (event) => {
     launcher.prepareQuit();
+    ordinaryWindows.close();
+    tray?.close();
     if (gateway && !shutdownComplete) {
       event.preventDefault();
       void gateway.close().finally(() => {

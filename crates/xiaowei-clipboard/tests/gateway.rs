@@ -164,13 +164,28 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
         .register_owner("clipboard", xiaowei_clipboard::gateway::registrations(&service), vec![])
         .unwrap();
     let hidden = calls.clone();
+    let pause_hide = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let resume_hide = Arc::new(tokio::sync::Notify::new());
+    let hide_started = Arc::new(tokio::sync::Notify::new());
+    let pause = pause_hide.clone();
+    let resume = resume_hide.clone();
+    let started = hide_started.clone();
     let hide = registry
         .register_owner(
             "system",
             vec![system::HIDE_WINDOW.handler(move |_, client| {
                 assert_eq!(client.context().caller(), "selection-test");
                 hidden.lock().unwrap().push("hide");
-                async { Ok(Empty {}) }
+                let wait = pause.load(std::sync::atomic::Ordering::SeqCst);
+                let resume = resume.clone();
+                let started = started.clone();
+                async move {
+                    if wait {
+                        started.notify_one();
+                        resume.notified().await;
+                    }
+                    Ok(Empty {})
+                }
             })],
             vec![],
         )
@@ -216,6 +231,18 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
         .await
         .is_err());
     assert!(calls.lock().unwrap().is_empty());
+    calls.lock().unwrap().clear();
+    auto_paste.store(true, std::sync::atomic::Ordering::SeqCst);
+    pause_hide.store(true, std::sync::atomic::Ordering::SeqCst);
+    let pending_client = client.clone();
+    let pending_request = request.clone();
+    let selection = tokio::spawn(async move { methods::SELECT.call(&pending_client, pending_request).await });
+    hide_started.notified().await;
+    assert_eq!(*calls.lock().unwrap(), vec!["copy", "hide"]);
+    resume_hide.notify_one();
+    selection.await.unwrap().unwrap();
+    assert_eq!(*calls.lock().unwrap(), expected);
+    calls.lock().unwrap().clear();
     registry.unregister_owner(&hide);
     auto_paste.store(true, std::sync::atomic::Ordering::SeqCst);
     assert!(methods::SELECT.call(&client, request).await.is_err());

@@ -2553,6 +2553,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "xiaowei-platform"
+version = "0.1.0"
+dependencies = [
+ "xw-platform",
+]
+
+[[package]]
+name = "xiaowei-platform-napi"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "tokio",
+ "xiaowei-platform",
+]
+
+[[package]]
 name = "xiaowei-search"
 version = "0.1.0"
 dependencies = [
@@ -2681,6 +2699,7 @@ dependencies = [
 name = "xw-platform"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

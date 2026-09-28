@@ -157,20 +157,25 @@ test("System resolves the caller window and propagates OS startup failure", asyn
   const host = new GatewayHost();
   let hidden = 0;
   let live = true;
-  const owner = registerSystem(host, () => {
-    if (!live) throw new Error("Window unavailable");
-    return {
-      hide() {
-        hidden++;
-      },
-    };
-  });
+  const owner = registerSystem(
+    host,
+    () => {
+      if (!live) throw new Error("Window unavailable");
+      return {
+        hide() {
+          hidden++;
+        },
+      };
+    },
+    undefined,
+    async (window) => window.hide(),
+  );
   const api = bindClient(System, host.client({ caller: "system-test", trusted: true }));
   try {
     const before = appHidden;
     await api.hideWindow(create(EmptySchema));
     assert.equal(hidden, 1);
-    assert.equal(appHidden - before, process.platform === "darwin" ? 1 : 0);
+    assert.equal(appHidden - before, 0);
     live = false;
     await assert.rejects(api.hideWindow(create(EmptySchema)), /handler or transport failed/);
     assert.equal(hidden, 1);
@@ -242,4 +247,40 @@ test("settings navigation reaches only the destination and survives opening befo
   assert.equal(events.length, 2);
   reopened.close();
   owner.close();
+});
+
+test("HideWindow waits for focus confirmation and propagates restoration failure", async () => {
+  const host = new GatewayHost();
+  const window = { hide() {} };
+  let finish: (() => void) | undefined;
+  let fail = false;
+  const owner = registerSystem(
+    host,
+    () => window,
+    undefined,
+    async (target) => {
+      assert.equal(target, window);
+      if (fail) throw new Error("Focus restoration failed");
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    },
+  );
+  const api = bindClient(System, host.client({ caller: "handoff", trusted: true }));
+  let completed = false;
+  try {
+    const hidden = api.hideWindow(create(EmptySchema)).then(() => {
+      completed = true;
+    });
+    await new Promise(setImmediate);
+    assert.equal(completed, false);
+    assert.ok(finish);
+    finish();
+    await hidden;
+    assert.equal(completed, true);
+    fail = true;
+    await assert.rejects(api.hideWindow(create(EmptySchema)));
+  } finally {
+    owner.close();
+  }
 });

@@ -20,6 +20,7 @@ export function createSettingsWindow(options: {
     options.hideLauncher();
     if (process.platform === "darwin") app.show();
     if (settingsWindow && !settingsWindow.isDestroyed()) {
+      if (settingsWindow.isMinimized()) settingsWindow.restore();
       if (screen.getDisplayMatching(settingsWindow.getBounds()).id !== display.id) {
         const [width, height] = settingsWindow.getSize();
         settingsWindow.setPosition(

@@ -27,7 +27,8 @@
     "xiaowei-gateway": "workspace:*",
     "xiaowei-contracts": "workspace:*",
     "@bufbuild/protobuf": "2.15.0",
-    "xiaowei-storage": "workspace:*"
+    "xiaowei-storage": "workspace:*",
+    "xiaowei-platform": "workspace:*"
   },
   "devDependencies": {
     "tsx": "4.23.13",
