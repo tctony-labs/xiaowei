@@ -69,7 +69,7 @@ export function SearchResultList({ hits, selected, onSelect, onConfirm }: Search
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onSelect(index)}
               onDoubleClick={() => onConfirm(index)}
-              className={`flex h-12 shrink-0 items-center w-full cursor-pointer gap-2 rounded-lg px-2.5 text-left transition-colors ${index === selected ? "bg-primary-bg" : "hover:bg-hover"}`}
+              className={`flex h-12 shrink-0 items-center w-full cursor-pointer gap-2 rounded-lg px-2.5 text-left ${index === selected ? "bg-primary-bg" : "hover:bg-hover"}`}
             >
               {hit.provider === "calculator" ? (
                 <svg
