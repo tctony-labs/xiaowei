@@ -44,6 +44,9 @@ export function runDevelopment({
       else session.kill("SIGTERM");
     }
     await closed;
+    if (stopping && session.exitCode !== null && session.exitCode !== 0) {
+      throw new Error(`开发会话清理失败（退出码 ${session.exitCode}），可能仍有应用进程残留`);
+    }
     if (!stopping && running && session.exitCode !== 0) throw new Error("旧开发进程未正常退出，取消启动新实例");
   }
 

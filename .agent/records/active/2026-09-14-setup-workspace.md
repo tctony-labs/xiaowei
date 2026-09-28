@@ -26,6 +26,8 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 
 GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/workflows/test.yml)：每次 push 到 `develop` 时在 `macos-15` 上执行，也支持手动触发。冷／热缓存验收使用的临时测试分支 push 条件已移除，自动触发仅限 `develop`。Node、pnpm、Rust 和 Go 版本读取仓库已有配置，just 固定为 1.46.0。pnpm 安装后通过 `pnpm store path --silent` 定位 store，使用 `actions/cache` 按系统、架构和 `pnpm-lock.yaml` hash 保存；锁文件变化时可恢复同系统与架构的旧缓存以复用已有包。不缓存 `node_modules`，缓存命中后仍执行 frozen install。安装锁定依赖后直接运行 `just test`；根 `pnpm test` 按补丁测试、原生构建、串行 workspace 测试、工具测试的顺序执行。补丁测试仅依赖安装后已应用补丁的 npm 包及本地 SSE fixture，不依赖构建产物，优先执行以尽早发现失败。业务与测试按 workspace 源码消费约定解析依赖，不预构建其他包的 dist；Gateway 自身的构建产物验收仍由其测试入口独立构建。保持 workspace 串行，避免 Gateway 与 desktop 争用 napi fixture。覆盖现有全部自动回归，不包括需已有 Electron 调试会话或真实外部凭据的手动验收。
 
+开发会话退出时等待独立应用进程组回收。macOS 的 signal 0 探测若返回 EPERM，读取该组的 PID／PPID／PGID／UID／STAT：组已消失时完成等待；只有同用户的退出中（E）或僵尸（Z）进程时继续在原有超时内等待，并记录一次诊断；存在活进程、其他用户或状态读取失败时保留错误。清理失败仍关闭 Vite、释放 watcher 的管道和引用，以非零状态退出；父控制进程报告可能残留的应用进程，不将其显示为成功退出或自动启动替代实例。
+
 ## Alternatives considered
 
 - `apps/desktop/`：不采用；桌面端直接放在根目录，后续移动端与其并列。
@@ -98,3 +100,5 @@ GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/wor
 2026-09-26 最终 CI 冷／热缓存验收完成：清空本测试分支 Actions 缓存后，提交 `5b81109` 的[冷跑 36162622149](https://github.com/tctony-labs/xiaowei/actions/runs/36162622149)成功；随后用空提交 `70e213a` 触发同代码树的[热跑 36163686444](https://github.com/tctony-labs/xiaowei/actions/runs/36163686444)，同样成功，pnpm／Go／Rust 缓存均精确命中。按 job 起止时间计算、不含排队，冷跑 552 秒（9 分 12 秒），热跑 285 秒（4 分 45 秒），减少 267 秒、约 48.4%；测试步骤含编译从 448 秒降至 193 秒，减少 255 秒。环境准备及缓存恢复从 49 秒增至 86 秒，测试后缓存保存与收尾从 55 秒降至 6 秒。pnpm 安装从 9 秒降至 7 秒，但热跑 store 恢复另耗 16 秒；不能把总体收益归于 pnpm 缓存。这是一对样本，包含 runner 与网络波动，不视为稳定性能承诺。
 
 两处 Worker 配额时序测试连续 20 轮共 40 项通过，Gateway TS 50 项与类型检查通过；tooling 22 项通过，并通过临时注入永不完成的等待验证超时清理能退出且打印阶段日志。完整提交检查通过，最终两轮 GitHub `just test` 全量通过。冷／热验收后已移除临时测试分支 push 条件，并将 CI、测试稳定性修复和验证记录以单个 squash 提交合入本地 develop；未启动产品应用。
+
+2026-09-29 修复 develop Actions 36434381625 暴露的进程退出问题。排查时在本地 tooling 全量测试复现 signal 0 返回 EPERM，诊断捕获同用户、已被 PID 1 接管的 `?E` 进程；macOS ps 手册将 E 定义为正在退出。新增受进程状态约束的等待，保留实际权限错误；修复异常跳过 Vite 关闭造成 session 挂住，以及 Ctrl+C 忽略非零退出码的问题。旧 session 代码在注入两种 EPERM 路径后均超时；修复后的真实 Vite 回归正常关闭且退出码为 1。工具测试 33 项通过，原有进程组／两次 R 后 Ctrl+C 测试连续 10 轮共 30 项通过，新增覆盖退出状态、空组、活进程、其他用户、混合状态、ps 失败和有界超时。Biome、显示宽度与 diff 检查通过。本地 Node v26.3.0，CI 配置 v26.3.1；未提交、推送或触发 CI，GitHub runner 复验待修改合入后执行。未冷启动产品应用或操作其他工作区实例。

@@ -74,11 +74,22 @@ export function runSession({
     stopping = true;
     stopped = (async () => {
       await startup.catch(() => {});
-      if (watcher) {
-        hideStopNotices = code === 0;
-        await stopProcessGroup(watcher, watcherClosed);
+      try {
+        if (watcher) {
+          hideStopNotices = code === 0;
+          await stopProcessGroup(watcher, watcherClosed);
+        }
+      } catch (error) {
+        console.error(error);
+        code = 1;
+        // A failed cleanup must not keep this session alive through child handles.
+        // The nonzero exit prevents the controller from starting a replacement.
+        watcher.stdout?.destroy();
+        watcher.stderr?.destroy();
+        watcher.unref();
+      } finally {
+        await server?.close();
       }
-      await server?.close();
       process.exitCode = code;
     })()
       .catch((error) => {

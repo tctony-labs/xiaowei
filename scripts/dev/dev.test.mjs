@@ -336,3 +336,17 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
     assert.equal(state.signals.listenerCount(signal), 0);
   });
 }
+
+test("Ctrl+C reports a session cleanup failure without claiming successful shutdown", async (context) => {
+  const state = fixture(context);
+  state.input.write("\x03");
+  await Promise.resolve();
+  state.children[0].exitCode = 1;
+  state.children[0].emit("exit", 1);
+  state.children[0].emit("close", 1);
+  await state.controller.stop();
+  assert.equal(state.signals.exitCode, 1);
+  assert.equal(state.children.length, 1);
+  assert.match(state.output.at(-1), /开发进程退出失败.*清理失败/);
+  assert.ok(!state.output.includes("开发实例已退出。"));
+});
