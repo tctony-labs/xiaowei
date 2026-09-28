@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
-import logo from "../../../../resources/logo-clear.png";
+import logo from "../../../../resources/logo-sizes/logo-64.png";
 
 export interface LauncherSearchBarProps {
   embedded?: boolean;

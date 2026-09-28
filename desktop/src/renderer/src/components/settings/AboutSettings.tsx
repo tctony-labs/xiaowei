@@ -1,4 +1,4 @@
-import logo from "../../../../../resources/logo-clear.png";
+import logo from "../../../../../resources/logo-sizes/logo-160.png";
 import SettingsTabLayout from "./SettingsTabLayout";
 export function AboutSettings({
   version,

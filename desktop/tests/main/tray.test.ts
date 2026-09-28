@@ -10,9 +10,6 @@ let tray: FakeTray;
 let imagePath = "";
 const icon = {
   isEmpty: () => false,
-  resize: () => icon,
-  addRepresentation() {},
-  toPNG: () => Buffer.alloc(0),
   setTemplateImage() {},
 };
 
@@ -69,6 +66,7 @@ test("Tray left click and Search share one action, right click only opens the me
   };
   const controller = createTray({
     resourceDirectory: "/resources/tray",
+    development: true,
     showLauncher,
     async openSettings() {
       settings++;
@@ -80,7 +78,7 @@ test("Tray left click and Search share one action, right click only opens the me
   tray.emit("right-click");
   assert.equal(menu[0]?.accelerator, undefined);
   assert.equal(menu[1]?.accelerator, "CommandOrControl+,");
-  assert.equal(imagePath, "/resources/tray/logo-clear.png");
+  assert.equal(imagePath, "/resources/tray/tray-dev.png");
   assert.deepEqual(
     menu.filter((entry) => entry.label).map((entry) => entry.label),
     ["搜索", "设置", "退出"],

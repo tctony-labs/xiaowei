@@ -122,10 +122,13 @@ export function startApplication(moduleDir: string): void {
         await launcher.create();
         ordinaryWindows.initialize();
         if (process.platform === "darwin") {
+          const resourceDirectory = app.isPackaged
+            ? join(process.resourcesPath, "logo-sizes")
+            : join(app.getAppPath(), "resources/logo-sizes");
+          app.dock?.setIcon(join(resourceDirectory, "icon-512.png"));
           tray = createTray({
-            resourceDirectory: app.isPackaged
-              ? join(process.resourcesPath, "tray")
-              : join(app.getAppPath(), "resources"),
+            resourceDirectory,
+            development: !app.isPackaged,
             showLauncher: launcher.show,
             openSettings: settingsWindow.open,
             quit: () => app.quit(),

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import logo from "../../../../resources/logo-clear.png";
+import logo from "../../../../resources/logo-sizes/logo-44.png";
 import type { LauncherHit } from "../../../shared/launcher-model";
 import chrome from "../assets/chrome.svg";
 import clipboardIcon from "../assets/clipboard.svg";

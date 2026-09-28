@@ -3,14 +3,14 @@ import { Menu, nativeImage, Tray } from "electron";
 
 export function createTray(options: {
   resourceDirectory: string;
+  development: boolean;
   showLauncher(): void;
   openSettings(): Promise<unknown>;
   quit(): void;
 }) {
-  const source = nativeImage.createFromPath(join(options.resourceDirectory, "logo-clear.png"));
-  if (source.isEmpty()) throw new Error("Tray image unavailable");
-  const icon = source.resize({ width: 16, height: 16 });
-  icon.addRepresentation({ scaleFactor: 2, buffer: source.resize({ width: 32, height: 32 }).toPNG() });
+  const iconName = options.development ? "tray-dev.png" : "tray.png";
+  const icon = nativeImage.createFromPath(join(options.resourceDirectory, iconName));
+  if (icon.isEmpty()) throw new Error("Tray image unavailable");
   icon.setTemplateImage(true);
 
   const tray = new Tray(icon);

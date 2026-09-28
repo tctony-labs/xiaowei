@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useArgs } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
-import logo from "../../../../resources/logo-clear.png";
+import logo from "../../../../resources/logo-sizes/logo-512.png";
 import type { ClipboardItem } from "../../../shared/clipboard-model";
 import { ClipboardPanel } from "./ClipboardPanel";
 

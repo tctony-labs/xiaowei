@@ -5,16 +5,16 @@
     "output": "dist"
   },
   "files": ["out/**/*"],
-  "extraResources": [{ "from": "resources/logo-clear.png", "to": "tray/logo-clear.png" }],
+  "extraResources": [{ "from": "resources/logo-sizes", "to": "logo-sizes" }],
   "mac": {
     "category": "public.app-category.productivity",
-    "icon": "resources/logo.png"
+    "icon": "resources/icon.png"
   },
   "win": {
-    "icon": "resources/logo.png"
+    "icon": "resources/icon.png"
   },
   "linux": {
-    "icon": "resources/logo.png"
+    "icon": "resources/icon.png"
   },
   "asarUnpack": ["**/*.node"],
   "npmRebuild": false
