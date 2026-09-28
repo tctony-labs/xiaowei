@@ -8,7 +8,7 @@ Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 
 - [`rust/`](rust/README.md)：crate `xw-gateway`，默认纯 Rust；显式开启 `napi` feature 才编译 napi 通信适配层。
 - [`tests/`](tests/README.md)：跨语言、原生模块和 Electron 验收入口。
 
-TS 类型入口指向源码，工作区消费者必须通过 `source` 条件加载源码，Node 同时配置 TS loader；统一规则见 [Workspace 源码消费](../docs/workspace.md#workspace-源码消费)。默认 import 的 `dist/` 入口保留给本包构建产物验收。
+TS 类型入口指向源码，工作区消费者必须通过 `source` 条件加载源码，Node 同时配置 TS loader；统一规则见 [Workspace 源码消费](../AGENTS.md#workspace-源码消费)。默认 import 的 `dist/` 入口保留给本包构建产物验收。
 
 ## 接入约定
 
@@ -33,7 +33,7 @@ pnpm gateway:test
 ## 详细说明
 
 - 语言侧 API 与实现约定：[TypeScript](ts/README.md)、[Rust](rust/README.md)。共同语义与线协议见下文。
-- 桌面接入：[main 装配](../desktop/src/main/README.md#gateway-装配与生命周期)、[renderer 调用](../desktop/src/renderer/README.md#gateway-业务调用)及[构建与打包](../docs/workspace.md#桌面-gateway-通信)。
+- 桌面接入：[main 装配](../desktop/src/main/README.md#gateway-装配与生命周期)、[renderer 调用](../desktop/src/renderer/README.md#gateway-业务调用)；构建与打包配置见 [electron-vite](../desktop/electron.vite.config.ts) 和 [electron-builder](../desktop/electron-builder.json)。
 - [业务契约原则](../contracts/proto/xiaowei/README.md)：职责划分、消息语义和兼容性规则。
 - [设计与实施记录](../.agent/records/active/2026-09-18-implement-gateway.md)：理由、取舍和验证结果。
 
