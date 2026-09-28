@@ -24,6 +24,8 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 ## Outcome
 
+2026-09-28 修复 Chrome Default profile 仅剩 `AccountBookmarks` 时书签索引为空的问题。兼容本地与账号书签存储，并修正 macOS 符号链接目录的监听路径；读取、去重、失败保留及监听行为见 [搜索实现](../../../docs/search.md#数据源与初始化)。60 项相关 Rust 测试、5 项 napi 测试、搜索 napi debug 构建及格式检查通过；修改前四项回归测试失败，修改后通过。通过新原生绑定搜索本机包含 1250 条书签的 `AccountBookmarks`，抽样确认返回匹配 URL。hermes 无运行实例，未重启主工作区或 prometheus；桌面内搜索验收待用户启动 hermes。已获用户授权并同步 `docs/search.md` 的相关说明。
+
 2026-09-24 对照当前源码，将搜索算法、数据源与调用链整理到 `docs/search.md`，补充基础分与最终名次的区别、候选截取先于使用加权的边界，以及剪贴板搜索尚未合并的现状。本次仅调整文档。
 
 2026-09-21 补齐本地化名称读取的 autorelease pool；`xw-platform` 4 项测试、该包格式检查、搜索 napi debug 构建及 5 项 Node 原生绑定测试通过。当前工作区没有运行实例，未重启其他工作区的 Electron；桌面内验证待用户启动，未进行 Instruments 内存测量。

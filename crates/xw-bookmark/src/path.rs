@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 /// 返回当前平台 Chrome 默认 profile 的 `Bookmarks` 文件路径（不校验是否存在）。
+/// `BookmarkStore` 会同时读取和监听同目录的 `AccountBookmarks`。
 pub fn default_chrome_bookmarks_path() -> Option<PathBuf> {
     let base = chrome_user_data_dir()?;
     Some(base.join("Default").join("Bookmarks"))

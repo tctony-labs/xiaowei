@@ -2,6 +2,8 @@
 //!
 //! 只提供**原始数据**（[`BookmarkEntry`] 列表），不做任何搜索 / 匹配。
 
+use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -35,6 +37,7 @@ impl BookmarkStore {
     }
 
     /// 打开指定路径：立即加载一次（失败则空列表），并启动文件监听。
+    /// `Bookmarks` 同时合并、监听同目录的 `AccountBookmarks`。
     pub fn open(path: impl Into<PathBuf>) -> Self {
         Self::open_shared(path, Arc::new(RwLock::new(Vec::new())))
     }
@@ -55,8 +58,9 @@ impl BookmarkStore {
         F: Fn() + Send + Sync + 'static,
     {
         let path = path.into();
-        load_into(&path, &entries);
-        on_change();
+        if load_into(&path, &entries) {
+            on_change();
+        }
 
         let watcher = start_watcher(&path, Arc::clone(&entries), on_change);
         Self {
@@ -86,25 +90,51 @@ impl BookmarkStore {
     }
 }
 
-/// 读取并解析文件，写入列表；任何失败都记日志并保留旧数据。
-fn load_into(path: &Path, entries: &BookmarkEntries) {
-    let json = match std::fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(err) => {
-            log::warn!("读取书签文件失败 path={} err={err}", path.display());
-            return;
-        }
-    };
-    match parse_bookmarks(&json) {
-        Ok(parsed) => {
-            let count = parsed.len();
-            if let Ok(mut guard) = entries.write() {
-                *guard = parsed;
-            }
-            log::info!("书签列表重建完成 count={count} path={}", path.display());
-        }
-        Err(err) => log::warn!("解析书签文件失败 path={} err={err}", path.display()),
+/// Chrome 将本地与账号书签分别保存；即使文件尚不存在，也必须监听后续创建。
+fn bookmark_paths(path: &Path) -> Vec<PathBuf> {
+    let mut paths = vec![path.to_path_buf()];
+    if path.file_name().is_some_and(|name| name == "Bookmarks") {
+        paths.push(path.with_file_name("AccountBookmarks"));
     }
+    paths
+}
+
+/// 合并存在的书签文件；缺失视为空，其他读取或解析失败保留上次完整快照。
+fn load_into(path: &Path, entries: &BookmarkEntries) -> bool {
+    let mut merged = Vec::new();
+    let mut seen = HashSet::new();
+    let mut loaded_paths = Vec::new();
+
+    for source in bookmark_paths(path) {
+        let json = match std::fs::read_to_string(&source) {
+            Ok(json) => json,
+            Err(err) if err.kind() == ErrorKind::NotFound => continue,
+            Err(err) => {
+                log::warn!("读取书签文件失败 path={} err={err}", source.display());
+                return false;
+            }
+        };
+        let parsed = match parse_bookmarks(&json) {
+            Ok(parsed) => parsed,
+            Err(err) => {
+                log::warn!("解析书签文件失败 path={} err={err}", source.display());
+                return false;
+            }
+        };
+        loaded_paths.push(source);
+        for entry in parsed {
+            let key = (entry.name.clone(), entry.url.clone(), entry.folder_path.clone());
+            if seen.insert(key) {
+                merged.push(entry);
+            }
+        }
+    }
+
+    let count = merged.len();
+    let Ok(mut guard) = entries.write() else { return false };
+    *guard = merged;
+    log::info!("书签列表重建完成 count={count} paths={loaded_paths:?}");
+    true
 }
 
 /// 监听书签文件所在目录（Chrome 常以 rename 原子写入，监听父目录更稳）。debounce 窗口内的
@@ -113,14 +143,16 @@ fn start_watcher<F>(path: &Path, entries: BookmarkEntries, on_change: F) -> Opti
 where
     F: Fn() + Send + Sync + 'static,
 {
-    let watch_dir = path.parent()?.to_path_buf();
-    let target = path.to_path_buf();
+    let watch_dir = path.parent()?;
+    // macOS 文件事件使用真实路径（例如 /var 的目标 /private/var）。
+    let watch_dir = watch_dir.canonicalize().unwrap_or_else(|_| watch_dir.to_path_buf());
+    let primary = watch_dir.join(path.file_name()?);
+    let targets = bookmark_paths(&primary);
 
     let mut debouncer = match new_debouncer(WATCH_DEBOUNCE, move |res: DebounceEventResult| {
         let Ok(events) = res else { return };
         // 仅当这批事件涉及目标文件时才重建。
-        if events.iter().any(|e| e.path == target) {
-            load_into(&target, &entries);
+        if events.iter().any(|e| targets.contains(&e.path)) && load_into(&primary, &entries) {
             on_change();
         }
     }) {
@@ -155,6 +187,103 @@ mod tests {
             { "type": "url", "name": "GitLab", "url": "https://gitlab.com" }
         ]
     } } }"#;
+
+    #[test]
+    fn account_bookmarks_load_when_local_file_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("AccountBookmarks"), BOOKMARKS_V1).unwrap();
+
+        let store = BookmarkStore::open(dir.path().join("Bookmarks"));
+        assert_eq!(store.len(), 1);
+    }
+
+    #[test]
+    fn local_and_account_bookmarks_merge_without_exact_duplicates() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("Bookmarks"), BOOKMARKS_V1).unwrap();
+        std::fs::write(dir.path().join("AccountBookmarks"), BOOKMARKS_V2).unwrap();
+
+        let store = BookmarkStore::open(dir.path().join("Bookmarks"));
+        assert_eq!(store.len(), 2);
+    }
+
+    #[test]
+    fn merge_preserves_distinct_bookmarks_with_the_same_url() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("Bookmarks"), BOOKMARKS_V1).unwrap();
+        let account = BOOKMARKS_V1.replace("GitHub", "GitHub account");
+        std::fs::write(dir.path().join("AccountBookmarks"), account).unwrap();
+
+        let store = BookmarkStore::open(dir.path().join("Bookmarks"));
+        assert_eq!(store.len(), 2);
+    }
+
+    #[test]
+    fn unreadable_account_file_preserves_previous_snapshot() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = dir.path().join("Bookmarks");
+        std::fs::write(&local, BOOKMARKS_V1).unwrap();
+        let store = BookmarkStore::open(&local);
+        assert_eq!(store.len(), 1);
+
+        std::fs::write(&local, BOOKMARKS_V2).unwrap();
+        std::fs::create_dir(dir.path().join("AccountBookmarks")).unwrap();
+        store.reload();
+        assert_eq!(store.len(), 1);
+    }
+
+    #[test]
+    fn malformed_account_file_preserves_previous_snapshot() {
+        let dir = tempfile::tempdir().unwrap();
+        let account = dir.path().join("AccountBookmarks");
+        std::fs::write(&account, BOOKMARKS_V1).unwrap();
+        let store = BookmarkStore::open(dir.path().join("Bookmarks"));
+        assert_eq!(store.len(), 1);
+
+        std::fs::write(&account, "invalid json").unwrap();
+        store.reload();
+        assert_eq!(store.len(), 1);
+    }
+
+    #[test]
+    fn watcher_tracks_account_creation_updates_and_removal() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = dir.path().join("Bookmarks");
+        let account = dir.path().join("AccountBookmarks");
+        std::fs::write(&local, BOOKMARKS_V1).unwrap();
+        let entries: BookmarkEntries = Arc::default();
+        let source = Arc::clone(&entries);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let _store = BookmarkStore::open_shared_with(&local, entries, move || {
+            sender.send(source.read().unwrap().len()).unwrap();
+        });
+        let wait_for_count = |expected| {
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            loop {
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                if receiver
+                    .recv_timeout(remaining)
+                    .unwrap_or_else(|err| panic!("waiting for {expected} bookmarks: {err}"))
+                    == expected
+                {
+                    break;
+                }
+            }
+        };
+        wait_for_count(1);
+
+        std::fs::write(&account, BOOKMARKS_V2).unwrap();
+        std::fs::remove_file(&local).unwrap();
+        wait_for_count(2);
+
+        let temporary = dir.path().join("AccountBookmarks.tmp");
+        std::fs::write(&temporary, BOOKMARKS_V1).unwrap();
+        std::fs::rename(&temporary, &account).unwrap();
+        wait_for_count(1);
+
+        std::fs::remove_file(&account).unwrap();
+        wait_for_count(0);
+    }
 
     #[test]
     fn open_loads_raw_entries() {

@@ -86,3 +86,21 @@ fn provider_cutoff_precedes_recency_and_base_scores_are_preserved() {
     assert_eq!(after[0].score, promoted.score);
     assert!(!after.iter().any(|h| h.title == "match 24"));
 }
+
+#[test]
+fn account_bookmarks_are_searchable_without_local_bookmarks() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("AccountBookmarks"),
+        r#"{"roots":{"bookmark_bar":{"type":"folder","name":"书签栏","children":[
+        {"type":"url","name":"账号书签","url":"https://example.test/account"}
+    ]}}}"#,
+    )
+    .unwrap();
+
+    let engine = SearchEngine::open(Vec::new(), Some(dir.path().join("Bookmarks")));
+    let hits = engine.search("账号书签");
+    let bookmark = hits.iter().find(|hit| hit.provider == "bookmark").unwrap();
+    assert_eq!(bookmark.title, "账号书签");
+    assert_eq!(bookmark.action, Action::OpenUrl("https://example.test/account".into()));
+}
