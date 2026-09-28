@@ -165,7 +165,7 @@ export function SettingsPage({
     value ? create(ShortcutBindingSchema, { keys: value }) : undefined;
   const shortcuts: Shortcuts = {
     search: snapshot?.shortcuts?.main?.keys ?? null,
-    chat: null,
+    chat: snapshot?.shortcuts?.quickChat?.keys ?? null,
     clipboard: snapshot?.shortcuts?.clipboard?.keys ?? null,
   };
 
@@ -197,13 +197,13 @@ export function SettingsPage({
         return (
           <ShortcutSettings
             values={shortcuts}
-            showQuickChat={false}
             onChange={(next) =>
               void update({
                 case: "shortcuts",
                 value: create(ShortcutConfigurationSchema, {
                   main: shortcutBinding(next.search),
                   clipboard: shortcutBinding(next.clipboard),
+                  quickChat: shortcutBinding(next.chat),
                 }),
               })
             }

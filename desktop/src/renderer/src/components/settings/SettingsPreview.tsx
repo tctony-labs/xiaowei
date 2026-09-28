@@ -117,7 +117,7 @@ export function SettingsPreview(props: PreviewProps) {
   const [shortcuts, setShortcuts] = useState<Shortcuts>(
     props.noShortcuts
       ? { search: null, chat: null, clipboard: null }
-      : { search: ["Meta", "Space"], chat: ["Meta", "Shift", "Space"], clipboard: ["Meta", "Shift", "KeyX"] },
+      : { search: ["Meta", "Space"], chat: ["Meta", "Shift", "KeyC"], clipboard: ["Meta", "Shift", "KeyX"] },
   );
   const [clipboard, setClipboard] = useState<ClipboardValues>({
     enabled: !props.clipboardDisabled,

@@ -136,6 +136,8 @@ fn defaults(platform: &str) -> SettingsSnapshot {
         vec!["Control", "Alt", "Space"]
     };
     let clipboard = vec![if platform == "darwin" { "Meta" } else { "Control" }, "Shift", "KeyX"];
+    let quick_chat = vec![if platform == "darwin" { "Meta" } else { "Control" }, "Shift", "KeyC"];
+
     SettingsSnapshot {
         theme: ThemeMode::System as i32,
         autostart: false,
@@ -147,7 +149,9 @@ fn defaults(platform: &str) -> SettingsSnapshot {
             clipboard: Some(ShortcutBinding {
                 keys: clipboard.into_iter().map(str::to_owned).collect(),
             }),
-            quick_chat: None,
+            quick_chat: Some(ShortcutBinding {
+                keys: quick_chat.into_iter().map(str::to_owned).collect(),
+            }),
         }),
         clipboard_enabled: true,
         clipboard_auto_paste: false,
