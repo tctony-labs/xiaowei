@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, screen } from "electron";
 import { restrictNavigation } from "./navigation";
 
 export function createSettingsWindow(options: {
@@ -10,14 +10,30 @@ export function createSettingsWindow(options: {
   let settingsWindow: BrowserWindow | undefined;
 
   async function openSettings(): Promise<BrowserWindow> {
+    // Capture the source display before hiding the launcher clears its focus.
+    const source = BrowserWindow.getFocusedWindow();
+    const display = source
+      ? screen.getDisplayMatching(source.getBounds())
+      : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const { workArea } = display;
+
     options.hideLauncher();
     if (process.platform === "darwin") app.show();
     if (settingsWindow && !settingsWindow.isDestroyed()) {
+      if (screen.getDisplayMatching(settingsWindow.getBounds()).id !== display.id) {
+        const [width, height] = settingsWindow.getSize();
+        settingsWindow.setPosition(
+          Math.round(workArea.x + (workArea.width - width) / 2),
+          Math.round(workArea.y + (workArea.height - height) / 2),
+        );
+      }
       settingsWindow.show();
       settingsWindow.focus();
       return settingsWindow;
     }
     const window = new BrowserWindow({
+      x: Math.round(workArea.x + (workArea.width - 800) / 2),
+      y: Math.round(workArea.y + (workArea.height - 600) / 2),
       width: 800,
       height: 600,
       minWidth: 700,
