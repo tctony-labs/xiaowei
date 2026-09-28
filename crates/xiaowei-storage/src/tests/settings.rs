@@ -181,6 +181,40 @@ async fn invalid_shortcuts_are_rejected_before_system_changes() {
 }
 
 #[tokio::test]
+async fn quick_chat_defaults_and_saved_changes_survive_reopening() {
+    for (platform, modifier) in [("darwin", "Meta"), ("linux", "Control")] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("settings.sqlite");
+        let database = Arc::new(Database::open(&path).await.unwrap());
+        let settings = SettingsService::with_apply(database.clone(), platform.into(), allow());
+        let mut shortcuts = settings.get().await.unwrap().shortcuts.unwrap();
+        assert_eq!(shortcuts.quick_chat.as_ref().unwrap().keys, [modifier, "Shift", "KeyC"]);
+
+        for binding in [
+            Some(ShortcutBinding {
+                keys: vec![modifier.into(), "Alt".into(), "KeyQ".into()],
+            }),
+            None,
+        ] {
+            shortcuts.quick_chat = binding.clone();
+            settings
+                .update(UpdateSettingsRequest {
+                    change: Some(Change::Shortcuts(shortcuts.clone())),
+                })
+                .await
+                .unwrap();
+
+            let reopened = Arc::new(Database::open(&path).await.unwrap());
+            let saved = SettingsService::with_apply(reopened.clone(), platform.into(), allow());
+            assert_eq!(saved.get().await.unwrap().shortcuts.unwrap(), shortcuts);
+            reopened.close().await;
+        }
+
+        database.close().await;
+    }
+}
+
+#[tokio::test]
 async fn legacy_shortcuts_without_quick_chat_keep_their_bindings() {
     let directory = tempfile::tempdir().unwrap();
     let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());

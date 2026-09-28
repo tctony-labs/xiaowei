@@ -1,5 +1,5 @@
 import { create, toBinary } from "@bufbuild/protobuf";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
@@ -48,6 +48,11 @@ test("product settings loads saved values and sends changes and cleanup to servi
     clipboardEnabled: true,
     clipboardAutoPaste: true,
     clipboardRetentionDays: 30,
+    shortcuts: {
+      main: { keys: ["Meta", "Space"] },
+      clipboard: { keys: ["Meta", "Shift", "KeyX"] },
+      quickChat: { keys: ["Meta", "Shift", "KeyC"] },
+    },
   });
 
   host.registerOwner(
@@ -61,6 +66,9 @@ test("product settings loads saved values and sends changes and cleanup to servi
             ...snapshot,
             includeChromeBookmarks: request.change.value,
           });
+        }
+        if (request.change.case === "shortcuts") {
+          snapshot = create(SettingsSnapshotSchema, { ...snapshot, shortcuts: request.change.value });
         }
         return snapshot;
       },
@@ -87,6 +95,23 @@ test("product settings loads saved values and sends changes and cleanup to servi
   const bookmarks = await screen.findByRole("switch", { name: "全局搜索包含Chrome书签" });
   await userEvent.click(bookmarks);
   await waitFor(() => expect(updates).toHaveBeenCalledWith({ case: "includeChromeBookmarks", value: false }));
+
+  await userEvent.click(screen.getByRole("button", { name: "快捷键" }));
+  const chat = screen.getByRole("textbox", { name: "录制快速对话快捷键" });
+  expect(chat).toHaveTextContent("C");
+
+  await userEvent.click(chat);
+  await userEvent.keyboard("{Meta>}[Space]{/Meta}{Enter}");
+  await waitFor(() => expect(snapshot.shortcuts?.quickChat?.keys).toEqual(["Meta", "Space"]));
+  expect(snapshot.shortcuts?.main).toBeUndefined();
+  expect(snapshot.shortcuts?.clipboard?.keys).toEqual(["Meta", "Shift", "KeyX"]);
+  expect(screen.getByRole("textbox", { name: "录制全局搜索快捷键" })).toHaveTextContent("录制全局搜索快捷键");
+
+  const recorder = chat.parentElement;
+  if (!recorder) throw new Error("Shortcut recorder container is missing");
+  await userEvent.click(within(recorder).getByRole("button", { name: "清除" }));
+  await waitFor(() => expect(snapshot.shortcuts?.quickChat).toBeUndefined());
+  expect(chat).toHaveTextContent("录制快速对话快捷键");
 
   await userEvent.click(screen.getByRole("button", { name: "剪贴板" }));
   expect(await screen.findByText("2.00 KB")).toBeVisible();

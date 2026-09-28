@@ -46,10 +46,10 @@ test("failed registration restores the prior shortcuts", () => {
   assert.equal(registered.size, 0);
 });
 
-test("quick chat registers its default binding on startup and after settings changes", () => {
-  for (const [platform, key] of [
-    ["darwin", "Command+Shift+C"],
-    ["linux", "Control+Shift+C"],
+test("quick chat uses saved bindings on startup, supports changes and stays cleared", () => {
+  for (const [platform, modifier, key] of [
+    ["darwin", "Meta", "Command+Shift+C"],
+    ["linux", "Control", "Control+Shift+C"],
   ]) {
     const registered = new Map();
     let opened = 0;
@@ -64,12 +64,19 @@ test("quick chat registers its default binding on startup and after settings cha
       platform,
       { quickChat: () => opened++ },
     );
-    const config = shortcutConfig(undefined, platform);
+    const config = shortcutConfig({ quickChat: { keys: [modifier, "Shift", "KeyC"] } });
     shortcuts.registerInitial(config);
     registered.get(key)();
-    shortcuts.replace(config);
-    registered.get(key)();
+    const custom = shortcutConfig({ quickChat: { keys: [modifier, "Alt", "KeyQ"] } });
+    shortcuts.replace(custom);
+    assert.equal(registered.has(key), false);
+    registered.get(accelerator(custom.quickChat, platform))();
     assert.equal(opened, 2);
+
+    shortcuts.replace(shortcutConfig({}));
+    assert.equal(registered.size, 0);
+    shortcuts.registerInitial(shortcutConfig(undefined));
+    assert.equal(registered.size, 0);
     shortcuts.close();
     assert.equal(registered.size, 0);
   }
