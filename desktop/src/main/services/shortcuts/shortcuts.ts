@@ -90,6 +90,9 @@ export function createSettingsShortcuts(
 
   return {
     replace,
+    getAccelerators(): Partial<Record<Action, string>> {
+      return Object.fromEntries(registered.map(({ action, shortcut }) => [action, shortcut]));
+    },
     registerInitial(config: ShortcutConfig) {
       if (registered.length) throw new Error("Shortcuts already registered");
       for (const [action, keys] of Object.entries(config) as [Action, ShortcutValue][]) {

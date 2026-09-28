@@ -7,6 +7,7 @@ import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboa
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import { loadConfig } from "../services/llm/config";
+import { createShortcutRegistry } from "../services/shortcuts/registry";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
@@ -41,7 +42,8 @@ export function startApplication(moduleDir: string): void {
       gateway?.register(window);
     },
   });
-  const shortcuts = createSettingsShortcuts(globalShortcut, process.platform, {
+  const shortcutRegistry = createShortcutRegistry(globalShortcut);
+  const shortcuts = createSettingsShortcuts(shortcutRegistry, process.platform, {
     main: () => launcher.openMode("toggle"),
     quickChat: () => launcher.openMode("quick-chat"),
     clipboard: () => launcher.openMode("clipboard"),
@@ -130,6 +132,10 @@ export function startApplication(moduleDir: string): void {
             resourceDirectory,
             development: !app.isPackaged,
             showLauncher: launcher.show,
+            openClipboard: () => launcher.openMode("clipboard"),
+            openQuickChat: () => launcher.openMode("quick-chat"),
+            getMenuAccelerators: shortcuts.getAccelerators,
+            suspendShortcutsForMenu: shortcutRegistry.suspendForMenu,
             openSettings: settingsWindow.open,
             quit: () => app.quit(),
           });
@@ -167,6 +173,7 @@ export function startApplication(moduleDir: string): void {
   });
   app.on("will-quit", () => {
     shortcuts.close();
+    shortcutRegistry.close();
     globalShortcut.unregisterAll();
   });
 }
