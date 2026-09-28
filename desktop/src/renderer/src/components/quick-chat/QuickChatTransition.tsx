@@ -48,7 +48,7 @@ export function QuickChatTransition({
     >
       <div className="launcher-card relative h-full overflow-hidden rounded-xl border border-line bg-surface">
         <div
-          className="absolute inset-x-0 flex flex-col"
+          className="absolute inset-x-0 bottom-0 flex flex-col"
           style={{ top: expanded ? 0 : -chatHeight, transition: "top 300ms ease-out" }}
         >
           <div className="shrink-0 overflow-hidden" style={{ height: chatHeight }} inert={!expanded}>

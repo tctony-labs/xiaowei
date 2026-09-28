@@ -3,6 +3,7 @@ import { useArgs } from "storybook/preview-api";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { launcherHeight } from "../../../shared/launcher-model";
 import { LauncherSearchBar } from "./LauncherSearchBar";
+import { QuickChatTransition } from "./quick-chat/QuickChatTransition";
 import { SearchResultList } from "./SearchResultList";
 
 const hits = [
@@ -39,6 +40,56 @@ export const Dark: Story = { globals: { theme: "dark" } };
 export const Scroll: Story = {
   args: {
     hits: Array.from({ length: 15 }, (_, i) => ({ ...hits[3], id: `bookmark-${i}`, title: `收藏网页 ${i + 1}` })),
+  },
+};
+export const ScrollInLauncher: Story = {
+  args: Scroll.args,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("textbox", { name: "搜索" }));
+    const rows = canvas.getAllByRole("option");
+    for (let index = 1; index < rows.length; index += 1) {
+      await userEvent.keyboard("{ArrowDown}");
+      await waitFor(() => expect(rows[index]).toHaveAttribute("aria-selected", "true"));
+    }
+    const last = rows.at(-1);
+    await waitFor(() => {
+      expect(last).toHaveAttribute("aria-selected", "true");
+      const bounds = canvas.getByTestId("quick-chat-viewport").getBoundingClientRect();
+      const row = last?.getBoundingClientRect();
+      expect(row?.top).toBeGreaterThan(bounds.top);
+      expect(row?.bottom).toBeLessThan(bounds.bottom);
+    });
+  },
+  render: function Preview(args) {
+    const [, updateArgs] = useArgs();
+    return (
+      <div style={{ width: 800 }}>
+        <QuickChatTransition
+          expanded={false}
+          searchHeight={launcherHeight(args.hits.length)}
+          composer={null}
+          search={
+            <LauncherSearchBar
+              embedded
+              query="搜索预览"
+              onQueryChange={fn()}
+              onDismiss={fn()}
+              onNavigate={(event) => {
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                event.preventDefault();
+                const delta = event.key === "ArrowDown" ? 1 : -1;
+                updateArgs({ selected: Math.max(0, Math.min(args.hits.length - 1, args.selected + delta)) });
+              }}
+            >
+              <SearchResultList {...args} onSelect={(selected) => updateArgs({ selected })} />
+            </LauncherSearchBar>
+          }
+        >
+          {() => null}
+        </QuickChatTransition>
+      </div>
+    );
   },
 };
 export const SelectAndConfirm: Story = {

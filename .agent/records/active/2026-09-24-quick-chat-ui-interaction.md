@@ -24,6 +24,8 @@ Storybook 分组为 `Quick Chat / Launcher`，场景包含 Search、FirstUse、E
 
 ### 最小内存对话（2026-09-25）
 
+`QuickChatTransition` 的绝对定位滑轨同时约束 top 与 bottom，使搜索列表取得剩余可用高度并在内部滚动；不能仅设置 top，否则长列表会撑高滑轨、被外层裁切，键盘选中项无法跟随滚动。`Launcher/SearchResults/ScrollInLauncher` 使用实际滑轨与搜索列表覆盖长列表选中末项的可见状态。
+
 产品 Launcher 已接入 QuickChatPanel；标题栏最小模式仅显示当前首条消息标题与新对话操作，不接会话列表、自动标题、归档或工具能力。消息和草稿由 Launcher 持有的 useQuickChat hook 保存在 renderer 内存；收起、隐藏、切换剪贴板不删除消息，窗口销毁／刷新／退出后丢失。不使用文件、数据库或浏览器持久化存储。
 
 前端通过 services.ts 的 Llm stream typed client 调用 Generate；不引入 Rust agent 或后端会话状态。ModelSettings 先订阅 ready 后 Get，处理迟到结果与 revision；每轮捕获当前使用的 modelRef／thinkingLevel。不提供模型／思考强度选择控件；默认模型未设置或已被删除时，仅在调用处按提供商与模型列表顺序取第一个可用模型，跳过有 unavailableReason 的提供商，不写回默认模型设置，也不沿用原默认模型的思考强度。没有可用模型、显式选中的默认模型凭据不可用或配置应用故障时禁止发送；设置变更只影响后续请求，不影响在途快照。
@@ -47,6 +49,8 @@ flushSync 同步提交尝试通过了回调结束时 DOM 已更新的检查，�
 延后采样版本再次变顺畅，随后核对到主进程原生热键回调与 Gateway 微任务投递之间缺少确定的 Node 调度边界。现由 Gateway Node 事件队列通过 setImmediate 启动投递，快捷键直接执行业务 action，全部采样、前端开关和 flushSync 已删除；用户已通过实际按键确认卡顿修复；详细源码依据与验证结果见 [快捷键事项](2026-09-18-fixed-launcher-shortcuts.md#原生快捷键与微任务调度)。renderer 保留稳定订阅和剪贴板切聊天直接展开行为。
 
 ## Outcome
+
+2026-09-28 修复搜索结果键盘滚动回归：Quick Chat 滑轨缺少 bottom 约束，破坏了原搜索列表的高度边界。Chrome 中对同一组件恢复旧样式复现：15 条结果时列表高 792px、末项超出视口且 scrollTop 为 0；修复后列表高 480px、scrollTop 为 312，末项完整可见，向上返回首项正常。补充组合 Storybook 场景及末项可见断言，22 项 Launcher／QuickChatTransition／QuickChatPanel 测试、桌面类型检查与受影响文件 Biome 检查通过。用户已在实际 Electron 窗口确认滚动恢复正常，本次修复验收完成。
 
 2026-09-28 根据“暂无可用模型”的引导语义，将锚点改为模型提供商配置区域，包含添加入口，不再定位默认模型行。契约统一为 SettingsAnchor.MODEL_PROVIDERS 与 anchor 字段，SettingsNavigationRequested 仅作空通知，TakeSettingsNavigationResponse 返回待消费锚点；同步产品、Storybook 与测试。回归验证高亮区域包含“模型提供商”且不包含“默认模型”，并保留 StrictMode 与重复跳转覆盖。完整桌面测试、契约 codec、just check 通过；已确认当前工作区实例并执行 just rs。
 
