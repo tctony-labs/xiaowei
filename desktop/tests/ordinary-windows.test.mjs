@@ -80,3 +80,127 @@ test("closing the last window while Dock show is pending eventually hides the Do
   assert.equal(visible, false);
   manager.close();
 });
+
+function guardedDock() {
+  let visible = false;
+  let shownAt = 0;
+  let hides = 0;
+  return {
+    isVisible: () => visible,
+    hides: () => hides,
+    async show() {
+      shownAt = Date.now();
+      visible = true;
+    },
+    hide() {
+      hides++;
+      // Electron ignores hide for one second after show on macOS.
+      if (Date.now() - shownAt >= 1000) visible = false;
+    },
+  };
+}
+
+test("each completed Dock show reapplies the icon after the host restores its default", async () => {
+  let visible = false;
+  let icon = "Electron";
+  let finish;
+  let iconUpdates = 0;
+  const manager = createOrdinaryWindows(
+    {
+      isVisible: () => visible,
+      show: () =>
+        new Promise((resolve) => {
+          finish = () => {
+            visible = true;
+            icon = "Electron";
+            resolve();
+          };
+        }),
+      hide() {
+        visible = false;
+      },
+    },
+    () => {
+      icon = "XiaoWei";
+      iconUpdates++;
+    },
+  );
+
+  manager.initialize();
+  await new Promise(setImmediate);
+  assert.equal(iconUpdates, 0);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const window = new Window();
+    manager.register(window);
+    window.show();
+    assert.equal(iconUpdates, attempt);
+    finish();
+    await new Promise(setImmediate);
+    assert.equal(icon, "XiaoWei");
+    assert.equal(iconUpdates, attempt + 1);
+    window.emit("closed");
+    await new Promise(setImmediate);
+  }
+  manager.close();
+});
+
+test("quickly closing settings retries a Dock hide ignored by Electron", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const dock = guardedDock();
+  const manager = createOrdinaryWindows(dock);
+  t.after(() => manager.close());
+  const window = new Window();
+  manager.register(window);
+  window.show();
+  await new Promise(setImmediate);
+  window.emit("closed");
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), true);
+
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), false);
+});
+
+test("reopening settings before the hide retry keeps the Dock visible", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const dock = guardedDock();
+  const manager = createOrdinaryWindows(dock);
+  t.after(() => manager.close());
+  const first = new Window();
+  manager.register(first);
+  first.show();
+  await new Promise(setImmediate);
+  first.emit("closed");
+  await new Promise(setImmediate);
+
+  const second = new Window();
+  manager.register(second);
+  second.show();
+  await new Promise(setImmediate);
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), true);
+  assert.equal(dock.hides(), 1);
+
+  second.emit("closed");
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), false);
+});
+
+test("quitting cancels a pending Dock hide retry", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const dock = guardedDock();
+  const manager = createOrdinaryWindows(dock);
+  const window = new Window();
+  manager.register(window);
+  window.show();
+  await new Promise(setImmediate);
+  window.emit("closed");
+  await new Promise(setImmediate);
+
+  manager.close();
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(dock.hides(), 1);
+});

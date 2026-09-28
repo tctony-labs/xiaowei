@@ -33,8 +33,10 @@ export function positionLauncher(window: BrowserWindow, workArea: Rectangle): vo
 }
 
 export function configureLauncherWorkspaces(window: BrowserWindow, platform = process.platform): void {
-  // Configure once before showing: macOS process-type changes briefly hide the app.
-  if (platform === "darwin") window.setVisibleOnAllWorkspaces(true);
+  // Ordinary windows own Dock visibility; Electron otherwise calls dock.show() here.
+  if (platform === "darwin") {
+    window.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });
+  }
 }
 
 export function showLauncherWindow(

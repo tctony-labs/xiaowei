@@ -5,13 +5,14 @@ type OrdinaryWindow = Pick<
   "on" | "removeListener" | "isDestroyed" | "isMinimized" | "restore" | "show" | "focus"
 >;
 
-export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVisible">) {
+export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVisible">, dockShown?: () => void) {
   const windows = new Map<OrdinaryWindow, { shown: boolean; unregister(): void }>();
   let recent: OrdinaryWindow | undefined;
   let focused: OrdinaryWindow | undefined;
   let closed = false;
   let dockUpdate: Promise<void> | undefined;
   let dockDirty = false;
+  let dockRetry: ReturnType<typeof setTimeout> | undefined;
 
   function candidates() {
     return [...windows].filter(([window, entry]) => entry.shown && !window.isDestroyed()).map(([window]) => window);
@@ -19,6 +20,8 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
 
   function updateDock(): void {
     if (!dock || closed) return;
+    clearTimeout(dockRetry);
+    dockRetry = undefined;
     dockDirty = true;
     if (dockUpdate) return;
     dockUpdate = (async () => {
@@ -26,9 +29,17 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
         dockDirty = false;
         const visible = candidates().length > 0;
         if (dock.isVisible() === visible) break;
-        if (visible) await dock.show();
-        else {
+        if (visible) {
+          await dock.show();
+          if (!closed) dockShown?.();
+        } else {
           dock.hide();
+          // Electron ignores hide for one second after show. Recheck current
+          // window state on retry instead of treating the void call as success.
+          if (dock.isVisible()) {
+            dockRetry = setTimeout(updateDock, 1000);
+            dockRetry.unref();
+          }
           break;
         }
       }
@@ -87,6 +98,8 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
     focused: () => focused,
     close() {
       closed = true;
+      clearTimeout(dockRetry);
+      dockRetry = undefined;
       for (const entry of [...windows.values()]) entry.unregister();
     },
   };

@@ -182,7 +182,7 @@ test("macOS configures all-Space visibility once before repeated launcher activa
   const window = {
     isDestroyed: () => false,
     getBounds: () => ({ x: 320, y: 156, width: 800, height: 71 }),
-    setVisibleOnAllWorkspaces: (visible) => calls.push(["all-workspaces", visible]),
+    setVisibleOnAllWorkspaces: (visible, options) => calls.push(["all-workspaces", visible, options]),
     show: () => calls.push(["show"]),
     focus: () => calls.push(["focus"]),
   };
@@ -197,7 +197,10 @@ test("macOS configures all-Space visibility once before repeated launcher activa
     showLauncherWindow(window, screen);
   }
 
-  assert.deepEqual(calls, [["all-workspaces", true], ...Array.from({ length: 4 }, () => [["show"], ["focus"]]).flat()]);
+  assert.deepEqual(calls, [
+    ["all-workspaces", true, { skipTransformProcessType: true }],
+    ...Array.from({ length: 4 }, () => [["show"], ["focus"]]).flat(),
+  ]);
 });
 
 test("other platforms do not configure macOS workspaces", () => {

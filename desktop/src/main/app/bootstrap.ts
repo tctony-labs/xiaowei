@@ -27,7 +27,13 @@ export function startApplication(moduleDir: string): void {
 
   let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
   let tray: ReturnType<typeof createTray> | undefined;
-  const ordinaryWindows = createOrdinaryWindows(process.platform === "darwin" ? app.dock : undefined);
+  const resourceDirectory = app.isPackaged
+    ? join(process.resourcesPath, "logo-sizes")
+    : join(app.getAppPath(), "resources/logo-sizes");
+  const ordinaryWindows = createOrdinaryWindows(process.platform === "darwin" ? app.dock : undefined, () => {
+    // Showing the Dock can restore the development host's Electron icon.
+    if (!app.isPackaged) app.dock?.setIcon(join(resourceDirectory, "icon-512.png"));
+  });
   const launcher = createLauncherWindow({
     moduleDir,
     focus: process.platform === "darwin" ? createSystemFocus() : undefined,
@@ -58,6 +64,10 @@ export function startApplication(moduleDir: string): void {
   if (!app.requestSingleInstanceLock()) {
     app.quit();
   } else {
+    if (process.platform === "darwin") {
+      ordinaryWindows.initialize();
+    }
+
     const logs = createLoggers(paths.logs, !app.isPackaged);
     Object.assign(console, logs.main.functions);
     process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
@@ -124,10 +134,6 @@ export function startApplication(moduleDir: string): void {
         await launcher.create();
         ordinaryWindows.initialize();
         if (process.platform === "darwin") {
-          const resourceDirectory = app.isPackaged
-            ? join(process.resourcesPath, "logo-sizes")
-            : join(app.getAppPath(), "resources/logo-sizes");
-          app.dock?.setIcon(join(resourceDirectory, "icon-512.png"));
           tray = createTray({
             resourceDirectory,
             development: !app.isPackaged,

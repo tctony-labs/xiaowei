@@ -25,9 +25,11 @@
 - 同模式快捷键在主窗口可见且聚焦时收起；跨模式切换沿用同一次唤起的焦点来源。
 - 用户实测：打开其他应用的 Tray 菜单时，主窗口保持可见、暂失输入焦点；关闭菜单后输入焦点回到搜索框。保留这一行为，不能将“暂失输入焦点”直接等同于 BrowserWindow blur 或外部 App 激活。沿用系统菜单行为，未加入定时隐藏／抢焦点补丁。
 
-用户于 2026-09-28 确认将生成的统一加粗蓝绿 XW Logo 接入所有使用位置：`logo.png` 保留统一源图，应用内与 Tray 使用其预生成尺寸，`icon.png` 使用同一蓝绿造型加白色圆角底板的 1024px 版本作为各平台打包图标，macOS 启动后显式设置 Dock 图标，使开发态也能展示同一造型。
+用户于 2026-09-28 确认将生成的统一加粗蓝绿 XW Logo 接入所有使用位置：`logo.png` 保留统一源图，应用内与 Tray 使用其预生成尺寸，`icon.png` 使用同一蓝绿造型加白色圆角底板的 1024px 版本作为各平台打包图标，macOS 开发态显式设置 Dock 图标，使开发态也能展示同一造型；正式包使用打包图标。
 
 透明 Logo 的预生成资源位于 `desktop/resources/logo-sizes/`：Tray 使用 16px 和 `@2x` 32px，Electron 自动加载 Retina representation 并设置模板图，不再运行时 resize；22px／32px／80px 界面图标分别加载 44px／64px／160px 资源，Dock 使用带白色圆角底板的 `icon-512.png`，Storybook 图片示例使用透明的 512px 版本。目录包携带该资源目录，完整源图仅用于资源维护与打包图标生成。菜单每次打开前按当前快捷键重建，并由 Tray 回调保留强引用。
+
+PNG／ICNS 图标按传统 macOS 网格保留外部透明留白：1024px 画布中的白色底板主体为居中的 824px，四边各 100px；512px Dock 资源对应 412px 主体与 50px 留白。底板和内部 Logo 等比缩放，不改变内部比例。尺寸参考 [Apple 开发者论坛的传统图标讨论](https://developer.apple.com/forums/thread/670578) 的搜索摘要，并以本机 Calculator 图标的 256px 画布、206px 主体、25px 留白交叉核对；当前 [HIG](https://developer.apple.com/design/human-interface-guidelines/app-icons) 已转向 Icon Composer 分层图标，不将传统留白规则套用到分层输入。
 
 ### 普通窗口与 Dock
 
@@ -37,7 +39,9 @@
 - 从外部激活优先回到最近使用的普通窗口；应用内部连续点击 Dock 按注册顺序循环，最小化的候选先恢复。没有候选时不显示 Launcher。
 - 自己维护最近聚焦窗口和轮换游标，不完全依赖事件回调时的 isFocused()。已接受的窗口切换只前移一个位置，不因 focus 事件重新排序列表。
 - Dock show/hide 串行协调，只在目标状态变化时调用。完成较早的异步 show 不能覆盖较新的 hide 意图；不在每次 Launcher 唤起时切换 activation policy。
+- Electron 44.3.0 会忽略 show 后一秒内的 hide。调用 hide 后若 Dock 仍可见，安排一秒后的状态重试；重试重新读取普通窗口列表，窗口状态变化会取消旧定时器，退出时清理定时器。快速关闭设置允许图标短暂停留，但不能永久残留；不绕过 Electron 防止重复 Dock 图标的保护逻辑。
 - 用户固定在 Dock 的启动图标由 macOS 管理，不承诺删除固定图标。
+- 取得单实例锁后初始化 Dock 隐藏状态；仅开发态（`!app.isPackaged`）在每次 `dock.show()` 完成后重新设置自定义图标，避免隐藏后再显示时恢复 Electron 开发宿主图标；正式包使用打包配置中的图标，不调用运行时 `setIcon`。启动时没有普通窗口，不单独设置 Dock 图标。Launcher 的跨桌面设置传入 `skipTransformProcessType: true`，避免 Electron 隐式显示 Dock；进程类型由普通窗口管理控制。开发态使用 Electron.app，主进程 JavaScript 执行前的系统启动图标仍由该开发宿主决定。
 
 ### 焦点会话与隐藏原因
 
@@ -104,6 +108,10 @@ Electron 44.3.0 本地类型说明区分 activate 与 did-become-active：前者
 最小实验临时注销 `Command+Space` 并交给菜单 accelerator。用户反馈「看上去正常了」；17:36:26.188 菜单搜索动作触发且全局注册恢复成功，17:36:26.257 收到窗口 show，未见积压的 toggle 回调重复触发。随后按用户要求扩展为统一注册表、加入剪贴板／快速对话菜单项、展示配置快捷键并增加分隔线。用户要求合并前清理日志，已移除临时诊断日志与计时探针，保留注册失败等错误日志；窗口与焦点捕获逻辑没有为此改动。
 
 ### 已接受的取舍与证据边界
+
+用户补充「打开设置后立即关闭，Dock 图标不消失」。新增模拟 Electron 一秒隐藏保护的测试，旧实现稳定失败；增加隐藏后的状态检查与重试后，14 项普通窗口／Launcher 定向测试和桌面类型检查通过，覆盖快速关闭、等待期间重新打开及退出取消重试。此处测试验证协调逻辑，真实快速开关窗口的视觉结果仍待用户验证。
+
+2026-09-28 补充修复启动／console 重启后无普通窗口仍显示 Dock：核对 Electron 44.3.0 的 `NativeWindowMac::SetVisibleOnAllWorkspaces`，默认参数会调用 `DockShow()`，而 `Browser::DockHide()` 会忽略 show 后一秒内的 hide；改为跳过隐式进程类型切换。12 项 Launcher／普通窗口定向测试和桌面类型检查通过。确认当前工作区实例归属后执行 `just rs`，17:54:29 启动日志正常，原生 `NSRunningApplication.activationPolicy` 实测为 accessory（1），符合无普通窗口时不显示 Dock 的策略。图标主体实测为 `824x824+100+100` 和 `412x412+50+50`；随后用户反馈 ready 前设置图标无效，打开设置仍显示 Electron 图标；已将设置时机改为 ready 后、服务初始化前，类型检查通过并重启开发实例。用户进一步确认 ready 后设置会短暂生效，但隐藏再显示后又恢复 Electron 图标。因此已改为每次 Dock show 完成后设置，移除启动时的一次性设置；15 项定向测试和类型检查通过，包含两次 show/hide 的图标重设回归。原生 UI 自动读取超时，最终 Dock 图标仍待用户实测；不能将此前 accessory 状态验证当作图标验证。冷启动最初瞬间仍由 Electron 开发宿主决定。
 
 此前仅移除搜索 accelerator 的处理已由菜单期间的统一快捷键交接取代。主窗口快捷键的最小交接方案经用户实测反馈正常；后续增加的隐藏项通路有自动测试与 Electron 原生属性支持，但未取得独立的真实交互验证，不能将主窗口验证扩写为全部场景通过。
 
