@@ -154,8 +154,8 @@ Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetA
 
 #### 模型参数
 
-- 上下文缺省为 131,072（128K），最大输出缺省为 16,384（16K）；预设、导入或用户填写的值优先。统一使用整数 tokens 存储和比较，不按 K／M 字符串匹配。
-- 默认值在配置规范化时补齐；正整数且最大输出不超过上下文，否则提示修改，不静默截断。预设／远端显式值不是默认值，不覆盖已有用户修改。
+- 上下文缺省为 256,000（256K），最大输出缺省为 32,768（32K），沿用现有下拉选项的数值口径；预设、导入或用户填写的值优先。统一使用整数 tokens 存储和比较，不按 K／M 字符串匹配。
+- 添加／编辑模型时，未填写或清空的上限保留为空，以 placeholder 显示默认 token 数；文件和 Settings 快照保留未设置语义，重新编辑不自动变成显式值。生成运行时配置时分别补齐缺失上限；请求未指定 maxTokens 时沿用该模型的有效输出上限。保存校验按补齐后的有效值检查正整数及输出不超过上下文，否则提示修改，不静默截断。预设／远端显式值及历史文件中的已存值继续优先，不推测是否来自旧默认值。
 - 思考强度只保存明确的 reasoning 和 thinkingLevelMap，不保存“自动适配”或“原有映射”标记。预设／导入映射逐键匹配现有选项；缺失或未匹配时初始化为不支持推理，用户选择具体方案后才开启。
 - 选项顺序：不支持推理；关闭／低／中／高／更高／最高；关闭／低／高／最高；关闭／高／最高；最低／低／中／高；低／中／高；低／高／最高。第一个支持推理的方案对应正式 OpenAI gpt-6-sol，minimal=null，无 ultra。关闭推理时清除旧映射，不能保留隐藏映射使后端再次开启。
 - DeepSeek Flash ID 为 deepseek-flash，名称 DeepSeek-V4.1-Flash；保留当前已确认预设数值及 Flash／Pro 各自映射。
@@ -179,7 +179,7 @@ ModelConfigDocument
 │   └── models[]
 │       ├── id, modelId, name?
 │       ├── input, reasoning, thinkingLevelMap?
-│       ├── contextWindow, maxTokens
+│       ├── contextWindow?, maxTokens?
 │       └── headers?, compat?, samplingParams?, cost?
 └── defaults
     ├── modelRef?
@@ -288,6 +288,8 @@ Quick Chat 在 hook 初始化时生成随机 UUID，作为已有 Generate option
 - 在 renderer 中直接调用模型：无法保住当前 main／Gateway 的调用与凭据边界。
 
 ## Outcome
+
+2026-09-29 调整模型缺省上限为 context window 256,000、max output 32,768，沿用下拉列表的 256K／32K 数值。新增／编辑表单使用空值加 placeholder，清空不立即填回默认数值；保存、文件重新加载及 Settings 快照保留缺省字段，运行时展开时分别补齐，已有明确值继续优先。契约仅同步 optional 语义注释并重新生成，字段与路由未改动。新增回归覆盖缺省／单字段缺省／显式旧值、清空后的文件往返、有效上限校验、表单占位与实际 worker HTTP 默认输出预算。58 项 LLM 测试、97 项组件测试、just check、desktop build、契约／绑定漂移与差异检查通过；受契约生成影响的 napi 产物已重建。未启动 Electron、调用真实远端模型或修改用户配置文件，未提交。
 
 2026-09-26 完成通用 Responses WebSocket 切片：保留现有协议、base URL、API Key 和用户配置文件；现有开关／auto 偏好通过运行时契约生效。pnpm patch 复用 Codex 传输并修复共享连接池的隔离与并发／清理边界；通用请求／回复来源、参数、SSE 和历史回放保持。手测脚本增加稳定会话与单次传输覆盖。
 

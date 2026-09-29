@@ -221,6 +221,10 @@ test("ManualModel", async () => {
   await userEvent.click(page.getByRole("button", { name: "+ 添加模型" }));
   const dialog = within(page.getByRole("dialog", { name: "添加模型" }));
   await expect(dialog.getByRole("button", { name: "添加模型" })).toBeDisabled();
+  await expect(dialog.getByRole("textbox", { name: "上下文窗口大小" })).toHaveValue("");
+  await expect(dialog.getByRole("textbox", { name: "上下文窗口大小" })).toHaveAttribute("placeholder", "256000");
+  await expect(dialog.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("");
+  await expect(dialog.getByRole("textbox", { name: "最大输出 token" })).toHaveAttribute("placeholder", "32768");
   fireEvent.change(dialog.getByLabelText("模型 ID"), { target: { value: "demo-text" } });
   await expect(dialog.getByRole("alert")).toHaveTextContent("该模型已添加");
   fireEvent.change(dialog.getByLabelText("模型 ID"), { target: { value: "manual-model" } });
@@ -236,6 +240,8 @@ test("ManualModel", async () => {
   await userEvent.click(page.getAllByRole("button", { name: "修改" })[1]);
   await userEvent.click(page.getByRole("button", { name: "编辑 manual-model" }));
   const saved = within(page.getByRole("dialog", { name: "编辑模型" }));
+  await expect(saved.getByRole("textbox", { name: "上下文窗口大小" })).toHaveValue("");
+  await expect(saved.getByRole("textbox", { name: "上下文窗口大小" })).toHaveAttribute("placeholder", "256000");
   await expect(saved.getByLabelText("模型名称（可选）")).toHaveValue("My Model");
   await expect(saved.getByRole("checkbox", { name: "支持图片输入" })).toBeChecked();
   await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("8192");
@@ -277,7 +283,8 @@ test("CustomMaxOutput", async () => {
   await userEvent.click(page.getByRole("button", { name: "64K" }));
   await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("65536");
   fireEvent.change(saved.getByRole("textbox", { name: "最大输出 token" }), { target: { value: "" } });
-  await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("16384");
+  await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("");
+  await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveAttribute("placeholder", "32768");
 });
 
 async function addFetchedModels() {

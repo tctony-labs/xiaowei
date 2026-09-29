@@ -76,13 +76,17 @@ test("save assigns stable IDs, defaults and readable JSON, edits preserve keys a
   const saved = first.providers[0];
   assert.ok(saved.id);
   assert.ok(saved.models[0].id);
-  assert.equal(saved.models[0].contextWindow, 131072);
-  assert.equal(saved.models[0].maxTokens, 16384);
+  assert.equal(saved.models[0].contextWindow, undefined);
+  assert.equal(f.applied[0][0].contextWindow, 256000);
+  assert.equal(saved.models[0].maxTokens, undefined);
+  assert.equal(f.applied[0][0].maxTokens, 32768);
   assert.equal(f.applied[0][0].apiKey, "environment-secret");
   assert.ok(!toJsonString(ModelSettingsSnapshotSchema, first).includes("secret"));
   const file = await readFile(f.path, "utf8");
   assert.ok(file.includes('\n  "version": 1,\n'));
   assert.ok(file.endsWith("\n"));
+  assert.ok(!file.includes("contextWindow"));
+  assert.ok(!file.includes("maxTokens"));
   const selected = await f.api.updateDefaults(
     create(UpdateModelDefaultsRequestSchema, {
       expectedRevision: first.revision,
@@ -106,6 +110,8 @@ test("save assigns stable IDs, defaults and readable JSON, edits preserve keys a
   assert.equal(f.applied.at(-1)[0].modelId, "new-upstream");
   const loaded = await loadConfig({}, f.path);
   assert.equal(resolveModels(loaded.document, {})[0].apiKey, "inline-secret");
+  assert.equal(loaded.document.providers[0].models[0].contextWindow, undefined);
+  assert.equal(loaded.document.providers[0].models[0].maxTokens, undefined);
   const deleted = await f.api.deleteProvider(
     create(DeleteProviderRequestSchema, {
       expectedRevision: edited.revision,
@@ -260,4 +266,30 @@ test("draft discovery goes through the built worker without saving and cancellat
   await slow.cancel();
   await rejected;
   await disconnected;
+});
+
+test("clearing explicit limits persists unset values and restores runtime defaults", async (t) => {
+  const f = await fixture(t);
+  const draft = provider();
+  draft.models[0] = { ...draft.models[0], contextWindow: 131072, maxTokens: 16384 };
+  const first = await save(f.api, 1n, draft);
+  assert.equal(f.applied[0][0].contextWindow, 131072);
+  assert.equal(f.applied[0][0].maxTokens, 16384);
+  const saved = first.providers[0];
+  const second = await save(
+    f.api,
+    first.revision,
+    {
+      ...saved,
+      models: [{ ...saved.models[0], contextWindow: undefined, maxTokens: undefined }],
+    },
+    preserve,
+  );
+  assert.equal(second.providers[0].models[0].contextWindow, undefined);
+  assert.equal(second.providers[0].models[0].maxTokens, undefined);
+  const loaded = await loadConfig({}, f.path);
+  assert.equal(loaded.document.providers[0].models[0].contextWindow, undefined);
+  assert.equal(loaded.document.providers[0].models[0].maxTokens, undefined);
+  assert.equal(f.applied.at(-1)[0].contextWindow, 256000);
+  assert.equal(f.applied.at(-1)[0].maxTokens, 32768);
 });

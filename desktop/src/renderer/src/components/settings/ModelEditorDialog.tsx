@@ -42,10 +42,8 @@ export default function ModelEditorDialog({
     ? Object.fromEntries(filledHeaders.map((row) => [row.key.trim(), row.value]))
     : undefined;
 
-  const [context, setContext] = useState(
-    (originalId ? provider.modelContextWindows[originalId] : undefined) ?? defaultContextWindow,
-  );
-  const [maxOutput, setMaxOutput] = useState(initialConfig?.maxOutput ?? defaultMaxTokens);
+  const [context, setContext] = useState(originalId ? provider.modelContextWindows[originalId] : undefined);
+  const [maxOutput, setMaxOutput] = useState(initialConfig?.maxOutput);
   const id = modelId.trim();
   const duplicate = id !== originalId && provider.models.includes(id);
   const thinkingError = reasoning && !thinkingLevelMap ? "请选择明确的思考强度方案" : "";
@@ -173,8 +171,8 @@ export default function ModelEditorDialog({
             <ContextWindowField
               value={context}
               suggestedValue={originalId ? provider.modelContextLimits[originalId] : undefined}
-              unsetLabel="未设置"
-              onChange={(value) => setContext(value ?? defaultContextWindow)}
+              unsetLabel={String(defaultContextWindow)}
+              onChange={setContext}
             />
           </div>
         </div>
@@ -184,10 +182,10 @@ export default function ModelEditorDialog({
             <ContextWindowField
               value={maxOutput}
               suggestedValue={initialConfig?.defaultMaxOutput}
-              unsetLabel="未设置"
+              unsetLabel={String(defaultMaxTokens)}
               presets={COMMON_MAX_OUTPUT_TOKENS}
               customLabel="最大输出 token"
-              onChange={(value) => setMaxOutput(value ?? defaultMaxTokens)}
+              onChange={setMaxOutput}
             />
           </div>
         </div>

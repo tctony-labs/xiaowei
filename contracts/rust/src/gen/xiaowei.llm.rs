@@ -816,7 +816,8 @@ pub struct ConfiguredModel {
     pub reasoning: bool,
     #[prost(string, optional, tag = "6")]
     pub thinking_level_map_json: ::core::option::Option<::prost::alloc::string::String>,
-    /// Absent defaults to 131072 / 16384 tokens. Positive integers, output <= context.
+    /// Absent stays unset in settings; runtime defaults to 256000 / 32768 tokens.
+    /// Positive integers, output <= context after applying defaults.
     #[prost(double, optional, tag = "7")]
     pub context_window: ::core::option::Option<f64>,
     #[prost(double, optional, tag = "8")]

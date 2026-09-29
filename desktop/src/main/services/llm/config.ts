@@ -13,9 +13,20 @@ import {
 export interface ConfiguredModel
   extends Omit<
     ModelConfig,
-    "provider" | "api" | "baseUrl" | "apiKey" | "apiKeyEnv" | "name" | "cost" | "defaultTransport"
+    | "provider"
+    | "api"
+    | "baseUrl"
+    | "apiKey"
+    | "apiKeyEnv"
+    | "name"
+    | "cost"
+    | "defaultTransport"
+    | "contextWindow"
+    | "maxTokens"
   > {
   name?: string;
+  contextWindow?: number;
+  maxTokens?: number;
   cost?: ModelConfig["cost"];
 }
 
@@ -76,6 +87,8 @@ export function resolveKey(
 function runtimeModel(provider: ConfiguredProvider, model: ConfiguredModel, apiKey: string): ResolvedModelConfig {
   return {
     ...model,
+    contextWindow: model.contextWindow === undefined ? defaultContextWindow : model.contextWindow,
+    maxTokens: model.maxTokens === undefined ? defaultMaxTokens : model.maxTokens,
     name: model.name?.trim() || model.modelId,
     cost: model.cost === undefined ? zeroCost : model.cost,
     provider: provider.provider,
@@ -173,8 +186,8 @@ export function normalizeConfig(value: unknown): ModelConfigDocument {
         thinkingLevelMap: model.thinkingLevelMap,
         input: model.input === undefined ? ["text"] : model.input,
         reasoning: model.reasoning === undefined ? false : model.reasoning,
-        contextWindow: model.contextWindow === undefined ? defaultContextWindow : model.contextWindow,
-        maxTokens: model.maxTokens === undefined ? defaultMaxTokens : model.maxTokens,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
       } as ConfiguredModel;
       validateModel(runtimeModel(provider, candidate, "validation"));
       const thinking = candidate.reasoning && matchThinkingMap(candidate.thinkingLevelMap);

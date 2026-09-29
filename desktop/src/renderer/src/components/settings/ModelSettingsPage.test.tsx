@@ -30,8 +30,6 @@ test("product model editor preserves stable IDs and hidden fields and saves only
             id: "local-model",
             modelId: "upstream",
             name: "Display",
-            contextWindow: 131072,
-            maxTokens: 16384,
             compatJson: '{"supportsStore":false}',
             samplingParamsJson: '{"top_p":0.8}',
           },
@@ -42,6 +40,8 @@ test("product model editor preserves stable IDs and hidden fields and saves only
   const save = vi.fn((request) => {
     expect(request.expectedRevision).toBe(1n);
     expect(request.provider.models[0].id).toBe("local-model");
+    expect(request.provider.models[0].contextWindow).toBeUndefined();
+    expect(request.provider.models[0].maxTokens).toBeUndefined();
     expect(request.provider.models[0].modelId).toBe("renamed-upstream");
     expect(request.provider.models[0].compatJson).toBe('{"supportsStore":false}');
     expect(request.key.operation.case).toBe("preserve");
@@ -67,6 +67,10 @@ test("product model editor preserves stable IDs and hidden fields and saves only
   await userEvent.click(screen.getByRole("button", { name: "修改" }));
   expect(screen.getByPlaceholderText("已配置 API Key，留空保留当前值")).toHaveValue("");
   await userEvent.click(screen.getByRole("button", { name: "编辑 upstream" }));
+  expect(screen.getByRole("textbox", { name: "上下文窗口大小" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "上下文窗口大小" })).toHaveAttribute("placeholder", "256000");
+  expect(screen.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "最大输出 token" })).toHaveAttribute("placeholder", "32768");
   fireEvent.change(screen.getByRole("textbox", { name: "模型 ID" }), { target: { value: "renamed-upstream" } });
   await userEvent.click(screen.getByRole("button", { name: "保存模型" }));
   expect(save).not.toHaveBeenCalled();

@@ -15,7 +15,6 @@ import {
 } from "xiaowei-contracts";
 import { bindHandlers, bindStreamClient, bindStreamHandlers, GatewayFailure } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
-import { defaultContextWindow, defaultMaxTokens } from "../../../shared/llm-models";
 import {
   type ConfiguredModel,
   type ConfiguredProvider,
@@ -53,8 +52,8 @@ function decodeModel(model: WireModel): ConfiguredModel {
       : ["text"],
     reasoning: model.reasoning,
     thinkingLevelMap: parse(model.thinkingLevelMapJson),
-    contextWindow: model.contextWindow ?? defaultContextWindow,
-    maxTokens: model.maxTokens ?? defaultMaxTokens,
+    contextWindow: model.contextWindow,
+    maxTokens: model.maxTokens,
     headers: model.headers,
     compat: parse(model.compatJson),
     samplingParams: parse(model.samplingParamsJson),
@@ -157,8 +156,8 @@ export function registerModelSettings(
             input: model.input,
             reasoning: model.reasoning,
             thinkingLevelMapJson: model.thinkingLevelMapJson,
-            contextWindow: model.contextWindow,
-            maxTokens: model.maxTokens,
+            contextWindow: provider.models[index].contextWindow,
+            maxTokens: provider.models[index].maxTokens,
             headers: model.headers,
             compatJson: model.compatJson,
             samplingParamsJson: model.samplingParamsJson,

@@ -55,7 +55,8 @@ export type ConfiguredModel = Message<"xiaowei.llm.ConfiguredModel"> & {
   thinkingLevelMapJson?: string | undefined;
 
   /**
-   * Absent defaults to 131072 / 16384 tokens. Positive integers, output <= context.
+   * Absent stays unset in settings; runtime defaults to 256000 / 32768 tokens.
+   * Positive integers, output <= context after applying defaults.
    *
    * @generated from field: optional double context_window = 7;
    */

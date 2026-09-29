@@ -206,3 +206,27 @@ test("provider transport preference survives runtime protobuf without changing p
     }
   }
 });
+
+test("missing limits remain unset on disk and resolve independently before Pi calls", () => {
+  for (const [contextWindow, maxTokens, expectedContext, expectedOutput] of [
+    [undefined, undefined, 256000, 32768],
+    [512000, undefined, 512000, 32768],
+    [undefined, 8192, 256000, 8192],
+    [131072, 16384, 131072, 16384],
+  ]) {
+    const document = normalizeConfig(configDocument([{ ...model, contextWindow, maxTokens }]));
+    assert.equal(document.providers[0].models[0].contextWindow, contextWindow);
+    assert.equal(document.providers[0].models[0].maxTokens, maxTokens);
+    const pi = toPiModel(resolveDocument(document, {})[0]);
+    assert.equal(pi.contextWindow, expectedContext);
+    assert.equal(pi.maxTokens, expectedOutput);
+  }
+  for (const limits of [
+    { contextWindow: 8192, maxTokens: undefined },
+    { contextWindow: undefined, maxTokens: 256001 },
+    { contextWindow: null },
+    { maxTokens: null },
+  ]) {
+    assert.throws(() => resolveModels([{ ...model, ...limits }], {}), invalid);
+  }
+});

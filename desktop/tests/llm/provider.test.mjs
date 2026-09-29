@@ -106,3 +106,20 @@ test("LLM cancellation and owner close abort HTTP, including a paused consumer",
   await pending;
   await waitFor(() => fixture.disconnected.has("close"));
 });
+
+test("unset configured limits reach built worker requests as defaults and explicit budgets win", async (t) => {
+  const { normalizeConfig, resolveModels } = await import("../../src/main/services/llm/config.ts");
+  const { configDocument } = await import("../fixtures/model-config.mjs");
+  const fixture = await llmFixture(t);
+  const document = normalizeConfig(
+    configDocument([{ ...fixture.model, contextWindow: undefined, maxTokens: undefined }]),
+  );
+  await fixture.owner.updateModels(resolveModels(document, {}));
+  for (const maxTokens of [undefined, 1024]) {
+    const stream = await fixture.client.generate(request("defaults", { maxTokens }));
+    for await (const _chunk of stream) {
+      // Inspect the actual Pi HTTP request after generation completes.
+    }
+    assert.equal(fixture.requests.at(-1).body.max_tokens, maxTokens ?? 32768);
+  }
+});

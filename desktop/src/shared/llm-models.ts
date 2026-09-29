@@ -52,8 +52,8 @@ export const thinkingLevelPresets: Array<{ id: string; label: string; map: Think
   },
 ];
 
-export const defaultContextWindow = 131_072;
-export const defaultMaxTokens = 16_384;
+export const defaultContextWindow = 256_000;
+export const defaultMaxTokens = 32_768;
 
 export function matchThinkingMap(map: ThinkingLevelMap | undefined) {
   return thinkingLevelPresets.find((preset) => thinkingLevels.every((level) => preset.map[level] === map?.[level]));

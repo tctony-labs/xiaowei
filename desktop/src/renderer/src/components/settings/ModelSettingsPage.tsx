@@ -13,7 +13,6 @@ import {
   UpdateModelDefaultsRequestSchema,
 } from "xiaowei-contracts";
 import type { Subscription } from "xiaowei-gateway";
-import { defaultContextWindow } from "../../../../shared/llm-models";
 import type { Services } from "../../services";
 import { ModelSettings, type ModelValues, type Provider } from "./ModelSettings";
 
@@ -33,7 +32,9 @@ function toProvider(provider: ConfiguredProvider, revision: bigint): Provider {
     unavailableReason: provider.unavailableReason,
     models: provider.models.map((model) => model.modelId),
     modelContextWindows: Object.fromEntries(
-      provider.models.map((model) => [model.modelId, model.contextWindow ?? defaultContextWindow]),
+      provider.models.flatMap((model) =>
+        model.contextWindow === undefined ? [] : [[model.modelId, model.contextWindow]],
+      ),
     ),
     modelContextLimits: {},
     modelConfigs: Object.fromEntries(
