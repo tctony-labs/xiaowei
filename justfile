@@ -121,9 +121,13 @@ rs:
 storybook:
     pnpm --dir desktop storybook
 
-# Start the independent HTTP service.
-server:
-    cd server && go run ./cmd/xiaowei-server
+# Start the interactive Go development server.
+server: prepare-server
+    node scripts/dev/server.mjs
+
+# Check local server configuration and start development dependencies.
+prepare-server:
+    node scripts/dev/server.mjs --prepare
 
 # Generate contracts and their Rust Gateway bindings.
 gen:

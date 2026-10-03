@@ -20,7 +20,7 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 - 当前不引入 Rust 工程、原生模块或 sidecar；有实际需求时再接入。
 - Go 服务端位于 `server/`，使用独立 module，当前只有健康检查 HTTP 服务。
 - 根 pnpm 工作区与格式配置统一管理各自生态，justfile 提供已经验证的最小开发入口。
-- `packages/` 保留为独立 npm 包目录，没有创建无用途的示例包；初始化时以 `protocol/` 存放最小协议说明（现已移除，健康检查用法见 [服务端说明](../../../server/README.md)），`deploy/` 存放服务端部署示例。
+- `packages/` 保留为独立 npm 包目录，没有创建无用途的示例包；初始化时以 `protocol/` 存放最小协议说明（现已移除，健康检查用法见 [服务端说明](../../../server/README.md)），服务端部署示例原位于 `deploy/`，现已迁至 `server/deploy/`，见 [用户与登录](2026-09-25-user-authentication.md)。
 - `mobile/` 留待实际开发，未创建空工程。独立开发文档在工程落地后提取到 `docs/`，不在 record 重复维护当前事实。
 - 开发与打包共用 `com.tctony.xiaowei` 数据目录，不按工作区或 tag 隔离，`just start` 通过全局 PID 切换运行实例；格式化与只读检查分开，不引入自动暂存、提交或内部项目依赖。
 

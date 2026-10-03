@@ -39,3 +39,6 @@ worktrees/
 
 # Compiled Gateway package
 gateway/ts/dist/
+
+# Runtime server configuration
+server/config/server.yaml

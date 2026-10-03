@@ -1,0 +1,21 @@
+# Development dependency services. Go runs on the host.
+services:
+  db:
+    image: postgres:17.9-bookworm
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: ${XIAOWEI_DATABASE_NAME-xiaowei}
+      POSTGRES_USER: ${XIAOWEI_DATABASE_USER-xiaowei}
+      POSTGRES_PASSWORD: ${XIAOWEI_DATABASE_PASSWORD:?Set XIAOWEI_DATABASE_PASSWORD in server/config/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

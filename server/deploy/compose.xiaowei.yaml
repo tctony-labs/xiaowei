@@ -1,0 +1,29 @@
+# Deployment adds the application to the dependency services in compose.yaml.
+services:
+  server:
+    image: ${XIAOWEI_SERVER_IMAGE:?Set XIAOWEI_SERVER_IMAGE in config/.env}
+    command: ["--config", "/etc/xiaowei/server.yaml"]
+    env_file:
+      - ../config/.env
+    environment:
+      XIAOWEI_LISTEN_ADDR: "0.0.0.0:10001"
+      XIAOWEI_DATABASE_HOST: "db"
+      XIAOWEI_DATABASE_NAME: ${XIAOWEI_DATABASE_NAME-xiaowei}
+      XIAOWEI_DATABASE_USER: ${XIAOWEI_DATABASE_USER-xiaowei}
+      XIAOWEI_DATABASE_PASSWORD: ${XIAOWEI_DATABASE_PASSWORD:?Set XIAOWEI_DATABASE_PASSWORD in server/config/.env}
+    volumes:
+      - type: bind
+        source: ../config/server.yaml
+        target: /etc/xiaowei/server.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:10001:10001"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    ports: !reset []
