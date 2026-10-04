@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { stripVTControlCharacters } from "node:util";
 
 for (const signal of ["SIGTERM", 0]) {
   test(`session closes real Vite and exits on process group EPERM during ${signal}`, {
@@ -65,6 +66,7 @@ for (const signal of ["SIGTERM", 0]) {
       output += chunk;
     });
     assert.deepEqual(await closed, [1, null], output);
+    output = stripVTControlCharacters(output);
     assert.match(output, /kill EPERM/);
     assert.ok(output.includes(`signal=${signal}`), output);
     assert.match(output, /Process group snapshot/);
