@@ -1,8 +1,10 @@
 FROM golang:1.26.5 AS build
-WORKDIR /src
-COPY go.mod go.sum ./
+WORKDIR /src/server
+COPY server/go.mod server/go.sum ./
+COPY contracts/go /src/contracts/go
 RUN go mod download
-COPY . ./
+COPY server/cmd ./cmd
+COPY server/internal ./internal
 RUN CGO_ENABLED=0 go build -trimpath -o /xiaowei-server ./cmd/xiaowei-server
 
 FROM gcr.io/distroless/static-debian12:nonroot

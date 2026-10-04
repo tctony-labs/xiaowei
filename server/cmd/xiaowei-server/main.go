@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
 	"github.com/tctony-labs/xiaowei/server/internal/httpapi"
@@ -72,13 +73,19 @@ func serve(ctx context.Context, configPath string) error {
 	}
 	defer store.Close()
 	slog.Info("PostgreSQL connected")
+	authService, err := auth.New(store, auth.Options{
+		AccessTokenTTL: cfg.Auth.AccessTokenTTL, RefreshTokenTTL: cfg.Auth.RefreshTokenTTL,
+	})
+	if err != nil {
+		return err
+	}
 
 	listener, err := net.Listen("tcp", cfg.Server.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
 	}
 	server := &http.Server{
-		Handler:           httpapi.NewHandler(store.Ping),
+		Handler:           httpapi.NewHandler(store.Ping, authService, cfg.Server.RateLimit, cfg.Auth.RateLimit),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

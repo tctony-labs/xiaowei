@@ -1,6 +1,6 @@
 # Go 服务端
 
-独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户基础存储和健康检查；邮箱注册、密码登录与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，设计与验收结果见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md)。
+独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，设计与验收结果见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md)。
 
 ## 模块索引
 
@@ -8,12 +8,22 @@
 | --- | --- |
 | `cmd/xiaowei-server/` | 进程入口、模块装配与启动退出 |
 | `internal/config/` | 配置读取与校验 |
-| `internal/db/` | PostgreSQL 连接、迁移与用户基础存储；SQL 位于 `migrations/` |
-| `internal/httpapi/` | HTTP 路由与健康检查 |
-| [`config/`](config/) | 本机与 Docker 共用的 YAML、`.env` 及模板 |
-| [`deploy/`](deploy/) | Dockerfile 与本地开发依赖清单 |
+| `internal/db/` | PostgreSQL 连接、迁移及用户、身份与会话存储 |
+| `internal/auth/` | 密码校验、随机登录凭据与设备会话规则 |
+| `internal/httpapi/` | HTTP 路由、认证接入、限流与健康检查 |
+| `config/` | YAML、`.env` 及模板 |
+| `deploy/` | Dockerfile 与 Compose 文件 |
 
-测试与实现并排放置。
+## 文档
+
+文档按配置准备、通用接入规则、业务功能、部署交付的顺序排列；通用规则在前，具体业务在后。
+
+- [配置模板](config/server.example.yaml)
+- [环境变量模板](config/.env.example)
+- [HTTP 接口](docs/http.md)
+- [限流设计](docs/rate-limiting.md)
+- [认证与会话](docs/authentication.md)
+- [部署交付](docs/deployment.md)
 
 ## 本地开发
 
@@ -63,9 +73,11 @@ curl -f http://127.0.0.1:10001/healthz
 curl -f http://127.0.0.1:10001/readyz
 ```
 
-`healthz` 表示进程可响应；`readyz` 在数据库可用时返回 200，否则返回 503。
+检查响应中的 `code = 0`，不能仅凭 HTTP 200 或 curl 退出状态判断就绪。语义见 [HTTP 接口](docs/http.md#健康检查)。
 
 ## 测试与构建
+
+测试与实现并排放置。
 
 在 `server/` 中执行：
 
@@ -76,14 +88,10 @@ go vet ./...
 CGO_ENABLED=0 go build -trimpath -o bin/xiaowei-server ./cmd/xiaowei-server
 ```
 
-数据库集成测试需设置 `XIAOWEI_TEST_DATABASE_URL`，使用具有建库权限的专用测试连接。测试只操作自身创建的隔离数据库；未设置该变量时明确跳过，不能视为完整存储验收。
+数据库和认证集成测试需设置 `XIAOWEI_TEST_DATABASE_URL`，使用具有建库权限的专用测试连接。测试只操作自身创建的隔离数据库；认证测试通过真实 TCP HTTP 验证登录、刷新、退出及服务重启。未设置该变量时明确跳过，不能视为完整存储或认证验收。
 
 开发启动脚本的测试在仓库根目录执行：
 
 ```sh
 node --test scripts/dev/server.test.mjs
 ```
-
-## TODO：部署交付
-
-部署方案留到后续切片统一对齐，目前不确定部署文件组织与执行流程。

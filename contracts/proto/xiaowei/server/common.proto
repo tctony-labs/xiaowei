@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package xiaowei.server.common;
+
+// Common error codes occupy 10000-10099; zero means success.
+enum ErrorCode {
+  ERROR_CODE_SUCCESS = 0;
+  ERROR_CODE_INVALID_REQUEST = 10000;
+  ERROR_CODE_INVALID_ARGUMENT = 10001;
+  ERROR_CODE_UNAUTHENTICATED = 10002;
+  ERROR_CODE_PERMISSION_DENIED = 10003;
+  ERROR_CODE_NOT_FOUND = 10004;
+  ERROR_CODE_REQUEST_TOO_LARGE = 10005;
+  ERROR_CODE_UNSUPPORTED_MEDIA_TYPE = 10006;
+  ERROR_CODE_RATE_LIMITED = 10007;
+  ERROR_CODE_UNAVAILABLE = 10008;
+  ERROR_CODE_INTERNAL_ERROR = 10009;
+}
+
+// Shared failure envelope, compatible with each typed business response.
+message ErrorResponse {
+  // Numeric value from ErrorCode or the business enum; ranges must not overlap.
+  // Nonzero on failure; transport success alone does not mean business success.
+  int32 code = 1;
+  // Safe human-readable description. Clients must not parse this to classify errors.
+  string msg = 2;
+}

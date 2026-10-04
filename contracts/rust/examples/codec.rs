@@ -4,6 +4,7 @@ use std::io::{Read, Write};
 use xw_contracts::{
     FILE_DESCRIPTOR_SET,
     testing::{Changed, Envelope},
+    xiaowei::server::auth::{LoginRequest, LoginResponse},
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,7 +36,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     let mut input = Vec::new();
     std::io::stdin().read_to_end(&mut input)?;
-    let value = Envelope::decode(input.as_slice())?;
-    std::io::stdout().write_all(&value.encode_to_vec())?;
+    let output = match std::env::args().nth(1).as_deref() {
+        None => Envelope::decode(input.as_slice())?.encode_to_vec(),
+        Some("login-request") => LoginRequest::decode(input.as_slice())?.encode_to_vec(),
+        Some("login-response") => LoginResponse::decode(input.as_slice())?.encode_to_vec(),
+        Some(_) => return Err("unknown codec mode".into()),
+    };
+    std::io::stdout().write_all(&output)?;
     Ok(())
 }

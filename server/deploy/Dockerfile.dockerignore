@@ -1,0 +1,13 @@
+**
+!server/
+!server/go.mod
+!server/go.sum
+!server/cmd/
+!server/cmd/**
+!server/internal/
+!server/internal/**
+!contracts/
+!contracts/go/
+!contracts/go/**
+**/.env
+**/.env.*

@@ -8,6 +8,10 @@
 
 不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约。只定义当前需要的能力，真正共用的消息才放入 `common`。
 
+## 声明组织
+
+业务 proto（包括 Gateway 与服务端契约）统一按以下顺序组织：公共枚举与数据类型在前，再按接口将 Request、专用结果类型和 Response 放在一起，service 定义放在最后。不将所有 Request 和所有 Response 分别集中排列；请求复用 Empty 时不新增空 Request。
+
 ## 消息语义
 
 - 字段名应说明内容；同领域、同含义的消息可以复用，不因标量类型相同就统一包装为 `Text`、`Boolean`、`Count` 等通用消息。

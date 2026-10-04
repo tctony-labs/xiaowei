@@ -1,5 +1,9 @@
 server:
   listen_addr: "127.0.0.1:10001"
+  rate_limit:
+    ip:
+      limit: 300
+      window: 1m
 
 database:
   host: "127.0.0.1"
@@ -8,3 +12,17 @@ database:
   user: "xiaowei"
   password: "password" # Local development; override via XIAOWEI_DATABASE_PASSWORD.
   ssl_mode: "disable" # Local development only; default is verify-full.
+
+auth:
+  access_token_ttl: "2h"
+  refresh_token_ttl: "720h" # 30 days; renewed on every successful refresh.
+  rate_limit:
+    login_ip:
+      limit: 30
+      window: 1m
+    login_email_ip:
+      limit: 5
+      window: 15m
+    refresh_ip:
+      limit: 60
+      window: 1m

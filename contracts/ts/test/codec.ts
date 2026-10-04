@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { create, fromBinary, fromJson, type JsonValue, toBinary } from "@bufbuild/protobuf";
+import { ChangedSchema, EnvelopeSchema, Fixture, LoginRequestSchema, LoginResponseSchema } from "xiaowei-contracts";
 
 const [rust, go] = process.argv.slice(2);
 assert.equal(Fixture.typeName, "testing.Fixture");
@@ -49,3 +49,66 @@ for (const invalid of [new Uint8Array([0x0a, 0x05, 0x01]), new Uint8Array([0x80]
 console.log(
   "Codec checks passed: TS/Rust/Go, both traversal orders, descriptors, presence, null, bytes, uint64, unknown and invalid wire.",
 );
+
+// Exercise the actual login contract through both generated native consumers.
+for (const token of [undefined, "", "bind-proof"]) {
+  const request = create(LoginRequestSchema, {
+    deviceId: "550e8400-e29b-41d4-a716-446655440000",
+    thirdpartyBindToken: token,
+    credential: { case: "password", value: { email: "a@example.com", password: "secret" } },
+  });
+  for (const order of [
+    [rust, go],
+    [go, rust],
+  ]) {
+    const bytes = order.reduce(
+      (data, bin) => new Uint8Array(execFileSync(bin, ["login-request"], { input: data })),
+      toBinary(LoginRequestSchema, request),
+    );
+    assert.deepEqual(fromBinary(LoginRequestSchema, bytes), request);
+  }
+}
+const loginResponses: JsonValue[] = [
+  { code: 0, msg: "ok", data: { authenticated: { device: { device_id: "device" } } } },
+  {
+    code: 0,
+    msg: "ok",
+    data: {
+      binding_required: {
+        thirdparty_bind_token: "proof",
+        expires_at_ms: "1791100000000",
+      },
+    },
+  },
+  { code: 10100, msg: "invalid credentials" },
+  { code: 0, msg: "ok", data: {} },
+];
+for (const json of loginResponses) {
+  const response = fromJson(LoginResponseSchema, json);
+  for (const order of [
+    [rust, go],
+    [go, rust],
+  ]) {
+    const bytes = order.reduce(
+      (data, bin) => new Uint8Array(execFileSync(bin, ["login-response"], { input: data })),
+      toBinary(LoginResponseSchema, response),
+    );
+    assert.deepEqual(fromBinary(LoginResponseSchema, bytes), response);
+  }
+}
+const binding = fromJson(LoginResponseSchema, {
+  code: 0,
+  msg: "ok",
+  data: { binding_required: { thirdparty_bind_token: "proof", expires_at_ms: "123" } },
+});
+assert.equal(binding.data?.result.case, "bindingRequired");
+if (binding.data?.result.case === "bindingRequired") {
+  assert.equal(binding.data.result.value.expiresAtMs, 123n);
+}
+assert.throws(() =>
+  fromJson(LoginResponseSchema, {
+    code: 0,
+    data: { authenticated: {}, binding_required: {} },
+  }),
+);
+console.log("Login codec checks passed: oneof results, password credentials, optional binding token and JSON.");

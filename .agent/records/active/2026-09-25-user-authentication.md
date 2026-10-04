@@ -26,17 +26,17 @@
 - 实施顺序为先完成邮箱注册、密码登录与找回密码，再接入微信绑定和登录。
 - 提前考虑身份归属、部署依赖、服务器切换与会话隔离。
 
-用户已要求开始第一个切片，并于 2026-09-26 确认 PostgreSQL；先通过 plan-align 对齐后，已于 2026-10-03 开始切片 01 实现与验收，其余切片仍未开始。方案收敛应覆盖：新用户如何加入、已有用户如何登录和恢复访问、部署者如何开放或限制注册、客户端如何选择服务器，以及登录会话如何用于 WebSocket。
+用户于 2026-09-26 确认 PostgreSQL，并通过 plan-align 对齐实施；切片 01 与 02 已于 2026-10-03 完成，其余切片未开始。方案收敛应覆盖：新用户如何加入、已有用户如何登录和恢复访问、部署者如何开放或限制注册、客户端如何选择服务器，以及登录会话如何用于 WebSocket。
 
 用户明确收藏问题先不考虑；收藏上传、同步与迁移不在本轮讨论或实施范围内，不在此预先决定切换账号后的收藏处理行为。
 
 ## How
 
-用户已确认 What 中的产品方向与边界；下文标为建议或候选的技术细节仍待实施设计，所有认证能力尚未实现。
+用户已确认 What 中的产品方向与边界；下文标为建议或候选的技术细节仍待实施设计。切片 01 与 02 已实现，邮箱注册、找回密码、微信和 WebSocket 尚未实现。
 
 ### 当前实现依据
 
-实施前 Go 服务端仅有健康检查与 HTTP 生命周期。切片 01 已新增 YAML 配置、PostgreSQL 用户存储、启动迁移与 `/readyz`；尚无认证接口或 WebSocket 接入。设置中的微信登录、UIN 和账号状态是旧版参考与预览，不是新版已实现的账号协议。
+实施前 Go 服务端仅有健康检查与 HTTP 生命周期。切片 01 新增 YAML 配置、PostgreSQL 用户存储、启动迁移与 `/readyz`；切片 02 新增邮箱密码登录、当前用户查询、刷新和退出接口，尚无注册或 WebSocket 接入。设置中的微信登录、UIN 和账号状态是旧版参考与预览，不是新版已实现的账号协议。
 
 ### 账号归属与数据模型
 
@@ -74,20 +74,48 @@
 2. 新用户选择注册，输入邮箱、验证码并设置密码；服务端再次检查注册策略，验证邮箱归属，在事务中消费验证码并创建包含密码哈希的唯一账号，随后建立会话。并发注册不能创建重复账号。
 3. 已有用户选择登录，验证邮箱与密码后建立设备会话；不存在的账号不在登录流程中静默创建。
 4. 客户端保存会话并连接 WSS；下次启动先尝试恢复会话，失效后才要求重新登录，临时断网不等同于退出登录。客户端保存会话凭据，不保存登录密码。
-5. 微信入口实施后，已登录用户在账号设置完成微信授权并绑定；已经绑定其他账号的微信身份拒绝再次绑定。以后微信登录进入同一 user_id，未绑定身份引导先通过邮箱登录。
+5. 微信入口实施后，已登录用户在账号设置完成微信授权并绑定；已经绑定其他账号的微信身份拒绝再次绑定。以后微信登录进入同一 user_id；未绑定身份返回 binding_required，用户选择邮箱注册或密码登录，并携带 thirdparty_bind_token 完成绑定。
 6. 忘记密码时，用户通过邮箱验证码验证后设置新密码；消费验证码、更新密码哈希和撤销旧会话应保持一致，再返回密码登录入口。验证码绑定邮箱与操作用途，注册、重置密码和邮箱绑定／更换不能互用。
 
 邮箱更换与微信解绑属于敏感账号操作，应要求近期身份验证；更换邮箱还需验证新邮箱归属，并保证唯一绑定。不得解绑最后一种可用登录方式。丢失邮箱且无可用绑定身份时不自动恢复或合并账号，具体恢复政策待定。
 
 ### 微信绑定与登录
 
-用户已确认先完成邮箱注册、密码登录与找回密码，再接入微信绑定与登录。微信作为第三方身份绑定到已有账号上：用户先完成邮箱注册／登录，再在账号设置中绑定微信；之后可通过微信登录同一账号。未绑定的微信身份不直接创建独立账号，提示先通过邮箱登录并绑定。服务器公布微信是否启用。
+用户已确认先完成邮箱注册、密码登录与找回密码，再接入微信绑定与登录。微信作为第三方身份关联小微账号。已登录用户从独立绑定入口发起授权，服务端将授权事务关联当前账号，验证回调后直接绑定，不先返回临时 token 再要求调用一次绑定。未登录用户发起微信登录时，已绑定身份直接登录；未绑定身份返回 binding_required，复用已验证身份完成邮箱注册或密码登录并绑定。服务器公布微信是否启用。
 
 桌面端可评估系统浏览器中的微信扫码授权：服务器创建短期登录事务，浏览器完成微信授权，服务器校验回调并换取身份，原客户端凭一次性事务凭据获取本应用会话。回调校验 state，登录事务绑定发起客户端，客户端凭据与浏览器公开参数分开，禁止其他客户端领取结果；短期结果只消费一次。微信 secret 与授权码交换在服务器完成，长期会话令牌不放在回调 URL 中。
 
 具体采用微信网站应用扫码、移动应用登录或其他微信产品，须按目标平台核验当前开放平台资质、审核、回调域名与应用关联要求；本记录未完成这部分外部核验，不保证任意个人部署者均可开通。移动端也不能直接假设复用桌面扫码流程。
 
 第三方部署者默认配置自己的微信应用凭据与回调域名；未配置时客户端隐藏微信入口，邮箱等基础入口仍可用。不向部署者分发官方微信 secret。若未来希望自部署统一使用官方微信登录，需要另行设计官方身份中介及对各服务器的信任、授权和身份映射；该方案带来官方在线依赖，不纳入初期建议。
+
+### 登录契约与第三方衔接
+
+登录和主动绑定是独立接口，不通过一个公共入口的 purpose 字段切换。第三方授权发起、回调和结果领取按实际微信接入模式后续设计；当前不虚构微信授权字段，不实现第三方授权、注册或绑定入口。
+
+LoginRequest 的公共字段为 device_id、device_name 和可选的 thirdparty_bind_token；credential 使用 oneof，目前只包含 PasswordLogin（邮箱和密码）。缺失 credential 是 INVALID_ARGUMENT；未知字段、多个 oneof 分支等解码失败是 INVALID_REQUEST。thirdparty_bind_token 未提供表示普通登录，显式空值是参数错误，目前只允许与密码凭据一起使用。绑定能力未实现时，携带非空 thirdparty_bind_token 必须返回明确的不支持错误，不能忽略后创建普通登录态。
+
+LoginResponse 保留 code、msg、data，其中 data 为 LoginResult，result 使用 oneof：authenticated 返回用户、设备和小微 access／refresh token；binding_required 返回 thirdparty_bind_token 和 expires_at_ms。code = 0 表示当前步骤处理成功，只有 authenticated 表示已建立登录态；客户端必须处理结果缺失或未知的情况，不能仅凭成功码保存登录态。HTTP 行为由 Go 接入层负责，规则见 [HTTP 接入文档](../../../server/docs/http.md)，不放入 Proto 契约。
+
+thirdparty_bind_token 是短期随机凭据，有效期 15 分钟，由服务端关联已验证的第三方身份、发起设备和衔接用途；不作为业务登录态，不暴露于日志。它支持二选一：邮箱注册并绑定，或验证已有账号密码后登录并绑定。设备 ID 本身不是认证凭据，不能只凭该 ID 更改目标用户。
+
+注册不带 thirdparty_bind_token 就是普通邮箱注册，不绑定第三方；携带有效 token 则注册和绑定在同一事务完成。携带无效、过期或已消费 token 时整个操作失败，不静默降级。注册还需验证邮箱并执行邀请／关闭注册策略。邮箱已存在时不自动合并，应让用户选择密码登录并携带 token。
+
+密码登录携带有效 thirdparty_bind_token 时，账号密码验证通过后，将第三方绑定、token 消费、设备关联、旧会话撤销和新会话创建作为一个原子操作完成。错误密码不消费 token；事务失败不消费 token、不撤销旧会话，未过期时可修正后重试。第三方身份已绑定其他账号，或目标账号已有另一个同提供方身份时拒绝，不自动转移或合并。并发请求只允许一次消费成功。
+
+独立绑定入口只服务于已登录用户，授权事务保存发起账号和会话，回调不能更换目标账号；会话在授权期间退出或被替换时拒绝绑定。已绑定当前账号视为成功，绑定到其他账号或当前账号已有不同微信身份时返回冲突。主动绑定不重新签发登录会话。
+
+操作已提交但响应丢失时，通过普通邮箱密码或已绑定第三方重新登录恢复；不重复注册，不靠重放已消费 token 创建新账号。解绑、替换第三方身份和恢复策略仍属后续范围。
+
+### 设备身份与会话关联
+
+设备指同一台设备，不按安装实例拆分。多个安装共用同一套应用数据和 device_id；客户端首次使用生成 UUID v4 并存入共享应用数据目录，退出、升级和重装不改变 ID，只要共享数据仍在；不采集硬件指纹。设备 ID 与账号无关，切换账号不改变 ID。客户端持久化实现属于后续客户端切片。
+
+服务端保存以 user_id + device_id 关联的用户设备记录，device_name 仅用于展示并在成功登录时更新。不同账号的设备记录隔离，同一设备可以出现在多个账号下。会话关联用户和设备；同用户同设备重新登录时原子撤销旧会话并创建新会话，其他设备和账号不受影响。并发重登按事务串行完成，最终只保留一个有效会话。失败不影响旧会话；退出撤销当前会话，保留设备 ID 和设备记录。客户端切换账号时先退出旧账号，客户端流程后续实现。
+
+推送时由认证后的连接确定 user_id、device_id 和 session_id；业务选择用户全部在线设备、指定设备，或排除当前设备。设备 ID 不能单独授权推送。失效会话的 WebSocket 断连和推送寻址留到后续切片。
+
+服务端现已使用 UUID v4 设备 ID，并校验规范小写表示。已核对本地仅执行 users 迁移；按用户要求将未执行的 auth 与 devices 合并为一份 auth 迁移，直接创建完整表结构，不保留历史会话兼容列、撤销过渡 SQL 或独立设备迁移。本次 UUID 调整在 auth 尚未应用的前提下直接更新同一迁移；日常数据库未执行新迁移。
 
 ### 客户端服务器设置
 
@@ -101,11 +129,11 @@
 
 ### 会话与 WebSocket
 
-已确认自动保持登录并支持多设备会话，退出登录撤销当前会话，重置密码撤销该账号全部会话。具体过期时长与刷新参数在实施设计中确定，自动保持登录不表示会话永不过期。
+已确认自动保持登录并支持多设备会话，退出登录撤销当前会话，重置密码撤销该账号全部会话。过期与刷新规则已在切片 02 确定如下；密码重置与 WebSocket 断连仍在后续切片实施。
 
 建议通过 HTTPS 完成能力发现、注册验证、邮箱密码／微信登录、密码重置、会话刷新与退出，再使用应用自身的会话认证建立 WSS 业务连接。登录成功前没有认证后的 WS 是正常状态，不要求先建立业务 WS 才能登录。
 
-候选方案为短期 access token 加可轮换、可撤销的 refresh token，具体 token 格式待定。服务端保留设备会话与撤销状态，refresh token 不明文存储；客户端长期凭据通过操作系统安全存储保存，不放入普通 renderer localStorage 或日志。
+用户已确认 access token 与 refresh token 均采用随机 token，access token 有效期为 2 小时，refresh token 有效期为 30 天，每次成功刷新后重新计时。数据库仅保存 token 的哈希，认证时查询会话并检查有效期和撤销状态；不使用 JWT。刷新成功后旧 refresh token 立即失效；重复使用旧 token 只拒绝该次请求，不撤销设备会话，新 token 继续有效。同一 refresh token 并发刷新时只允许一次成功，其余请求返回无效，不影响成功生成的新凭据。用户确认旧 access token 保留到其自身到期，退出则使会话全部凭据失效。这些服务端规则已在切片 02 实现；客户端凭据安全保存属于切片 05，不放入普通 renderer localStorage 或日志。
 
 原生连接端可在握手时携带认证信息；若所选 WebSocket API 不支持认证请求头，可通过 HTTPS 换取短期一次性连接票据。避免将长期 token 放入 WS URL。连接成功后绑定服务端验证得到的 user_id 与 session_id，不信任业务消息自报的用户身份。
 
@@ -123,7 +151,7 @@
 
 ### TODO：部署交付
 
-按用户要求，部署相关事项暂缓讨论，留到切片 07 统一对齐；目前不确定部署目录、文件组织、复制方式或运行命令。CI 镜像发布尚未接入。
+部署相关事项暂缓，TODO 集中维护在 [部署交付](../../../server/docs/deployment.md)，留到切片 07 对齐；不在本记录重复部署流程。
 
 ### 切片 01 实施结果
 
@@ -169,8 +197,8 @@ go run ./cmd/xiaowei-server --config /path/to/server.yaml
 
 | 接口 | 含义 | 响应 |
 | --- | --- | --- |
-| `GET /healthz` | 进程可响应 | 200，`{"status":"ok"}` |
-| `GET /readyz` | 数据库当前可用；探测超时 2 秒 | 200，`{"status":"ok"}`；失败返回 503，`{"status":"unavailable"}` |
+| `GET /healthz` | 进程可响应 | HTTP 200，code = 0、msg = ok、data.status = ok |
+| `GET /readyz` | 数据库当前可用；探测超时 2 秒 | HTTP 200；就绪同 healthz，失败 code = UNAVAILABLE，无 data |
 
 可从宿主机检查：
 
@@ -179,9 +207,35 @@ curl -f http://127.0.0.1:10001/healthz
 curl -f http://127.0.0.1:10001/readyz
 ```
 
-数据库中断时进程继续运行，readiness 返回 503；连接恢复后 readiness 可恢复。SIGINT／SIGTERM 先停止 HTTP，最多等待 5 秒，再关闭数据库池。日志输出到进程标准错误，记录配置读取、迁移结果和服务生命周期；不输出密码、完整 DSN 或原始 YAML 值。
+数据库中断时进程继续运行，readiness 返回 HTTP 200 加 UNAVAILABLE；连接恢复后 code 恢复为 0。curl -f 不再能独立判断就绪，须读取 code。SIGINT／SIGTERM 先停止 HTTP，最多等待 5 秒，再关闭数据库池。日志输出到进程标准错误，记录配置读取、迁移结果和服务生命周期；不输出密码、完整 DSN 或原始 YAML 值。
 
 用户表当前仅包含内部 bigint identity 主键 `id`、公开 `user_id` 和创建时间。公开 ID 使用 128 位安全随机数，编码为 `u_` 加 22 位无填充 Base64URL；数据库精确区分大小写并保证唯一。内部 ID 不参与 JSON 序列化。创建用户存储记录不代表完成注册，本阶段没有对外开户接口。
+
+### 密码登录与设备会话实现
+
+服务端业务契约集中在 `contracts/proto/xiaowei/server/`，Go 生成配置使用 `xiaowei/server/**/*.proto`，新增契约无需逐个登记。auth.proto 的 Protobuf package 为 xiaowei.server.auth；TS 和 Go 生成文件随源码目录移动，Go 调用通过 pb 别名消费 server 子包，公共 Empty 仍来自上层公共包。Rust 按 Protobuf package 生成 xiaowei.server.auth.rs，并从 xiaowei::server::auth 导出。server/common.proto 的 package 为 xiaowei.server.common，对应 Rust 文件 xiaowei.server.common.rs 和导出 xiaowei::server::common。
+
+切片 02 在 `internal/auth/` 实现密码和会话业务，`internal/db/` 实现 PostgreSQL 访问与事务，`internal/httpapi/` 负责 HTTP 接入和限流。沿用标准库 HTTP；消息定义在 `contracts/proto/xiaowei/server/auth.proto`，生成 TS／Rust／Go 契约，服务端通过本地 Go module require／replace 消费，使用 protojson 输出 snake_case 字段和字符串形式的 int64 Unix 毫秒时间。不接 gRPC，不注册桌面 Gateway owner。
+
+接口为 `POST /api/auth/login`、`POST /api/auth/refresh`、`GET /api/auth/me` 和 `POST /api/auth/logout`。登录输入邮箱、密码和可选设备名称，返回公开用户资料与 token；me 和 logout 从 Authorization Bearer access token 确定身份，refresh 在 JSON 请求体接收 refresh token，不读取 URL 中的凭据。HTTP 200 下以 code 区分业务成功和失败；成功返回 code、msg 和具体类型的 data，logout 的 data 为 {}；失败返回 code、msg，省略 data。错误码范围、枚举归属和客户端兜底规则统一维护在 [服务端契约约定](../../../contracts/proto/xiaowei/server/README.md)。
+
+未知邮箱与错误密码均为 HTTP 200 和相同的 AUTH_ERROR_CODE_INVALID_CREDENTIALS（10100）；无效或过期 token 为 HTTP 200 和 ERROR_CODE_UNAUTHENTICATED。接入层错误同样以 HTTP 200 加公共错误码表达，包括 JSON 解码失败、限流和数据库故障；现已实现。公共响应写入在 httpapi/error.go，认证错误映射仍由 auth.go 负责。未发布的开发期契约不保留兼容层。
+
+迁移 `20261003143154_auth.sql` 已合并设备结构，一次创建 email_identities、user_devices、auth_sessions 和 session_access_tokens，不修改已执行的 users 迁移。邮箱身份以内部 user_pk 关联用户且一对一；设备名称保存在 user_devices；会话以必填 device_id 与 user_pk 关联设备，保存当前 refresh hash、有效期和撤销状态；活动会话唯一索引约束同用户同设备最多一个有效会话。access token 独立保存，便于保留刷新前尚未到期的凭据。设备 ID 使用 PostgreSQL uuid 类型及 UUID v4 约束，服务端校验规范格式。
+
+邮箱去除首尾空白并转小写，接受不含显示名称的 ASCII 邮箱地址，最多 254 字节；不折叠加号或供应商点号别名。登录密码原样处理，非空且最多 1024 字节；设备名称最多 128 字节，不接受控制字符。密码使用 Argon2id：19 MiB 内存、2 次迭代、并行度 1、16 字节随机盐、32 字节输出，保存包含算法和参数的编码；解析时限制编码长度和资源参数。不存在的邮箱仍执行虚拟密码校验；同时最多校验两个密码，等待可取消。注册密码强度规则未在此实现。
+
+公开会话 ID 是 `s_` 加 128 位随机值；access／refresh 分别是 `at_`／`rt_` 加 256 位随机值的无填充 Base64URL 编码。类型和编码严格校验，数据库仅保存 SHA-256 哈希。刷新通过带旧 hash、有效期和未撤销条件的 UPDATE 获取行锁，替换 refresh hash 与写入新 access token 同事务提交；并发等待后重新检查条件，只有一次成功。重复旧 token 不修改会话；失败事务不消费旧 token。刷新时清理该会话已过期的 access token，不删除仍有效的旧 token。
+
+退出更新会话 revoked_at，认证时检查该状态，使关联所有凭据失效。退出和刷新对同一行写入锁保证不会在退出后重新激活；已完成认证的在途请求不承诺被中途取消。刷新响应丢失时，旧 refresh token 无法重试成功，不实现幂等刷新结果缓存。WebSocket 撤销断连和客户端串行刷新在后续切片实施。
+
+配置新增 `auth.access_token_ttl`（默认 2h）与 `auth.refresh_token_ttl`（默认 720h），以及对应 XIAOWEI_AUTH_ACCESS_TOKEN_TTL／XIAOWEI_AUTH_REFRESH_TOKEN_TTL 可选覆盖。沿用 YAML、同目录 .env、进程 env 的优先级；两项必须为正时长且 refresh 长于 access。既有 YAML 没有 auth 节时使用默认值。
+
+当前认证限流已实现，通用额度与配置化作为收尾补充；范围、叠加和配置规则集中维护在 [限流文档](../../../server/docs/rate-limiting.md)，此处不重复。请求体限制 16 KiB，拒绝未知字段、错误类型和重复 JSON；认证响应 no-store。日志记录公开用户／会话标识及安全错误，不记录邮箱、密码、token 或请求体。
+
+本切片没有默认账号、公开测试开户接口或注册能力；真实 HTTP 测试在隔离数据库中通过 fixture 准备用户和密码身份。日常数据库不写入测试账号，现有用户存储仍允许无邮箱的基础用户。
+
+接入 contracts/go 的本地 module 后，Dockerfile 构建上下文改为仓库根，使构建阶段能同时读取 server 与 Go 契约；由 `server/deploy/Dockerfile.dockerignore` 仅允许所需代码和 module 文件，替代原 server/.dockerignore。运行配置、.env 和其他工作区内容不进入构建上下文；最终镜像仍只复制静态二进制。此调整只保证现有构建依赖成立，不确定部署交付流程。
 
 ### 需求依赖与切片拆分
 
@@ -212,7 +266,7 @@ curl -f http://127.0.0.1:10001/readyz
 | 05 桌面邮箱账号流程 | 服务器地址与能力发现、注册／登录／找回密码 UI、本地 Gateway 接入、安全保存会话、启动恢复、退出与切服 | 02 + 03 + 04 | 真实 HTTP 流程、重启恢复、服务端失效处理；切服取消在途操作，迟到响应不覆盖新状态，旧凭据不发给新服务器；UI 区分已登录与云连接状态 |
 | 06 远端 Gateway 与 WS | TS 远端 transport、Go Gateway 接入、认证握手、远端路由隔离、心跳与重连、撤销断连；桌面接入云连接状态 | 02；产品集成复用 05 的账号状态和服务器选择 | TS／Go 真实调用及响应、权限边界、断线清理、旧连接响应隔离；多设备下重置密码关闭全部连接，退出只关闭当前会话连接；不自动重放写操作 |
 | 07 单机 Docker 交付验收 | CI 构建／发布服务端镜像，收敛 Dockerfile／Compose、环境示例、数据卷、TLS 反向代理要求、初始化／备份／升级操作说明 | 01–06 | 从 CI 发布镜像在无源码环境部署，默认邀请开户，真实 SMTP 验证，客户端登录并通过 WSS 调用；应用容器重建后数据仍在，备份恢复可用 |
-| 08 微信绑定与登录 | 微信服务端配置、授权回调、已有账号绑定、已绑定身份登录、解绑；复用原有会话与 WS 链路 | 邮箱版本交付；微信产品与接入条件核验 | 未配置不显示入口，未绑定不自动开户；重复绑定、伪造／过期／重复回调、事务被他端领取被拒绝；登录同一公开 user_id，解绑需近期验证 |
+| 08 微信绑定与登录 | 微信配置、授权回调、已登录主动绑定、已绑定身份登录、未绑定身份衔接邮箱注册或密码登录、解绑；复用设备会话与 WS 链路 | 邮箱版本交付；微信产品与接入条件核验 | 未配置不显示入口，未绑定不自动开户；重复绑定、伪造／过期／重复回调、事务被他端领取被拒绝；登录同一公开 user_id，解绑需近期验证 |
 
 06 需要独立的两个内部验收点：先用测试服务验证 TS／Go Gateway 真实传输、路由与断线语义，再接真实设备会话与产品状态。既有 Gateway 的事件、流取消与背压要明确首期支持范围和协商行为，不能只完成 WS 握手就宣称远端 Gateway 已完成，也不借此扩展收藏等业务。详细 Plan 若过大，可在进入该切片时按这两个验收点进一步拆分。
 
@@ -223,7 +277,7 @@ curl -f http://127.0.0.1:10001/readyz
 | 切片 | 现有入口及拟新增模块 |
 | --- | --- |
 | 01 | `server/cmd/xiaowei-server/main.go` 装配；已新增 `server/internal/config/`、`server/internal/db/` 管理配置及数据库迁移；统一 `server/config/` 配置、`server/go.mod`、`server/deploy/compose.yaml`、`server/deploy/Dockerfile` |
-| 02–04 | 拟新增 `server/internal/auth/` 管理密码、验证码、邀请、会话与事务；`server/internal/mail/` 实现 SMTP；`server/internal/httpapi/` 负责协议适配，不承载账号规则；部署端初始化与邀请命令接在既有二进制入口下，不增加管理 Web 后台 |
+| 02–04 | 已有 `server/internal/auth/` 管理密码与会话，后续增加验证码与邀请；拟新增 `server/internal/mail/` 实现 SMTP；`server/internal/httpapi/` 负责协议适配，不承载账号规则；部署端初始化与邀请命令接在既有二进制入口下，不增加管理 Web 后台 |
 | 02–06 | 业务契约在 `contracts/proto/xiaowei/` 按认证和客户端账号职责定义，更新 `contracts/generate.config.json` 及公共导出，复用生成的 TS／Go 消息；不修改生成产物、不复制 HTTP 与 Gateway 的同义消息结构 |
 | 05 | 从 `desktop/src/renderer/src/components/settings/SettingsPage.tsx`、`GeneralSettings.tsx` 接入账号区域与相邻 Storybook／测试；`desktop/src/renderer/src/services.ts` 提供 typed client。账号 owner 的状态与凭据存储归属需在本切片 Plan 中结合 main／Rust 边界确定；通过 `desktop/src/main/app/gateway.ts` 装配，preload 不新增业务接口 |
 | 06 | `gateway/ts/src/` 增加通用远端 transport，Go runtime 位置按 Gateway record 的 `gateway/go/` 方向细化；服务端连接适配放在 `server/`，不把账号、SMTP 逻辑放进 Gateway 核心。不得未经设计直接创建新 npm package 或 Rust crate |
@@ -231,7 +285,7 @@ curl -f http://127.0.0.1:10001/readyz
 
 模块依赖保持为 HTTP／Gateway 接入层 → auth 业务 → db／mail；mail 不依赖 auth，db 不依赖 HTTP，通用 Gateway 不依赖账号业务。验证码投递、时间和随机源在测试中可替换；存储事务与唯一约束使用选定数据库验证，不用内存假实现代替数据库并发验收。
 
-正式详细 Plan 需补齐而非重新讨论的内容：认证方法与错误码、会话轮换／到期参数、邀请初始化命令、具体表结构、客户端 owner 归属及 WS 协商范围。真实 SMTP 凭据只在投递验收时需要，官方服务地址在发布配置时确定，不编造可用地址。自动测试不发真实邮件，真实邮件验收另行取得明确发送指令；桌面运行验收遵守用户冷启动规则。
+后续详细 Plan 需补齐邀请初始化命令、验证码与邀请表结构、客户端 owner 归属及 WS 协商范围；认证方法、错误码和会话轮换／到期规则沿用切片 02。真实 SMTP 凭据只在投递验收时需要，官方服务地址在发布配置时确定，不编造可用地址。自动测试不发真实邮件，真实邮件验收另行取得明确发送指令；桌面运行验收遵守用户冷启动规则。
 
 ## Alternatives considered
 
@@ -241,9 +295,11 @@ curl -f http://127.0.0.1:10001/readyz
 
 ## Current work
 
-产品方向已收敛：邮箱加密码、通用 SMTP、内部自增主键与随机公开标识分离、各部署独立账号、自部署默认邀请注册、默认官方地址且可修改、单服务器连接、多设备自动保持登录，以及先邮箱后微信的实施顺序。收藏问题明确移出本轮范围。
+切片 01 已完成并提交。切片 02 的密码登录、设备关联、登录 oneof、UUID 设备身份和 Go 统一 HTTP 200 已完成并验证；补充 Plan 已删除，变更尚未提交。
 
-切片 01 已完成。当前分支已 rebase 到 develop，沿用最新的工作区概要与文档边界；`server/README.md` 保留模块索引、必要准备与运行方式，配置与迁移实现细节由本 record 承载。用户进一步确认配置与部署集中在 server 内：本地配置、目录迁移与开发入口已完成并验证；部署交付按用户要求暂缓，只保留 TODO。本轮 Plan 已删除；切片 02 尚未开始。
+通用 IP 限流和认证限流配置化已完成，当前行为见 [限流文档](../../../server/docs/rate-limiting.md)。下一步进入切片 03 SMTP、邀请与邮箱注册。thirdparty_bind_token 与 binding_required 已预留契约，但 token 签发／消费、微信授权和独立绑定入口尚未实现；携带绑定 token 当前明确拒绝。客户端共享数据目录中的 UUID 持久化和账号切换属于客户端切片，WS 推送与失效断连仍属后续切片。
+
+部署交付继续只保留 TODO，收藏不纳入本轮范围。
 
 ## Outcome
 
@@ -262,3 +318,39 @@ curl -f http://127.0.0.1:10001/readyz
 按用户要求，开发期旧序号数据库改为本地一次性处理，删除运行时代码中的旧版本转换、字段类型升级及对应测试。本地 xiaowei-dev 数据库的版本 1 已在事务与迁移锁内转换为 20260925000000，历史字段改为 bigint；处理前后校验和、原执行时间和用户数据摘要一致，用户记录仍为 0 条。
 
 开发实例退出已联动 Compose stop：先等待 Go 进程组退出，再停止同一依赖项目，保留容器与数据卷。11 项服务端启动脚本测试及全部 44 项开发工具测试通过，涵盖 Ctrl+C／SIGTERM 的清理顺序、重复停止和 Docker 停止失败；Go race（含真实 PostgreSQL 迁移测试）与 just check 通过。实际 just server 终端验收确认 Go 先退出、依赖容器停止且数据卷保留，just prepare-server 重新启动同一容器并读取原测试数据。验收脚本首次重新准备遗漏隔离环境，短暂重建本地共享容器；已恢复仓库原配置、127.0.0.1:5432 与原数据卷，并核对迁移记录和用户数量未变化。修正后的隔离验收通过，临时目录、脚本、容器与数据卷已清理。
+
+切片 02 已实现 Argon2id 邮箱密码登录、随机 access／refresh token、持久化多设备会话和四个 HTTP 接口，契约通过现有生成流程输出三语言消息。默认 access 2 小时、refresh 30 天且刷新续期；旧 refresh 拒绝不撤销新凭据，旧 access 保留到期，退出仅撤销当前会话。没有增加注册绕过、默认账号、JWT、Redis、Web 框架或桌面账号实现。
+
+专用 PostgreSQL 上的完整 Go race 测试通过，包含邮箱唯一约束、创建／刷新失败回滚、并发刷新只成功一次、旧凭据重试不影响新凭据、旧 access 保留、有效期边界、退出／刷新竞争和多设备隔离。实际 main 服务通过真实 TCP HTTP 验证正误密码和不存在邮箱统一响应、限流及 Retry-After、数据库故障 503 与恢复、凭据类型隔离、重启后的会话恢复，以及错误响应和日志不泄漏秘密。独立 CGO=0 二进制另经 curl 验证同样的登录、刷新、并发、退出与重启闭环，fixture 与数据库均隔离于日常开发环境。
+
+just check（含 Go vet）、两项契约漂移检查、三语言 codec、受影响原生模块重建及桌面回归测试均通过；只存在既有 Select.tsx 的 Biome 信息提示。密码哈希基准在本机 Apple M4 Pro 上约 18.5 毫秒／次、分配约 19 MiB，同步校验上限为两次。接入本地 Go 契约后同步修复 Dockerfile 构建依赖及上下文允许列表，镜像实际构建成功，nonroot 用户 65532 下 readiness、登录与当前用户查询通过；部署流程仍保持 TODO。临时验收资源已清理，日常数据库未写入测试账号。
+
+服务端 proto 已按用户要求集中到 xiaowei/server/，Go 使用目录通配自动选择，公共 import 继续自动生成。同步了 TS 导出、Go 认证与公共消息的独立导入和现有文档；Protobuf 包名、服务名及字段未改变。just gen、两项漂移检查、三语言 codec、Go 单测、just check 与原生模块重建通过；本次仅调整契约路径，未重复运行真实数据库验收。
+
+错误响应已同步为单一整数 code，移除 business_code；公共码从 10000 起，每个模块分配 100 个数值，客户端使用生成枚举常量。协议重新生成及漂移检查、just check、三语言 codec、Rust 原生构建和隔离 PostgreSQL 上完整 Go race 测试均通过；HTTP 错误测试确认 JSON 中 code 为数字。
+
+认证 package 已调整为 xiaowei.server.auth，Rust 导出同步为 xiaowei::server::auth，旧生成文件已移除；HTTP 路径和 Go import 路径不变。重新生成、just check、三语言 codec、Go 单元测试与 Rust 原生构建通过；本次未重跑依赖 PostgreSQL 的集成测试。
+
+认证响应已统一为 code、msg 和具体业务类型的 data：成功明确输出 code = 0，业务失败使用 HTTP 200 并省略 data；当时 HTTP 请求解码、限流和服务故障仍使用对应 HTTP 错误状态；该设计已被统一 HTTP 200 约定取代，并在本次补充实现中完成同步。Proto 无继承，各 response 显式声明公共字段。公共 package 为 xiaowei.server.common。重新生成与漂移检查、just check、三语言 codec 和 Rust 原生构建通过；隔离 PostgreSQL 上完整 Go race 测试通过，实际 HTTP 验证成功数据、失败无数据、错误凭据、会话重放、并发刷新按业务码判断、限流及数据库故障。
+
+用户再次明确：应用生成的 HTTP 响应统一为 200，成功和错误只由 code 表达，说明字段为 msg。接入解析错误 INVALID_REQUEST 与业务参数错误 INVALID_ARGUMENT 分别归属接入层和业务校验层。HTTP 状态规则维护在 server/docs/http.md，由 Go internal/httpapi 接入层落实；contracts/proto/xiaowei/server/README.md 只维护消息结构和错误码语义。本次仅同步文档并标注实现差异，没有修改协议或运行代码，也未运行功能测试。
+
+已只读核对本地 xiaowei-dev 数据库的 schema_migrations，仅有 20260925000000；auth 与 devices 尚未执行。按用户要求合并为 20261003143154_auth.sql，一次创建设备及完整会话结构，删除独立 devices 迁移、embed 登记和历史会话过渡 SQL；未改动日常数据库结构或数据，临时启动的本地数据库已恢复停止状态。隔离 PostgreSQL 上完整 Go race 测试通过，涵盖迁移与会话、实际 HTTP 登录及刷新流程；当时设备 UUID 与登录 oneof 尚待实施，现已在下述补充实现中完成。
+
+
+切片 02 补充实现完成：LoginRequest 使用密码 credential oneof 和可选 thirdparty_bind_token，LoginResponse.data 使用 authenticated／binding_required result oneof。密码登录返回 authenticated；缺失凭据和空绑定 token 为 INVALID_ARGUMENT，未知字段等解码失败为 INVALID_REQUEST，非空绑定 token 返回 THIRDPARTY_BINDING_UNSUPPORTED，不访问绑定功能或更改会话。第三方授权、注册和绑定仅预留协议，未声称已实现。
+
+合并的 auth 迁移使用 UUID v4 用户设备记录及活动会话唯一索引。设备行锁将同用户同设备登录串行化，更新设备名称、撤销旧会话与新 token 写入在同一事务完成；回滚保留原会话和名称，刷新竞争不会复活旧会话，其他设备及账号隔离。日常数据库仍未执行 auth 迁移。
+
+Go HTTP 接入的解析、认证、限流、未知路径、错误方法、非规范路径、健康探针及未写响应前的 panic 统一返回 HTTP 200 和 code／msg；就绪检查读取 code，不能仅凭状态码判断。HTTP 规则在 server/docs/http.md，消息和错误码语义在 contracts 服务端 README；Proto 不定义 HTTP 行为。路由使用明确路径映射，避免标准 ServeMux 的默认重定向与错误正文绕过约定；未引入框架。
+
+验证通过：just check（含 Go vet、两项生成漂移检查）、pnpm contracts:test、pnpm build:rust，以及隔离 PostgreSQL 上完整 go test -race ./...。三语言实际登录契约往返覆盖密码 oneof、authenticated／binding_required、可选 token 缺失与空值，TS fromJson 验证结果分支及重复分支拒绝。真实 HTTP 覆盖绑定 token 拒绝不改会话、密码错误不撤销、同设备重登、旧 token 失效、不同设备保持登录、刷新重放、限流与数据库故障恢复；数据库测试覆盖从 users 升级合并迁移、幂等、必填 UUID、并发登录、回滚及重登／刷新竞争。既有 Select.tsx 仅有 Biome 信息提示。测试数据库与容器清理，未启动 Electron，未提交。
+
+用户启动当前工作区实例后的现场验收通过：确认进程 cwd 为本工作区 server，本地 schema_migrations 已有 users 和合并 auth 迁移。对 10001 端口实际请求验证 healthz／readyz、无账号登录、JSON 解析失败、缺失凭据、未知登录方式、未支持的绑定、媒体类型、请求过大、缺失 access token、未知路径、错误方法和非规范路径，共 13 项均返回 HTTP 200 与对应 code，失败无 data、响应 no-store。日常库无邮箱账号，未创建验收账号；账号／设备／会话数量仍为 0。另以专用 PostgreSQL 执行 go test -count=1 -race ./...，全部通过，覆盖成功登录、设备替换、刷新并发与回滚；测试容器已清理，用户运行实例保持运行。
+
+按用户要求重组 server 文档：README 保留模块索引、全局规则、本地开发和测试构建入口；认证、HTTP 接入与限流详情放入 server/docs/，模块索引提供链接。部署交付 TODO 同样移至 server/docs/deployment.md，不新增 deploy/README。限流文档明确已确认方案与尚未实现的通用额度／配置化边界。本次只修改文档，检查相对链接和 diff，不运行功能测试。
+
+
+限流收尾已实现：业务请求先检查共享的通用 IP 额度，再检查接口专用额度；仅 GET /healthz 和 GET /readyz 豁免，未知路径与错误方法仍计数。四项限流均支持 YAML、同目录 .env 和进程环境变量，保留默认值并拒绝非正阈值或窗口。沿用内存计数，通用与认证计数器独立保存，避免专用键容量影响通用额度；超限统一 HTTP 200、code 10007 和向上取整的 Retry-After。配置模板和限流文档已同步。
+
+本次验证通过配置与 HTTP 单测、隔离 PostgreSQL 上 go test -count=1 -race ./...、just check。实际 HTTP 验证环境变量阈值和窗口生效、专用拒绝仍消耗通用额度，以及耗尽后健康探针可用；既有登录、设备、刷新与数据库回归通过。临时 PostgreSQL 容器已停止并自动删除，未操作日常数据库或重启用户实例；变更未提交。

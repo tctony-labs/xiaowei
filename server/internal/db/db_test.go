@@ -139,7 +139,8 @@ func TestConcurrentMigrations(t *testing.T) {
 		}
 	}
 	var count int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count); err != nil || count != 1 {
+	queryErr := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count)
+	if queryErr != nil || count != len(migrations) {
 		t.Fatal("concurrent migration did not apply exactly once")
 	}
 }
@@ -166,7 +167,7 @@ func TestMigrationRollbackAndCompatibility(t *testing.T) {
 		}
 		var count int
 		err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count)
-		if err != nil || count != 1 {
+		if err != nil || count != len(migrations) {
 			t.Fatal("failed upgrade changed prior migration history")
 		}
 	})
@@ -217,7 +218,8 @@ func TestOlderBranchRunsWithAdditionalTablesAndColumns(t *testing.T) {
 		t.Fatalf("older branch could not read its user: %v", err)
 	}
 	var count int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count); err != nil || count != 3 {
+	queryErr := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count)
+	if queryErr != nil || count != len(migrations)+2 {
 		t.Fatal("older branch modified migration history")
 	}
 	if _, err := pool.Exec(ctx, "INSERT INTO branch_sessions (id) VALUES (1)"); err != nil {
@@ -248,7 +250,8 @@ func TestMergeAppliesEarlierPendingMigration(t *testing.T) {
 		t.Fatalf("repeat migration failed: %v", err)
 	}
 	var count int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count); err != nil || count != 3 {
+	queryErr := pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&count)
+	if queryErr != nil || count != len(migrations)+2 {
 		t.Fatal("merged migrations were not recorded exactly once")
 	}
 	for _, table := range []string{"earlier_branch", "later_branch"} {
