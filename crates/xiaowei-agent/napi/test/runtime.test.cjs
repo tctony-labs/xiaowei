@@ -189,7 +189,8 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal((await send("length")).final.status, pb.AgentRunStatus.COMPLETED);
     assert.equal((await send("eof")).final.status, pb.AgentRunStatus.FAILED);
     assert.equal((await send("http-error")).final.status, pb.AgentRunStatus.FAILED);
-    assert.equal((await send("cancel")).final.status, pb.AgentRunStatus.INTERRUPTED);
+    const cancelled = await send("cancel");
+    assert.equal(cancelled.final.status, pb.AgentRunStatus.INTERRUPTED, cancelled.final.error);
     await until(() => disconnected.has("cancel"));
     await send("after-cancel");
     assert.equal(requests.at(-1).messages.filter((message) => message.role === "assistant").length, 3);

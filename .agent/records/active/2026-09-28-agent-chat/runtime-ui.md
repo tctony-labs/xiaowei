@@ -8,6 +8,8 @@
 
 Quick Chat 已经 Agent typed client → xiaowei-agent → xw-agent → runtime → 注入的 Llm.Generate adapter 执行。每个 Run 一个 Turn／Gen，不执行工具或自动重试。STOP／LENGTH 的完整有效 AssistantMessage 才进入后续模型历史；EOF、模型失败、非法／不支持输出为 Failed，取消为 Interrupted。失败／取消的用户输入保留，部分回复只用于显示。
 
+聊天 runtime 在 adapter 的流读取返回后复核取消 token；读取过程中已发生的取消优先于同时返回的 EOF、错误或最终消息，避免停止被误判为 Failed，或把取消后的最终消息写入模型历史。
+
 Gen 开始／结束和单调耗时在所有退出路径采集；支持 fetch 观察的 worker 路径提供真实首个 SSE data event 时间，其他路径保持未知。聊天 Gen 生命周期与最终完整／部分消息写 JSONL。详情见[Host 观测](host-interface.md#生成流与观测)。
 
 renderer 保留草稿／显示缓存，Rust 持有权威历史与运行。隐藏／收起／观察 cleanup 不停止 Run；新对话先请求停止并等 RunCompleted，然后进入空对话并保留旧会话；普通切换不停止旧 Run；删除仅清理所选会话。实例关闭取消并等待执行，随后释放 endpoint，再关闭 LLM；生产 Agent.open 关闭／重开恢复已提交历史。停止请求失败会显示未确认提示。

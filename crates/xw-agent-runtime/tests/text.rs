@@ -4,7 +4,7 @@ use std::sync::{
 };
 use std::time::Duration;
 
-use futures_util::stream;
+use futures_util::{StreamExt, stream};
 use tokio::sync::mpsc;
 use xw_agent_runtime::RunStatus;
 use xw_agent_runtime::*;
@@ -210,4 +210,62 @@ async fn cancellation_releases_opening_stream_and_blocked_internal_send() {
     let outcome = execute_text(request(), m.clone(), CancellationToken::new(), tx).await;
     assert_eq!(outcome.status, RunStatus::Cancelled);
     assert_eq!(m.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn cancellation_during_stream_poll_wins_over_eof_error_and_final_message() {
+    struct CancelDuringPoll(Option<Result<GenerationEvent, GenerationError>>);
+
+    impl LlmGeneration for CancelDuringPoll {
+        fn generate(&self, _: GenerationRequest, cancellation: CancellationToken) -> GenerationFuture {
+            let mut terminal = self.0.clone();
+            Box::pin(async move {
+                let partial = stream::iter([Ok(GenerationEvent::TextDelta {
+                    content_index: 0,
+                    text: "partial".into(),
+                })]);
+                let terminal = stream::poll_fn(move |_| {
+                    // Cancel after the outer select has polled its cancellation branch.
+                    cancellation.cancel();
+                    std::task::Poll::Ready(terminal.take())
+                });
+                Ok(Box::pin(partial.chain(terminal)) as GenerationStream)
+            })
+        }
+    }
+
+    for terminal in [
+        None,
+        Some(Err(GenerationError::Failed("upstream closed".into()))),
+        Some(Ok(GenerationEvent::Failed {
+            error: GenerationError::Failed("provider failed".into()),
+            partial: None,
+        })),
+        Some(Ok(GenerationEvent::Finished(message(FinishReason::Stop)))),
+    ] {
+        let (tx, mut rx) = mpsc::channel(8);
+        let result = execute_text(
+            request(),
+            Arc::new(CancelDuringPoll(terminal.clone())),
+            CancellationToken::new(),
+            tx,
+        )
+        .await;
+
+        assert_eq!(result.status, RunStatus::Cancelled, "terminal: {terminal:?}");
+        assert!(matches!(result.error, Some(GenerationError::Cancelled)));
+        assert!(result.message.is_none());
+        assert_eq!(
+            result.partial,
+            vec![ContentBlock::Text {
+                text: "partial".into(),
+                signature: None,
+            }],
+        );
+        assert!(matches!(
+            rx.recv().await.unwrap().event,
+            GenerationEvent::TextDelta { .. }
+        ));
+        assert!(rx.recv().await.is_none());
+    }
 }
