@@ -1,8 +1,9 @@
+import { hostname } from "node:os";
 import { create } from "@bufbuild/protobuf";
 import { app, BrowserWindow, ipcMain, protocol } from "electron";
 import { Agent } from "xiaowei-agent";
 import { ClipboardHistory } from "xiaowei-clipboard";
-import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
+import { App, EmptySchema, KeyValue, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
@@ -11,6 +12,9 @@ import { createSearchGatewayEndpoint } from "xiaowei-search";
 import { Storage } from "xiaowei-storage";
 import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
+import { registerAccount } from "../services/account/gateway";
+import { AccountService } from "../services/account/service";
+import { AccountStore } from "../services/account/store";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
 import { emptyConfig, type ModelConfigDocument, resolveModels } from "../services/llm/config";
 import { registerModelSettings } from "../services/llm/gateway";
@@ -25,6 +29,7 @@ export async function createApplicationGateway(
   databasePath: string,
   iconDirectory: string,
   agentDirectory: string,
+  authPath: string,
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
     openSettings(): Promise<BrowserWindow>;
@@ -49,6 +54,7 @@ export async function createApplicationGateway(
     }
   }
   let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
+  let account: ReturnType<typeof registerAccount> | undefined;
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
@@ -87,6 +93,12 @@ export async function createApplicationGateway(
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+    const accountService = await AccountService.open({
+      store: new AccountStore(authPath, bindClient(KeyValue, host.client({ caller: "account-main", trusted: true }))),
+      deviceName: hostname().slice(0, 64),
+    });
+    account = registerAccount(host, accountService);
+    void accountService.restore().catch(() => console.warn("Initial account restore failed"));
     clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
     settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
     search = await attachRustNapi(host, "search", createSearchGatewayEndpoint(actions.development));
@@ -106,6 +118,7 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
+    await account?.close().catch(() => console.warn("Account shutdown failed"));
     await modelSettings?.close();
     await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
     await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
@@ -131,6 +144,7 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
+        await account?.close().catch(() => console.warn("Account shutdown failed"));
         await modelSettings?.close();
         const agentResults = await Promise.allSettled([closeAgent()]);
         const results = [

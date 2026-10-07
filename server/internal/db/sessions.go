@@ -150,11 +150,6 @@ func (s *Store) RotateSession(
 	if err := insertAccessToken(ctx, tx, sessionID, tokens, now); err != nil {
 		return "", err
 	}
-	_, err = tx.Exec(ctx, "DELETE FROM session_access_tokens WHERE session_id = $1 AND expires_at <= $2",
-		sessionID, now)
-	if err != nil {
-		return "", safeError("remove expired access tokens", err)
-	}
 	if err := commitSession(ctx, tx); err != nil {
 		return "", err
 	}

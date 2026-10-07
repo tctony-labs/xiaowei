@@ -34,6 +34,7 @@ desktop/src/main/
 │   ├── navigation.ts      # 导航限制
 │   └── settings.ts
 ├── services/
+│   ├── account/           # 服务器选择、邮箱登录、会话保存与恢复
 │   ├── llm/               # worker 内的 Pi provider 与宿主接线
 │   ├── launcher/gateway.ts
 │   ├── shortcuts/         # 全局快捷键注册与 Gateway owner
@@ -41,7 +42,7 @@ desktop/src/main/
 └── resources/app-icons/  # 图标缓存与协议
 ```
 
-Agent 与模型设置的公共根目录由 app/paths.ts 解析，默认 `~/.xiaowei`，可通过绝对路径环境变量 `XIAOWEI_AGENT_HOME` 覆盖。Agent 直接使用根目录，不附加 `agent/`；模型设置使用其中的 `models.json`，`XIAOWEI_LLM_CONFIG` 保留单文件覆盖。Storage、日志、剪贴板与 Electron userData 沿用原应用数据目录。
+Agent 与模型设置的公共根目录由 app/paths.ts 解析，默认 `~/.xiaowei`，可通过绝对路径环境变量 `XIAOWEI_AGENT_HOME` 覆盖。Agent 直接使用根目录，不附加 `agent/`；模型设置使用其中的 `models.json`，`XIAOWEI_LLM_CONFIG` 保留单文件覆盖。Storage、日志、剪贴板、登录态与 Electron userData 沿用原应用数据目录。
 
 ## Host 与 worker 的代码组织
 

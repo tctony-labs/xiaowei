@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import SegmentedControl from "./SegmentedControl";
 import SettingCard from "./SettingCard";
 import SettingRow from "./SettingRow";
@@ -28,6 +29,7 @@ export function GeneralSettings({
   values,
   account,
   showAccount = true,
+  accountSection,
   onChange,
   onLogin,
   onLogout,
@@ -36,6 +38,7 @@ export function GeneralSettings({
   values: GeneralValues;
   account?: AccountView;
   showAccount?: boolean;
+  accountSection?: ReactNode;
   onChange: (values: GeneralValues) => void;
   onLogin?: () => void;
   onLogout?: () => void;
@@ -43,6 +46,7 @@ export function GeneralSettings({
 }) {
   return (
     <SettingsTabLayout title="通用">
+      {accountSection}
       {showAccount && account && (
         <SettingCard>
           {account.loggedIn ? (

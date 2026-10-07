@@ -21,7 +21,7 @@ Bearer 凭据通过 `Authorization: Bearer <access_token>` 传递。注册、找
 
 **应用生成的响应统一返回 HTTP 200，成功或失败通过响应体的 code 表达。** 这包括解析失败、请求过大、内容类型错误、限流、未登录、参数错误、服务不可用和内部错误；不能直接透传框架默认的 4xx／5xx 响应。
 
-成功返回 `{ code: 0, msg, data }`，失败返回 `{ code: 非零错误码, msg }`。公共与业务错误码都写入 code，说明字段统一为 msg。JSON／协议解码失败由接入层返回 INVALID_REQUEST，解码成功后的业务参数校验失败返回 INVALID_ARGUMENT；具体定义见 [契约文档](../../contracts/proto/xiaowei/server/README.md#接入错误与参数错误)。服务器不认识的新 oneof 分支按解码失败处理。
+成功返回 `{ code: 0, msg, data }`，失败返回 `{ code: 非零错误码, msg }`。公共与业务错误码都写入 code，说明字段统一为 msg，服务端提供的提示文案使用中文。JSON／协议解码失败由接入层返回 INVALID_REQUEST，解码成功后的业务参数校验失败返回 INVALID_ARGUMENT；具体定义见 [契约文档](../../contracts/proto/xiaowei/server/README.md#接入错误与参数错误)。服务器不认识的新 oneof 分支按解码失败处理。
 
 客户端收到 HTTP 200 仍需检查 code。网络断连、超时或反向代理生成的非 200 响应属于应用外异常，不能假定带有契约消息。服务端日志区分接入和业务失败，对外 msg 不暴露凭据、请求原文或底层错误。
 

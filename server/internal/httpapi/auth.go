@@ -38,7 +38,7 @@ func (a *authAPI) login(w http.ResponseWriter, r *http.Request) {
 			writeAuthError(w, "login", auth.ErrInvalidArgument)
 		} else {
 			writeProtocolError(w, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED),
-				"third-party binding is not supported")
+				"暂不支持第三方账号绑定")
 		}
 		return
 	}
@@ -59,7 +59,7 @@ func (a *authAPI) login(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("user logged in", "user_id", result.Identity.User.PublicID, "session_id", result.Tokens.SessionID)
 	writeAuthJSON(w, &pb.LoginResponse{
-		Msg: "ok",
+		Msg: "成功",
 		Data: &pb.LoginResult{Result: &pb.LoginResult_Authenticated{
 			Authenticated: &pb.Authenticated{
 				User: userMessage(result.Identity), Tokens: tokenMessage(result.Tokens),
@@ -83,7 +83,7 @@ func (a *authAPI) refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("session refreshed", "session_id", tokens.SessionID)
-	writeAuthJSON(w, &pb.RefreshResponse{Msg: "ok", Data: tokenMessage(tokens)})
+	writeAuthJSON(w, &pb.RefreshResponse{Msg: "成功", Data: tokenMessage(tokens)})
 }
 
 func (a *authAPI) authenticate(w http.ResponseWriter, r *http.Request) (db.SessionUser, bool) {
@@ -111,7 +111,7 @@ func (a *authAPI) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeAuthJSON(w, &pb.GetCurrentUserResponse{
-		Msg: "ok",
+		Msg: "成功",
 		Data: &pb.GetCurrentUserData{
 			User: userMessage(identity), SessionId: identity.SessionID, Device: deviceMessage(identity.Device),
 		},
@@ -131,7 +131,7 @@ func (a *authAPI) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slog.Info("session logged out", "user_id", identity.User.PublicID, "session_id", identity.SessionID)
-	writeAuthJSON(w, &pb.LogoutResponse{Msg: "ok", Data: new(common.Empty)})
+	writeAuthJSON(w, &pb.LogoutResponse{Msg: "成功", Data: new(common.Empty)})
 }
 
 func readAuthRequest(w http.ResponseWriter, r *http.Request, message proto.Message, allowEmpty bool) bool {
@@ -139,9 +139,9 @@ func readAuthRequest(w http.ResponseWriter, r *http.Request, message proto.Messa
 	if err != nil {
 		var sizeError *http.MaxBytesError
 		if errors.As(err, &sizeError) {
-			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_REQUEST_TOO_LARGE), "request too large")
+			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_REQUEST_TOO_LARGE), "请求内容过大")
 		} else {
-			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "invalid request")
+			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "请求格式错误")
 		}
 		return false
 	}
@@ -151,11 +151,11 @@ func readAuthRequest(w http.ResponseWriter, r *http.Request, message proto.Messa
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_UNSUPPORTED_MEDIA_TYPE),
-			"content type must be application/json")
+			"请求内容类型必须为 application/json")
 		return false
 	}
 	if err := protojson.Unmarshal(body, message); err != nil {
-		writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "invalid request")
+		writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "请求格式错误")
 		return false
 	}
 	return true
@@ -180,17 +180,17 @@ func tokenMessage(tokens auth.Tokens) *pb.TokenPair {
 
 func writeAuthError(w http.ResponseWriter, operation string, err error) {
 	code := int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR)
-	message := "authentication failed"
+	message := "认证失败，请稍后重试"
 	switch {
 	case errors.Is(err, auth.ErrInvalidArgument):
-		code, message = int32(pb.ErrorCode_ERROR_CODE_INVALID_ARGUMENT), "invalid request"
+		code, message = int32(pb.ErrorCode_ERROR_CODE_INVALID_ARGUMENT), "请求参数无效"
 	case errors.Is(err, auth.ErrInvalidCredentials):
 		code = int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS)
-		message = "invalid email or password"
+		message = "邮箱或密码错误"
 	case errors.Is(err, auth.ErrUnauthenticated):
-		code, message = int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), "invalid or expired credential"
+		code, message = int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), "登录凭据无效或已过期，请重新登录"
 	case errors.Is(err, auth.ErrUnavailable):
-		code, message = int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "authentication unavailable"
+		code, message = int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "认证服务暂不可用，请稍后重试"
 	}
 	if code == int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR) || code == int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE) {
 		slog.Error("authentication request failed", "operation", operation, "code", code, "error", err)

@@ -107,6 +107,6 @@ func (l *limiter) check(w http.ResponseWriter, operation string, quotas ...quota
 	}
 	w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 	slog.Info("HTTP request rate limited", "operation", operation)
-	writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_RATE_LIMITED), "too many attempts")
+	writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_RATE_LIMITED), "请求过于频繁，请稍后重试")
 	return false
 }

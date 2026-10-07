@@ -59,8 +59,8 @@ export function startApplication(moduleDir: string): void {
   app.setName("XiaoWei");
   app.setAppUserModelId("com.tctony.xiaowei");
   const paths = createPaths(app.getPath("appData"));
-  mkdirSync(paths.userData, { recursive: true });
-  app.setPath("userData", paths.userData);
+  mkdirSync(paths.electronRootDir, { recursive: true });
+  app.setPath("userData", paths.electronRootDir);
 
   if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -94,12 +94,13 @@ export function startApplication(moduleDir: string): void {
           await settingsWindow.open();
         });
         const models = await loadConfig(process.env, paths.models);
-        console.debug("Application module paths resolved", { agent: paths.agent, models: models.path });
+        console.debug("Application module paths resolved", { agent: paths.xiaoweiAgentRootDir, models: models.path });
         gateway = await createApplicationGateway(
           paths.clipboard,
           paths.database,
           paths.appIcons,
-          paths.agent,
+          paths.xiaoweiAgentRootDir,
+          paths.auth,
           {
             development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
             platform: process.platform,

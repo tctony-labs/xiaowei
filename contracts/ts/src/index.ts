@@ -1,4 +1,5 @@
 export * from "./gen/testing/fixture_pb.ts";
+export * from "./gen/xiaowei/account_pb.ts";
 export * from "./gen/xiaowei/agent_pb.ts";
 export * from "./gen/xiaowei/app_pb.ts";
 export * from "./gen/xiaowei/clipboard_pb.ts";

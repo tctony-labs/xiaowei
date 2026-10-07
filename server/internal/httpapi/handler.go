@@ -30,7 +30,7 @@ func NewHandler(checkDatabase func(context.Context) error, authService *auth.Ser
 			defer cancel()
 			if err := checkDatabase(ctx); err != nil {
 				slog.Warn("readiness check failed")
-				writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "service unavailable")
+				writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "服务暂不可用")
 				return
 			}
 			writeHealth(w)
@@ -47,7 +47,7 @@ func NewHandler(checkDatabase func(context.Context) error, authService *auth.Ser
 				// Do not log the panic value: it may contain request data or credentials.
 				slog.Error("HTTP handler panicked", "stack", string(debug.Stack()))
 				if !tracked.written {
-					writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR), "internal error")
+					writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR), "服务器内部错误")
 				}
 			}
 		}()
@@ -59,11 +59,11 @@ func NewHandler(checkDatabase func(context.Context) error, authService *auth.Ser
 		}
 		route, exists := routes[r.URL.Path]
 		if !exists {
-			writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_NOT_FOUND), "route not found")
+			writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_NOT_FOUND), "接口不存在")
 			return
 		}
 		if r.Method != route.method {
-			writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "unsupported method")
+			writeProtocolError(tracked, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "不支持此请求方法")
 			return
 		}
 		route.handle(tracked, r)
@@ -77,7 +77,7 @@ func writeHealth(w http.ResponseWriter) {
 		Code int32             `json:"code"`
 		Msg  string            `json:"msg"`
 		Data map[string]string `json:"data"`
-	}{Msg: "ok", Data: map[string]string{"status": "ok"}})
+	}{Msg: "成功", Data: map[string]string{"status": "ok"}})
 }
 
 type responseWriter struct {

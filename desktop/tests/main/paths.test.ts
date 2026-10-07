@@ -9,18 +9,20 @@ import { emptyConfig, loadConfig, writeConfig } from "../../src/main/services/ll
 test("Agent and models default to the shared home without relocating desktop data", () => {
   const appData = join(tmpdir(), "system-app-data");
   const paths = createPaths(appData, {});
-  assert.equal(paths.agent, join(homedir(), ".xiaowei"));
+  assert.equal(paths.xiaoweiAgentRootDir, join(homedir(), ".xiaowei"));
   assert.equal(paths.models, join(homedir(), ".xiaowei", "models.json"));
   assert.equal(paths.database, join(appData, "com.tctony.xiaowei", "xiaowei", "storage.sqlite"));
+  assert.equal(paths.auth, join(appData, "com.tctony.xiaowei", "xiaowei", "auth.json"));
 });
 
 test("XIAOWEI_AGENT_HOME selects an independent Agent and model configuration root", () => {
   const appData = join(tmpdir(), "system-app-data");
   const root = join(tmpdir(), "custom-xiaowei-home");
   const paths = createPaths(appData, { XIAOWEI_AGENT_HOME: root });
-  assert.equal(paths.agent, root);
+  assert.equal(paths.xiaoweiAgentRootDir, root);
   assert.equal(paths.models, join(root, "models.json"));
   assert.equal(paths.database, createPaths(appData, {}).database);
+  assert.equal(paths.auth, createPaths(appData, {}).auth);
 });
 
 test("invalid home overrides fail instead of writing relative to the working directory", () => {
@@ -47,5 +49,5 @@ test("model settings read and write the selected home, retaining the explicit fi
   await writeConfig(explicitPath, emptyConfig());
   const explicit = await loadConfig({ ...env, XIAOWEI_LLM_CONFIG: explicitPath }, paths.models);
   assert.equal(explicit.path, explicitPath);
-  assert.equal(paths.agent, env.XIAOWEI_AGENT_HOME);
+  assert.equal(paths.xiaoweiAgentRootDir, env.XIAOWEI_AGENT_HOME);
 });

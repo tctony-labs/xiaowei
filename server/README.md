@@ -11,6 +11,7 @@
 | `internal/db/` | PostgreSQL 连接、迁移及用户、身份与会话存储 |
 | `internal/auth/` | 密码校验、随机登录凭据与设备会话规则 |
 | `internal/httpapi/` | HTTP 路由、认证接入、限流与健康检查 |
+| `internal/scheduler/` | 后台定时任务、执行超时与退出取消 |
 | `config/` | YAML、`.env` 及模板 |
 | `deploy/` | Dockerfile 与 Compose 文件 |
 

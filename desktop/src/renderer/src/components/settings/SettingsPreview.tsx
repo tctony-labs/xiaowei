@@ -1,5 +1,5 @@
 // Storybook fixture adapter. Product code must use the view components with its own data and callbacks.
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { AboutSettings } from "./AboutSettings";
 import { AgentSettings, type AgentValues } from "./AgentSettings";
 import { type ArchivedSession, ArchiveSettings } from "./ArchiveSettings";
@@ -64,6 +64,7 @@ const sessionsFixture: ArchivedSession[] = [
   { id: "3", title: "项目知识库：架构与模块边界", workspace: "知识库", time: "1 周前", kind: "wiki" },
 ];
 export interface PreviewProps {
+  accountSection?: ReactNode;
   initialTab?: TabId;
   phaseOne?: boolean;
   loading?: boolean;
@@ -194,7 +195,8 @@ export function SettingsPreview(props: PreviewProps) {
           <GeneralSettings
             values={general}
             account={account}
-            showAccount={!props.phaseOne}
+            showAccount={!props.phaseOne && !props.accountSection}
+            accountSection={props.accountSection}
             onChange={(next) => {
               setGeneral(next);
               if (next.theme !== general.theme) document.documentElement.dataset.theme = next.theme;

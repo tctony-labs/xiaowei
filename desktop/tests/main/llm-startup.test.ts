@@ -88,7 +88,7 @@ replace("services/llm/config", {
 replace("app/gateway", {
   createApplicationGateway: async (...args: unknown[]) => {
     receivedAgentRoot = args[3];
-    received = args[5];
+    received = args[6];
     return { settings: { get: async () => ({ shortcuts: {} }) }, close: async () => {} };
   },
 });

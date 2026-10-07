@@ -16,6 +16,7 @@ import type { Subscription } from "xiaowei-gateway";
 import { services as defaultServices, type Services } from "../../services";
 import { applyTheme, themeValue } from "../../theme";
 import { AboutSettings } from "./AboutSettings";
+import { AccountSettingsSection } from "./AccountSettingsSection";
 import { ArchiveSettingsPage } from "./ArchiveSettingsPage";
 import { type CleanupStatus, ClipboardSettings } from "./ClipboardSettings";
 import { GeneralSettings } from "./GeneralSettings";
@@ -182,6 +183,7 @@ export function SettingsPage({
               bookmarks: snapshot.includeChromeBookmarks,
             }}
             showAccount={false}
+            accountSection={<AccountSettingsSection services={services} />}
             onChange={(values) => {
               if (values.theme !== themeValue(snapshot.theme)) {
                 const theme = { system: ThemeMode.SYSTEM, light: ThemeMode.LIGHT, dark: ThemeMode.DARK }[values.theme];

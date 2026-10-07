@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package xiaowei.account;
+
+import "xiaowei/common.proto";
+import "xiaowei/server/auth.proto";
+
+enum AccountStatus {
+  ACCOUNT_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_STATUS_SIGNED_OUT = 1;
+  ACCOUNT_STATUS_RESTORING = 2;
+  ACCOUNT_STATUS_SIGNING_IN = 3;
+  ACCOUNT_STATUS_SIGNED_IN = 4;
+  // Saved identity and credentials remain available during a temporary network failure.
+  ACCOUNT_STATUS_OFFLINE = 5;
+}
+
+message AccountSnapshot {
+  // Monotonic for this owner lifetime; includes transient state changes.
+  uint64 revision = 1;
+  repeated string servers = 2;
+  string selected_server = 3;
+  AccountStatus status = 4;
+  // Absent when signed out. No tokens, passwords or internal database identifiers.
+  xiaowei.server.auth.UserSnapshot user = 5;
+  // Safe description of restore, persistence or connection failure; never used for branching.
+  string status_message = 6;
+}
+
+message AccountChanged {
+  AccountSnapshot snapshot = 1;
+}
+
+message AccountOperationResponse {
+  // Zero succeeds; failures use server common/auth codes. Local errors use common codes.
+  int32 code = 1;
+  string msg = 2;
+  // Committed public state on success or failure; consumers ignore older revisions.
+  AccountSnapshot snapshot = 3;
+}
+
+message AddServerRequest {
+  // HTTPS base URL, or HTTP loopback for local development; may include a reverse-proxy path.
+  string server_address = 1;
+}
+
+message SelectServerRequest {
+  // Must be saved. Selection is rejected while signed in, including offline saved sessions.
+  string server_address = 1;
+}
+
+message AccountLoginRequest {
+  // Must equal the currently selected server, preventing a stale form from changing its target.
+  string server_address = 1;
+  xiaowei.server.auth.PasswordLogin password = 2;
+  // Client-generated UUID v4 identifies this attempt for explicit cancellation.
+  string attempt_id = 3;
+}
+
+message CancelAccountLoginRequest {
+  // Cancels only this attempt; a late close must never cancel a newer login.
+  string attempt_id = 1;
+}
+
+service Account {
+  rpc Get(xiaowei.common.Empty) returns (AccountSnapshot);
+
+  // Saves and selects the address. Only available while signed out.
+  rpc AddServer(AddServerRequest) returns (AccountOperationResponse);
+
+  rpc SelectServer(SelectServerRequest) returns (AccountOperationResponse);
+
+  // Device identity, HTTP requests and saved credentials belong to the main owner.
+  rpc Login(AccountLoginRequest) returns (AccountOperationResponse);
+
+  rpc CancelLogin(CancelAccountLoginRequest) returns (xiaowei.common.Empty);
+
+  // Network failure retains the session for retry; successful or already-invalid sessions clear locally.
+  rpc Logout(xiaowei.common.Empty) returns (AccountOperationResponse);
+}

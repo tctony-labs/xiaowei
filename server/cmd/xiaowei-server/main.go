@@ -17,6 +17,7 @@ import (
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
 	"github.com/tctony-labs/xiaowei/server/internal/httpapi"
+	"github.com/tctony-labs/xiaowei/server/internal/scheduler"
 )
 
 func main() {
@@ -102,6 +103,22 @@ func serve(ctx context.Context, configPath string) error {
 		IdleTimeout:       60 * time.Second,
 	}
 	failures := make(chan error, 1)
+	stopCleanup := scheduler.Start(ctx, scheduler.Task{
+		Name:     "authentication_cleanup",
+		Interval: 24 * time.Hour,
+		Timeout:  time.Minute,
+		Run: func(ctx context.Context) error {
+			result, err := store.CleanupAuthRecords(ctx, time.Now())
+			if err != nil {
+				return err
+			}
+			slog.Info("authentication records cleaned", "sessions", result.Sessions,
+				"expired_access_tokens", result.AccessTokens)
+			return nil
+		},
+	})
+	defer stopCleanup()
+
 	go func() { failures <- server.Serve(listener) }()
 	slog.Info("server listening", "address", listener.Addr().String())
 

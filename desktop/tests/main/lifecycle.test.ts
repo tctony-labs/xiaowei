@@ -5,7 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { EmptySchema, Settings, SettingsChangedSchema, SettingsSnapshotSchema } from "xiaowei-contracts";
+import {
+  EmptySchema,
+  KeyValue,
+  KvValueSchema,
+  Settings,
+  SettingsChangedSchema,
+  SettingsSnapshotSchema,
+} from "xiaowei-contracts";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 
@@ -94,23 +101,35 @@ mock.module(import.meta.resolve("xiaowei-gateway/rust-napi"), {
       calls.push(`attach-${name}`);
       if (failure === "agent-attach" && name === "agent") throw new Error("agent-attach failure");
       const owner =
-        name === "settings"
+        name === "storage"
           ? host.registerOwner(
-              "settings-test",
-              bindHandlers(Settings, {
-                get: () =>
-                  create(SettingsSnapshotSchema, {
-                    clipboardEnabled: true,
-                    clipboardRetentionDays: 30,
-                    includeChromeBookmarks: true,
-                  }),
-                update: () => {
-                  throw new Error("Unexpected settings update");
+              "storage-test",
+              bindHandlers(
+                KeyValue,
+                {
+                  get: () => create(KvValueSchema),
+                  set: () => create(EmptySchema),
                 },
-              }),
-              [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+                { partial: true },
+              ),
             )
-          : undefined;
+          : name === "settings"
+            ? host.registerOwner(
+                "settings-test",
+                bindHandlers(Settings, {
+                  get: () =>
+                    create(SettingsSnapshotSchema, {
+                      clipboardEnabled: true,
+                      clipboardRetentionDays: 30,
+                      includeChromeBookmarks: true,
+                    }),
+                  update: () => {
+                    throw new Error("Unexpected settings update");
+                  },
+                }),
+                [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+              )
+            : undefined;
       return {
         async close() {
           calls.push(`close-${name}`);
@@ -180,11 +199,25 @@ test("desktop startup failures unwind producers and owners before Storage closes
       calls.length = 0;
       if (stage) {
         await assert.rejects(
-          createApplicationGateway(directory, "unused.sqlite", directory, agentDirectory, actions),
+          createApplicationGateway(
+            directory,
+            "unused.sqlite",
+            directory,
+            agentDirectory,
+            join(directory, "auth.json"),
+            actions,
+          ),
           new RegExp(stage),
         );
       } else {
-        const gateway = await createApplicationGateway(directory, "unused.sqlite", directory, agentDirectory, actions);
+        const gateway = await createApplicationGateway(
+          directory,
+          "unused.sqlite",
+          directory,
+          agentDirectory,
+          join(directory, "auth.json"),
+          actions,
+        );
         assert.ok(calls.indexOf("attach-storage") < calls.indexOf("attach-clipboard-dao"));
         assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
         if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
