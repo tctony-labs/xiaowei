@@ -30,6 +30,8 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 | Desktop 回归 | 此前完整回归通过，renderer 20 文件／139 项；覆盖启动恢复、会话隔离、模型选择、标题、列表、归档及设置交互。最新 Header 调整未重跑整套 desktop，仅运行相关原生边界及 just check |
 | 会话维护 skill | 格式校验及 10 项临时数据用例通过；预览／确认、全工作区进程与数据库占用检查、清单变化、symlink、写锁及清理失败保护 |
 
+2026-10-07 针对 CI runtime 取消用例返回 Failed 的问题，新增在流 poll 内触发取消的确定性回归：修复前 EOF 路径稳定结算 Failed，修复后 EOF、流错误、provider 失败及最终消息四种返回均结算 Cancelled，并保留先前部分显示、不生成成功历史。聊天 runtime 读取返回后复核 token；正式 napi 取消断言补充 run.error，便于后续 CI 诊断。受影响 Agent addon 已重建，runtime 5 项、正式 napi／worker 5 项、完整 just test、just check 及 runtime strict Clippy 通过，renderer 22 文件／145 项通过。此轮未配置 XIAOWEI_TEST_DATABASE_URL，Go PostgreSQL／认证集成测试未执行；修复后的 GitHub Actions 尚未重跑。
+
 工具／抢占／交互／压缩 fixture 通过只说明历史结构可验证，不证明对应产品能力已经实现。
 
 ## 真实数据与运行实例

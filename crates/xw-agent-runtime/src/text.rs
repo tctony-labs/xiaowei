@@ -91,6 +91,11 @@ pub async fn execute_text(
                 _ = cancellation.cancelled() => return Err(GenerationError::Cancelled),
                 _ = events.closed() => return Err(GenerationError::Cancelled),
                 event = stream.next() => {
+                    // Cancellation can arrive while the adapter is being polled and surface as EOF or an error.
+                    if cancellation.is_cancelled() {
+                        return Err(GenerationError::Cancelled);
+                    }
+
                     event.ok_or_else(|| GenerationError::Failed(
                         "generation ended without a final message".into(),
                     ))??
