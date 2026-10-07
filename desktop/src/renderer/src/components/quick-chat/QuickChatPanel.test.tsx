@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { QuickChatChatPreview } from "./QuickChatChatPreview";
 import { QuickChatPanel, type QuickChatPanelProps } from "./QuickChatPanel";
@@ -122,4 +122,159 @@ test("reopening a completed chat restores the bottom or the user's reading posit
   scroller.scrollTop = 200;
   fireEvent.scroll(scroller);
   expect(reopen().scrollTop).toBe(200);
+});
+
+function menuPanel(overrides: Partial<QuickChatPanelProps> = {}) {
+  const props: QuickChatPanelProps = {
+    expanded: true,
+    search: <div>search</div>,
+    messages: [{ id: "user", role: "user", text: "Hello" }],
+    sessionId: "session-id",
+    draft: "",
+    configured: true,
+    generating: false,
+    onDraftChange: vi.fn(),
+    onSend: vi.fn(),
+    onStop: vi.fn(),
+    onNewConversation: vi.fn(),
+    onCollapse: vi.fn(),
+    ...overrides,
+  };
+  render(<QuickChatPanel {...props} />);
+  return props;
+}
+
+test("unimplemented title actions show a toast in a conversation without pretending to edit", () => {
+  menuPanel();
+  expect(screen.getByRole("button", { name: "新建对话" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "选择会话" }));
+  expect(screen.getByRole("status")).toHaveTextContent("暂未实现");
+  expect(screen.queryByText("暂无对话")).toBeNull();
+  for (const name of ["重命名", "更新标题", "归档"]) {
+    fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
+    expect(screen.getByRole("button", { name })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name }));
+    expect(screen.getByRole("status")).toHaveTextContent("暂未实现");
+    expect(screen.queryByRole("textbox", { name: "对话标题" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "归档" })).toBeNull();
+  }
+  expect(screen.queryByText(/默认可写/)).toBeNull();
+});
+
+test("toast expiration restarts on repeated clicks and Escape closes the menu before collapsing chat", () => {
+  vi.useFakeTimers();
+  const props = menuPanel();
+  fireEvent.click(screen.getByRole("button", { name: "选择会话" }));
+  act(() => vi.advanceTimersByTime(2000));
+  fireEvent.click(screen.getByRole("button", { name: "选择会话" }));
+  act(() => vi.advanceTimersByTime(2000));
+  expect(screen.getByRole("status")).toHaveTextContent("暂未实现");
+  act(() => vi.advanceTimersByTime(1000));
+  expect(screen.queryByRole("status")).toBeNull();
+  const more = screen.getByRole("button", { name: "更多操作" });
+  fireEvent.click(more);
+  fireEvent.keyDown(input(), { key: "Escape" });
+  expect(screen.queryByRole("button", { name: "重命名" })).toBeNull();
+  expect(props.onCollapse).not.toHaveBeenCalled();
+  fireEvent.keyDown(input(), { key: "Escape" });
+  expect(props.onCollapse).toHaveBeenCalledTimes(1);
+});
+
+test("copy uses the real session ID; deletion requires confirmation and never invokes new conversation", async () => {
+  const props = menuPanel({
+    sessionId: "session-id",
+    onCopySessionId: vi.fn(async () => {}),
+    onDeleteConversation: vi.fn(),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
+  fireEvent.click(screen.getByRole("button", { name: "Session ID" }));
+  expect(props.onCopySessionId).toHaveBeenCalledExactlyOnceWith("session-id");
+  expect(await screen.findByRole("status")).toHaveTextContent("已复制");
+  fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
+  fireEvent.click(screen.getByRole("button", { name: "删除会话" }));
+  expect(props.onNewConversation).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "取消" }));
+  expect(props.onNewConversation).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
+  fireEvent.click(screen.getByRole("button", { name: "删除会话" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "删除" }));
+  expect(props.onDeleteConversation).toHaveBeenCalledTimes(1);
+  expect(props.onNewConversation).not.toHaveBeenCalled();
+});
+
+test.each([null, "empty-session"])("blank chat (%s) hides more actions even with a draft", (sessionId) => {
+  menuPanel({ sessionId, messages: [], draft: "unsent draft" });
+  expect(screen.queryByRole("button", { name: "更多操作" })).toBeNull();
+  expect(screen.getByRole("button", { name: "新建对话" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "选择会话" })).toBeVisible();
+  expect(input()).toHaveValue("unsent draft");
+});
+
+test("the session menu lists actual sessions and sends the selected ID to the adapter", () => {
+  const props = menuPanel({
+    sessionId: "first",
+    sessions: [
+      { id: "first", title: "First" },
+      { id: "second", title: "Second" },
+    ],
+    onListSessions: vi.fn(),
+    onSwitchSession: vi.fn(),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "选择会话" }));
+  expect(props.onListSessions).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Second" }));
+  expect(props.onSwitchSession).toHaveBeenCalledExactlyOnceWith("second");
+  expect(props.onNewConversation).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Second" })).toBeNull();
+});
+
+test("switching sessions restores each session's reading position", () => {
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(200);
+  const props: QuickChatPanelProps = {
+    expanded: true,
+    search: <div>search</div>,
+    sessionId: "first",
+    messages: [{ id: "first-reply", role: "assistant", text: "First reply", status: "complete" }],
+    draft: "",
+    configured: true,
+    generating: false,
+    onDraftChange() {},
+    onSend() {},
+    onStop() {},
+    onNewConversation() {},
+    onCollapse() {},
+  };
+  const second: QuickChatPanelProps = {
+    ...props,
+    sessionId: "second",
+    messages: [{ id: "second-reply", role: "assistant", text: "Second reply", status: "complete" }],
+  };
+  const { rerender } = render(<QuickChatPanel {...props} />);
+  const scroller = screen.getByRole("region", { name: "对话消息" });
+  scroller.scrollTop = 100;
+  fireEvent.scroll(scroller);
+  rerender(<QuickChatPanel {...second} />);
+  expect(scroller.scrollTop).toBe(1000);
+  scroller.scrollTop = 400;
+  fireEvent.scroll(scroller);
+  rerender(<QuickChatPanel {...props} />);
+  expect(scroller.scrollTop).toBe(100);
+  rerender(<QuickChatPanel {...second} />);
+  expect(scroller.scrollTop).toBe(400);
+});
+
+test("a clipboard failure shows a retry toast instead of claiming the ID was copied", async () => {
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  menuPanel({
+    sessionId: "session-id",
+    onCopySessionId: vi.fn(async () => {
+      throw new Error("clipboard unavailable");
+    }),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "更多操作" }));
+  fireEvent.click(screen.getByRole("button", { name: "Session ID" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("复制失败，请重试。");
+  expect(screen.queryByText("已复制")).toBeNull();
+  expect(screen.queryByRole("button", { name: "重命名" })).toBeNull();
 });

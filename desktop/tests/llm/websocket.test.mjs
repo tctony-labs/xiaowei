@@ -38,6 +38,7 @@ async function setup(t) {
     name: "Model",
     modelId: "model",
     provider: "openai",
+    providerName: "OpenAI",
     api: "openai-responses",
     apiKey: "fixture-key",
     baseUrl: fixture.baseUrl,

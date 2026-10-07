@@ -27,3 +27,47 @@
   -webkit-text-fill-color: transparent;
   animation: quick-chat-title-shimmer 1.8s linear infinite;
 }
+
+.quick-chat-title-bar [data-no-drag] {
+  -webkit-app-region: no-drag;
+}
+
+.quick-chat-config-chip {
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.quick-chat-config-chip:hover:not(:disabled),
+.quick-chat-config-chip:focus-visible,
+.quick-chat-config-chip[aria-expanded="true"] {
+  background: var(--color-hover);
+  color: var(--color-ink-secondary);
+}
+
+.quick-chat-config-menu {
+  min-width: 160px;
+  border: 1px solid var(--color-line);
+  padding: 4px 0;
+}
+
+.quick-chat-config-menu button {
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-ink-secondary);
+}
+
+.quick-chat-config-menu button[data-selected="true"] {
+  color: var(--color-ink);
+}
+
+.quick-chat-config-menu button:hover,
+.quick-chat-config-menu button:focus-visible {
+  background: var(--color-hover);
+}

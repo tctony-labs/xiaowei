@@ -76,8 +76,8 @@ test("save assigns stable IDs, defaults and readable JSON, edits preserve keys a
   const saved = first.providers[0];
   assert.ok(saved.id);
   assert.ok(saved.models[0].id);
-  assert.equal(saved.models[0].contextWindow, 131072);
-  assert.equal(saved.models[0].maxTokens, 16384);
+  assert.equal(saved.models[0].contextWindow, 256000);
+  assert.equal(saved.models[0].maxTokens, 32768);
   assert.equal(f.applied[0][0].apiKey, "environment-secret");
   assert.ok(!toJsonString(ModelSettingsSnapshotSchema, first).includes("secret"));
   const file = await readFile(f.path, "utf8");
@@ -260,4 +260,27 @@ test("draft discovery goes through the built worker without saving and cancellat
   await slow.cancel();
   await rejected;
   await disconnected;
+});
+
+test("auxiliary reference is queried from settings and changes without applying worker models", async (t) => {
+  const f = await fixture(t);
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, undefined);
+  const saved = await save(f.api, 1n, provider());
+  const modelRef = saved.providers[0].models[0].id;
+  const selected = await f.api.updateDefaults(
+    create(UpdateModelDefaultsRequestSchema, {
+      expectedRevision: saved.revision,
+      defaults: { smallTextModelRef: modelRef },
+    }),
+  );
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, modelRef);
+  assert.equal(f.applied.length, 1);
+  await f.api.updateDefaults(
+    create(UpdateModelDefaultsRequestSchema, {
+      expectedRevision: selected.revision,
+      defaults: {},
+    }),
+  );
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, undefined);
+  assert.equal(f.applied.length, 1);
 });

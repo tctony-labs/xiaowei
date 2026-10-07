@@ -210,6 +210,24 @@ importers:
         specifier: 4.23.13
         version: 4.23.13
 
+  crates/xiaowei-agent/napi:
+    devDependencies:
+      '@bufbuild/protobuf':
+        specifier: 2.15.0
+        version: 2.15.0
+      '@napi-rs/cli':
+        specifier: 3.10.1
+        version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
+      tsx:
+        specifier: 4.23.13
+        version: 4.23.13
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../../../contracts/ts
+      xiaowei-gateway:
+        specifier: workspace:*
+        version: link:../../../gateway/ts
+
   crates/xiaowei-clipboard/napi:
     devDependencies:
       '@napi-rs/cli':
@@ -269,6 +287,9 @@ importers:
       remark-gfm:
         specifier: 4.0.1
         version: 4.0.1(supports-color@5.5.0)
+      xiaowei-agent:
+        specifier: workspace:*
+        version: link:../crates/xiaowei-agent/napi
       xiaowei-clipboard:
         specifier: workspace:*
         version: link:../crates/xiaowei-clipboard/napi

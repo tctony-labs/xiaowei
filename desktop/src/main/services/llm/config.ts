@@ -13,7 +13,7 @@ import {
 export interface ConfiguredModel
   extends Omit<
     ModelConfig,
-    "provider" | "api" | "baseUrl" | "apiKey" | "apiKeyEnv" | "name" | "cost" | "defaultTransport"
+    "provider" | "providerName" | "api" | "baseUrl" | "apiKey" | "apiKeyEnv" | "name" | "cost" | "defaultTransport"
   > {
   name?: string;
   cost?: ModelConfig["cost"];
@@ -79,6 +79,7 @@ function runtimeModel(provider: ConfiguredProvider, model: ConfiguredModel, apiK
     name: model.name?.trim() || model.modelId,
     cost: model.cost === undefined ? zeroCost : model.cost,
     provider: provider.provider,
+    providerName: provider.name,
     api: provider.api,
     baseUrl: provider.baseUrl,
     apiKey,

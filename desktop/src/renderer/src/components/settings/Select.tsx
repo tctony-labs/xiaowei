@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface SelectOption<T extends string | number> {
@@ -12,6 +12,8 @@ interface SelectProps<T extends string | number> {
   onChange: (value: T) => void;
   disabled?: boolean;
   iconOnly?: boolean;
+  leadingIcon?: ReactNode;
+  showChevron?: boolean;
   ariaLabel?: string;
   /** 当前值不在 options 中时显示的占位文案。 */
   placeholder?: string;
@@ -34,6 +36,8 @@ export default function Select<T extends string | number>({
   onChange,
   disabled,
   iconOnly = false,
+  leadingIcon,
+  showChevron = true,
   ariaLabel,
   placeholder,
   className,
@@ -131,23 +135,26 @@ export default function Select<T extends string | number>({
           pl-2.5 text-[13px] leading-[18px] text-ink transition-colors disabled:cursor-not-allowed
           disabled:opacity-50 ${open ? "border-primary" : "border-line hover:border-muted"} ${buttonClassName ?? ""}`}
       >
+        {leadingIcon}
         {!iconOnly && <span>{selectedLabel}</span>}
-        <svg
-          className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 4.5L6 7.5L9 4.5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        {showChevron && (
+          <svg
+            className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M3 4.5L6 7.5L9 4.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
       </button>
 
       {/* 下拉菜单 */}
@@ -213,6 +220,7 @@ function SelectMenu<T extends string | number>({
           <button
             key={opt.value}
             type="button"
+            data-selected={isSelected}
             onClick={() => onSelect(opt.value)}
             className={`flex w-full cursor-pointer items-center whitespace-nowrap rounded-lg px-3 py-[5px]
           text-[14px] leading-[22px] transition-colors ${

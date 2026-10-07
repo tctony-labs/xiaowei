@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { toBinary } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { type Model, normalizeContext } from "@earendil-works/pi-ai";
 import { GenerateEventSchema, type GenerateRequest } from "xiaowei-contracts";
 import { GatewayFailure } from "xiaowei-gateway";
@@ -8,6 +8,7 @@ import { apis } from "./apis";
 import { mapEvent } from "./events";
 import { toContext } from "./messages";
 import { toOptions } from "./options";
+import { observableSseApis, observeSseFetch } from "./sse-observer";
 
 function invalid(message: string): never {
   throw new GatewayFailure({ code: "INVALID_ARGUMENT", message });
@@ -58,7 +59,20 @@ export function generate(
     try {
       const model = toPiModel(config);
       const api = apis[config.api]();
-      const parameters = { ...options.options, apiKey: config.apiKey, signal: controller.signal };
+      let firstSseAt: number | undefined;
+      let firstSseEmitted = false;
+      const parameters = {
+        ...options.options,
+        apiKey: config.apiKey,
+        signal: controller.signal,
+        ...(observableSseApis.has(config.api)
+          ? {
+              fetch: observeSseFetch((receivedAtMs) => {
+                firstSseAt ??= receivedAtMs;
+              }),
+            }
+          : {}),
+      };
       const transcript = normalizeContext(context);
       events = options.simple
         ? api.streamSimple(model, transcript, parameters)
@@ -70,6 +84,12 @@ export function generate(
           bytes += Buffer.byteLength(event.delta);
           if (bytes > 1024 * 1024)
             throw new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "generated content exceeds 1 MiB" });
+        }
+        if (firstSseAt !== undefined && !firstSseEmitted) {
+          firstSseEmitted = true;
+          yield create(GenerateEventSchema, {
+            event: { case: "firstSseReceived", value: { receivedAtMs: BigInt(firstSseAt) } },
+          });
         }
         const mapped = mapEvent(event, request.messages.length > 0);
         // Signatures and final tool arguments may arrive without delta events.

@@ -15,6 +15,7 @@ function setup(overrides: Partial<QuickChatTitleBarProps> = {}) {
     isGenerating: false,
     isRegeneratingTitle: false,
     hasAssistantReply: true,
+    hasMessages: true,
     sessions: [{ id: "quick-2", title: "另一段对话" }],
     sessionsLoading: false,
     onListSessions: vi.fn(),
@@ -65,6 +66,9 @@ test("menus are exclusive, close on Escape or outside click, and load only when 
 test("session actions pass the correct identifiers and close their menus", async () => {
   const { props } = setup();
   await click("选择会话");
+  expect(screen.queryByText("已归档")).toBeNull();
+  expect(screen.queryByText("取消归档")).toBeNull();
+  expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
   await click("另一段对话");
   expect(props.onSwitchSession).toHaveBeenCalledWith("quick-2");
   expect(screen.queryByText("另一段对话")).not.toBeInTheDocument();
@@ -98,16 +102,27 @@ test("rename selects text, trims on Enter, cancels on Escape and commits on blur
   expect(props.onRename).toHaveBeenLastCalledWith("失焦保存");
 });
 
-test("rename ignores empty or unchanged titles and composition confirmation", async () => {
+test("rename confirms an unchanged title as manual and ignores empty titles and composition confirmation", async () => {
   const { props } = setup();
   let input = await openRename();
   fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
   expect(input).toHaveFocus();
   expect(props.onRename).not.toHaveBeenCalled();
   await userEvent.keyboard("{Enter}");
+  expect(props.onRename).toHaveBeenCalledExactlyOnceWith(props.title);
   input = await openRename();
   fireEvent.change(input, { target: { value: "   " } });
   await userEvent.keyboard("{Enter}");
+  expect(props.onRename).toHaveBeenCalledTimes(1);
+});
+
+test("changing sessions closes a pending title edit without renaming the new session", async () => {
+  const { props, rerender } = setup();
+  const input = await openRename();
+  fireEvent.change(input, { target: { value: "unfinished edit" } });
+  rerender(<QuickChatTitleBar {...props} convId="other" title="Other title" />);
+  expect(screen.queryByRole("textbox", { name: "对话标题" })).toBeNull();
+  expect(screen.getByText("Other title")).toBeVisible();
   expect(props.onRename).not.toHaveBeenCalled();
 });
 
@@ -125,14 +140,12 @@ test("delete requires confirmation and supports cancellation", async () => {
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
-test("draft disables persisted-session operations", async () => {
-  setup({ convId: null, hasAssistantReply: false });
+test("blank chat hides more actions and keeps new and session selection available", () => {
+  setup({ convId: null, hasAssistantReply: false, hasMessages: false });
+  expect(screen.queryByRole("button", { name: "更多操作" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "在对话窗口中打开" })).not.toBeInTheDocument();
-  await click("更多操作");
-  for (const name of ["Session ID", "重命名", "更新标题", "归档", "删除会话"]) {
-    expect(screen.getByRole("button", { name })).toBeDisabled();
-  }
   expect(screen.getByRole("button", { name: "新建对话" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "选择会话" })).toBeEnabled();
 });
 
 test.each([{ hasAssistantReply: false }, { isGenerating: true }, { isRegeneratingTitle: true }])(

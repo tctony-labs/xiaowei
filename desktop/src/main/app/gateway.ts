@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { Agent } from "xiaowei-agent";
 import { ClipboardHistory } from "xiaowei-clipboard";
 import { App, EmptySchema, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
@@ -23,6 +24,7 @@ export async function createApplicationGateway(
   directory: string,
   databasePath: string,
   iconDirectory: string,
+  agentDirectory: string,
   actions: Omit<LauncherActions, "iconUrl" | "includeChromeBookmarks"> & {
     updateShortcuts(shortcuts: ShortcutConfig): void;
     openSettings(): Promise<BrowserWindow>;
@@ -37,6 +39,15 @@ export async function createApplicationGateway(
     if (!window || window.isDestroyed()) throw new Error("Window unavailable");
     return window;
   };
+  let agent: Agent | undefined;
+  let agentEndpoint: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
+  async function closeAgent() {
+    try {
+      await agent?.close();
+    } finally {
+      await agentEndpoint?.close();
+    }
+  }
   let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
@@ -69,6 +80,8 @@ export async function createApplicationGateway(
   let iconProtocolHandled = false;
   try {
     llm = await attachLlm(host, resolveModels(config?.document ?? emptyConfig(), process.env));
+    agent = await Agent.open(agentDirectory);
+    agentEndpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
     system = registerSystem(host, windowFor, actions.openSettings, actions.hideWindow);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
@@ -94,6 +107,7 @@ export async function createApplicationGateway(
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
     await modelSettings?.close();
+    await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
     await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
     shortcuts?.close();
     system?.close();
@@ -118,7 +132,11 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         await modelSettings?.close();
-        const results = await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
+        const agentResults = await Promise.allSettled([closeAgent()]);
+        const results = [
+          ...agentResults,
+          ...(await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()])),
+        ];
         shortcuts?.close();
         system?.close();
         await settings?.close();

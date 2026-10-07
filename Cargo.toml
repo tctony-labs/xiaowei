@@ -6,6 +6,7 @@ members = [
     "gateway/rust",
     "crates/*",
     "crates/xiaowei-search/napi",
+    "crates/xiaowei-agent/napi",
     "crates/xiaowei-clipboard/napi",
     "crates/xiaowei-storage/napi",
     "crates/xiaowei-platform/napi",

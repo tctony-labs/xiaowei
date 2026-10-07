@@ -101,9 +101,7 @@ test.each(["first-use", "all-archived", "all-deleted"] as const)(
   async (state) => {
     render(<QuickChatLauncherPreview initialState={state} initiallyExpanded />);
     expect(screen.getByText("输入问题开始对话")).toBeVisible();
-    await click("更多操作");
-    expect(screen.getByRole("button", { name: "重命名" })).toBeDisabled();
-    fireEvent.keyDown(chatInput(), { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "更多操作" })).not.toBeInTheDocument();
     fireEvent.change(chatInput(), { target: { value: "第一条消息" } });
     fireEvent.keyDown(chatInput(), { key: "Enter" });
     expect(screen.getByText("第一条消息")).toBeVisible();

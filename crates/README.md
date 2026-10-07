@@ -9,6 +9,11 @@
 | [xiaowei-storage](xiaowei-storage/) | 存储、设置与 napi 入口 |
 | [xiaowei-platform](xiaowei-platform/README.md) | 平台能力的 napi 包裹层 |
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
+| [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |
+| [xw-agent](xw-agent/README.md) | 传输无关的 Agent App Server、SQLite 会话目录、投影与业务恢复 |
+| [xw-agent-runtime](xw-agent-runtime/README.md) | 单次文本执行、完整生成收集与取消 |
+| [xw-agent-rollout](xw-agent-rollout/README.md) | JSONL 文件提交、跨进程写锁与未提交尾部修复 |
+| [xw-agent-types](xw-agent-types/README.md) | Agent 内部领域类型、精简历史编解码与回放校验 |
 | [xw-app](xw-app/) | 应用数据源 |
 | [xw-bookmark](xw-bookmark/) | 浏览器书签数据源 |
 | [xw-tokenizer](xw-tokenizer/README.md) | SQLite FTS5 分词 |
@@ -100,6 +105,6 @@ Electron 通过 `workspace:*` 引用本地 npm 入口包，例如 `"xiaowei-sear
 
 业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../gateway/README.md#接入约定)。
 
-业务核心负责注册生产 PB routes，契约集中在 `contracts/`；napi 适配层导出 endpoint，由 main 通过 `attachRustNapi` 接入。endpoint 应复用所属模块的业务实例，避免为通信入口重复创建业务状态。测试 fixture 不进入正式接口。
+业务入口负责注册生产 PB routes，契约集中在 `contracts/`；Agent 的 `xw-agent` 仅消费协议类型，Gateway 接入归 `xiaowei-agent` 集成层，runtime／types 不依赖通信契约。napi 适配层导出 endpoint，由 main 通过 `attachRustNapi` 接入。endpoint 应复用所属模块的业务实例，避免为通信入口重复创建业务状态。测试 fixture 不进入正式接口。
 
 共享 Gateway Rust 代码变更时，沿依赖关系重建受影响的原生包。通信与生命周期的通用约定见 [Gateway](../gateway/README.md)，桌面接入约定见 [main 装配与生命周期](../desktop/src/main/README.md#gateway-装配与生命周期)。

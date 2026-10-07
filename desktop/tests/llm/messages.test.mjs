@@ -44,7 +44,8 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
         }),
       ),
     );
-    assert.equal(events[0].case, "started");
+    assert.equal(events.filter((event) => event.case !== "firstSseReceived")[0].case, "started");
+    assert.equal(events.filter((event) => event.case === "firstSseReceived").length, 1);
     const done = events.at(-1).value;
     assert.equal(done.reason, FinishReason.TOOL_USE);
     assert.ok(events.some((event) => event.case === "blockDelta" && event.value.kind === "thinking"));

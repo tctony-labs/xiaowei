@@ -38,6 +38,10 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
       return;
     }
     outgoing.writeHead(200, { "Content-Type": "text/event-stream" });
+    if (text === "delayed-sse") {
+      outgoing.flushHeaders();
+      await new Promise((resolve) => resume.set(text, resolve));
+    }
     if (text.startsWith("features")) {
       const send = (event) => outgoing.write(`event: ${event.type ?? "message"}\ndata: ${JSON.stringify(event)}\n\n`);
       const args = '{"text":"中文参数"}';
@@ -242,6 +246,7 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
     name: "Test",
     api,
     provider: "openai",
+    providerName: "Test provider",
     reasoning: false,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

@@ -1,0 +1,15 @@
+[package]
+name = "xiaowei-agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+xw-agent = { path = "../xw-agent" }
+xw-agent-types = { path = "../xw-agent-types" }
+xw-gateway = { path = "../../gateway/rust" }
+xw-contracts = { path = "../../contracts/rust" }
+futures-util = "0.3"
+prost = "=0.14.4"
+tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
+thiserror = "2"
+serde_json = { version = "1", features = ["raw_value"] }

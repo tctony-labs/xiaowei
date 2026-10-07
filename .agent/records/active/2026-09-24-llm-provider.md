@@ -6,7 +6,7 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 ## What
 
-建立可供后续 Quick Chat 运行时使用的 Pi provider 边界。最终需能按当前设置选择模型和凭据，处理请求、流式文本／推理／工具调用、使用量、结束／错误与取消，并经 Gateway 供 Rust agent 调用。按用户要求一次只推进一个小切片；已完成适配边界核对、Gateway worker 通信、Pi 补丁与最小文本流调用；LLM service 在 Node worker 内运行，现已接入启动配置、运行时整批更新、完整生成消息与远端模型列表。
+建立可供 Agent／Quick Chat 使用的 Pi provider 边界。最终需能按当前设置选择模型和凭据，处理请求、流式文本／推理／工具调用、使用量、结束／错误与取消，并经 Gateway 供 Rust agent 调用。已交付 Gateway worker 通信、Pi 补丁、完整生成与模型目录、持久模型设置及 Responses WebSocket。LLM service 在 Node worker 内运行；Agent 产品调用另由 Agent Chat 事项维护。
 
 本事项不接入 Quick Chat 产品 UI，不改变会话数据，也不以直接模型调用代替旧 agent 的工具与恢复语义。UI 入口预览另见 [Quick Chat UI 事项](2026-09-24-quick-chat-ui-interaction.md)。
 
@@ -14,34 +14,19 @@ Quick Chat 后续需要模型调用、流式事件、工具、取消和推理内
 
 旧版源码位于 `/Users/changtang/Develop/XiaoWei/workspace/src/xiaowei-next`，本轮核对 HEAD `6be131098d0b907b988f7f53460f450c89b9034c`。旧 `xw-agent-runtime` 通过 Rust `ChatProvider::stream` 接收 `ChatRequest`、`StreamEvent`，`xw-agent-protocol`／rollout 也复用 `xw-llm::types`。采用 Pi 后需保留必要的领域数据语义，并建立 Rust↔TS 适配；不能直接把 TypeScript 库实现为 Rust trait。
 
-当前 Gateway 已支持 TypeScript owner、Rust caller 和响应流，LLM 业务契约见 `contracts/proto/xiaowei/llm.proto`。main 的目录规则和现有文件归属维护在 [Electron main 模块组织](../../../desktop/src/main/README.md)。Pi provider 位于 `desktop/src/main/services/llm/`，由 `app/gateway.ts` 装配和关闭；本阶段不新增 Rust crate 或 npm workspace package。Rust typed caller 已通过 Gateway 验证交错的文本／推理／工具块、工具参数 JSON、取消及用量；产品 agent 循环另行接入。
+当前 Gateway 已支持 TypeScript owner、Rust caller 和响应流，LLM 业务契约见 `contracts/proto/xiaowei/llm.proto`。main 的目录规则和现有文件归属维护在 [Electron main 模块组织](../../../desktop/src/main/README.md)。Pi provider 位于 `desktop/src/main/services/llm/`，由 `app/gateway.ts` 装配和关闭；本阶段不新增 Rust crate 或 npm workspace package。Rust typed caller 已通过 Gateway 验证交错的文本／推理／工具块、工具参数 JSON、取消及用量；产品文本 Agent 已通过 xiaowei-agent 接入，工具循环仍未交付，见[Agent Chat](2026-09-28-agent-chat.md)。
 
 `@mariozechner/pi-ai` 与 `@earendil-works/pi-ai` 是同一 Pi 项目的旧／新发布名，并非两个并行分支：旧 GitHub 地址 `badlogic/pi-mono` 重定向到 `earendil-works/pi`，两个地址当前指向同一提交；旧 npm 包已标记弃用并提示改用新包。后续使用 `@earendil-works/pi-ai`。用户给出的本地 DSH `/Users/changtang/Develop/LLM/deepseek-harness` 已使用新包（更新后锁定 0.85.1，并携带工具参数流式解析补丁），其 `packages/llm/llm-pi-ai/` 是 DSH 自己的适配层，可参考 `src/context.ts`、`stream.ts`、`provider.ts` 的映射，不复制 Cordis、凭据或会话系统。本项目当前在 desktop 固定使用 `@earendil-works/pi-ai@0.87.1`，并登记同版本 pnpm 补丁；升级结论见下节。
 
-现有设置模型页仍是 Storybook mock；提供方配置、Key 和远端目录的服务接口已具备，设置页持久化与 UI 后续衔接。Pi 的协议名与设置页的 `openai-completions`、`openai-responses`、`anthropic-messages` 一致，但能力、上下文上限和输出上限需有明确来源。旧版与 Pi 在重试、Responses WebSocket、推理回放和错误细节上的差异要逐项验证并记录。
+设置模型页已接真实提供方配置、Key、远端目录与持久化；Storybook 保留纯展示预览。Pi 的协议名与设置页的 `openai-completions`、`openai-responses`、`anthropic-messages` 一致，但能力、上下文上限和输出上限需有明确来源。旧版与 Pi 在重试、Responses WebSocket、推理回放和错误细节上的差异要逐项验证并记录。
 
-### Pi 0.87.1 升级（2026-09-25）
+### Pi 与 DSH 参考边界
 
-当前 desktop 精确依赖 `@earendil-works/pi-ai@0.87.1`。工具参数流式解析的六处补丁仍未被上游替代，已通过 pnpm patch／patch-commit 重基到新版本，删除旧补丁登记；维护入口仍为 patches/README.md。
+当前 desktop 精确依赖 @earendil-works/pi-ai 0.87.1，pnpm patch 固定工具参数流式解析及通用 Responses WebSocket 修改；维护见[patches README](../../../patches/README.md)。normalizeContext 合并 system 与工具声明后传 TranscriptContext，JsonValue／JsonObject 的对象校验在适配层。原 @mariozechner 包已更名，不是另一套 Agent 实现。
 
-新版 provider-facing stream 接口要求 TranscriptContext：worker 在调用适配器之前使用 normalizeContext 合并 system prompt 和工具声明；JSON 类型收紧为 JsonValue／JsonObject，沿用原 JSON.parse 与对象校验。安装刷新暴露 Vite 的可选 tsx peer 两套版本，workspace override 将其统一为桌面已有的 4.23.13，避免插件类型跨实例冲突。
+DSH 的源码参考基线为 `46a7f68b0922371ce7144b668b90e377d8e799f4`，当时锁定 Pi 0.85.1。其 packages/llm/llm-pi-ai 是额外适配层，冻结配置、解析认证、关闭 SDK 重试并转换消息／回放，不应将这些策略当成 Pi 自带能力。其工具参数补丁删除六处对累计 JSON 的重复解析，仅保留 delta 和终态参数，避免大参数的重复解析开销；XiaoWei 已重基到当前版本，以 Completions／Responses 本地 SSE 回归验证，其他补丁路径的覆盖限制见 Outcome。
 
-静态模型目录由 1,354 条变为 1,495 条（按 provider／api／id 统计），新增 210 条、移除 69 条，62 条已有配置的 thinkingLevelMap 变化。已包含 OpenAI `gpt-6-sol`：off→none、low／medium／high／xhigh／max 同名映射，minimal 不支持；Codex 入口的 minimal 映射到 low。统一档位仍为 off／minimal／low／medium／high／xhigh／max，没有 ultra，也没有 `gpt-6.0-sol` 这个精确 ID。
-
-DeepSeek 目录 Flash ID 已改为 `deepseek-flash`，与 UI／DSH 一致；Flash 的推理档位 low／high／max，Pro 为 high／max。两者目录 maxTokens 为 384,000；现有 UI 的 256,000 仍是 DSH 默认输出预算，不将目录上限自动当作请求预算。此次不扩大自定义协议列表或更新远端真实调用验收结论。
-
-验证通过：`pnpm install --frozen-lockfile`、`pnpm test:patches`（2/2）、`pnpm --dir desktop check`、`pnpm --dir desktop build`、在 desktop 下运行 `pnpm exec tsx --test tests/llm/*.test.mjs`（45/45），以及根目录 `just check`。本轮未执行真实 API 调用或启动 Electron；Biome 尚有现有 Select 键盘代码的一个非阻断性 useIndexOf 提示。
-
-### 核对基线与 DSH 的两层适配（2026-09-24）
-
-本轮按用户要求将 `/Users/changtang/Develop/LLM/deepseek-harness` 的 `master` 从 `99f6f02fec` 快进到 `46a7f68b0922371ce7144b668b90e377d8e799f4`，更新后工作区干净。最终结论以更新后的源码和 lockfile 为准：依赖声明 `^0.85.1`，锁定 `0.85.1`，patch hash 为 `b9bcce474fb2ac44633dff0fa722816a5bff5451b4575d5874035ea14ba70a4f`。没有在 DSH 执行依赖安装，原 node_modules 仍为 0.82.1，不能拿它验证更新后的行为；本轮另读取 npm 发布的 0.85.1 包与仓库补丁进行静态核对。更新前安装包与 npm 0.82.1 的 712 个文件一致，只能说明旧快照没有修改包本体。
-
-DSH 并非直接裸用 Pi，须区分两层：
-
-- `packages/llm/llm-pi-ai/src/` 是 DSH 自己的适配层：`catalog.ts`／`provider.ts`／`models.ts` 解析模型和协议，`adapter.ts` 冻结配置快照、注入认证、关闭 SDK 重试、管理取消及 idle watchdog，`context.ts`／`stream.ts`／`replay.ts` 转换消息、事件与持久回放。新版另有 `auth.ts`／`login.ts` 承接凭据存储与 OAuth；这些不属于本项目本片范围。
-- `patches/@earendil-works__pi-ai@0.85.1.patch` 通过 `pnpm-workspace.yaml` 的 `patchedDependencies` 修改 Pi 本体。它删除 Anthropic、Bedrock、Mistral、OpenAI Completions、Responses shared、Pi Messages 六处参数 delta 对累计 JSON 的重复解析，保留 delta 字符串和终态解析。DSH 只依赖增量和最终参数，不依赖 partial.arguments 随片更新；其 README 指出大参数会触发累计重解析的 O(n²) CPU 开销，`tests/tool-argument-streaming.spec.ts` 用 Completions／Responses mock 覆盖此约束。未运行 DSH 的该测试；XiaoWei 已原样引入补丁，并以 补丁 Node 测试独立覆盖两个协议。
-
-因此参考 DSH 时须分别注明 Pi 公共能力、DSH 适配策略和补丁行为。desktop 的运行时依赖固定为 `@earendil-works/pi-ai: "0.87.1"`，根 `patchedDependencies` 绑定升级后重放的 DSH 补丁；锁文件由 pnpm 生成。公开运行时窄入口使用 `@earendil-works/pi-ai/api/openai-completions` 等协议入口，类型可从根入口导入；Gateway 不依赖 Pi。provider 在 Node worker 中运行，但线程隔离不能消除累计 JSON 重解析开销。Completions／Responses 的本地 SSE 回归验证原始 delta 顺序、中间不构造参数对象、最终参数完整及成功终态；Anthropic Messages 另有 service 级工具往返回归；其余三个被补丁修改的协议仅复用来源补丁，尚无本项目运行时回归。这只验证依赖行为，不包含工具执行。补丁仅修改发布包的运行时 JS，不改变类型接口；消费方累计原始 delta，在 `toolcall_end` 读取最终参数，不能依赖中间 `partial.arguments` 更新。回归入口为 `pnpm test:patches`（`patches/tests/pi-patch.test.mjs`，从 desktop 解析实际安装的 Pi）。通用修改和升级／退役步骤见 [补丁维护](../../../patches/README.md)。
+当前使用 Pi 公共 api 窄入口，类型只留在 LLM 适配模块；不复制 DSH 的 Cordis、认证或会话系统。静态目录／预设是能力来源，缺省预算不是目录上限。推理档位以 thinkingLevelMap 为准，不自行增加 ultra 或将 max 统一映射为 xhigh。
 
 ### 请求映射与旧版差异
 
@@ -55,9 +40,9 @@ DSH 并非直接裸用 Pi，须区分两层：
 | `reasoning_content/signature/items` | thinking 块、`thinkingSignature`，及响应来源元数据 | 不能仅拼接推理字符串；需按块保存回放，见下文。旧数据转换不属于最小调用。 |
 | ToolResult：`tool_call_id/tool_name/is_error/content` | `ToolResultMessage`：`toolCallId/toolName/isError/content` | 保留文本／图片与调用关联；缺失名称可由对应历史 toolCall 查得，不能丢掉关联。工具执行、权限和恢复归 Rust。 |
 | `ToolDef.parameters_schema` | `Context.tools[].parameters`（JSON Schema／TypeBox 结构） | name／description 原样；provider 只声明工具，不执行工具。旧 agent 对 schema 的 UI description 增补仍在 Rust。 |
-| 逻辑模型 ID、ProviderConfig | `Model.api/provider/id/baseUrl`，provider auth 与请求 headers | 旧 `openai/anthropic/responses` 对应 `openai-completions/anthropic-messages/openai-responses`。旧 `provider/upstream` 和 DeepSeek 历史别名先解析为明确路由及上游 ID，不能把整串直接作为 Pi model.id；新设置模型引用由后续配置切片衔接。 |
+| 逻辑模型 ID、ProviderConfig | `Model.api/provider/id/baseUrl`，provider auth 与请求 headers | 旧 `openai/anthropic/responses` 对应 `openai-completions/anthropic-messages/openai-responses`。旧 `provider/upstream` 和 DeepSeek 历史别名先解析为明确路由及上游 ID，不能把整串直接作为 Pi model.id；设置模型使用持久化的本地模型 ID 作为引用。 |
 | 模型能力 | `reasoning/input/contextWindow/maxTokens/cost/compat/thinkingLevelMap` | 从选定版本目录或明确配置取得；`Model.maxTokens` 是能力上限，请求 `maxTokens` 是本次采样参数。自定义 URL／provider 可能改变自动兼容探测，尤其 DeepSeek thinking 格式，不只改 baseUrl 就视为等价。 |
-| API key、endpoint、headers | owner 解析后注入 Pi auth／`apiKey`／headers；endpoint 在 `Model.baseUrl` | Rust 传模型引用与请求数据；凭据不进 renderer、流事件或日志。每次调用固定配置和凭据快照，设置更新影响下一次调用。当前支持启动文件／显式更新，不接设置持久化／OAuth。 |
+| API key、endpoint、headers | owner 解析后注入 Pi auth／`apiKey`／headers；endpoint 在 `Model.baseUrl` | Rust 传模型引用与请求数据；凭据不进 renderer、流事件或日志。每次调用固定配置和凭据快照，设置更新影响下一次调用。当前已接模型设置持久化、启动加载／显式更新；OAuth 未实现。 |
 | `temperature` | `StreamOptions.temperature` | 保留 optional，不补默认值；实际协议可能因模型推理模式忽略它，验收应检查发出的请求。 |
 | `max_tokens` | `maxTokens` | Pi `streamSimple` 缺省用模型上限，并根据估算上下文预留 4096 tokens 后裁剪；budget thinking 路径还会调整输出额度，不能声称旧 optional 字段完全透传。 |
 | `reasoning_effort` | simple 的 `reasoning` 或协议专用选项 | Low／Medium／High 名称一致；Max 必须核对 `thinkingLevelMap`，不能统一改成 xhigh，也不能沿用旧 provider 静默 clamp 而不说明。旧 Off 是显式关闭，None 是不发送字段；DSH 把 off 映射为省略 reasoning，但 Pi 部分协议据此主动关闭 thinking，另一些走默认，两者并不普遍等价。当前 off 与缺省均使用 Pi 的缺省 simple reasoning 语义；需要精确协议行为时使用 apiOptionsJson。例如 Anthropic thinkingEnabled=false 明确关闭；不能声称所有协议都区分 off 与缺省。 |
@@ -84,11 +69,11 @@ Gateway 传领域事件，不传 Pi 对象或每次完整 `partial`。内容块�
 
 用量保留 Pi 的 `input/output/cacheRead/cacheWrite/totalTokens`，以及存在时的 `reasoning`（output 子集，不能再次累加）。兼容旧 `input_tokens` 时使用 `input + cacheRead + cacheWrite`，旧 context 总量再加 output；不能照抄 DSH `inputTokens = usage.input` 就当旧含缓存 prompt 总量。`cached_tokens` 对应 cacheRead，cacheWrite 单列；`eval_tokens` 只能在明确采用未缓存输入口径时对应 input。旧 eval/output 毫秒与 TPS 没有统一 Pi 对应，不伪造；Pi 默认零值也无法可靠区分“服务端未报告”与真实零。Pi cost 来自模型目录估算，不视为账单。
 
-回放采用“有序领域内容 + 带版本的 provider 私有元数据”方向，参考 DSH `replay.ts`：保留 api、provider、请求 model、responseModel、responseId、providerThinkingLevel 和块签名；Anthropic 的实际返回模型与请求别名要分开。Responses reasoning item 在 Pi 中由 thinkingSignature 的 JSON 字符串携带，不能把它当 Anthropic signature。旧单个 reasoning_signature／合并 reasoning_content 不足以恢复多块交错，旧 reasoning_items 也没有完整块位置。校验版本、来源与内容索引后才恢复；换模型／路由或来源不明时不得伪造同模型密文回放。旧历史迁移、凭据切换后的回放策略和持久 schema 属于后续切片。
+回放采用“有序领域内容 + 带版本的 provider 私有元数据”方向，参考 DSH `replay.ts`：保留 api、provider、请求 model、responseModel、responseId、providerThinkingLevel 和块签名；Anthropic 的实际返回模型与请求别名要分开。Responses reasoning item 在 Pi 中由 thinkingSignature 的 JSON 字符串携带，不能把它当 Anthropic signature。旧单个 reasoning_signature／合并 reasoning_content 不足以恢复多块交错，旧 reasoning_items 也没有完整块位置。校验版本、来源与内容索引后才恢复；换模型／路由或来源不明时不得伪造同模型密文回放。旧历史导入未实现；当前 Agent 回放及持久格式见[历史格式](2026-09-28-agent-chat/history-format.md)。
 
 ### Gateway 所有权与已知差异
 
-目标调用方向为 Rust agent → TS ↔ Rust napi 通信适配层 → main GatewayHost → Worker MessagePort 通信适配层 → `services/llm/` worker 内的 typed handler／Pi → 模型服务；响应 chunk 反向返回。Node `worker_threads` 是已选执行方式，utilityProcess 不在当前范围；源码位于 main 目录不表示业务在 main 主线程执行。Gateway 可双向发起响应流，并不意味着本业务需要双向 streaming RPC。当前 `xiaowei.llm.Llm.Generate` 支持独立 system prompt、多轮消息、工具及调用选项，响应 oneof 表达内容块、用量和终态。配置使用 Llm.SetModels，远端目录使用 Llm.ModelCatalog；不新增 event topic 或取消 RPC。
+目标调用方向为 Rust agent → TS ↔ Rust napi 通信适配层 → main GatewayHost → Worker MessagePort 通信适配层 → `services/llm/` worker 内的 typed handler／Pi → 模型服务；响应 chunk 反向返回。Node `worker_threads` 是已选执行方式，utilityProcess 不在当前范围；源码位于 main 目录不表示业务在 main 主线程执行。Gateway 可双向发起响应流，并不意味着本业务需要双向 streaming RPC。当前 `xiaowei.llm.Llm.Generate` 支持独立 system prompt、多轮消息、工具及调用选项，响应 oneof 表达内容块、用量和终态。配置使用 Llm.SetModels，远端目录使用 Llm.ModelCatalog，已应用模型说明使用 Llm.GetModelInfo；不新增 event topic 或取消 RPC。
 
 - `services/llm/` 在 worker 内持有 Pi 适配、模型调用与在途取消；其中 `gateway.ts` 绑定 typed handler。`app/gateway.ts` 负责启动 worker、挂载 owner 和关闭。main 保持唯一 GatewayHost；worker 不另建全局 host，只持有本地执行 endpoint。Gateway worker 通信适配层属于 `gateway/ts/`，不在 LLM 内另造一套业务消息 RPC。该适配层已实现，接口与关闭约定见 [Worker 接入](../../../gateway/ts/README.md#worker-messageport-通信适配层)。service 及其执行限流、超时、流状态和实际清理整体归 worker；main 只做路由、授权和通信转发，不重复持有 service 执行配额。TS core 的 `ExecutionScope` 由 worker endpoint 和 main 本地 handler 分别持有；main 通过独立 `StreamDispatcher` 转发远端流，不另包 producer 状态机。线程两侧的消息关联、失联超时和连接关闭属于通信管理，与 service 执行状态分开。Rust 持有 agent 循环、会话、工具执行、权限、重试／恢复和落盘，不把这些迁入 TS。不开新 crate／npm workspace package，也不新增 raw napi／IPC 通道。
 - 现有 `gateway/ts/src/binding/index.ts::StreamHandlers` 已给 handler 传 AbortSignal；Rust typed caller 经 napi endpoint 与 main 转发到 worker。AbortSignal 与 CallContext 不跨线程复制：取消通过控制消息触发 worker 内的 AbortController，main 保留原始上下文，嵌套调用凭与连接实例绑定的 opaque token 回到 main 授权。取消监听须在请求准备前建立，owner close、caller drop／cancel、iterator return 都终止上游并清理监听与 reader；不能只靠 async generator 的 finally 等待一个永不返回的 next。初始化失败和重复关闭沿用 main 的显式生命周期规则。
@@ -118,29 +103,15 @@ Llm.ModelCatalog 是可取消的分页响应流，用现有本地 modelRef 或�
 
 构建输出独立 ESM `llm-worker.js`，内联 Gateway／契约、外置补丁后的 Pi；普通 Node 可执行。`pnpm --dir desktop test` 覆盖构建 worker、本地三协议 SSE 和 Rust typed caller → napi → main → worker → Pi；Rust fixture 不进入生产 search 接口。真实验收入口与模式见 [手动验收脚本](../../../desktop/scripts/README.md)。Electron 应用包加载／签名不由 Node 验收替代。
 
-### 已完成的 main 边界整理
-
-剪贴板设置订阅、定时清理调度与服务启停统一维护在现有 `service.rs`，生命周期状态为私有 `ServiceLifecycle`；不再保留独立 `runtime.rs`。这些方法本来属于同一个 `Service`，不因后台执行而另设模块。业务 handler 的统一命名见 [Gateway 接入约定](../../../gateway/README.md#接入约定)。Storage 剪贴板 DAO handler 位于 `clipboard_dao/gateway.rs`；napi owner 注册和事件发布接线集中在 napi 的 `gateway.rs`，`lib.rs` 保留公开入口的薄委托。
-
-剪贴板的业务 handler、资源解析与临时导出、占用统计、设置订阅、监听启停、自动粘贴与保留期限调度均由 Rust `xiaowei-clipboard` 持有。TS `services/clipboard/` 已删除，`app/gateway.ts` 仅负责实例与 endpoint 装配，初始化后调用 `startServices()`，关闭 endpoint 时先停止后台服务和监听，再清理临时资源；失败时也显式关闭 history。
-
-Rust 先订阅 SettingsChanged，再读初始快照，避免初始化漏掉变化。启动 30 秒后开始清理，之后每次完成后等待一小时；保留期限变化立即清理，-1 跳过；保持当前普通记录定义（非收藏、无分类、无备注）与附件删除逻辑。监听及权限请求响应已提交设置，与旧版 Rust 的事件驱动方式一致；后台失败记日志，不把已提交设置回滚。初始设置加载失败会使启动失败并回收订阅。任务串行执行，关闭等待在途工作结束，避免清理依赖已经关闭的 Storage。
-
-Select 保留原 Gateway caller，先复制并更新使用信息，经 System.HideWindow 隐藏调用方窗口并在 macOS 让出应用焦点，然后读取自动粘贴设置；开启时等待 100ms，由 Rust 发送粘贴键。普通 Copy 不隐藏或粘贴；无辅助功能权限时保留已复制内容并请求权限。macOS 粘贴实现及已有 core-foundation／core-graphics 依赖从 napi 层移至业务核心，没有新增 crate 或 npm package。
-
-Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetAutostart，快捷键通过 Shortcuts.Apply（TS owner 位于 services/shortcuts），保留调用方权限；宿主操作失败或数据库写入失败时恢复旧值，成功持久化后才发布 SettingsChanged。原 settings apply 的 TS/napi 回调已移除，不再保留 services/settings/。ShortcutConfiguration 沿用现有 Settings 契约消息，避免改变已使用的消息全名。
-
-迁移范围与偏差：旧版 cleanup.rs 同时执行附件完整性扫描和缓存用量更新；当前仅迁移已有过期清理调度，占用量继续按请求实时统计。完整性标记、image flow 等尚未接入，不能称为全面对齐旧版。本次沿用旧版每轮完成后等待一小时的顺序；不再使用 TS setInterval 允许清理重叠的方式。
-
 ### Settings 模型配置与持久化
 
 #### 提供方与模型身份
 
-- 一个预设提供方只出现一次，可从其固定的协议／URL 组合中选择；不能任意改预设 URL。自定义地址可编辑，协议仅 OpenAI Completions、OpenAI Responses、Anthropic Messages。底层现有十种 API 的支持不删除。
+- 预设菜单按提供方聚合一次，可从其固定的协议／URL 组合中选择；不能任意改预设 URL。自定义地址可编辑，协议仅 OpenAI Completions、OpenAI Responses、Anthropic Messages。底层现有十种 API 的支持不删除。
 - 仅展示当前 API Key／环境变量方式可工作的预设，不展示依赖登录或云专用凭据的入口。
 - 提供方名称可修改，trim 后不能为空且不能与其他实例重名；同一预设可以创建多份实例。
 - provider 实例 `id` 和每条模型配置的本地 `id` 均由宿主在首次保存生成并持久化。编辑名称、上游 ID、地址或凭据不改变这两个 ID。模型的本地 `id` 就是 Generate.model_ref，不使用 name/model 拼接值。
-- 模型上游 `modelId` 在单一提供方内唯一，跨提供方可以相同。模型名称可空；统一显示 name.trim()，为空则显示 modelId。应用选择器使用同一解析结果，并显示提供方名称以区分实例。
+- 模型上游 `modelId` 在单一提供方内唯一，跨提供方可以相同。模型名称可空；统一显示 name.trim()，为空则显示 modelId。应用选择器使用同一解析结果，最终显示 provider_name/model_name（斜杠两边无空格）以区分实例；SetModels 及 Host 分别保留两个名称。
 - 模型编辑／添加复用独立弹窗：ID、名称、图片输入、思考强度、上下文窗口、最大输出、自定义请求头。卡片精简展示能力标签与已设置数值；删除二次确认。
 - 修改协议／URL／Key／环境变量保留所有已添加模型及配置。候选列表仅属于单次导入弹窗，每次打开重新获取，不新增连接变化时的清空流程。
 
@@ -154,7 +125,7 @@ Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetA
 
 #### 模型参数
 
-- 上下文缺省为 131,072（128K），最大输出缺省为 16,384（16K）；预设、导入或用户填写的值优先。统一使用整数 tokens 存储和比较，不按 K／M 字符串匹配。
+- 上下文缺省为 256,000（256K），最大输出缺省为 32,768（32K）；预设、导入或用户填写的值优先。统一使用整数 tokens 存储和比较，不按 K／M 字符串匹配。
 - 默认值在配置规范化时补齐；正整数且最大输出不超过上下文，否则提示修改，不静默截断。预设／远端显式值不是默认值，不覆盖已有用户修改。
 - 思考强度只保存明确的 reasoning 和 thinkingLevelMap，不保存“自动适配”或“原有映射”标记。预设／导入映射逐键匹配现有选项；缺失或未匹配时初始化为不支持推理，用户选择具体方案后才开启。
 - 选项顺序：不支持推理；关闭／低／中／高／更高／最高；关闭／低／高／最高；关闭／高／最高；最低／低／中／高；低／中／高；低／高／最高。第一个支持推理的方案对应正式 OpenAI gpt-6-sol，minimal=null，无 ultra。关闭推理时清除旧映射，不能保留隐藏映射使后端再次开启。
@@ -162,7 +133,7 @@ Settings 的校验、持久化和协调归 Rust。开机启动通过 System.SetA
 - Headers 为多行 Key/Value；空白行忽略，值非空但名称为空、大小写不敏感的重复名称均拒绝；“+ 添加”在最后一行右侧。
 - compat 暂不提供编辑器；已有 compat、samplingParams、cost 等高级数据在常规编辑中保留，不新增高级 JSON UI。缺少 cost 沿用现有适配器零估算输入，不把它显示为真实免费价格，本片不建立计费系统。
 - supportsWebSocket 缺省 false，预设自动带入，属于连接能力元数据，不塞入 Pi Model。传输偏好独立保存；http 对应调用层 sse，支持 WebSocket 且选择 auto 时通用 Responses 优先使用 WebSocket，握手失败可回退。具体连接复用及续接规则见 WebSocket 小节。
-- 默认模型、小文本模型引用稳定模型 ID；默认思考等级是调用偏好，与能力映射分开。选择器仅提供所选模型允许的档位；能力或模型删除后清理无效偏好，不保留悬空引用。后续 agent 消费这些默认偏好不在本片内。
+- 默认模型、小文本模型引用稳定模型 ID；默认思考等级是调用偏好，与能力映射分开。选择器仅提供所选模型允许的档位；能力或模型删除后清理无效偏好，不保留悬空引用。Agent 的初始模型选择和独立会话配置见[Host](2026-09-28-agent-chat/host-interface.md)。
 
 ### 唯一文件格式与边界
 
@@ -188,7 +159,7 @@ ModelConfigDocument
 ```
 
 - 模型属性打平到自有模型条目，不嵌套 Pi model 对象；连接与凭据在 provider 层集中保存，加载时展开为现有 shared/models.ts 的运行时配置。
-- 默认路径由 app/paths.ts 提供 ~/.xiaowei/models.json；XIAOWEI_LLM_CONFIG 存在时必须为绝对路径，读写共用该路径。
+- 默认路径由 app/paths.ts 提供 ~/.xiaowei/models.json；XIAOWEI_AGENT_HOME 为绝对路径时，将 Agent 与模型设置根目录共同改到该目录，模型设置写入其中的 models.json。XIAOWEI_LLM_CONFIG 仍可用绝对路径单独覆盖模型文件，优先于根目录，读写共用最终路径。
 - 默认文件缺失得到空配置；显式指定路径缺失、坏 JSON 或格式错误报告错误，不覆盖原文件。不再兼容旧 `{ models: [...] }` 输入。
 - JSON 两空格缩进、末尾换行、稳定字段顺序和列表顺序；同目录临时文件写入后 rename 替换，失败清理临时文件。首次创建目录；不要顺带引入通用存储框架。
 - config.ts 提供类型、规范化／校验、读取／原子写入及文件配置到运行时配置的转换；无 Electron、Gateway 注册或 worker 导入。脚本直接引用它，不复制 schema。
@@ -212,11 +183,13 @@ ModelConfigDocument
 | ModelSettingsChanged | main 显式发布无 Key 快照／revision／应用状态；成功提交或应用状态变化后发布 |
 | Llm.ModelCatalog | 现有 worker 方法增加显式连接输入；与 model_ref 二选一并校验。保留当前 model_ref 调用，无需伪造临时模型或 SetModels |
 | Llm.SetModels | 设置完整运行时模型集合，不是增量合并；空列表清空。全量校验后原子替换，在途请求保留旧快照；复用 host.updateModels，不传环境变量名 |
-| Llm.Generate | 保留现有生成请求及流事件语义，供后续 agent 和手测脚本调用 |
+| ModelSettings.GetAuxiliaryModelRef | main 返回当前 smallTextModelRef，缺省表示未配置；不返回完整设置 |
+| Llm.GetModelInfo | worker 返回 Generate 使用的同一个已应用模型 Map 的安全说明，独立 provider_name／model_name 不预先拼接 |
+| Llm.Generate | 保留现有生成请求及流事件语义，供 Agent 和手测脚本调用 |
 
 renderer → ModelSettings（main）→ 文件／Llm.SetModels（worker）；目录为 renderer → ModelSettings.ListModels（main）→ Llm.ModelCatalog（worker）。main 转发流保留调用上下文与取消；不改 raw IPC／MessagePort。handler 在各自 owner 显式注册，应用只创建一个 GatewayHost。
 
-handler 按业务模块和执行位置归属，不按 service 数量拆文件：宿主 `llm/gateway.ts` 实现 `ModelSettings`；`llm/worker/gateway.ts` 实现单一 `Llm` service（Generate、SetModels、ModelCatalog）。前者面向 Settings UI，后者的生成接口面向后续 agent，配置替换和目录服务用于内部协作。每条方法路由保持唯一 owner。
+handler 按业务模块和执行位置归属，不按 service 数量拆文件：宿主 `llm/gateway.ts` 实现 `ModelSettings`；`llm/worker/gateway.ts` 实现单一 `Llm` service（Generate、SetModels、GetModelInfo、ModelCatalog）。前者面向 Settings UI，后者的生成与模型说明接口面向 Agent，配置替换和目录服务用于内部协作。每条方法路由保持唯一 owner。
 
 revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示刷新。UI 先完成事件订阅 ready 再 Get，用 revision 避免旧读取覆盖事件；卸载取消订阅与导入流。
 
@@ -224,27 +197,11 @@ revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示�
 
 手动验收工具和应用共用 config.ts。先使用 `--config ~/.xiaowei/models.json --list` 查看稳定 ID，再用 `--model <id> --mode complete` 调用；其他能力模式及构建前置见 [脚本说明](../../../desktop/scripts/README.md)。脚本不写回文件、不修改应用中的 worker，不纳入自动测试门禁。
 
-### WebSocket 切片背景
+### Responses WebSocket
 
-2026-09-25 独立客户端确认 API Key 代理 `/v1/responses` 支持 WebSocket，Settings 切片只保存能力与偏好，未接通生成。上游 Pi 0.87.1 的通用 Responses 仍仅支持 SSE，而 Codex 适配器已有连接池与续接，但带有登录认证及后端 URL 规则。2026-09-26 在下面的部署复核基础上按用户确认方案补齐通用 Responses；本节保留起因，当前行为以下节为准。
+用户要求保留 openai-responses、base URL 和 API Key，并实现连接复用；上游通用 Responses 只有 SSE，Codex 适配器的认证／URL 规则不能直接用于 API Key 代理。因此复用其 WebSocket 传输与池，保留通用 Responses 的请求构造及来源语义，不另加 Codex 协议选项。
 
-### Responses WebSocket（2026-09-26）
-
-用户明确本次目标是连接复用，不能以“每次请求独立连接、结束即关闭”作为交付。认证继续使用 API Key；通信目标参考 Codex Responses，但不强制复用 `openai-codex-responses` 的代码。`previous_response_id` 是否启用以代理的实际能力为依据。
-
-#### 代理部署与真实验证
-
-已按 `~/.tony/server.md` 登录 edge 核对：CLIProxyAPI 镜像为 `ghcr.io/tctony/cliproxyapi:sha-81e9a1c67bd7`，镜像 revision 为 `81e9a1c67bd74169b23772ee848b215e4e8ee1db`；Nginx 已转发 Upgrade／Connection，关闭请求及响应缓冲，读写超时为 3600 秒；代理 `ws-auth: true`。未修改服务器配置、部署或认证材料。
-
-源码核对使用本地 `~/.git_source/github.com-tctony-CLIProxyAPI` 中对应部署提交，而非直接以更新后的 HEAD 代表服务器行为：
-
-- `internal/api/server_routes.go` 将 `/v1/responses` 与 `/backend-api/codex/responses` 的 GET／POST 分别接到同一 WebSocket／SSE handler，两组均使用 API Key 鉴权；两组另有 `/responses/compact` 的 POST 路由。
-- `sdk/api/handlers/openai/openai_responses_websocket.go` 为下游连接建立 execution session，关闭下游时调用 `CloseExecutionSession`；`openai_responses_websocket_session.go` 按实际路由及凭据的 websockets 能力选择原生 Codex／xAI WebSocket 透传。非透传路径可由代理维护历史并展开请求，因此只看到模型记住上文，不能单独证明上游使用了原生增量传输。
-- 续接引用与连接状态有关；服务端存在 `previous_response_not_found` 和要求完整历史重放的失败路径。不能把上一条已断开连接的 response ID 当成跨连接持久会话，也不能据此承诺自动恢复或“完整 Codex API 已全部兼容”。
-
-独立客户端对 `/v1/responses` 的真实验证：同一连接完成三次生成；首轮输入随机标记，第二轮仅发送新增问题与首轮 `previous_response_id`，模型准确返回标记；第三轮完整请求也完成。这确认客户端到代理的连接复用及增量续接可用。
-
-随后用实际 Pi 0.87.1 Codex 适配器的临时副本验证。副本只增加实验性 API Key 分支：跳过 JWT account ID 提取、不发送 `chatgpt-account-id`；请求构造、连接池、续接比较、事件解析和 SSE 压缩均保留原实现。baseUrl 使用 `https://token.edge.tctony.com/backend-api`，由 Pi 原有 URL 规则生成 `/backend-api/codex/responses`。真实模型 `sol` 的工具调用、工具结果回传及独立 SSE 生成均成功，获得工具参数、文本和用量。观测到两轮 WebSocket 只创建 1 条连接、复用 1 次，第二轮实际帧含 `previous_response_id` 且 input 仅 1 条工具结果，SSE 回退计数为 0。此实验不涉及产品 worker／Gateway 接线，未得到非空 thinking 输出，也未验收图片、取消、断线及 compact／steering 等扩展。
+源码与真实验证参考代理部署提交 `81e9a1c67bd74169b23772ee848b215e4e8ee1db`。独立客户端验证同连接生成及 previous_response_id 续接可用；产品真实桌面对话也观测到跨轮同连接、增量输入及无 SSE 回退。它证明客户端到代理的复用，不能推断代理到上游的传输。连接已断后不能把 response ID 当作跨连接持久会话。实验性的临时适配副本／打点已移除，不是产品入口。
 
 #### 已确认并实现的接入边界
 
@@ -260,7 +217,7 @@ revision 用于拒绝旧页面覆盖较新编辑；冲突保留草稿并提示�
 
 手测脚本为每次运行生成独立 sessionId，工具两轮共用；默认读取原配置，可用 `--transport websocket-cached` 强制验证 WebSocket，或用 `--transport sse` 验证 HTTP。只覆盖本次执行，不写回文件。自动测试检查实际连接数及帧内容，不以“生成成功”替代连接复用／增量验收。补丁维护与升级入口见 patches/README.md。
 
-Quick Chat 在 hook 初始化时生成随机 UUID，作为已有 Generate options.sessionId 传入；同一对话跨轮保持稳定，点击新建对话时更换。不持久化该 ID，不改变提供方配置。此前 Quick Chat 未传 sessionId，即使使用 WebSocket 也只能建立单次连接，不能跨轮复用。补接后通过 5 项 hook／Gateway 测试（含跨轮 ID 稳定及新对话更换断言）和 just check。2026-09-26 18:55:17–18:55:43 的桌面真实对话通过 Pi 内部临时脱敏打点确认：5 轮均使用 connectionId=1，第 2–5 轮 reused=true、previousResponseId=true、inputItems=1；每轮成功后连接保留，未发生 SSE 回退。证据位于当天桌面日志 569–578 行，证明客户端到代理的 WebSocket 连接复用与增量续接，不推断代理到上游的实现。验证后删除 Pi 打点与宿主日志转接，恢复正式补丁。
+当前 Quick Chat 通过 Agent 执行，xiaowei-agent 的生成 adapter 将持久 SessionId 传入 Generate.options.session_id；同会话跨轮稳定，新会话有独立 ID。连接池仍只存在 worker 内存，应用重启后重新建立连接，不能以持久 SessionId 推断网络续接基线已恢复。
 
 ### 认证范围：当前仅 API Key，其他方式暂缓
 
@@ -269,14 +226,6 @@ Quick Chat 在 hook 初始化时生成随机 UUID，作为已有 Generate option
 暂缓项包括浏览器 OAuth、设备码、手动授权回填、Token 刷新／退出，以及 AWS Profile／默认凭据链、Google ADC／服务账号文件、云平台账户／项目／地域等专用交互。具有 API Key 和账号登录两种方式的提供方，本片只接 API Key；必须依赖上述暂缓能力的入口不宣称可用。已有兼容 API 代理仍可通过自定义地址和 API Key 配置，不等于接入厂商账号登录。
 
 后续在提供方编辑器的认证区域扩展认证方式选择，再按实际流程显示授权状态或云平台字段，继续复用模型列表与编辑交互。当前不预建空登录服务、OAuth 契约、凭据框架或占位向导；认证解析与模型元数据的边界保持独立，未来新增方式仍解析为生成端需要的运行时认证信息。
-
-本轮 Storybook 与产品交互已按用户反馈收敛，默认值、未匹配思考方案兜底与后台接入已实现。
-
-- 一个预设提供方可选择其固定协议／URL 组合；自定义仅展示 OpenAI Completions、OpenAI Responses、Anthropic Messages。不减少底层现有其他 API 适配能力。
-- 提供方表单同时提供环境变量名和 API Key；旧 Key 不回显，明确保留／替换／清除。改变连接或凭据保留已添加模型；导入候选每次打开弹窗重新请求，关闭实际取消 Gateway 流。
-- 模型卡片使用名称或 ID 回退，图片与推理能力以标签展示；编辑／添加复用属性弹窗，删除二次确认，Headers 使用 Key/Value 行。未展示的 compat、samplingParams、cost 数据编辑时保留，不增加高级 JSON 编辑器。
-- 默认模型与小文本模型保存稳定引用；默认思考等级是调用偏好，选项受模型映射限制，不作为模型能力存储。WebSocket 默认不支持，其元数据与请求 transport 分开，通用 Responses 的传输接入已在后续 WebSocket 切片完成。
-- 图片生成与本地模型暂不实现、不接产品入口。手动验收通过 desktop/scripts/verify-llm.mjs 读取 UI 保存文件，自动测试只用本地 fixture。
 
 ### Settings 模型兼容参数的后续范围
 
@@ -289,75 +238,12 @@ Quick Chat 在 hook 初始化时生成随机 UUID，作为已有 Generate option
 
 ## Outcome
 
-2026-09-26 完成通用 Responses WebSocket 切片：保留现有协议、base URL、API Key 和用户配置文件；现有开关／auto 偏好通过运行时契约生效。pnpm patch 复用 Codex 传输并修复共享连接池的隔离与并发／清理边界；通用请求／回复来源、参数、SSE 和历史回放保持。手测脚本增加稳定会话与单次传输覆盖。
+已交付 Node worker 中的 Pi provider、完整生成／工具声明与结果回传契约、取消及安全错误、远端目录、整批模型更新和模型设置持久化。设置产品已通过用户真实配置及调用验收；默认 models.json 位于 Agent 根目录，XIAOWEI_AGENT_HOME／单文件覆盖规则见本节文件说明。当前 Pi 固定为 0.87.1，工具参数解析及通用 Responses WebSocket 补丁的来源和维护方式见 patches/README.md。
 
-真实 Node worker／Gateway 使用原 `~/.xiaowei/models.json` 的 sol 条目验证：强制 WebSocket 的工具往返、thinking、文本阶段取消，以及原配置 auto 默认下的工具往返和 thinking 阶段取消均通过。曾有一次并发验收中的 cancel-thinking 返回脱敏失败，具体上游原因未取得；单独诊断重测实际观察到 thinking 增量并完成取消，原脚本默认配置复测也通过。不将该失败描述为已定位的模型行为。未修改服务器或用户配置；未冷启动 Electron，应用包验收与产品 agent 接入不在本片。
+真实 worker／Gateway 以用户指定配置验证 DeepSeek Completions／Anthropic Messages、代理 Responses 的文本、thinking、图片、工具往返及取消；通用 Responses WebSocket 的工具往返、thinking、连接复用及取消也已验证。上游未提供的价格／能力不视为实测；曾有一次并发 cancel-thinking 失败，单独重测通过，未取得原因，不宣称已定位。
 
-验证通过 12 项补丁回归、完整 desktop 测试（28 项模块、7 项 main、55 项 LLM、92 项组件、4 项 Rust typed、6 项业务集成）、TS／Rust／Go codec、desktop 构建、frozen install 和 just check。受影响的 search／storage／clipboard napi 正式产物均已重建／恢复。补丁回归覆盖真实本地 WebSocket 连接数、增量帧、工具／thinking／用量、身份隔离、并发、取消、回退及错误后的完整重试；worker 回归覆盖配置更新和关闭。just check 仅保留既有 Select useIndexOf 非阻断提示。06 Plan 已删除，未提交。随后用户启动当前工作区：2026-09-26 18:44:39 的 Electron PID 37398、nodemon 与 dev-session 的路径及 cwd 均属于 prometheus；18:44:41 日志显示应用启动、原生模块与剪贴板初始化、renderer 启动，18:44:43 搜索初始化完成，本次启动段未发现 warn／error。结合启动代码中配置加载和 LLM worker 挂载必须先 await 成功才进入后续初始化，确认启动链路通过；日志没有独立的 WebSocket 请求证据，不将此次启动检查等同于应用内生成／复用验收。未由 Agent 冷启动或重启。
+相关 Pi 补丁回归、真实本地 SSE／WebSocket fixture、worker 配置隔离与关闭、Rust typed caller／正式 napi、契约 codec／生成一致性、desktop 回归／构建、frozen install 和 just check 已通过。应用包加载／签名不能由 Node 测试替代；并非全部十种 API、认证方式及补丁路径都有本项目真实运行回归。
 
+Agent 接入时增加独立 provider_name、Llm.GetModelInfo、ModelSettings.GetAuxiliaryModelRef 和真实首 SSE 观测，缺省预算统一为 256_000／32_768。接口 owner、适配边界及专项验证统一见[Agent Host](2026-09-28-agent-chat/host-interface.md)和[交付证据](2026-09-28-agent-chat/implementation-results.md)，不在此重复 Agent 执行计划。
 
-2026-09-25 完成 05 模型设置切片：远程提供商与模型编辑、导入、默认偏好、稳定 ID、JSON 原子保存、脱敏快照与事件、串行 revision 校验、worker 同步和异常重新应用均已接通。应用与手测脚本共用唯一配置格式及加载器；worker service 合并为 Llm（Generate／SetModels／ModelCatalog），宿主 ModelSettings 持有文件配置。
-
-用户已配置 2 个提供商、共 5 个模型，并确认真实调用验证通过；随后按要求将实际文件从 appData 移至 `~/.xiaowei/models.json`，内容保留，代码默认路径和说明同步更新。确认当前工作区实例后执行 just rs，启动日志正常；用户再次确认“配置和测试都正常”。这表示本片人工验收通过，不扩大为所有协议及所有能力组合均已真实验证。
-
-自动验证通过完整 desktop 测试（26 项模块、6 项 main、51 项 LLM、78 项组件、4 项 Rust typed、6 项业务集成）、契约 codec、Storybook 构建、desktop 构建和 just check。后续交互修正通过 32 项模型组件／页面测试与类型检查；路径迁移通过 6 项 main 测试、默认路径断言和类型检查，间距调整通过 3 项页面测试。正式 napi 产物已恢复。05 Plan 已删除，未提交。图片生成、本地模型、agent／Quick Chat、OAuth／特殊凭据链、deferred、文件监听及通用 Responses WebSocket 仍为范围外事项。
-
-本轮 review 的两项问题已修复：协议专属调用保留模型默认采样参数；嵌套 compat 错误在配置提交前被拒绝。新增回归验证两种调用路径的请求体与宿主／worker 的整批更新隔离，完整 LLM 测试 45/45、desktop 构建和 just check 通过。
-
-2026-09-25 完成 04 扩展切片：启动配置、自有模型类型、十种 Pi API 分发、整批更新与在途隔离，以及多轮／图片／thinking／工具调用和结果回传、完整回复回放、调用参数及可取消远端模型列表。工具执行、agent 循环、配置持久化、Quick Chat UI、OAuth／特殊凭据链和 deferred 不在交付范围。
-
-真实 Node worker／Gateway 验收使用用户指定环境变量与地址：DeepSeek `deepseek-v4-pro` 的 Completions／Anthropic Messages、Codex 代理 `sol` 的 Responses，均通过文本、thinking、工具参数及第二轮结果回传、文本／thinking 阶段取消和模型列表。图片另以 DeepSeek `deepseek-flash` 两协议及 `sol` 验证通过。目录返回 DeepSeek 2 个、Codex 代理 6 个条目；DeepSeek 上限来自远端目录，Codex 代理未返回能力上限／价格，验收使用临时保守预算和零费用估算，不能视为真实计价数据。Key 值未写入配置、日志或提交。
-
-自动验证通过 desktop 全量测试（含真实 Pi／本地三协议 SSE、配置更新、thinking／工具取消、Rust typed caller）、契约 TS／Rust／Go codec 和 just check；受影响的三个 napi 正式产物均已重建／恢复。最终事件快照修复另有 protobuf 回放／redacted／错误脱敏回归。手动真实模型验收脚本位于 desktop/scripts/verify-llm.mjs，旧 Electron 冒烟脚本及 smoke 命令已按用户要求删除：其覆盖仅限基础页面断言且未隔离用户环境，不继续作为 E2E 入口。desktop/tests 仅保留自动回归门禁及其辅助代码。04 Plan 已删除。未启动 Electron、未做应用打包验收、未提交。
-
-2026-09-24 完成最小 Pi 文本流切片：新增 `Llm.Generate` proto 与 TS／Rust 生成契约，接入 `services/llm/` worker 和 main 启停生命周期。支持单次 system/user 文本、temperature/maxTokens、文本块索引、最终用量、stop／length 及 failed 终态。最终复核按既定双通道区分 provider 业务失败与 Gateway 错误；取消直接中断 Pi HTTP，并等待实际结果清理。配置仅由宿主注入，默认空配置不发请求。模型目录、真实 Key、历史、工具执行及 Quick Chat UI 尚未接入。
-
-验证通过 3 项构建产物 LLM 回归（含多组参数／失败／取消场景）、1 项 Rust typed LLM 跨语言回归及完整 `pnpm gateway:test-native`、desktop 全量测试（26 项原有 Node、3 项 LLM、64 项组件）、20 项工具回归、契约 codec、desktop build、frozen install 和最终 `just check`。覆盖默认采样、中文文本、缓存用量、唯一成功／失败终态、HTTP 错误、断流、拒绝推理／工具输出、1 MiB 超限、pending next／暂停消费取消、owner 关闭及启动失败回收。正式 napi 产物已恢复，03 Plan 已删除。未启动 Electron、未运行应用打包或真实远端模型验收；Pi 内部队列仍不是严格有界背压。新增 tsx 为 desktop 测试依赖，复用仓库现有版本，不改变产品 worker 的 JS 执行方式。
-
-2026-09-24 完成 Pi 依赖及补丁切片：desktop 精确依赖 `@earendil-works/pi-ai@0.85.1`，原样复用 DSH 工具参数解析补丁，通过根 `patchedDependencies` 和 pnpm 生成的锁文件固定。已核对补丁与 DSH 文件一致，且可对实际安装包反向应用。两个新增间接依赖的安装脚本显式禁用：Google SDK 的 prepare 不用于已发布运行产物，protobufjs postinstall 仅提示版本声明；未启用额外 MCP 或服务。维护步骤见 `patches/README.md`。
-
-验证通过 `pnpm install --frozen-lockfile`、2 项真实 Pi + 本地 SSE 回归（Completions／Responses 的多片中文工具参数、原始 delta 顺序、中间参数为空、最终对象及唯一成功终态）、`just check` 和 diff／手写测试行宽检查。只验证依赖与补丁，不包含产品 worker 接线、打包验收、LLM 业务契约或真实远端模型请求；另外四个被补丁修改的协议尚无本项目运行时回归。
-
-2026-09-24 完成 Worker MessagePort 通信切片：新增 `/worker-host` 的 `attachWorker` 和 `/worker` 的 `exposeWorkerEndpoint`，支持 unary、pull 响应流、保留权限的嵌套 unary／stream，以及取消、caller cleanup、owner 替换和异常退出。worker 使用提取的 `ExecutionScope` 持有执行配额与真实清理，main 的等待结束不会提前释放其许可；本地 main 与 worker 的配额互不叠加。握手先预留后激活发布；连接错误保留原 Gateway 错误码；关闭超时明确失败并 terminate 专用 worker。线程协议及资源上限维护在 Gateway TS README。复核后补充授权后的单次预算通知，按实际 service timeout／openTimeout 约束通信等待，避免固定 15／31 秒截断长请求；可控时钟回归覆盖 20 秒开流预算和 60 秒嵌套 unary 预算。unary 保持原有同步开始 handler 的语义。直接已取消信号回归确认原实现会释放 admission 并完成 drained，不将其误记为泄漏修复。
-
-验证通过 Gateway 类型检查、48 项 TS 测试（含 16 项真实 Worker 测试）、plain Node dist 验证、完整 `pnpm gateway:test-native`（含 Rust typed caller → napi → main → worker 的多 chunk／错误／取消／退出），以及 `just check`。正式 napi 产物已在 fixture 构建窗口结束后恢复并检查。源 fixture 使用单次 tsImport 保持模块身份；built fixture 仅使用构建后 Gateway 和原始 PB 字节，避免依赖当前只导出 TS 源码的契约包，没有改变产品构建。额外测试辅助文件属于同一测试切片，不新增 package。未冷启动或重启 Electron，未接 Pi、LLM 产品入口、事件能力或 Quick Chat UI。
-
-2026-09-24 完成 Pi 适配边界核对：以更新后的 DSH 46a7f68b09、Pi 0.85.1 发布包及 DSH 补丁、旧版 6be131098d 为静态源码证据，明确请求／流事件映射、回放与用量差异、取消生命周期和 TS owner／Rust caller 边界。已回填 How 并删除 01 边界核对 Plan。此次只修改 record 与删除已完成 Plan；未安装 XiaoWei 依赖、定义业务 proto、实现调用、发送模型请求或运行应用。DSH 仅快进更新源码，未同步依赖或运行其测试。
-
-已核对旧 Rust `ChatProvider` 调用入口、当前 Gateway 双向流能力、Pi 公共流事件与 DSH 适配层，并确认 Pi 包从 `@mariozechner/pi-ai` 改名为 `@earendil-works/pi-ai`。Pi 依赖及补丁已安装；尚未定义 LLM 业务契约或发送真实模型请求。
-
-用户确认前端能力统一通过 proto service／Gateway；Electron 系统 API 由 TS System service 提供；剪贴板资源处理和占用统计归 Rust 剪贴板模块，缺失数据库信息由 Storage 提供。已将该决定及 main 全部现有文件的目标归属写入组织文档；已完成源码目录整理和启动／窗口／设置副作用拆分，保持现有业务契约与行为；System.OpenUrl 已从剪贴板 owner 中拆出；本地路径打开／定位已接入 System，剪贴板资源处理已迁回 Rust，统计与调度尚未迁移。
-
-main 目录整理已通过 30 个 desktop Node 测试、3 个 Gateway 桌面测试、2 个生命周期／Select 测试、`just check` 与 desktop 构建。当前工作区没有运行实例，未执行冷启动；窗口运行交互仍待用户启动后验收。
-
-合入最新 develop 后已重新通过 desktop 测试（30 个 Node、64 个组件用例）、Gateway 桌面及生命周期回归、全仓检查与桌面构建，并完成全部 napi 包 debug 构建。
-
-System.OpenUrl 切片保持现有 HTTP(S) 协议限制，不扩大为通用 scheme 打开能力。Launcher 复用原调用 client，浏览器打开失败时不记录使用量、不隐藏窗口；系统设置专用 URL 仍仅接受 app 搜索来源。该切片不修改 proto、Rust 或 UI。
-
-System.OpenUrl 切片已通过 `just check`、29 个 desktop Node 测试、4 个 Gateway 桌面测试、完整 `pnpm gateway:test-native` 和 desktop 构建。URL 验证测试从剪贴板辅助函数迁至 System Gateway 测试，覆盖无剪贴板初始化、与原生主题方法共存、非法 URL、宿主失败及关闭后不可调用。尚未执行本切片的真实桌面浏览器打开验收。
-
-本地路径切片新增 System.OpenPath／RevealPath，共用 LocalPathRequest；System 校验绝对路径、NUL 字节和目标存在性。剪贴板仍在 TS 解析记录、管理临时导出，仅通过原 client 调用宿主能力；Launcher 应用启动移除 bootstrap 的 openPath 回调。已核对旧版 clipboard/commands.rs 的 open_file_path／open_large_text 和 search/commands.rs 的 LaunchApp；本次保持当前资源处理与默认应用打开方式，未宣称完成 Rust 迁移。
-
-本地路径切片已完成 `just gen` 并通过 `just check`、契约三语言 codec 检查、Gateway 桌面行为测试、完整原生联调及 desktop 构建；三个 napi 包均已重建。用临时文件验证路径合法性、文件／目录打开、定位和宿主错误；真实 OS 应用打开与文件管理器定位仍待运行验收。
-
-确认当前工作区活实例归属后执行 `just rs`，17:13:25 新 Electron 进程启动，原生日志、剪贴板监听和 renderer 初始化正常；具体文件打开／定位交互仍待人工验收。
-
-资源迁移切片：Rust `resources.rs` 持有私有临时目录和原子文本导出，复用既有 tempfile 依赖（从测试依赖提升为运行依赖）；普通文本使用内容 SHA-256 命名，重新打开覆盖可能被外部修改的导出内容，图片／大文本复用原附件。关闭 endpoint 或显式关闭未完成初始化的 history 时清理导出，停止监听不清理。资源 handler 通过调用方的 Gateway client 访问 DAO 和 System，拒绝越权嵌套请求。复制路径经新增 System.WriteClipboardText 继续使用 Electron 的跨平台剪贴板；已删除 TS 资源解析实现。统计和保留期限调度仍在 TS。
-
-资源迁移验证：Rust 剪贴板 17 项测试、desktop Node 26 项测试、完整 Gateway 原生联调（含资源处理、权限拒绝和初始化中止清理）、契约 codec 与 desktop 构建通过。临时目录权限已显式保持 Unix 0700，文件保持 0600；全仓检查需在 napi 产物事务结束后执行，避免扫描构建中的临时文件。
-
-构建事务结束后 `just check` 已通过。确认当前工作区进程归属后执行 `just rs`，17:23:19 新进程加载三个工作区 .node，剪贴板监听、renderer 和搜索初始化正常；真实外部应用打开／Finder 定位仍待人工操作验收。
-
-占用统计切片：新增 `xiaowei.storage.Storage.DatabaseUsage`，由现有 Storage endpoint 报告自身数据库／WAL／SHM 的文件长度总和；Rust 剪贴板保留原请求权限调用该契约，再在 blocking worker 递归汇总附件目录中的普通文件。缺失文件计零，其他文件系统错误向上传递，不跟随符号链接；保持整个共享数据库加附件的原口径，不做业务空间分摊。TS 统计实现及数据库路径参数已移除，临时导出文件不进入附件目录。
-
-统计切片已通过 Rust 剪贴板／Storage 41 项测试、desktop Node 25 项测试、完整原生联调及新增占用统计跨语言测试、三语言 codec 和桌面构建。覆盖 WAL／SHM、缺失文件、目录递归、符号链接、附件删除、导出不计入附件及权限／Storage 关闭错误传播。
-
-统计切片的 `just check` 已在构建结束后通过；确认工作区实例归属并执行 `just rs` 后，17:29:46 新进程加载三个原生模块，剪贴板、renderer 和搜索初始化正常。设置页实际空间显示仍待人工验收。
-
-HMR 修复已于本轮前经用户人工验收：设置页热更新后，加载设置和刷新存储空间未发现异常。相关约束在 renderer、main README 及 Biome 中维护。
-
-本轮完整边界迁移已通过 Rust 剪贴板／Storage 43 项测试、desktop Node 26 项测试、完整 Gateway 原生联调、三语言契约 codec、desktop 构建和 `just check`。新增回归覆盖：30 秒初次清理及小时周期、重复启动／关闭、永久保留、收藏保护、关闭后停止清理，Select 的复制／隐藏／粘贴顺序与失败短路，以及 Settings 嵌套调用权限和宿主失败回滚。三个 napi 包均完成重建。
-
-确认当前工作区活实例后执行 `just rs`，18:11:04 新 Electron 进程加载三个工作区原生模块，Rust 设置订阅启动、剪贴板监听和 renderer／搜索初始化正常。真实自动粘贴与焦点恢复、修改快捷键和开机启动仍需用户人工验收；未在用户系统上自动切换这些设置。main README 已移除业务细节与历史进度，只保留能力归属、装配、生命周期和开发导航约定。
-
-模块命名与归属整理已完成：移除 clipboard `runtime.rs`，其实现及周期测试合入 `service.rs`；Storage DAO handler 和 napi 接线归入各自的 `gateway` 模块。43 项 Rust 测试、完整 `pnpm gateway:test-native` 和 `just check` 通过，正式 napi 产物已重建。确认工作区实例后执行 `just rs`，18:27:44 新 Electron 启动，剪贴板监听与 renderer 初始化正常；本轮不改变契约或业务行为。
+本事项已交付的模型能力继续生效，对应实施计划已删除。OAuth／特殊云凭据、本地模型、图片生成、deferred、文件监听及 Agent 工具执行不属于已交付能力；模型兼容参数编辑遇到具体接口需求再实施。main／剪贴板的历史迁移流水不再混入本 record，当前模块约定见[main README](../../../desktop/src/main/README.md)。

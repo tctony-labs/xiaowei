@@ -146,6 +146,8 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
           />
         }
         messages={messages}
+        sessionId={messages.length ? "preview-session" : null}
+        onCopySessionId={async () => {}}
         draft={draft}
         configured={configured}
         generating={generating}

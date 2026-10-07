@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { Llm, SetModelsRequestSchema } from "xiaowei-contracts";
+import { GetModelInfoRequestSchema, Llm, SetModelsRequestSchema } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
 const collect = async (stream) => {
   const events = [];
-  for await (const event of stream) events.push(event.event);
+  for await (const event of stream) {
+    if (event.event.case !== "firstSseReceived") events.push(event.event);
+  }
   return events;
 };
 
@@ -15,6 +17,8 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
   test(`${api}: replacement and deletion preserve in-flight streams`, async (t) => {
     const fixture = await llmFixture(t, undefined, api);
     const old = await fixture.client.generate(request("paused"));
+    const firstSse = (await old.next()).value.event;
+    assert.equal(firstSse.case, "firstSseReceived");
     assert.equal((await old.next()).value.event.value.text, "你");
     const next = { ...fixture.model, modelId: "new-upstream", apiKey: "new-key" };
     await fixture.owner.updateModels([next]);
@@ -161,3 +165,47 @@ test("invalid nested compatibility is rejected atomically by both host and worke
   }
   await fixture.owner.updateModels([fixture.model]);
 });
+
+test("model info queries the applied worker map and exposes only the safe subset", async (t) => {
+  const fixture = await llmFixture(t);
+  const api = bindClient(Llm, fixture.host.client({ caller: "test", trusted: true }));
+  const query = create(GetModelInfoRequestSchema, { modelRef: fixture.model.id });
+  const initial = await api.getModelInfo(query);
+  assert.equal(initial.providerName, fixture.model.providerName);
+  assert.equal(initial.name, fixture.model.name);
+  assert.equal(initial.contextWindow, fixture.model.contextWindow);
+  assert.equal(initial.maxTokens, fixture.model.maxTokens);
+  assert.deepEqual(
+    Object.keys(initial).sort(),
+    ["$typeName", "modelRef", "providerName", "name", "reasoning", "input", "contextWindow", "maxTokens"].sort(),
+  );
+  await fixture.owner.updateModels([{ ...fixture.model, providerName: "tctony", name: "sol", contextWindow: 256000 }]);
+  const changed = await api.getModelInfo(query);
+  assert.equal(changed.providerName, "tctony");
+  assert.equal(changed.name, "sol");
+  assert.equal(changed.contextWindow, 256000);
+  await assert.rejects(fixture.owner.updateModels([{ ...fixture.model, contextWindow: -1 }]));
+  assert.equal((await api.getModelInfo(query)).providerName, "tctony");
+  await fixture.owner.updateModels([]);
+  await assert.rejects(api.getModelInfo(query), (error) => error.detail.code === "NOT_FOUND");
+});
+
+for (const api of ["openai-completions", "openai-responses", "anthropic-messages"]) {
+  test(`${api}: first SSE timestamp is measured after headers and before generation completion`, async (t) => {
+    const fixture = await llmFixture(t, undefined, api);
+    const events = [];
+    const stream = await fixture.client.generate(request("delayed-sse"));
+    const collecting = (async () => {
+      for await (const event of stream) events.push(event.event);
+    })();
+    await waitFor(() => fixture.resume.has("delayed-sse"));
+    assert.ok(!events.some((event) => event.case === "firstSseReceived"));
+    const releasedAt = Date.now();
+    fixture.resume.get("delayed-sse")();
+    await collecting;
+    const packets = events.filter((event) => event.case === "firstSseReceived");
+    assert.equal(packets.length, 1);
+    assert.ok(packets[0].value.receivedAtMs >= BigInt(releasedAt));
+    assert.equal(events.at(-1).case, "finished");
+  });
+}

@@ -13,7 +13,13 @@ test("built LLM worker maps requests, text, usage and unique terminal", async (t
   ]) {
     const stream = await fixture.client.generate(request(text));
     const events = [];
-    for await (const chunk of stream) events.push(chunk.event);
+    const timing = [];
+    for await (const chunk of stream) {
+      if (chunk.event.case === "firstSseReceived") timing.push(chunk.event.value.receivedAtMs);
+      else events.push(chunk.event);
+    }
+    assert.equal(timing.length, 1);
+    assert.ok(timing[0] > 0n);
     assert.deepEqual(
       events.map((event) => event.case),
       ["textDelta", "textDelta", "usage", "finished"],
@@ -92,6 +98,7 @@ test("LLM cancellation and owner close abort HTTP, including a paused consumer",
   const fixture = await llmFixture(t);
   for (const text of ["cancel", "slow"]) {
     const stream = await fixture.client.generate(request(text));
+    assert.equal((await stream.next()).value.event.case, "firstSseReceived");
     assert.equal((await stream.next()).value.event.value.text, "你");
     const pending = text === "cancel" ? assert.rejects(stream.next(), code("CANCELLED")) : undefined;
     await stream.cancel();

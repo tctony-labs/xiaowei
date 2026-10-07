@@ -165,7 +165,7 @@ export function SettingsPreview(props: PreviewProps) {
           }))
         : structuredClone(sessionsFixture),
   );
-  const [archiveDays, setArchiveDays] = useState(7);
+  const [archiveDays, setArchiveDays] = useState(3);
   const [deleteDays, setDeleteDays] = useState(0);
   useEffect(() => {
     if (!highlight || tab !== "llm") return;
@@ -345,7 +345,7 @@ export function SettingsPreview(props: PreviewProps) {
               setSessions(sessions.filter((s) => s.id !== id));
               setToast("已恢复对话（预览）");
             }}
-            onDelete={(id) => setSessions(sessions.filter((s) => s.id !== id))}
+            onDelete={(targets) => setSessions(sessions.filter((s) => !targets.some((target) => target.id === s.id)))}
           />
         );
       case "about":

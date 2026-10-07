@@ -1,6 +1,7 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { hasOpenModal } from "../modal-state";
-import QuickChatTitleBar from "./QuickChatTitleBar";
+import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
+import QuickChatTitleBar, { type QuickChatSessionItem } from "./QuickChatTitleBar";
 import { QuickChatTransition } from "./QuickChatTransition";
 
 export interface QuickChatMessage {
@@ -12,16 +13,32 @@ export interface QuickChatMessage {
   error?: string;
 }
 
-export interface QuickChatPanelProps {
+export interface QuickChatPanelProps extends ComposerControlsProps {
   expanded: boolean;
   search: ReactNode;
   searchHeight?: number;
   messages: QuickChatMessage[];
+  sessionId?: string | null;
+  onCopySessionId?: (id: string) => Promise<void>;
+  title?: string;
+  onRename?: (title: string) => void;
+  sessions?: QuickChatSessionItem[];
+  sessionsLoading?: boolean;
+  sessionsHasMore?: boolean;
+  onListSessions?: () => void;
+  onMoreSessions?: () => void;
+  onArchiveConversation?: () => void;
+  onSwitchSession?: (id: string) => void;
+  onDeleteConversation?: () => void;
+  isRegeneratingTitle?: boolean;
+  onRegenerateTitle?: () => Promise<void>;
+  onOpenTitleModelSettings?: () => void;
   draft: string;
   configured: boolean;
   generating: boolean;
   loading?: boolean;
   error?: string;
+  modelHint?: string;
   emptyState?: ReactNode;
   onDraftChange: (value: string) => void;
   onSend: () => void;
@@ -37,9 +54,12 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const scroll = useRef<HTMLElement>(null);
   const followOutput = useRef(true);
   const scrollPosition = useRef(0);
+  const sessionScroll = useRef(new Map<string, { position: number; follow: boolean }>());
+  const scrollSession = useRef(props.sessionId ?? "");
   const [composerHeight, setComposerHeight] = useState(65);
-  const canSend = props.configured && !!props.draft.trim() && !props.generating && !props.loading;
-  const title = props.messages.find((message) => message.role === "user")?.text ?? "新的对话";
+  const canSend =
+    props.configured && !!props.draft.trim() && !props.generating && !props.loading && !props.configSaving;
+  const title = props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
   useLayoutEffect(() => {
     if (!props.expanded) return;
@@ -60,11 +80,22 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   }, [props.draft, props.expanded]);
 
   useLayoutEffect(() => {
+    const sessionId = props.sessionId ?? "";
+    if (scrollSession.current !== sessionId) {
+      sessionScroll.current.set(scrollSession.current, {
+        position: scrollPosition.current,
+        follow: followOutput.current,
+      });
+      const saved = sessionScroll.current.get(sessionId);
+      scrollPosition.current = saved?.position ?? 0;
+      followOutput.current = saved?.follow ?? true;
+      scrollSession.current = sessionId;
+    }
     if (!props.messages.length) followOutput.current = true;
     if (scroll.current && props.expanded) {
       scroll.current.scrollTop = followOutput.current ? scroll.current.scrollHeight : scrollPosition.current;
     }
-  }, [props.messages, props.expanded]);
+  }, [props.messages, props.expanded, props.sessionId]);
 
   function send() {
     if (!canSend) return;
@@ -74,14 +105,13 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   }
 
   function newConversation() {
-    followOutput.current = true;
     props.onNewConversation();
     composer.current?.focus();
   }
 
   const input = (
     <div className="relative shrink-0 border-t border-subtle" style={{ height: composerHeight }}>
-      <div className="flex h-full min-h-16 items-center gap-2 px-6 py-3">
+      <div className="flex min-h-16 items-center gap-2 px-6 py-3">
         <textarea
           ref={composer}
           aria-label="快速对话输入"
@@ -131,6 +161,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
       onKeyDown={(event) => {
         if (!props.expanded || event.defaultPrevented || hasOpenModal()) return;
         if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
+        if (event.currentTarget.querySelector('[data-quick-chat-keyboard-layer="true"]')) return;
         const inComposer = event.target === composer.current;
         if (event.key === "Escape" || (event.key === "ArrowUp" && inComposer && !props.draft.trim())) {
           event.preventDefault();
@@ -151,10 +182,36 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         {(animating) => (
           <div className="flex h-full min-h-0 flex-col">
             <QuickChatTitleBar
-              minimal
+              convId={props.sessionId ?? null}
               title={title}
+              autoTitle={false}
+              workspaceDir={null}
+              grantedPaths={[]}
+              showSessionDetails={false}
               isGenerating={props.generating}
+              isRegeneratingTitle={props.isRegeneratingTitle ?? false}
+              hasMessages={props.messages.length > 0}
+              hasAssistantReply={props.messages.some((message) => message.role === "assistant")}
+              sessions={props.sessions ?? []}
+              sessionsLoading={props.sessionsLoading ?? false}
+              unimplementedActions={[
+                ...(props.onSwitchSession ? [] : (["sessions"] as const)),
+                ...(props.onRename ? [] : (["rename"] as const)),
+                ...(props.onRegenerateTitle ? [] : (["regenerateTitle"] as const)),
+                ...(props.onArchiveConversation ? [] : (["archive"] as const)),
+                ...(props.onCopySessionId ? [] : (["copyId"] as const)),
+              ]}
+              onListSessions={props.onListSessions ?? (() => {})}
               onCreateSession={newConversation}
+              onSwitchSession={props.onSwitchSession ?? (() => {})}
+              onRename={props.onRename ?? (() => {})}
+              onRegenerateTitle={props.onRegenerateTitle ?? (async () => {})}
+              sessionsHasMore={props.sessionsHasMore}
+              onMoreSessions={props.onMoreSessions}
+              onArchive={props.onArchiveConversation ?? (() => {})}
+              onDelete={props.onDeleteConversation ?? (() => {})}
+              onCopyId={async (id) => props.onCopySessionId?.(id)}
+              onOpenTitleModelSettings={props.onOpenTitleModelSettings ?? (() => {})}
             />
             <section
               ref={scroll}
@@ -218,6 +275,14 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                 </div>
               )}
             </section>
+            {props.modelHint && (
+              <div role="status" className="flex shrink-0 items-center gap-3 px-4 py-2 text-xs text-muted">
+                <span className="h-px flex-1 bg-line" />
+                <span className="max-w-[80%] text-center break-words">{props.modelHint}</span>
+                <span className="h-px flex-1 bg-line" />
+              </div>
+            )}
+            {props.onModelChange && <QuickChatComposerControls {...props} />}
           </div>
         )}
       </QuickChatTransition>

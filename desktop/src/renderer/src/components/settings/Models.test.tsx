@@ -54,11 +54,11 @@ test("AddAndSelectModel", async () => {
   await userEvent.click(page.getByRole("button", { name: "保存" }));
   await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
   const defaultModel = page.getByRole("button", { name: "默认模型" });
-  await expect(defaultModel).toHaveTextContent("deepseek / deepseek-chat");
-  await expect(page.getByRole("button", { name: "deepseek / deepseek-chat" })).toBeVisible();
+  await expect(defaultModel).toHaveTextContent("deepseek/deepseek-chat");
+  await expect(page.getByRole("button", { name: "deepseek/deepseek-chat" })).toBeVisible();
   await userEvent.click(defaultModel);
-  await userEvent.click(page.getByRole("button", { name: "example / demo-text" }));
-  await expect(defaultModel).toHaveTextContent("example / demo-text");
+  await userEvent.click(page.getByRole("button", { name: "example/demo-text" }));
+  await expect(defaultModel).toHaveTextContent("example/demo-text");
 });
 
 test("ResponsesProtocol", async () => {
@@ -93,7 +93,7 @@ test("ImageValidationFailure", async () => {
   const { container: canvasElement } = render(<SettingsPreview initialTab="llm" operationFailure />);
   const canvas = within(canvasElement);
   await userEvent.click(canvas.getByRole("button", { name: "未设置" }));
-  await userEvent.click(within(document.body).getByRole("button", { name: "demo / demo-image" }));
+  await userEvent.click(within(document.body).getByRole("button", { name: "demo/demo-image" }));
   await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("该模型不支持图片生成"));
 });
 
@@ -159,8 +159,8 @@ test("ConnectionChangesPreserveModels", async () => {
   await expect(page.getByRole("button", { name: "保存" })).toBeEnabled();
   await userEvent.click(page.getByRole("button", { name: "保存" }));
   await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
-  await userEvent.click(page.getAllByRole("button", { name: "deepseek / deepseek-chat" })[0]);
-  await expect(page.getByRole("button", { name: "demo / My text model" })).toBeVisible();
+  await userEvent.click(page.getAllByRole("button", { name: "deepseek/deepseek-chat" })[0]);
+  await expect(page.getByRole("button", { name: "demo/My text model" })).toBeVisible();
 });
 
 test("ModelContextFromApi", async () => {
@@ -277,7 +277,7 @@ test("CustomMaxOutput", async () => {
   await userEvent.click(page.getByRole("button", { name: "64K" }));
   await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("65536");
   fireEvent.change(saved.getByRole("textbox", { name: "最大输出 token" }), { target: { value: "" } });
-  await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("16384");
+  await expect(saved.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("32768");
 });
 
 async function addFetchedModels() {
@@ -443,8 +443,8 @@ test("ProviderNamesAreEditableAndUnique", async () => {
   await userEvent.click(page.getByRole("button", { name: "保存" }));
   await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
   await expect(page.getByText("我的 DeepSeek", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent("我的 DeepSeek / deepseek-chat");
-  await expect(page.getByRole("button", { name: "我的 DeepSeek / deepseek-chat" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent("我的 DeepSeek/deepseek-chat");
+  await expect(page.getByRole("button", { name: "我的 DeepSeek/deepseek-chat" })).toBeVisible();
   await userEvent.click(page.getAllByRole("button", { name: "修改" })[1]);
   await expect(page.getByLabelText("名称", { exact: true })).toHaveValue("我的 DeepSeek");
   await expect(page.getByRole("button", { name: "编辑 deepseek-chat" })).toBeVisible();
@@ -475,7 +475,7 @@ test("ModelMenuConsumesEscapeAndEnterBeforeDialog", async () => {
   await expect(page.queryByRole("button", { name: "192K" })).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "选择上下文窗口大小" }));
   await userEvent.keyboard("{ArrowDown}{Enter}");
-  await expect(page.getByLabelText("上下文窗口大小")).toHaveValue("256000");
+  await expect(page.getByLabelText("上下文窗口大小")).toHaveValue("1000000");
   await expect(page.getByRole("dialog", { name: "编辑模型" })).toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect(page.getByRole("dialog", { name: "修改模型提供商" })).toBeVisible();

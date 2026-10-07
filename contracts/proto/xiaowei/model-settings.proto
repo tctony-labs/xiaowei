@@ -8,6 +8,8 @@ import "xiaowei/llm.proto";
 // Host-owned persistent model settings. Keys are write-only through this API.
 service ModelSettings {
   rpc Get(xiaowei.common.Empty) returns (ModelSettingsSnapshot);
+  // Current small-text model selection; absent means not configured.
+  rpc GetAuxiliaryModelRef(xiaowei.common.Empty) returns (AuxiliaryModelRef);
   rpc SaveProvider(SaveProviderRequest) returns (ModelSettingsSnapshot);
   rpc DeleteProvider(DeleteProviderRequest) returns (ModelSettingsSnapshot);
   rpc UpdateDefaults(UpdateModelDefaultsRequest) returns (ModelSettingsSnapshot);
@@ -15,6 +17,10 @@ service ModelSettings {
   rpc ListModels(DiscoverModelsRequest) returns (stream ListModelsResponse);
   // Retries applying the latest saved snapshot, without reloading the file.
   rpc Reapply(xiaowei.common.Empty) returns (ModelSettingsSnapshot);
+}
+
+message AuxiliaryModelRef {
+  optional string model_ref = 1;
 }
 
 message ConfiguredModel {
@@ -26,7 +32,7 @@ message ConfiguredModel {
   repeated ModelInput input = 4;
   bool reasoning = 5;
   optional string thinking_level_map_json = 6;
-  // Absent defaults to 131072 / 16384 tokens. Positive integers, output <= context.
+  // Absent defaults to 256000 / 32768 tokens. Positive integers, output <= context.
   optional double context_window = 7;
   optional double max_tokens = 8;
   map<string, string> headers = 9;

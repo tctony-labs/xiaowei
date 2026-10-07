@@ -1,0 +1,18 @@
+[package]
+name = "xiaowei-agent-napi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tokio = { version = "1", features = ["rt"] }
+xiaowei-agent = { path = ".." }
+xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
+xw-napi-log = { path = "../../xw-napi-log" }
+napi = { version = "3", features = ["napi8", "async"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

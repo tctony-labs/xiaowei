@@ -190,7 +190,7 @@ test("default thinking strength requires a selected model and offers only its su
   expect(thinking.compareDocumentPosition(smallModel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
   await userEvent.click(defaultModel);
-  await userEvent.click(screen.getByRole("button", { name: "Custom / reasoner" }));
+  await userEvent.click(screen.getByRole("button", { name: "Custom/reasoner" }));
   await waitFor(() => expect(thinking).toBeEnabled());
   await userEvent.click(thinking);
   expect(screen.getByRole("button", { name: "关闭" })).toBeVisible();
@@ -201,7 +201,7 @@ test("default thinking strength requires a selected model and offers only its su
   await waitFor(() => expect(snapshot.defaults?.thinkingLevel).toBe("high"));
 
   await userEvent.click(defaultModel);
-  await userEvent.click(screen.getByRole("button", { name: "Custom / text" }));
+  await userEvent.click(screen.getByRole("button", { name: "Custom/text" }));
   await waitFor(() => expect(thinking).toBeDisabled());
   expect(thinking).toHaveTextContent("不支持推理");
   expect(snapshot.defaults?.thinkingLevel).toBe("");

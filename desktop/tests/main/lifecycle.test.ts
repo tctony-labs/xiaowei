@@ -13,6 +13,7 @@ const require = createRequire(new URL("../../package.json", import.meta.url));
 const calls: string[] = [];
 let failure = "";
 let directory = "";
+let agentDirectory = "";
 
 mock.module(require.resolve("electron"), {
   exports: {
@@ -22,6 +23,23 @@ mock.module(require.resolve("electron"), {
     clipboard: {},
     shell: {},
     protocol: { handle: () => calls.push("protocol"), unhandle: () => {} },
+  },
+});
+mock.module(require.resolve("xiaowei-agent"), {
+  exports: {
+    Agent: {
+      async open(path: string) {
+        assert.equal(path, agentDirectory);
+        calls.push("create-agent");
+        if (failure === "agent-create") throw new Error("agent-create failure");
+        return {
+          createGatewayEndpoint: () => ({}),
+          async close() {
+            calls.push("stop-agent");
+          },
+        };
+      },
+    },
   },
 });
 mock.module(require.resolve("xiaowei-storage"), {
@@ -74,6 +92,7 @@ mock.module(import.meta.resolve("xiaowei-gateway/rust-napi"), {
   exports: {
     async attachRustNapi(host: GatewayHost, name: string) {
       calls.push(`attach-${name}`);
+      if (failure === "agent-attach" && name === "agent") throw new Error("agent-attach failure");
       const owner =
         name === "settings"
           ? host.registerOwner(
@@ -150,36 +169,44 @@ const actions = {
 
 test("desktop startup failures unwind producers and owners before Storage closes", async () => {
   directory = await mkdtemp(join(tmpdir(), "storage-lifecycle-"));
+  agentDirectory = join(directory, "independent-agent-root");
   try {
     const cases =
       process.platform === "darwin"
-        ? ["llm", "storage", "migration", "monitor", ""]
-        : ["llm", "storage", "migration", ""];
+        ? ["llm", "agent-create", "agent-attach", "storage", "migration", "monitor", ""]
+        : ["llm", "agent-create", "agent-attach", "storage", "migration", ""];
     for (const stage of cases) {
       failure = stage;
       calls.length = 0;
       if (stage) {
         await assert.rejects(
-          createApplicationGateway(directory, "unused.sqlite", directory, actions),
+          createApplicationGateway(directory, "unused.sqlite", directory, agentDirectory, actions),
           new RegExp(stage),
         );
       } else {
-        const gateway = await createApplicationGateway(directory, "unused.sqlite", directory, actions);
+        const gateway = await createApplicationGateway(directory, "unused.sqlite", directory, agentDirectory, actions);
         assert.ok(calls.indexOf("attach-storage") < calls.indexOf("attach-clipboard-dao"));
         assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
         if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
         await gateway.updateLlmModels([]);
         assert.ok(calls.includes("update-llm"));
-        await gateway.close();
+        assert.equal(gateway.close(), gateway.close());
         await gateway.close();
         assert.equal(calls.filter((call) => call === "close-storage").length, 1);
       }
       if (stage !== "llm") assert.equal(calls.filter((call) => call === "close-llm").length, 1);
       if (stage === "llm") assert.ok(!calls.includes("open-storage"));
-      if (stage !== "llm" && stage !== "storage" && stage !== "migration") {
+      if (!["llm", "agent-create", "agent-attach", "storage", "migration"].includes(stage)) {
         assert.ok(calls.indexOf("stop") < calls.indexOf("close-clipboard"));
         assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-clipboard-dao"));
         assert.ok(calls.indexOf("close-clipboard-dao") < calls.indexOf("close-storage"));
+      }
+      if (!["llm", "agent-create"].includes(stage)) {
+        assert.ok(calls.indexOf("stop-agent") < calls.indexOf("close-llm"));
+        if (stage !== "agent-attach") {
+          assert.ok(calls.indexOf("stop-agent") < calls.indexOf("close-agent"));
+          assert.ok(calls.indexOf("close-agent") < calls.indexOf("close-llm"));
+        }
       }
       assert.deepEqual(await readdir(directory), []);
     }
