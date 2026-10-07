@@ -11,6 +11,7 @@
 - Rust 模块持有其业务状态、后台任务和设置订阅。TS 不代管原生模块的业务调度，也不为其读取数据库、处理记录或统计文件。
 - 前端及跨模块业务调用统一通过 proto service／Gateway；preload 只承载 Gateway bridge，不新增 raw 业务 IPC 或专用跨语言副作用回调。
 - `resources/` 负责渲染资源协议和缓存；资源 URL 不作为绕过 Gateway 的业务命令入口。
+- `http/` 负责多个业务共用的小微服务端 HTTP 请求、公共响应解码和请求开始／结束日志。业务模块负责接口路径、请求编码及返回数据校验；认证封装位于 `services/account/api.ts`，通用层不依赖认证模块。日志字段、等级及敏感信息规则见 [HTTP 接口与日志](../../../server/docs/http.md#请求日志)。
 - 每个 owner 提供显式接入与关闭入口。导入模块不自动注册服务或启动后台任务；不预建空目录、通用 utils 或多层转发包装。
 
 ## 目录
@@ -18,6 +19,7 @@
 ```text
 desktop/src/main/
 ├── index.ts
+├── http/client.ts         # 小微服务端通用 HTTP 请求与日志
 ├── app/
 │   ├── bootstrap.ts       # 应用启动、退出、单实例
 │   ├── gateway.ts         # host、owner、Rust napi endpoint 装配

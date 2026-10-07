@@ -36,3 +36,47 @@ Bearer 凭据通过 `Authorization: Bearer <access_token>` 传递。注册、找
 ## 请求限流
 
 通用 IP 限流和接口专用限流的范围、叠加顺序、配置方案与实现状态见 [限流设计](rate-limiting.md)。
+
+## 请求日志
+
+日志分为两层：通用 HTTP 层记录每次请求的结果，接口业务层按需要记录业务事件和诊断上下文。两层沿用现有日志机制，客户端为 console／Electron 采集，服务端为 slog。
+
+客户端通用入口位于 `desktop/src/main/http/client.ts`，供小微服务端各业务使用；认证接口在 `services/account/api.ts` 中编码请求、校验业务结果并转换为 AccountError。通用层不依赖 account，不覆盖第三方 LLM／provider 协议。服务端 `internal/httpapi/logging.go` 的中间件覆盖进入应用 handler 的请求，响应写出入口主动标注业务 code，不读取或缓存响应体来获取 code。
+
+每次请求开始时输出一条 `HTTP request started`，包含 method 和安全 path；结束时输出一条 `HTTP request completed`，另外包含 duration_ms、http_status 和 code，不输出加工的 outcome 字段。客户端两条日志都另记录 server origin，使用单行 `key=val` 文本，与服务端默认 slog 文本格式一致；未取得 HTTP 状态或合法业务码时省略对应字段，不用本地产生的错误码替代服务端业务码。HTTP 200 必须结合 code 判断结果。客户端在公共响应解码后记录汇总；认证等业务的数据校验由业务封装负责。
+
+| 日志阶段／请求结果 | 客户端等级 | 服务端等级 |
+| --- | --- | --- |
+| 请求开始 | debug | info |
+| 成功请求结束 | debug | info |
+| 业务拒绝、认证失败、参数错误、限流 | warn | warn |
+| 服务不可用、内部错误、协议错误、网络或传输异常 | error | error |
+| 外部 HTTP 4xx／5xx | warn／error | warn／error |
+| 用户主动取消 | debug | 按实际响应或传输结果记录 |
+
+客户端成功日志遵循既有采集策略，正式版默认不输出 debug；服务器所有接口（包括健康检查）的开始及成功结束日志统一使用 info。登录成功、会话刷新和撤销等业务事件继续保留，普通拒绝和限流不重复输出汇总；内部故障可以额外记录安全的错误分类、SQLSTATE 或诊断栈。
+
+### 敏感信息规则
+
+通用层对所有接口使用同一份元信息白名单，不根据 path、业务模块或字段名称选择脱敏规则，不采集整个对象后再递归打码。新增业务接口无需更新通用日志规则。业务层自行选择需要记录的字段，但不能放宽以下要求；所有日志级别及测试凭据同样遵守。
+
+| 信息 | 记录规则 |
+| --- | --- |
+| 密码、授权码、验证码、邀请码、AT／RT、第三方绑定 token、Cookie、Authorization、API key、数据库凭据 | 不输出值；确需保留字段时整值替换为 `[REDACTED]`，不保留首尾、长度或哈希 |
+| 邮箱 | 请求日志不记录；业务事件确需记录时，`@` 前至少 3 个字符则保留首尾各 1 个字符，中间固定为 `***`，否则整个 local part 为 `***`；域名保留，如 `user@example.com` → `u***r@example.com` |
+| 公开 user_id、device_id、session_id | 必要业务事件允许原样记录，前提是它们不能作为登录凭据；请求日志不新增这些字段或内部自增用户主键 |
+| 昵称、设备名称、客户端 IP | 本次不记录 |
+| 服务器地址 | 客户端只记录 origin，即协议、主机和端口，排除 userinfo、基础子路径、query 和 fragment |
+| 接口路径 | 客户端由业务代码提供固定路径／路由模板，服务端使用匹配的路由键；未知路径记为 `[unmatched]`，不输出提交的原始路径或查询参数；动态路由使用参数占位符 |
+| 请求／响应体、完整 headers、响应 msg、data、原始异常对象或文本 | 不进入请求日志；根据错误类别选择等级，不输出 fetch cause、解码错误原文或 panic 值 |
+
+示例（客户端普通成功请求，均为 debug；服务端开始与成功结束为 info）：
+
+```text
+HTTP request started method=GET path=/api/auth/me server=http://127.0.0.1:10001
+HTTP request completed method=GET path=/api/auth/me server=http://127.0.0.1:10001 duration_ms=94 http_status=200 code=0
+```
+
+开始日志在网络请求／业务 handler 执行之前写出，不包含尚未取得的状态码、业务码或耗时；结束日志沿用结果分级。客户端错误分类仅供内部等级选择和业务封装处理，不输出为日志字段。健康检查使用与其他接口相同的日志等级，没有单独例外。
+
+路径模板只用于展示，不参与敏感信息判断。业务层需要记录邮箱等字段时由业务代码明确处理，通用 HTTP 层不识别这些字段，也不预建任意对象脱敏工具。

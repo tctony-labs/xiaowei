@@ -3,7 +3,6 @@ package httpapi
 import (
 	"crypto/sha256"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -96,7 +95,7 @@ func loginQuotas(r *http.Request, email string, limits config.AuthRateLimit) []q
 	}
 }
 
-func (l *limiter) check(w http.ResponseWriter, operation string, quotas ...quota) bool {
+func (l *limiter) check(w http.ResponseWriter, quotas ...quota) bool {
 	retry := l.allow(time.Now(), quotas...)
 	if retry == 0 {
 		return true
@@ -106,7 +105,6 @@ func (l *limiter) check(w http.ResponseWriter, operation string, quotas ...quota
 		seconds++
 	}
 	w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
-	slog.Info("HTTP request rate limited", "operation", operation)
 	writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_RATE_LIMITED), "请求过于频繁，请稍后重试")
 	return false
 }

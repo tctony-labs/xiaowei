@@ -1,5 +1,5 @@
 import type { DescMessage } from "@bufbuild/protobuf";
-import { create, fromJsonString, type MessageShape, toJsonString } from "@bufbuild/protobuf";
+import { create, type MessageShape, toJsonString } from "@bufbuild/protobuf";
 import {
   ErrorCode,
   GetCurrentUserResponseSchema,
@@ -11,10 +11,15 @@ import {
   RefreshResponseSchema,
 } from "xiaowei-contracts";
 import { normalizeServerAddress } from "../../../shared/server-address";
+import { HttpRequestError, ServerHttpClient } from "../../http/client";
 import { AccountError } from "./errors";
 
 export class AuthHttpClient {
-  constructor(private readonly fetcher: typeof fetch = fetch) {}
+  private readonly client: ServerHttpClient;
+
+  constructor(fetcher: typeof fetch = fetch) {
+    this.client = new ServerHttpClient(fetcher);
+  }
 
   private async request<S extends DescMessage>(
     server: string,
@@ -23,38 +28,21 @@ export class AuthHttpClient {
     signal: AbortSignal,
     options: { body?: string; token?: string } = {},
   ): Promise<MessageShape<S>> {
-    let contents: string;
     try {
-      const response = await this.fetcher(`${normalizeServerAddress(server)}/api/auth/${path}`, {
+      return await this.client.request(`${normalizeServerAddress(server)}/api/auth/${path}`, schema, {
         method: options.body === undefined && path === "me" ? "GET" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-        },
-        body: options.body,
-        redirect: "error",
-        signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+        logPath: `/api/auth/${path}`,
+        signal,
+        ...options,
       });
-      if (response.status !== 200) throw new Error("Unexpected HTTP status");
-      contents = await response.text();
-      if (Buffer.byteLength(contents) > 65_536) throw new Error("Response too large");
-    } catch {
-      throw new AccountError(ErrorCode.UNAVAILABLE, signal.aborted ? "登录操作已取消" : "无法连接服务器，请稍后重试");
-    }
-
-    try {
-      const envelope = JSON.parse(contents);
-      if (!Number.isInteger(envelope.code) || typeof envelope.msg !== "string") {
-        throw new Error("Missing response envelope");
-      }
-      if (envelope.code !== 0) {
-        throw new AccountError(envelope.code, envelope.msg || "服务器拒绝了此操作");
-      }
-      if (!envelope.data) throw new Error("Missing success data");
-      return fromJsonString(schema, contents);
     } catch (error) {
-      if (error instanceof AccountError) throw error;
-      throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了无效的响应");
+      if (error instanceof HttpRequestError && error.outcome === "business_error" && error.code !== undefined) {
+        throw new AccountError(error.code, error.message);
+      }
+      if (error instanceof HttpRequestError && error.outcome === "protocol_error") {
+        throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了无效的响应");
+      }
+      throw new AccountError(ErrorCode.UNAVAILABLE, signal.aborted ? "登录操作已取消" : "无法连接服务器，请稍后重试");
     }
   }
 

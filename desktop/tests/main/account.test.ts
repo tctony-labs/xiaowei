@@ -20,9 +20,9 @@ import {
 } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import { AuthHttpClient } from "../../src/main/services/account/api";
 import { AccountError } from "../../src/main/services/account/errors";
 import { registerAccount } from "../../src/main/services/account/gateway";
-import { AuthHttpClient } from "../../src/main/services/account/http";
 import { AccountService } from "../../src/main/services/account/service";
 import { type AccountDocument, AccountStore } from "../../src/main/services/account/store";
 import { accountMeta, authServer } from "./account-fixture";

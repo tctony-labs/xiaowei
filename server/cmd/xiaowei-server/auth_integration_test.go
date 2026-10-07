@@ -293,7 +293,7 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 	fixture := newAuthFixture(t)
 	logs := new(authLogs)
 	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(logs, nil)))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(logs, nil)))
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	stop := startAuthServer(t, fixture)
 
@@ -405,6 +405,11 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 		t.Fatal("database contains incorrect credential hashes")
 	}
 	stop()
+	for _, route := range []string{"/api/auth/login", "/api/auth/me", "/api/auth/refresh", "/api/auth/logout"} {
+		requireHTTPLog(t, logs, route, 0, "INFO")
+	}
+	requireHTTPLog(t, logs, "/api/auth/login", 10100, "WARN")
+	requireHTTPLog(t, logs, "/api/auth/me", 10002, "WARN")
 	for _, secret := range []string{
 		fixture.password, "user@example.com", first.Tokens.AccessToken, first.Tokens.RefreshToken,
 		rotated.Data.RefreshToken, winner.Data.RefreshToken, current.Data.RefreshToken, second.Tokens.AccessToken,
@@ -417,6 +422,10 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 
 func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 	fixture := newAuthFixture(t)
+	logs := new(authLogs)
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
 	stop := startAuthServer(t, fixture)
 	defer stop()
 	login := loginFixture(t, fixture)
@@ -461,6 +470,8 @@ func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 	}
 	response := requestAuth(fixture.address, "GET", "/api/auth/me", refreshed.Data.AccessToken, nil)
 	requireAuthResponse(t, response, 200, int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), nil)
+	requireHTTPLog(t, logs, "/api/auth/login", 10007, "WARN")
+	requireHTTPLog(t, logs, "/api/auth/me", 10008, "ERROR")
 	var body map[string]any
 	if err := json.Unmarshal(response.body, &body); err != nil || strings.Contains(string(response.body), "SQLSTATE") {
 		t.Fatal("database failure leaked internal detail")
@@ -544,5 +555,35 @@ func TestConfiguredRateLimitsHTTP(t *testing.T) {
 	}
 	for _, path := range []string{"/healthz", "/readyz"} {
 		requireAuthResponse(t, requestAuth(fixture.address, "GET", path, "", nil), 200, 0, nil)
+	}
+}
+
+func requireHTTPLog(t *testing.T, logs *authLogs, path string, code int32, level string) {
+	t.Helper()
+	decoder := json.NewDecoder(strings.NewReader(logs.String()))
+	started := false
+	for {
+		var entry struct {
+			Message string `json:"msg"`
+			Path    string `json:"path"`
+			Code    *int32 `json:"code"`
+			Level   string `json:"level"`
+			Status  int    `json:"http_status"`
+		}
+		if err := decoder.Decode(&entry); err == io.EOF {
+			t.Fatalf("missing %s HTTP summary for %s, code %d", level, path, code)
+		} else if err != nil {
+			t.Fatal("invalid JSON log")
+		}
+		if entry.Message == "HTTP request started" && entry.Path == path && entry.Level == "INFO" {
+			started = true
+		}
+		if entry.Message == "HTTP request completed" && entry.Path == path && entry.Code != nil &&
+			*entry.Code == code && entry.Level == level && entry.Status == 200 {
+			if !started {
+				t.Fatal("HTTP completion had no preceding info start log")
+			}
+			return
+		}
 	}
 }

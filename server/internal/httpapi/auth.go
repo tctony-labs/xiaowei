@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	common "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
 	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
@@ -47,7 +49,7 @@ func (a *authAPI) login(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, "login", auth.ErrInvalidArgument)
 		return
 	}
-	if !a.limiter.check(w, "login", loginQuotas(r, email, a.limits)...) {
+	if !a.limiter.check(w, loginQuotas(r, email, a.limits)...) {
 		return
 	}
 	result, err := a.service.Login(
@@ -70,7 +72,9 @@ func (a *authAPI) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *authAPI) refresh(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.check(w, "refresh", quota{key: "refresh:" + sourceIP(r), limit: a.limits.RefreshIP.Limit, window: a.limits.RefreshIP.Window}) {
+	if !a.limiter.check(w, quota{
+		key: "refresh:" + sourceIP(r), limit: a.limits.RefreshIP.Limit, window: a.limits.RefreshIP.Window,
+	}) {
 		return
 	}
 	request := new(pb.RefreshRequest)
@@ -193,19 +197,34 @@ func writeAuthError(w http.ResponseWriter, operation string, err error) {
 		code, message = int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "认证服务暂不可用，请稍后重试"
 	}
 	if code == int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR) || code == int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE) {
-		slog.Error("authentication request failed", "operation", operation, "code", code, "error", err)
-	} else {
-		slog.Info("authentication request rejected", "operation", operation, "code", code)
+		fields := []any{"operation", operation, "code", code}
+		// Preserve safe diagnostic categories, never driver messages or request data.
+		var databaseError *pgconn.PgError
+		switch {
+		case errors.As(err, &databaseError):
+			fields = append(fields, "error_kind", "database", "sqlstate", databaseError.Code)
+		case errors.Is(err, context.DeadlineExceeded):
+			fields = append(fields, "error_kind", "timeout")
+		case errors.Is(err, context.Canceled):
+			fields = append(fields, "error_kind", "cancelled")
+		default:
+			fields = append(fields, "error_kind", "internal")
+		}
+		slog.Error("authentication request failed", fields...)
 	}
 	writeProtocolError(w, code, message)
 }
 
-func writeAuthJSON(w http.ResponseWriter, message proto.Message) {
+func writeAuthJSON(w http.ResponseWriter, message interface {
+	proto.Message
+	GetCode() int32
+}) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true, EmitDefaultValues: true}).Marshal(message)
 	if err != nil {
 		writeAuthError(w, "encode", auth.ErrInternal)
 		return
 	}
+	recordResponseCode(w, message.GetCode())
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(body)

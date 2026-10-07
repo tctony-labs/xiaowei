@@ -7,8 +7,8 @@ import {
   ErrorCode,
 } from "xiaowei-contracts";
 import { normalizeServerAddress } from "../../../shared/server-address";
+import { AuthHttpClient } from "./api";
 import { AccountError, accountError } from "./errors";
-import { AuthHttpClient } from "./http";
 import type { AccountDocument, AccountStore, SavedSession } from "./store";
 
 const REFRESH_LEAD_MS = 5 * 60_000;

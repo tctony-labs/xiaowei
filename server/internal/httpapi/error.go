@@ -8,6 +8,7 @@ import (
 )
 
 func writeProtocolError(w http.ResponseWriter, code int32, message string) {
+	recordResponseCode(w, code)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
