@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
 import { stripVTControlCharacters } from "node:util";
@@ -211,12 +213,62 @@ test("signal termination during Ctrl+C shutdown does not reject or print a resta
   assert.ok(!state.output.some((line) => line.includes("取消启动新实例")));
 });
 
+test("start cleanup preserves default TERM grace periods and allows shorter test waits", () => {
+  const justfile = readFileSync(new URL("../../justfile", import.meta.url), "utf8");
+  const start = justfile.indexOf("    kill_tree() {");
+  const end = justfile.indexOf("\n    }", start) + "\n    }".length;
+  const cleanup = justfile.slice(start, end);
+  const signals = `
+    active=0
+    polls=0
+    kill() {
+      if [ "$1" = -0 ]; then return "$active"; fi
+      echo "$1:$polls"
+      if [ "$1" = -KILL ]; then active=1; fi
+      return 0
+    }
+    pgrep() { return 1; }
+    sleep() {
+      if [ "$1" != 0.2 ]; then exit 1; fi
+      polls=$((polls+1))
+    }
+  `;
+  for (const [argument, polls] of [
+    ["", 30],
+    ["2", 2],
+  ]) {
+    const output = execFileSync("bash", ["-c", `${signals}\n${cleanup}\nkill_tree 12345 ${argument}`], {
+      encoding: "utf8",
+    });
+    assert.deepEqual(output.trim().split("\n"), [
+      "-TERM:0",
+      `-STOP:${polls}`,
+      `-TERM:${polls}`,
+      `-CONT:${polls}`,
+      `-KILL:${polls * 2}`,
+    ]);
+  }
+});
+
 for (const stubborn of [false, true]) {
   test(`start waits for detached descendants after the root exits (ignores TERM: ${stubborn})`, {
-    timeout: 25000,
+    timeout: 10000,
   }, async () => {
+    const directory = mkdtempSync(join(tmpdir(), "xiaowei-start-grace-"));
+    const marker = join(directory, "shutdown");
+    const gracefulExit = stubborn
+      ? ""
+      : `setTimeout(() => {
+          writeFileSync(marker, 'graceful');
+          process.exit(0);
+        }, 150);`;
     const appCode = `
-      process.on('SIGTERM', () => { ${stubborn ? "" : "setTimeout(() => process.exit(0), 600);"} });
+      const { writeFileSync } = require('node:fs');
+      const marker = ${JSON.stringify(marker)};
+      process.on('SIGTERM', () => {
+        writeFileSync(marker, 'term');
+        ${gracefulExit}
+      });
       console.log(process.pid);
       setInterval(() => {}, 1000);
     `;
@@ -245,13 +297,15 @@ for (const stubborn of [false, true]) {
       const start = justfile.indexOf("    kill_tree() {");
       const end = justfile.indexOf("\n    }", start) + "\n    }".length;
       const cleanup = justfile.slice(start, end);
-      const cleaner = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1"`, "cleanup", String(supervisor.pid)]);
+      // Two 200ms polls retain a real TERM grace period without waiting six seconds per phase.
+      const cleaner = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1" 2`, "cleanup", String(supervisor.pid)]);
       let errors = "";
       cleaner.stderr.on("data", (chunk) => {
         errors += chunk;
       });
       const [code] = await once(cleaner, "close");
       assert.equal(code, 0, errors);
+      assert.equal(readFileSync(marker, "utf8"), stubborn ? "term" : "graceful");
       assert.throws(() => process.kill(appPid, 0), { code: "ESRCH" });
     } finally {
       supervisor.kill("SIGCONT");
@@ -262,6 +316,7 @@ for (const stubborn of [false, true]) {
         } catch {}
       }
       await closed;
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 }

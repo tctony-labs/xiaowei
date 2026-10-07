@@ -34,6 +34,8 @@ start:
     kill_tree() {
         local pid i alive
         local root_pid=$1
+        # Production allows six seconds per TERM phase; tests may shorten the poll count.
+        local grace_polls=${2:-30}
         local -a graceful_pids=()
         local -a dev_pids=()
         collect_tree() {
@@ -56,7 +58,7 @@ start:
         snapshot_tree "$root_pid"
         # Let dev.mjs use the same IPC shutdown path as terminal Ctrl+C.
         kill -TERM "$root_pid" 2>/dev/null || true
-        for ((i=0; i<30; i++)); do
+        for ((i=0; i<grace_polls; i++)); do
             alive=false
             for pid in "${graceful_pids[@]}"; do
                 if kill -0 "$pid" 2>/dev/null; then alive=true; fi
@@ -74,13 +76,13 @@ start:
             kill -CONT "$pid" 2>/dev/null || true
         done
         # Keep the snapshot: descendants may be reparented after their supervisor exits.
-        for ((i=0; i<50; i++)); do
+        for ((i=0; i<grace_polls+20; i++)); do
             alive=false
             for pid in "${dev_pids[@]}"; do
                 if kill -0 "$pid" 2>/dev/null; then alive=true; fi
             done
             if [ "$alive" = false ]; then return 0; fi
-            if [ "$i" -eq 30 ]; then
+            if [ "$i" -eq "$grace_polls" ]; then
                 for pid in "${dev_pids[@]}"; do
                     kill -KILL "$pid" 2>/dev/null || true
                 done
