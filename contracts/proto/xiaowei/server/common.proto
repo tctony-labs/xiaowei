@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package xiaowei.server.common;
 
+import "xiaowei/common.proto";
+
 // Common error codes occupy 10000-10099; zero means success.
 enum ErrorCode {
   ERROR_CODE_SUCCESS = 0;
@@ -17,11 +19,20 @@ enum ErrorCode {
   ERROR_CODE_INTERNAL_ERROR = 10009;
 }
 
-// Shared failure envelope, compatible with each typed business response.
-message ErrorResponse {
+// Result without domain data; also the failure envelope for typed business responses.
+message BaseResponse {
   // Numeric value from ErrorCode or the business enum; ranges must not overlap.
-  // Nonzero on failure; transport success alone does not mean business success.
+  // Zero on success, nonzero on failure; transport success alone does not mean business success.
   int32 code = 1;
   // Safe human-readable description. Clients must not parse this to classify errors.
   string msg = 2;
+}
+
+service Health {
+  // No login required. Success means the server process can respond.
+  rpc Check(xiaowei.common.Empty) returns (BaseResponse);
+
+  // No login required. Probes database availability for up to two seconds.
+  // Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
+  rpc Ready(xiaowei.common.Empty) returns (BaseResponse);
 }

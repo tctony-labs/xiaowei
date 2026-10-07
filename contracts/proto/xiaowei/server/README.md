@@ -8,7 +8,7 @@
 
 业务响应采用平铺的 `{ code, msg, data }`：成功时明确输出 `code: 0`、`msg` 和有具体类型的 `data`；失败只返回 `{ code, msg }`，省略 `data`。无业务数据的成功响应使用 `data: {}`。公共错误和业务错误共用 `code`，不另设业务错误字段。
 
-Proto 不支持消息继承或泛型。各业务 response 分别声明 `code = 1`、`msg = 2` 和具体业务类型的 `data = 3`，不使用 Any，也不嵌套公共结果字段。公共 `ErrorResponse` 只声明前两个字段，其失败 JSON 可直接按具体业务 response 解码。
+Proto 不支持消息继承或泛型。各业务 response 分别声明 `code = 1`、`msg = 2` 和具体业务类型的 `data = 3`，不使用 Any，也不嵌套公共结果字段。公共 `BaseResponse` 只声明前两个字段，可用于无专用返回数据的方法；其失败 JSON 可直接按具体业务 response 解码。
 
 说明字段统一命名为 `msg`，不使用 `message`；错误码统一放在 `code`，不另设 `error_code` 或 `business_code`。本目录定义消息及错误码语义，具体传输行为由接入实现负责。
 

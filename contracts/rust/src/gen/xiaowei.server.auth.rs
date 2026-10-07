@@ -298,7 +298,7 @@ impl ::prost::Name for LogoutResponse {
 #[repr(i32)]
 pub enum AuthErrorCode {
     Unspecified = 0,
-    /// ErrorResponse.code value; never distinguishes unknown email from wrong password.
+    /// BaseResponse.code value; never distinguishes unknown email from wrong password.
     InvalidCredentials = 10100,
     LoginMethodUnsupported = 10101,
     ThirdpartyBindingUnsupported = 10102,

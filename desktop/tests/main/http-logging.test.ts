@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { ErrorCode, LogoutResponseSchema } from "xiaowei-contracts";
-import { HttpRequestError, ServerHttpClient } from "../../src/main/http/client";
-import { AuthHttpClient } from "../../src/main/services/account/api";
-import { AccountError } from "../../src/main/services/account/errors";
+import { HttpRequestError, ServerHttpClient } from "../../src/main/services/xwapi/http";
+import { XwapiError, XwapiService } from "../../src/main/services/xwapi/service";
 
 const secrets = ["secret-password", "secret-access", "secret-refresh", "private@example.com", "secret-message"];
 const success = JSON.stringify({ code: 0, msg: secrets[4], data: {} });
@@ -169,10 +168,19 @@ test("authentication wrappers preserve business messages and transport error map
     { response: "", status: 502, code: ErrorCode.UNAVAILABLE, msg: "无法连接服务器，请稍后重试" },
   ];
   for (const tc of cases) {
-    const client = new AuthHttpClient(async () => new Response(tc.response, { status: tc.status ?? 200 }));
+    const client = new XwapiService(async () => new Response(tc.response, { status: tc.status ?? 200 }));
     await assert.rejects(
-      client.me("https://example.test", secrets[1], new AbortController().signal),
-      (error: unknown) => error instanceof AccountError && error.code === tc.code && error.message === tc.msg,
+      client.getCurrentUser({
+        server: "https://example.test",
+        signal: new AbortController().signal,
+        session: {
+          server: "https://example.test",
+          sessionId: "session",
+          accessToken: secrets[1],
+          accessExpiresAtMs: 2n ** 60n,
+        },
+      }),
+      (error: unknown) => error instanceof XwapiError && error.code === tc.code && error.message === tc.msg,
     );
   }
 });

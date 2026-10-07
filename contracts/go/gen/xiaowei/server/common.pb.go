@@ -7,6 +7,7 @@
 package server
 
 import (
+	xiaowei "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -95,11 +96,11 @@ func (ErrorCode) EnumDescriptor() ([]byte, []int) {
 	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{0}
 }
 
-// Shared failure envelope, compatible with each typed business response.
-type ErrorResponse struct {
+// Result without domain data; also the failure envelope for typed business responses.
+type BaseResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric value from ErrorCode or the business enum; ranges must not overlap.
-	// Nonzero on failure; transport success alone does not mean business success.
+	// Zero on success, nonzero on failure; transport success alone does not mean business success.
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Safe human-readable description. Clients must not parse this to classify errors.
 	Msg           string `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
@@ -107,20 +108,20 @@ type ErrorResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ErrorResponse) Reset() {
-	*x = ErrorResponse{}
+func (x *BaseResponse) Reset() {
+	*x = BaseResponse{}
 	mi := &file_xiaowei_server_common_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ErrorResponse) String() string {
+func (x *BaseResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ErrorResponse) ProtoMessage() {}
+func (*BaseResponse) ProtoMessage() {}
 
-func (x *ErrorResponse) ProtoReflect() protoreflect.Message {
+func (x *BaseResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_xiaowei_server_common_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -132,19 +133,19 @@ func (x *ErrorResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ErrorResponse.ProtoReflect.Descriptor instead.
-func (*ErrorResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use BaseResponse.ProtoReflect.Descriptor instead.
+func (*BaseResponse) Descriptor() ([]byte, []int) {
 	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ErrorResponse) GetCode() int32 {
+func (x *BaseResponse) GetCode() int32 {
 	if x != nil {
 		return x.Code
 	}
 	return 0
 }
 
-func (x *ErrorResponse) GetMsg() string {
+func (x *BaseResponse) GetMsg() string {
 	if x != nil {
 		return x.Msg
 	}
@@ -155,8 +156,8 @@ var File_xiaowei_server_common_proto protoreflect.FileDescriptor
 
 const file_xiaowei_server_common_proto_rawDesc = "" +
 	"\n" +
-	"\x1bxiaowei/server/common.proto\x12\x15xiaowei.server.common\"5\n" +
-	"\rErrorResponse\x12\x12\n" +
+	"\x1bxiaowei/server/common.proto\x12\x15xiaowei.server.common\x1a\x14xiaowei/common.proto\"4\n" +
+	"\fBaseResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg*\xeb\x02\n" +
 	"\tErrorCode\x12\x16\n" +
@@ -170,7 +171,10 @@ const file_xiaowei_server_common_proto_rawDesc = "" +
 	"!ERROR_CODE_UNSUPPORTED_MEDIA_TYPE\x10\x96N\x12\x1c\n" +
 	"\x17ERROR_CODE_RATE_LIMITED\x10\x97N\x12\x1b\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x98N\x12\x1e\n" +
-	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99Nb\x06proto3"
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99N2\x92\x01\n" +
+	"\x06Health\x12C\n" +
+	"\x05Check\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponse\x12C\n" +
+	"\x05Ready\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponseb\x06proto3"
 
 var (
 	file_xiaowei_server_common_proto_rawDescOnce sync.Once
@@ -188,11 +192,16 @@ var file_xiaowei_server_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_xiaowei_server_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_xiaowei_server_common_proto_goTypes = []any{
 	(ErrorCode)(0),        // 0: xiaowei.server.common.ErrorCode
-	(*ErrorResponse)(nil), // 1: xiaowei.server.common.ErrorResponse
+	(*BaseResponse)(nil),  // 1: xiaowei.server.common.BaseResponse
+	(*xiaowei.Empty)(nil), // 2: xiaowei.common.Empty
 }
 var file_xiaowei_server_common_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
+	2, // 0: xiaowei.server.common.Health.Check:input_type -> xiaowei.common.Empty
+	2, // 1: xiaowei.server.common.Health.Ready:input_type -> xiaowei.common.Empty
+	1, // 2: xiaowei.server.common.Health.Check:output_type -> xiaowei.server.common.BaseResponse
+	1, // 3: xiaowei.server.common.Health.Ready:output_type -> xiaowei.server.common.BaseResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -211,7 +220,7 @@ func file_xiaowei_server_common_proto_init() {
 			NumEnums:      1,
 			NumMessages:   1,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_xiaowei_server_common_proto_goTypes,
 		DependencyIndexes: file_xiaowei_server_common_proto_depIdxs,

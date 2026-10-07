@@ -4,7 +4,7 @@
 
 用户于 2026-09-25 要求开始讨论并记录用户与登录实现方案。登录后的业务通信使用 WebSocket；需要考虑邮箱注册／登录、中国用户使用微信登录的便利性，以及第三方自行部署服务器、客户端配置服务器地址的完整流程。
 
-此前[设置窗口事项](2026-09-18-settings-ui-inventory.md)暂缓账号与云连接，仅保留模拟 UI；[Gateway 事项](2026-09-18-implement-gateway.md)记录了远端双向 WebSocket、连接认证与会话授权边界。本事项从服务端存储基础开始推进，桌面账号 UI 与远端通信仍按各自后续切片实施。
+此前[设置窗口事项](2026-09-18-settings-ui-inventory.md)暂缓账号与云连接，仅保留模拟 UI；[Gateway 远端设计](../../../docs/gateway.md#远端服务与双向-websocket尚未实现)记录了远端双向 WebSocket、连接认证与会话授权边界。本事项从服务端存储基础开始推进，桌面账号 UI 与远端通信仍按各自后续切片实施。
 
 ## What
 
@@ -41,7 +41,9 @@
 
 ### 通用 HTTP 请求日志
 
-客户端公共请求入口位于 main/http/client.ts，认证接口封装位于 services/account/api.ts；服务端通过 httpapi 日志中间件记录进入应用的请求。通用层采用统一元信息白名单，不根据接口路径判断敏感字段，也不采集请求／响应内容；业务日志自行选择字段并遵守统一脱敏规则。具体说明维护在 [HTTP 文档](../../../server/docs/http.md#请求日志)，客户端模块边界见 [main README](../../../desktop/src/main/README.md)。
+客户端调用已重组为 [xwapi 服务](../../../docs/xwapi.md)，统一强类型 Gateway 调用与本地鉴权，并记录未来由业务方选择 HTTP 或已登录 WebSocket 连接的设计；现有会话生命周期仍按本事项维护。
+
+客户端公共请求入口位于 services/xwapi/http.ts，强类型 API 与结果校验位于 services/xwapi/service.ts；服务端通过 httpapi 日志中间件记录进入应用的请求。通用层采用统一元信息白名单，不根据接口路径判断敏感字段，也不采集请求／响应内容；业务日志自行选择字段并遵守统一脱敏规则。具体说明维护在 [HTTP 文档](../../../server/docs/http.md#请求日志)，客户端模块边界见 [main README](../../../desktop/src/main/README.md)。
 
 ### 账号归属与数据模型
 
@@ -163,7 +165,7 @@ thirdparty_bind_token 是短期随机凭据，有效期 15 分钟，由服务端
 
 预览位于 `Settings/GeneralLogin`，覆盖未登录、已登录、空列表、选择／添加地址、登录浮层、失败、进行中、长地址与深色主题；旧版微信账号预览保留为对照。正式页面通过 `AccountSettingsSection` 调用 Account typed client，先订阅再获取快照，使用递增 revision 忽略迟到状态。
 
-账号 owner 位于 `desktop/src/main/services/account/`，通过现有 Gateway 接入 renderer。`xiaowei/account.proto` 定义账号快照、事件与操作，复用 server 的密码和用户消息；密码仅随登录请求传至 main，token 只由 main 持有，不进入公开快照。HTTP 适配使用生成的 Proto JSON codec，校验 HTTP 200 与整数 code，拒绝重定向并设置请求超时。
+账号 owner 位于 `desktop/src/main/services/account/`，通过现有 Gateway 接入 renderer。`xiaowei/account.proto` 定义账号快照、事件与操作，复用 server 的密码和用户消息；密码仅随账号登录请求传至 main，Account 快照不包含 token。xwapi 原始认证方法返回共享 server 契约中的凭据，由调用方管理，不自动建立或修改 Account 会话。HTTP 适配使用生成的 Proto JSON codec，校验 HTTP 200 与整数 code，拒绝重定向并设置请求超时。
 
 服务器列表、选择和共享设备 UUID 保存到本地 Storage 的 `meta` 表（`account.config`），不跟随 Agent 配置目录。设备 ID 不使用 Keychain；保留数据库时升级、重装与 dev／release 共用 ID，删除数据库后重新生成。登录态保存到 `$APP_DATA/xiaowei/auth.json`，以普通 JSON 保存版本、当前服务器和认证结果（用户、设备与 token），不重复保存地址列表和设备配置；退出后删除登录态文件。按用户要求不做本地加密，不依赖系统安全存储或授权；继续原子写入权限为 0600 的文件。密码不持久化，token 不进入 renderer 快照或日志。开发态与正式态首次列表均为空，由用户手动添加地址，不自动加入本地服务器。地址允许 HTTPS，HTTP 仅允许本机回环地址，支持反向代理基础子路径。
 
@@ -337,7 +339,7 @@ curl -f http://127.0.0.1:10001/readyz
 | 02–04 | 已有 `server/internal/auth/` 管理密码与会话，后续增加验证码与邀请；拟新增 `server/internal/mail/` 实现 SMTP；`server/internal/httpapi/` 负责协议适配，不承载账号规则；部署端初始化与邀请命令接在既有二进制入口下，不增加管理 Web 后台 |
 | 02–06 | 业务契约在 `contracts/proto/xiaowei/` 按认证和客户端账号职责定义，更新 `contracts/generate.config.json` 及公共导出，复用生成的 TS／Go 消息；不修改生成产物、不复制 HTTP 与 Gateway 的同义消息结构 |
 | 02A、05 | 从 `desktop/src/renderer/src/components/settings/SettingsPage.tsx`、`GeneralSettings.tsx` 接入账号区域与相邻 Storybook／测试；`desktop/src/renderer/src/services.ts` 提供 typed client。账号 owner 与登录态存储位于 TS main 的 `services/account/`，通过 `desktop/src/main/app/gateway.ts` 装配，preload 不新增业务接口 |
-| 06 | `gateway/ts/src/` 增加通用远端 transport，Go runtime 位置按 Gateway record 的 `gateway/go/` 方向细化；服务端连接适配放在 `server/`，不把账号、SMTP 逻辑放进 Gateway 核心。不得未经设计直接创建新 npm package 或 Rust crate |
+| 06 | `gateway/ts/src/` 增加通用远端 transport，Go runtime 位置按 [Gateway 后续远端设计](../../../docs/gateway.md#远端服务与双向-websocket尚未实现)细化；服务端连接适配放在 `server/`，不把账号、SMTP 逻辑放进 Gateway 核心。不得未经设计直接创建新 npm package 或 Rust crate |
 | 07–08 | 部署继续复用 `server/deploy/`；微信服务端逻辑归 `server/internal/auth/`，桌面入口复用 05 的账号模块，不新增独立用户表或会话体系 |
 
 模块依赖保持为 HTTP／Gateway 接入层 → auth 业务 → db／mail；mail 不依赖 auth，db 不依赖 HTTP，通用 Gateway 不依赖账号业务。验证码投递、时间和随机源在测试中可替换；存储事务与唯一约束使用选定数据库验证，不用内存假实现代替数据库并发验收。
@@ -448,3 +450,6 @@ Go HTTP 接入的解析、认证、限流、未知路径、错误方法、非规
 按用户补充要求，客户端和服务端均增加 HTTP request started，在实际网络请求／业务 handler 之前记录；服务端所有请求开始统一 info，成功结束统一 info，移除健康检查的日志等级例外，限流豁免不变。客户端开始与成功结束均为 debug，改为单行 key=val 文本；两端请求日志不再输出 outcome，内部错误分类只用于等级选择和业务封装。路由层提前提供安全路径供通用中间件记录，不增加路径脱敏特判。HTTP 文档和 main 模块说明已同步。
 
 本次补充验证通过 22 项客户端 HTTP／账号测试、HTTP 接入 race 测试、专用 PostgreSQL 上完整 Go race 测试及 just check。断言开始日志先于网络／handler 执行，开始与结束各一次，路径一致，各失败路径等级保持，单行文本没有对象展开或 outcome，两条日志均未泄漏敏感哨兵。确认 oracle 活进程归属后执行 just rs，2026-10-07 17:23:26.526／17:23:26.537 的真实启动恢复 GET /api/auth/me 分别输出 debug 开始与结束，结束为 HTTP 200、code 0、耗时 11 ms。临时数据库容器已停止并自动删除，未退出当前用户或写入日常验收账号；Go 开发进程需重启生效，变更未提交。
+
+
+客户端 HTTP 调用重组已由 [xwapi 事项](../archived/2026-10-07-xwapi-service.md)交付：原始服务器接口经 Gateway 对 TS／Rust 提供强类型调用，默认在本地检查 access 会话，仅登录、刷新及两个健康检查免除普通登录要求。xwapi 不管理会话，Account 产品登录、刷新、恢复、取消补偿及退出语义继续保留；当前边界及未来 WebSocket 方向见 [xwapi 长期文档](../../../docs/xwapi.md)，验收证据保留在归档 record。

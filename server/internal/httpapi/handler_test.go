@@ -87,7 +87,7 @@ func TestReadinessCancellationAndMethod(t *testing.T) {
 		config.DefaultServerRateLimit(), config.DefaultAuthRateLimit())
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest("GET", "/readyz", nil).WithContext(ctx))
-	var body pb.ErrorResponse
+	var body pb.BaseResponse
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || response.Code != 200 ||
 		body.Code != int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE) {
 		t.Fatal("request cancellation was not propagated")
@@ -106,7 +106,7 @@ func TestHandlerPanicAndUnnormalizedPaths(t *testing.T) {
 	for _, path := range []string{"/readyz", "//healthz", "/a/../healthz", "/healthz/"} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
-		var body pb.ErrorResponse
+		var body pb.BaseResponse
 		want := int32(pb.ErrorCode_ERROR_CODE_NOT_FOUND)
 		if path == "/readyz" {
 			want = int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR)

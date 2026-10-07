@@ -12,7 +12,7 @@ func writeProtocolError(w http.ResponseWriter, code int32, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
-	body, _ := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}).Marshal(&pb.ErrorResponse{
+	body, _ := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}).Marshal(&pb.BaseResponse{
 		Code: code, Msg: message,
 	})
 	_, _ = w.Write(body)

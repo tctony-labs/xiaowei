@@ -19,7 +19,7 @@ assertProduction(["agent"]);
 runPnpm(["--filter", "xiaowei-agent", "test:runtime"]);
 
 runPnpm(["--filter", "xiaowei-storage", "build:debug"]);
-// Storage and LLM use a test-only Rust caller. Other business tests use production addons.
+// Storage, LLM and xwapi use a test-only Rust caller. Other business tests use production addons.
 await withRustNapiFixtures(["search"], () => {
   runPnpm([
     "--dir",
@@ -29,6 +29,7 @@ await withRustNapiFixtures(["search"], () => {
     "--conditions=source",
     "--test",
     "tests/rust-napi/storage.test.ts",
+    "tests/rust-napi/xwapi.test.ts",
     "tests/rust-napi/llm.test.mjs",
   ]);
 });

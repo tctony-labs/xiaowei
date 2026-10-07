@@ -25,7 +25,7 @@ description: >-
 - 手写业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../../../gateway/README.md#接入约定)。
 - Rust 模块引入自己的一份 `gateway_binding.rs`；unary 使用 `Method::handler`／`call`，响应流使用 `StreamMethod::handler`／`stream`。通过现有 endpoint 显式注册 owner。参考 [Storage 注册](../../../crates/xiaowei-storage/src/gateway.rs)和[剪贴板 DAO 调用](../../../crates/xiaowei-clipboard/src/dao.rs)。
 - TS 使用生成的 service descriptor 和 `bindClient`／`bindHandlers`；流使用 `bindStreamClient`／`bindStreamHandlers`。同一 service 分属多个 owner 时，unary handler 使用 `{ partial: true }`，核对每条 route 只有一个 owner。renderer 调用沿用 [services.ts](../../../desktop/src/renderer/src/services.ts) 的入口。
-- 事件须由 owner 显式导出并由消费者订阅，service 绑定不会自动发布事件。涉及事件或流时，按 [运行机制](../../../gateway/README.md) 检查 ready、取消、关闭及 owner 替换行为。
+- 事件须由 owner 显式导出并由消费者订阅，service 绑定不会自动发布事件。涉及事件或流时，按 [运行机制](../../../docs/gateway.md) 检查 ready、取消、关闭及 owner 替换行为。
 - 同步更新承载当前行为的 docs 或 active record。README 只更新职责、使用入口和稳定规则；实施取舍及验证结果写入 record，维护步骤留在本 skill，避免重复维护。
 
 ## 按改动范围验证

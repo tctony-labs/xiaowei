@@ -430,7 +430,7 @@ export enum AuthErrorCode {
   UNSPECIFIED = 0,
 
   /**
-   * ErrorResponse.code value; never distinguishes unknown email from wrong password.
+   * BaseResponse.code value; never distinguishes unknown email from wrong password.
    *
    * @generated from enum value: AUTH_ERROR_CODE_INVALID_CREDENTIALS = 10100;
    */

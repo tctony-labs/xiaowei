@@ -2,25 +2,27 @@
 // @generated from file xiaowei/server/common.proto (package xiaowei.server.common, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { EmptySchema } from "../common_pb";
+import { file_xiaowei_common } from "../common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file xiaowei/server/common.proto.
  */
 export const file_xiaowei_server_common: GenFile = /*@__PURE__*/
-  fileDesc("Cht4aWFvd2VpL3NlcnZlci9jb21tb24ucHJvdG8SFXhpYW93ZWkuc2VydmVyLmNvbW1vbiIqCg1FcnJvclJlc3BvbnNlEgwKBGNvZGUYASABKAUSCwoDbXNnGAIgASgJKusCCglFcnJvckNvZGUSFgoSRVJST1JfQ09ERV9TVUNDRVNTEAASHwoaRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQkE4SIAobRVJST1JfQ09ERV9JTlZBTElEX0FSR1VNRU5UEJFOEh8KGkVSUk9SX0NPREVfVU5BVVRIRU5USUNBVEVEEJJOEiEKHEVSUk9SX0NPREVfUEVSTUlTU0lPTl9ERU5JRUQQk04SGQoURVJST1JfQ09ERV9OT1RfRk9VTkQQlE4SIQocRVJST1JfQ09ERV9SRVFVRVNUX1RPT19MQVJHRRCVThImCiFFUlJPUl9DT0RFX1VOU1VQUE9SVEVEX01FRElBX1RZUEUQlk4SHAoXRVJST1JfQ09ERV9SQVRFX0xJTUlURUQQl04SGwoWRVJST1JfQ09ERV9VTkFWQUlMQUJMRRCYThIeChlFUlJPUl9DT0RFX0lOVEVSTkFMX0VSUk9SEJlOYgZwcm90bzM");
+  fileDesc("Cht4aWFvd2VpL3NlcnZlci9jb21tb24ucHJvdG8SFXhpYW93ZWkuc2VydmVyLmNvbW1vbiIpCgxCYXNlUmVzcG9uc2USDAoEY29kZRgBIAEoBRILCgNtc2cYAiABKAkq6wIKCUVycm9yQ29kZRIWChJFUlJPUl9DT0RFX1NVQ0NFU1MQABIfChpFUlJPUl9DT0RFX0lOVkFMSURfUkVRVUVTVBCQThIgChtFUlJPUl9DT0RFX0lOVkFMSURfQVJHVU1FTlQQkU4SHwoaRVJST1JfQ09ERV9VTkFVVEhFTlRJQ0FURUQQkk4SIQocRVJST1JfQ09ERV9QRVJNSVNTSU9OX0RFTklFRBCTThIZChRFUlJPUl9DT0RFX05PVF9GT1VORBCUThIhChxFUlJPUl9DT0RFX1JFUVVFU1RfVE9PX0xBUkdFEJVOEiYKIUVSUk9SX0NPREVfVU5TVVBQT1JURURfTUVESUFfVFlQRRCWThIcChdFUlJPUl9DT0RFX1JBVEVfTElNSVRFRBCXThIbChZFUlJPUl9DT0RFX1VOQVZBSUxBQkxFEJhOEh4KGUVSUk9SX0NPREVfSU5URVJOQUxfRVJST1IQmU4ykgEKBkhlYWx0aBJDCgVDaGVjaxIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zZXJ2ZXIuY29tbW9uLkJhc2VSZXNwb25zZRJDCgVSZWFkeRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zZXJ2ZXIuY29tbW9uLkJhc2VSZXNwb25zZWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
- * Shared failure envelope, compatible with each typed business response.
+ * Result without domain data; also the failure envelope for typed business responses.
  *
- * @generated from message xiaowei.server.common.ErrorResponse
+ * @generated from message xiaowei.server.common.BaseResponse
  */
-export type ErrorResponse = Message<"xiaowei.server.common.ErrorResponse"> & {
+export type BaseResponse = Message<"xiaowei.server.common.BaseResponse"> & {
   /**
    * Numeric value from ErrorCode or the business enum; ranges must not overlap.
-   * Nonzero on failure; transport success alone does not mean business success.
+   * Zero on success, nonzero on failure; transport success alone does not mean business success.
    *
    * @generated from field: int32 code = 1;
    */
@@ -35,10 +37,10 @@ export type ErrorResponse = Message<"xiaowei.server.common.ErrorResponse"> & {
 };
 
 /**
- * Describes the message xiaowei.server.common.ErrorResponse.
- * Use `create(ErrorResponseSchema)` to create a new message.
+ * Describes the message xiaowei.server.common.BaseResponse.
+ * Use `create(BaseResponseSchema)` to create a new message.
  */
-export const ErrorResponseSchema: GenMessage<ErrorResponse> = /*@__PURE__*/
+export const BaseResponseSchema: GenMessage<BaseResponse> = /*@__PURE__*/
   messageDesc(file_xiaowei_server_common, 0);
 
 /**
@@ -108,4 +110,32 @@ export enum ErrorCode {
  */
 export const ErrorCodeSchema: GenEnum<ErrorCode> = /*@__PURE__*/
   enumDesc(file_xiaowei_server_common, 0);
+
+/**
+ * @generated from service xiaowei.server.common.Health
+ */
+export const Health: GenService<{
+  /**
+   * No login required. Success means the server process can respond.
+   *
+   * @generated from rpc xiaowei.server.common.Health.Check
+   */
+  check: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof BaseResponseSchema;
+  },
+  /**
+   * No login required. Probes database availability for up to two seconds.
+   * Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
+   *
+   * @generated from rpc xiaowei.server.common.Health.Ready
+   */
+  ready: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof BaseResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_xiaowei_server_common, 0);
 

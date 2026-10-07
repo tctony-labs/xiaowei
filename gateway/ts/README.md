@@ -1,6 +1,6 @@
 # Gateway TypeScript
 
-本模块提供 TS host／client、typed 绑定及 TS ↔ Rust napi／Worker MessagePort／Electron IPC 通信适配层。共同调用语义与线协议见 [Gateway](../README.md)，产品装配见 [main README](../../desktop/src/main/README.md#gateway-装配与生命周期)，页面调用见 [renderer README](../../desktop/src/renderer/README.md#gateway-业务调用)。
+本模块提供 TS host／client、typed 绑定及 TS ↔ Rust napi／Worker MessagePort／Electron IPC 通信适配层。共同调用语义与线协议见 [Gateway 架构与运行机制](../../docs/gateway.md)，产品装配见 [main README](../../desktop/src/main/README.md#gateway-装配与生命周期)，页面调用见 [renderer README](../../desktop/src/renderer/README.md#gateway-业务调用)。
 
 ## 调用与绑定
 
@@ -26,7 +26,7 @@ TS 编码前限制对象节点数、深度及字符串／bytes 预算，防止�
 
 宿主通过 `xiaowei-gateway/rust-napi` 的 `attachRustNapi(host, name, endpoint, permissions?)` 接入。顺序为读取并校验 manifest → 预留全局 route／event 名称 → 绑定回调与来源上下文 → 激活 Rust endpoint → 原子发布。预留期间不暴露 route 或 event；失败会撤销预留并关闭新 endpoint，保留同名旧实例。返回的 handle 提供显式异步 `close()`；旧 handle 的关闭不会影响替换后的实例。
 
-host 侧 handle.close 同时清理路由、caller token 和订阅。线协议与固定 manifest 要求见 [共同协议](../README.md#ts-与-rust-的-napi-通信协议)。
+host 侧 handle.close 同时清理路由、caller token 和订阅。线协议与固定 manifest 要求见 [共同协议](../../docs/gateway.md#ts-与-rust-的-napi-通信协议)。
 
 ## Worker MessagePort 通信适配层
 

@@ -23,6 +23,8 @@ import type { ResolvedModelConfig } from "../services/llm/shared/models";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
+import { registerXwapi } from "../services/xwapi/gateway";
+import { XwapiService } from "../services/xwapi/service";
 
 export async function createApplicationGateway(
   directory: string,
@@ -55,6 +57,7 @@ export async function createApplicationGateway(
   }
   let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
   let account: ReturnType<typeof registerAccount> | undefined;
+  let xwapi: ReturnType<typeof registerXwapi> | undefined;
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
@@ -93,11 +96,14 @@ export async function createApplicationGateway(
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
+    const serverApi = new XwapiService();
     const accountService = await AccountService.open({
+      api: serverApi,
       store: new AccountStore(authPath, bindClient(KeyValue, host.client({ caller: "account-main", trusted: true }))),
       deviceName: hostname().slice(0, 64),
     });
     account = registerAccount(host, accountService);
+    xwapi = registerXwapi(host, serverApi, () => accountService.serverContext());
     void accountService.restore().catch(() => console.warn("Initial account restore failed"));
     clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
     settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
@@ -118,7 +124,9 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
+    const closingXwapi = xwapi?.close();
     await account?.close().catch(() => console.warn("Account shutdown failed"));
+    await closingXwapi;
     await modelSettings?.close();
     await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
     await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
@@ -144,7 +152,9 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
+        const closingXwapi = xwapi?.close();
         await account?.close().catch(() => console.warn("Account shutdown failed"));
+        await closingXwapi;
         await modelSettings?.close();
         const agentResults = await Promise.allSettled([closeAgent()]);
         const results = [

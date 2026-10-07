@@ -1,4 +1,4 @@
-import { type DescMessage, fromJsonString, type MessageShape } from "@bufbuild/protobuf";
+import { type DescMessage, fromJson, type JsonValue, type MessageShape } from "@bufbuild/protobuf";
 import { ErrorCode } from "xiaowei-contracts";
 
 type Outcome =
@@ -34,7 +34,12 @@ interface RequestOptions {
 export class ServerHttpClient {
   constructor(private readonly fetcher: typeof fetch = fetch) {}
 
-  async request<S extends DescMessage>(url: string, schema: S, options: RequestOptions): Promise<MessageShape<S>> {
+  async request<S extends DescMessage>(
+    url: string,
+    schema: S,
+    options: RequestOptions,
+    decode: (value: JsonValue) => MessageShape<S> = (value) => fromJson(schema, value),
+  ): Promise<MessageShape<S>> {
     const start = performance.now();
     const timeout = AbortSignal.timeout(10_000);
     let httpStatus: number | undefined;
@@ -79,7 +84,12 @@ export class ServerHttpClient {
 
       try {
         const envelope = JSON.parse(contents);
-        if (!Number.isInteger(envelope?.code) || typeof envelope.msg !== "string") {
+        if (
+          !Number.isInteger(envelope?.code) ||
+          envelope.code < -2_147_483_648 ||
+          envelope.code > 2_147_483_647 ||
+          typeof envelope.msg !== "string"
+        ) {
           throw new Error("Invalid envelope");
         }
         code = envelope.code;
@@ -87,7 +97,7 @@ export class ServerHttpClient {
           throw new HttpRequestError("business_error", envelope.msg || "服务器拒绝了此操作", httpStatus, code);
         }
         if (!envelope.data) throw new Error("Missing data");
-        return fromJsonString(schema, contents);
+        return decode(envelope);
       } catch (error) {
         if (error instanceof HttpRequestError) throw error;
         throw new HttpRequestError("protocol_error", "", httpStatus, code);

@@ -20,11 +20,11 @@ import {
 } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { AuthHttpClient } from "../../src/main/services/account/api";
 import { AccountError } from "../../src/main/services/account/errors";
 import { registerAccount } from "../../src/main/services/account/gateway";
 import { AccountService } from "../../src/main/services/account/service";
 import { type AccountDocument, AccountStore } from "../../src/main/services/account/store";
+import { XwapiService } from "../../src/main/services/xwapi/service";
 import { accountMeta, authServer } from "./account-fixture";
 
 test("Gateway login saves JSON credentials, omits the password and restores the same device", async (t) => {
@@ -177,7 +177,7 @@ test("switching servers discards and revokes a late login; stale cancellation ca
     await paused;
   };
   // Simulate a response that wins the network cancellation race.
-  const http = new AuthHttpClient((url, options) =>
+  const http = new XwapiService((url, options) =>
     fetch(url, {
       ...options,
       signal: String(url).endsWith("/login") ? undefined : options?.signal,
@@ -185,7 +185,7 @@ test("switching servers discards and revokes a late login; stale cancellation ca
   );
   const service = await AccountService.open({
     store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
-    http,
+    api: http,
     deviceName: "test",
   });
   await service.addServer(server.url);
@@ -236,8 +236,15 @@ test("redirect never forwards credentials", async (t) => {
   const otherServer = await authServer();
   t.after(() => otherServer.close());
   server.state.redirectTo = `${otherServer.url}/api/auth/me`;
-  const http = new AuthHttpClient();
-  await assert.rejects(http.me(server.url, "private-token", new AbortController().signal), /无法连接服务器/);
+  const http = new XwapiService();
+  await assert.rejects(
+    http.getCurrentUser({
+      server: server.url,
+      signal: new AbortController().signal,
+      session: { server: server.url, sessionId: "session", accessToken: "private-token", accessExpiresAtMs: 2n ** 60n },
+    }),
+    /无法连接服务器/,
+  );
   assert.equal(otherServer.state.requests.length, 0);
   assert.equal(server.state.requests.at(-1)?.bearer, "Bearer private-token");
 });

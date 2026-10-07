@@ -15,6 +15,7 @@ import {
 } from "xiaowei-contracts";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
+import type { XwapiContext, XwapiService } from "../../src/main/services/xwapi/service";
 
 const require = createRequire(new URL("../../package.json", import.meta.url));
 const calls: string[] = [];
@@ -168,6 +169,22 @@ mock.module(new URL("../../src/main/services/llm/host.ts", import.meta.url).href
   },
 });
 
+const { registerXwapi } = await import("../../src/main/services/xwapi/gateway.ts");
+mock.module(new URL("../../src/main/services/xwapi/gateway.ts", import.meta.url).href, {
+  exports: {
+    registerXwapi(host: GatewayHost, service: XwapiService, readContext: () => Omit<XwapiContext, "signal">) {
+      calls.push("register-xwapi");
+      const registration = registerXwapi(host, service, readContext);
+      return {
+        close() {
+          calls.push("close-xwapi");
+          return registration.close();
+        },
+      };
+    },
+  },
+});
+
 const { createApplicationGateway } = await import("../../src/main/app/gateway.ts");
 const actions = {
   async dismiss() {},
@@ -218,7 +235,8 @@ test("desktop startup failures unwind producers and owners before Storage closes
           join(directory, "auth.json"),
           actions,
         );
-        assert.ok(calls.indexOf("attach-storage") < calls.indexOf("attach-clipboard-dao"));
+        assert.ok(calls.indexOf("attach-storage") < calls.indexOf("register-xwapi"));
+        assert.ok(calls.indexOf("register-xwapi") < calls.indexOf("attach-clipboard-dao"));
         assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
         if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
         await gateway.updateLlmModels([]);
@@ -230,6 +248,8 @@ test("desktop startup failures unwind producers and owners before Storage closes
       if (stage !== "llm") assert.equal(calls.filter((call) => call === "close-llm").length, 1);
       if (stage === "llm") assert.ok(!calls.includes("open-storage"));
       if (!["llm", "agent-create", "agent-attach", "storage", "migration"].includes(stage)) {
+        assert.equal(calls.filter((call) => call === "close-xwapi").length, 1);
+        assert.ok(calls.indexOf("close-xwapi") < calls.indexOf("close-storage"));
         assert.ok(calls.indexOf("stop") < calls.indexOf("close-clipboard"));
         assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-clipboard-dao"));
         assert.ok(calls.indexOf("close-clipboard-dao") < calls.indexOf("close-storage"));

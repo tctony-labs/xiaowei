@@ -112,7 +112,7 @@ func TestRequestLoggingRoutesAndFailures(t *testing.T) {
 				entry["http_status"] != float64(200) || entry["code"] != float64(tc.code) {
 				t.Fatalf("incorrect request metadata: %v", entry)
 			}
-			var body pb.ErrorResponse
+			var body pb.BaseResponse
 			if json.Unmarshal(response.Body.Bytes(), &body) != nil || response.Code != 200 || body.Code != tc.code {
 				t.Fatal("logging changed the response")
 			}

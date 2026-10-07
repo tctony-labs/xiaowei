@@ -40,7 +40,7 @@ func TestAuthJSONBoundaries(t *testing.T) {
 				strings.Contains(w.Body.String(), "private-secret") || w.Header().Get("Cache-Control") != "no-store" {
 				t.Fatal("invalid JSON accepted or unsafe response")
 			}
-			response := new(pb.ErrorResponse)
+			response := new(pb.BaseResponse)
 			if err := protojson.Unmarshal(w.Body.Bytes(), response); err != nil || response.Code != int32(tc.want) {
 				t.Fatal("incorrect decoding error code")
 			}
@@ -83,7 +83,7 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 	for _, path := range []string{"login", "refresh", "logout"} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/auth/"+path, nil))
-		response := new(pb.ErrorResponse)
+		response := new(pb.BaseResponse)
 		if err := protojson.Unmarshal(w.Body.Bytes(), response); err != nil || w.Code != 200 ||
 			response.Code != int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST) {
 			t.Fatal("authentication route accepted wrong method")
@@ -111,7 +111,7 @@ func TestAuthErrorSanitization(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &wire); err != nil || wire.Code != tc.code {
 			t.Fatal("error code must be a JSON number matching the generated enum")
 		}
-		response := new(pb.ErrorResponse)
+		response := new(pb.BaseResponse)
 		if err := protojson.Unmarshal(w.Body.Bytes(), response); err != nil || w.Code != tc.status ||
 			response.Code != tc.code {
 			t.Fatal("error code does not match the failure")

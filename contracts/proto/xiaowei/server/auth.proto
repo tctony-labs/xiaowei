@@ -7,7 +7,7 @@ import "xiaowei/common.proto";
 // Authentication error codes occupy 10100-10199.
 enum AuthErrorCode {
   AUTH_ERROR_CODE_UNSPECIFIED = 0;
-  // ErrorResponse.code value; never distinguishes unknown email from wrong password.
+  // BaseResponse.code value; never distinguishes unknown email from wrong password.
   AUTH_ERROR_CODE_INVALID_CREDENTIALS = 10100;
   AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED = 10101;
   AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED = 10102;

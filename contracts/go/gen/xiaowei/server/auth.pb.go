@@ -27,7 +27,7 @@ type AuthErrorCode int32
 
 const (
 	AuthErrorCode_AUTH_ERROR_CODE_UNSPECIFIED AuthErrorCode = 0
-	// ErrorResponse.code value; never distinguishes unknown email from wrong password.
+	// BaseResponse.code value; never distinguishes unknown email from wrong password.
 	AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS            AuthErrorCode = 10100
 	AuthErrorCode_AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED       AuthErrorCode = 10101
 	AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED AuthErrorCode = 10102

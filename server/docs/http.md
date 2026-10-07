@@ -41,9 +41,9 @@ Bearer 凭据通过 `Authorization: Bearer <access_token>` 传递。注册、找
 
 日志分为两层：通用 HTTP 层记录每次请求的结果，接口业务层按需要记录业务事件和诊断上下文。两层沿用现有日志机制，客户端为 console／Electron 采集，服务端为 slog。
 
-客户端通用入口位于 `desktop/src/main/http/client.ts`，供小微服务端各业务使用；认证接口在 `services/account/api.ts` 中编码请求、校验业务结果并转换为 AccountError。通用层不依赖 account，不覆盖第三方 LLM／provider 协议。服务端 `internal/httpapi/logging.go` 的中间件覆盖进入应用 handler 的请求，响应写出入口主动标注业务 code，不读取或缓存响应体来获取 code。
+客户端 HTTP 入口位于 `desktop/src/main/services/xwapi/http.ts`；`services/xwapi/service.ts` 负责强类型接口映射、本地登录态检查、请求编码与业务结果校验，并通过 xwapi Gateway owner 提供服务器调用。xwapi 不管理会话，AccountService 负责凭据保存、刷新与退出；通用传输层不依赖 account，不覆盖第三方 LLM／provider 协议。服务端 `internal/httpapi/logging.go` 的中间件覆盖进入应用 handler 的请求，响应写出入口主动标注业务 code，不读取或缓存响应体来获取 code。
 
-每次请求开始时输出一条 `HTTP request started`，包含 method 和安全 path；结束时输出一条 `HTTP request completed`，另外包含 duration_ms、http_status 和 code，不输出加工的 outcome 字段。客户端两条日志都另记录 server origin，使用单行 `key=val` 文本，与服务端默认 slog 文本格式一致；未取得 HTTP 状态或合法业务码时省略对应字段，不用本地产生的错误码替代服务端业务码。HTTP 200 必须结合 code 判断结果。客户端在公共响应解码后记录汇总；认证等业务的数据校验由业务封装负责。
+每次请求开始时输出一条 `HTTP request started`，包含 method 和安全 path；结束时输出一条 `HTTP request completed`，另外包含 duration_ms、http_status 和 code，不输出加工的 outcome 字段。客户端两条日志都另记录 server origin，使用单行 `key=val` 文本，与服务端默认 slog 文本格式一致；未取得 HTTP 状态或合法业务码时省略对应字段，不用本地产生的错误码替代服务端业务码。HTTP 200 必须结合 code 判断结果。客户端在公共响应解码及业务封装的结果校验后记录汇总。未通过本地登录态检查的请求只记录安全的 `Xwapi request rejected`，不输出尚未发生的 HTTP 开始／结束日志。
 
 | 日志阶段／请求结果 | 客户端等级 | 服务端等级 |
 | --- | --- | --- |

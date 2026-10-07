@@ -28,7 +28,7 @@ XiaoWei 包含 Electron 桌面应用、Rust 原生模块和独立 Go 服务端�
 | `gateway/ts/`：`xiaowei-gateway` | TS client、host 与 Node／Electron／worker 接入 |
 | `gateway/rust/`：`xw-gateway` | Rust registry、typed binding 与 napi 通信适配 |
 
-契约组织、生成与兼容规则见 [contracts](../contracts/README.md)，通信语义与各语言接入见 [Gateway](../gateway/README.md)。
+契约组织、生成与兼容规则见 [contracts](../contracts/README.md)，共同通信语义见 [Gateway 架构](gateway.md)，包与各语言接入见 [Gateway](../gateway/README.md)。
 
 ### Rust 模块
 

@@ -28,6 +28,8 @@ export async function accountMeta(t: TestContext, directory: string) {
 export async function authServer() {
   const state = {
     offline: false,
+    healthResponse: undefined as string | undefined,
+    ready: true,
     revoked: false,
     refreshes: 0,
     logins: 0,
@@ -78,7 +80,17 @@ export async function authServer() {
       response.end(JSON.stringify({ code, msg }));
     };
 
-    if (path === "/xiaowei/api/auth/login") {
+    if (path === "/xiaowei/healthz" || path === "/xiaowei/readyz") {
+      if (state.healthResponse !== undefined) {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(state.healthResponse);
+      } else if (path.endsWith("/readyz") && !state.ready) {
+        fail(10008, "数据库暂不可用");
+      } else {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ code: 0, msg: "成功", data: { status: "ok" } }));
+      }
+    } else if (path === "/xiaowei/api/auth/login") {
       await state.beforeLogin?.();
       const password = body.password as { email?: string; password?: string } | undefined;
       if (password?.email !== user.email || password.password !== "  sample  ") {

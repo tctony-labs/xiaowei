@@ -1,6 +1,6 @@
 # Gateway Rust
 
-本模块提供纯 Rust registry、typed 绑定、事件和响应流；napi 适配由 feature 显式开启。共同语义与线协议见 [Gateway](../README.md)，原生模块构建与所有权约定见 [crates README](../../crates/README.md)。
+本模块提供纯 Rust registry、typed 绑定、事件和响应流；napi 适配由 feature 显式开启。共同语义与线协议见 [Gateway 架构与运行机制](../../docs/gateway.md)，原生模块构建与所有权约定见 [crates README](../../crates/README.md)。
 
 ## 调用与绑定
 
@@ -28,7 +28,7 @@ remote transport 替换时先使旧 delivery 闭包失效，再重建 persistent
 
 `xw-gateway::napi::Endpoint` 持有业务传入的同一份 registry／owner；公共 crate 不注册 addon 导出或跨动态库 static。业务 napi 包负责薄封装和 endpoint 工厂，桌面装配见 [main 装配与生命周期](../../desktop/src/main/README.md#gateway-装配与生命周期)。
 
-业务服务可通过 Arc 保持独立生命周期，但每个 endpoint 对应自己的 owner 实例；manifest 与原子发布约定见 [共同协议](../README.md#ts-与-rust-的-napi-通信协议)。
+业务服务可通过 Arc 保持独立生命周期，但每个 endpoint 对应自己的 owner 实例；manifest 与原子发布约定见 [共同协议](../../docs/gateway.md#ts-与-rust-的-napi-通信协议)。
 
 ## 实现易错点
 
