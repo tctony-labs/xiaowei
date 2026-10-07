@@ -9,7 +9,7 @@ flowchart LR
     Host --> Owner["xwapi owner"]
     Account["AccountService：会话与刷新"] -->|"当前会话只读快照"| Owner
     Owner --> Executor["XwapiService：登录态检查／协议映射"]
-    Account -->|"内部认证事务上下文"| Executor
+    Account -->|"typed Auth client"| Host
     Executor --> HTTP["异步 HTTP"]
     HTTP --> Server["服务器 API"]
 ```
@@ -18,7 +18,9 @@ flowchart LR
 
 HTTP 传输位于 [http.ts](../desktop/src/main/services/xwapi/http.ts)，强类型方法及鉴权配置位于 [service.ts](../desktop/src/main/services/xwapi/service.ts)，Gateway 接入位于 [gateway.ts](../desktop/src/main/services/xwapi/gateway.ts)。健康检查提供按需调用入口，不增加轮询。
 
-xwapi 负责强类型 API 到服务器传输的映射、统一认证前置检查、公共响应解码和安全请求日志。账号模块继续持有服务器选择、设备身份和会话生命周期。app 装配创建一份 XwapiService 请求执行器供 AccountService 和 xwapi owner 使用；公共入口在每次调用时读取 AccountService.serverContext() 的会话快照，不复制状态或轮换 token。AccountService 内部恢复、刷新及未提交会话撤销提供自身会话快照与取消信号，同样执行 xwapi 鉴权；撤销迟到登录结果时使用该结果所属会话，不先公开未提交凭据。其他模块的服务器业务调用统一经 Gateway。
+xwapi 负责强类型 API 到服务器传输的映射、统一认证前置检查、公共响应解码和安全请求日志。账号模块继续持有服务器选择、设备身份和会话生命周期。app 装配将 XwapiService 请求执行器只交给 xwapi owner；AccountService 使用 Gateway typed Auth client，业务 handler 的嵌套调用沿用注入 client 的权限，后台恢复使用显式宿主 client。公共入口在每次调用时读取 AccountService.serverContext() 的会话快照，不复制状态或轮换 token。AccountService 自己检查响应 code/msg、保存凭据、刷新和恢复；网络控制器通过同步 rpc.cancel() 请求取消。
+
+已经收到登录凭据、但本地保存失败或取消导致未提交时，AccountService 经 Gateway 撤销该会话。xwapi 的宿主内部 withContext 为这一次补偿建立独立 opaque 上下文，复制原 caller 权限并使用新取消生命周期；只在该上下文存活期间读取指定会话，结束后移除，不将未提交凭据公开为当前登录态，也不通过业务 payload 或 options 传 token。若取消先于本地 RPC 接受响应，迟到响应会被 Gateway 丢弃，AccountService 无法得到其中的凭据，不保证撤销服务器已经发生的登录副作用。
 
 xwapi 只转发，由调用方管理会话。原始 Login／Refresh／Logout 调用成功不自动保存、替换或清除本地会话，不自动发出 AccountChanged；AccountService 继续负责现有产品登录流程。直接调用原始认证接口的消费者须处理结果对其会话的影响，不能把 xwapi.Login 成功等同于 Account 已登录。xwapi 不主动刷新或重试，刷新后的凭据由调用方提交到其持有的会话。
 
@@ -28,7 +30,15 @@ xwapi 当前在 TS main 执行异步 HTTP；编码、解码与业务校验在同
 
 公开路由直接复用 `xiaowei.server.auth.Auth` 的 Login、Refresh、GetCurrentUser、Logout，健康方法为 `xiaowei.server.common.Health.Check/Ready`；owner 为 xwapi。调用方使用生成 descriptor 和 typed client。原始成功响应保留完整 data，包括凭据；失败响应使用对应 PB 消息的 code/msg，缺少 data，不将业务 UNAUTHENTICATED 混为 Gateway 权限错误。接口原始结果的绑定分支原样返回，Account 登录流程只提交 authenticated 分支。
 
-xwapi owner 关闭时注销公共路由、取消并等待真实在途 HTTP；AccountService 的内部事务仍使用自己的取消控制器，先结束其状态与补偿清理，再释放 Storage。Gateway unary 超时不等于底层请求取消；HTTP 沿用 10 秒超时，不承诺撤销已发送的副作用。
+退出时先结束 AccountService 的事务与补偿清理，再关闭 xwapi，最后释放 Storage。xwapi owner 注销公共路由、取消并等待真实在途 HTTP；Gateway 的调用取消及执行超时向 HTTP 传递取消信号，不承诺撤销已发送的副作用。
+
+## XwApiOptions 与请求超时
+
+[xwapi.proto](../contracts/proto/xiaowei/xwapi.proto) 仅定义独立的 `XwApiOptions`；请求、响应和 service descriptor 仍由 `xiaowei/server/` 中的 proto 定义。options 与服务器 request 分别编码，经 Gateway 的 [service options 通道](gateway.md#unary-service-options) 传到 xwapi，不合并进服务器请求。
+
+TS 配置 `bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema })` 后可调用 `auth.login(request, { timeoutMs: 5000 })`，Health 使用同一 schema。Rust 使用 `METHOD.with_options::<XwApiOptions>()` 及 `Option<XwApiOptions>`，不需要修改服务器消息。
+
+未传 timeoutMs 时，xwapi 默认使用 15000 毫秒；正值指定 HTTP 请求超时，范围为 1..2147483647；0 表示 fetch 不设置自身超时信号，仍响应主动取消和服务关闭。Gateway 默认的 30 秒执行上限保持不变，HTTP 与 Gateway 任一先超时就结束调用；xwapi 设置更大值或 0 不会绕过 Gateway 上限。HTTP 超时返回业务 UNAVAILABLE，Gateway 执行超时属于 RPC TIMEOUT。客户端 HTTP 安全日志记录实际使用的 timeout_ms。
 
 ## 方法与登录要求
 

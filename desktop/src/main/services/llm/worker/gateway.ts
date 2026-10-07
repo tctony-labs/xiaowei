@@ -9,8 +9,8 @@ import { generate } from "./provider";
 export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
   let models = configureModels(configs);
   const streams = bindStreamHandlers(Llm, {
-    generate: (request, _client, signal) => generate(request, models, signal),
-    modelCatalog: (request, _client, signal) => listModels(request, models, signal),
+    generate: (request, client) => generate(request, models, client.cancellation()),
+    modelCatalog: (request, client) => listModels(request, models, client.cancellation()),
   }).map((registration) => ({
     ...registration,
     streamPolicy: {

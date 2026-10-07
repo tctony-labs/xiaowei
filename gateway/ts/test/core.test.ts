@@ -511,3 +511,100 @@ test("transport policy metadata requires route permission and contract compatibi
     rejectsCode("INCOMPATIBLE"),
   );
 });
+
+test("unary RPC cancellation is local, idempotent and retains real execution admission", async () => {
+  const host = new GatewayHost();
+  const blocked = gate();
+  let observed!: AbortSignal;
+  host.registerOwner(
+    "cancel",
+    bindHandlers(Fixture, {
+      echo: async (request, client) => {
+        const signal = client.cancellation();
+        observed = signal;
+        await blocked.promise; // Deliberately ignores cancellation.
+        return request;
+      },
+    }).map((r) => ({ ...r, maxConcurrency: 1 })),
+  );
+  const api = bindClient(Fixture, client(host));
+  const rpc = api.echo(create(EnvelopeSchema, { id: 8n }));
+  const rejected = assert.rejects(rpc, rejectsCode("CANCELLED"));
+  rpc.cancel();
+  rpc.cancel();
+  await rejected;
+  assert.equal(observed.aborted, true);
+  await assert.rejects(api.echo(create(EnvelopeSchema)), rejectsCode("CONCURRENCY_FULL"));
+  blocked.release();
+  await tick();
+  await assert.rejects(rpc, rejectsCode("CANCELLED"));
+  assert.equal((await api.echo(create(EnvelopeSchema, { id: 9n }))).id, 9n);
+  const completed = api.echo(create(EnvelopeSchema, { id: 10n }));
+  assert.equal((await completed).id, 10n);
+  completed.cancel();
+  assert.equal((await completed).id, 10n);
+});
+
+test("unary cancellation propagates through nested clients and caller teardown", async () => {
+  const host = new GatewayHost();
+  const child = { ...route, name: "testing.Child.Echo" };
+  const entered = gate();
+  const aborted = gate();
+  host.registerOwner("child", [
+    {
+      route: child,
+      handler: async (bytes, client) => {
+        const signal = client.cancellation();
+        entered.release();
+        if (signal.aborted) aborted.release();
+        else signal.addEventListener("abort", aborted.release, { once: true });
+        await aborted.promise;
+        return bytes;
+      },
+    },
+  ]);
+  host.registerOwner("parent", [{ route, handler: (bytes, client) => client.invoke(child, bytes) }]);
+  const rpc = client(host).invoke(route, bytes());
+  const rejected = assert.rejects(rpc, rejectsCode("CANCELLED"));
+  await entered.promise;
+  rpc.cancel();
+  await Promise.all([rejected, aborted.promise]);
+  const second = client(host).invoke(route, bytes());
+  const closed = assert.rejects(second, rejectsCode("CANCELLED"));
+  host.cleanupCaller("test");
+  await closed;
+});
+
+test("service options are independent PB, optional, and rejected by services without a schema", async () => {
+  const host = new GatewayHost();
+  const client = host.client({ caller: "options", trusted: true });
+  const owner = host.registerOwner(
+    "options",
+    bindHandlers(
+      Fixture,
+      {
+        echo(request, client) {
+          const options = client.options(EnvelopeSchema);
+          return create(EnvelopeSchema, { ...request, id: options?.id ?? request.id });
+        },
+      },
+      { optionsSchema: EnvelopeSchema },
+    ),
+  );
+  const api = bindClient(Fixture, client, { optionsSchema: EnvelopeSchema });
+  const input = create(EnvelopeSchema, { id: 1n, text: "business payload" });
+  assert.equal((await api.echo(input, { id: 42n })).id, 42n);
+  assert.equal((await api.echo(input)).id, 1n);
+  assert.equal(input.id, 1n);
+  await assert.rejects(
+    client.invoke(methodRoute(Fixture.method.echo), toBinary(EnvelopeSchema, input), Uint8Array.of(255)),
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+  );
+  owner.close();
+  const plain = host.registerOwner("plain", bindHandlers(Fixture, { echo: (request) => request }));
+  await assert.rejects(
+    api.echo(input, {}),
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+  );
+  plain.close();
+});

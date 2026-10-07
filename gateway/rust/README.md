@@ -6,6 +6,12 @@
 
 Rust `binding::generate_methods(descriptor, types)` 消费契约的 `FileDescriptorSet`，由调用方提供 PB full name→已生成 Rust message 路径的映射，生成 unary 的 `Method<Req, Res>` 和 server streaming 的 `StreamMethod<Req, Chunk>` 常量；`Method::handler` 和 `Method::call` 提供通用服务端／客户端适配。它不生成消息或 codec，不把测试类型编入 runtime。`StreamMethod::handler`／`stream` 提供流绑定；类型上不提供 unary call。生成工具拒绝 client streaming。
 
+`Method::call`／`Client::invoke` 同步返回 `Rpc<Response>`，创建时在当前 Tokio runtime 启动调用，随后可以 await。需要从另一任务取消时，先取得可克隆的 `cancel_handle()`，再移动 RPC 到等待任务；RPC 与取消句柄的 `cancel()` 均为同步方法，返回 unit；返回时本地终态已确定并已发出取消信号，RPC drop 也发起取消。本地先接受的完成或取消决定终态，不以调用方何时 poll Future 为准。
+
+unary handler 签名仍为 `(request, client)`，通过 `client.context()` 获取上下文，通过 `client.cancellation()` 获取 CancelHandle；需要合作中止时使用 `cancelled().await`／`is_cancelled()`。注入 client 的嵌套 unary 保留权限并继承取消通知，实际未结束的工作继续持有并发许可。共同语义见 [Unary RPC](../../docs/gateway.md#unary-rpc-句柄与取消)。
+
+需要 unary service options 时，使用 `METHOD.with_options::<Options>()` 同时建立调用／handler 绑定；调用为 `call(&client, request, Option<Options>)`，handler 通过 `client.options::<Options>()?` 读取。普通 Method 保持原调用接口，未声明 schema 的方法拒绝额外选项。选项与业务 PB 独立编码，机制见 [service options](../../docs/gateway.md#unary-service-options)。
+
 ## 响应流
 
 Rust 使用生成的 `StreamMethod::stream` 返回 `TypedResponseStream<Chunk>`，实现 `Stream<Item = Result<Chunk, GatewayError>>`，并提供 `cancel()`／可克隆的 `cancel_handle()`；drop 也会发起取消。本地命中直接 poll Rust producer，不经 JS。

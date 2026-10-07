@@ -97,13 +97,15 @@ export async function createApplicationGateway(
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
     const serverApi = new XwapiService();
-    const accountService = await AccountService.open({
-      api: serverApi,
+    let accountService: AccountService | undefined;
+    xwapi = registerXwapi(host, serverApi, () => accountService?.serverContext() ?? { server: "" });
+    accountService = await AccountService.open({
+      client: host.client({ caller: "account-main", trusted: true }),
+      withServerContext: xwapi.withContext,
       store: new AccountStore(authPath, bindClient(KeyValue, host.client({ caller: "account-main", trusted: true }))),
       deviceName: hostname().slice(0, 64),
     });
     account = registerAccount(host, accountService);
-    xwapi = registerXwapi(host, serverApi, () => accountService.serverContext());
     void accountService.restore().catch(() => console.warn("Initial account restore failed"));
     clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
     settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
@@ -124,9 +126,8 @@ export async function createApplicationGateway(
     electron.close();
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
-    const closingXwapi = xwapi?.close();
     await account?.close().catch(() => console.warn("Account shutdown failed"));
-    await closingXwapi;
+    await xwapi?.close();
     await modelSettings?.close();
     await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
     await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
@@ -152,9 +153,8 @@ export async function createApplicationGateway(
         protocol.unhandle(ICON_SCHEME);
         icons.close();
         launcher.close();
-        const closingXwapi = xwapi?.close();
         await account?.close().catch(() => console.warn("Account shutdown failed"));
-        await closingXwapi;
+        await xwapi?.close();
         await modelSettings?.close();
         const agentResults = await Promise.allSettled([closeAgent()]);
         const results = [

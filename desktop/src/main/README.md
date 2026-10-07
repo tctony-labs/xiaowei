@@ -12,7 +12,7 @@
 - 前端及跨模块业务调用统一通过 proto service／Gateway；preload 只承载 Gateway bridge，不新增 raw 业务 IPC 或专用跨语言副作用回调。
 - `resources/` 负责渲染资源协议和缓存；资源 URL 不作为绕过 Gateway 的业务命令入口。
 - `services/xwapi/` 负责小微服务端请求、强类型协议映射、本地鉴权与安全请求日志，经 Gateway 提供服务器能力。调用与登录检查边界见 [xwapi 服务器调用](../../../docs/xwapi.md)。其无状态请求执行器不管理会话，AccountService 持有服务器选择、凭据和刷新流程；装配为公共入口提供当前会话的只读快照。日志字段、等级及敏感信息规则见 [HTTP 接口与日志](../../../server/docs/http.md#请求日志)。
-- AccountService 内部认证事务复用 xwapi 请求执行器，并提供自己持有的会话快照及取消信号；撤销未提交的登录结果时使用该结果所属会话，不能先将其公开为当前登录态。该宿主内部复用同样执行本地鉴权；其他模块的服务器业务调用经 Gateway，不自行传 token 绕过公共入口。
+- AccountService 的认证事务通过 Gateway typed Auth client 调用 xwapi，自行处理响应 code/msg 和凭据提交；业务 handler 使用原注入 client，后台恢复使用宿主 client。撤销已收到但未提交的登录结果时使用 xwapi 的宿主内部隔离上下文，保留原 caller 权限，不能先将未提交凭据公开为当前登录态；服务器地址与 token 不放入业务 payload 或 service options。
 - 每个 owner 提供显式接入与关闭入口。导入模块不自动注册服务或启动后台任务；不预建空目录、通用 utils 或多层转发包装。
 
 ## 目录
@@ -86,7 +86,7 @@ services/<service>/
 - 先接入依赖，再初始化业务模块、启动模块的后台服务；退出时先关闭 Electron 请求入口，再关闭消费者，最后关闭 Storage 等依赖。初始化失败也要关闭尚未完全接入的实例。
 - `app/gateway.ts` 仅调用原生实例的初始化／启动／关闭入口，不判断设置值或编排业务动作。剪贴板的 settings 订阅和 Select 全部在 Rust，main 不再设置剪贴板专属 TS owner。
 - 通用 Settings 的校验、持久化和变更协调由 Rust SettingsService 负责；需要立即执行的宿主能力通过 Gateway 调用对应 owner，失败后恢复旧值。这些宿主能力 owner 不读写通用设置存储。独立 service 自己拥有的文件配置仍归该 service，其宿主 gateway 模块可持有配置状态和更新协调，文件格式与读写留在配置模块，不按 Settings 页面来源另建模块。
-- handler 的嵌套调用保留原 client 的权限与调用上下文，不能换成高权限宿主 client。窗口目标通过 `electron.target(context)` 取得，不接受请求传入窗口 ID；无有效窗口的调用必须失败。
+- handler 的嵌套调用保留原 client 的权限与调用上下文，不能换成高权限宿主 client。窗口目标通过 `electron.target(client.context())` 取得，不接受请求传入窗口 ID；无有效窗口的调用必须失败。
 - 清理支持重复调用并等待同一次关闭完成。模块后台任务和订阅先停止，再释放 endpoint 与临时资源，避免访问已关闭依赖。
 - preload／renderer 的构建路径从入口传入窗口模块，不能按窗口源码目录推导。
 

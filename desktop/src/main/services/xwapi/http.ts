@@ -27,6 +27,7 @@ interface RequestOptions {
   // A code-defined route template, never a URL or user-supplied pathname.
   logPath: string;
   signal: AbortSignal;
+  timeoutMs: number;
   body?: string;
   token?: string;
 }
@@ -41,7 +42,7 @@ export class ServerHttpClient {
     decode: (value: JsonValue) => MessageShape<S> = (value) => fromJson(schema, value),
   ): Promise<MessageShape<S>> {
     const start = performance.now();
-    const timeout = AbortSignal.timeout(10_000);
+    const timeout = options.timeoutMs === 0 ? undefined : AbortSignal.timeout(options.timeoutMs);
     let httpStatus: number | undefined;
     let code: number | undefined;
     let outcome: Outcome = "success";
@@ -55,6 +56,7 @@ export class ServerHttpClient {
     const requestMetadata = {
       method: options.method,
       path: options.logPath,
+      timeout_ms: options.timeoutMs,
       ...(origin === undefined ? {} : { server: origin }),
     };
     console.debug(formatRequestLog("HTTP request started", requestMetadata));
@@ -70,7 +72,7 @@ export class ServerHttpClient {
           },
           body: options.body,
           redirect: "error",
-          signal: AbortSignal.any([options.signal, timeout]),
+          signal: timeout ? AbortSignal.any([options.signal, timeout]) : options.signal,
         });
         httpStatus = response.status;
         if (httpStatus !== 200) throw new HttpRequestError("http_error", "", httpStatus);
@@ -78,7 +80,7 @@ export class ServerHttpClient {
         if (Buffer.byteLength(contents) > 65_536) throw new HttpRequestError("response_too_large", "", httpStatus);
       } catch (error) {
         if (error instanceof HttpRequestError) throw error;
-        const category = options.signal.aborted ? "cancelled" : timeout.aborted ? "timeout" : "network_error";
+        const category = options.signal.aborted ? "cancelled" : timeout?.aborted ? "timeout" : "network_error";
         throw new HttpRequestError(category, "", httpStatus);
       }
 

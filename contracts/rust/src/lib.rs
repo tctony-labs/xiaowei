@@ -6,6 +6,10 @@ pub mod testing {
 pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("gen/descriptor.bin");
 
 pub mod xiaowei {
+    pub mod xwapi {
+        include!("gen/xiaowei.xwapi.rs");
+    }
+
     pub mod account {
         include!("gen/xiaowei.account.rs");
     }

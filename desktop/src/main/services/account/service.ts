@@ -4,13 +4,16 @@ import {
   AccountOperationResponseSchema,
   AccountSnapshotSchema,
   AccountStatus,
+  Auth,
+  EmptySchema,
   ErrorCode,
   type GetCurrentUserData,
   LoginRequestSchema,
   RefreshRequestSchema,
+  XwApiOptionsSchema,
 } from "xiaowei-contracts";
+import { bindClient, type Client, type Rpc } from "xiaowei-gateway";
 import { normalizeServerAddress } from "../../../shared/server-address";
-import { type XwapiContext, XwapiService } from "../xwapi/service";
 import { AccountError, accountError } from "./errors";
 import type { AccountDocument, AccountStore, SavedSession } from "./store";
 
@@ -18,7 +21,12 @@ const REFRESH_LEAD_MS = 5 * 60_000;
 
 interface AccountOptions {
   store: AccountStore;
-  api?: XwapiService;
+  client: Client;
+  withServerContext: <T>(
+    client: Client,
+    context: ReturnType<AccountService["serverContext"]>,
+    work: (client: Client) => Promise<T>,
+  ) => Promise<T>;
   deviceName: string;
   now?: () => number;
 }
@@ -41,7 +49,8 @@ export class AccountService {
   private constructor(
     private document: AccountDocument,
     private readonly store: AccountStore,
-    private readonly api: XwapiService,
+    private readonly client: Client,
+    private readonly withServerContext: AccountOptions["withServerContext"],
     private readonly deviceName: string,
     private readonly now: () => number,
   ) {
@@ -75,14 +84,15 @@ export class AccountService {
     return new AccountService(
       document,
       options.store,
-      options.api ?? new XwapiService(fetch, options.now),
+      options.client,
+      options.withServerContext,
       options.deviceName,
       options.now ?? Date.now,
     );
   }
 
   // Read on each request; never cache credentials in the Gateway owner.
-  serverContext(session = this.session): Omit<XwapiContext, "signal"> {
+  serverContext(session = this.session) {
     const tokens = session?.authenticated.tokens;
     return {
       server: session?.server ?? this.document.selectedServer,
@@ -143,6 +153,19 @@ export class AccountService {
     }
   }
 
+  private async request<T extends { code: number; msg: string }>(rpc: Rpc<T>, signal: AbortSignal): Promise<T> {
+    const abort = () => rpc.cancel();
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    try {
+      const response = await rpc;
+      if (response.code !== 0) throw new AccountError(response.code, response.msg);
+      return response;
+    } finally {
+      signal.removeEventListener("abort", abort);
+    }
+  }
+
   private signedOutOnly() {
     if (this.session) throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请先退出登录，再选择服务器");
   }
@@ -200,7 +223,7 @@ export class AccountService {
     });
   }
 
-  login(request: AccountLoginRequest) {
+  login(request: AccountLoginRequest, client = this.client) {
     if (this.loginAttempt) {
       return Promise.resolve(
         create(AccountOperationResponseSchema, {
@@ -212,6 +235,11 @@ export class AccountService {
     }
     const attempt = { id: request.attemptId, controller: new AbortController() };
     this.loginAttempt = attempt;
+    const signal = client.cancellation();
+    const abort = () => attempt.controller.abort();
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
     return this.operation(async () => {
       this.signedOutOnly();
       if (
@@ -231,13 +259,15 @@ export class AccountService {
       let accepted = false;
       try {
         attempt.controller.signal.throwIfAborted();
-        const response = await this.api.login(
-          create(LoginRequestSchema, {
-            deviceId: this.document.deviceId,
-            deviceName: this.deviceName,
-            credential: { case: "password", value: request.password },
-          }),
-          { server: request.serverAddress, signal: attempt.controller.signal },
+        const response = await this.request(
+          api.login(
+            create(LoginRequestSchema, {
+              deviceId: this.document.deviceId,
+              deviceName: this.deviceName,
+              credential: { case: "password", value: request.password },
+            }),
+          ),
+          attempt.controller.signal,
         );
         const result = response.data?.result;
         if (result?.case !== "authenticated") {
@@ -262,11 +292,12 @@ export class AccountService {
         if (!accepted) {
           this.status = AccountStatus.SIGNED_OUT;
           this.changed();
-          if (received) await this.revokeUncommitted(received);
+          if (received) await this.revokeUncommitted(received, client);
         }
         if (this.network === attempt.controller) this.network = undefined;
       }
     }).finally(() => {
+      signal.removeEventListener("abort", abort);
       if (this.loginAttempt === attempt) this.loginAttempt = undefined;
     });
   }
@@ -275,9 +306,12 @@ export class AccountService {
     if (this.loginAttempt?.id === attemptId) this.loginAttempt.controller.abort();
   }
 
-  private async revokeUncommitted(session: SavedSession) {
+  private async revokeUncommitted(session: SavedSession, client: Client) {
     try {
-      await this.api.logout({ ...this.serverContext(session), signal: new AbortController().signal });
+      await this.withServerContext(client, this.serverContext(session), async (scoped) => {
+        const api = bindClient(Auth, scoped, { optionsSchema: XwApiOptionsSchema });
+        await this.request(api.logout(create(EmptySchema)), new AbortController().signal);
+      });
     } catch {
       console.warn("Uncommitted account session could not be revoked");
     }
@@ -293,7 +327,7 @@ export class AccountService {
     this.changed();
   }
 
-  private async freshAccess(signal: AbortSignal, force = false): Promise<void> {
+  private async freshAccess(signal: AbortSignal, force = false, client = this.client): Promise<void> {
     const session = this.session;
     const tokens = session?.authenticated.tokens;
     if (!session || !tokens || Number(tokens.refreshExpiresAtMs) <= this.now()) {
@@ -301,10 +335,11 @@ export class AccountService {
     }
     if (this.dirtySession) await this.persistSession();
     if (force || Number(tokens.accessExpiresAtMs) <= this.now() + REFRESH_LEAD_MS) {
-      const response = await this.api.refresh(create(RefreshRequestSchema, { refreshToken: tokens.refreshToken }), {
-        server: session.server,
+      const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
+      const response = await this.request(
+        api.refresh(create(RefreshRequestSchema, { refreshToken: tokens.refreshToken })),
         signal,
-      });
+      );
       const next = response.data;
       if (!next) throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了无效的刷新结果");
       if (next.sessionId !== tokens.sessionId) {
@@ -322,15 +357,16 @@ export class AccountService {
     if (!this.session) return;
     const controller = new AbortController();
     this.network = controller;
+    const api = bindClient(Auth, this.client, { optionsSchema: XwApiOptionsSchema });
     try {
       await this.freshAccess(controller.signal);
       let current: GetCurrentUserData | undefined;
       try {
-        current = (await this.api.getCurrentUser({ ...this.serverContext(), signal: controller.signal })).data;
+        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal)).data;
       } catch (error) {
         if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
         await this.freshAccess(controller.signal, true);
-        current = (await this.api.getCurrentUser({ ...this.serverContext(), signal: controller.signal })).data;
+        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal)).data;
       }
       controller.signal.throwIfAborted();
       if (
@@ -385,20 +421,22 @@ export class AccountService {
     this.timer.unref();
   }
 
-  logout() {
+  logout(client = this.client) {
     this.abortNetwork();
     return this.operation(async () => {
       if (!this.session) return;
       const controller = new AbortController();
       this.network = controller;
+      const signal = AbortSignal.any([controller.signal, client.cancellation()]);
+      const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
       try {
-        await this.freshAccess(controller.signal);
+        await this.freshAccess(signal, false, client);
         try {
-          await this.api.logout({ ...this.serverContext(), signal: controller.signal });
+          await this.request(api.logout(create(EmptySchema)), signal);
         } catch (error) {
           if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
-          await this.freshAccess(controller.signal, true);
-          await this.api.logout({ ...this.serverContext(), signal: controller.signal });
+          await this.freshAccess(signal, true, client);
+          await this.request(api.logout(create(EmptySchema)), signal);
         }
       } catch (error) {
         if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) {

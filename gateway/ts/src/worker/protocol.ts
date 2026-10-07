@@ -2,6 +2,7 @@ import type { MessagePort, Worker } from "node:worker_threads";
 import type { Permissions } from "../core/context.js";
 import { executionError } from "../core/execution.js";
 import {
+  CONTROL_VERSION,
   failure,
   type GatewayError,
   GatewayFailure,
@@ -11,6 +12,7 @@ import {
   success,
   validateRoute,
 } from "../core/protocol.js";
+import { cancelled } from "../core/rpc.js";
 import {
   decodeFrame,
   encodeFrame,
@@ -33,15 +35,22 @@ export type Command =
   | { op: "hello" }
   | { op: "activate" }
   | { op: "close" }
-  | { op: "invoke"; route: Route; payload: Uint8Array; context: Metadata }
+  | { op: "invoke.cancel"; rpc: string; token: string }
+  | { op: "invoke"; rpc: string; route: Route; payload: Uint8Array; serviceOptions?: Uint8Array; context: Metadata }
   | { op: "stream.open"; stream: string; route: Route; payload: Uint8Array; context: Metadata }
   | { op: "stream.next"; stream: string; token: string }
   | { op: "stream.cancel"; stream: string; token: string };
 type Frame =
-  | { version: 1; generation: string; id: number; kind: "request"; command: Command }
-  | { version: 1; generation: string; id: number; kind: "response"; result: Result<unknown> }
-  | { version: 1; generation: string; id: number; kind: "accepted"; timeoutMs: number }
-  | { version: 1; generation: string; kind: "terminal"; stream: string; result: Result<Uint8Array> };
+  | { version: typeof CONTROL_VERSION; generation: string; id: number; kind: "request"; command: Command }
+  | { version: typeof CONTROL_VERSION; generation: string; id: number; kind: "response"; result: Result<unknown> }
+  | { version: typeof CONTROL_VERSION; generation: string; id: number; kind: "accepted"; timeoutMs: number }
+  | {
+      version: typeof CONTROL_VERSION;
+      generation: string;
+      kind: "terminal";
+      stream: string;
+      result: Result<Uint8Array>;
+    };
 type Port = Pick<MessagePort | Worker, "postMessage" | "on" | "off">;
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
 const string = (v: unknown): v is string => typeof v === "string" && v.length > 0 && v.length <= 200;
@@ -71,9 +80,16 @@ function result(v: unknown): v is Result<unknown> {
 function command(v: unknown): v is Command {
   if (!object(v)) return false;
   if (v.op === "hello" || v.op === "activate" || v.op === "close") return true;
+  if (v.op === "invoke.cancel") return string(v.rpc) && string(v.token);
   if (v.op === "stream.next" || v.op === "stream.cancel") return string(v.stream) && string(v.token);
   if (v.op !== "invoke" && v.op !== "stream.open") return false;
   if (v.op === "stream.open" && !string(v.stream)) return false;
+  if (
+    v.op === "invoke" &&
+    (!string(v.rpc) ||
+      (v.serviceOptions !== undefined && (!bytes(v.serviceOptions) || v.serviceOptions.byteLength > 65_536)))
+  )
+    return false;
   if (!bytes(v.payload) || !object(v.context) || !string(v.context.token) || !object(v.route)) return false;
   try {
     validateRoute(v.route as unknown as Route);
@@ -83,7 +99,7 @@ function command(v: unknown): v is Command {
   return true;
 }
 function frame(v: unknown): v is Frame {
-  if (!object(v) || v.version !== 1 || !string(v.generation)) return false;
+  if (!object(v) || v.version !== CONTROL_VERSION || !string(v.generation)) return false;
   if (v.kind === "terminal") return string(v.stream) && result(v.result) && (!v.result.ok || bytes(v.result.value));
   if (!Number.isSafeInteger(v.id) || (v.id as number) < 1) return false;
   if (v.kind === "accepted")
@@ -150,7 +166,8 @@ export class Connection {
       this.onTerminal(value.stream, value.result);
       return;
     }
-    const control = value.command.op === "close" || value.command.op === "stream.cancel";
+    const control =
+      value.command.op === "close" || value.command.op === "stream.cancel" || value.command.op === "invoke.cancel";
     if ((control ? this.controls : this.receiving) >= (control ? 32 : CONTROL_LIMIT)) {
       this.send({ ...value, kind: "response", result: failure("RESOURCE_EXHAUSTED", "worker control table full") });
       return;
@@ -160,13 +177,13 @@ export class Connection {
     const respond = (result: Result<unknown>) => {
       if (control) this.controls--;
       else this.receiving--;
-      this.send({ version: 1, generation: value.generation, kind: "response", id: value.id, result });
+      this.send({ version: CONTROL_VERSION, generation: value.generation, kind: "response", id: value.id, result });
     };
     let accepted = false;
     const accept = (timeoutMs: number) => {
       if (accepted || (value.command.op !== "invoke" && value.command.op !== "stream.open")) return;
       accepted = true;
-      this.send({ version: 1, generation: value.generation, kind: "accepted", id: value.id, timeoutMs });
+      this.send({ version: CONTROL_VERSION, generation: value.generation, kind: "accepted", id: value.id, timeoutMs });
     };
     // The handler runs immediately: stream.open installs cancellation before any await.
     try {
@@ -192,7 +209,7 @@ export class Connection {
     if (this.ended || !this.generation) return Promise.reject(unavailable());
     if ((command.op === "invoke" || command.op === "stream.open") && command.payload.byteLength > MAX_BYTES)
       return Promise.reject(new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "worker payload too large" }));
-    const control = command.op === "close" || command.op === "stream.cancel";
+    const control = command.op === "close" || command.op === "stream.cancel" || command.op === "invoke.cancel";
     if (this.pending.size >= CONTROL_LIMIT + (control ? 32 : 0))
       return Promise.reject(new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "worker pending table full" }));
     if (signal?.aborted) return Promise.reject(signal.reason ?? unavailable());
@@ -220,12 +237,13 @@ export class Connection {
       };
       this.pending.set(id, { finish, accept });
       signal?.addEventListener("abort", abort, { once: true });
-      this.send({ version: 1, generation, id, kind: "request", command });
+      this.send({ version: CONTROL_VERSION, generation, id, kind: "request", command });
     });
   }
 
   terminal(stream: string, result: Result<Uint8Array>) {
-    if (this.generation) this.send({ version: 1, generation: this.generation, kind: "terminal", stream, result });
+    if (this.generation)
+      this.send({ version: CONTROL_VERSION, generation: this.generation, kind: "terminal", stream, result });
   }
 
   close(reason = unavailable()) {
@@ -242,6 +260,71 @@ export function responseBytes(value: unknown, maxBytes = MAX_BYTES): Uint8Array 
   if (!(value instanceof Uint8Array) || value.byteLength > maxBytes)
     throw new GatewayFailure({ code: "INCOMPATIBLE", message: "invalid worker PB response" });
   return value;
+}
+
+/** Unary cancellation is a separate command, never a dropped request waiter alone. */
+export class RpcLink {
+  private sequence = 0;
+  private served = new Map<string, { token: string; controller: AbortController }>();
+
+  constructor(private connection: Connection) {}
+
+  async invoke(
+    route: Route,
+    payload: Uint8Array,
+    context: Metadata,
+    signal?: AbortSignal,
+    serviceOptions?: Uint8Array,
+  ) {
+    const rpc = `rpc:${++this.sequence}`;
+    const abort = () => {
+      void this.connection.request({ op: "invoke.cancel", rpc, token: context.token }, CLEANUP_MS).catch((error) => {
+        if (!(error instanceof GatewayFailure && error.detail.code === "OWNER_UNAVAILABLE"))
+          console.error("Gateway worker RPC cancellation failed", error);
+      });
+    };
+    // Request is sent before cancel, preserving MessagePort ordering even for immediate cancellation.
+    const pending = this.connection.request(
+      { op: "invoke", rpc, route, payload, context, serviceOptions },
+      HANDSHAKE_MS,
+    );
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+    try {
+      return responseBytes(await pending);
+    } catch (error) {
+      if (!signal?.aborted) abort();
+      throw error;
+    } finally {
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+
+  async serve(command: Extract<Command, { op: "invoke" }>, work: (signal: AbortSignal) => Promise<Uint8Array>) {
+    if (this.served.has(command.rpc))
+      throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "duplicate RPC ID" });
+    if (this.served.size >= CONTROL_LIMIT)
+      throw new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "worker RPC table full" });
+    const slot = { token: command.context.token, controller: new AbortController() };
+    this.served.set(command.rpc, slot);
+    try {
+      return await work(slot.controller.signal);
+    } finally {
+      if (this.served.get(command.rpc) === slot) this.served.delete(command.rpc);
+    }
+  }
+
+  cancel(command: Extract<Command, { op: "invoke.cancel" }>) {
+    const slot = this.served.get(command.rpc);
+    if (slot && slot.token !== command.token)
+      throw new GatewayFailure({ code: "UNAUTHORIZED", message: "RPC caller mismatch" });
+    slot?.controller.abort(cancelled());
+  }
+
+  close() {
+    for (const slot of this.served.values()) slot.controller.abort(cancelled());
+    this.served.clear();
+  }
 }
 
 /** Pull reader state is communication state, never a second producer/admission state machine. */

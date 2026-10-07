@@ -262,7 +262,7 @@ async fn kind_version_panics_and_nested_permissions() {
         ErrorCode::WrongMethodKind
     );
     let mut incompatible = ECHO.route();
-    incompatible.control_version = 2;
+    incompatible.control_version = protocol::CONTROL_VERSION + 1;
     assert_eq!(
         registry
             .call(&incompatible, bytes(1), context())
@@ -719,4 +719,187 @@ async fn manifest_retains_execution_defaults_and_foreign_handles_cannot_address_
         ErrorCode::OwnerUnavailable
     );
     registry.call(&ECHO.route(), bytes(1), context()).await.unwrap();
+}
+
+#[tokio::test]
+async fn rpc_cancel_rejects_waiter_but_retains_actual_work_admission() {
+    let registry = XwInvokeRegistry::new();
+    let entered = Arc::new(Notify::new());
+    let released = Arc::new(Notify::new());
+    let observed = Arc::new(Notify::new());
+    let mut registration = ECHO.handler({
+        let entered = entered.clone();
+        let released = released.clone();
+        let observed = observed.clone();
+        move |request, client| {
+            let entered = entered.clone();
+            let released = released.clone();
+            let observed = observed.clone();
+            async move {
+                entered.notify_one();
+                client.cancellation().cancelled().await;
+                observed.notify_one();
+                released.notified().await; // Deliberately continues after observing cancellation.
+                Ok(request)
+            }
+        }
+    });
+    registration.max_concurrency = 1;
+    registry.register_owner("cancel", vec![registration], vec![]).unwrap();
+    let client = registry.client(context());
+    let rpc = ECHO.call(&client, Envelope::default());
+    let cancellation = rpc.cancel_handle();
+    entered.notified().await;
+    cancellation.cancel();
+    assert_eq!(rpc.await.unwrap_err().code, ErrorCode::Cancelled);
+    observed.notified().await;
+    assert_eq!(
+        ECHO.call(&client, Envelope::default()).await.unwrap_err().code,
+        ErrorCode::ConcurrencyFull
+    );
+    released.notify_one();
+    tokio::task::yield_now().await;
+    let next = ECHO.call(&client, Envelope::default());
+    entered.notified().await;
+    registry.cleanup_caller("test");
+    assert_eq!(next.await.unwrap_err().code, ErrorCode::Cancelled);
+    observed.notified().await;
+    released.notify_one();
+}
+
+#[tokio::test]
+async fn rpc_nested_cancellation_and_completed_result_are_independent_of_await_polling() {
+    let registry = XwInvokeRegistry::new();
+    let child = binding::Method::<Envelope, Envelope>::new("testing.Child.Echo", MethodKind::Unary);
+    let entered = Arc::new(Notify::new());
+    let observed = Arc::new(Notify::new());
+    registry
+        .register_owner(
+            "child",
+            vec![child.handler({
+                let entered = entered.clone();
+                let observed = observed.clone();
+                move |request, client| {
+                    let entered = entered.clone();
+                    let observed = observed.clone();
+                    async move {
+                        entered.notify_one();
+                        client.cancellation().cancelled().await;
+                        observed.notify_one();
+                        Ok(request)
+                    }
+                }
+            })],
+            vec![],
+        )
+        .unwrap();
+    registry
+        .register_owner(
+            "parent",
+            vec![ECHO.handler(move |request, client| child.call(&client, request))],
+            vec![],
+        )
+        .unwrap();
+    let rpc = ECHO.call(&registry.client(context()), Envelope::default());
+    entered.notified().await;
+    rpc.cancel();
+    assert_eq!(rpc.await.unwrap_err().code, ErrorCode::Cancelled);
+    observed.notified().await;
+
+    let completed = Rpc::new(|_| async { Ok(42u32) }, None);
+    let cancellation = completed.cancel_handle();
+    // Let the eager task accept its response before the caller starts awaiting it.
+    tokio::task::yield_now().await;
+    cancellation.cancel();
+    assert!(!cancellation.is_cancelled());
+    assert_eq!(completed.await.unwrap(), 42);
+
+    let immediate = ECHO.call(&registry.client(context()), Envelope::default());
+    immediate.cancel();
+    assert_eq!(immediate.await.unwrap_err().code, ErrorCode::Cancelled);
+}
+#[tokio::test]
+async fn rpc_can_be_cancelled_synchronously_from_a_thread_without_a_runtime() {
+    let (release, waiting) = tokio::sync::oneshot::channel::<()>();
+    let rpc = Rpc::new(
+        |_| async move {
+            let _ = waiting.await;
+            Ok(42u32)
+        },
+        None,
+    );
+    let cancellation = rpc.cancel_handle();
+    let other_thread = cancellation.clone();
+
+    std::thread::spawn(move || {
+        other_thread.cancel();
+        assert!(other_thread.is_cancelled());
+        other_thread.cancel();
+    })
+    .join()
+    .unwrap();
+
+    assert!(cancellation.is_cancelled());
+    let _ = release.send(());
+    assert_eq!(rpc.await.unwrap_err().code, ErrorCode::Cancelled);
+}
+
+#[tokio::test]
+async fn service_options_have_an_independent_typed_codec_and_default_to_absent() {
+    let registry = XwInvokeRegistry::new();
+    let method = ECHO.with_options::<Envelope>();
+    let owner = registry
+        .register_owner(
+            "options",
+            vec![method.handler(|mut request, client| async move {
+                if let Some(options) = client.options::<Envelope>()? {
+                    request.id = options.id;
+                }
+                Ok(request)
+            })],
+            vec![],
+        )
+        .unwrap();
+    let client = registry.client(context());
+    let request = Envelope {
+        id: 1,
+        text: "business".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        method
+            .call(
+                &client,
+                request.clone(),
+                Some(Envelope {
+                    id: 42,
+                    ..Default::default()
+                })
+            )
+            .await
+            .unwrap()
+            .id,
+        42
+    );
+    assert_eq!(method.call(&client, request.clone(), None).await.unwrap().id, 1);
+    assert_eq!(
+        client
+            .invoke_with_options(&ECHO.route(), bytes(1), Some(vec![255]))
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    registry.unregister_owner(&owner);
+    registry
+        .register_owner("plain", vec![ECHO.handler(|request, _| async { Ok(request) })], vec![])
+        .unwrap();
+    assert_eq!(
+        method
+            .call(&client, request, Some(Envelope::default()))
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
 }

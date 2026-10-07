@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { contextPermissions } from "../core/context.js";
+import { decodeInvokeFrame, encodeInvokeFrame } from "../core/invoke-frame.js";
 import {
   CONTROL_VERSION,
   type EventSink,
@@ -26,6 +27,7 @@ export interface RustNapiEndpoint {
   manifest(): string;
   bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void;
   activate(): Promise<Buffer | string>;
+  rpcControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>;
   streamControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>;
   dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>;
   subscribeLocal(id: string, event: string, filter: Buffer | null, context: string): Promise<Buffer | string>;
@@ -37,6 +39,7 @@ interface Control {
   version: number;
   operation:
     | "invoke"
+    | "invoke.cancel"
     | "subscribe"
     | "unsubscribe"
     | "event"
@@ -49,6 +52,7 @@ interface Control {
   event?: string;
   subscriptionId?: string;
   streamId?: string;
+  rpcId?: string;
   filterPresent: boolean;
 }
 function decode(reply: Buffer | string): Result<Uint8Array> {
@@ -90,6 +94,7 @@ export async function attachRustNapi(
       seq: number;
     }
   >();
+  const rpcs = new Map<string, { token: string; controller: AbortController }>();
   const contexts = new Map<string, CallContext>();
   const eventSinks = new Map<string, EventSink>();
   const subscriptions = new Map<string, Subscription>();
@@ -119,6 +124,8 @@ export async function attachRustNapi(
     ready = false;
     for (const session of streams.values()) session.controller.abort();
     streams.clear();
+    for (const rpc of rpcs.values()) rpc.controller.abort();
+    rpcs.clear();
     contexts.clear();
     eventSinks.clear();
     openingSubscriptions.clear();
@@ -172,18 +179,20 @@ export async function attachRustNapi(
       name,
       manifest.routes.map((route) => ({
         route,
+        optionsSchema: route.optionsSchema,
         timeoutMs: route.timeoutMs,
         maxConcurrency: route.maxConcurrency,
         streamPolicy: route.streamPolicy,
         streamHandler:
           route.kind !== "serverStreaming"
             ? undefined
-            : async (payload, _client, signal, hostContext) => {
+            : async (payload, client) => {
+                const signal = client.cancellation();
                 if (!ready || closed) throw unavailable();
                 const id = `stream:${++nextId}`;
                 const token = `stream-context:${++nextId}`;
                 // Context is bound by the host dispatcher below, never reconstructed from payload bytes.
-                const context = hostContext;
+                const context = client.context();
                 contexts.set(token, context);
                 const metadata = contextJson(token, context);
                 let seq = 0;
@@ -252,11 +261,39 @@ export async function attachRustNapi(
               },
       })),
       events,
-      async (route, payload, context) => {
+      async (route, payload, context, signal, serviceOptions) => {
         if (!ready || closed) return failure("OWNER_UNAVAILABLE", "Rust napi endpoint unavailable");
-        return withContext(context, async (metadata) =>
-          decode(await endpoint.dispatchLocal(JSON.stringify(route), Buffer.from(payload), metadata)),
-        );
+        return withContext(context, async (metadata) => {
+          const id = `rpc:${++nextId}`;
+          const control = (operation: string) =>
+            JSON.stringify({
+              version: CONTROL_VERSION,
+              operation,
+              rpcId: id,
+              route,
+            });
+          const abort = () => {
+            void endpoint
+              .rpcControl(control("invoke.cancel"), Buffer.alloc(0), metadata)
+              .then((result) => {
+                unwrap(decode(result));
+              })
+              .catch((error) => console.error("Gateway native RPC cancellation failed", error));
+          };
+          // The addon installs the invocation slot synchronously before returning its Promise.
+          const pending = endpoint.rpcControl(
+            control("invoke"),
+            Buffer.from(encodeInvokeFrame(payload, serviceOptions)),
+            metadata,
+          );
+          signal?.addEventListener("abort", abort, { once: true });
+          if (signal?.aborted) abort();
+          try {
+            return decode(await pending);
+          } finally {
+            signal?.removeEventListener("abort", abort);
+          }
+        });
       },
     );
     endpoint.bind(
@@ -283,6 +320,13 @@ export async function attachRustNapi(
             subscriptions.delete(id);
             return Buffer.alloc(0);
           }
+          if (control.operation === "invoke.cancel") {
+            const slot = rpcs.get(control.rpcId ?? "");
+            if (slot && slot.token !== control.contextToken)
+              return encode(failure("UNAUTHORIZED", "RPC caller mismatch"));
+            slot?.controller.abort();
+            return Buffer.alloc(0);
+          }
           const cancelling = control.operation === "stream.cancel" ? streams.get(control.streamId ?? "") : undefined;
           const context =
             contexts.get(control.contextToken) ??
@@ -295,7 +339,25 @@ export async function attachRustNapi(
               if (manifest.routes.some((route) => route.name === control.route?.name)) {
                 return encode(failure("UNKNOWN_ROUTE", "Rust napi local route missing"));
               }
-              return encode(await host.invoke(context, control.route, payload));
+              const id = control.rpcId;
+              if (!id || id.length > 200 || rpcs.has(id)) return encode(failure("INVALID_ARGUMENT", "invalid RPC ID"));
+              if (rpcs.size >= 256) return encode(failure("RESOURCE_EXHAUSTED", "endpoint RPCs full"));
+              const slot = { token: control.contextToken, controller: new AbortController() };
+              rpcs.set(id, slot);
+              try {
+                const frame = decodeInvokeFrame(payload);
+                return encode(
+                  await host.invoke(
+                    context,
+                    control.route,
+                    frame.payload,
+                    slot.controller.signal,
+                    frame.serviceOptions,
+                  ),
+                );
+              } finally {
+                if (rpcs.get(id) === slot) rpcs.delete(id);
+              }
             }
             case "stream.open": {
               const id = control.streamId;

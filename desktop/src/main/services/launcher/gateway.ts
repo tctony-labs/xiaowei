@@ -56,7 +56,8 @@ export function registerSearch(
   const owner = host.registerOwner(
     "launcher",
     bindHandlers(Launcher, {
-      async query(request, client, context) {
+      async query(request, client) {
+        const context = client.context();
         const current = state(context);
         if (Buffer.byteLength(request.query) > 4096) throw new Error("Invalid search query");
         const token = ++current.token;
@@ -85,7 +86,8 @@ export function registerSearch(
           })),
         });
       },
-      async execute(request, client, context) {
+      async execute(request, client) {
+        const context = client.context();
         const currentPresentation = presentation;
         const currentGeneration = actions.windowGeneration();
         const current = state(context);
@@ -136,11 +138,13 @@ export function registerSearch(
         }
         return create(ExecuteResponseSchema);
       },
-      async hide(_request, _client, context) {
+      async hide(_request, client) {
+        const context = client.context();
         await actions.dismiss(windowFor(context), true);
         return create(EmptySchema);
       },
-      updateLayout(request, _client, context) {
+      updateLayout(request, client) {
+        const context = client.context();
         const window = windowFor(context);
         if (
           request.resultCount > 30 ||
@@ -160,7 +164,8 @@ export function registerSearch(
         window.setSize(800, mode === "search" ? launcherHeight(request.resultCount) : 580);
         return create(EmptySchema);
       },
-      resetPosition(_request, _client, context) {
+      resetPosition(_request, client) {
+        const context = client.context();
         const window = windowFor(context);
         actions.resetPosition(window);
         window.show();

@@ -263,7 +263,8 @@ export function registerModelSettings(
     reapply: () => enqueue(() => apply(resolveModels(document, env))),
   });
   const streams = bindStreamHandlers(ModelSettings, {
-    async *listModels(request, client, signal) {
+    async *listModels(request, client) {
+      const signal = client.cancellation();
       if (!request.provider) invalidConfig();
       const requestedId = request.provider.id;
       const saved = document.providers.find((provider) => provider.id === requestedId);

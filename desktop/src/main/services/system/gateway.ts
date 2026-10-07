@@ -49,7 +49,8 @@ export function registerSystem(
     bindHandlers(
       System,
       {
-        async openSettings(request, _client, context) {
+        async openSettings(request, client) {
+          const context = client.context();
           windowFor(context);
           if (request.anchor !== SettingsAnchor.MODEL_PROVIDERS) throw new Error("Invalid settings anchor");
           if (!openSettings) throw new Error("Settings window unavailable");
@@ -57,7 +58,8 @@ export function registerSystem(
           deliver(window, request.anchor);
           return create(EmptySchema);
         },
-        takeSettingsNavigation(_request, _client, context) {
+        takeSettingsNavigation(_request, client) {
+          const context = client.context();
           const window = windowFor(context);
           const anchor = pending.get(window);
           pending.delete(window);
@@ -72,7 +74,8 @@ export function registerSystem(
           }
           return create(EmptySchema);
         },
-        async hideWindow(_request, _client, context) {
+        async hideWindow(_request, client) {
+          const context = client.context();
           const window = windowFor(context);
           if (!hideWindow) throw new Error("Window focus handoff unavailable");
           await hideWindow(window);

@@ -16,6 +16,10 @@ import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { Storage } from "xiaowei-storage";
+import { AccountService } from "../../src/main/services/account/service";
+import type { AccountStore } from "../../src/main/services/account/store";
+import { registerXwapi } from "../../src/main/services/xwapi/gateway";
+import { XwapiService } from "../../src/main/services/xwapi/service";
 
 export async function accountMeta(t: TestContext, directory: string) {
   const database = await Storage.open(join(directory, "storage.sqlite"));
@@ -161,4 +165,43 @@ export async function authServer() {
         server.closeAllConnections();
       }),
   };
+}
+
+export async function openAccount(
+  t: TestContext,
+  options: {
+    store: AccountStore;
+    deviceName: string;
+    api?: XwapiService;
+    now?: () => number;
+  },
+  host = new GatewayHost(),
+) {
+  let service: AccountService | undefined;
+  const xwapi = registerXwapi(
+    host,
+    options.api ?? new XwapiService(fetch, options.now),
+    () => service?.serverContext() ?? { server: "" },
+  );
+  try {
+    service = await AccountService.open({
+      store: options.store,
+      deviceName: options.deviceName,
+      now: options.now,
+      client: host.client({ caller: "account-main", trusted: true }),
+      withServerContext: xwapi.withContext,
+    });
+  } catch (error) {
+    await xwapi.close();
+    throw error;
+  }
+  const account = service;
+  t.after(async () => {
+    try {
+      await account.close();
+    } finally {
+      await xwapi.close();
+    }
+  });
+  return account;
 }

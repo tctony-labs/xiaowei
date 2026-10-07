@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
 import { bindClient, bindHandlers, bindStreamClient, methodRoute } from "../../src/binding/index.js";
+import { decodeInvokeFrame, encodeInvokeFrame } from "../../src/core/invoke-frame.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";
 import { attachRustNapi, type RustNapiEndpoint } from "../../src/main/rust-napi.js";
@@ -20,6 +21,7 @@ interface FixtureEndpoint extends RustNapiEndpoint {
   fixtureNext(): Promise<Buffer | string>;
   fixtureRelease(): void;
   fixtureStreamUsage(): string;
+  fixtureRpcUsage(): number;
 }
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -175,11 +177,13 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
   for (const mode of ["reject", "throw", "pending", "echo"] as const) {
     const endpoint = search.createGatewayEndpoint();
     endpoint.bind(
-      (_control, payload) => {
+      (control, payload) => {
         if (mode === "throw") throw new Error("private message");
         if (mode === "reject") return Promise.reject("private message");
         if (mode === "pending") return new Promise(() => {});
-        return Promise.resolve(payload);
+        return Promise.resolve(
+          JSON.parse(control).operation === "invoke" ? Buffer.from(decodeInvokeFrame(payload).payload) : payload,
+        );
       },
       JSON.stringify({ token: "test", trusted: true }),
     );
@@ -365,7 +369,7 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
     endpoint.bind(async () => Buffer.alloc(0), own);
     read(await endpoint.activate());
     const control = (operation: string) =>
-      JSON.stringify({ version: 1, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
+      JSON.stringify({ version: 3, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
     read(
       await endpoint.streamControl(
         control("stream.open"),
@@ -428,7 +432,7 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
   endpoint.bind(async () => Buffer.alloc(0), context);
   read(await endpoint.activate());
   const control = (operation: string) =>
-    JSON.stringify({ version: 1, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
+    JSON.stringify({ version: 3, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
   try {
     const pending = endpoint.streamControl(
       control("stream.open"),
@@ -449,7 +453,7 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
     read(await endpoint.close());
   }
   const metadata = JSON.stringify({
-    version: 1,
+    version: 3,
     operation: "stream.open",
     streamId: "pending",
     route: methodRoute(Fixture.method.watch),
@@ -476,4 +480,115 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
   const result = spawnSync(process.execPath, ["-e", script], { timeout: 5000, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /terminated/);
+});
+
+async function waitForRpcUsage(endpoint: FixtureEndpoint, count: number) {
+  const deadline = performance.now() + 5000;
+  while (endpoint.fixtureRpcUsage() !== count) {
+    assert.ok(performance.now() < deadline, "native RPC work did not reach expected state");
+    await delay(1);
+  }
+}
+
+test("unary cancellation reaches native work without releasing admission early", async () => {
+  const { host, a, close } = await attachPair();
+  try {
+    const client = host.client({ caller: "cancel-test", trusted: true });
+    const rpc = client.invoke(echo, bytes("wait"));
+    const rejected = assert.rejects(rpc, isCode("CANCELLED"));
+    await waitForRpcUsage(a, 1);
+    rpc.cancel();
+    await rejected;
+    const second = client.invoke(echo, bytes("wait"));
+    const secondRejected = assert.rejects(second, isCode("CANCELLED"));
+    await waitForRpcUsage(a, 2);
+    second.cancel();
+    await secondRejected;
+    await assert.rejects(client.invoke(echo, bytes()), isCode("CONCURRENCY_FULL"));
+    a.fixtureRelease();
+    a.fixtureRelease();
+    await waitForRpcUsage(a, 0);
+    assert.deepEqual(await client.invoke(echo, bytes()), bytes());
+    await assert.rejects(rpc, isCode("CANCELLED"));
+
+    const meta = JSON.stringify({ token: "owner", trusted: true });
+    const control = (operation: string) => JSON.stringify({ version: 3, operation, rpcId: "immediate", route: echo });
+    const immediate = a.rpcControl(control("invoke"), Buffer.from(encodeInvokeFrame(bytes("wait"))), meta);
+    const stranger = JSON.stringify({ token: "other-caller", trusted: true });
+    assert.equal(readError(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), stranger)), "UNAUTHORIZED");
+    read(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), meta));
+    assert.equal(readError(await immediate), "CANCELLED");
+    // If Tokio admitted the handler before JS cancellation, its work is still held until release.
+    a.fixtureRelease();
+    await waitForRpcUsage(a, 0);
+  } finally {
+    a.fixtureRelease();
+    a.fixtureRelease();
+    await close();
+  }
+});
+
+test("unary cancellation crosses Rust reentry back to main with the original caller", async () => {
+  const host = new GatewayHost();
+  const native = search.createGatewayFixture();
+  const handle = await attachRustNapi(host, "native", native);
+  let started!: () => void;
+  let stop!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const aborted = new Promise<void>((resolve) => {
+    stop = resolve;
+  });
+  host.registerOwner(
+    "peer",
+    bindHandlers(PeerFixture, {
+      echo: async (request, client) => {
+        const signal = client.cancellation();
+        started();
+        signal.addEventListener("abort", stop, { once: true });
+        await aborted;
+        return request;
+      },
+    }),
+  );
+  try {
+    const rpc = host.client({ caller: "main", trusted: true }).invoke(echo, bytes("cancel-relay"));
+    const rejected = assert.rejects(rpc, isCode("CANCELLED"));
+    await entered;
+    rpc.cancel();
+    await Promise.all([rejected, aborted]);
+    await waitForRpcUsage(native, 0);
+  } finally {
+    stop();
+    await handle.close();
+  }
+});
+
+test("service options cross napi in both directions without changing business bytes", async () => {
+  const host = new GatewayHost();
+  const native = search.createGatewayFixture();
+  const attached = await attachRustNapi(host, "options-native", native);
+  const local = host.registerOwner(
+    "options-main",
+    bindHandlers(
+      PeerFixture,
+      {
+        echo(request, client) {
+          return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+        },
+      },
+      { optionsSchema: EnvelopeSchema },
+    ),
+  );
+  const api = bindClient(Fixture, host.client({ caller: "options-test", trusted: true }), {
+    optionsSchema: EnvelopeSchema,
+  });
+  try {
+    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options", id: 1n }), { id: 77n })).id, 77n);
+    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options-relay", id: 1n }), { id: 88n })).id, 88n);
+  } finally {
+    local.close();
+    await attached.close();
+  }
 });

@@ -1,5 +1,5 @@
 import { type DescMessage, type DescMethodUnary, fromJson, type MessageShape, toJsonString } from "@bufbuild/protobuf";
-import { Auth, BaseResponseSchema, ErrorCode, Health, type TokenPair } from "xiaowei-contracts";
+import { Auth, BaseResponseSchema, ErrorCode, Health, type TokenPair, type XwApiOptions } from "xiaowei-contracts";
 import { normalizeServerAddress } from "../../../shared/server-address";
 import { HttpRequestError, ServerHttpClient } from "./http";
 
@@ -12,6 +12,7 @@ export interface XwapiContext {
     accessExpiresAtMs: bigint;
   };
   signal: AbortSignal;
+  options?: XwApiOptions;
 }
 
 interface HttpMethod {
@@ -56,6 +57,10 @@ export class XwapiService {
     body?: string,
     validate: (response: MessageShape<S>) => void = () => {},
   ): Promise<MessageShape<S>> {
+    const timeoutMs = context.options?.timeoutMs ?? 15_000;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 2_147_483_647) {
+      throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "请求超时时间无效");
+    }
     const route = methods.get(method);
     if (!route) throw new XwapiError(ErrorCode.INTERNAL_ERROR, "服务器接口未配置");
     if (context.signal.aborted) throw new XwapiError(ErrorCode.UNAVAILABLE, "服务器请求已取消");
@@ -86,7 +91,7 @@ export class XwapiService {
       return await this.http.request(
         `${server}${route.path}`,
         schema,
-        { method: route.method, logPath: route.path, signal: context.signal, body, token },
+        { method: route.method, logPath: route.path, signal: context.signal, timeoutMs, body, token },
         (value) => {
           if (method === Health.method.check || method === Health.method.ready) {
             // Health HTTP has data.status; the Gateway result needs only code/msg.

@@ -66,7 +66,8 @@ test("launcher tokens and execution are preserved; search does not read icons", 
     bindHandlers(
       System,
       {
-        openPath: (request, _client, caller) => {
+        openPath: (request, client) => {
+          const caller = client.context();
           assert.equal(caller, context);
           if (failOpen) throw new Error("Cannot open application");
           actions.push(request.path);
@@ -234,7 +235,8 @@ test("Launcher web actions use System with original context and preserve failure
     bindHandlers(
       System,
       {
-        openUrl: (request, _client, caller) => {
+        openUrl: (request, client) => {
+          const caller = client.context();
           assert.equal(caller, context);
           if (fail) throw new Error("Browser unavailable");
           actions.push(`system:${request.url}`);

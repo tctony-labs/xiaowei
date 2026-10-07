@@ -17,7 +17,8 @@ test("typed local streams pull only, preserve PB bytes and close simulated SSE r
   host.registerOwner(
     "sse",
     bindStreamHandlers(Fixture, {
-      async *watch(request, _client, signal) {
+      async *watch(request, client) {
+        const signal = client.cancellation();
         try {
           while (!signal.aborted) {
             reads++;
@@ -224,12 +225,12 @@ test("an already aborted signal releases execution admission without starting th
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(
-    execution.stream(registration, owner, context, client, new Uint8Array(), { signal: controller.signal }),
+    execution.stream(registration, owner, context, () => client, new Uint8Array(), { signal: controller.signal }),
     /cancelled/,
   );
   await execution.drained();
   assert.equal(started, 0);
-  const stream = await execution.stream(registration, owner, context, client, new Uint8Array());
+  const stream = await execution.stream(registration, owner, context, () => client, new Uint8Array());
   await stream.next();
   assert.equal(started, 1);
   await stream.cancel();

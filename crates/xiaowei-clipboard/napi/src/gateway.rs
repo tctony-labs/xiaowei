@@ -62,6 +62,24 @@ impl GatewayEndpoint {
         env.spawn_future(async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) })
     }
     #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn rpc_control<'env>(
+        &self,
+        env: &'env napi::Env,
+        control: String,
+        payload: Buffer,
+        context: String,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let prepared = self.inner.prepare_rpc(&control, &context);
+        let inner = self.inner.clone();
+        let payload = payload.to_vec();
+        env.spawn_future(async move {
+            Ok(reply(match prepared {
+                Ok(()) => inner.rpc_control(&control, payload, &context).await,
+                Err(error) => Err(error),
+            }))
+        })
+    }
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
     pub fn stream_control<'env>(
         &self,
         env: &'env napi::Env,
@@ -160,6 +178,11 @@ impl GatewayEndpoint {
         let payload = payload.to_vec();
         env.spawn_future(async move { Ok(reply(inner.invoke(&route, payload).await)) })
     }
+    #[napi]
+    pub fn fixture_rpc_usage(&self) -> u32 {
+        self.fixture.as_ref().unwrap().rpc_usage() as u32
+    }
+
     #[napi]
     pub fn fixture_stream_usage(&self) -> String {
         self.fixture.as_ref().unwrap().stream_usage()

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-pub const CONTROL_VERSION: u32 = 1;
+pub const CONTROL_VERSION: u32 = 3;
 pub const CONTRACT_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,6 +152,8 @@ pub type WireResult = Result<Vec<u8>, GatewayError>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteRegistration {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub options_schema: Option<String>,
     #[serde(flatten)]
     pub route: Route,
     pub timeout_ms: u64,

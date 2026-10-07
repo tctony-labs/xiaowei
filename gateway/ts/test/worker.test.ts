@@ -253,8 +253,8 @@ function wireWorker(mode: string, token?: string) {
         else if (workerData.mode === 'token') respond(new TextEncoder().encode(command.context.token));
         else {
           invocation = frame;
-          parentPort.postMessage({ version: 1, generation, id: 999, kind: 'request', command: {
-            op: 'invoke', route, payload: command.payload,
+          parentPort.postMessage({ version: 3, generation, id: 999, kind: 'request', command: {
+            op: 'invoke', rpc: 'nested', route, payload: command.payload,
             context: { token: workerData.mode === 'permissions' ? command.context.token
               : expiredToken || workerData.token || 'forged',
               ...(workerData.mode === 'permissions' ? { permissions: { caller: 'admin', trusted: true } } : {}) },
@@ -323,8 +323,12 @@ test("worker pending requests are bounded and cleanup remains available when ful
     await assert.rejects(unary.echo(request()), code("RESOURCE_EXHAUSTED"));
     await source.cancel();
     for (let i = 0; i < 256; i++) await fixture.wait("unary");
+    const cancelled = assert.rejects(pending[0], code("CANCELLED"));
+    pending[0].cancel();
+    await cancelled;
+    await fixture.wait("unary-aborted");
     fixture.release("unary");
-    await Promise.all(pending);
+    await Promise.all(pending.slice(1));
     const raw = fixture.host.client({ caller: "main", trusted: true });
     await assert.rejects(
       raw.invoke(methodRoute(Fixture.method.echo), new Uint8Array(64 * 1024 * 1024 + 1)),
@@ -352,14 +356,20 @@ test("worker endpoint validates route kind and authenticated control metadata", 
     await connection.request({ op: "activate" }, 5000);
     await assert.rejects(
       connection.request(
-        { op: "invoke", route: { ...route, name: "testing.Unknown" }, payload: new Uint8Array(), context },
+        {
+          op: "invoke",
+          rpc: "test-rpc",
+          route: { ...route, name: "testing.Unknown" },
+          payload: new Uint8Array(),
+          context,
+        },
         1000,
       ),
       code("UNKNOWN_ROUTE"),
     );
     await assert.rejects(
       connection.request(
-        { op: "invoke", route: methodRoute(Fixture.method.watch), payload: new Uint8Array(), context },
+        { op: "invoke", rpc: "test-rpc", route: methodRoute(Fixture.method.watch), payload: new Uint8Array(), context },
         1000,
       ),
       code("WRONG_METHOD_KIND"),
@@ -369,7 +379,10 @@ test("worker endpoint validates route kind and authenticated control metadata", 
       code("WRONG_METHOD_KIND"),
     );
     await assert.rejects(
-      connection.request({ op: "invoke", route, payload: new Uint8Array(), context: { token: "missing" } }, 1000),
+      connection.request(
+        { op: "invoke", rpc: "test-rpc", route, payload: new Uint8Array(), context: { token: "missing" } },
+        1000,
+      ),
       code("UNAUTHORIZED"),
     );
     assert.equal(accepted, 0);
@@ -452,6 +465,79 @@ test("nested worker unary uses the main service budget beyond the former 31 seco
     assert.deepEqual(await pending, request("relay"));
   } finally {
     release();
+    await fixture.close();
+  }
+});
+
+test("worker unary cancel propagates while uncooperative work keeps admission", async () => {
+  const fixture = await workerFixture({ concurrency: 1, timeoutMs: 5000 });
+  try {
+    const { unary } = clients(fixture.host);
+    const rpc = unary.echo(request("wait"));
+    const rejected = assert.rejects(rpc, code("CANCELLED"));
+    await fixture.wait("unary");
+    rpc.cancel();
+    await rejected;
+    await fixture.wait("unary-aborted");
+    await assert.rejects(unary.echo(request()), code("CONCURRENCY_FULL"));
+    fixture.release("unary");
+    assert.deepEqual(await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"), request());
+    await assert.rejects(rpc, code("CANCELLED"));
+    const immediate = unary.echo(request("wait"));
+    const immediateRejected = assert.rejects(immediate, code("CANCELLED"));
+    immediate.cancel();
+    await immediateRejected;
+    await fixture.wait("unary");
+    await fixture.wait("unary-aborted");
+    fixture.release("unary");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("worker unary cancel propagates back through main to a nested local handler", async () => {
+  const fixture = await workerFixture({ timeoutMs: 5000 });
+  let entered!: () => void;
+  let stopped!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const aborted = new Promise<void>((resolve) => {
+    stopped = resolve;
+  });
+  fixture.host.registerOwner(
+    "peer",
+    bindHandlers(PeerFixture, {
+      echo: async (request, client) => {
+        const signal = client.cancellation();
+        entered();
+        signal.addEventListener("abort", stopped, { once: true });
+        await aborted;
+        return request;
+      },
+    }),
+  );
+  try {
+    const rpc = clients(fixture.host).unary.echo(request("relay"));
+    const rejected = assert.rejects(rpc, code("CANCELLED"));
+    await started;
+    rpc.cancel();
+    await Promise.all([rejected, aborted]);
+  } finally {
+    stopped();
+    await fixture.close();
+  }
+});
+
+test("Worker transfers independently encoded service options", async () => {
+  const fixture = await workerFixture();
+  try {
+    const api = bindClient(Fixture, fixture.host.client({ caller: "options", trusted: true }), {
+      optionsSchema: EnvelopeSchema,
+    });
+    assert.equal((await api.echo(request("options", 1n), { id: 55n })).id, 55n);
+    assert.equal((await api.echo(request("options", 1n))).id, 1n);
+  } finally {
     await fixture.close();
   }
 });

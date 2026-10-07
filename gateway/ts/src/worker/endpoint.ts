@@ -1,19 +1,11 @@
 import type { MessagePort } from "node:worker_threads";
 import { createClient } from "../core/client.js";
-import { authorize, createContext, type Permissions } from "../core/context.js";
+import { authorize, type CallContext, createContext, type Permissions } from "../core/context.js";
 import { ExecutionScope, executionError } from "../core/execution.js";
 import { accepts, GatewayFailure, type Manifest, unwrap, validateRoute } from "../core/protocol.js";
 import type { Registration } from "../core/registry.js";
 import { streamPolicy } from "../core/stream.js";
-import {
-  type Command,
-  Connection,
-  HANDSHAKE_MS,
-  type Metadata,
-  responseBytes,
-  StreamLink,
-  unavailable,
-} from "./protocol.js";
+import { type Command, Connection, type Metadata, RpcLink, StreamLink, unavailable } from "./protocol.js";
 
 function permissions(metadata: Metadata): Permissions {
   const value = metadata.permissions;
@@ -65,6 +57,7 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
   const manifest: Manifest = {
     routes: [...entries.values()].map((r) => ({
       ...r.route,
+      optionsSchema: r.optionsSchema,
       timeoutMs: r.timeoutMs,
       maxConcurrency: r.maxConcurrency,
       streamPolicy: r.streamPolicy,
@@ -82,27 +75,29 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
     closed = true;
     active = false;
     execution.close(owner);
+    rpcs.close();
     streams.close();
     closing = execution.drained();
     return closing;
   };
-  const client = (context: Metadata) =>
-    createClient({
-      async invoke(route, payload) {
-        try {
-          const value = responseBytes(
-            await connection.request({ op: "invoke", route, payload, context: { token: context.token } }, HANDSHAKE_MS),
-          );
-          return { ok: true, value };
-        } catch (error) {
-          return executionError(error);
-        }
+  const client = (context: Metadata, localContext: CallContext, signal: AbortSignal, serviceOptions?: Uint8Array) =>
+    createClient(
+      {
+        async invoke(route, payload, signal, serviceOptions) {
+          try {
+            const value = await rpcs.invoke(route, payload, { token: context.token }, signal, serviceOptions);
+            return { ok: true, value };
+          } catch (error) {
+            return executionError(error);
+          }
+        },
+        stream: (route, payload, options) => streams.open(route, payload, { token: context.token }, options),
+        async subscribe() {
+          throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker events unsupported" });
+        },
       },
-      stream: (route, payload, options) => streams.open(route, payload, { token: context.token }, options),
-      async subscribe() {
-        throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker events unsupported" });
-      },
-    });
+      { context: localContext, signal, serviceOptions },
+    );
   const handler = async (command: Command, accept: (timeoutMs: number) => void): Promise<unknown> => {
     if (command.op === "close") return close();
     if (closed) throw unavailable();
@@ -117,6 +112,7 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
       return;
     }
     if (!active) throw unavailable();
+    if (command.op === "invoke.cancel") return rpcs.cancel(command);
     if (command.op === "stream.next" || command.op === "stream.cancel") return streams.control(command);
     const context = createContext(permissions(command.context));
     authorize(context, command.route.name);
@@ -128,18 +124,39 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
         : accepts({ ...registration.route, kind: "unary" }, { ...command.route, kind: "unary" });
     unwrap(compatible);
     if (command.op === "invoke") {
+      if (command.serviceOptions !== undefined && !registration.optionsSchema)
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "service has no options" });
       accept(registration.timeoutMs);
-      return unwrap(await execution.invoke(registration, owner, context, client(command.context), command.payload));
+      return rpcs.serve(command, async (signal) =>
+        unwrap(
+          await execution.invoke(
+            registration,
+            owner,
+            context,
+            (signal) => client(command.context, context, signal, command.serviceOptions),
+            command.payload,
+            signal,
+          ),
+        ),
+      );
     }
     if (command.route.kind !== "serverStreaming" || registration.route.kind !== "serverStreaming")
       throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "not a streaming route" });
     accept(streamPolicy(registration.streamPolicy).openTimeoutMs);
     return streams.serve(command, (signal) =>
-      execution.stream(registration, owner, context, client(command.context), command.payload, { signal }),
+      execution.stream(
+        registration,
+        owner,
+        context,
+        (signal) => client(command.context, context, signal),
+        command.payload,
+        { signal },
+      ),
     );
   };
   const connection = new Connection(parentPort, undefined, handler);
   const streams = new StreamLink(connection);
+  const rpcs = new RpcLink(connection);
   connection.onClose = () => {
     void close();
   };

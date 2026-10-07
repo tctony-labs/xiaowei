@@ -30,6 +30,7 @@ impl Drop for StreamGuard {
 }
 pub struct Fixture {
     stream_usage: Arc<StreamUsage>,
+    rpc_usage: Arc<StreamUsage>,
     pub endpoint: Arc<Endpoint>,
     release: Arc<Notify>,
     subscriptions: Mutex<Vec<EventSubscription>>,
@@ -42,6 +43,8 @@ impl Fixture {
         let registry = XwInvokeRegistry::new();
         let release = Arc::new(Notify::new());
         let gate = release.clone();
+        let rpc_usage = Arc::new(StreamUsage::default());
+        let usage = rpc_usage.clone();
         let method = if peer {
             &bindings::testing_peer_fixture_service::ECHO
         } else {
@@ -52,9 +55,14 @@ impl Fixture {
         } else {
             &bindings::testing_peer_fixture_service::ECHO
         };
-        let mut registration = method.handler(move |mut request, client| {
+        let configured = crate::binding::Method::<Envelope, Envelope>::new(method.name, MethodKind::Unary)
+            .with_options::<Envelope>();
+        let mut registration = configured.handler(move |mut request, client| {
             let gate = gate.clone();
+            let usage = usage.clone();
             async move {
+                usage.active.fetch_add(1, Ordering::SeqCst);
+                let _guard = StreamGuard(usage);
                 match request.text.as_str() {
                     "stream-relay" | "stream-local" => {
                         let target = if (request.text == "stream-local") == peer {
@@ -72,7 +80,24 @@ impl Fixture {
                         }
                         return Ok(result);
                     }
+                    "options" => {
+                        if let Some(options) = client.options::<Envelope>()? {
+                            request.id = options.id;
+                        }
+                    }
+                    "options-relay" => {
+                        let options = client.options::<Envelope>()?;
+                        request.text = "options".into();
+                        return crate::binding::Method::<Envelope, Envelope>::new(other.name, MethodKind::Unary)
+                            .with_options::<Envelope>()
+                            .call(&client, request, options)
+                            .await;
+                    }
                     "wait" => gate.notified().await,
+                    "cancel-relay" => {
+                        request.text = "wait".into();
+                        return other.call(&client, request).await;
+                    }
                     "fail" => return Err(GatewayError::new(ErrorCode::HandlerError, "fixture failed")),
                     "relay" | "back" | "cycle" => {
                         request.text = match request.text.as_str() {
@@ -190,12 +215,17 @@ impl Fixture {
         Self {
             endpoint: Endpoint::new(registry, owner),
             stream_usage,
+            rpc_usage,
             release,
             subscriptions: Mutex::new(vec![]),
             received: tokio::sync::Mutex::new(received),
             sender,
         }
     }
+    pub fn rpc_usage(&self) -> usize {
+        self.rpc_usage.active.load(Ordering::SeqCst)
+    }
+
     pub fn stream_usage(&self) -> String {
         serde_json::json!({ "active": self.stream_usage.active.load(Ordering::SeqCst),
             "polls": self.stream_usage.polls.load(Ordering::SeqCst) })

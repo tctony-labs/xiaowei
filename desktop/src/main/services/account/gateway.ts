@@ -11,12 +11,12 @@ export function registerAccount(host: GatewayHost, service: AccountService) {
       get: () => service.snapshot(),
       addServer: (request) => service.addServer(request.serverAddress),
       selectServer: (request) => service.selectServer(request.serverAddress),
-      login: (request) => service.login(request),
+      login: (request, client) => service.login(request, client),
       cancelLogin(request) {
         service.cancelLogin(request.attemptId);
         return create(EmptySchema);
       },
-      logout: () => service.logout(),
+      logout: (_request, client) => service.logout(client),
     }),
     [bindEvent(AccountChangedSchema, EmptySchema, "coalesce", () => true)],
   );
