@@ -44,7 +44,7 @@ func TestCombinedAuthMigration(t *testing.T) {
 	}
 	var versionCount, tableCount int
 	err = pool.QueryRow(ctx, "SELECT count(*) FROM schema_migrations").Scan(&versionCount)
-	if err != nil || versionCount != 2 {
+	if err != nil || versionCount != len(migrations) {
 		t.Fatal("combined migration was not registered once")
 	}
 	if err := pool.QueryRow(ctx, `
@@ -54,10 +54,10 @@ func TestCombinedAuthMigration(t *testing.T) {
     `).Scan(&tableCount); err != nil || tableCount != 4 {
 		t.Fatal("combined migration did not create all authentication tables")
 	}
-	var publicID, deviceType string
+	var publicID, deviceType, role string
 	var nullable string
-	err = pool.QueryRow(ctx, "SELECT user_id FROM users WHERE id = $1", user.ID).Scan(&publicID)
-	if err != nil || publicID != user.PublicID {
+	err = pool.QueryRow(ctx, "SELECT user_id, role FROM users WHERE id = $1", user.ID).Scan(&publicID, &role)
+	if err != nil || publicID != user.PublicID || role != "user" {
 		t.Fatal("migration changed existing users")
 	}
 	if err := pool.QueryRow(ctx, `

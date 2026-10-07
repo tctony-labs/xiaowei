@@ -20,6 +20,9 @@ var usersSQL string
 //go:embed migrations/20261003143154_auth.sql
 var authSQL string
 
+//go:embed migrations/20261007033241_admin_bootstrap.sql
+var adminBootstrapSQL string
+
 type migration struct {
 	version int64
 	sql     string
@@ -28,6 +31,7 @@ type migration struct {
 var migrations = []migration{
 	{version: 20260925000000, sql: usersSQL},
 	{version: 20261003143154, sql: authSQL},
+	{version: 20261007033241, sql: adminBootstrapSQL},
 }
 
 func migrate(ctx context.Context, pool *pgxpool.Pool, steps []migration) error {

@@ -1,6 +1,6 @@
 # Go 服务端
 
-独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，设计与验收结果见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md)。
+独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、首次管理员初始化、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，设计与验收结果见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md)。
 
 ## 模块索引
 
@@ -36,6 +36,8 @@ just prepare-server
 ```
 
 配置缺失时，命令会输出需要执行的 `cp` 命令并停止，不自动创建或覆盖文件。两份模板使用本地开发密码 `password`，默认本地开发无需修改配置；调整密码时修改 `.env` 中的 `XIAOWEI_DATABASE_PASSWORD` 即可。准备命令只检查文件是否存在，配置内容由 Docker Compose 与 Go server 在启动时校验。复制后重新执行，命令会启动依赖并等待就绪；重复执行不会重启配置未变化的正常容器。
+
+需要首个登录账号时，在 `.env` 中设置管理员初始化邮箱和密码；具体规则见 [首次管理员初始化](docs/authentication.md#首次管理员初始化)。
 
 启动服务：
 

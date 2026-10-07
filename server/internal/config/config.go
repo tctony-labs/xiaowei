@@ -19,6 +19,14 @@ type Config struct {
 	Server   Server   `yaml:"server"`
 	Database Database `yaml:"database"`
 	Auth     Auth     `yaml:"auth"`
+
+	// Bootstrap credentials are environment-only and never part of the persistent YAML schema.
+	BootstrapAdmin BootstrapAdmin `yaml:"-"`
+}
+
+type BootstrapAdmin struct {
+	Email    string
+	Password string
 }
 
 type RateLimit struct {
@@ -126,6 +134,8 @@ func Load(path string) (Config, error) {
 		{"XIAOWEI_DATABASE_USER", &cfg.Database.User},
 		{"XIAOWEI_DATABASE_PASSWORD", &cfg.Database.Password},
 		{"XIAOWEI_DATABASE_SSL_MODE", &cfg.Database.SSLMode},
+		{"XIAOWEI_BOOTSTRAP_ADMIN_EMAIL", &cfg.BootstrapAdmin.Email},
+		{"XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD", &cfg.BootstrapAdmin.Password},
 	}
 	for _, override := range overrides {
 		if value, ok := lookup(override.name); ok {
@@ -235,6 +245,10 @@ func (c *Config) rateLimits() []struct {
 }
 
 func (c Config) validate() error {
+	if (c.BootstrapAdmin.Email == "") != (c.BootstrapAdmin.Password == "") {
+		return errors.New("XIAOWEI_BOOTSTRAP_ADMIN_EMAIL and XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD must be set together")
+	}
+
 	for _, field := range c.rateLimits() {
 		if field.target.Limit <= 0 || field.target.Window <= 0 {
 			return fmt.Errorf("%s limit and window must be positive", field.path)

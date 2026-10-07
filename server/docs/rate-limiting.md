@@ -1,6 +1,6 @@
 # 请求限流
 
-限流由 Go HTTP 接入层负责，消息中的 RATE_LIMITED 定义见 [服务端契约](../../../contracts/proto/xiaowei/server/common.proto)。限流计数在单个服务进程的内存中维护，不引入 Redis；重启清零，不影响数据库中的用户或会话。
+限流由 Go HTTP 接入层负责，消息中的 RATE_LIMITED 定义见 [服务端契约](../../contracts/proto/xiaowei/server/common.proto)。限流计数在单个服务进程的内存中维护，不引入 Redis；重启清零，不影响数据库中的用户或会话。
 
 ## 覆盖范围与检查顺序
 

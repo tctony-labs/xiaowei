@@ -31,6 +31,7 @@ func cleanOverrides(t *testing.T) {
 		"XIAOWEI_DATABASE_NAME", "XIAOWEI_DATABASE_USER", "XIAOWEI_DATABASE_PASSWORD",
 		"XIAOWEI_DATABASE_SSL_MODE",
 		"XIAOWEI_AUTH_ACCESS_TOKEN_TTL", "XIAOWEI_AUTH_REFRESH_TOKEN_TTL",
+		"XIAOWEI_BOOTSTRAP_ADMIN_EMAIL", "XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD",
 	}
 	for _, prefix := range []string{
 		"SERVER_RATE_LIMIT_IP", "AUTH_RATE_LIMIT_LOGIN_IP",
@@ -313,5 +314,49 @@ func TestRateLimitConfig(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBootstrapAdminEnvironment(t *testing.T) {
+	cleanOverrides(t)
+	path := configFile(t, validYAML)
+	cfg, err := Load(path)
+	if err != nil || cfg.BootstrapAdmin != (BootstrapAdmin{}) {
+		t.Fatal("bootstrap should be disabled by default")
+	}
+	dotenv := "XIAOWEI_BOOTSTRAP_ADMIN_EMAIL=' Admin@example.com '\n" +
+		"XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD='  pass$word#  '\n"
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), ".env"), []byte(dotenv), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = Load(path)
+	if err != nil || cfg.BootstrapAdmin.Email != " Admin@example.com " ||
+		cfg.BootstrapAdmin.Password != "  pass$word#  " {
+		t.Fatal("bootstrap dotenv values were not preserved")
+	}
+	t.Setenv("XIAOWEI_BOOTSTRAP_ADMIN_EMAIL", "other@example.com")
+	t.Setenv("XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD", "external-password")
+	cfg, err = Load(path)
+	if err != nil || cfg.BootstrapAdmin.Email != "other@example.com" ||
+		cfg.BootstrapAdmin.Password != "external-password" {
+		t.Fatal("bootstrap process env did not override dotenv")
+	}
+	t.Setenv("XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD", "")
+	if _, err := Load(path); err == nil || strings.Contains(err.Error(), "other@example.com") {
+		t.Fatal("partial credentials were accepted or leaked")
+	}
+	t.Setenv("XIAOWEI_BOOTSTRAP_ADMIN_EMAIL", "")
+	cfg, err = Load(path)
+	if err != nil || cfg.BootstrapAdmin != (BootstrapAdmin{}) {
+		t.Fatal("empty process env did not disable dotenv initialization")
+	}
+	for _, value := range []string{
+		"bootstrap_admin: {email: admin@example.com, password: private-secret}\n",
+		"auth:\n  bootstrap_admin: {email: admin@example.com, password: private-secret}\n",
+	} {
+		if _, err := Load(configFile(t, validYAML+value)); err == nil ||
+			strings.Contains(err.Error(), "private-secret") {
+			t.Fatal("bootstrap YAML credentials were accepted or leaked")
+		}
 	}
 }

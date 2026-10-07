@@ -80,6 +80,16 @@ func serve(ctx context.Context, configPath string) error {
 		return err
 	}
 
+	if cfg.BootstrapAdmin.Email != "" {
+		bootstrapCtx, bootstrapCancel := context.WithTimeout(ctx, 30*time.Second)
+		err := authService.InitializeAdmin(bootstrapCtx, cfg.BootstrapAdmin.Email, cfg.BootstrapAdmin.Password)
+		bootstrapCancel()
+		if err != nil {
+			return err
+		}
+	}
+	cfg.BootstrapAdmin = config.BootstrapAdmin{}
+
 	listener, err := net.Listen("tcp", cfg.Server.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
