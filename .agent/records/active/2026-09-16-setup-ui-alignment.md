@@ -18,7 +18,7 @@
 
 `pnpm check`、桌面生产构建及 Storybook 静态构建通过。通过用户现有 Chrome 验证空输入布局 800 × 71、输入字号 16px、自动聚焦，深色背景为旧版 #141414，Esc 清空和关闭回调的 play 测试显示 PASS。没有冷启动 Electron；原生交互验收仍由 Launcher 事项跟踪。搜索框视觉样式已于 2026-09-16 获用户确认，尚未建立自动截图回归。
 
-首个样例的视觉基线及原生验收结果见 [Launcher 事项](2026-09-16-migrate-launcher.md)。
+首个样例的视觉基线及原生验收结果见 [Launcher 事项](../archived/2026-09-16-migrate-launcher.md)。
 
 后续补充组合输入 Esc 与重新聚焦全选两个场景，Chrome 中均显示 PASS。当前共七个场景；原生交互仍由 Launcher 事项跟踪。
 

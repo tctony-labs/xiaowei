@@ -4,9 +4,9 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| [xiaowei-search](xiaowei-search/) | 全局搜索核心与 napi 入口 |
+| [xiaowei-search](xiaowei-search/README.md) | 全局搜索核心与 napi 入口 |
 | [xiaowei-clipboard](xiaowei-clipboard/) | 本地剪贴板业务与 napi 入口 |
-| [xiaowei-storage](xiaowei-storage/) | 存储、设置与 napi 入口 |
+| [xiaowei-storage](xiaowei-storage/README.md) | 存储、设置与 napi 入口 |
 | [xiaowei-platform](xiaowei-platform/README.md) | 平台能力的 napi 包裹层 |
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
 | [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |

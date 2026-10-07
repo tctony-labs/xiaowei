@@ -10,19 +10,19 @@
 
 ## How
 
-当前数据源、初始化、Gateway 调用链、nucleo 评分、拼音高亮、候选截取、使用加权及命令范围统一维护在 [搜索实现](../../../docs/search.md)，本 record 保留迁移取舍、桌面展示与图标行为、验收结果。
+当前 Launcher、跨包调用链、数据源协作、桌面执行与图标资源维护在 [搜索实现](../../../docs/search.md)；包内查询、评分、拼音、高亮、候选截取与使用加权维护在 [搜索引擎](../../../crates/xiaowei-search/docs/search-engine.md)。
 
-为复用 Rust 业务并隔离 Node 绑定，采用 `image-retrieval` 的核心与 napi 分层；内部数据源拆为 `xw-app` 和 `xw-bookmark`，去除 Tauri 耦合。可复用的目录、workspace、构建与平台加载约定见 [Rust 模块通过 napi 接入 Electron](../../../crates/README.md)。
+为复用 Rust 业务并隔离 Node 绑定，采用核心与 napi 分层；数据源拆为 `xw-app` 和 `xw-bookmark`，移除 Tauri 耦合。平台名称与图标能力提取为 `xw-platform`，原生模块接入约定见 [Rust 原生模块开发](../../../crates/README.md)。
 
-结果列表沿用旧版 48px 行高、4px 行间距、最多九行的窗口布局，保留现有 800 × 71 空搜索框。
+桌面结果执行选择由 main 保存动作、renderer 提交 token 与 ID 的方式，避免页面提交任意路径或 URL。查询期间保留旧列表以稳定布局，但使旧动作失效；图标沿用原生提取与磁盘复用，后续接入 Gateway 时改为惰性资源 URL，避免查询等待图片读取。
 
-Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，renderer 不提供任意路径或 URL。旧查询响应不覆盖新查询；输入改变时保留上一轮列表和窗口高度，待新结果替换；清空输入立即收起结果，等待新结果期间不执行旧条目。结果支持上下键、回车、单击选中和双击执行，组合输入期间不处理导航／确认键。应用名称与图标的系统调用已提取到内部 `xw-platform`，由 `xiaowei-search` 对外提供。图标沿用旧版 macOS `NSWorkspace.iconForFile` → TIFF → PNG，经 napi 异步返回 Buffer，Electron 转为 data URL；不再使用按文件关联类型读取图标的 `app.getFileIcon`。读取失败保留通用图标且不缓存失败；renderer 保留已加载图标，避免每轮查询闪回占位图。普通网址只允许 HTTP(S)，系统设置 URL 仅对应用数据源开放。
-
-应用图标由 Electron main 缓存在 `userData/xiaowei/cache/app-icons/`，文件名为应用绝对路径的 SHA-256，内容为 PNG。参考旧版落盘复用方式，新增自写入起一周的有效期（以文件 mtime 判断，读取不续期）；过期后下次请求重新提取并覆盖。主进程不保留已完成的图标内存缓存，每次请求检查磁盘有效期，仅合并进行中的并发请求；提取失败不缓存，磁盘读写失败不阻断原生提取和当前图标显示。该缓存按需填充，不迁移旧版缓存，也不引入旧版的全量图标后台预热。过期文件按需覆盖，不定时扫描删除。
-
-应用本地化名称读取在 `xw-platform::macos::app_name::localized_name` 内逐次建立 autorelease pool，并在池内转成 Rust `String`，覆盖初始化工作线程及目录变更回调；所有权注意事项见 [Rust 原生模块开发](../../../crates/README.md#objective-c-内存管理)。
+本地化名称读取补齐 autorelease pool，在池内转换为 Rust String，覆盖后台初始化与目录监听回调；该修复的历史测试和桌面验证边界保留在 Outcome。
 
 ## Outcome
+
+2026-10-07 按用户确认归档：原迁移范围已交付，初版桌面验收已于 2026-09-18 获确认，后续不再基于本事项进行重大改动。当前说明已按跨包与包内范围分别沉淀至长期文档。
+
+2026-09-28 书签兼容修复虽已有 Rust、napi 及本机真实书签验证，仍未记录桌面内复验；2026-09-21 内存管理修复亦未记录对应桌面复验或 Instruments 测量。本次归档保留这些验证边界，不补写通过结果；剪贴板全局召回属于独立后续工作。
 
 2026-09-28 修复 Chrome Default profile 仅剩 `AccountBookmarks` 时书签索引为空的问题。兼容本地与账号书签存储，并修正 macOS 符号链接目录的监听路径；读取、去重、失败保留及监听行为见 [搜索实现](../../../docs/search.md#数据源与初始化)。60 项相关 Rust 测试、5 项 napi 测试、搜索 napi debug 构建及格式检查通过；修改前四项回归测试失败，修改后通过。通过新原生绑定搜索本机包含 1250 条书签的 `AccountBookmarks`，抽样确认返回匹配 URL。hermes 无运行实例，未重启主工作区或 prometheus；桌面内搜索验收待用户启动 hermes。已获用户授权并同步 `docs/search.md` 的相关说明。
 
@@ -44,7 +44,7 @@ Electron 保存最近一轮搜索结果，用 token 与 ID 回查动作，render
 
 ## 内置命令范围
 
-初次迁移接入主题切换和开发重启，后续剪贴板迁移增加打开剪贴板命令。当前匹配、排序与执行范围见 [搜索实现](../../../docs/search.md#内置命令与计算器)。
+初次迁移接入主题切换和开发重启，后续剪贴板迁移增加打开剪贴板命令。当前匹配、排序与执行范围见 [搜索引擎](../../../crates/xiaowei-search/docs/search-engine.md#内置命令与计算器)。
 
 暂不实现：对话、扩展设置、扩展调试、检查更新、Kitchen 调试入口、Query 历史；切换内部后台环境不迁移。当前没有工作区与任务执行系统，任务搜索本轮不加入。上述入口不作为占位结果暴露。
 
