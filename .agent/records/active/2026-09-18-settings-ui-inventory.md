@@ -38,7 +38,7 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 - 七个页面组件接收 props 和回调；`SettingsPreview.tsx` 只供 Storybook 组合展示，提供内存数据、模拟异步返回与错误，不连接 Electron／Rust／网络，不写配置或系统剪贴板。
 - 相邻 `*.stories.tsx` 按 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About 分组。Storybook 可切页，也可直接选择弹窗或状态；明暗沿用当前项目主题变量，背景等设置专用样式放在 `settings.css`。产品与预览复用共享展示组件，业务容器与模拟 adapter 分开。
 - 模型配置于 2026-09-22 按用户要求参考本机 dsh web（`http://127.0.0.1:3080/`）调整；已通过现有 Chrome 核对添加预设／自定义提供方的交互，保留本项目弹窗与视觉样式。提供统一的“添加”入口，弹窗内提供方下拉首项为“自定义”且默认选中，列表标记类型。预设提供方的地址、协议只读，自定义提供方可以编辑；预览包含 DeepSeek、OpenAI、Anthropic 三个预设，不复制 dsh 的全部提供方目录。
-- 协议标识及显示统一为 `openai-completions`、`openai-responses`、`anthropic-messages`；Responses 保留自动／仅 HTTP 传输选项。获取模型后在弹窗中搜索、多选或全选当前搜索结果，点击添加合入配置列表；重复模型标为已添加，不覆盖已有配置。列表行展开编辑图片支持、上下文窗口、最大输出 token，文本支持默认开启且不显示开关。最大输出 token 提供 4K／8K／16K／32K／64K／128K 快捷档位与自定义正整数，不用原生数字步进框；档位不代表各模型支持的上限。右侧删除，底部支持手动添加模型 ID。产品修改连接信息或 Key 保留已添加模型配置；导入候选每次重新获取，当前模型保存规则统一见 LLM record。获取中禁用保存；获取失败、空结果、取消选择不会清空已有列表。
+- 协议标识及显示统一为 `openai-completions`、`openai-responses`、`anthropic-messages`；Responses 保留自动／仅 HTTP 传输选项。获取模型后在弹窗中搜索、多选或全选当前搜索结果，点击添加合入配置列表；重复模型标为已添加，不覆盖已有配置。列表行展开编辑图片支持、上下文窗口、最大输出 token，文本支持默认开启且不显示开关。最大输出 token 提供 4K／8K／16K／32K／64K／128K 快捷档位与自定义正整数，不用原生数字步进框；档位不代表各模型支持的上限。右侧删除，底部支持手动添加模型 ID。产品修改连接信息或 Key 保留已添加模型配置；导入候选每次重新获取，当前模型保存规则统一见 [LLM provider](../../../docs/llm-provider.md#settings-模型配置与持久化)。获取中禁用保存；获取失败、空结果、取消选择不会清空已有列表。
 - 默认思考强度紧接默认模型下方；未选择默认模型时禁用并提示“请先选择默认模型”。选择后仅展示该模型思考强度映射中支持的档位，不支持推理时禁用并显示“不支持推理”；切换模型后清除不再支持的默认档位。
 - 提供方区域只管理连接与模型配置，不维护“当前提供方”或提供方级默认模型；新增或修改提供方不自动切换全局默认模型，全局选择由页面上方的默认模型选择器显式完成。
 - 获取模型时立即在提供方弹窗上叠加选择弹窗，加载、失败重试和空结果均在顶层呈现；底层保留表单及展开状态并暂停交互，Esc／回车仅作用于顶层。取消后迟到的响应不重新打开弹窗。搜索与全选位于同一行，选择数量仅在添加按钮显示。
@@ -63,7 +63,7 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 
 通用／快捷键／剪贴板／关于已接真实设置窗口；第一部分的登录项、真实自动粘贴与多显示器等必要人工复验仍按[第一部分计划](../../plans/2026-09-18-settings-ui-inventory/01-general-shortcuts-clipboard-about.md)跟进，不因 Agent 里程碑自动结束。
 
-远程模型配置通过 Pi service 接产品并经用户验收。models.json 默认随 Agent 根目录保存，支持 XIAOWEI_AGENT_HOME／XIAOWEI_LLM_CONFIG 覆盖；API Key 明文保存在文件，renderer 读取脱敏快照，保存后更新 worker，不监听文件。缺省预算为 256_000／32_768，稳定引用、凭据及故障语义统一见[LLM record](2026-09-24-llm-provider.md#settings-模型配置与持久化)，不再采用原 Storage／系统加密草案。
+远程模型配置通过 Pi service 接产品并经用户验收。models.json 默认随 Agent 根目录保存，支持 XIAOWEI_AGENT_HOME／XIAOWEI_LLM_CONFIG 覆盖；API Key 明文保存在文件，renderer 读取脱敏快照，保存后更新 worker，不监听文件。缺省预算为 256_000／32_768，稳定引用、凭据及故障语义统一见[LLM provider](../../../docs/llm-provider.md#settings-模型配置与持久化)，不再采用原 Storage／系统加密草案。
 
 对话归档已接 Agent 的真实列表、搜索／分页、单条删除／恢复及自动策略，默认三天归档、自动清理关闭。恢复留在设置页 toast，不打开聊天；没有“删除全部”入口。状态与策略由 xw-agent 的 sessions.sqlite 保存，维护任务在 core，页面不重复存储或运行定时器。当前行为和验收限制见[Agent record](2026-09-28-agent-chat.md)。
 
@@ -75,4 +75,4 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 
 通用设置、快捷键、剪贴板与关于产品适配已交付，自动测试／类型／Biome／desktop 与 Storybook 构建通过。快速对话快捷键后续接入录制、清除与重复绑定转移；真实窗口已核对原生标题栏和产品页签，系统副作用及多显示器等剩余验收仍由第一部分计划保留。
 
-远程模型的用户验收和专项验证由 LLM record 承载；归档／删除／自动维护的 Rust、正式 Gateway／napi 与 renderer 验证由 Agent 交付证据承载。后续模型与 Agent 事项改变这些页面时同步当前说明，避免继续把已接业务写成仅 mock，也不把其余设置能力宣称完成。
+远程模型的用户验收和专项验证由 [归档 LLM record](../archived/2026-09-24-llm-provider.md#outcome) 承载；归档／删除／自动维护的 Rust、正式 Gateway／napi 与 renderer 验证由 Agent 交付证据承载。后续模型与 Agent 事项改变这些页面时同步当前说明，避免继续把已接业务写成仅 mock，也不把其余设置能力宣称完成。

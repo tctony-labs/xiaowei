@@ -6,7 +6,7 @@
 
 缺口在模型调用之上的 Agent Core 和对应 Chat UI。事项开始时 `useQuickChat` 在 renderer 内存中保存消息并直接调用 `Llm.Generate`，每次发送只进行一次模型生成；不执行工具，收到工具调用即报错，也没有持久会话、运行恢复或真实会话管理。仅把工具输出展示到现有文本面板，不能形成完整的 agent 对话闭环。
 
-本事项承接 [Quick Chat 入口与内存对话](2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider](2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。现有事项仍承载已经生效的行为，本事项按职责更新它们的当前说明。
+本事项承接 [Quick Chat 入口与内存对话](2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider 建设事项](../archived/2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。入口行为继续由 Quick Chat 事项承载，模型接入行为维护在 [LLM provider 长期文档](../../../docs/llm-provider.md)；本事项按职责同步对应当前说明。
 
 ## What
 

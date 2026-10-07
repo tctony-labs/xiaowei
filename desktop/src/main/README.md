@@ -48,6 +48,8 @@ Agent 与模型设置的公共根目录由 app/paths.ts 解析，默认 `~/.xiao
 
 main 统一接收并写入各执行环境的日志，链路、轮转保留和接入约定见 [桌面日志](../../../docs/desktop-logging.md)。
 
+LLM 的生成接口、模型配置持久化与 Responses WebSocket 行为见 [LLM provider](../../../docs/llm-provider.md)。
+
 ## Host 与 worker 的代码组织
 
 service 使用 worker 执行业务时，按执行位置划分目录，让路径直接表达运行边界。位于 `src/main/` 下只表示由 main 装配，不表示全部在主线程执行。

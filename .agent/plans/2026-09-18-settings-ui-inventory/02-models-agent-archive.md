@@ -1,6 +1,6 @@
 # 第二部分：剩余模型与智能体设置
 
-关联 [设置 record](../../records/active/2026-09-18-settings-ui-inventory.md)。远程模型配置及对话归档已由对应事项交付，本计划不重复实施：模型配置见[LLM record](../../records/active/2026-09-24-llm-provider.md#settings-模型配置与持久化)，归档／删除及自动策略见[Agent 运行与 UI](../../records/active/2026-09-28-agent-chat/runtime-ui.md#设置归档管理)。
+关联 [设置 record](../../records/active/2026-09-18-settings-ui-inventory.md)。远程模型配置及对话归档已由对应事项交付，本计划不重复实施：模型配置见[LLM provider](../../../docs/llm-provider.md#settings-模型配置与持久化)，归档／删除及自动策略见[Agent 运行与 UI](../../records/active/2026-09-28-agent-chat/runtime-ui.md#设置归档管理)。
 
 ## 剩余范围与前置
 
