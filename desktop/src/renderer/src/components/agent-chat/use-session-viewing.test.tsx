@@ -24,7 +24,8 @@ test("visible session protection follows hiding, switching and unmounting", asyn
     "viewing",
     bindStreamHandlers(Agent, {
       async *subscribeSession() {},
-      trackSessionViewing(request, _client, signal) {
+      trackSessionViewing(request, client) {
+        const signal = client.cancellation();
         active.add(request.sessionId);
         return (async function* () {
           try {

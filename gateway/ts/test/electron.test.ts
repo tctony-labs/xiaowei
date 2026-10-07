@@ -139,7 +139,8 @@ test("Electron stream next/cancel and navigation during open release producers w
   host.registerOwner(
     "source",
     bindStreamHandlers(Fixture, {
-      async watch(request, _client, signal) {
+      async watch(request, client) {
+        const signal = client.cancellation();
         if (request.text === "open")
           await new Promise<void>((resolve) => {
             release = resolve;
@@ -184,7 +185,7 @@ test("Electron stream next/cancel and navigation during open release producers w
       kind: "serverStreaming",
       input: "testing.Envelope",
       output: "testing.Changed",
-      controlVersion: 1,
+      controlVersion: 2,
       contractVersion: 1,
     },
     payload: Uint8Array.of(10, 4, 111, 112, 101, 110),
@@ -355,4 +356,87 @@ test("recreated renderer clients keep streams and cancellation independent", asy
   await oldStream.cancel();
   assert.equal((await newStream.next()).value?.value?.text, "new");
   assert.equal((await newStream.next()).done, true);
+});
+
+test("Electron unary result/cancel race is decided at the caller, not main", async () => {
+  const { host, frame, adapter } = fixture();
+  host.registerOwner("source", bindHandlers(Fixture, { echo: (request) => request }));
+  const a = frame();
+  let hold!: () => void;
+  let mainCompleted!: () => void;
+  const held = new Promise<void>((resolve) => {
+    hold = resolve;
+  });
+  const ready = new Promise<void>((resolve) => {
+    mainCompleted = resolve;
+  });
+  const delayed = createRendererClient({
+    listen: a.bridge.listen,
+    async request(request) {
+      const response = await a.bridge.request(request);
+      if (request.operation === "invoke") {
+        mainCompleted();
+        await held;
+      }
+      return response;
+    },
+  });
+  const rpc = bindClient(Fixture, delayed).echo(create(EnvelopeSchema, { id: 7n }));
+  const rejected = assert.rejects(
+    rpc,
+    (error: unknown) =>
+      error instanceof Error && "detail" in error && (error.detail as { code: string }).code === "CANCELLED",
+  );
+  await ready;
+  rpc.cancel();
+  await rejected;
+  hold();
+  await tick();
+  await rejected;
+  const completed = bindClient(Fixture, delayed).echo(create(EnvelopeSchema, { id: 8n }));
+  assert.equal((await completed).id, 8n);
+  completed.cancel();
+  assert.equal((await completed).id, 8n);
+  adapter.close();
+});
+
+test("Electron unary cancel cannot cross frames or recreated clients, and navigation aborts work", async () => {
+  const { host, frame, adapter } = fixture();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const signals: AbortSignal[] = [];
+  host.registerOwner(
+    "source",
+    bindHandlers(Fixture, {
+      echo: async (request, client) => {
+        const signal = client.cancellation();
+        signals.push(signal);
+        await gate;
+        return request;
+      },
+    }),
+  );
+  const a = frame();
+  const b = frame();
+  const first = bindClient(Fixture, a.client).echo(create(EnvelopeSchema));
+  const firstRejected = assert.rejects(first, /RPC cancelled/);
+  await tick();
+  const id = a.requests.find((request) => request.operation === "invoke")?.id;
+  assert.ok(id);
+  await b.bridge.request({ operation: "invoke.cancel", id });
+  assert.equal(signals[0].aborted, false);
+  const second = bindClient(Fixture, createRendererClient(a.bridge)).echo(create(EnvelopeSchema));
+  const secondRejected = assert.rejects(second, /closed/);
+  await tick();
+  first.cancel();
+  await firstRejected;
+  assert.equal(signals[0].aborted, true);
+  assert.equal(signals[1].aborted, false);
+  a.contents.emit("did-navigate", {}, "http://localhost/", 200, "OK");
+  await secondRejected;
+  assert.equal(signals[1].aborted, true);
+  release();
+  adapter.close();
 });

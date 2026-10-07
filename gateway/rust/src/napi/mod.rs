@@ -12,6 +12,7 @@ use crate::invoke::Owner;
 use crate::protocol::{CONTROL_VERSION, Route, WireResult};
 use crate::{CallContext, ErrorCode, GatewayError, XwInvokeRegistry};
 
+mod rpc;
 mod streams;
 
 pub type Reply = Either<Buffer, String>;
@@ -59,6 +60,8 @@ pub struct Control {
     pub filter_present: bool,
     #[serde(default)]
     pub stream_id: Option<String>,
+    #[serde(default)]
+    pub rpc_id: Option<String>,
 }
 
 struct State {
@@ -76,6 +79,7 @@ pub struct Endpoint {
     state: Mutex<State>,
     closed: watch::Sender<bool>,
     streams: streams::Sessions,
+    rpcs: rpc::Sessions,
 }
 
 fn unavailable() -> GatewayError {
@@ -114,6 +118,7 @@ impl Endpoint {
             registry,
             owner,
             streams: Default::default(),
+            rpcs: Default::default(),
             closed: watch::channel(false).0,
             state: Mutex::new(State {
                 callback: None,
@@ -142,27 +147,18 @@ impl Endpoint {
         state.callback = Some(callback);
         state.origin = Some(context);
         let endpoint = Arc::downgrade(self);
-        self.registry.set_remote_invoker(move |route, payload, context| {
-            let endpoint = endpoint.clone();
-            async move {
-                let endpoint = endpoint.upgrade().ok_or_else(unavailable)?;
-                endpoint
-                    .outbound(
-                        Control {
-                            version: CONTROL_VERSION,
-                            operation: "invoke".into(),
-                            context_token: context.caller().into(),
-                            route: Some(route),
-                            event: None,
-                            subscription_id: None,
-                            stream_id: None,
-                            filter_present: false,
-                        },
-                        payload,
-                    )
-                    .await
-            }
-        });
+        self.registry
+            .set_remote_invoker_cancellable(move |route, payload, context, cancellation| {
+                let endpoint = endpoint.clone();
+                async move {
+                    let endpoint = endpoint.upgrade().ok_or_else(unavailable)?;
+                    tokio::select! {
+                        biased;
+                        _ = cancellation.cancelled() => Err(crate::rpc::cancelled()),
+                        result = endpoint.remote_invoke(route, payload, context) => result,
+                    }
+                }
+            });
         let endpoint = Arc::downgrade(self);
         self.registry
             .set_remote_stream(Arc::new(move |route, payload, context| {
@@ -256,6 +252,7 @@ impl Endpoint {
         if self.closed.send_replace(true) {
             return None;
         }
+        self.rpcs.close();
         self.streams.close();
         self.registry.unregister_owner(&self.owner);
         let (callback, subscriptions) = {
@@ -279,6 +276,7 @@ impl Endpoint {
                 event: None,
                 subscription_id: None,
                 stream_id: None,
+                rpc_id: None,
                 filter_present: false,
             })
             .unwrap();
@@ -326,6 +324,7 @@ impl Endpoint {
                     event: Some(event),
                     subscription_id: Some(id),
                     stream_id: None,
+                    rpc_id: None,
                     filter_present: filter.is_some(),
                 },
                 filter.unwrap_or_default(),
@@ -378,6 +377,7 @@ impl Endpoint {
                                     event: None,
                                     subscription_id: Some(id),
                                     stream_id: None,
+                                    rpc_id: None,
                                     filter_present: false,
                                 },
                                 payload,
@@ -434,6 +434,7 @@ impl RemoteLease {
                         event: None,
                         subscription_id: Some(id),
                         stream_id: None,
+                        rpc_id: None,
                         filter_present: false,
                     },
                     vec![],

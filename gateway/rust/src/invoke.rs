@@ -10,11 +10,12 @@ use tokio::sync::{Semaphore, watch};
 
 use crate::event::{EventExportRegistration, EventState};
 use crate::protocol::*;
+use crate::rpc::{CancelHandle, CancelOnDrop, Rpc, cancelled};
 use crate::stream::{self, Admission, ByteStream, RemoteStream, StreamHandler, StreamPolicy};
 
 type InvokeFuture = Pin<Box<dyn Future<Output = WireResult> + Send>>;
 pub type InvokeHandler = Arc<dyn Fn(Vec<u8>, Client) -> InvokeFuture + Send + Sync>;
-type RemoteInvoker = Arc<dyn Fn(Route, Vec<u8>, CallContext) -> InvokeFuture + Send + Sync>;
+type RemoteInvoker = Arc<dyn Fn(Route, Vec<u8>, CallContext, CancelHandle) -> InvokeFuture + Send + Sync>;
 
 pub struct InvokeRegistration {
     pub route: Route,
@@ -111,6 +112,7 @@ pub struct XwInvokeRegistry {
     remote: RwLock<Option<RemoteInvoker>>,
     remote_stream: RwLock<Option<RemoteStream>>,
     admissions: stream::Admissions,
+    calls: Mutex<Vec<(String, crate::rpc::WeakCancelHandle)>>,
     streams: Mutex<Vec<std::sync::Weak<stream::Life>>>,
 }
 
@@ -118,11 +120,23 @@ pub struct XwInvokeRegistry {
 pub struct Client {
     registry: Arc<XwInvokeRegistry>,
     context: CallContext,
+    cancellation: Option<CancelHandle>,
 }
 
 impl Client {
-    pub async fn invoke(&self, route: &Route, payload: Vec<u8>) -> WireResult {
-        self.registry.call(route, payload, self.context.clone()).await
+    pub fn invoke(&self, route: &Route, payload: Vec<u8>) -> Rpc<Vec<u8>> {
+        let registry = self.registry.clone();
+        let context = self.context.clone();
+        let route = route.clone();
+        Rpc::new(
+            move |cancellation| async move { registry.call_cancellable(&route, payload, context, cancellation).await },
+            self.cancellation.clone(),
+        )
+    }
+
+    /// Cooperative cancellation of the current handler, including owner/caller teardown and timeout.
+    pub fn cancellation(&self) -> CancelHandle {
+        self.cancellation.clone().unwrap_or_default()
     }
     pub async fn stream(&self, route: &Route, payload: Vec<u8>) -> Result<stream::ResponseStream, GatewayError> {
         self.registry
@@ -146,6 +160,7 @@ impl XwInvokeRegistry {
         Client {
             registry: self.clone(),
             context,
+            cancellation: None,
         }
     }
 
@@ -279,8 +294,16 @@ impl XwInvokeRegistry {
         F: Fn(Route, Vec<u8>, CallContext) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = WireResult> + Send + 'static,
     {
-        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context| {
-            Box::pin(invoker(route, payload, context))
+        self.set_remote_invoker_cancellable(move |route, payload, context, _| invoker(route, payload, context));
+    }
+
+    pub fn set_remote_invoker_cancellable<F, Fut>(&self, invoker: F)
+    where
+        F: Fn(Route, Vec<u8>, CallContext, CancelHandle) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = WireResult> + Send + 'static,
+    {
+        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, cancellation| {
+            Box::pin(invoker(route, payload, context, cancellation))
         }));
     }
 
@@ -288,6 +311,13 @@ impl XwInvokeRegistry {
         *self.remote_stream.write().unwrap() = Some(remote);
     }
     pub fn cleanup_stream_caller(&self, caller: &str) {
+        for (id, handle) in self.calls.lock().unwrap().iter() {
+            if id == caller {
+                if let Some(handle) = handle.upgrade() {
+                    handle.cancel();
+                }
+            }
+        }
         for admission in self.admissions.lock().unwrap().iter().filter_map(|weak| weak.upgrade()) {
             if admission.caller == caller {
                 admission.cancel.send_replace(true);
@@ -397,11 +427,25 @@ impl XwInvokeRegistry {
     }
 
     pub async fn call(self: &Arc<Self>, route: &Route, payload: Vec<u8>, context: CallContext) -> WireResult {
+        self.call_cancellable(route, payload, context, CancelHandle::new())
+            .await
+    }
+
+    pub async fn call_cancellable(
+        self: &Arc<Self>,
+        route: &Route,
+        payload: Vec<u8>,
+        context: CallContext,
+        cancellation: CancelHandle,
+    ) -> WireResult {
+        if cancellation.is_cancelled() {
+            return Err(cancelled());
+        }
         context.authorize(&route.name, false)?;
         route.validate()?;
         let entry = self.state.lock().unwrap().entries.get(&route.name).cloned();
         if let Some(entry) = entry {
-            return self.execute(entry, route, payload, context).await;
+            return self.execute(entry, route, payload, context, cancellation).await;
         }
         let remote = self
             .remote
@@ -409,7 +453,7 @@ impl XwInvokeRegistry {
             .unwrap()
             .clone()
             .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "route not registered"))?;
-        remote(route.clone(), payload, context).await
+        remote(route.clone(), payload, context, cancellation).await
     }
 
     /// Inbound transport dispatch never falls back, preventing forwarding loops.
@@ -420,6 +464,21 @@ impl XwInvokeRegistry {
         payload: Vec<u8>,
         context: CallContext,
     ) -> WireResult {
+        self.dispatch_local_cancellable(owner, route, payload, context, CancelHandle::new())
+            .await
+    }
+
+    pub async fn dispatch_local_cancellable(
+        self: &Arc<Self>,
+        owner: &Owner,
+        route: &Route,
+        payload: Vec<u8>,
+        context: CallContext,
+        cancellation: CancelHandle,
+    ) -> WireResult {
+        if cancellation.is_cancelled() {
+            return Err(cancelled());
+        }
         context.authorize(&route.name, false)?;
         let entry = self
             .state
@@ -432,7 +491,7 @@ impl XwInvokeRegistry {
         if !entry.owner.same_instance(owner) || owner.is_closed() {
             return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
         }
-        self.execute(entry, route, payload, context).await
+        self.execute(entry, route, payload, context, cancellation).await
     }
 
     async fn execute(
@@ -441,6 +500,7 @@ impl XwInvokeRegistry {
         route: &Route,
         payload: Vec<u8>,
         context: CallContext,
+        cancellation: CancelHandle,
     ) -> WireResult {
         entry.route.accepts(route)?;
         if entry.owner.is_closed() {
@@ -452,7 +512,15 @@ impl XwInvokeRegistry {
             .try_acquire_owned()
             .map_err(|_| GatewayError::new(ErrorCode::ConcurrencyFull, "route concurrency full"))?;
         let handler = entry.handler.unwrap();
-        let client = self.client(context);
+        let execution_cancel = CancelHandle::new();
+        {
+            let mut calls = self.calls.lock().unwrap();
+            calls.retain(|(_, handle)| handle.upgrade().is_some());
+            calls.push((context.caller().into(), execution_cancel.downgrade()));
+        }
+        let _guard = CancelOnDrop(execution_cancel.clone());
+        let mut client = self.client(context);
+        client.cancellation = Some(execution_cancel.clone());
         // The task retains admission until the actual handler exits, even after a
         // timeout, caller drop or owner close. Never abort a task awaiting blocking work.
         let task = tokio::spawn(async move {
@@ -462,6 +530,8 @@ impl XwInvokeRegistry {
         let mut closed = entry.owner.closed.subscribe();
         tokio::select! {
             biased;
+            _ = cancellation.cancelled() => Err(cancelled()),
+            _ = execution_cancel.cancelled() => Err(cancelled()),
             _ = async { if !*closed.borrow() { let _ = closed.changed().await; } } => {
                 Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"))
             }

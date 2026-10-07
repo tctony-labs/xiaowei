@@ -15,6 +15,7 @@ TS 类型入口指向源码，工作区消费者必须通过 `source` 条件加�
 - 为 Gateway 提供 handler 实现及相关接入代码的模块统一命名为 `gateway`：TS 使用 `gateway.ts` 或 `gateway/`，Rust 使用 `gateway.rs` 或 `gateway/`，放在所属业务模块内。具体业务逻辑按能力归属组织，由 `gateway` 调用；仅使用 Gateway client 的模块不因此归入 `gateway`。该命名约定针对手写业务接入代码，不改变生成绑定的文件名。
 - 使用契约 descriptor 和 typed client／handler；route 为 `package.Service.Method`，event 为消息的 Protobuf full name。
 - owner 显式注册方法与事件；同一 service 可拆分到多个 owner，但每条 route 只能由一个 owner 发布。
+- 两端 handler 使用 `(request, client)`，按需从 client 获取上下文与取消信号；unary 返回可 await、可 cancel 的 RPC 句柄。
 - 宿主创建调用上下文；handler 的嵌套调用使用注入的 client 保留权限，不从业务 payload 构造身份。
 - 接入、订阅和流的句柄由创建方负责关闭；替换 owner 不等于取消已发生的系统副作用。
 - 修改业务契约或 Rust 模块 service 依赖时，按 [维护技能](../.agent/skills/maintain-gateway-contract/SKILL.md) 更新并生成绑定，生成文件不得手改。

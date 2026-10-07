@@ -511,3 +511,66 @@ test("transport policy metadata requires route permission and contract compatibi
     rejectsCode("INCOMPATIBLE"),
   );
 });
+
+test("unary RPC cancellation is local, idempotent and retains real execution admission", async () => {
+  const host = new GatewayHost();
+  const blocked = gate();
+  let observed!: AbortSignal;
+  host.registerOwner(
+    "cancel",
+    bindHandlers(Fixture, {
+      echo: async (request, client) => {
+        const signal = client.cancellation();
+        observed = signal;
+        await blocked.promise; // Deliberately ignores cancellation.
+        return request;
+      },
+    }).map((r) => ({ ...r, maxConcurrency: 1 })),
+  );
+  const api = bindClient(Fixture, client(host));
+  const rpc = api.echo(create(EnvelopeSchema, { id: 8n }));
+  const rejected = assert.rejects(rpc, rejectsCode("CANCELLED"));
+  rpc.cancel();
+  rpc.cancel();
+  await rejected;
+  assert.equal(observed.aborted, true);
+  await assert.rejects(api.echo(create(EnvelopeSchema)), rejectsCode("CONCURRENCY_FULL"));
+  blocked.release();
+  await tick();
+  await assert.rejects(rpc, rejectsCode("CANCELLED"));
+  assert.equal((await api.echo(create(EnvelopeSchema, { id: 9n }))).id, 9n);
+  const completed = api.echo(create(EnvelopeSchema, { id: 10n }));
+  assert.equal((await completed).id, 10n);
+  completed.cancel();
+  assert.equal((await completed).id, 10n);
+});
+
+test("unary cancellation propagates through nested clients and caller teardown", async () => {
+  const host = new GatewayHost();
+  const child = { ...route, name: "testing.Child.Echo" };
+  const entered = gate();
+  const aborted = gate();
+  host.registerOwner("child", [
+    {
+      route: child,
+      handler: async (bytes, client) => {
+        const signal = client.cancellation();
+        entered.release();
+        if (signal.aborted) aborted.release();
+        else signal.addEventListener("abort", aborted.release, { once: true });
+        await aborted.promise;
+        return bytes;
+      },
+    },
+  ]);
+  host.registerOwner("parent", [{ route, handler: (bytes, client) => client.invoke(child, bytes) }]);
+  const rpc = client(host).invoke(route, bytes());
+  const rejected = assert.rejects(rpc, rejectsCode("CANCELLED"));
+  await entered.promise;
+  rpc.cancel();
+  await Promise.all([rejected, aborted.promise]);
+  const second = client(host).invoke(route, bytes());
+  const closed = assert.rejects(second, rejectsCode("CANCELLED"));
+  host.cleanupCaller("test");
+  await closed;
+});

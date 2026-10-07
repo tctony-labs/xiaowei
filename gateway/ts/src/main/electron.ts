@@ -11,6 +11,7 @@ interface Session {
   frame: WebFrameMain;
   contents: WebContents;
   closed: boolean;
+  calls: Map<string, AbortController>;
   subscriptions: Map<string, { handle?: Subscription; cancelled?: boolean }>;
   streams: Map<string, { controller: AbortController; stream?: ResponseStream<Uint8Array>; seq: number }>;
 }
@@ -30,6 +31,8 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
     sessions.delete(contents);
     for (const slot of session.subscriptions.values()) slot.handle?.close();
     session.subscriptions.clear();
+    for (const controller of session.calls.values()) controller.abort();
+    session.calls.clear();
     for (const slot of session.streams.values()) slot.controller.abort(unavailable());
     session.streams.clear();
     host.cleanupCaller(session.id);
@@ -61,6 +64,7 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
             contents: event.sender,
             closed: false,
             subscriptions: new Map(),
+            calls: new Map(),
             streams: new Map(),
           };
           sessions.set(event.sender, session);
@@ -71,14 +75,25 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
         if (!session || session.closed || session.id !== request.session || session.frame !== event.senderFrame)
           throw unavailable();
         const id = request.id ?? "";
-        if (request.operation !== "invoke" && (!id || id.length > 200))
-          return failure("INVALID_ARGUMENT", "invalid handle ID");
+        if (!id || id.length > 200) return failure("INVALID_ARGUMENT", "invalid handle ID");
         const payload = request.payload ?? new Uint8Array();
         switch (request.operation) {
           case "invoke": {
             if (!request.route) return failure("INVALID_ARGUMENT", "missing route");
-            const result = await host.invoke(session.context, request.route, payload);
-            return session.closed ? failure("OWNER_UNAVAILABLE", "frame closed") : result;
+            if (session.calls.has(id)) return failure("INVALID_ARGUMENT", "duplicate RPC ID");
+            if (session.calls.size >= 256) return failure("RESOURCE_EXHAUSTED", "frame RPCs full");
+            const controller = new AbortController();
+            session.calls.set(id, controller);
+            try {
+              const result = await host.invoke(session.context, request.route, payload, controller.signal);
+              return session.closed ? failure("OWNER_UNAVAILABLE", "frame closed") : result;
+            } finally {
+              if (session.calls.get(id) === controller) session.calls.delete(id);
+            }
+          }
+          case "invoke.cancel": {
+            session.calls.get(id)?.abort();
+            return success(new Uint8Array());
           }
           case "subscribe": {
             if (!request.event || session.subscriptions.has(id))

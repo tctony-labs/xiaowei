@@ -10,10 +10,10 @@ import {
   toBinary,
 } from "@bufbuild/protobuf";
 import type { Client } from "../core/client.js";
-import type { CallContext } from "../core/context.js";
 import type { EventExport } from "../core/event.js";
 import { type Backpressure, CONTRACT_VERSION, CONTROL_VERSION, GatewayFailure, type Route } from "../core/protocol.js";
 import type { Registration } from "../core/registry.js";
+import { createRpc, type Rpc } from "../core/rpc.js";
 import type { ResponseStream, StreamOptions } from "../core/stream.js";
 
 export function methodRoute(method: DescService["methods"][number]): Route {
@@ -32,35 +32,43 @@ type UnaryKey<S extends DescService> = {
   [K in keyof S["method"]]: S["method"][K] extends DescMethodUnary ? K : never;
 }[keyof S["method"]];
 export type ServiceClient<S extends DescService> = {
-  [K in UnaryKey<S>]: (
-    request: MessageShape<S["method"][K]["input"]>,
-  ) => Promise<MessageShape<S["method"][K]["output"]>>;
+  [K in UnaryKey<S>]: (request: MessageShape<S["method"][K]["input"]>) => Rpc<MessageShape<S["method"][K]["output"]>>;
 };
 export type ServiceHandlers<S extends DescService> = {
   [K in UnaryKey<S>]: (
     request: MessageShape<S["method"][K]["input"]>,
     client: Client,
-    context: CallContext,
   ) => MessageShape<S["method"][K]["output"]> | Promise<MessageShape<S["method"][K]["output"]>>;
 };
 export function bindClient<S extends DescService>(service: S, client: Client): ServiceClient<S> {
   const methods: Record<string, unknown> = {};
   for (const method of service.methods) {
     if (method.methodKind !== "unary") continue;
-    methods[method.localName] = async (request: MessageShape<typeof method.input>) => {
-      let bytes: Uint8Array;
-      try {
-        bytes = toBinary(method.input, request);
-      } catch {
-        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
-      }
-      const result = await client.invoke(methodRoute(method), bytes);
-      try {
-        return fromBinary(method.output, result);
-      } catch {
-        throw new GatewayFailure({ code: "HANDLER_ERROR", message: "invalid response protobuf" });
-      }
-    };
+    methods[method.localName] = (request: MessageShape<typeof method.input>) =>
+      createRpc(async (signal) => {
+        let bytes: Uint8Array;
+        try {
+          bytes = toBinary(method.input, request);
+        } catch {
+          throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
+        }
+        const rpc = client.invoke(methodRoute(method), bytes);
+        const abort = () => {
+          rpc.cancel();
+        };
+        signal.addEventListener("abort", abort, { once: true });
+        let result: Uint8Array;
+        try {
+          result = await rpc;
+        } finally {
+          signal.removeEventListener("abort", abort);
+        }
+        try {
+          return fromBinary(method.output, result);
+        } catch {
+          throw new GatewayFailure({ code: "HANDLER_ERROR", message: "invalid response protobuf" });
+        }
+      });
   }
   return Object.freeze(methods) as ServiceClient<S>;
 }
@@ -83,19 +91,18 @@ export function bindHandlers<S extends DescService>(
       const handler = handlers[method.localName as UnaryKey<S>] as unknown as (
         request: Message,
         client: Client,
-        context: CallContext,
       ) => Message | Promise<Message>;
       if (!handler) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing unary handler" });
       return {
         route,
-        handler: async (bytes, client, context) => {
+        handler: async (bytes, client) => {
           let request: MessageShape<typeof method.input>;
           try {
             request = fromBinary(method.input, bytes);
           } catch {
             throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
           }
-          const response = await handler(request, client, context);
+          const response = await handler(request, client);
           try {
             return toBinary(method.output, response);
           } catch {
@@ -118,7 +125,6 @@ export type StreamHandlers<S extends DescService> = {
   [K in StreamKey<S>]: (
     request: MessageShape<S["method"][K]["input"]>,
     client: Client,
-    signal: AbortSignal,
   ) =>
     | AsyncIterable<MessageShape<S["method"][K]["output"]>>
     | Promise<AsyncIterable<MessageShape<S["method"][K]["output"]>>>;
@@ -177,13 +183,12 @@ export function bindStreamHandlers<S extends DescService>(service: S, handlers: 
       const handler = handlers[method.localName as StreamKey<S>] as unknown as (
         request: Message,
         client: Client,
-        signal: AbortSignal,
       ) => AsyncIterable<Message> | Promise<AsyncIterable<Message>>;
       if (!handler) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing stream handler" });
       return {
         route: methodRoute(method),
-        async streamHandler(bytes, client, signal) {
-          const source = (await handler(fromBinary(method.input, bytes), client, signal))[Symbol.asyncIterator]();
+        async streamHandler(bytes, client) {
+          const source = (await handler(fromBinary(method.input, bytes), client))[Symbol.asyncIterator]();
           const iterator: AsyncIterableIterator<Uint8Array> = {
             [Symbol.asyncIterator]() {
               return this;

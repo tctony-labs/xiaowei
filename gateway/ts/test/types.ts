@@ -15,7 +15,15 @@ export function compileExamples(client: Client) {
     },
   });
   const service = bindClient(Fixture, client);
-  service.echo(create(EnvelopeSchema, { id: 1n }));
+  const rpc = service.echo(create(EnvelopeSchema, { id: 1n }));
+  rpc.cancel();
+  // @ts-expect-error RPC cancellation is synchronous and has no Promise result.
+  const cancellation: Promise<void> = rpc.cancel();
+  void cancellation;
+  const context = client.context();
+  const signal: AbortSignal = client.cancellation();
+  void context;
+  void signal;
   // @ts-expect-error uint64 is bigint, not number.
   service.echo(create(EnvelopeSchema, { id: 1 }));
   // @ts-expect-error Request type is derived from the service descriptor.

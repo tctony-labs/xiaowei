@@ -106,7 +106,8 @@ test("closing the import dialog cancels the Gateway stream", async () => {
         { partial: true },
       ),
       ...bindStreamHandlers(ModelSettings, {
-        async *listModels(_request, _client, signal) {
+        async *listModels(_request, client) {
+          const signal = client.cancellation();
           await new Promise<void>((resolve) =>
             signal.addEventListener(
               "abort",

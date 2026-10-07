@@ -62,6 +62,25 @@ impl GatewayEndpoint {
     }
 
     #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn rpc_control<'env>(
+        &self,
+        env: &'env napi::Env,
+        control: String,
+        payload: Buffer,
+        context: String,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let prepared = self.inner.prepare_rpc(&control, &context);
+        let inner = self.inner.clone();
+        let payload = payload.to_vec();
+        env.spawn_future(async move {
+            Ok(reply(match prepared {
+                Ok(()) => inner.rpc_control(&control, payload, &context).await,
+                Err(error) => Err(error),
+            }))
+        })
+    }
+
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
     pub fn stream_control<'env>(
         &self,
         env: &'env napi::Env,

@@ -22,6 +22,8 @@ Storage、搜索／剪贴板业务、LLM 和桌面装配测试归 [desktop/tests
 
 `ts/test/rust-napi/worker.test.ts` 在上述 fixture addon 构建窗口执行 Rust typed caller → napi → main → Worker 联调；验证多段 PB 顺序、部分数据后失败、pending next 取消和 worker 退出，不修改业务 proto 或 Rust 生产源码。
 
+unary 取消回归覆盖本地完成／取消竞争、同步幂等取消、Rust 普通线程通过克隆句柄取消、nested client 传播、caller 清理、真实工作保留 admission，以及 Electron main 已完成但响应仍在传输时的本地取消。Electron 单元测试还验证跨 frame／HMR client 隔离和导航清理；Worker 与真实 napi fixture 覆盖取消控制的独立传递、Rust reentry 及取消后服务继续可用。
+
 ## 更新测试绑定
 
 从仓库根目录使用以下命令更新测试绑定；Rust 测试比较生成内容以发现漂移：

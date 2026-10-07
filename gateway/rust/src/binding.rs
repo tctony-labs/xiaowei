@@ -53,10 +53,11 @@ where
         }
     }
 
-    pub async fn call(&self, client: &Client, request: Req) -> Result<Res, GatewayError> {
-        let bytes = client.invoke(&self.route(), request.encode_to_vec()).await?;
-        Res::decode(bytes.as_slice())
-            .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf"))
+    pub fn call(&self, client: &Client, request: Req) -> crate::Rpc<Res> {
+        client.invoke(&self.route(), request.encode_to_vec()).map(|bytes| {
+            Res::decode(bytes.as_slice())
+                .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf"))
+        })
     }
 
     pub fn handler<F, Fut>(&self, handler: F) -> InvokeRegistration

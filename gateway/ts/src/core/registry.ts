@@ -23,18 +23,18 @@ export { type CallContext, createContext, type Permissions } from "./context.js"
 export type { EventExport } from "./event.js";
 export interface Registration {
   route: Route;
-  handler?: (payload: Uint8Array, client: Client, context: CallContext) => Promise<Uint8Array> | Uint8Array;
-  streamHandler?: (
-    payload: Uint8Array,
-    client: Client,
-    signal: AbortSignal,
-    context: CallContext,
-  ) => ByteSource | Promise<ByteSource>;
+  handler?: (payload: Uint8Array, client: Client) => Promise<Uint8Array> | Uint8Array;
+  streamHandler?: (payload: Uint8Array, client: Client) => ByteSource | Promise<ByteSource>;
   streamPolicy?: Partial<StreamPolicy>;
   timeoutMs?: number;
   maxConcurrency?: number;
 }
-export type Dispatcher = (route: Route, payload: Uint8Array, context: CallContext) => Promise<Result<Uint8Array>>;
+export type Dispatcher = (
+  route: Route,
+  payload: Uint8Array,
+  context: CallContext,
+  signal?: AbortSignal,
+) => Promise<Result<Uint8Array>>;
 export type StreamDispatcher = (
   route: Route,
   payload: Uint8Array,
@@ -49,7 +49,6 @@ interface Owner {
   name: string;
   instance: number;
   closed: boolean;
-  pending: Set<(result: Result<Uint8Array>) => void>;
   dispatcher?: Dispatcher;
   streamDispatcher?: StreamDispatcher;
   closedListeners: Set<() => void>;
@@ -60,12 +59,23 @@ export interface OwnerHandle {
   close(reason?: GatewayError): void;
   onClose(listener: () => void): void;
   publish(event: string, payload: Uint8Array): void;
-  dispatchLocal(route: Route, payload: Uint8Array, context: CallContext): Promise<Result<Uint8Array>>;
+  dispatchLocal(
+    route: Route,
+    payload: Uint8Array,
+    context: CallContext,
+    signal?: AbortSignal,
+  ): Promise<Result<Uint8Array>>;
 }
 
 /** One host per process. Only this host owns the global manifest and owner table. */
 export class GatewayHost {
   private execution = new ExecutionScope();
+  private calls = new Set<{
+    owner?: Owner;
+    caller: string;
+    controller: AbortController;
+    finish: (result: Result<Uint8Array>) => void;
+  }>();
   private streams = new Set<{ owner: Owner; caller: string; controller: AbortController }>();
   private entries = new Map<string, Entry>();
   private owners = new Map<string, Owner>();
@@ -75,13 +85,14 @@ export class GatewayHost {
   constructor(private remote?: Dispatcher) {}
 
   client(permissions: Permissions): Client {
-    return createClient(this.transport(createContext(permissions)));
+    const context = createContext(permissions);
+    return createClient(this.transport(context), { context });
   }
   transport(context: CallContext): Transport {
     return Object.freeze({
       stream: (route: Route, payload: Uint8Array, options?: StreamOptions) =>
         this.stream(context, route, payload, options),
-      invoke: (route: Route, payload: Uint8Array) => this.invoke(context, route, payload),
+      invoke: (route: Route, payload: Uint8Array, signal?: AbortSignal) => this.invoke(context, route, payload, signal),
       subscribe: (event: string, filter: Uint8Array | undefined, sink: EventSink, persistent = false) =>
         this.subscribe(context, event, filter, sink, persistent),
     });
@@ -101,7 +112,6 @@ export class GatewayHost {
       name,
       instance: ++this.nextInstance,
       closed: false,
-      pending: new Set(),
       dispatcher,
       streamDispatcher,
       closedListeners: new Set(),
@@ -134,8 +144,8 @@ export class GatewayHost {
         if (owner.closed) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner instance closed" });
         this.events.publish(owner, event, payload);
       },
-      dispatchLocal: (route: Route, payload: Uint8Array, context: CallContext) =>
-        this.dispatchLocal(owner, context, route, payload),
+      dispatchLocal: (route: Route, payload: Uint8Array, context: CallContext, signal?: AbortSignal) =>
+        this.dispatchLocal(owner, context, route, payload, signal),
     });
   }
 
@@ -221,10 +231,13 @@ export class GatewayHost {
   ): void {
     if (owner.closed) return;
     owner.closed = true;
+    for (const call of this.calls) {
+      if (call.owner !== owner) continue;
+      call.finish({ ok: false, error: reason });
+      call.controller.abort();
+    }
     this.execution.close(owner, reason);
     for (const stream of this.streams) if (stream.owner === owner) stream.controller.abort(new GatewayFailure(reason));
-    for (const finish of owner.pending) finish({ ok: false, error: reason });
-    owner.pending.clear();
     for (const [route, entry] of this.entries) if (entry.owner === owner) this.entries.delete(route);
     if (this.owners.get(owner.name) === owner) this.owners.delete(owner.name);
     this.events.remove(owner);
@@ -256,15 +269,23 @@ export class GatewayHost {
     });
   }
 
-  async invoke(context: CallContext, route: Route, payload: Uint8Array): Promise<Result<Uint8Array>> {
+  async invoke(
+    context: CallContext,
+    route: Route,
+    payload: Uint8Array,
+    signal?: AbortSignal,
+  ): Promise<Result<Uint8Array>> {
     try {
       authorize(context, route.name);
       validateRoute(route);
       if (route.kind !== "unary") return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
       if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
       const entry = this.entries.get(route.name);
-      if (entry) return this.execute(entry, context, route, payload);
-      if (this.remote) return await this.remote(route, payload, context);
+      if (entry) return this.execute(entry, context, route, payload, signal);
+      if (this.remote) {
+        const remote = this.remote;
+        return this.forward(context, (signal) => remote(route, payload, context, signal), signal);
+      }
       return failure("UNKNOWN_ROUTE", "route not registered");
     } catch (error) {
       return this.errorResult(error);
@@ -276,6 +297,7 @@ export class GatewayHost {
     context: CallContext,
     route: Route,
     payload: Uint8Array,
+    signal?: AbortSignal,
   ): Promise<Result<Uint8Array>> {
     try {
       authorize(context, route.name);
@@ -284,29 +306,63 @@ export class GatewayHost {
       if (!entry) return failure("UNKNOWN_ROUTE", "route not registered");
       if (entry.owner !== owner) return failure("OWNER_UNAVAILABLE", "owner instance replaced");
       if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
-      return this.execute(entry, context, route, payload);
+      return this.execute(entry, context, route, payload, signal);
     } catch (error) {
       return this.errorResult(error);
     }
   }
 
-  private execute(entry: Entry, context: CallContext, route: Route, payload: Uint8Array): Promise<Result<Uint8Array>> {
+  private execute(
+    entry: Entry,
+    context: CallContext,
+    route: Route,
+    payload: Uint8Array,
+    signal?: AbortSignal,
+  ): Promise<Result<Uint8Array>> {
     const compatible = accepts(entry.registration.route, route);
     if (!compatible.ok) return Promise.resolve(compatible);
     const { owner, registration } = entry;
     if (owner.closed) return Promise.resolve(failure("OWNER_UNAVAILABLE", "owner instance closed"));
     const dispatcher = owner.dispatcher;
     if (!dispatcher) {
-      return this.execution.invoke(registration, owner, context, createClient(this.transport(context)), payload);
+      return this.execution.invoke(
+        registration,
+        owner,
+        context,
+        (signal) => createClient(this.transport(context), { context, signal }),
+        payload,
+        signal,
+      );
     }
+    return this.forward(context, (signal) => dispatcher(route, payload, context, signal), signal, owner);
+  }
+
+  private forward(
+    context: CallContext,
+    work: (signal: AbortSignal) => Promise<Result<Uint8Array>>,
+    signal?: AbortSignal,
+    owner?: Owner,
+  ): Promise<Result<Uint8Array>> {
+    if (signal?.aborted) return Promise.resolve(failure("CANCELLED", "RPC cancelled"));
     return new Promise((resolve) => {
+      const controller = new AbortController();
+      let done = false;
       const finish = (result: Result<Uint8Array>) => {
-        owner.pending.delete(finish);
+        if (done) return;
+        done = true;
+        signal?.removeEventListener("abort", abort);
+        this.calls.delete(state);
         resolve(result);
       };
-      owner.pending.add(finish);
-      const run = async () => dispatcher(route, payload, context);
-      run().then(finish, (error) => finish(this.errorResult(error)));
+      const abort = () => {
+        finish(failure("CANCELLED", "RPC cancelled"));
+        controller.abort();
+      };
+      const state = { owner, caller: caller(context), controller, finish };
+      this.calls.add(state);
+      signal?.addEventListener("abort", abort, { once: true });
+      const run = async () => work(controller.signal);
+      void run().then(finish, (error) => finish(this.errorResult(error)));
     });
   }
 
@@ -325,7 +381,7 @@ export class GatewayHost {
         registration,
         owner,
         context,
-        createClient(this.transport(context)),
+        (signal) => createClient(this.transport(context), { context, signal }),
         payload,
         options,
       );
@@ -365,6 +421,11 @@ export class GatewayHost {
     return this.events.subscribe(context, event, filter, sink, persistent);
   }
   cleanupCaller(id: string): void {
+    for (const call of this.calls) {
+      if (call.caller !== id) continue;
+      call.finish(failure("CANCELLED", "caller closed"));
+      call.controller.abort();
+    }
     for (const stream of this.streams) if (stream.caller === id) stream.controller.abort();
     this.execution.cleanupCaller(id);
     this.events.cleanupCaller(id);

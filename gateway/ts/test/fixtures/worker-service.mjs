@@ -34,6 +34,8 @@ const peer = workerData?.peer ? Fixture : PeerFixture;
 let child;
 const handlers = bindHandlers(service, {
   async echo(request, client) {
+    const signal = client.cancellation();
+    signal.addEventListener("abort", () => note("unary-aborted"), { once: true });
     if (request.text === "wait") await gate("unary");
     if (request.text === "thread") return create(EnvelopeSchema, { id: BigInt(threadId) });
     if (request.text === "block") {
@@ -55,7 +57,8 @@ const handlers = bindHandlers(service, {
   },
 }).map((r) => ({ ...r, timeoutMs: workerData?.timeoutMs ?? 100, maxConcurrency: workerData?.concurrency ?? 2 }));
 const streams = bindStreamHandlers(service, {
-  async watch(request, client, signal) {
+  async watch(request, client) {
+    const signal = client.cancellation();
     if (request.text === "relay") return bindStreamClient(peer, client).watch(request, { signal });
     if (request.text === "openwait") await gate("opening");
     if (request.text === "openfail") throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "open failed" });

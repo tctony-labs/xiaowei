@@ -273,7 +273,8 @@ export function agentFixture(host = new GatewayHost()) {
       },
     }),
     ...bindStreamHandlers(Agent, {
-      trackSessionViewing(_request, _client, signal) {
+      trackSessionViewing(_request, client) {
+        const signal = client.cancellation();
         return (async function* () {
           yield create(SessionViewingReadySchema);
           await new Promise<void>((resolve) => {
@@ -282,7 +283,8 @@ export function agentFixture(host = new GatewayHost()) {
           });
         })();
       },
-      subscribeSession(request, _client, signal) {
+      subscribeSession(request, client) {
+        const signal = client.cancellation();
         const session = sessions.get(request.sessionId);
         if (!session || session.sessionId !== request.sessionId) {
           throw new GatewayFailure({ code: "NOT_FOUND", message: "session missing" });

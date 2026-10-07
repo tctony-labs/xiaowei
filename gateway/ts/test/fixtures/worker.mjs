@@ -7,7 +7,7 @@ if (workerData?.built) {
     kind: "unary",
     input: "testing.Envelope",
     output: "testing.Envelope",
-    controlVersion: 1,
+    controlVersion: 2,
     contractVersion: 1,
   };
   exposeWorkerEndpoint(parentPort, [

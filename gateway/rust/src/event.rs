@@ -296,6 +296,7 @@ impl XwInvokeRegistry {
     }
 
     pub fn cleanup_caller(&self, caller: &str) {
+        self.cleanup_stream_caller(caller);
         self.remote_events.cleanup_caller(caller);
         self.state
             .lock()

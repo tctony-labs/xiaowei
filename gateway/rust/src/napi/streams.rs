@@ -243,6 +243,7 @@ impl StreamLease {
             subscription_id: None,
             filter_present: false,
             stream_id: Some(self.id.clone()),
+            rpc_id: None,
         }
     }
 }

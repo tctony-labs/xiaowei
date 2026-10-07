@@ -10,7 +10,7 @@ import {
   Connection,
   HANDSHAKE_MS,
   parseManifest,
-  responseBytes,
+  RpcLink,
   StreamLink,
   unavailable,
 } from "../worker/protocol.js";
@@ -27,6 +27,7 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
     if (closed) return;
     closed = true;
     ready = false;
+    rpcs.close();
     streams.close(reason);
     contexts.clear();
     owner?.close(reason.detail);
@@ -59,6 +60,7 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
   };
   const callback = async (command: Command, accept: (timeoutMs: number) => void): Promise<unknown> => {
     if (!ready || closed) throw unavailable();
+    if (command.op === "invoke.cancel") return rpcs.cancel(command);
     if (command.op === "stream.next" || command.op === "stream.cancel") return streams.control(command);
     if (command.op !== "invoke" && command.op !== "stream.open")
       throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "unsupported worker callback" });
@@ -73,11 +75,15 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
       throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker operation does not match route kind" });
     const policy = host.executionPolicy(context, command.route);
     accept(command.op === "invoke" ? policy.timeoutMs : policy.streamPolicy.openTimeoutMs);
-    if (command.op === "invoke") return unwrap(await host.invoke(context, command.route, command.payload));
+    if (command.op === "invoke")
+      return rpcs.serve(command, async (signal) =>
+        unwrap(await host.invoke(context, command.route, command.payload, signal)),
+      );
     return streams.serve(command, (signal) => host.stream(context, command.route, command.payload, { signal }));
   };
   const connection = new Connection(worker, randomUUID(), callback);
   const streams = new StreamLink(connection);
+  const rpcs = new RpcLink(connection);
   connection.onClose = (reason) => {
     cleanup(reason);
     void close().catch(() => {});
@@ -102,12 +108,10 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
         streamPolicy: route.streamPolicy,
       })),
       [],
-      async (route, payload, context) => {
+      async (route, payload, context, signal) => {
         const meta = metadata(context);
         try {
-          return success(
-            responseBytes(await connection.request({ op: "invoke", route, payload, context: meta }, HANDSHAKE_MS)),
-          );
+          return success(await rpcs.invoke(route, payload, meta, signal));
         } catch (error) {
           return executionError(error);
         } finally {

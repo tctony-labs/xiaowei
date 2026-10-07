@@ -16,7 +16,7 @@ flowchart LR
 
 [Contracts](../contracts/README.md) 独立定义消息、codec 和 service descriptor，不依赖 Gateway、业务实现或传输。Gateway 核心不包含数据库、配置、账号或网络业务；具体 owner 由宿主装配。多个 `.node` 动态库各自持有 registry 和服务实例，依赖同一 Rust crate 不会共享内存状态，也不生成单独的 Gateway `.node`。
 
-Rust 本地命中直接执行，不进入 JS；未命中经异步 napi 回调请求 main 路由，main 只调用目标 endpoint 的 `dispatchLocal`。main 本地 TS 调用不绕行 Electron IPC。renderer 只持有 client 和句柄，不维护全局注册表；preload 仅暴露通用 transport。worker 持有执行状态和 endpoint，不创建第二个全局 host。
+Rust 本地命中直接执行，不进入 JS；未命中经异步 napi 回调请求 main 路由，main 通过目标 endpoint 的 `rpcControl` 发起或取消 unary，通过 `streamControl` 读取或取消响应流。main 本地 TS 调用不绕行 Electron IPC。renderer 只持有 client 和句柄，不维护全局注册表；preload 仅暴露通用 transport。worker 持有执行状态和 endpoint，不创建第二个全局 host。
 
 业务 handler 模块命名与源码消费规则见 [接入约定](../gateway/README.md#接入约定)，桌面启动、退出与依赖顺序见 [main 装配](../desktop/src/main/README.md#gateway-装配与生命周期)，页面调用与订阅见 [renderer 约定](../desktop/src/renderer/README.md#gateway-业务调用)。
 
@@ -26,7 +26,7 @@ Rust 本地命中直接执行，不进入 JS；未命中经异步 napi 回调请
 
 route 名为 `package.Service.Method`，event 名为 message 的 PB full name。stream 通过独立的 stream API 执行，误用 unary 入口返回 `WRONG_METHOD_KIND`。现有字符串 ID 可使用两端 `parseId`／`parse_id` 显式转换为 bigint／u64。
 
-控制版本和契约版本目前均为 1；每次调用检查 route 名、方法种类、输入／输出 message 名及版本。契约版本表示显式破坏性修订，不是 descriptor 指纹；兼容加字段不改变版本。实际消费端按 PB 解码，中转端原样转发字节；prost 消费后重新编码会丢弃未知字段，这不是转发端行为。
+控制版本为 2，契约版本为 1；每次调用检查 route 名、方法种类、输入／输出 message 名及版本。契约版本表示显式破坏性修订，不是 descriptor 指纹；兼容加字段不改变版本。实际消费端按 PB 解码，中转端原样转发字节；prost 消费后重新编码会丢弃未知字段，这不是转发端行为。
 
 TS transport 返回普通 `{ ok: true, value } | { ok: false, error: { code, message } }`。本地 client 把失败包装为 `GatewayFailure`，传输不能依赖 Error 实例自定义字段。Rust 内部使用 `Result<Vec<u8>, GatewayError>`，适配器需映射为同一普通对象协议。错误至少区分未知 route、owner 不可用、参数错误、并发已满、超时、未授权、handler 错误；另有冲突、不兼容和方法种类错误。核心不记录业务 payload，未知异常使用固定错误信息。
 
@@ -34,11 +34,30 @@ TS transport 返回普通 `{ ok: true, value } | { ok: false, error: { code, mes
 
 TS main 持有唯一 `GatewayHost`；各 Rust 模块持有本地 `XwInvokeRegistry`；worker 仅持有固定本地 endpoint 与执行管理，不创建第二个 GatewayHost。`registerOwner`／`register_owner` 在同一批次中验证 routes 和 events，全部有效后才替换原 owner。批内重复、跨 owner 重名或无效策略不产生半注册状态。
 
-每次替换创建新实例。关闭旧句柄不会注销新实例；旧连接投递和迟到响应不作用于新实例。TS 注册可注入 dispatcher，Rust 未命中时调用注入的 remote invoker；入口 `dispatchLocal`／`dispatch_local` 永远不回退，避免转发环。目标 host 未找到 route 立即返回 `UNKNOWN_ROUTE`。
+每次替换创建新实例。关闭旧句柄不会注销新实例；旧连接投递和迟到响应不作用于新实例。TS 注册可注入 dispatcher，Rust 未命中时调用注入的 remote invoker；入站 `rpcControl`／`dispatch_local_cancellable` 与直接 `dispatchLocal`／`dispatch_local` 永远不回退，避免转发环。目标 host 未找到 route 立即返回 `UNKNOWN_ROUTE`。
 
-执行 owner 按 route 限制在途 handler 并设置执行超时，满载立即拒绝；默认策略见 [TS execution](../gateway/ts/src/core/execution.ts) 和 [Rust invoke](../gateway/rust/src/invoke.rs)。转发端只跟踪 owner 生命周期，不再次限流或设置执行超时。超时或 owner 关闭会明确结束等待方；底层 handler 继续持有本实例的并发许可，直到真实完成。系统副作用不回滚，写操作不自动重试。
+执行 owner 按 route 限制在途 handler 并设置执行超时，满载立即拒绝；默认策略见 [TS execution](../gateway/ts/src/core/execution.ts) 和 [Rust invoke](../gateway/rust/src/invoke.rs)。转发端只跟踪 owner 生命周期，不再次限流或设置执行超时。取消、超时、caller 清理或 owner 关闭会明确结束等待方，并通知实际执行端；底层 handler 继续持有本实例的并发许可，直到真实完成。系统副作用不回滚，写操作不自动重试。
 
 owner 重注册会使旧 pending 请求失败；新实例有独立执行状态，宿主不能把重注册当作取消旧系统任务的方法。
+
+## Unary RPC 句柄与取消
+
+unary 方法同步返回本地 RPC 句柄，请求不要求等到 await 才启动。TS 的 `Rpc<Response>` 是附带 `cancel()` 的 Promise，可直接 await、then/catch 或放入 Promise.all；Rust 的 `Rpc<Response>` 实现 Future，并提供 `cancel()` 与可克隆的 `cancel_handle()`，须在 Tokio runtime 内创建，drop 发起取消。原有业务 proto 的请求和响应类型保持不变。
+
+调用方本地句柄只有一个终态，以本地先接受的完成或取消为准。完成包括响应解码成功或明确失败，终态不依赖业务何时开始 await。完成先到时，随后 cancel 不改变结果；取消先到时，等待尽快返回 `CANCELLED`，迟到响应被丢弃。main 已完成或远端已产生结果，不代表调用方本地已完成；不使用跨进程时间戳排序。Rust 的完成与取消在同一把本地同步 Mutex 内确定终态，临界区不执行 await 或网络操作；TS 在当前事件循环内同步确定终态。
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> completed: 本地接受结果
+    pending --> cancelled: 本地接受取消
+    completed --> [*]
+    cancelled --> [*]
+```
+
+取消通过独立控制消息传递，不等待原请求响应，不断开共用 IPC／Worker／napi 连接。TS／Rust 的 RPC 与 Rust 可克隆取消句柄均使用同步 `cancel()`，返回 void／unit，不需要 await；返回时本地终态已确定并已发出取消信号，不保证远端清理完成，也不撤销已发生的业务副作用。跨传输的清理请求有独立容量及有限期限，通知失败报告框架错误，不改变已经确定的本地终态。执行端不合作或已启动的 blocking 工作仍可能继续，实际退出前继续占用原并发许可。
+
+TS unary 和流 handler 均为 `(request, client)`；`client.context()` 返回宿主分配的 opaque 调用上下文，`client.cancellation()` 返回本次执行的 AbortSignal。Rust unary handler 同样为两个参数，上下文与取消句柄通过 `client.context()`／`client.cancellation()` 获取。只使用 request 的实现无需声明 client。需要中止实际工作的实现才将信号传给 HTTP／provider 或自行检查。注入 client 的嵌套 unary 自动继承当前取消通知与调用权限，结果处理及补偿仍归业务模块。
 
 ## 响应流
 
@@ -95,11 +114,11 @@ Gateway 保留不可信调用方的精确白名单能力；显式启用后，调
 
 manifest 在 endpoint 生命周期内保持固定。运行中新增／删除 route 或 event 时，用包含新 manifest 的 endpoint 重新接入同一 owner；走相同预留与发布流程，不直接修改已经发布的 native registry。业务服务实例可通过 Arc 保持其独立生命周期，但每个 endpoint 对应自己登记的 owner 实例。
 
-原生接口包括 manifest、bind、activate、dispatchLocal、streamControl、subscribeLocal、unsubscribeLocal、deliver、close。main→native 只执行 dispatchLocal；native 本地未命中才回调 host。host 若发现 fallback 目标仍在来源 manifest 内，返回未知 route，避免重新转发给来源。调用时的权限由 host 创建 opaque token 并保留原上下文，native 嵌套调用沿用该 token；PB payload 不参与授权。
+原生接口包括 manifest、bind、activate、rpcControl、dispatchLocal、streamControl、subscribeLocal、unsubscribeLocal、deliver、close。main→native unary 使用 rpcControl；native 本地未命中才回调 host。host 若发现 fallback 目标仍在来源 manifest 内，返回未知 route，避免重新转发给来源。调用时的权限由 host 创建 opaque token 并保留原上下文，native 嵌套调用沿用该 token；PB payload 不参与授权。
 
-控制 metadata／manifest 用 JSON 字符串，控制版本为 1；请求、响应、事件和 filter 的 PB 字节直接用 Buffer，不编码为 JSON 数组或 Base64。native Promise 成功返回 Buffer，失败返回序列化的 `{ code, message }` 字符串；TS adapter 将其恢复为核心 Result。native 控制响应（如订阅策略）也有明确的编码，不与业务 PB 混用。`streamControl(control, payload, context)` 执行 `stream.open`／`stream.next`／`stream.cancel`；stream ID 和 route 位于控制 JSON，chunk 仍是二进制。
+控制 metadata／manifest 用 JSON 字符串，控制版本为 2；请求、响应、事件和 filter 的 PB 字节直接用 Buffer，不编码为 JSON 数组或 Base64。native Promise 成功返回 Buffer，失败返回序列化的 `{ code, message }` 字符串；TS adapter 将其恢复为核心 Result。native 控制响应（如订阅策略）也有明确的编码，不与业务 PB 混用。`rpcControl(control, payload, context)` 执行 `invoke`／`invoke.cancel`，控制 JSON 携带独立 `rpcId`，同步入口在异步执行前登记或取消，句柄绑定 endpoint 实例与 caller token；`dispatchLocal` 保留为直接入站接口。`streamControl(control, payload, context)` 执行 `stream.open`／`stream.next`／`stream.cancel`；stream ID 和 route 位于控制 JSON，chunk 仍是二进制。
 
-控制版本为 1。入站 native open 成功为空 Buffer；native→host open 返回编码在 Buffer 中的 policy JSON，让 Rust caller 使用相同的 chunk／idle 限额；next 的二进制帧为单字节 `0`（end），或 `1 + 大端 u32 seq + 原始 PB chunk`，seq 从 0 开始；error 使用原有结构化错误通道。序号异常和耗尽终止流，不重放；stream 对象不跨 FFI。host 维护上下文 token，流 ID 本身不提供授权。
+控制版本为 2。入站 native open 成功为空 Buffer；native→host open 返回编码在 Buffer 中的 policy JSON，让 Rust caller 使用相同的 chunk／idle 限额；next 的二进制帧为单字节 `0`（end），或 `1 + 大端 u32 seq + 原始 PB chunk`，seq 从 0 开始；error 使用原有结构化错误通道。序号异常和耗尽终止流，不重放；stream 对象不跨 FFI。host 维护上下文 token，流 ID 本身不提供授权。
 
 ## Worker 线程通信
 

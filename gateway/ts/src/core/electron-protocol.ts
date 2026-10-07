@@ -4,7 +4,7 @@ export const GATEWAY_CHANNEL = "xiaowei:gateway";
 export const GATEWAY_EVENT = "xiaowei:gateway:event";
 
 export interface ElectronRequest {
-  operation: "invoke" | "subscribe" | "unsubscribe" | "stream.open" | "stream.next" | "stream.cancel";
+  operation: "invoke" | "invoke.cancel" | "subscribe" | "unsubscribe" | "stream.open" | "stream.next" | "stream.cancel";
   id?: string;
   route?: Route;
   event?: string;

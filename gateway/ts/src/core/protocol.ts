@@ -1,4 +1,4 @@
-export const CONTROL_VERSION = 1;
+export const CONTROL_VERSION = 2;
 export const CONTRACT_VERSION = 1;
 
 export type ErrorCode =
@@ -94,7 +94,7 @@ export interface Transport {
     payload: Uint8Array,
     options?: import("./stream.js").StreamOptions,
   ): Promise<import("./stream.js").ResponseStream<Uint8Array>>;
-  invoke(route: Route, payload: Uint8Array): Promise<Result<Uint8Array>>;
+  invoke(route: Route, payload: Uint8Array, signal?: AbortSignal): Promise<Result<Uint8Array>>;
   subscribe(
     event: string,
     filter: Uint8Array | undefined,
