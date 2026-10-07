@@ -10,13 +10,9 @@
 
 ## How
 
-主动收起与失焦切走的焦点策略已由 [Tray、Dock 与焦点管理](2026-09-28-tray-dock-focus.md) 统一接管；快捷键配置和模式规则保持下述行为。
+固定入口复用 Launcher 与 Gateway，主快捷键按用户于 2026-09-26 的要求改为保留当前模式、仅切换显隐。后续自定义配置由 Rust Settings 提供权威快照，宿主不为空绑定补默认入口，避免用户清除后仍触发；设置、原生注册与菜单交接的当前行为维护在 [桌面快捷键](../../../docs/shortcuts.md)。
 
-主快捷键默认 macOS `Command+Space`、其他平台 `Control+Alt+Space`，只切换当前窗口显隐，不改变搜索／剪贴板／快速对话模式；显示时聚焦当前输入框。剪贴板默认 `CommandOrControl+Shift+X`；快速对话使用 `CommandOrControl+Shift+C`，与剪贴板一致：同模式窗口可见且聚焦时隐藏，否则切到目标模式并显示、聚焦，跨模式时调整尺寸。主快捷键、剪贴板与快速对话均支持设置中的自定义值。快速对话默认绑定由 Rust Settings 提供，宿主在启动和设置更新时严格使用快照，不再补固定入口；清除后保持未绑定。已有持久化快捷键配置中的空值或缺失快速对话字段仍保持未绑定，不覆盖已有配置。所有模式顶部统一定位到鼠标所在屏幕可用区域高度的 15% 处，横向居中，不随结果列表或剪贴板面板高度改变，保证同一屏幕上快捷键唤起时左上角对齐。窗口在首次 `ready-to-show` 或双击任一模式搜索框的 Logo 时执行默认定位。快捷键、Dock 和第二实例唤起时重新获取鼠标所在显示器，与窗口当前主要所在显示器比较：跨屏时先迁移位置再显示、聚焦：原本处于默认位置时使用目标屏幕的默认位置，否则按工作区宽高等比例换算窗口水平中心和顶部的相对坐标，避免面板高度影响定位；同屏时保留原生窗口的拖动位置。macOS 在窗口创建后、绑定失焦事件和首次显示之前一次性启用跨 Space 可见；后续唤起仅定位、显示和聚焦，不重复设置跨 Space 可见。该设置持续保留，让窗口显示在当前桌面；失焦时仍按原有逻辑隐藏。不依赖 `will-move` 事件，不写入磁盘；重启创建新窗口时复原。重置 IPC 同样限定当前窗口主 frame。注册失败分别记录错误，不阻止另一个快捷键注册；退出时统一释放。
-
-主进程通过 LauncherOpened Gateway 事件通知模式；renderer 的订阅不随模式切换重建，回调通过 effect event 读取最新 UI 状态，避免重订阅空档丢事件。renderer 通过 UpdateLayout 同步实际模式。跨模式切换时清空搜索，搜索／剪贴板复用输入框挂载聚焦和窗口重新聚焦时全选行为；快速对话展开和窗口重新聚焦时聚焦 composer，保留草稿及消息。
-
-旧版参考 `xiaowei-next/xiaowei/src-tauri/src/biz/shortcut/mod.rs` 的 `launcher_shortcut_behavior`、`dispatch_action`，以及 `biz/search/commands.rs` 的 `open_launcher`、`toggle_launcher`；前端参考 `xiaowei/src/pages/launcher/LauncherPage.tsx` 的 `launcher:open` 订阅。旧版主快捷键只切换显隐并保留当前模式；最初按“拉起搜索框”要求将 Cmd+Space 指向搜索模式；2026-09-26 按用户要求改为保留所有模式、仅切换窗口显隐。
+旧版参考 `xiaowei-next/xiaowei/src-tauri/src/biz/shortcut/mod.rs` 的 `launcher_shortcut_behavior`、`dispatch_action`，`biz/search/commands.rs` 的 `open_launcher`、`toggle_launcher`，以及前端 `LauncherPage.tsx` 的 `launcher:open` 订阅。旧版主快捷键保留模式；本事项最初按“拉起搜索框”指向搜索，后按用户要求恢复保留模式语义。主动收起与失焦切走的焦点策略由 [Tray、Dock 与焦点管理](../active/2026-09-28-tray-dock-focus.md) 接管。
 
 ### 原生快捷键与微任务调度
 
@@ -26,11 +22,11 @@
 
 源码依据：[热键回调](https://github.com/electron/electron/blob/v44.3.0/shell/browser/api/electron_api_global_shortcut.cc)、[JS 调用封装](https://github.com/electron/electron/blob/v44.3.0/shell/common/gin_helper/callback.h)、[主进程微任务策略与 Node loop](https://github.com/electron/electron/blob/v44.3.0/shell/common/node_bindings.cc)、[Chromium task observer](https://github.com/electron/electron/blob/v44.3.0/shell/browser/microtasks_runner.cc)、[对应 V8 的 MicrotasksScope 析构](https://chromium.googlesource.com/v8/v8/+/3de6ffffbfdcf265e9f11a5c9d1cfb4d486d7550/src/api/api.cc)。
 
-## Current work
+## Outcome
+
+2026-10-07 按用户要求归档。固定入口已获用户验收，原生微任务调度修复也经真实按键确认；后续配置、注册与菜单交接说明按当前代码提取至 docs/shortcuts.md。保留以下历史结果及实测证据边界，不把后续自定义设置、跨 Space／多屏的未逐项复验改写为全部通过；菜单与焦点相关复验仍由 Tray、Dock 与焦点事项跟进。
 
 2026-09-26 将调度修复收敛到 Gateway Node 事件队列，撤销快捷键业务层 setImmediate 包装，并移除全部临时采样、日志、前端对照开关和 flushSync 尝试。Gateway 回归模拟微任务检查点缺失，覆盖本地／远端事件、取消订阅和浏览器回退；旧实现失败，新实现通过。用户随后验证无调试日志版本的真实按键行为，明确确认卡顿已修复。
-
-## Outcome
 
 2026-09-28 用户确认快捷键预览后接入快速对话设置。支持录制、清除和重复绑定转移；默认绑定归 Rust Settings，宿主不再为空值补固定入口。7 项 Rust 设置测试、4 项设置 UI 测试、12 项快捷键／Launcher Node 测试及 `just check` 通过，Storage napi 构建成功。确认当前工作区进程绝对路径、cwd 与父子关系后执行 `just rs`，10:19:09 新主进程及原生模块正常启动；真实组合键唤起、清除后不再响应与重启后的设置保持待用户复验。
 
