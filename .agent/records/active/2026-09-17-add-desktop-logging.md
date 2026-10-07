@@ -70,7 +70,7 @@ React Native 使用 Metro，不能直接加载 Vite 插件。共享包另提供 
 
 初始化日志已增加搜索与剪贴板业务模块名称；两个 napi debug 包重建成功，8 项 napi 测试通过（包含模块名称与独立回调验证），确认当前工作区实例归属后已执行 `just rs`。
 
-查询日志的可复用流程已登记为 [inspect-desktop-logs](../../skills/inspect-desktop-logs/SKILL.md)，覆盖文件定位、备份查询、按来源和错误筛选，以及缺失日志的排查边界。
+查询日志的可复用流程已登记为 [manage-dev-instances](../../skills/manage-dev-instances/SKILL.md)，覆盖文件定位、备份查询、按来源和错误筛选，以及缺失日志的排查边界。
 
 已实现按天统一文件与 console 输出、20 MiB 时间命名轮转和 15 天清理、级别过滤、renderer 采集及 Rust napi 回调。`just check`、`just test`（63 项 Rust、4 项 napi、3 项桌面日志测试及 Go 测试）通过，napi debug 与桌面生产构建通过。日志测试验证了来源标记与统一写入、console 输出、错误记录、轮转时间命名及同毫秒防覆盖、跨天切换、15 天清理边界与生产级别过滤；napi 测试验证了回调投递和重复初始化。
 

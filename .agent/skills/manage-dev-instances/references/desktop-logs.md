@@ -1,11 +1,4 @@
----
-name: inspect-desktop-logs
-description: >-
-  查询 XiaoWei 桌面日志，按时间、级别和 main、renderer、Rust 来源定位运行问题。
-  用户要求查日志，或排查桌面运行异常需要日志证据时使用；包含 Node worker，不用于 Go 服务端日志。
----
-
-# 查询桌面日志
+# 客户端日志文件回退
 
 ## 定位文件
 
@@ -56,4 +49,4 @@ rg -n -C 5 -F 'Application startup failed' "$log_dir" -g "${log_day}-xiaowei*.lo
 - 缺少 Rust 日志时检查 `crates/xw-napi-log/src/lib.rs` 的 target 过滤，以及对应搜索／剪贴板 napi 包的 `src/logging.rs` 和 `initializeLogging` 接入。两个动态库需分别初始化；共享接收器修改后两者都要重新构建。确认新的 `.node` 已构建且实例已重启；有界异步回调在退出或队列满时可能丢日志，不能把缺日志当作未执行的证明。
 - 文件输出和窗口采集入口在 `desktop/src/main/app/logging.ts`。查日志本身不清空、删除或改写日志，不为查看日志启动 App；需要构建或重启时遵循根 `AGENTS.md` 的原生模块和运行实例规则。
 
-轮转、保留策略与日志链路的完整说明见 [桌面日志 record](../../records/active/2026-09-17-add-desktop-logging.md)。
+轮转、保留策略与日志链路的完整说明见 [桌面日志 record](../../../records/active/2026-09-17-add-desktop-logging.md)。
