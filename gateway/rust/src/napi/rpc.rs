@@ -96,16 +96,20 @@ impl Endpoint {
             }
             session.cancellation.clone()
         };
-        let result = self
-            .registry
-            .dispatch_local_cancellable(
-                &self.owner,
-                &control.route.ok_or_else(argument)?,
-                payload,
-                context.core(),
-                cancellation,
-            )
-            .await;
+        let result = async {
+            let (payload, service_options) = decode_invoke_frame(payload)?;
+            self.registry
+                .dispatch_local_cancellable(
+                    &self.owner,
+                    &control.route.ok_or_else(argument)?,
+                    payload,
+                    context.core(),
+                    cancellation,
+                    service_options,
+                )
+                .await
+        }
+        .await;
         self.rpcs.0.lock().unwrap().remove(&control.rpc_id);
         result
     }
@@ -115,6 +119,7 @@ impl Endpoint {
         route: Route,
         payload: Vec<u8>,
         context: crate::CallContext,
+        service_options: Option<Vec<u8>>,
     ) -> WireResult {
         let id = {
             let mut state = self.state.lock().unwrap();
@@ -127,7 +132,12 @@ impl Endpoint {
             token: context.caller().into(),
             completed: false,
         };
-        let result = self.outbound(lease.control("invoke", Some(route)), payload).await;
+        let result = self
+            .outbound(
+                lease.control("invoke", Some(route)),
+                encode_invoke_frame(payload, service_options)?,
+            )
+            .await;
         lease.completed = true;
         result
     }
@@ -175,4 +185,30 @@ impl Drop for RpcLease {
             }
         });
     }
+}
+
+fn encode_invoke_frame(payload: Vec<u8>, options: Option<Vec<u8>>) -> Result<Vec<u8>, GatewayError> {
+    if options.as_ref().is_some_and(|bytes| bytes.len() > 65_536) {
+        return Err(argument());
+    }
+    let length = options.as_ref().map_or(u32::MAX, |bytes| bytes.len() as u32);
+    let mut frame = Vec::with_capacity(4 + options.as_ref().map_or(0, Vec::len) + payload.len());
+    frame.extend_from_slice(&length.to_le_bytes());
+    if let Some(options) = options {
+        frame.extend_from_slice(&options);
+    }
+    frame.extend_from_slice(&payload);
+    Ok(frame)
+}
+
+fn decode_invoke_frame(frame: Vec<u8>) -> Result<(Vec<u8>, Option<Vec<u8>>), GatewayError> {
+    let length = u32::from_le_bytes(frame.get(..4).ok_or_else(argument)?.try_into().unwrap());
+    if length == u32::MAX {
+        return Ok((frame[4..].to_vec(), None));
+    }
+    let length = length as usize;
+    if length > 65_536 || length > frame.len() - 4 {
+        return Err(argument());
+    }
+    Ok((frame[4 + length..].to_vec(), Some(frame[4..4 + length].to_vec())))
 }

@@ -148,14 +148,14 @@ impl Endpoint {
         state.origin = Some(context);
         let endpoint = Arc::downgrade(self);
         self.registry
-            .set_remote_invoker_cancellable(move |route, payload, context, cancellation| {
+            .set_remote_invoker_cancellable(move |route, payload, context, cancellation, service_options| {
                 let endpoint = endpoint.clone();
                 async move {
                     let endpoint = endpoint.upgrade().ok_or_else(unavailable)?;
                     tokio::select! {
                         biased;
                         _ = cancellation.cancelled() => Err(crate::rpc::cancelled()),
-                        result = endpoint.remote_invoke(route, payload, context) => result,
+                        result = endpoint.remote_invoke(route, payload, context, service_options) => result,
                     }
                 }
             });

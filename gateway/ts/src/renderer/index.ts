@@ -10,7 +10,7 @@ export function createRendererClient(bridge: GatewayBridge) {
   const clientId = crypto.randomUUID();
   let nextId = 0;
   const transport: Transport = {
-    async invoke(route, payload, signal) {
+    async invoke(route, payload, signal, serviceOptions) {
       const id = `rpc:${clientId}:${++nextId}`;
       const abort = () => {
         void bridge
@@ -20,7 +20,7 @@ export function createRendererClient(bridge: GatewayBridge) {
             console.error("Gateway RPC cancellation failed", error);
           });
       };
-      const pending = bridge.request({ operation: "invoke", id, route, payload });
+      const pending = bridge.request({ operation: "invoke", id, route, payload, serviceOptions });
       signal?.addEventListener("abort", abort, { once: true });
       if (signal?.aborted) abort();
       try {

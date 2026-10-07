@@ -82,6 +82,7 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
           method: "POST",
           logPath: "/api/another/:id",
           signal: caller.signal,
+          timeoutMs: 15_000,
           body: JSON.stringify({ foo: secrets }),
           token: secrets[1],
         },
@@ -100,7 +101,12 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
       assert.equal(calls[1].level, tc.level);
       assert.ok(String(calls[1].args[0]).startsWith("HTTP request completed "));
       const started = logFields(calls[0].args);
-      assert.deepEqual(started, { method: "POST", path: "/api/another/:id", server: "https://example.test:10001" });
+      assert.deepEqual(started, {
+        method: "POST",
+        path: "/api/another/:id",
+        timeout_ms: 15_000,
+        server: "https://example.test:10001",
+      });
       const metadata = logFields(calls[1].args);
       assert.ok(!Object.hasOwn(metadata, "outcome"));
       assert.equal(metadata.path, "/api/another/:id");
@@ -146,6 +152,7 @@ test("a real stalled HTTP request times out with one safe error log", async (t) 
       method: "GET",
       logPath: "/api/never",
       signal: new AbortController().signal,
+      timeoutMs: 50,
     }),
     (error: unknown) => error instanceof HttpRequestError && error.outcome === "timeout",
   );
@@ -153,7 +160,7 @@ test("a real stalled HTTP request times out with one safe error log", async (t) 
   assert.ok(String(logs[1][0]).startsWith("HTTP request completed "));
   const metadata = logFields(logs[1]);
   assert.ok(!Object.hasOwn(metadata, "outcome"));
-  assert.ok(Number(metadata.duration_ms) >= 9_900 && Number(metadata.duration_ms) < 15_000);
+  assert.ok(Number(metadata.duration_ms) >= 40 && Number(metadata.duration_ms) < 1000);
   assert.ok(!Object.hasOwn(metadata, "code") && !Object.hasOwn(metadata, "http_status"));
 });
 

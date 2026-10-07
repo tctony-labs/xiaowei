@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
 import { bindClient, bindHandlers, bindStreamClient, methodRoute } from "../../src/binding/index.js";
+import { decodeInvokeFrame, encodeInvokeFrame } from "../../src/core/invoke-frame.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";
 import { attachRustNapi, type RustNapiEndpoint } from "../../src/main/rust-napi.js";
@@ -176,11 +177,13 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
   for (const mode of ["reject", "throw", "pending", "echo"] as const) {
     const endpoint = search.createGatewayEndpoint();
     endpoint.bind(
-      (_control, payload) => {
+      (control, payload) => {
         if (mode === "throw") throw new Error("private message");
         if (mode === "reject") return Promise.reject("private message");
         if (mode === "pending") return new Promise(() => {});
-        return Promise.resolve(payload);
+        return Promise.resolve(
+          JSON.parse(control).operation === "invoke" ? Buffer.from(decodeInvokeFrame(payload).payload) : payload,
+        );
       },
       JSON.stringify({ token: "test", trusted: true }),
     );
@@ -366,7 +369,7 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
     endpoint.bind(async () => Buffer.alloc(0), own);
     read(await endpoint.activate());
     const control = (operation: string) =>
-      JSON.stringify({ version: 2, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
+      JSON.stringify({ version: 3, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
     read(
       await endpoint.streamControl(
         control("stream.open"),
@@ -429,7 +432,7 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
   endpoint.bind(async () => Buffer.alloc(0), context);
   read(await endpoint.activate());
   const control = (operation: string) =>
-    JSON.stringify({ version: 2, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
+    JSON.stringify({ version: 3, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
   try {
     const pending = endpoint.streamControl(
       control("stream.open"),
@@ -450,7 +453,7 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
     read(await endpoint.close());
   }
   const metadata = JSON.stringify({
-    version: 2,
+    version: 3,
     operation: "stream.open",
     streamId: "pending",
     route: methodRoute(Fixture.method.watch),
@@ -509,8 +512,8 @@ test("unary cancellation reaches native work without releasing admission early",
     await assert.rejects(rpc, isCode("CANCELLED"));
 
     const meta = JSON.stringify({ token: "owner", trusted: true });
-    const control = (operation: string) => JSON.stringify({ version: 2, operation, rpcId: "immediate", route: echo });
-    const immediate = a.rpcControl(control("invoke"), bytes("wait"), meta);
+    const control = (operation: string) => JSON.stringify({ version: 3, operation, rpcId: "immediate", route: echo });
+    const immediate = a.rpcControl(control("invoke"), Buffer.from(encodeInvokeFrame(bytes("wait"))), meta);
     const stranger = JSON.stringify({ token: "other-caller", trusted: true });
     assert.equal(readError(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), stranger)), "UNAUTHORIZED");
     read(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), meta));
@@ -559,5 +562,33 @@ test("unary cancellation crosses Rust reentry back to main with the original cal
   } finally {
     stop();
     await handle.close();
+  }
+});
+
+test("service options cross napi in both directions without changing business bytes", async () => {
+  const host = new GatewayHost();
+  const native = search.createGatewayFixture();
+  const attached = await attachRustNapi(host, "options-native", native);
+  const local = host.registerOwner(
+    "options-main",
+    bindHandlers(
+      PeerFixture,
+      {
+        echo(request, client) {
+          return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+        },
+      },
+      { optionsSchema: EnvelopeSchema },
+    ),
+  );
+  const api = bindClient(Fixture, host.client({ caller: "options-test", trusted: true }), {
+    optionsSchema: EnvelopeSchema,
+  });
+  try {
+    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options", id: 1n }), { id: 77n })).id, 77n);
+    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options-relay", id: 1n }), { id: 88n })).id, 88n);
+  } finally {
+    local.close();
+    await attached.close();
   }
 });

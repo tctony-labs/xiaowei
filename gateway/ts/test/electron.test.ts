@@ -185,7 +185,7 @@ test("Electron stream next/cancel and navigation during open release producers w
       kind: "serverStreaming",
       input: "testing.Envelope",
       output: "testing.Changed",
-      controlVersion: 2,
+      controlVersion: 3,
       contractVersion: 1,
     },
     payload: Uint8Array.of(10, 4, 111, 112, 101, 110),
@@ -439,4 +439,32 @@ test("Electron unary cancel cannot cross frames or recreated clients, and naviga
   assert.equal(signals[1].aborted, true);
   release();
   adapter.close();
+});
+
+test("Electron transfers service options separately from business bytes", async () => {
+  const { host, frame, adapter } = fixture();
+  const owner = host.registerOwner(
+    "options",
+    bindHandlers(
+      Fixture,
+      {
+        echo(request, client) {
+          return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+        },
+      },
+      { optionsSchema: EnvelopeSchema },
+    ),
+  );
+  const renderer = frame();
+  try {
+    const api = bindClient(Fixture, renderer.client, { optionsSchema: EnvelopeSchema });
+    assert.equal((await api.echo(create(EnvelopeSchema, { id: 1n }), { id: 99n })).id, 99n);
+    const call = renderer.requests.find((request) => request.operation === "invoke");
+    assert.ok(call?.payload instanceof Uint8Array);
+    assert.ok(call?.serviceOptions instanceof Uint8Array);
+    assert.notDeepEqual(call.payload, call.serviceOptions);
+  } finally {
+    owner.close();
+    adapter.close();
+  }
 });

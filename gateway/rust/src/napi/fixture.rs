@@ -55,7 +55,9 @@ impl Fixture {
         } else {
             &bindings::testing_peer_fixture_service::ECHO
         };
-        let mut registration = method.handler(move |mut request, client| {
+        let configured = crate::binding::Method::<Envelope, Envelope>::new(method.name, MethodKind::Unary)
+            .with_options::<Envelope>();
+        let mut registration = configured.handler(move |mut request, client| {
             let gate = gate.clone();
             let usage = usage.clone();
             async move {
@@ -77,6 +79,19 @@ impl Fixture {
                             }
                         }
                         return Ok(result);
+                    }
+                    "options" => {
+                        if let Some(options) = client.options::<Envelope>()? {
+                            request.id = options.id;
+                        }
+                    }
+                    "options-relay" => {
+                        let options = client.options::<Envelope>()?;
+                        request.text = "options".into();
+                        return crate::binding::Method::<Envelope, Envelope>::new(other.name, MethodKind::Unary)
+                            .with_options::<Envelope>()
+                            .call(&client, request, options)
+                            .await;
                     }
                     "wait" => gate.notified().await,
                     "cancel-relay" => {

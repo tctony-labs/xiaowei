@@ -12,6 +12,7 @@ import {
   AccountSnapshotSchema,
   AccountStatus,
   AddServerRequestSchema,
+  Auth,
   CancelAccountLoginRequestSchema,
   EmptySchema,
   ErrorCode,
@@ -22,10 +23,9 @@ import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { AccountError } from "../../src/main/services/account/errors";
 import { registerAccount } from "../../src/main/services/account/gateway";
-import { AccountService } from "../../src/main/services/account/service";
 import { type AccountDocument, AccountStore } from "../../src/main/services/account/store";
 import { XwapiService } from "../../src/main/services/xwapi/service";
-import { accountMeta, authServer } from "./account-fixture";
+import { accountMeta, authServer, openAccount } from "./account-fixture";
 
 test("Gateway login saves JSON credentials, omits the password and restores the same device", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "account-runtime-"));
@@ -33,8 +33,8 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   const path = join(directory, "auth.json");
   const meta = await accountMeta(t, directory);
   const store = new AccountStore(path, meta);
-  const service = await AccountService.open({ store, deviceName: "test" });
   const host = new GatewayHost();
+  const service = await openAccount(t, { store, deviceName: "test" }, host);
   const owner = registerAccount(host, service);
   t.after(async () => {
     await owner.close();
@@ -95,7 +95,7 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   }
   assert.equal((await stat(path)).mode & 0o777, 0o600);
   await owner.close();
-  const reopened = await AccountService.open({ store: new AccountStore(path, meta), deviceName: "test" });
+  const reopened = await openAccount(t, { store: new AccountStore(path, meta), deviceName: "test" });
   t.after(() => reopened.close());
   assert.equal(reopened.snapshot().status, AccountStatus.RESTORING);
   await reopened.restore();
@@ -116,7 +116,7 @@ test("offline retains the session; concurrent restore rotates once; revoked cred
   const server = await authServer();
   let now = server.state.now;
   const store = new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory));
-  const service = await AccountService.open({ store, deviceName: "test", now: () => now });
+  const service = await openAccount(t, { store, deviceName: "test", now: () => now });
   await service.addServer(server.url);
   t.after(async () => {
     await service.close();
@@ -161,7 +161,7 @@ test("offline retains the session; concurrent restore rotates once; revoked cred
   assert.equal(service.snapshot().user, undefined);
 });
 
-test("switching servers discards and revokes a late login; stale cancellation cannot cancel a newer attempt", async (t) => {
+test("switching servers discards cancelled login results; stale cancellation cannot cancel a newer attempt", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "account-switch-"));
   const server = await authServer();
   let release: (() => void) | undefined;
@@ -176,20 +176,24 @@ test("switching servers discards and revokes a late login; stale cancellation ca
     received?.();
     await paused;
   };
-  // Simulate a response that wins the network cancellation race.
+  // Deliberately ignore network cancellation. The local RPC still discards the late result.
   const http = new XwapiService((url, options) =>
     fetch(url, {
       ...options,
       signal: String(url).endsWith("/login") ? undefined : options?.signal,
     }),
   );
-  const service = await AccountService.open({
-    store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
-    api: http,
-    deviceName: "test",
-  });
-  await service.addServer(server.url);
   const host = new GatewayHost();
+  const service = await openAccount(
+    t,
+    {
+      store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
+      api: http,
+      deviceName: "test",
+    },
+    host,
+  );
+  await service.addServer(server.url);
   const owner = registerAccount(host, service);
   const api = bindClient(Account, host.client({ caller: "test", trusted: true }));
   t.after(async () => {
@@ -215,7 +219,7 @@ test("switching servers discards and revokes a late login; stale cancellation ca
   assert.equal((await selected).code, 0);
   assert.equal(service.snapshot().selectedServer, target);
   assert.equal(service.snapshot().user, undefined);
-  assert.equal(server.state.logouts, 1);
+  assert.equal(server.state.logouts, 0, "a discarded response supplies no credentials for revocation");
   assert.ok(server.state.requests.every((entry) => entry.path.startsWith("/xiaowei/api/auth/")));
   await api.selectServer(create(SelectServerRequestSchema, { serverAddress: server.url }));
   const newLogin = api.login(
@@ -261,7 +265,7 @@ test("rotation retains new tokens on persistence failure and retries saving with
   }
   const store = new FaultStore(join(directory, "auth.json"), await accountMeta(t, directory));
   let now = server.state.now;
-  const service = await AccountService.open({ store, deviceName: "test", now: () => now });
+  const service = await openAccount(t, { store, deviceName: "test", now: () => now });
   await service.addServer(server.url);
   t.after(async () => {
     await service.close();
@@ -294,4 +298,89 @@ test("rotation retains new tokens on persistence failure and retries saving with
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
   const saved = (await store.load()).session;
   assert.equal(saved?.authenticated.tokens?.refreshToken, server.state.tokens.refreshToken);
+});
+
+test("received login credentials are revoked through Gateway when saving fails, without becoming public", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-uncommitted-"));
+  const server = await authServer();
+  const host = new GatewayHost();
+  class RejectSessionStore extends AccountStore {
+    override async save(document: AccountDocument) {
+      if (document.session) throw new AccountError(ErrorCode.INTERNAL_ERROR, "模拟凭据保存失败");
+      return super.save(document);
+    }
+  }
+  const publicAuth = bindClient(Auth, host.client({ caller: "public-auth", trusted: true }));
+  const http = new XwapiService(async (url, options) => {
+    if (String(url).endsWith("/logout")) {
+      assert.equal((await publicAuth.getCurrentUser(create(EmptySchema))).code, ErrorCode.UNAUTHENTICATED);
+    }
+    return fetch(url, options);
+  });
+  const service = await openAccount(
+    t,
+    {
+      store: new RejectSessionStore(join(directory, "auth.json"), await accountMeta(t, directory)),
+      deviceName: "test",
+      api: http,
+    },
+    host,
+  );
+  await service.addServer(server.url);
+  t.after(async () => {
+    await server.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const result = await service.login(
+    create(AccountLoginRequestSchema, {
+      serverAddress: server.url,
+      password: { email: "user@example.test", password: "  sample  " },
+      attemptId: randomUUID(),
+    }),
+  );
+  assert.equal(result.code, ErrorCode.INTERNAL_ERROR);
+  assert.equal(result.snapshot?.status, AccountStatus.SIGNED_OUT);
+  assert.equal(result.snapshot?.user, undefined);
+  assert.equal(server.state.logouts, 1);
+  assert.equal(server.state.requests.at(-1)?.bearer, `Bearer ${server.state.tokens.accessToken}`);
+  assert.equal((await publicAuth.getCurrentUser(create(EmptySchema))).code, ErrorCode.UNAUTHENTICATED);
+});
+
+test("Account nested authentication preserves the caller's Gateway permissions", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-permissions-"));
+  const server = await authServer();
+  const host = new GatewayHost();
+  const service = await openAccount(
+    t,
+    {
+      store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
+      deviceName: "test",
+    },
+    host,
+  );
+  await service.addServer(server.url);
+  const owner = registerAccount(host, service);
+  t.after(async () => {
+    await owner.close();
+    await server.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const api = bindClient(
+    Account,
+    host.client({
+      caller: "limited-account-ui",
+      trusted: false,
+      invoke: [`${Account.typeName}.Login`],
+    }),
+  );
+  const result = await api.login(
+    create(AccountLoginRequestSchema, {
+      serverAddress: server.url,
+      password: { email: "user@example.test", password: "  sample  " },
+      attemptId: randomUUID(),
+    }),
+  );
+  assert.equal(result.code, ErrorCode.PERMISSION_DENIED);
+  assert.equal(server.state.requests.length, 0);
+  assert.equal(service.snapshot().status, AccountStatus.SIGNED_OUT);
 });

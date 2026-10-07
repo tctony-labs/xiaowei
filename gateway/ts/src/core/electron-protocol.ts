@@ -9,6 +9,7 @@ export interface ElectronRequest {
   route?: Route;
   event?: string;
   payload?: Uint8Array;
+  serviceOptions?: Uint8Array;
   filter?: Uint8Array;
   persistent?: boolean;
 }

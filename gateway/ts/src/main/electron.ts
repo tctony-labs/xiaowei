@@ -85,7 +85,13 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
             const controller = new AbortController();
             session.calls.set(id, controller);
             try {
-              const result = await host.invoke(session.context, request.route, payload, controller.signal);
+              const result = await host.invoke(
+                session.context,
+                request.route,
+                payload,
+                controller.signal,
+                request.serviceOptions,
+              );
               return session.closed ? failure("OWNER_UNAVAILABLE", "frame closed") : result;
             } finally {
               if (session.calls.get(id) === controller) session.calls.delete(id);

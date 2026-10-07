@@ -574,3 +574,37 @@ test("unary cancellation propagates through nested clients and caller teardown",
   host.cleanupCaller("test");
   await closed;
 });
+
+test("service options are independent PB, optional, and rejected by services without a schema", async () => {
+  const host = new GatewayHost();
+  const client = host.client({ caller: "options", trusted: true });
+  const owner = host.registerOwner(
+    "options",
+    bindHandlers(
+      Fixture,
+      {
+        echo(request, client) {
+          const options = client.options(EnvelopeSchema);
+          return create(EnvelopeSchema, { ...request, id: options?.id ?? request.id });
+        },
+      },
+      { optionsSchema: EnvelopeSchema },
+    ),
+  );
+  const api = bindClient(Fixture, client, { optionsSchema: EnvelopeSchema });
+  const input = create(EnvelopeSchema, { id: 1n, text: "business payload" });
+  assert.equal((await api.echo(input, { id: 42n })).id, 42n);
+  assert.equal((await api.echo(input)).id, 1n);
+  assert.equal(input.id, 1n);
+  await assert.rejects(
+    client.invoke(methodRoute(Fixture.method.echo), toBinary(EnvelopeSchema, input), Uint8Array.of(255)),
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+  );
+  owner.close();
+  const plain = host.registerOwner("plain", bindHandlers(Fixture, { echo: (request) => request }));
+  await assert.rejects(
+    api.echo(input, {}),
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+  );
+  plain.close();
+});

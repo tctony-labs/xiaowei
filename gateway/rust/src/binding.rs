@@ -53,6 +53,13 @@ where
         }
     }
 
+    pub fn with_options<O: Message + Default + Name + 'static>(self) -> OptionsMethod<Req, Res, O> {
+        OptionsMethod {
+            method: self,
+            marker: PhantomData,
+        }
+    }
+
     pub fn call(&self, client: &Client, request: Req) -> crate::Rpc<Res> {
         client.invoke(&self.route(), request.encode_to_vec()).map(|bytes| {
             Res::decode(bytes.as_slice())
@@ -74,6 +81,49 @@ where
                 Ok(handler(request, client).await?.encode_to_vec())
             }
         })
+    }
+}
+
+/// A unary binding with an independent, service-defined options codec.
+pub struct OptionsMethod<Req, Res, O> {
+    method: Method<Req, Res>,
+    marker: PhantomData<fn(O)>,
+}
+
+impl<Req, Res, O> OptionsMethod<Req, Res, O>
+where
+    Req: Message + Default + Name + 'static,
+    Res: Message + Default + Name + 'static,
+    O: Message + Default + Name + 'static,
+{
+    pub fn call(&self, client: &Client, request: Req, options: Option<O>) -> crate::Rpc<Res> {
+        client
+            .invoke_with_options(
+                &self.method.route(),
+                request.encode_to_vec(),
+                options.map(|o| o.encode_to_vec()),
+            )
+            .map(|bytes| {
+                Res::decode(bytes.as_slice())
+                    .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf"))
+            })
+    }
+
+    pub fn handler<F, Fut>(&self, handler: F) -> InvokeRegistration
+    where
+        F: Fn(Req, Client) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Res, GatewayError>> + Send + 'static,
+    {
+        let handler = std::sync::Arc::new(handler);
+        let mut registration = self.method.handler(move |request, client| {
+            let handler = handler.clone();
+            async move {
+                client.options::<O>()?;
+                handler(request, client).await
+            }
+        });
+        registration.options_schema = Some(O::full_name());
+        registration
     }
 }
 

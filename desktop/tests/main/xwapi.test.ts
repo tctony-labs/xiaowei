@@ -14,14 +14,14 @@ import {
   Health,
   LoginRequestSchema,
   RefreshRequestSchema,
+  XwApiOptionsSchema,
 } from "xiaowei-contracts";
 import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { AccountService } from "../../src/main/services/account/service";
 import { AccountStore } from "../../src/main/services/account/store";
 import { registerXwapi } from "../../src/main/services/xwapi/gateway";
 import { type XwapiContext, XwapiService } from "../../src/main/services/xwapi/service";
-import { accountMeta, authServer } from "./account-fixture";
+import { accountMeta, authServer, openAccount } from "./account-fixture";
 
 const empty = create(EmptySchema);
 
@@ -104,17 +104,19 @@ test("raw authentication responses leave Account state and persisted credentials
   const server = await authServer();
   const path = join(directory, "auth.json");
   const api = new XwapiService();
-  const account = await AccountService.open({
-    store: new AccountStore(path, await accountMeta(t, directory)),
-    deviceName: "test",
-    api,
-  });
-  await account.addServer(server.url);
   const host = new GatewayHost();
-  const owner = registerXwapi(host, api, () => account.serverContext());
+  const account = await openAccount(
+    t,
+    {
+      store: new AccountStore(path, await accountMeta(t, directory)),
+      deviceName: "test",
+      api,
+    },
+    host,
+  );
+  await account.addServer(server.url);
   const auth = bindClient(Auth, host.client({ caller: "raw-auth-test", trusted: true }));
   t.after(async () => {
-    await owner.close();
     await account.close();
     await server.close();
     await rm(directory, { recursive: true, force: true });
@@ -267,5 +269,68 @@ test("owner close aborts and drains a real request, is idempotent, and removes r
     release();
     await owner.close();
     await server.close();
+  }
+});
+
+test("xwapi applies a small timeout from independent Gateway options", async (t) => {
+  const server = await authServer();
+  const host = new GatewayHost();
+  const owner = registerXwapi(host, new XwapiService(), () => ({ server: server.url }));
+  const auth = bindClient(Auth, host.client({ caller: "timeout-test", trusted: true }), {
+    optionsSchema: XwApiOptionsSchema,
+  });
+  let release!: () => void;
+  server.state.beforeLogin = () =>
+    new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  const logs: string[] = [];
+  t.mock.method(console, "debug", (text: string) => logs.push(text));
+  t.mock.method(console, "error", (text: string) => logs.push(text));
+  try {
+    const result = await auth.login(
+      create(LoginRequestSchema, {
+        deviceId: randomUUID(),
+        credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+      }),
+      { timeoutMs: 50 },
+    );
+    assert.equal(result.code, ErrorCode.UNAVAILABLE);
+    assert.equal(result.data, undefined);
+    assert.ok(logs.some((text) => text.includes("timeout_ms=50")));
+    assert.equal(server.state.requests.length, 1);
+    const completed = logs.find((text) => text.includes("HTTP request completed"));
+    assert.ok(Number(completed?.match(/duration_ms=(\d+)/)?.[1]) >= 40);
+  } finally {
+    release?.();
+    await owner.close();
+    await server.close();
+  }
+});
+
+test("xwapi defaults to 15000 and zero omits the HTTP timeout signal", async (t) => {
+  const durations: number[] = [];
+  const original = AbortSignal.timeout;
+  t.mock.method(AbortSignal, "timeout", (duration: number) => {
+    durations.push(duration);
+    return original(duration);
+  });
+  const host = new GatewayHost();
+  const owner = registerXwapi(
+    host,
+    new XwapiService(async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: { status: "ok" } }))),
+    () => ({ server: "https://example.test" }),
+  );
+  const health = bindClient(Health, host.client({ caller: "default-timeout", trusted: true }), {
+    optionsSchema: XwApiOptionsSchema,
+  });
+  try {
+    assert.equal((await health.check(empty)).code, 0);
+    assert.deepEqual(durations, [15_000]);
+    assert.equal((await health.check(empty, { timeoutMs: 0 })).code, 0);
+    assert.deepEqual(durations, [15_000]);
+    assert.equal((await health.check(empty, { timeoutMs: 2_147_483_648 })).code, ErrorCode.INVALID_ARGUMENT);
+  } finally {
+    await owner.close();
   }
 });

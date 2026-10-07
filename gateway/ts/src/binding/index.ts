@@ -6,6 +6,7 @@ import {
   type DescService,
   fromBinary,
   type Message,
+  type MessageInitShape,
   type MessageShape,
   toBinary,
 } from "@bufbuild/protobuf";
@@ -31,8 +32,12 @@ export function methodRoute(method: DescService["methods"][number]): Route {
 type UnaryKey<S extends DescService> = {
   [K in keyof S["method"]]: S["method"][K] extends DescMethodUnary ? K : never;
 }[keyof S["method"]];
-export type ServiceClient<S extends DescService> = {
-  [K in UnaryKey<S>]: (request: MessageShape<S["method"][K]["input"]>) => Rpc<MessageShape<S["method"][K]["output"]>>;
+export type ServiceClient<S extends DescService, O extends DescMessage | undefined = undefined> = {
+  [K in UnaryKey<S>]: (
+    ...args: O extends DescMessage
+      ? [request: MessageShape<S["method"][K]["input"]>, options?: MessageInitShape<O>]
+      : [request: MessageShape<S["method"][K]["input"]>]
+  ) => Rpc<MessageShape<S["method"][K]["output"]>>;
 };
 export type ServiceHandlers<S extends DescService> = {
   [K in UnaryKey<S>]: (
@@ -40,11 +45,15 @@ export type ServiceHandlers<S extends DescService> = {
     client: Client,
   ) => MessageShape<S["method"][K]["output"]> | Promise<MessageShape<S["method"][K]["output"]>>;
 };
-export function bindClient<S extends DescService>(service: S, client: Client): ServiceClient<S> {
+export function bindClient<S extends DescService, O extends DescMessage | undefined = undefined>(
+  service: S,
+  client: Client,
+  config: { optionsSchema?: O } = {},
+): ServiceClient<S, O> {
   const methods: Record<string, unknown> = {};
   for (const method of service.methods) {
     if (method.methodKind !== "unary") continue;
-    methods[method.localName] = (request: MessageShape<typeof method.input>) =>
+    methods[method.localName] = (request: MessageShape<typeof method.input>, options?: MessageInitShape<DescMessage>) =>
       createRpc(async (signal) => {
         let bytes: Uint8Array;
         try {
@@ -52,7 +61,20 @@ export function bindClient<S extends DescService>(service: S, client: Client): S
         } catch {
           throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
         }
-        const rpc = client.invoke(methodRoute(method), bytes);
+        let serviceOptions: Uint8Array | undefined;
+        if (options !== undefined) {
+          if (!config.optionsSchema)
+            throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "service has no options schema" });
+          try {
+            serviceOptions = toBinary(
+              config.optionsSchema as DescMessage,
+              create(config.optionsSchema as DescMessage, options),
+            );
+          } catch {
+            throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid service options" });
+          }
+        }
+        const rpc = client.invoke(methodRoute(method), bytes, serviceOptions);
         const abort = () => {
           rpc.cancel();
         };
@@ -70,18 +92,22 @@ export function bindClient<S extends DescService>(service: S, client: Client): S
         }
       });
   }
-  return Object.freeze(methods) as ServiceClient<S>;
+  return Object.freeze(methods) as ServiceClient<S, O>;
 }
-export function bindHandlers<S extends DescService>(service: S, handlers: ServiceHandlers<S>): Registration[];
 export function bindHandlers<S extends DescService>(
   service: S,
-  handlers: Partial<ServiceHandlers<S>>,
-  options: { partial: true },
+  handlers: ServiceHandlers<S>,
+  options?: { partial?: false; optionsSchema?: DescMessage },
 ): Registration[];
 export function bindHandlers<S extends DescService>(
   service: S,
   handlers: Partial<ServiceHandlers<S>>,
-  options: { partial?: boolean } = {},
+  options: { partial: true; optionsSchema?: DescMessage },
+): Registration[];
+export function bindHandlers<S extends DescService>(
+  service: S,
+  handlers: Partial<ServiceHandlers<S>>,
+  options: { partial?: boolean; optionsSchema?: DescMessage } = {},
 ): Registration[] {
   for (const method of service.methods) methodRoute(method);
   return service.methods
@@ -95,6 +121,7 @@ export function bindHandlers<S extends DescService>(
       if (!handler) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing unary handler" });
       return {
         route,
+        optionsSchema: options.optionsSchema?.typeName,
         handler: async (bytes, client) => {
           let request: MessageShape<typeof method.input>;
           try {
@@ -102,6 +129,7 @@ export function bindHandlers<S extends DescService>(
           } catch {
             throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
           }
+          if (options.optionsSchema) client.options(options.optionsSchema);
           const response = await handler(request, client);
           try {
             return toBinary(method.output, response);

@@ -16,6 +16,8 @@ const response = await rpc;
 
 本地先接受的完成或取消决定终态，取消先到时 await 抛出 code 为 `CANCELLED` 的 GatewayFailure。取消后仍需处理结果 Promise 的 rejection；cancel() 返回时不保证远端实际工作已退出。行为与资源边界见 [请求生命周期](../../docs/gateway.md#unary-rpc-句柄与取消)。
 
+需要 unary service options 时，为 bindClient 与 bindHandlers 显式传入 `{ optionsSchema }`；调用使用 `api.method(request, options?)`，handler 使用 `client.options(schema)`。普通 service 不配置 schema，保持单参数调用。选项与业务 payload 分开编码，不自动继承到嵌套调用，具体机制见 [service options](../../docs/gateway.md#unary-service-options)。
+
 ## 响应流
 
 TS 原始 client 使用 `await client.stream(route, requestBytes, { signal })`；PB client 使用 `bindStreamClient(service, client)`，按方法调用后返回 typed `ResponseStream`。`bindStreamHandlers` 只生成 streaming 注册项，`bindHandlers` 只生成 unary 注册项，两者可合并后一次注册。handler 从注入 client 获取原权限上下文及 AbortSignal。

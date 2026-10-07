@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { contextPermissions } from "../core/context.js";
+import { decodeInvokeFrame, encodeInvokeFrame } from "../core/invoke-frame.js";
 import {
   CONTROL_VERSION,
   type EventSink,
@@ -178,6 +179,7 @@ export async function attachRustNapi(
       name,
       manifest.routes.map((route) => ({
         route,
+        optionsSchema: route.optionsSchema,
         timeoutMs: route.timeoutMs,
         maxConcurrency: route.maxConcurrency,
         streamPolicy: route.streamPolicy,
@@ -259,7 +261,7 @@ export async function attachRustNapi(
               },
       })),
       events,
-      async (route, payload, context, signal) => {
+      async (route, payload, context, signal, serviceOptions) => {
         if (!ready || closed) return failure("OWNER_UNAVAILABLE", "Rust napi endpoint unavailable");
         return withContext(context, async (metadata) => {
           const id = `rpc:${++nextId}`;
@@ -279,7 +281,11 @@ export async function attachRustNapi(
               .catch((error) => console.error("Gateway native RPC cancellation failed", error));
           };
           // The addon installs the invocation slot synchronously before returning its Promise.
-          const pending = endpoint.rpcControl(control("invoke"), Buffer.from(payload), metadata);
+          const pending = endpoint.rpcControl(
+            control("invoke"),
+            Buffer.from(encodeInvokeFrame(payload, serviceOptions)),
+            metadata,
+          );
           signal?.addEventListener("abort", abort, { once: true });
           if (signal?.aborted) abort();
           try {
@@ -339,7 +345,16 @@ export async function attachRustNapi(
               const slot = { token: control.contextToken, controller: new AbortController() };
               rpcs.set(id, slot);
               try {
-                return encode(await host.invoke(context, control.route, payload, slot.controller.signal));
+                const frame = decodeInvokeFrame(payload);
+                return encode(
+                  await host.invoke(
+                    context,
+                    control.route,
+                    frame.payload,
+                    slot.controller.signal,
+                    frame.serviceOptions,
+                  ),
+                );
               } finally {
                 if (rpcs.get(id) === slot) rpcs.delete(id);
               }

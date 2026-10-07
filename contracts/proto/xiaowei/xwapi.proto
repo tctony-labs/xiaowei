@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package xiaowei.xwapi;
+
+// Request/response messages and service descriptors are defined in xiaowei/server/*.proto.
+// This file only defines local xwapi execution options, encoded independently
+// from the server request payload and never sent as part of the server request.
+message XwApiOptions {
+  // HTTP request timeout in milliseconds. Absent uses 15000.
+  // Gateway execution timeout still applies, including when zero is supplied.
+  // Zero disables only the HTTP timeout. Positive values must not exceed 2147483647.
+  optional uint32 timeout_ms = 1;
+}

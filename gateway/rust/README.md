@@ -10,6 +10,8 @@ Rust `binding::generate_methods(descriptor, types)` 消费契约的 `FileDescrip
 
 unary handler 签名仍为 `(request, client)`，通过 `client.context()` 获取上下文，通过 `client.cancellation()` 获取 CancelHandle；需要合作中止时使用 `cancelled().await`／`is_cancelled()`。注入 client 的嵌套 unary 保留权限并继承取消通知，实际未结束的工作继续持有并发许可。共同语义见 [Unary RPC](../../docs/gateway.md#unary-rpc-句柄与取消)。
 
+需要 unary service options 时，使用 `METHOD.with_options::<Options>()` 同时建立调用／handler 绑定；调用为 `call(&client, request, Option<Options>)`，handler 通过 `client.options::<Options>()?` 读取。普通 Method 保持原调用接口，未声明 schema 的方法拒绝额外选项。选项与业务 PB 独立编码，机制见 [service options](../../docs/gateway.md#unary-service-options)。
+
 ## 响应流
 
 Rust 使用生成的 `StreamMethod::stream` 返回 `TypedResponseStream<Chunk>`，实现 `Stream<Item = Result<Chunk, GatewayError>>`，并提供 `cancel()`／可克隆的 `cancel_handle()`；drop 也会发起取消。本地命中直接 poll Rust producer，不经 JS。

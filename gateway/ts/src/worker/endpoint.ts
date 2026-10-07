@@ -57,6 +57,7 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
   const manifest: Manifest = {
     routes: [...entries.values()].map((r) => ({
       ...r.route,
+      optionsSchema: r.optionsSchema,
       timeoutMs: r.timeoutMs,
       maxConcurrency: r.maxConcurrency,
       streamPolicy: r.streamPolicy,
@@ -79,12 +80,12 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
     closing = execution.drained();
     return closing;
   };
-  const client = (context: Metadata, localContext: CallContext, signal: AbortSignal) =>
+  const client = (context: Metadata, localContext: CallContext, signal: AbortSignal, serviceOptions?: Uint8Array) =>
     createClient(
       {
-        async invoke(route, payload, signal) {
+        async invoke(route, payload, signal, serviceOptions) {
           try {
-            const value = await rpcs.invoke(route, payload, { token: context.token }, signal);
+            const value = await rpcs.invoke(route, payload, { token: context.token }, signal, serviceOptions);
             return { ok: true, value };
           } catch (error) {
             return executionError(error);
@@ -95,7 +96,7 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
           throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker events unsupported" });
         },
       },
-      { context: localContext, signal },
+      { context: localContext, signal, serviceOptions },
     );
   const handler = async (command: Command, accept: (timeoutMs: number) => void): Promise<unknown> => {
     if (command.op === "close") return close();
@@ -123,6 +124,8 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
         : accepts({ ...registration.route, kind: "unary" }, { ...command.route, kind: "unary" });
     unwrap(compatible);
     if (command.op === "invoke") {
+      if (command.serviceOptions !== undefined && !registration.optionsSchema)
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "service has no options" });
       accept(registration.timeoutMs);
       return rpcs.serve(command, async (signal) =>
         unwrap(
@@ -130,7 +133,7 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
             registration,
             owner,
             context,
-            (signal) => client(command.context, context, signal),
+            (signal) => client(command.context, context, signal, command.serviceOptions),
             command.payload,
             signal,
           ),

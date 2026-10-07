@@ -15,10 +15,12 @@ use crate::stream::{self, Admission, ByteStream, RemoteStream, StreamHandler, St
 
 type InvokeFuture = Pin<Box<dyn Future<Output = WireResult> + Send>>;
 pub type InvokeHandler = Arc<dyn Fn(Vec<u8>, Client) -> InvokeFuture + Send + Sync>;
-type RemoteInvoker = Arc<dyn Fn(Route, Vec<u8>, CallContext, CancelHandle) -> InvokeFuture + Send + Sync>;
+type RemoteInvoker =
+    Arc<dyn Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> InvokeFuture + Send + Sync>;
 
 pub struct InvokeRegistration {
     pub route: Route,
+    pub options_schema: Option<String>,
     pub timeout: Duration,
     pub max_concurrency: usize,
     pub handler: Option<InvokeHandler>,
@@ -36,6 +38,7 @@ impl InvokeRegistration {
             route,
             stream_handler: None,
             stream_policy: StreamPolicy::default(),
+            options_schema: None,
             timeout: Duration::from_secs(30),
             max_concurrency: 32,
             handler: Some(Arc::new(move |payload, client| Box::pin(handler(payload, client)))),
@@ -47,6 +50,7 @@ impl InvokeRegistration {
             route,
             stream_handler: None,
             stream_policy: StreamPolicy::default(),
+            options_schema: None,
             timeout: Duration::from_secs(30),
             max_concurrency: 32,
             handler: None,
@@ -67,6 +71,7 @@ impl InvokeRegistration {
 struct Entry {
     owner: Owner,
     route: Route,
+    options_schema: Option<String>,
     timeout: Duration,
     semaphore: Arc<Semaphore>,
     max_concurrency: usize,
@@ -121,15 +126,39 @@ pub struct Client {
     registry: Arc<XwInvokeRegistry>,
     context: CallContext,
     cancellation: Option<CancelHandle>,
+    service_options: Option<Vec<u8>>,
 }
 
 impl Client {
     pub fn invoke(&self, route: &Route, payload: Vec<u8>) -> Rpc<Vec<u8>> {
+        self.invoke_with_options(route, payload, None)
+    }
+
+    pub fn options<M: prost::Message + Default>(&self) -> Result<Option<M>, GatewayError> {
+        self.service_options
+            .as_deref()
+            .map(|bytes| {
+                M::decode(bytes)
+                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid service options protobuf"))
+            })
+            .transpose()
+    }
+
+    pub fn invoke_with_options(
+        &self,
+        route: &Route,
+        payload: Vec<u8>,
+        service_options: Option<Vec<u8>>,
+    ) -> Rpc<Vec<u8>> {
         let registry = self.registry.clone();
         let context = self.context.clone();
         let route = route.clone();
         Rpc::new(
-            move |cancellation| async move { registry.call_cancellable(&route, payload, context, cancellation).await },
+            move |cancellation| async move {
+                registry
+                    .call_cancellable(&route, payload, context, cancellation, service_options)
+                    .await
+            },
             self.cancellation.clone(),
         )
     }
@@ -161,6 +190,7 @@ impl XwInvokeRegistry {
             registry: self.clone(),
             context,
             cancellation: None,
+            service_options: None,
         }
     }
 
@@ -176,6 +206,9 @@ impl XwInvokeRegistry {
         let mut names = HashSet::new();
         for registration in &registrations {
             registration.route.validate()?;
+            if let Some(schema) = &registration.options_schema {
+                validate_name(schema)?;
+            }
             registration.stream_policy.validate()?;
             if registration.stream_handler.is_some() && registration.route.kind != MethodKind::ServerStreaming {
                 return Err(GatewayError::new(
@@ -220,6 +253,7 @@ impl XwInvokeRegistry {
                 Entry {
                     owner: owner.clone(),
                     route: registration.route,
+                    options_schema: registration.options_schema,
                     timeout: registration.timeout,
                     semaphore: Arc::new(Semaphore::new(registration.max_concurrency)),
                     max_concurrency: registration.max_concurrency,
@@ -264,6 +298,7 @@ impl XwInvokeRegistry {
             .filter(|entry| entry.owner.same_instance(owner))
             .map(|entry| RouteRegistration {
                 route: entry.route.clone(),
+                options_schema: entry.options_schema.clone(),
                 timeout_ms: entry.timeout.as_millis().min(u64::MAX as u128) as u64,
                 max_concurrency: entry.max_concurrency,
                 stream_policy: (entry.route.kind == MethodKind::ServerStreaming).then(|| entry.stream_policy.clone()),
@@ -294,16 +329,27 @@ impl XwInvokeRegistry {
         F: Fn(Route, Vec<u8>, CallContext) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = WireResult> + Send + 'static,
     {
-        self.set_remote_invoker_cancellable(move |route, payload, context, _| invoker(route, payload, context));
+        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, _, options| -> InvokeFuture {
+            if options.is_some() {
+                Box::pin(async {
+                    Err(GatewayError::new(
+                        ErrorCode::InvalidArgument,
+                        "remote invoker has no options support",
+                    ))
+                })
+            } else {
+                Box::pin(invoker(route, payload, context))
+            }
+        }));
     }
 
     pub fn set_remote_invoker_cancellable<F, Fut>(&self, invoker: F)
     where
-        F: Fn(Route, Vec<u8>, CallContext, CancelHandle) -> Fut + Send + Sync + 'static,
+        F: Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = WireResult> + Send + 'static,
     {
-        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, cancellation| {
-            Box::pin(invoker(route, payload, context, cancellation))
+        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, cancellation, options| {
+            Box::pin(invoker(route, payload, context, cancellation, options))
         }));
     }
 
@@ -427,7 +473,7 @@ impl XwInvokeRegistry {
     }
 
     pub async fn call(self: &Arc<Self>, route: &Route, payload: Vec<u8>, context: CallContext) -> WireResult {
-        self.call_cancellable(route, payload, context, CancelHandle::new())
+        self.call_cancellable(route, payload, context, CancelHandle::new(), None)
             .await
     }
 
@@ -437,15 +483,24 @@ impl XwInvokeRegistry {
         payload: Vec<u8>,
         context: CallContext,
         cancellation: CancelHandle,
+        service_options: Option<Vec<u8>>,
     ) -> WireResult {
         if cancellation.is_cancelled() {
             return Err(cancelled());
         }
         context.authorize(&route.name, false)?;
         route.validate()?;
+        if service_options.as_ref().is_some_and(|bytes| bytes.len() > 65_536) {
+            return Err(GatewayError::new(
+                ErrorCode::InvalidArgument,
+                "service options too large",
+            ));
+        }
         let entry = self.state.lock().unwrap().entries.get(&route.name).cloned();
         if let Some(entry) = entry {
-            return self.execute(entry, route, payload, context, cancellation).await;
+            return self
+                .execute(entry, route, payload, context, cancellation, service_options)
+                .await;
         }
         let remote = self
             .remote
@@ -453,7 +508,7 @@ impl XwInvokeRegistry {
             .unwrap()
             .clone()
             .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "route not registered"))?;
-        remote(route.clone(), payload, context, cancellation).await
+        remote(route.clone(), payload, context, cancellation, service_options).await
     }
 
     /// Inbound transport dispatch never falls back, preventing forwarding loops.
@@ -464,7 +519,7 @@ impl XwInvokeRegistry {
         payload: Vec<u8>,
         context: CallContext,
     ) -> WireResult {
-        self.dispatch_local_cancellable(owner, route, payload, context, CancelHandle::new())
+        self.dispatch_local_cancellable(owner, route, payload, context, CancelHandle::new(), None)
             .await
     }
 
@@ -475,6 +530,7 @@ impl XwInvokeRegistry {
         payload: Vec<u8>,
         context: CallContext,
         cancellation: CancelHandle,
+        service_options: Option<Vec<u8>>,
     ) -> WireResult {
         if cancellation.is_cancelled() {
             return Err(cancelled());
@@ -491,7 +547,8 @@ impl XwInvokeRegistry {
         if !entry.owner.same_instance(owner) || owner.is_closed() {
             return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
         }
-        self.execute(entry, route, payload, context, cancellation).await
+        self.execute(entry, route, payload, context, cancellation, service_options)
+            .await
     }
 
     async fn execute(
@@ -501,8 +558,17 @@ impl XwInvokeRegistry {
         payload: Vec<u8>,
         context: CallContext,
         cancellation: CancelHandle,
+        service_options: Option<Vec<u8>>,
     ) -> WireResult {
         entry.route.accepts(route)?;
+        if let Some(options) = &service_options {
+            if entry.options_schema.is_none() || options.len() > 65_536 {
+                return Err(GatewayError::new(
+                    ErrorCode::InvalidArgument,
+                    "unsupported or oversized service options",
+                ));
+            }
+        }
         if entry.owner.is_closed() {
             return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
         }
@@ -521,6 +587,7 @@ impl XwInvokeRegistry {
         let _guard = CancelOnDrop(execution_cancel.clone());
         let mut client = self.client(context);
         client.cancellation = Some(execution_cancel.clone());
+        client.service_options = service_options;
         // The task retains admission until the actual handler exits, even after a
         // timeout, caller drop or owner close. Never abort a task awaiting blocking work.
         let task = tokio::spawn(async move {

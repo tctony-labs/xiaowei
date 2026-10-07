@@ -253,7 +253,7 @@ function wireWorker(mode: string, token?: string) {
         else if (workerData.mode === 'token') respond(new TextEncoder().encode(command.context.token));
         else {
           invocation = frame;
-          parentPort.postMessage({ version: 2, generation, id: 999, kind: 'request', command: {
+          parentPort.postMessage({ version: 3, generation, id: 999, kind: 'request', command: {
             op: 'invoke', rpc: 'nested', route, payload: command.payload,
             context: { token: workerData.mode === 'permissions' ? command.context.token
               : expiredToken || workerData.token || 'forged',
@@ -525,6 +525,19 @@ test("worker unary cancel propagates back through main to a nested local handler
     await Promise.all([rejected, aborted]);
   } finally {
     stopped();
+    await fixture.close();
+  }
+});
+
+test("Worker transfers independently encoded service options", async () => {
+  const fixture = await workerFixture();
+  try {
+    const api = bindClient(Fixture, fixture.host.client({ caller: "options", trusted: true }), {
+      optionsSchema: EnvelopeSchema,
+    });
+    assert.equal((await api.echo(request("options", 1n), { id: 55n })).id, 55n);
+    assert.equal((await api.echo(request("options", 1n))).id, 1n);
+  } finally {
     await fixture.close();
   }
 });

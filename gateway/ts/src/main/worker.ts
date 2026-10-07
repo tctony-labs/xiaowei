@@ -77,7 +77,7 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
     accept(command.op === "invoke" ? policy.timeoutMs : policy.streamPolicy.openTimeoutMs);
     if (command.op === "invoke")
       return rpcs.serve(command, async (signal) =>
-        unwrap(await host.invoke(context, command.route, command.payload, signal)),
+        unwrap(await host.invoke(context, command.route, command.payload, signal, command.serviceOptions)),
       );
     return streams.serve(command, (signal) => host.stream(context, command.route, command.payload, { signal }));
   };
@@ -103,15 +103,16 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
       name,
       manifest.routes.map((route) => ({
         route,
+        optionsSchema: route.optionsSchema,
         timeoutMs: route.timeoutMs,
         maxConcurrency: route.maxConcurrency,
         streamPolicy: route.streamPolicy,
       })),
       [],
-      async (route, payload, context, signal) => {
+      async (route, payload, context, signal, serviceOptions) => {
         const meta = metadata(context);
         try {
-          return success(await rpcs.invoke(route, payload, meta, signal));
+          return success(await rpcs.invoke(route, payload, meta, signal, serviceOptions));
         } catch (error) {
           return executionError(error);
         } finally {

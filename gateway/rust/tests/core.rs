@@ -843,3 +843,63 @@ async fn rpc_can_be_cancelled_synchronously_from_a_thread_without_a_runtime() {
     let _ = release.send(());
     assert_eq!(rpc.await.unwrap_err().code, ErrorCode::Cancelled);
 }
+
+#[tokio::test]
+async fn service_options_have_an_independent_typed_codec_and_default_to_absent() {
+    let registry = XwInvokeRegistry::new();
+    let method = ECHO.with_options::<Envelope>();
+    let owner = registry
+        .register_owner(
+            "options",
+            vec![method.handler(|mut request, client| async move {
+                if let Some(options) = client.options::<Envelope>()? {
+                    request.id = options.id;
+                }
+                Ok(request)
+            })],
+            vec![],
+        )
+        .unwrap();
+    let client = registry.client(context());
+    let request = Envelope {
+        id: 1,
+        text: "business".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        method
+            .call(
+                &client,
+                request.clone(),
+                Some(Envelope {
+                    id: 42,
+                    ..Default::default()
+                })
+            )
+            .await
+            .unwrap()
+            .id,
+        42
+    );
+    assert_eq!(method.call(&client, request.clone(), None).await.unwrap().id, 1);
+    assert_eq!(
+        client
+            .invoke_with_options(&ECHO.route(), bytes(1), Some(vec![255]))
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+    registry.unregister_owner(&owner);
+    registry
+        .register_owner("plain", vec![ECHO.handler(|request, _| async { Ok(request) })], vec![])
+        .unwrap();
+    assert_eq!(
+        method
+            .call(&client, request, Some(Envelope::default()))
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::InvalidArgument
+    );
+}

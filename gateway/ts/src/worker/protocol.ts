@@ -36,7 +36,7 @@ export type Command =
   | { op: "activate" }
   | { op: "close" }
   | { op: "invoke.cancel"; rpc: string; token: string }
-  | { op: "invoke"; rpc: string; route: Route; payload: Uint8Array; context: Metadata }
+  | { op: "invoke"; rpc: string; route: Route; payload: Uint8Array; serviceOptions?: Uint8Array; context: Metadata }
   | { op: "stream.open"; stream: string; route: Route; payload: Uint8Array; context: Metadata }
   | { op: "stream.next"; stream: string; token: string }
   | { op: "stream.cancel"; stream: string; token: string };
@@ -84,7 +84,12 @@ function command(v: unknown): v is Command {
   if (v.op === "stream.next" || v.op === "stream.cancel") return string(v.stream) && string(v.token);
   if (v.op !== "invoke" && v.op !== "stream.open") return false;
   if (v.op === "stream.open" && !string(v.stream)) return false;
-  if (v.op === "invoke" && !string(v.rpc)) return false;
+  if (
+    v.op === "invoke" &&
+    (!string(v.rpc) ||
+      (v.serviceOptions !== undefined && (!bytes(v.serviceOptions) || v.serviceOptions.byteLength > 65_536)))
+  )
+    return false;
   if (!bytes(v.payload) || !object(v.context) || !string(v.context.token) || !object(v.route)) return false;
   try {
     validateRoute(v.route as unknown as Route);
@@ -264,7 +269,13 @@ export class RpcLink {
 
   constructor(private connection: Connection) {}
 
-  async invoke(route: Route, payload: Uint8Array, context: Metadata, signal?: AbortSignal) {
+  async invoke(
+    route: Route,
+    payload: Uint8Array,
+    context: Metadata,
+    signal?: AbortSignal,
+    serviceOptions?: Uint8Array,
+  ) {
     const rpc = `rpc:${++this.sequence}`;
     const abort = () => {
       void this.connection.request({ op: "invoke.cancel", rpc, token: context.token }, CLEANUP_MS).catch((error) => {
@@ -273,7 +284,10 @@ export class RpcLink {
       });
     };
     // Request is sent before cancel, preserving MessagePort ordering even for immediate cancellation.
-    const pending = this.connection.request({ op: "invoke", rpc, route, payload, context }, HANDSHAKE_MS);
+    const pending = this.connection.request(
+      { op: "invoke", rpc, route, payload, context, serviceOptions },
+      HANDSHAKE_MS,
+    );
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) abort();
     try {

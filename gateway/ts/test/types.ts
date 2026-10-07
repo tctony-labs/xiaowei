@@ -20,6 +20,12 @@ export function compileExamples(client: Client) {
   // @ts-expect-error RPC cancellation is synchronous and has no Promise result.
   const cancellation: Promise<void> = rpc.cancel();
   void cancellation;
+  // @ts-expect-error Unconfigured services do not accept options.
+  service.echo(create(EnvelopeSchema), {});
+  const configured = bindClient(Fixture, client, { optionsSchema: EnvelopeSchema });
+  configured.echo(create(EnvelopeSchema), { id: 1n });
+  // @ts-expect-error Options use their own schema.
+  configured.echo(create(EnvelopeSchema), { id: "wrong" });
   const context = client.context();
   const signal: AbortSignal = client.cancellation();
   void context;

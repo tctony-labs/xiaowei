@@ -12,7 +12,7 @@
 - 前端及跨模块业务调用统一通过 proto service／Gateway；preload 只承载 Gateway bridge，不新增 raw 业务 IPC 或专用跨语言副作用回调。
 - `resources/` 负责渲染资源协议和缓存；资源 URL 不作为绕过 Gateway 的业务命令入口。
 - `services/xwapi/` 负责小微服务端请求、强类型协议映射、本地鉴权与安全请求日志，经 Gateway 提供服务器能力。调用与登录检查边界见 [xwapi 服务器调用](../../../docs/xwapi.md)。其无状态请求执行器不管理会话，AccountService 持有服务器选择、凭据和刷新流程；装配为公共入口提供当前会话的只读快照。日志字段、等级及敏感信息规则见 [HTTP 接口与日志](../../../server/docs/http.md#请求日志)。
-- AccountService 内部认证事务复用 xwapi 请求执行器，并提供自己持有的会话快照及取消信号；撤销未提交的登录结果时使用该结果所属会话，不能先将其公开为当前登录态。该宿主内部复用同样执行本地鉴权；其他模块的服务器业务调用经 Gateway，不自行传 token 绕过公共入口。
+- AccountService 的认证事务通过 Gateway typed Auth client 调用 xwapi，自行处理响应 code/msg 和凭据提交；业务 handler 使用原注入 client，后台恢复使用宿主 client。撤销已收到但未提交的登录结果时使用 xwapi 的宿主内部隔离上下文，保留原 caller 权限，不能先将未提交凭据公开为当前登录态；服务器地址与 token 不放入业务 payload 或 service options。
 - 每个 owner 提供显式接入与关闭入口。导入模块不自动注册服务或启动后台任务；不预建空目录、通用 utils 或多层转发包装。
 
 ## 目录
