@@ -8,6 +8,8 @@ export * from "./gen/xiaowei/launcher_pb.ts";
 export * from "./gen/xiaowei/llm_pb.ts";
 export * from "./gen/xiaowei/model-settings_pb.ts";
 export * from "./gen/xiaowei/search_pb.ts";
+export * from "./gen/xiaowei/server/auth_pb.ts";
+export * from "./gen/xiaowei/server/common_pb.ts";
 export * from "./gen/xiaowei/settings_pb.ts";
 export * from "./gen/xiaowei/shortcuts_pb.js";
 export * from "./gen/xiaowei/storage_pb.ts";

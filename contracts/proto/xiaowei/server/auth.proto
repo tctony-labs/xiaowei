@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package xiaowei.server.auth;
+
+import "xiaowei/common.proto";
+
+// Authentication error codes occupy 10100-10199.
+enum AuthErrorCode {
+  AUTH_ERROR_CODE_UNSPECIFIED = 0;
+  // ErrorResponse.code value; never distinguishes unknown email from wrong password.
+  AUTH_ERROR_CODE_INVALID_CREDENTIALS = 10100;
+  AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED = 10101;
+  AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED = 10102;
+}
+
+message UserSnapshot {
+  // Public user ID, never the internal database key.
+  string user_id = 1;
+  string email = 2;
+  int64 created_at_ms = 3;
+}
+
+message DeviceSnapshot {
+  string device_id = 1;
+  string device_name = 2;
+}
+
+message TokenPair {
+  string session_id = 1;
+  // Secret bearer credentials. Do not log or expose them in URLs.
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 access_expires_at_ms = 4;
+  int64 refresh_expires_at_ms = 5;
+}
+
+message PasswordLogin {
+  // Trimmed and case-insensitive ASCII email, at most 254 bytes.
+  string email = 1;
+  // Preserved verbatim; nonempty and at most 1024 bytes.
+  string password = 2;
+}
+
+message LoginRequest {
+  // Required lowercase UUID v4, shared by all installations on the same device.
+  // Persist in shared app data across logout/login; never an authentication credential.
+  string device_id = 1;
+  // Optional display label, at most 128 bytes; updated only on successful login.
+  string device_name = 2;
+  // Absent means ordinary login. Empty is invalid; currently only allowed with password.
+  // Until binding is implemented, a supplied nonempty token is explicitly rejected.
+  optional string thirdparty_bind_token = 3;
+
+  oneof credential {
+    PasswordLogin password = 4;
+  }
+}
+
+message Authenticated {
+  UserSnapshot user = 1;
+  TokenPair tokens = 2;
+  DeviceSnapshot device = 3;
+}
+
+message BindingRequired {
+  // Short-lived, single-use proof of a verified third-party identity, not a session token.
+  string thirdparty_bind_token = 1;
+  // Unix milliseconds; expires 15 minutes after issuance.
+  int64 expires_at_ms = 2;
+}
+
+message LoginResult {
+  // Exactly one recognized result is required on a successful response.
+  // Only authenticated establishes a session; binding_required continues registration/login.
+  oneof result {
+    Authenticated authenticated = 1;
+    BindingRequired binding_required = 2;
+  }
+}
+
+// Code 0 means the current step succeeded; nonzero means failure.
+// Data is present only on success. Msg is descriptive, never used for branching.
+message LoginResponse {
+  int32 code = 1;
+  string msg = 2;
+  LoginResult data = 3;
+}
+
+message RefreshRequest {
+  // Successful refresh consumes this token. Reuse fails without revoking the session.
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  int32 code = 1;
+  string msg = 2;
+  TokenPair data = 3;
+}
+
+message GetCurrentUserData {
+  UserSnapshot user = 1;
+  string session_id = 2;
+  DeviceSnapshot device = 3;
+}
+
+message GetCurrentUserResponse {
+  int32 code = 1;
+  string msg = 2;
+  GetCurrentUserData data = 3;
+}
+
+message LogoutResponse {
+  int32 code = 1;
+  string msg = 2;
+  xiaowei.common.Empty data = 3;
+}
+
+service Auth {
+  // Successful login replaces the prior session for this user and device only.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Rotates refresh credentials atomically; existing access tokens keep their own expiry.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  // Identity comes from the transport's verified bearer token, never from the payload.
+  rpc GetCurrentUser(xiaowei.common.Empty) returns (GetCurrentUserResponse);
+
+  // Revokes only the authenticated session, including all its access tokens.
+  rpc Logout(xiaowei.common.Empty) returns (LogoutResponse);
+}

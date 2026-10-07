@@ -10,6 +10,16 @@ pub mod xiaowei {
         include!("gen/xiaowei.agent.rs");
     }
 
+    pub mod server {
+        pub mod common {
+            include!("gen/xiaowei.server.common.rs");
+        }
+
+        pub mod auth {
+            include!("gen/xiaowei.server.auth.rs");
+        }
+    }
+
     pub mod llm {
         include!("gen/xiaowei.llm.rs");
     }

@@ -5,6 +5,7 @@
 ## 组织与消费
 
 - [`proto/xiaowei/`](proto/xiaowei/README.md)：业务契约与设计规则；具体字段、方法语义写在 proto 注释中。
+- [`proto/xiaowei/server/`](proto/xiaowei/server/README.md)：服务端契约与客户端错误处理约定。
 - [`proto/testing/`](proto/testing/)：生成、编解码和传输验证使用的独立测试契约，不向产品注册。
 - [`ts/`](ts/)：npm 包 `xiaowei-contracts`，workspace 消费者添加 `"xiaowei-contracts": "workspace:*"`。入口导出消息和 service descriptor；使用方须支持 TS 源码及 enum 转译。
 - [`rust/`](rust/)：crate `xw-contracts`，通过 Cargo path 依赖消费。`FILE_DESCRIPTOR_SET` 提供文件／服务／方法描述，`prost::Name` 提供消息全名。消费已入库产物无需 protoc。
@@ -23,7 +24,7 @@ pnpm contracts:test
 
 `just gen` 先生成语言契约和 descriptor，再生成 Gateway Rust 绑定。`contracts:check` 在临时目录重建并比较文件集合与内容，不改写源码或产物；`contracts:test` 验证生成规则和三语言 codec，不启动桌面或读取用户数据。
 
-本地业务默认生成 TS／Rust，Go 仅加入服务端实际需要的契约。
+本地业务默认生成 TS／Rust。服务端业务契约集中在 `proto/xiaowei/server/`，Go 通过 `xiaowei/server/**/*.proto` 自动选择整个目录；引用的公共消息仍通过 import 依赖自动纳入生成。目录组织不替代 proto 中的 package 声明。
 
 产物 `ts/src/gen/`、`rust/src/gen/` 和 `go/gen/` 全部入库，禁止手改。新增 TS 文件或 Rust package 时同步维护公共入口导出。具体修改步骤见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
 

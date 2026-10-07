@@ -11,9 +11,8 @@ XiaoWei 的工作区包含 Electron 桌面应用、Rust 原生模块和独立 Go
 | [`contracts/`](../contracts/README.md) | 跨语言 Protobuf 契约与生成工具 |
 | [`gateway/`](../gateway/README.md) | TS／Rust 通信核心及 Electron、Worker、napi 适配 |
 | `packages/` | 独立的共享 npm 包 |
-| [`server/`](../server/README.md) | 独立 Go HTTP 服务端 |
+| [`server/`](../server/README.md) | 独立 Go HTTP 服务端，配置与容器部署文件由该目录管理 |
 | `scripts/` | 工作区开发、构建、检查与测试工具；开发启动和重启脚本位于 `scripts/dev/` |
-| `deploy/` | 服务端容器部署示例 |
 
 ## 工具链与工作区组织
 

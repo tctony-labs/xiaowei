@@ -6,6 +6,7 @@ import (
 	"os"
 
 	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/testing"
+	auth "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,11 +26,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	var value pb.Envelope
-	if err := proto.Unmarshal(input, &value); err != nil {
+	var value proto.Message = new(pb.Envelope)
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "login-request":
+			value = new(auth.LoginRequest)
+		case "login-response":
+			value = new(auth.LoginResponse)
+		default:
+			panic("unknown codec mode")
+		}
+	}
+	if err := proto.Unmarshal(input, value); err != nil {
 		panic(err)
 	}
-	output, err := proto.Marshal(&value)
+	output, err := proto.Marshal(value)
 	if err != nil {
 		panic(err)
 	}

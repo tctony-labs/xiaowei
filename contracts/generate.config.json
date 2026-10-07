@@ -1,5 +1,5 @@
 {
   "ts": ["**/*.proto"],
   "rust": ["**/*.proto"],
-  "go": ["testing/fixture.proto"]
+  "go": ["testing/fixture.proto", "xiaowei/server/**/*.proto"]
 }
