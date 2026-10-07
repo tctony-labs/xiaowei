@@ -26,6 +26,7 @@ export interface ModelConfig {
   id: string;
   name: string;
   provider: string;
+  providerName: string;
   modelId: string;
   api: (typeof modelApis)[number];
   baseUrl: string;
@@ -165,6 +166,7 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
     "id",
     "name",
     "provider",
+    "providerName",
     "modelId",
     "api",
     "baseUrl",
@@ -181,7 +183,7 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
     "apiKey",
     "apiKeyEnv",
   ]);
-  for (const key of ["id", "name", "provider", "modelId", "baseUrl"]) {
+  for (const key of ["id", "name", "provider", "providerName", "modelId", "baseUrl"]) {
     if (!text(item[key])) invalidConfig();
   }
   if (!modelApis.includes(item.api as ModelConfig["api"])) invalidConfig();

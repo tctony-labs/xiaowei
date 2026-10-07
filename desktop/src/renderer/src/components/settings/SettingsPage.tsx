@@ -16,13 +16,14 @@ import type { Subscription } from "xiaowei-gateway";
 import { services as defaultServices, type Services } from "../../services";
 import { applyTheme, themeValue } from "../../theme";
 import { AboutSettings } from "./AboutSettings";
+import { ArchiveSettingsPage } from "./ArchiveSettingsPage";
 import { type CleanupStatus, ClipboardSettings } from "./ClipboardSettings";
 import { GeneralSettings } from "./GeneralSettings";
 import { ModelSettingsPage } from "./ModelSettingsPage";
 import SettingsLayout, { type TabId } from "./SettingsLayout";
 import { ShortcutSettings, type Shortcuts } from "./ShortcutSettings";
 
-const tabs: TabId[] = ["general", "shortcut", "clipboard", "llm", "about"];
+const tabs: TabId[] = ["general", "shortcut", "clipboard", "llm", "archive", "about"];
 
 export function SettingsPage({
   version,
@@ -236,6 +237,8 @@ export function SettingsPage({
         );
       case "llm":
         return <ModelSettingsPage services={services} navigation={modelNavigation} />;
+      case "archive":
+        return <ArchiveSettingsPage services={services} />;
       case "about":
         return <AboutSettings version={version} development={development} showCheckUpdate={false} />;
       default:

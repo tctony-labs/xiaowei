@@ -25,6 +25,8 @@ const app = Object.assign(new EventEmitter(), {
 let quit = false;
 let failed = false;
 let received: unknown;
+let receivedAgentRoot: unknown;
+let modelDefaultPath: unknown;
 const models = { path: join(directory, "models.json"), document: { version: 1, providers: [], defaults: {} } };
 let created = false;
 const noop = () => {};
@@ -46,6 +48,7 @@ mock.module(require.resolve("xiaowei-search"), {
   exports: { initializeLogging: noop, initializeSearch: async () => {} },
 });
 mock.module(require.resolve("xiaowei-clipboard"), { exports: { initializeLogging: noop } });
+mock.module(require.resolve("xiaowei-agent"), { exports: { initializeLogging: noop } });
 const replace = (path: string, exports: Record<string, unknown>) =>
   mock.module(new URL(`../../src/main/${path}.ts`, import.meta.url).href, { exports });
 replace("app/logging", {
@@ -76,14 +79,16 @@ replace("services/shortcuts/shortcuts", {
   shortcutConfig: noop,
 });
 replace("services/llm/config", {
-  loadConfig: async () => {
+  loadConfig: async (_env: unknown, path: string) => {
+    modelDefaultPath = path;
     if (failed) throw new Error("configuration failure");
     return models;
   },
 });
 replace("app/gateway", {
   createApplicationGateway: async (...args: unknown[]) => {
-    received = args[4];
+    receivedAgentRoot = args[3];
+    received = args[5];
     return { settings: { get: async () => ({ shortcuts: {} }) }, close: async () => {} };
   },
 });
@@ -91,18 +96,28 @@ const { startApplication } = await import("../../src/main/app/bootstrap.ts");
 
 test("bootstrap injects startup models and stops before gateway creation on configuration failure", async () => {
   try {
-    for (const fail of [false, true]) {
-      failed = fail;
-      received = undefined;
-      created = false;
-      quit = false;
-      startApplication(directory);
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      assert.equal(quit, fail);
-      assert.equal(created, !fail);
-      assert.equal(received, fail ? undefined : models);
-      app.emit("before-quit", { preventDefault: noop });
-      app.removeAllListeners();
+    const previousRoot = process.env.XIAOWEI_AGENT_HOME;
+    process.env.XIAOWEI_AGENT_HOME = join(directory, "module-root");
+    try {
+      for (const fail of [false, true]) {
+        failed = fail;
+        received = undefined;
+        receivedAgentRoot = undefined;
+        created = false;
+        quit = false;
+        startApplication(directory);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        assert.equal(quit, fail);
+        assert.equal(created, !fail);
+        assert.equal(received, fail ? undefined : models);
+        assert.equal(modelDefaultPath, join(directory, "module-root", "models.json"));
+        assert.equal(receivedAgentRoot, fail ? undefined : join(directory, "module-root"));
+        app.emit("before-quit", { preventDefault: noop });
+        app.removeAllListeners();
+      }
+    } finally {
+      if (previousRoot === undefined) delete process.env.XIAOWEI_AGENT_HOME;
+      else process.env.XIAOWEI_AGENT_HOME = previousRoot;
     }
   } finally {
     Object.assign(console, originalConsole);

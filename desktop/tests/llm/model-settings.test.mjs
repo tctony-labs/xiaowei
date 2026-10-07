@@ -293,3 +293,26 @@ test("clearing explicit limits persists unset values and restores runtime defaul
   assert.equal(f.applied.at(-1)[0].contextWindow, 256000);
   assert.equal(f.applied.at(-1)[0].maxTokens, 32768);
 });
+
+test("auxiliary reference is queried from settings and changes without applying worker models", async (t) => {
+  const f = await fixture(t);
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, undefined);
+  const saved = await save(f.api, 1n, provider());
+  const modelRef = saved.providers[0].models[0].id;
+  const selected = await f.api.updateDefaults(
+    create(UpdateModelDefaultsRequestSchema, {
+      expectedRevision: saved.revision,
+      defaults: { smallTextModelRef: modelRef },
+    }),
+  );
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, modelRef);
+  assert.equal(f.applied.length, 1);
+  await f.api.updateDefaults(
+    create(UpdateModelDefaultsRequestSchema, {
+      expectedRevision: selected.revision,
+      defaults: {},
+    }),
+  );
+  assert.equal((await f.api.getAuxiliaryModelRef(create(EmptySchema))).modelRef, undefined);
+  assert.equal(f.applied.length, 1);
+});

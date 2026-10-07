@@ -14,7 +14,24 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/model-settings.proto.
  */
 export const file_xiaowei_model_settings: GenFile = /*@__PURE__*/
-  fileDesc("Chx4aWFvd2VpL21vZGVsLXNldHRpbmdzLnByb3RvEgt4aWFvd2VpLmxsbSK/BAoPQ29uZmlndXJlZE1vZGVsEgoKAmlkGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSJgoFaW5wdXQYBCADKA4yFy54aWFvd2VpLmxsbS5Nb2RlbElucHV0EhEKCXJlYXNvbmluZxgFIAEoCBIkChd0aGlua2luZ19sZXZlbF9tYXBfanNvbhgGIAEoCUgAiAEBEhsKDmNvbnRleHRfd2luZG93GAcgASgBSAGIAQESFwoKbWF4X3Rva2VucxgIIAEoAUgCiAEBEjoKB2hlYWRlcnMYCSADKAsyKS54aWFvd2VpLmxsbS5Db25maWd1cmVkTW9kZWwuSGVhZGVyc0VudHJ5EhgKC2NvbXBhdF9qc29uGAogASgJSAOIAQESIQoUc2FtcGxpbmdfcGFyYW1zX2pzb24YCyABKAlIBIgBARIpCgRjb3N0GAwgASgLMhsueGlhb3dlaS5sbG0uTW9kZWxDb3N0UmF0ZXMSLgoKY29zdF90aWVycxgNIAMoCzIaLnhpYW93ZWkubGxtLk1vZGVsQ29zdFRpZXIaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCGgoYX3RoaW5raW5nX2xldmVsX21hcF9qc29uQhEKD19jb250ZXh0X3dpbmRvd0INCgtfbWF4X3Rva2Vuc0IOCgxfY29tcGF0X2pzb25CFwoVX3NhbXBsaW5nX3BhcmFtc19qc29uIqMCChJDb25maWd1cmVkUHJvdmlkZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgZwcmVzZXQYAyABKAlIAIgBARIQCghwcm92aWRlchgEIAEoCRILCgNhcGkYBSABKAkSEAoIYmFzZV91cmwYBiABKAkSEwoLYXBpX2tleV9lbnYYByABKAkSEwoLaGFzX2FwaV9rZXkYCCABKAgSGwoTc3VwcG9ydHNfd2ViX3NvY2tldBgJIAEoCBIRCgl0cmFuc3BvcnQYCiABKAkSLAoGbW9kZWxzGAsgAygLMhwueGlhb3dlaS5sbG0uQ29uZmlndXJlZE1vZGVsEhoKEnVuYXZhaWxhYmxlX3JlYXNvbhgMIAEoCUIJCgdfcHJlc2V0IoEBCgxBcGlLZXlVcGRhdGUSKQoIcHJlc2VydmUYASABKAsyFS54aWFvd2VpLmNvbW1vbi5FbXB0eUgAEhEKB3JlcGxhY2UYAiABKAlIABImCgVjbGVhchgDIAEoCzIVLnhpYW93ZWkuY29tbW9uLkVtcHR5SABCCwoJb3BlcmF0aW9uIlgKDU1vZGVsRGVmYXVsdHMSEQoJbW9kZWxfcmVmGAEgASgJEhwKFHNtYWxsX3RleHRfbW9kZWxfcmVmGAIgASgJEhYKDnRoaW5raW5nX2xldmVsGAMgASgJIsABChVNb2RlbFNldHRpbmdzU25hcHNob3QSEAoIcmV2aXNpb24YASABKAQSGAoQYXBwbGllZF9yZXZpc2lvbhgCIAEoBBIyCglwcm92aWRlcnMYAyADKAsyHy54aWFvd2VpLmxsbS5Db25maWd1cmVkUHJvdmlkZXISLAoIZGVmYXVsdHMYBCABKAsyGi54aWFvd2VpLmxsbS5Nb2RlbERlZmF1bHRzEhkKEWFwcGxpY2F0aW9uX2Vycm9yGAUgASgJIkwKFE1vZGVsU2V0dGluZ3NDaGFuZ2VkEjQKCHNuYXBzaG90GAEgASgLMiIueGlhb3dlaS5sbG0uTW9kZWxTZXR0aW5nc1NuYXBzaG90IosBChNTYXZlUHJvdmlkZXJSZXF1ZXN0EhkKEWV4cGVjdGVkX3JldmlzaW9uGAEgASgEEjEKCHByb3ZpZGVyGAIgASgLMh8ueGlhb3dlaS5sbG0uQ29uZmlndXJlZFByb3ZpZGVyEiYKA2tleRgDIAEoCzIZLnhpYW93ZWkubGxtLkFwaUtleVVwZGF0ZSJHChVEZWxldGVQcm92aWRlclJlcXVlc3QSGQoRZXhwZWN0ZWRfcmV2aXNpb24YASABKAQSEwoLcHJvdmlkZXJfaWQYAiABKAkiZQoaVXBkYXRlTW9kZWxEZWZhdWx0c1JlcXVlc3QSGQoRZXhwZWN0ZWRfcmV2aXNpb24YASABKAQSLAoIZGVmYXVsdHMYAiABKAsyGi54aWFvd2VpLmxsbS5Nb2RlbERlZmF1bHRzInIKFURpc2NvdmVyTW9kZWxzUmVxdWVzdBIxCghwcm92aWRlchgBIAEoCzIfLnhpYW93ZWkubGxtLkNvbmZpZ3VyZWRQcm92aWRlchImCgNrZXkYAiABKAsyGS54aWFvd2VpLmxsbS5BcGlLZXlVcGRhdGUy+wMKDU1vZGVsU2V0dGluZ3MSQAoDR2V0EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIi54aWFvd2VpLmxsbS5Nb2RlbFNldHRpbmdzU25hcHNob3QSVAoMU2F2ZVByb3ZpZGVyEiAueGlhb3dlaS5sbG0uU2F2ZVByb3ZpZGVyUmVxdWVzdBoiLnhpYW93ZWkubGxtLk1vZGVsU2V0dGluZ3NTbmFwc2hvdBJYCg5EZWxldGVQcm92aWRlchIiLnhpYW93ZWkubGxtLkRlbGV0ZVByb3ZpZGVyUmVxdWVzdBoiLnhpYW93ZWkubGxtLk1vZGVsU2V0dGluZ3NTbmFwc2hvdBJdCg5VcGRhdGVEZWZhdWx0cxInLnhpYW93ZWkubGxtLlVwZGF0ZU1vZGVsRGVmYXVsdHNSZXF1ZXN0GiIueGlhb3dlaS5sbG0uTW9kZWxTZXR0aW5nc1NuYXBzaG90ElMKCkxpc3RNb2RlbHMSIi54aWFvd2VpLmxsbS5EaXNjb3Zlck1vZGVsc1JlcXVlc3QaHy54aWFvd2VpLmxsbS5MaXN0TW9kZWxzUmVzcG9uc2UwARJECgdSZWFwcGx5EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIi54aWFvd2VpLmxsbS5Nb2RlbFNldHRpbmdzU25hcHNob3RiBnByb3RvMw", [file_xiaowei_common, file_xiaowei_llm]);
+  fileDesc("Chx4aWFvd2VpL21vZGVsLXNldHRpbmdzLnByb3RvEgt4aWFvd2VpLmxsbSI5ChFBdXhpbGlhcnlNb2RlbFJlZhIWCgltb2RlbF9yZWYYASABKAlIAIgBAUIMCgpfbW9kZWxfcmVmIr8ECg9Db25maWd1cmVkTW9kZWwSCgoCaWQYASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRImCgVpbnB1dBgEIAMoDjIXLnhpYW93ZWkubGxtLk1vZGVsSW5wdXQSEQoJcmVhc29uaW5nGAUgASgIEiQKF3RoaW5raW5nX2xldmVsX21hcF9qc29uGAYgASgJSACIAQESGwoOY29udGV4dF93aW5kb3cYByABKAFIAYgBARIXCgptYXhfdG9rZW5zGAggASgBSAKIAQESOgoHaGVhZGVycxgJIAMoCzIpLnhpYW93ZWkubGxtLkNvbmZpZ3VyZWRNb2RlbC5IZWFkZXJzRW50cnkSGAoLY29tcGF0X2pzb24YCiABKAlIA4gBARIhChRzYW1wbGluZ19wYXJhbXNfanNvbhgLIAEoCUgEiAEBEikKBGNvc3QYDCABKAsyGy54aWFvd2VpLmxsbS5Nb2RlbENvc3RSYXRlcxIuCgpjb3N0X3RpZXJzGA0gAygLMhoueGlhb3dlaS5sbG0uTW9kZWxDb3N0VGllchouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIaChhfdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb25CEQoPX2NvbnRleHRfd2luZG93Qg0KC19tYXhfdG9rZW5zQg4KDF9jb21wYXRfanNvbkIXChVfc2FtcGxpbmdfcGFyYW1zX2pzb24iowIKEkNvbmZpZ3VyZWRQcm92aWRlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKBnByZXNldBgDIAEoCUgAiAEBEhAKCHByb3ZpZGVyGAQgASgJEgsKA2FwaRgFIAEoCRIQCghiYXNlX3VybBgGIAEoCRITCgthcGlfa2V5X2VudhgHIAEoCRITCgtoYXNfYXBpX2tleRgIIAEoCBIbChNzdXBwb3J0c193ZWJfc29ja2V0GAkgASgIEhEKCXRyYW5zcG9ydBgKIAEoCRIsCgZtb2RlbHMYCyADKAsyHC54aWFvd2VpLmxsbS5Db25maWd1cmVkTW9kZWwSGgoSdW5hdmFpbGFibGVfcmVhc29uGAwgASgJQgkKB19wcmVzZXQigQEKDEFwaUtleVVwZGF0ZRIpCghwcmVzZXJ2ZRgBIAEoCzIVLnhpYW93ZWkuY29tbW9uLkVtcHR5SAASEQoHcmVwbGFjZRgCIAEoCUgAEiYKBWNsZWFyGAMgASgLMhUueGlhb3dlaS5jb21tb24uRW1wdHlIAEILCglvcGVyYXRpb24iWAoNTW9kZWxEZWZhdWx0cxIRCgltb2RlbF9yZWYYASABKAkSHAoUc21hbGxfdGV4dF9tb2RlbF9yZWYYAiABKAkSFgoOdGhpbmtpbmdfbGV2ZWwYAyABKAkiwAEKFU1vZGVsU2V0dGluZ3NTbmFwc2hvdBIQCghyZXZpc2lvbhgBIAEoBBIYChBhcHBsaWVkX3JldmlzaW9uGAIgASgEEjIKCXByb3ZpZGVycxgDIAMoCzIfLnhpYW93ZWkubGxtLkNvbmZpZ3VyZWRQcm92aWRlchIsCghkZWZhdWx0cxgEIAEoCzIaLnhpYW93ZWkubGxtLk1vZGVsRGVmYXVsdHMSGQoRYXBwbGljYXRpb25fZXJyb3IYBSABKAkiTAoUTW9kZWxTZXR0aW5nc0NoYW5nZWQSNAoIc25hcHNob3QYASABKAsyIi54aWFvd2VpLmxsbS5Nb2RlbFNldHRpbmdzU25hcHNob3QiiwEKE1NhdmVQcm92aWRlclJlcXVlc3QSGQoRZXhwZWN0ZWRfcmV2aXNpb24YASABKAQSMQoIcHJvdmlkZXIYAiABKAsyHy54aWFvd2VpLmxsbS5Db25maWd1cmVkUHJvdmlkZXISJgoDa2V5GAMgASgLMhkueGlhb3dlaS5sbG0uQXBpS2V5VXBkYXRlIkcKFURlbGV0ZVByb3ZpZGVyUmVxdWVzdBIZChFleHBlY3RlZF9yZXZpc2lvbhgBIAEoBBITCgtwcm92aWRlcl9pZBgCIAEoCSJlChpVcGRhdGVNb2RlbERlZmF1bHRzUmVxdWVzdBIZChFleHBlY3RlZF9yZXZpc2lvbhgBIAEoBBIsCghkZWZhdWx0cxgCIAEoCzIaLnhpYW93ZWkubGxtLk1vZGVsRGVmYXVsdHMicgoVRGlzY292ZXJNb2RlbHNSZXF1ZXN0EjEKCHByb3ZpZGVyGAEgASgLMh8ueGlhb3dlaS5sbG0uQ29uZmlndXJlZFByb3ZpZGVyEiYKA2tleRgCIAEoCzIZLnhpYW93ZWkubGxtLkFwaUtleVVwZGF0ZTLKBAoNTW9kZWxTZXR0aW5ncxJACgNHZXQSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRoiLnhpYW93ZWkubGxtLk1vZGVsU2V0dGluZ3NTbmFwc2hvdBJNChRHZXRBdXhpbGlhcnlNb2RlbFJlZhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5Gh4ueGlhb3dlaS5sbG0uQXV4aWxpYXJ5TW9kZWxSZWYSVAoMU2F2ZVByb3ZpZGVyEiAueGlhb3dlaS5sbG0uU2F2ZVByb3ZpZGVyUmVxdWVzdBoiLnhpYW93ZWkubGxtLk1vZGVsU2V0dGluZ3NTbmFwc2hvdBJYCg5EZWxldGVQcm92aWRlchIiLnhpYW93ZWkubGxtLkRlbGV0ZVByb3ZpZGVyUmVxdWVzdBoiLnhpYW93ZWkubGxtLk1vZGVsU2V0dGluZ3NTbmFwc2hvdBJdCg5VcGRhdGVEZWZhdWx0cxInLnhpYW93ZWkubGxtLlVwZGF0ZU1vZGVsRGVmYXVsdHNSZXF1ZXN0GiIueGlhb3dlaS5sbG0uTW9kZWxTZXR0aW5nc1NuYXBzaG90ElMKCkxpc3RNb2RlbHMSIi54aWFvd2VpLmxsbS5EaXNjb3Zlck1vZGVsc1JlcXVlc3QaHy54aWFvd2VpLmxsbS5MaXN0TW9kZWxzUmVzcG9uc2UwARJECgdSZWFwcGx5EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIi54aWFvd2VpLmxsbS5Nb2RlbFNldHRpbmdzU25hcHNob3RiBnByb3RvMw", [file_xiaowei_common, file_xiaowei_llm]);
+
+/**
+ * @generated from message xiaowei.llm.AuxiliaryModelRef
+ */
+export type AuxiliaryModelRef = Message<"xiaowei.llm.AuxiliaryModelRef"> & {
+  /**
+   * @generated from field: optional string model_ref = 1;
+   */
+  modelRef?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.AuxiliaryModelRef.
+ * Use `create(AuxiliaryModelRefSchema)` to create a new message.
+ */
+export const AuxiliaryModelRefSchema: GenMessage<AuxiliaryModelRef> = /*@__PURE__*/
+  messageDesc(file_xiaowei_model_settings, 0);
 
 /**
  * @generated from message xiaowei.llm.ConfiguredModel
@@ -98,7 +115,7 @@ export type ConfiguredModel = Message<"xiaowei.llm.ConfiguredModel"> & {
  * Use `create(ConfiguredModelSchema)` to create a new message.
  */
 export const ConfiguredModelSchema: GenMessage<ConfiguredModel> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 0);
+  messageDesc(file_xiaowei_model_settings, 1);
 
 /**
  * @generated from message xiaowei.llm.ConfiguredProvider
@@ -180,7 +197,7 @@ export type ConfiguredProvider = Message<"xiaowei.llm.ConfiguredProvider"> & {
  * Use `create(ConfiguredProviderSchema)` to create a new message.
  */
 export const ConfiguredProviderSchema: GenMessage<ConfiguredProvider> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 1);
+  messageDesc(file_xiaowei_model_settings, 2);
 
 /**
  * @generated from message xiaowei.llm.ApiKeyUpdate
@@ -217,7 +234,7 @@ export type ApiKeyUpdate = Message<"xiaowei.llm.ApiKeyUpdate"> & {
  * Use `create(ApiKeyUpdateSchema)` to create a new message.
  */
 export const ApiKeyUpdateSchema: GenMessage<ApiKeyUpdate> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 2);
+  messageDesc(file_xiaowei_model_settings, 3);
 
 /**
  * @generated from message xiaowei.llm.ModelDefaults
@@ -248,7 +265,7 @@ export type ModelDefaults = Message<"xiaowei.llm.ModelDefaults"> & {
  * Use `create(ModelDefaultsSchema)` to create a new message.
  */
 export const ModelDefaultsSchema: GenMessage<ModelDefaults> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 3);
+  messageDesc(file_xiaowei_model_settings, 4);
 
 /**
  * @generated from message xiaowei.llm.ModelSettingsSnapshot
@@ -289,7 +306,7 @@ export type ModelSettingsSnapshot = Message<"xiaowei.llm.ModelSettingsSnapshot">
  * Use `create(ModelSettingsSnapshotSchema)` to create a new message.
  */
 export const ModelSettingsSnapshotSchema: GenMessage<ModelSettingsSnapshot> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 4);
+  messageDesc(file_xiaowei_model_settings, 5);
 
 /**
  * @generated from message xiaowei.llm.ModelSettingsChanged
@@ -306,7 +323,7 @@ export type ModelSettingsChanged = Message<"xiaowei.llm.ModelSettingsChanged"> &
  * Use `create(ModelSettingsChangedSchema)` to create a new message.
  */
 export const ModelSettingsChangedSchema: GenMessage<ModelSettingsChanged> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 5);
+  messageDesc(file_xiaowei_model_settings, 6);
 
 /**
  * @generated from message xiaowei.llm.SaveProviderRequest
@@ -333,7 +350,7 @@ export type SaveProviderRequest = Message<"xiaowei.llm.SaveProviderRequest"> & {
  * Use `create(SaveProviderRequestSchema)` to create a new message.
  */
 export const SaveProviderRequestSchema: GenMessage<SaveProviderRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 6);
+  messageDesc(file_xiaowei_model_settings, 7);
 
 /**
  * @generated from message xiaowei.llm.DeleteProviderRequest
@@ -355,7 +372,7 @@ export type DeleteProviderRequest = Message<"xiaowei.llm.DeleteProviderRequest">
  * Use `create(DeleteProviderRequestSchema)` to create a new message.
  */
 export const DeleteProviderRequestSchema: GenMessage<DeleteProviderRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 7);
+  messageDesc(file_xiaowei_model_settings, 8);
 
 /**
  * @generated from message xiaowei.llm.UpdateModelDefaultsRequest
@@ -377,7 +394,7 @@ export type UpdateModelDefaultsRequest = Message<"xiaowei.llm.UpdateModelDefault
  * Use `create(UpdateModelDefaultsRequestSchema)` to create a new message.
  */
 export const UpdateModelDefaultsRequestSchema: GenMessage<UpdateModelDefaultsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 8);
+  messageDesc(file_xiaowei_model_settings, 9);
 
 /**
  * @generated from message xiaowei.llm.DiscoverModelsRequest
@@ -401,7 +418,7 @@ export type DiscoverModelsRequest = Message<"xiaowei.llm.DiscoverModelsRequest">
  * Use `create(DiscoverModelsRequestSchema)` to create a new message.
  */
 export const DiscoverModelsRequestSchema: GenMessage<DiscoverModelsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_model_settings, 9);
+  messageDesc(file_xiaowei_model_settings, 10);
 
 /**
  * Host-owned persistent model settings. Keys are write-only through this API.
@@ -416,6 +433,16 @@ export const ModelSettings: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof ModelSettingsSnapshotSchema;
+  },
+  /**
+   * Current small-text model selection; absent means not configured.
+   *
+   * @generated from rpc xiaowei.llm.ModelSettings.GetAuxiliaryModelRef
+   */
+  getAuxiliaryModelRef: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof AuxiliaryModelRefSchema;
   },
   /**
    * @generated from rpc xiaowei.llm.ModelSettings.SaveProvider

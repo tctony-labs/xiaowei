@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { create, toBinary } from "@bufbuild/protobuf";
 import {
   type ApiKeyUpdate,
+  AuxiliaryModelRefSchema,
   ConfiguredProviderSchema,
   ListModelsRequestSchema,
   Llm,
@@ -218,6 +219,7 @@ export function registerModelSettings(
 
   const handlers = bindHandlers(ModelSettings, {
     get: () => snapshot(),
+    getAuxiliaryModelRef: () => create(AuxiliaryModelRefSchema, { modelRef: document.defaults.smallTextModelRef }),
     saveProvider: (request) =>
       enqueue(async () => {
         checkRevision(request.expectedRevision);

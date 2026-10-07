@@ -121,7 +121,7 @@ impl ::prost::Name for GenerationFailed {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenerateEvent {
-    #[prost(oneof = "generate_event::Event", tags = "1, 2, 3, 4, 5, 6, 7, 8")]
+    #[prost(oneof = "generate_event::Event", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9")]
     pub event: ::core::option::Option<generate_event::Event>,
 }
 /// Nested message and enum types in `GenerateEvent`.
@@ -144,6 +144,8 @@ pub mod generate_event {
         BlockDelta(super::ContentDelta),
         #[prost(message, tag = "8")]
         BlockFinished(super::ContentBlockEvent),
+        #[prost(message, tag = "9")]
+        FirstSseReceived(super::FirstSseReceived),
     }
 }
 impl ::prost::Name for GenerateEvent {
@@ -154,6 +156,65 @@ impl ::prost::Name for GenerateEvent {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.llm.GenerateEvent".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct FirstSseReceived {
+    /// Worker-observed first complete SSE data event, not headers or first text.
+    /// Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
+    #[prost(int64, tag = "1")]
+    pub received_at_ms: i64,
+}
+impl ::prost::Name for FirstSseReceived {
+    const NAME: &'static str = "FirstSseReceived";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.FirstSseReceived".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.FirstSseReceived".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetModelInfoRequest {
+    #[prost(string, tag = "1")]
+    pub model_ref: ::prost::alloc::string::String,
+}
+impl ::prost::Name for GetModelInfoRequest {
+    const NAME: &'static str = "GetModelInfoRequest";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.GetModelInfoRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.GetModelInfoRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ModelInfo {
+    #[prost(string, tag = "1")]
+    pub model_ref: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub provider_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(bool, tag = "4")]
+    pub reasoning: bool,
+    #[prost(enumeration = "ModelInput", repeated, tag = "5")]
+    pub input: ::prost::alloc::vec::Vec<i32>,
+    #[prost(double, tag = "6")]
+    pub context_window: f64,
+    #[prost(double, tag = "7")]
+    pub max_tokens: f64,
+}
+impl ::prost::Name for ModelInfo {
+    const NAME: &'static str = "ModelInfo";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.ModelInfo".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.ModelInfo".into()
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -260,6 +321,9 @@ pub struct ModelConfiguration {
     /// The host resolves the provider's capability and preference; unknown enum values are rejected.
     #[prost(enumeration = "ModelTransport", tag = "18")]
     pub default_transport: i32,
+    /// User-facing provider name; independent of SDK provider identity and model name.
+    #[prost(string, tag = "19")]
+    pub provider_name: ::prost::alloc::string::String,
 }
 impl ::prost::Name for ModelConfiguration {
     const NAME: &'static str = "ModelConfiguration";
@@ -798,6 +862,21 @@ impl ModelTransport {
             "MODEL_TRANSPORT_AUTO" => Some(Self::Auto),
             _ => None,
         }
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AuxiliaryModelRef {
+    #[prost(string, optional, tag = "1")]
+    pub model_ref: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for AuxiliaryModelRef {
+    const NAME: &'static str = "AuxiliaryModelRef";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.AuxiliaryModelRef".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.AuxiliaryModelRef".into()
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

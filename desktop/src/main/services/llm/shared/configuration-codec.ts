@@ -35,6 +35,7 @@ export function decodeModels(entries: readonly ModelConfiguration[]) {
           id: entry.id,
           name: entry.name,
           provider: entry.provider,
+          providerName: entry.providerName,
           modelId: entry.modelId,
           api: entry.api as ResolvedModelConfig["api"],
           baseUrl: entry.baseUrl,

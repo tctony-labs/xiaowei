@@ -4,6 +4,7 @@ export const CONTRACT_VERSION = 1;
 export type ErrorCode =
   | "CANCELLED"
   | "RESOURCE_EXHAUSTED"
+  | "NOT_FOUND"
   | "UNKNOWN_ROUTE"
   | "OWNER_UNAVAILABLE"
   | "INVALID_ARGUMENT"

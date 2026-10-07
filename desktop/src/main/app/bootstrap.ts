@@ -3,6 +3,7 @@ import { open, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import { create } from "@bufbuild/protobuf";
 import { app, clipboard, globalShortcut, protocol, screen, shell } from "electron";
+import { initializeLogging as initializeAgentLogging } from "xiaowei-agent";
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
@@ -74,6 +75,7 @@ export function startApplication(moduleDir: string): void {
     process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));
     const nativeLog = createNativeLogSink(logs.main);
     initializeLogging(!app.isPackaged, nativeLog);
+    initializeAgentLogging(!app.isPackaged, nativeLog);
     initializeClipboardLogging(!app.isPackaged, nativeLog);
     app.on("web-contents-created", (_event, contents) => {
       if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
@@ -92,10 +94,12 @@ export function startApplication(moduleDir: string): void {
           await settingsWindow.open();
         });
         const models = await loadConfig(process.env, paths.models);
+        console.debug("Application module paths resolved", { agent: paths.agent, models: models.path });
         gateway = await createApplicationGateway(
           paths.clipboard,
           paths.database,
           paths.appIcons,
+          paths.agent,
           {
             development: !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL),
             platform: process.platform,

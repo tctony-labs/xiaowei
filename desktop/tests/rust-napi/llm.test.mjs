@@ -32,6 +32,9 @@ test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, erro
   for await (const chunk of stream) {
     events.push(fromBinary(GenerateEventSchema, chunk.value.blobs[0].data).event);
   }
+  const timing = events.shift();
+  assert.equal(timing.case, "firstSseReceived");
+  assert.ok(timing.value.receivedAtMs > 0n);
   assert.deepEqual(
     events.map((event) => event.case),
     ["textDelta", "textDelta", "usage", "finished"],
@@ -76,6 +79,7 @@ test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, erro
   assert.equal(failures.at(-1).case, "failed");
   assert.ok(!failures.some((event) => event.case === "finished"));
   const cancelled = await open("cancel");
+  await cancelled.next();
   await cancelled.next();
   const pending = assert.rejects(cancelled.next(), (error) => error.detail?.code === "CANCELLED");
   await cancelled.cancel();

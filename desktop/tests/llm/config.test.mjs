@@ -17,6 +17,7 @@ const model = {
   modelId: "upstream/model",
   api: "openai-completions",
   provider: "deepseek",
+  providerName: "DeepSeek",
   baseUrl: "https://example.com/v1",
   reasoning: false,
   input: ["text"],

@@ -1,0 +1,17 @@
+[package]
+name = "xw-agent-rollout"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+# Enabled only by core test fixtures; production hosts use the default build.
+test-support = []
+
+[dependencies]
+xw-agent-types = { path = "../xw-agent-types" }
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

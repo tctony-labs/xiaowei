@@ -13,6 +13,7 @@ pub enum ErrorCode {
     Cancelled,
     ResourceExhausted,
     UnknownRoute,
+    NotFound,
     OwnerUnavailable,
     InvalidArgument,
     ConcurrencyFull,

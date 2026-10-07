@@ -33,7 +33,7 @@ export function Launcher({
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
-  const chat = useQuickChat(services);
+  const chat = useQuickChat(services, chatOpen && chatExpanded && !clipboardOpen);
   const lastLayoutMode = useRef(LauncherMode.SEARCH);
   const [query, setQuery] = useState("");
   const [response, setResponse] = useState<SearchResponse>({ token: 0, hits: [] });

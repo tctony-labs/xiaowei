@@ -6,6 +6,8 @@ export interface QuickChatSessionItem {
   title: string;
 }
 
+export type QuickChatUnimplementedAction = "sessions" | "rename" | "regenerateTitle" | "archive" | "copyId";
+
 export interface QuickChatTitleBarProps {
   convId: string | null;
   title: string;
@@ -15,9 +17,12 @@ export interface QuickChatTitleBarProps {
   isGenerating: boolean;
   isRegeneratingTitle: boolean;
   hasAssistantReply: boolean;
+  hasMessages: boolean;
   sessions: QuickChatSessionItem[];
   sessionsLoading: boolean;
+  sessionsHasMore?: boolean;
   onListSessions: () => void;
+  onMoreSessions?: () => void;
   onCreateSession: () => void;
   onSwitchSession: (id: string) => void;
   onRename: (title: string) => void;
@@ -26,6 +31,8 @@ export interface QuickChatTitleBarProps {
   onDelete: () => void;
   onCopyId: (id: string) => Promise<void>;
   onOpenTitleModelSettings: () => void;
+  unimplementedActions?: readonly QuickChatUnimplementedAction[];
+  showSessionDetails?: boolean;
 }
 
 /** 将绝对路径中的 home 目录前缀替换为 ~ */
@@ -38,7 +45,7 @@ const iconButtonClass =
   "hover:bg-neutral-200 hover:text-neutral-700 qc-dark:text-neutral-400 " +
   "qc-dark:hover:bg-neutral-700 qc-dark:hover:text-neutral-100";
 
-function FullQuickChatTitleBar({
+export default function QuickChatTitleBar({
   convId,
   title,
   autoTitle,
@@ -47,8 +54,11 @@ function FullQuickChatTitleBar({
   isGenerating,
   isRegeneratingTitle,
   hasAssistantReply,
+  hasMessages,
   sessions,
   sessionsLoading,
+  sessionsHasMore = false,
+  onMoreSessions,
   onListSessions,
   onCreateSession: createNewSession,
   onSwitchSession: switchSession,
@@ -58,6 +68,8 @@ function FullQuickChatTitleBar({
   onDelete: deleteConversation,
   onCopyId,
   onOpenTitleModelSettings,
+  unimplementedActions,
+  showSessionDetails = true,
 }: QuickChatTitleBarProps) {
   const normalizedWorkspace = (workspaceDir ?? "").replace(/\/+$/, "").replace(/\/\.\//g, "/");
   const isQuickChat = /\/quick-chat(\/|$)/.test(normalizedWorkspace);
@@ -76,18 +88,48 @@ function FullQuickChatTitleBar({
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [copyToast, setCopyToast] = useState(false);
+  const [toast, setToast] = useState<{ text: string } | null>(null);
   const [regenError, setRegenError] = useState<string | null>(null);
 
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const currentSession = useRef(convId);
+  currentSession.current = convId;
+
+  // Clear feedback when the current conversation is replaced.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Session identity owns the feedback lifecycle.
+  useEffect(() => {
+    setRegenError(null);
+    setToast(null);
+    setEditing(false);
+    clearTimeout(errorTimer.current);
+  }, [convId]);
+
+  useEffect(() => {
+    if (!hasMessages) setMenuOpen(false);
+  }, [hasMessages]);
 
   useEffect(
     () => () => {
-      clearTimeout(copyTimer.current);
       clearTimeout(errorTimer.current);
     },
     [],
+  );
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const notImplemented = useCallback(
+    (action: QuickChatUnimplementedAction) => {
+      if (!unimplementedActions?.includes(action)) return false;
+      setMenuOpen(false);
+      setSessionsOpen(false);
+      setToast({ text: "暂未实现" });
+      return true;
+    },
+    [unimplementedActions],
   );
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,10 +175,11 @@ function FullQuickChatTitleBar({
   }, [sessionsOpen]);
 
   const openSessionsMenu = useCallback(() => {
+    if (notImplemented("sessions")) return;
     setMenuOpen(false);
     setSessionsOpen(!sessionsOpen);
     if (!sessionsOpen) onListSessions();
-  }, [onListSessions, sessionsOpen]);
+  }, [notImplemented, onListSessions, sessionsOpen]);
 
   const handleNewSession = useCallback(() => {
     setSessionsOpen(false);
@@ -164,19 +207,20 @@ function FullQuickChatTitleBar({
   }, [title, editing]);
 
   const startRename = useCallback(() => {
+    if (notImplemented("rename")) return;
     if (!convId) return;
     setEditTitle(title);
     setEditing(true);
     setMenuOpen(false);
-  }, [convId, title]);
+  }, [convId, notImplemented, title]);
 
   const submitRename = useCallback(() => {
     const trimmed = editTitle.trim();
-    if (trimmed && trimmed !== title && convId) {
+    if (trimmed && convId) {
       void renameConversation(trimmed);
     }
     setEditing(false);
-  }, [editTitle, title, convId, renameConversation]);
+  }, [editTitle, convId, renameConversation]);
 
   const handleEditKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -192,10 +236,11 @@ function FullQuickChatTitleBar({
   );
 
   const handleArchive = useCallback(() => {
+    if (notImplemented("archive")) return;
     if (!convId) return;
     void archiveConversation();
     setMenuOpen(false);
-  }, [convId, archiveConversation]);
+  }, [convId, archiveConversation, notImplemented]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!convId) return;
@@ -204,41 +249,46 @@ function FullQuickChatTitleBar({
   }, [convId, deleteConversation]);
 
   const handleCopyId = useCallback(async () => {
+    if (notImplemented("copyId")) return;
     if (!convId) return;
     try {
       await onCopyId(convId);
-      setCopyToast(true);
-      clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(() => setCopyToast(false), 1500);
+      setToast({ text: "已复制" });
     } catch (err) {
       console.warn("clipboard write failed", err);
+      setToast({ text: "复制失败，请重试。" });
     }
     setMenuOpen(false);
-  }, [convId, onCopyId]);
+  }, [convId, notImplemented, onCopyId]);
 
-  const regenerateDisabled = !convId || isGenerating || isRegeneratingTitle || !hasAssistantReply;
+  const regenerateDisabled =
+    !unimplementedActions?.includes("regenerateTitle") &&
+    (!convId || isGenerating || isRegeneratingTitle || !hasAssistantReply);
 
   const handleRegenerateTitle = useCallback(async () => {
+    if (notImplemented("regenerateTitle")) return;
     if (regenerateDisabled) return;
     setMenuOpen(false);
     setRegenError(null);
     try {
       await regenerateTitle();
     } catch (err) {
+      if (currentSession.current !== convId) return;
       const msg = err instanceof Error ? err.message : String(err);
       setRegenError(msg || "标题生成失败");
       clearTimeout(errorTimer.current);
       errorTimer.current = setTimeout(() => setRegenError(null), 8000);
     }
-  }, [regenerateDisabled, regenerateTitle]);
+  }, [convId, notImplemented, regenerateDisabled, regenerateTitle]);
 
   return (
     <>
       <div
         data-drag-window
-        data-quick-chat-keyboard-layer={menuOpen || sessionsOpen || editing || undefined}
+        data-quick-chat-keyboard-layer={(menuOpen && hasMessages) || sessionsOpen || editing || undefined}
         className={
-          "quick-chat-title-bar relative z-20 flex h-10 shrink-0 items-center gap-2 " + "border-b border-subtle px-4"
+          "quick-chat-title-bar launcher-drag relative z-20 flex h-10 shrink-0 items-center gap-2 " +
+          "border-b border-subtle px-4"
         }
       >
         <div className="relative min-w-0 flex-1">
@@ -269,33 +319,35 @@ function FullQuickChatTitleBar({
               >
                 {title}
               </span>
-              <div
-                data-no-drag
-                className={
-                  "pointer-events-none absolute -left-4 top-full z-50 min-w-72 rounded-b-lg " +
-                  "border border-t-0 border-subtle bg-elevated px-4 py-2 text-xs opacity-0 " +
-                  "shadow-md transition-opacity duration-150 " +
-                  "group-hover/title:pointer-events-auto group-hover/title:opacity-100"
-                }
-              >
-                <div className="flex flex-col gap-1 text-ink-secondary">
-                  {!isQuickChat && workspaceDir && (
-                    <span className="select-text text-ink">工作区：{shortenHome(workspaceDir)}</span>
-                  )}
-                  <span className="select-text text-ink">{autoTitle ? "自动" : "不自动"}生成标题</span>
-                  <div className="border-t border-subtle pt-1">
-                    <span className="select-text text-ink">默认可写：{defaultWritable}</span>
-                    {grantedPaths.length > 0 && (
-                      <div className="mt-0.5">
-                        <span className="select-text text-ink">
-                          额外授权：
-                          {grantedPaths.map((gp) => shortenHome(gp.path) + (gp.is_directory ? "/" : "")).join(", ")}
-                        </span>
-                      </div>
+              {showSessionDetails && (
+                <div
+                  data-no-drag
+                  className={
+                    "pointer-events-none absolute -left-4 top-full z-50 min-w-72 rounded-b-lg " +
+                    "border border-t-0 border-subtle bg-elevated px-4 py-2 text-xs opacity-0 " +
+                    "shadow-md transition-opacity duration-150 " +
+                    "group-hover/title:pointer-events-auto group-hover/title:opacity-100"
+                  }
+                >
+                  <div className="flex flex-col gap-1 text-ink-secondary">
+                    {!isQuickChat && workspaceDir && (
+                      <span className="select-text text-ink">工作区：{shortenHome(workspaceDir)}</span>
                     )}
+                    <span className="select-text text-ink">{autoTitle ? "自动" : "不自动"}生成标题</span>
+                    <div className="border-t border-subtle pt-1">
+                      <span className="select-text text-ink">默认可写：{defaultWritable}</span>
+                      {grantedPaths.length > 0 && (
+                        <div className="mt-0.5">
+                          <span className="select-text text-ink">
+                            额外授权：
+                            {grantedPaths.map((gp) => shortenHome(gp.path) + (gp.is_directory ? "/" : "")).join(", ")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -346,8 +398,9 @@ function FullQuickChatTitleBar({
             </span>
           </div>
 
-          {menuOpen && (
+          {hasMessages && menuOpen && (
             <div
+              data-no-drag
               ref={menuRef}
               className={
                 "absolute right-0 top-9 z-50 min-w-44 rounded-lg border border-neutral-200 " +
@@ -357,7 +410,7 @@ function FullQuickChatTitleBar({
               <button
                 type="button"
                 onClick={() => void handleCopyId()}
-                disabled={!convId}
+                disabled={!convId && !unimplementedActions?.includes("copyId")}
                 className={
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm " +
                   "text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed " +
@@ -384,7 +437,7 @@ function FullQuickChatTitleBar({
               <button
                 type="button"
                 onClick={startRename}
-                disabled={!convId}
+                disabled={!convId && !unimplementedActions?.includes("rename")}
                 className={
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm " +
                   "text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed " +
@@ -411,13 +464,15 @@ function FullQuickChatTitleBar({
                 onClick={() => void handleRegenerateTitle()}
                 disabled={regenerateDisabled}
                 title={
-                  !hasAssistantReply
-                    ? "需要至少一轮对话后才能生成标题"
-                    : isGenerating
-                      ? "正在回复中，请稍候"
-                      : isRegeneratingTitle
-                        ? "正在生成标题..."
-                        : undefined
+                  unimplementedActions?.includes("regenerateTitle")
+                    ? undefined
+                    : !hasAssistantReply
+                      ? "需要至少一轮对话后才能生成标题"
+                      : isGenerating
+                        ? "正在回复中，请稍候"
+                        : isRegeneratingTitle
+                          ? "正在生成标题..."
+                          : undefined
                 }
                 className={
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm " +
@@ -450,7 +505,7 @@ function FullQuickChatTitleBar({
               <button
                 type="button"
                 onClick={handleArchive}
-                disabled={!convId}
+                disabled={!convId && !unimplementedActions?.includes("archive")}
                 className={
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm " +
                   "text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed " +
@@ -502,7 +557,7 @@ function FullQuickChatTitleBar({
             </div>
           )}
 
-          <div className="relative shrink-0" ref={sessionsRef}>
+          <div data-no-drag className="relative shrink-0" ref={sessionsRef}>
             <button
               ref={sessionsTriggerRef}
               type="button"
@@ -534,7 +589,7 @@ function FullQuickChatTitleBar({
                   "qc-dark:bg-neutral-800"
                 }
               >
-                {sessionsLoading ? (
+                {sessionsLoading && !sessionsHasMore ? (
                   <p className="px-3 py-2 text-xs text-muted">加载中...</p>
                 ) : sessions.length === 0 ? (
                   <p className="px-3 py-2 text-xs text-muted">暂无对话</p>
@@ -542,54 +597,65 @@ function FullQuickChatTitleBar({
                   sessions.map((session) => {
                     const active = session.id === convId;
                     return (
-                      <button
-                        key={session.id}
-                        type="button"
-                        onClick={() => handleSelectSession(session.id)}
-                        className={`flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-sm ${
-                          active
-                            ? "bg-hover text-ink"
-                            : "text-neutral-700 hover:bg-neutral-100 " +
-                              "qc-dark:text-neutral-200 qc-dark:hover:bg-neutral-700"
-                        }`}
-                      >
-                        <span className="truncate">{session.title}</span>
-                      </button>
+                      <div key={session.id} className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSession(session.id)}
+                          className={`min-w-0 flex-1 cursor-pointer truncate px-3 py-1.5 text-left text-sm ${
+                            active ? "bg-hover text-ink" : "text-ink-secondary hover:bg-hover"
+                          }`}
+                        >
+                          {session.title}
+                        </button>
+                      </div>
                     );
                   })
+                )}
+                {sessionsHasMore && (
+                  <button
+                    type="button"
+                    disabled={sessionsLoading}
+                    onClick={onMoreSessions}
+                    className="w-full cursor-pointer px-3 py-2 text-xs text-muted hover:bg-hover"
+                  >
+                    {sessionsLoading ? "加载中..." : "加载更多"}
+                  </button>
                 )}
               </div>
             )}
           </div>
 
-          <button
-            ref={triggerRef}
-            type="button"
-            data-no-drag
-            onClick={() => {
-              setSessionsOpen(false);
-              setMenuOpen((v) => !v);
-            }}
-            className={iconButtonClass}
-            aria-label="更多操作"
-          >
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="5" cy="12" r="2" />
-              <circle cx="12" cy="12" r="2" />
-              <circle cx="19" cy="12" r="2" />
-            </svg>
-          </button>
+          {hasMessages && (
+            <button
+              ref={triggerRef}
+              type="button"
+              data-no-drag
+              onClick={() => {
+                setSessionsOpen(false);
+                setMenuOpen((v) => !v);
+              }}
+              className={iconButtonClass}
+              aria-label="更多操作"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {copyToast && (
+        {toast && (
           <div
+            role="status"
             className={
               "pointer-events-none absolute right-3 top-12 z-50 rounded-md bg-neutral-800 " +
               "px-2.5 py-1 text-xs text-white shadow-lg qc-dark:bg-neutral-200 " +
               "qc-dark:text-neutral-800"
             }
           >
-            已复制
+            {toast.text}
           </div>
         )}
         {regenError && (
@@ -620,12 +686,20 @@ function FullQuickChatTitleBar({
 
       <Modal
         open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
+        onClose={() => {
+          setDeleteOpen(false);
+        }}
         onConfirm={handleDeleteConfirm}
         title="确认删除"
         footer={
           <>
-            <ModalButton onClick={() => setDeleteOpen(false)}>取消</ModalButton>
+            <ModalButton
+              onClick={() => {
+                setDeleteOpen(false);
+              }}
+            >
+              取消
+            </ModalButton>
             <ModalButton variant="danger" onClick={handleDeleteConfirm}>
               删除
             </ModalButton>
@@ -633,48 +707,10 @@ function FullQuickChatTitleBar({
         }
       >
         <p className="text-[13px] leading-[20px] text-ink-secondary">
-          确定要删除对话「<span className="font-medium text-ink">{title}</span>」吗？删除后无法恢复。
+          确定要删除对话「<span className="font-medium text-ink">{title}</span>
+          」吗？删除后无法恢复。
         </p>
       </Modal>
     </>
-  );
-}
-
-interface MinimalTitleBarProps {
-  minimal: true;
-  title: string;
-  isGenerating: boolean;
-  onCreateSession: () => void;
-}
-
-export default function QuickChatTitleBar(props: QuickChatTitleBarProps | MinimalTitleBarProps) {
-  if (!("minimal" in props)) return <FullQuickChatTitleBar {...props} />;
-
-  return (
-    <div
-      data-drag-window
-      className="quick-chat-title-bar launcher-drag flex h-10 shrink-0 items-center gap-2 border-b border-subtle px-4"
-    >
-      <span
-        className={`min-w-0 flex-1 truncate text-sm font-medium ${
-          props.isGenerating ? "quick-chat-title-shimmer" : "text-ink"
-        }`}
-      >
-        {props.title}
-      </span>
-      <button
-        type="button"
-        data-no-drag
-        aria-label="新建对话"
-        title="新建对话"
-        onClick={props.onCreateSession}
-        className="flex size-7 cursor-pointer items-center justify-center rounded text-muted
-          hover:bg-hover hover:text-ink [-webkit-app-region:no-drag]"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      </button>
-    </div>
   );
 }

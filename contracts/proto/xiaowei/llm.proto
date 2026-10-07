@@ -14,6 +14,9 @@ service Llm {
   // Sets the complete model collection after validation. Empty clears future models.
   // In-flight requests retain their snapshot. Transport failure may leave the outcome unknown.
   rpc SetModels(SetModelsRequest) returns (xiaowei.common.Empty);
+  // Safe metadata from the same applied model collection used by Generate.
+  // Unknown model_ref is not-found; never returns credentials or connection settings.
+  rpc GetModelInfo(GetModelInfoRequest) returns (ModelInfo);
   // Streams remote catalog pages without changing configured models. Cancel aborts HTTP.
   rpc ModelCatalog(ListModelsRequest) returns (stream ListModelsResponse);
 }
@@ -85,7 +88,28 @@ message GenerateEvent {
     ContentBlockEvent block_started = 6;
     ContentDelta block_delta = 7;
     ContentBlockEvent block_finished = 8;
+    FirstSseReceived first_sse_received = 9;
   }
+}
+
+message FirstSseReceived {
+  // Worker-observed first complete SSE data event, not headers or first text.
+  // Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
+  int64 received_at_ms = 1;
+}
+
+message GetModelInfoRequest {
+  string model_ref = 1;
+}
+
+message ModelInfo {
+  string model_ref = 1;
+  string provider_name = 2;
+  string name = 3;
+  bool reasoning = 4;
+  repeated ModelInput input = 5;
+  double context_window = 6;
+  double max_tokens = 7;
 }
 
 message SetModelsRequest {
@@ -145,6 +169,8 @@ message ModelConfiguration {
   // Default for Generate when transport is absent. UNSPECIFIED preserves the API default.
   // The host resolves the provider's capability and preference; unknown enum values are rejected.
   ModelTransport default_transport = 18;
+  // User-facing provider name; independent of SDK provider identity and model name.
+  string provider_name = 19;
 }
 
 message UsageCost {

@@ -14,7 +14,7 @@
 pnpm --dir desktop build
 ```
 
-配置格式和唯一加载器定义在 [`src/main/services/llm/config.ts`](../src/main/services/llm/config.ts)。应用默认保存到 `~/.xiaowei/models.json`，XIAOWEI_LLM_CONFIG 仍可指定绝对路径覆盖；脚本使用 --config 指定同一文件，或读取该环境变量，不自行寻找 Electron 数据目录。只接受 version: 1 的 providers／models／defaults 格式，旧 models 数组格式已移除，不维护独立测试格式。
+配置格式和唯一加载器定义在 [`src/main/services/llm/config.ts`](../src/main/services/llm/config.ts)。应用默认保存到 `~/.xiaowei/models.json`，设置绝对路径 XIAOWEI_AGENT_HOME 后保存到该目录的 models.json；XIAOWEI_LLM_CONFIG 仍可指定绝对路径单独覆盖；脚本使用 --config 指定同一文件，或读取该环境变量，不自行寻找 Electron 数据目录。只接受 version: 1 的 providers／models／defaults 格式，旧 models 数组格式已移除，不维护独立测试格式。
 
 先列出 UI 保存的模型引用，再选择调用：
 

@@ -3,17 +3,19 @@ export function configDocument(models) {
   return {
     version: 1,
     defaults: {},
-    providers: models.map(({ provider, api, baseUrl, apiKey, apiKeyEnv, ...model }, index) => ({
-      id: `provider-${index}`,
-      name: `Provider ${index}`,
-      provider,
-      api,
-      baseUrl,
-      apiKey,
-      apiKeyEnv,
-      supportsWebSocket: false,
-      transport: "http",
-      models: [model],
-    })),
+    providers: models.map(
+      ({ provider, providerName: _providerName, api, baseUrl, apiKey, apiKeyEnv, ...model }, index) => ({
+        id: `provider-${index}`,
+        name: `Provider ${index}`,
+        provider,
+        api,
+        baseUrl,
+        apiKey,
+        apiKeyEnv,
+        supportsWebSocket: false,
+        transport: "http",
+        models: [model],
+      }),
+    ),
   };
 }

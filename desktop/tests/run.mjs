@@ -14,6 +14,9 @@ runPnpm([
 runPnpm(["--dir", "desktop", "build"]);
 runPnpm(["--dir", "desktop", "exec", "tsx", "--conditions=source", "--test", "tests/llm/*.test.mjs"]);
 runPnpm(["--dir", "desktop", "exec", "vitest", "run"]);
+runPnpm(["--filter", "xiaowei-agent", "build:debug"]);
+assertProduction(["agent"]);
+runPnpm(["--filter", "xiaowei-agent", "test:runtime"]);
 
 runPnpm(["--filter", "xiaowei-storage", "build:debug"]);
 // Storage and LLM use a test-only Rust caller. Other business tests use production addons.

@@ -133,7 +133,7 @@ export function ModelSettings(props: ModelSettingsProps) {
     .flatMap((p) =>
       p.models.map((model) => ({
         value: p.modelConfigs?.[model]?.localRef ?? `${p.name}/${model}`,
-        label: `${p.name} / ${modelDisplayName(p.modelConfigs?.[model]?.name, model)}`,
+        label: `${p.name}/${modelDisplayName(p.modelConfigs?.[model]?.name, model)}`,
       })),
     );
   const selectedModel = providers

@@ -6,6 +6,14 @@ pub struct BindingModule {
 #[rustfmt::skip]
 pub const MODULES: &[BindingModule] = &[
     BindingModule {
+        name: "xiaowei-agent",
+        services: &[
+            "xiaowei.agent.Agent",
+            "xiaowei.llm.Llm",
+            "xiaowei.llm.ModelSettings",
+        ],
+    },
+    BindingModule {
         name: "xiaowei-search",
         services: &[
             "xiaowei.search.Search",

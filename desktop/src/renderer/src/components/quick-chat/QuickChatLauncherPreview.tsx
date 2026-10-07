@@ -347,6 +347,7 @@ export function QuickChatLauncherPreview({
               grantedPaths={[]}
               isGenerating={generating}
               isRegeneratingTitle={false}
+              hasMessages={(active?.messages.length ?? 0) > 0}
               hasAssistantReply={active?.messages.some((message) => message.role === "assistant") ?? false}
               sessions={available}
               sessionsLoading={false}

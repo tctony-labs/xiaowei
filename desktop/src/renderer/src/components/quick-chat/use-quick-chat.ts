@@ -1,29 +1,32 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  AgentModelConfigSchema,
   EmptySchema,
-  GenerateRequestSchema,
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
+  OpenSettingsRequestSchema,
+  SettingsAnchor,
+  WriteClipboardTextRequestSchema,
 } from "xiaowei-contracts";
 import type { Subscription } from "xiaowei-gateway";
+import { thinkingLevels } from "../../../../shared/llm-models";
 import type { Services } from "../../services";
-import { type ChatEntry, replyAccumulator, userEntry } from "./chat-messages";
+import { agentChatClient } from "../agent-chat/client";
+import { useSessionViewing } from "../agent-chat/use-session-viewing";
 
-export function useQuickChat(services: Services) {
+export function useQuickChat(services: Services, viewing = false) {
   const [snapshot, setSnapshot] = useState<ModelSettingsSnapshot>();
   const [configError, setConfigError] = useState("");
-  const [messages, setMessages] = useState<ChatEntry[]>([]);
-  const [draft, setDraft] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
-  const entries = useRef<ChatEntry[]>([]);
-  const active = useRef<{ id: string; controller: AbortController } | null>(null);
+  const [draftSelection, setDraftSelection] = useState<{ modelRef: string; reasoning?: string }>();
+  const client = agentChatClient(services);
+  const [, refresh] = useState(0);
+  useSessionViewing(services, client.session?.sessionId, viewing);
+  useEffect(() => client.observe(() => refresh((value) => value + 1)), [client]);
 
-  function publish(next: ChatEntry[]) {
-    entries.current = next;
-    setMessages(next);
-  }
+  useEffect(() => {
+    void client.restoreLatestSession().catch(() => {});
+  }, [client]);
 
   useEffect(() => {
     let disposed = false;
@@ -58,9 +61,6 @@ export function useQuickChat(services: Services) {
     return () => {
       disposed = true;
       subscription?.close();
-      const run = active.current;
-      active.current = null;
-      run?.controller.abort();
     };
   }, [services]);
 
@@ -69,103 +69,133 @@ export function useQuickChat(services: Services) {
   const provider =
     defaultProvider ?? snapshot?.providers.find((item) => !item.unavailableReason && item.models.length > 0);
   const modelRef = defaultProvider ? defaultModelRef : provider?.models[0]?.id;
-  const thinkingLevel = defaultProvider ? snapshot?.defaults?.thinkingLevel : undefined;
-  const error =
+  const initialReasoning = defaultProvider ? snapshot?.defaults?.thinkingLevel : undefined;
+  const selection = client.session?.config ??
+    draftSelection ?? { modelRef: modelRef ?? "", reasoning: initialReasoning };
+  const selectedProvider = snapshot?.providers.find((provider) =>
+    provider.models.some((m) => m.id === selection.modelRef),
+  );
+  const selectedModel = selectedProvider?.models.find((model) => model.id === selection.modelRef);
+  const modelOptions =
+    snapshot?.providers.flatMap((provider) =>
+      provider.models.map((model) => ({
+        value: model.id,
+        label: `${provider.name}/${model.name || model.modelId}`,
+      })),
+    ) ?? [];
+  const supportedReasoning = selectedModel?.reasoning
+    ? thinkingLevels.filter((level) => {
+        const map = selectedModel.thinkingLevelMapJson ? JSON.parse(selectedModel.thinkingLevelMapJson) : undefined;
+        return map ? typeof map[level] === "string" : level !== "off";
+      })
+    : selectedModel
+      ? []
+      : undefined;
+  const initialError =
     configError ||
     (snapshot
       ? snapshot.applicationError
         ? "模型配置尚未应用，请在设置中处理。"
-        : !modelRef
+        : !selection.modelRef
           ? "暂无可用模型，请先在设置 - 模型中配置。"
-          : provider?.unavailableReason
-            ? "默认模型的凭据不可用，请检查提供商配置。"
+          : selectedProvider?.unavailableReason
+            ? "模型的凭据不可用，请检查提供商配置。"
             : ""
       : "");
-  const configured = !!snapshot && !error;
+  // Existing sessions keep their own reference even when settings / model lookup fails.
+  const configured =
+    !client.initializing && !!selection.modelRef && (!!client.session || (!!snapshot && !initialError));
+  const error = client.session ? client.error : initialError || client.error;
+  const modelLabel = client.session?.modelName
+    ? [client.session.providerName, client.session.modelName].filter(Boolean).join("/")
+    : selection.modelRef;
+  const modelHint = client.session?.modelInfoWarning
+    ? `${modelLabel} 模型配置获取失败，部分功能可能出现异常`
+    : undefined;
 
-  function stop() {
-    const run = active.current;
-    if (!run) return;
-    active.current = null;
-    run.controller.abort();
-    publish(entries.current.map((entry) => (entry.id === run.id ? { ...entry, status: "cancelled" } : entry)));
-    setGenerating(false);
+  function select(next: { modelRef: string; reasoning?: string }) {
+    if (client.session) void client.setConfig(create(AgentModelConfigSchema, next)).catch(() => {});
+    else setDraftSelection(next);
+  }
+
+  function changeModel(modelRef: string) {
+    const model = snapshot?.providers.flatMap((provider) => provider.models).find((model) => model.id === modelRef);
+    if (!model) return;
+    const map = model.thinkingLevelMapJson ? JSON.parse(model.thinkingLevelMapJson) : undefined;
+    const reasoning =
+      selection.reasoning &&
+      model.reasoning &&
+      (map ? typeof map[selection.reasoning] === "string" : selection.reasoning !== "off")
+        ? selection.reasoning
+        : undefined;
+    select({ modelRef, reasoning });
   }
 
   async function send() {
-    if (!configured || !modelRef || !draft.trim() || active.current) return;
-    const user = userEntry(draft);
-    const history = [...entries.current, user].flatMap((entry) => (entry.history ? [entry.history] : []));
-    const run = { id: crypto.randomUUID(), controller: new AbortController() };
-    active.current = run;
-    const accumulator = replyAccumulator(run.id);
-    publish([...entries.current, user, { id: run.id, role: "assistant", text: "", status: "generating" }]);
-    setDraft("");
-    setGenerating(true);
-    const replace = (reply: ChatEntry) => {
-      if (active.current === run) publish(entries.current.map((entry) => (entry.id === run.id ? reply : entry)));
-    };
+    if (!configured || !client.draft.trim() || client.busy || client.configuring) return;
+    const submitted = client.draft;
     try {
-      const stream = await services.getLlm().generate(
-        create(GenerateRequestSchema, {
-          modelRef,
-          messages: history,
-          options: { sessionId, reasoning: thinkingLevel || undefined },
+      const sessionId = await client.send(
+        submitted,
+        create(AgentModelConfigSchema, {
+          modelRef: selection.modelRef,
+          reasoning: selection.reasoning || undefined,
         }),
-        { signal: run.controller.signal },
       );
-      if (active.current !== run) {
-        await stream.cancel();
-        return;
-      }
-      try {
-        for await (const event of stream) {
-          if (active.current !== run) break;
-          replace(accumulator.accept(event));
-        }
-        if (active.current === run && !accumulator.terminal) throw new Error("回复流意外中断，请重试。");
-      } finally {
-        await stream.cancel();
-      }
-    } catch (cause) {
-      if (active.current === run) {
-        const reply = entries.current.find((entry) => entry.id === run.id);
-        if (reply) {
-          replace({
-            ...reply,
-            history: undefined,
-            status: "failed",
-            error:
-              cause instanceof Error && ["本次对话不支持工具调用。", "回复流意外中断，请重试。"].includes(cause.message)
-                ? cause.message
-                : "模型请求失败，请检查模型配置后重试。",
-          });
-        }
-      }
-    } finally {
-      if (active.current === run) {
-        active.current = null;
-        setGenerating(false);
-      }
+      if (client.draftFor(sessionId) === submitted) client.setDraft("", sessionId);
+    } catch {
+      /* The client keeps uncertain input visible and never automatically resends it. */
     }
   }
 
   return {
-    messages,
-    draft,
-    generating,
+    messages: client.messages,
+    sessionId: client.session?.sessionId ?? null,
+    title: client.session?.title || undefined,
+    onRename: (title: string) => void client.setTitle(title).catch(() => {}),
+    isRegeneratingTitle: client.regeneratingTitle,
+    onRegenerateTitle: () => client.regenerateTitle(),
+    onOpenTitleModelSettings: () => {
+      void services
+        .getSystem()
+        .openSettings(create(OpenSettingsRequestSchema, { anchor: SettingsAnchor.MODEL_PROVIDERS }))
+        .catch(() => console.warn("Failed to open title model settings"));
+    },
+    onCopySessionId: async (id: string) => {
+      await services.getSystem().writeClipboardText(create(WriteClipboardTextRequestSchema, { text: id }));
+    },
+    sessions: client.sessions.map((session) => ({ id: session.sessionId, title: client.sessionTitle(session) })),
+    sessionsLoading: client.sessionsLoading,
+    sessionsHasMore: !!client.sessionsContinuation,
+    onMoreSessions: () => void client.listSessions(true).catch(() => {}),
+    onListSessions: () => void client.listSessions().catch(() => {}),
+    onArchiveConversation: () => {
+      if (client.session) void client.archiveSession(client.session.sessionId, true).catch(() => {});
+    },
+    onSwitchSession: (id: string) => void client.switchSession(id).catch(() => {}),
+    onDeleteConversation: () => void client.deleteConversation().catch(() => {}),
+    draft: client.draft,
+    generating: client.busy,
     configured,
+    modelHint,
+    modelOptions,
+    selectedModelRef: selection.modelRef,
+    modelLabel,
+    reasoning: selection.reasoning ?? "",
+    supportedReasoning,
+    configSaving: client.configuring,
+    onModelChange: changeModel,
+    onReasoningChange: (reasoning: string) =>
+      select({ modelRef: selection.modelRef, reasoning: reasoning || undefined }),
     noModels: !!snapshot && !modelRef && !snapshot.applicationError && !configError,
-    loading: !snapshot && !configError,
+    loading: client.initializing || (!client.session && !snapshot && !configError),
     error,
-    onDraftChange: setDraft,
+    onDraftChange: (text: string) => client.setDraft(text),
     onSend: () => void send(),
-    onStop: stop,
+    onStop: () => void client.stop().catch(() => {}),
     onNewConversation: () => {
-      stop();
-      setSessionId(crypto.randomUUID());
-      publish([]);
-      setDraft("");
+      setDraftSelection(undefined);
+      void client.newConversation().catch(() => {});
     },
   };
 }

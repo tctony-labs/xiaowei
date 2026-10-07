@@ -19,7 +19,7 @@ export default defineConfig({
         output: { format: "es", entryFileNames: "[name].js" },
       },
       externalizeDeps: {
-        include: ["xiaowei-search", "xiaowei-clipboard", "xiaowei-storage", "xiaowei-platform"],
+        include: ["xiaowei-agent", "xiaowei-search", "xiaowei-clipboard", "xiaowei-storage", "xiaowei-platform"],
         exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],
       },
     },
