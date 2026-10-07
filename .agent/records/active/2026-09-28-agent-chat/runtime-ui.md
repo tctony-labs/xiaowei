@@ -14,7 +14,7 @@ renderer 保留草稿／显示缓存，Rust 持有权威历史与运行。隐藏
 
 UI 沿用现有 textarea、纯文本正文、可折叠思考内容和空态；未生成标题时首条输入作为显示标题。Markdown 解析、代码块渲染及工具卡片尚未实现；标题能力和 composer 模型／思考控件已接入，Host hint／保存行为见[宿主接口](host-interface.md)。
 
-标题栏复用现有完整菜单，复制 Session ID、确认删除和手动更新标题接真实调用，选择会话已接入 SQLite 会话列表和目标观察；重命名已接真实 SetSessionTitle，归档已接真实 SetSessionArchived。菜单状态由 renderer 维护，不伪造 Agent 会话变更；没有消息时隐藏更多操作，已有空 session 或未发送草稿不改变此规则，新建与会话切换入口保留。具体行为和验证边界见 [Quick Chat 入口记录](../2026-09-24-quick-chat-ui-interaction.md#产品入口与窗口交互)。实际窗口复验的证据与限制集中见[交付证据](implementation-results.md#验收限制与后续工作)。
+标题栏复用现有完整菜单，复制 Session ID、确认删除和手动更新标题接真实调用，选择会话已接入 SQLite 会话列表和目标观察；重命名已接真实 SetSessionTitle，归档已接真实 SetSessionArchived。菜单状态由 renderer 维护，不伪造 Agent 会话变更；没有消息时隐藏更多操作，已有空 session 或未发送草稿不改变此规则，新建与会话切换入口保留。具体行为和验证边界见 [Quick Chat 入口说明](../../../../desktop/docs/quick-chat.md#产品入口与窗口交互)。实际窗口复验的证据与限制集中见[交付证据](implementation-results.md#验收限制与后续工作)。
 
 ListSessions 从 SQLite 返回摘要（ID、标题／自动生成开关、当前状态、创建／更新时间、metadata revision、archived／archive revision），不传正文或输入预览；按更新时间／ID 倒序分页，普通／已归档列表独立过滤。归档行只能取消归档或删除，不能打开；活动会话归档先结算，再更新 UI 并回到空白草稿。菜单打开时刷新，不承诺全局列表变化流。切换用 ReadSession 检查目标，再建立 SubscribeSession，仅首帧快照替换历史；旧流按本地代次失效。发送与切换互斥，待接纳调用先结算；未确认 input／错误、草稿按会话保存在 renderer 内存，切回仍禁止重复发送。滚动位置也按会话隔离。新建保留旧会话，首次发送创建新 session；已经空白且无在途任务时，新建不改变草稿、空 session、观察或反馈，不输出操作日志；显式删除仍停止／结算后调用 DeleteSession。与旧 quickChatStore 对齐会话保留与目标观察；新建仍沿用当前 MVP 的先停止语义，不导入旧持久数据，启动默认恢复最后更新的未归档会话，unread 后续实施。
 

@@ -6,7 +6,7 @@
 
 缺口在模型调用之上的 Agent Core 和对应 Chat UI。事项开始时 `useQuickChat` 在 renderer 内存中保存消息并直接调用 `Llm.Generate`，每次发送只进行一次模型生成；不执行工具，收到工具调用即报错，也没有持久会话、运行恢复或真实会话管理。仅把工具输出展示到现有文本面板，不能形成完整的 agent 对话闭环。
 
-本事项承接 [Quick Chat 入口与内存对话](2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider 建设事项](../archived/2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。入口行为继续由 Quick Chat 事项承载，模型接入行为维护在 [LLM provider 长期文档](../../../docs/llm-provider.md)；本事项按职责同步对应当前说明。
+本事项承接 [Quick Chat 入口与内存对话](../archived/2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider 建设事项](../archived/2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。入口行为维护在 [desktop Quick Chat 文档](../../../desktop/docs/quick-chat.md)，后续相关交互与复验由本事项承接，模型接入行为维护在 [LLM provider 长期文档](../../../docs/llm-provider.md)；本事项按职责同步对应当前说明。
 
 ## What
 
@@ -65,6 +65,8 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 - **直接整体搬入旧 agent 与 UI**：旧版模型协议、宿主和存储边界不同，不能原样接入；先核对业务、恢复和文件生命周期，复用有效语义并显式记录适配差异。
 
 ## Current work
+
+2026-10-07 用户确认将 Quick Chat 入口事项归档，后续相关交互与复验继续在本事项处理。当前 desktop 入口说明见 [Quick Chat](../../../desktop/docs/quick-chat.md)，验收边界统一维护在 [交付证据](2026-09-28-agent-chat/implementation-results.md#验收限制与后续工作)。
 
 持久文本聊天、统一 Host、模型／思考选择、标题及会话管理已经实现。本次里程碑整理删除已完成的计划；剩余切片原地收敛，不继续细拆，顺序见[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)。下一运行能力切片是 02e 工具循环；01f 保留大历史的有界读取，工具卡片／审批、基础工具、压缩和显式继续仍待实施。
 

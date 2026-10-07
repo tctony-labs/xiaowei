@@ -14,6 +14,8 @@
 
 ## Outcome
 
+2026-10-07 按用户要求归档：Storybook 接入与 UI 对齐流程已完成，首个样例视觉验收已获确认；通用开发与验收规则已沉淀到 renderer README，后续维护直接更新该文档。原生窗口验收由 Launcher 事项承载，自动截图基线不属于本事项交付范围，不再以本 record 承载后续重大改动。以下保留历史实施结果与验证边界。
+
 已接入 Storybook 10.6，提供 `just storybook` 与静态构建命令。产品和预览复用 LauncherSearchBar，建立空输入、有输入、长文本、固定深色与 Esc 交互五个场景。配置自动 JSX 转换和同一份 Tailwind 样式；关闭 Storybook 遥测。
 
 `pnpm check`、桌面生产构建及 Storybook 静态构建通过。通过用户现有 Chrome 验证空输入布局 800 × 71、输入字号 16px、自动聚焦，深色背景为旧版 #141414，Esc 清空和关闭回调的 play 测试显示 PASS。没有冷启动 Electron；原生交互验收仍由 Launcher 事项跟踪。搜索框视觉样式已于 2026-09-16 获用户确认，尚未建立自动截图回归。
