@@ -19,4 +19,4 @@ just start
 
 启动后可在终端按 `r` 重新构建并重启应用，按 `R` 重启整个开发环境，按 `Ctrl+C` 退出。
 
-目录职责与工具链组织见 [工作区概要](docs/workspace.md)。
+目录职责与模块关系见 [工作区详情](docs/workspace.md)。

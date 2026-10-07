@@ -14,13 +14,15 @@ XiaoWei 是开源个人效率工具，以搜索和 AI Agent 帮助用户获取�
 
 ## How
 
-工作区已落地，顶层职责与工具链组织见 [工作区概要](../../../docs/workspace.md)，启动方式见根 [README](../../../README.md)，开发命令以 [justfile](../../../justfile) 为准，Agent 开发约束见 [AGENTS.md](../../../AGENTS.md)。此处保留初始化决策与结果。
+工作区已落地，顶层职责与工具链组织见 [工作区详情](../../../docs/workspace.md)，启动方式见根 [README](../../../README.md)，开发命令以 [justfile](../../../justfile) 为准，Agent 开发约束见 [AGENTS.md](../../../AGENTS.md)。此处保留初始化决策与结果。
+
+以下内容保留初始化及后续调整时的历史说明，不作为当前工作区状态的持续维护文档。
 
 - 桌面端位于根 `desktop/`，采用 Electron + TS + React + Tailwind CSS + Zustand；应用标识为 `com.tctony.xiaowei`。
 - 当前不引入 Rust 工程、原生模块或 sidecar；有实际需求时再接入。
 - Go 服务端位于 `server/`，使用独立 module，当前只有健康检查 HTTP 服务。
 - 根 pnpm 工作区与格式配置统一管理各自生态，justfile 提供已经验证的最小开发入口。
-- `packages/` 保留为独立 npm 包目录，没有创建无用途的示例包；初始化时以 `protocol/` 存放最小协议说明（现已移除，健康检查用法见 [服务端说明](../../../server/README.md)），服务端部署示例原位于 `deploy/`，现已迁至 `server/deploy/`，见 [用户与登录](2026-09-25-user-authentication.md)。
+- `packages/` 保留为独立 npm 包目录，没有创建无用途的示例包；初始化时以 `protocol/` 存放最小协议说明（现已移除，健康检查用法见 [服务端说明](../../../server/README.md)），服务端部署示例原位于 `deploy/`，现已迁至 `server/deploy/`，见 [用户与登录](../active/2026-09-25-user-authentication.md)。
 - `mobile/` 留待实际开发，未创建空工程。独立开发文档在工程落地后提取到 `docs/`，不在 record 重复维护当前事实。
 - 开发与打包共用 `com.tctony.xiaowei` 数据目录，不按工作区或 tag 隔离，`just start` 通过全局 PID 切换运行实例；格式化与只读检查分开，不引入自动暂存、提交或内部项目依赖。
 
@@ -36,6 +38,8 @@ GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/wor
 
 ## Outcome
 
+2026-10-07 按用户决定归档：工作区初始化已完成，继续将后续开发变更归入本事项已无意义。当前工作区说明由 [工作区详情](../../../docs/workspace.md) 和各模块文档承载，后续事项独立维护；本 record 保留历史决策与验证结果，不再持续更新。归档不撤销已经落地的成果。
+
 2026-09-25 增加 develop push 全量测试流水线，复用现有测试入口，将 `test:tooling` 后移到 workspace 测试之后，CI 无需额外构建 Gateway。actionlint 1.7.7、`just --dry-run test` 与 diff 空白检查通过；当前工作区未安装 Node 依赖，未本地执行全量测试。首轮 GitHub 运行 36155987498 在 7 分 3 秒后失败：剪贴板 napi 测试先于 Gateway 测试运行，缺失 Gateway dist；曾在 workspace 测试入口补充预构建。2026-09-26 rebase 到 develop 的源码消费修复 254116f 后，删除该临时预构建及 test:workspace 包装入口，保留串行测试顺序。此前冷跑 36156904221 全部通过，job 用时 10 分 22 秒；首个热跑 36158104874 在 Worker 取消／配额测试出现 RESOURCE_EXHAUSTED，已保持旧代码不变重跑，结果单独统计，不与 rebase 后代码混作同一基准。
 
 已完成 pnpm 工作区与 Go module、Electron 最小页面与 Logo、preload 入口及 Go 健康检查。工具链版本与依赖锁文件已落地，开发入口见根 [README](../../../README.md)。
@@ -47,7 +51,7 @@ GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/wor
 - Go 二进制以系统分配端口实际监听，HTTP 健康检查和 SIGTERM 正常退出通过。
 - macOS 目录包生成成功，已核对 `com.tctony.xiaowei`；未执行个人签名、公证或发布。
 
-附带 Docker/Compose 最小部署示例，但本机无 Docker，未验证容器运行；Windows/Linux 平台验证、业务迁移和正式发布属于后续工作。README 保持简短产品介绍，未导入原内部项目代码或配置。事项成果继续生效，保留在 active；对应实施 Plan 已删除。
+附带 Docker/Compose 最小部署示例，但本机无 Docker，未验证容器运行；Windows/Linux 平台验证、业务迁移和正式发布属于后续工作。README 保持简短产品介绍，未导入原内部项目代码或配置。对应实施 Plan 已删除。
 
 后续补齐提交与检查入口：按用户要求通过 Husky 在 pre-commit 中执行格式化与检查，格式化改变待提交文件时中止并要求重新暂存；类型检查改用固定版本 tsgo，保留 TypeScript 工具依赖。显式忽略当前未使用的 electron-winstaller 安装脚本。已验证 tsgo 全仓检查和临时仓库中 Hook 的执行顺序、失败中止、格式化变更提示及暂存区保持不变。
 
@@ -91,7 +95,7 @@ GitHub 自动测试入口为 [`.github/workflows/test.yml`](../../../.github/wor
 
 补齐外部停止的终端提示：此前 SIGTERM／SIGINT 直接调用 stop，只有 Ctrl+C 按键打印退出标记，切换工作区时旧终端缺少解释。现在外部信号先打印信号名和停止提示，正常清理完成后打印退出完成；重复信号不重复标记，不推断信号发送方工作区。20 项工具测试通过，覆盖非 TTY 的两种信号、重复信号及真实控制进程的 IPC 清理与提示顺序，Biome 和差异检查通过。未启动或停止其他工作区实例；dev 控制进程需用户重新执行 just start 后加载新提示。Chromium network service 提示保留，现有证据不足以单独确定其终止来源。
 
-一次性修复 workspace 源码消费：剪贴板测试补齐 Gateway、Storage、Search 与 tsx 依赖，通过公开入口加载；桌面、Gateway 源码测试及相关子进程显式启用 source 条件，删除桌面测试的 Gateway 预构建。Electron 验收 main 与 preload／renderer 一起内联 Gateway 源码；保留 Gateway 自身 plain Node 产物验收。统一规则见 [Workspace 源码消费](../../../AGENTS.md#workspace-源码消费)。在 Gateway dist 不存在时，剪贴板 3 项、桌面 185 项、工具 22 项测试和 Electron 验收资产构建通过；随后 Gateway 完整测试与 just check 通过。未启动 Electron，真实 Electron 运行验收未执行。
+一次性修复 workspace 源码消费：剪贴板测试补齐 Gateway、Storage、Search 与 tsx 依赖，通过公开入口加载；桌面、Gateway 源码测试及相关子进程显式启用 source 条件，删除桌面测试的 Gateway 预构建。Electron 验收 main 与 preload／renderer 一起内联 Gateway 源码；保留 Gateway 自身 plain Node 产物验收。统一规则见 [Workspace 源码消费](../../../docs/workspace.md#workspace-源码消费)。在 Gateway dist 不存在时，剪贴板 3 项、桌面 185 项、工具 22 项测试和 Electron 验收资产构建通过；随后 Gateway 完整测试与 just check 通过。未启动 Electron，真实 Electron 运行验收未执行。
 
 2026-09-26 新基准冷跑 36159080442 在 Gateway Worker 测试失败：控制端口释放门闩不保证业务端口下一请求之前完成配额清理，returned 通知也早于异步释放。仅调整两处测试的释放后断言，最多 5 秒等待对应配额错误消失，其他错误和永不释放仍失败；业务实现及释放前占用断言不变。冷／热比较以此修正后的相同代码重新开始。
 

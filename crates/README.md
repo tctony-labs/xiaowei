@@ -32,9 +32,9 @@
 ## 命名与依赖方向
 
 - `xiaowei-*`：主 App 直接使用的功能入口，例如 npm 包 `xiaowei-search` 及其同名 Rust 核心。对应 napi 绑定 crate 使用 `xiaowei-search-napi`，属于同一个功能入口的适配层。
-- `xw-*`：由其他包使用的内部模块，不由主 App 直接依赖，例如 `xw-app`、`xw-bookmark`、`xw-platform`。
+- `xw-*`：供其他 Rust 包使用的业务实现、支撑模块或通用能力，不由主 App 直接依赖，例如 `xw-app`、`xw-bookmark`、`xw-platform`。
 
-目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，内部模块不反向依赖 App 或功能入口。
+目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，业务实现与支撑模块不反向依赖 App 或功能入口。`xw-platform` 是通用平台能力，任意有需要的 Rust 模块均可直接依赖。
 
 ## 目录与职责
 
