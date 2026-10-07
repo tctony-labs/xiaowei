@@ -61,6 +61,6 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      # Keep the existing serial runner: Gateway and desktop share napi fixtures.
+      # Prepare native outputs once, then run workspace tests serially.
       - name: Run all automated tests
         run: just test

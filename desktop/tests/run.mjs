@@ -1,4 +1,9 @@
-import { assertProduction, runPnpm, withRustNapiFixtures } from "../../scripts/tests/rust-napi-fixtures.mjs";
+import {
+  assertProduction,
+  runPnpm,
+  rustNapiPrepared,
+  withRustNapiFixtures,
+} from "../../scripts/tests/rust-napi-fixtures.mjs";
 
 runPnpm(["--dir", "desktop", "exec", "node", "--test", "tests/*.test.mjs"]);
 runPnpm([
@@ -14,11 +19,11 @@ runPnpm([
 runPnpm(["--dir", "desktop", "build"]);
 runPnpm(["--dir", "desktop", "exec", "tsx", "--conditions=source", "--test", "tests/llm/*.test.mjs"]);
 runPnpm(["--dir", "desktop", "exec", "vitest", "run"]);
-runPnpm(["--filter", "xiaowei-agent", "build:debug"]);
+if (!rustNapiPrepared) runPnpm(["--filter", "xiaowei-agent", "build:debug"]);
 assertProduction(["agent"]);
 runPnpm(["--filter", "xiaowei-agent", "test:runtime"]);
 
-runPnpm(["--filter", "xiaowei-storage", "build:debug"]);
+if (!rustNapiPrepared) runPnpm(["--filter", "xiaowei-storage", "build:debug"]);
 // Storage, LLM and xwapi use a test-only Rust caller. Other business tests use production addons.
 await withRustNapiFixtures(["search"], () => {
   runPnpm([
@@ -33,7 +38,7 @@ await withRustNapiFixtures(["search"], () => {
     "tests/rust-napi/llm.test.mjs",
   ]);
 });
-runPnpm(["--filter", "xiaowei-clipboard", "build:debug"]);
+if (!rustNapiPrepared) runPnpm(["--filter", "xiaowei-clipboard", "build:debug"]);
 assertProduction(["storage", "clipboard"]);
 runPnpm([
   "--dir",

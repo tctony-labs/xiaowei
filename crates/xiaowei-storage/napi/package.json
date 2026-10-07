@@ -13,8 +13,8 @@
     "binaryName": "xiaowei-storage"
   },
   "scripts": {
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build": "node ../../../scripts/dev/build-napi.mjs --release",
+    "build:debug": "node ../../../scripts/dev/build-napi.mjs",
     "check": "cargo check -p xiaowei-storage-napi --locked",
     "test": "node --test test/*.test.cjs"
   },

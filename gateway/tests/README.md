@@ -6,7 +6,9 @@ Rust `tests/core.rs` 覆盖注册、typed 参数、远端回退、并发、filte
 
 统一入口为 `pnpm gateway:test`（等价于 Gateway TS 包的 `test`）。`run.mjs` 依次执行 Rust 核心／文档测试、TS 核心与 worker 测试、构建后 plain Node 测试，以及 `ts/test/rust-napi/` 的真实 Rust napi 通信联调。不会构建 desktop 或运行业务测试，也不启动 Electron。
 
-通信联调通过共享的 `scripts/tests/rust-napi-fixtures.mjs` 为搜索、剪贴板构建 `gateway-fixtures`，产物位于忽略的 `target/rust-napi-tests/`；finally 尝试恢复每个包的正式 `.node`、JS 加载器和类型声明，并检查正式包不含测试导出。构建、测试、恢复或产物检查失败均使命令失败。Gateway 与 desktop 的测试入口不可并行执行或与这些包的构建重叠；根测试按 workspace 顺序执行。
+通信联调通过共享的 `scripts/tests/rust-napi-fixtures.mjs` 为搜索、剪贴板准备正式 debug addon 和 `gateway-fixtures`。正式产物留在包目录，fixture 的 `.node`、JS 加载器和类型声明输出到忽略的 `target/rust-napi-tests/<name>/`，并补充 `type: commonjs` 的 `package.json`，供 plain Node 加载目录入口；测试显式加载 fixture，finally 检查正式包不含测试导出，无需重建恢复。构建、测试或产物检查失败均使命令失败。
+
+根 `pnpm test` 在 workspace 测试前统一准备两套 addon，Gateway 与 desktop 通过仅传给本轮测试子进程的 `XIAOWEI_TEST_NAPI_PREPARED=1` 复用它们；单独运行 `pnpm gateway:test` 时仍自行准备，不凭已有文件跳过构建。不要手动设置该内部标记。Gateway 与 desktop 的独立测试入口不可并行执行，也不可与这些包的构建重叠；根测试保持串行执行。
 
 TS ↔ Rust napi 通信测试覆盖本地优先、双向调用、重入、PB 大字节、超时／并发、事件过滤／取消／重连、接入回滚、上下文权限、TSFN throw／reject／队列满、显式关闭和 Worker 环境销毁。测试 feature 使用两个同源生成的 Fixture／PeerFixture service。
 

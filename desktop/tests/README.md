@@ -17,9 +17,11 @@
 | `fixtures/` | 桌面测试共享辅助代码 |
 | `src/renderer/src/**/*.test.tsx`（相对 desktop） | Vitest 组件测试 |
 
-`run.mjs` 通过 `tsx --conditions=source` 加载 Gateway 源码，构建 desktop 自身 worker，再按需要构建正式 Storage／剪贴板 addon。Storage、LLM 的 Rust 测试调用方使用 search 的 `gateway-fixtures`；退出测试窗口后恢复正式 search，其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
+`run.mjs` 通过 `tsx --conditions=source` 加载 Gateway 源码，构建 desktop 自身 worker，再按需要构建正式 Agent／Storage／剪贴板 addon。Storage、LLM、xwapi 的 Rust 测试调用方使用 search 的 `gateway-fixtures`；其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
 
-测试 addon 的构建、失败回收及正式导出检查复用 `scripts/tests/rust-napi-fixtures.mjs`，输出放在 `target/rust-napi-tests/`。即使测试失败，也尝试恢复全部指定 addon；恢复失败会保留并报告错误。不要与 Gateway 测试或相同 addon 的构建并行运行，根 `pnpm test` 已串行执行 workspace 测试。
+测试 addon 的准备及正式导出检查复用 `scripts/tests/rust-napi-fixtures.mjs`。正式 debug 产物留在各包的 `napi/`，fixture 的 `.node`、`index.js` 和 `index.d.ts` 输出到 `target/rust-napi-tests/<name>/`，并补充 `type: commonjs` 的 `package.json`，使 napi 生成的加载器不受根工作区 ESM 设置影响。测试显式加载该目录或其中的 `.node`。fixture 不覆盖正式包，测试结束后无需重建恢复；即使构建或测试失败，仍检查正式包不含测试导出。
+
+根 `pnpm test` 由 `scripts/tests/run.mjs` 先构建全部正式 debug addon，再构建 search／clipboard fixture，随后串行执行 workspace 测试。只有两套产物均准备成功后，才为 workspace 测试子进程设置内部标记 `XIAOWEI_TEST_NAPI_PREPARED=1`，使 Gateway 和 desktop 复用本轮产物。单独运行测试入口时不设置该标记，仍构建所需正式包与 fixture，不凭文件存在跳过构建。不要手动设置标记，也不要与相同 addon 的构建并行运行。
 
 Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:test` 负责；不由该入口运行桌面业务测试。
 
