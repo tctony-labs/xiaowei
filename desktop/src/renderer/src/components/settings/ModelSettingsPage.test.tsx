@@ -8,7 +8,10 @@ import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../../services";
 import { ModelSettingsPage } from "./ModelSettingsPage";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 test("product model editor preserves stable IDs and hidden fields and saves only on final confirmation", async () => {
   const host = new GatewayHost();
@@ -84,13 +87,18 @@ test("product model editor preserves stable IDs and hidden fields and saves only
       ),
     );
   });
-  await userEvent.click(screen.getByRole("button", { name: "保存" }));
-  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
-  const toast = await screen.findByRole("status");
+  vi.useFakeTimers();
+  fireEvent.click(screen.getByRole("button", { name: "保存" }));
+  await act(async () => {});
+  expect(save).toHaveBeenCalledTimes(1);
+  const toast = screen.getByRole("status");
   expect(toast).toHaveTextContent("已保存");
   expect(toast).toHaveClass("fixed");
   expect(toast.parentElement).toBe(document.body);
-  await waitFor(() => expect(screen.queryByText("已保存")).toBeNull(), { timeout: 4000 });
+  await act(async () => vi.advanceTimersByTimeAsync(2999));
+  expect(toast).toBeVisible();
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(screen.queryByText("已保存")).toBeNull();
   owner.close();
 });
 

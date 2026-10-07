@@ -187,18 +187,30 @@ test("navigation waits for models to load and repeated navigation restarts the h
     };
     await waitFor(() => expect(release).toBeDefined());
     expect(scroll).not.toHaveBeenCalled();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await act(async () => release?.());
     const row = document.getElementById("settings-model-providers");
     expect(row).toHaveTextContent("模型提供商");
     expect(row).not.toHaveTextContent("默认模型");
-    await waitFor(() => expect(row).toHaveClass("ring-primary/60"));
+    expect(row).toHaveClass("ring-primary/60");
     expect(scroll).toHaveBeenCalledOnce();
-    await waitFor(() => expect(row).not.toHaveClass("ring-primary/60"), { timeout: 2500 });
-    act(navigate);
-    await waitFor(() => expect(row).toHaveClass("ring-primary/60"));
+    await act(async () => vi.advanceTimersByTimeAsync(1599));
+    expect(row).toHaveClass("ring-primary/60");
+    await act(async () => navigate());
+    expect(row).toHaveClass("ring-primary/60");
     expect(scroll).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(row).toHaveClass("ring-primary/60");
+    await act(async () => vi.advanceTimersByTimeAsync(1598));
+    expect(row).toHaveClass("ring-primary/60");
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(row).not.toHaveClass("ring-primary/60");
+    await act(async () => navigate());
+    expect(row).toHaveClass("ring-primary/60");
+    expect(scroll).toHaveBeenCalledTimes(3);
   } finally {
     cleanup();
+    vi.useRealTimers();
     HTMLElement.prototype.scrollIntoView = original;
     owner.close();
   }

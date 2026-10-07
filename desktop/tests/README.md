@@ -25,6 +25,31 @@
 
 Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:test` 负责；不由该入口运行桌面业务测试。
 
+## Renderer 的虚拟时钟测试
+
+组件测试中，模拟请求延迟、toast 自动消失和临时高亮等由 JavaScript 计时器驱动的行为，使用 Vitest 虚拟时钟验证，避免测试真的等待几百毫秒或几秒。只在需要的测试或阶段启用，不改变产品及 Storybook 的计时逻辑，不在全局 `setup.ts` 中启用。
+
+优先用 `vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })` 接管所需计时器。Gateway 测试的事件投递使用 `setImmediate`，应保留它的真实调度，避免只推进 timeout 时事件无法送达。
+
+React 状态更新通过 `act` 包住 `vi.advanceTimersByTimeAsync`，推进到指定时间后直接断言。检查到期前和到期后的状态；重复操作会重新计时的行为，还要验证旧的到期时间不会提前清除新状态。例如已显示的三秒 toast：
+
+```ts
+await act(async () => vi.advanceTimersByTimeAsync(2999));
+expect(toast).toBeVisible();
+
+await act(async () => vi.advanceTimersByTimeAsync(1));
+expect(screen.queryByText("已保存")).toBeNull();
+```
+
+与 Testing Library 配合时：
+
+- 使用 `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })`，让用户事件自身的延迟也能推进。
+- 当前 Testing Library 的默认 `asyncWrapper` 会等待零延迟 timeout，Vitest 不会自动推进它。全程使用虚拟时钟的组件测试可在该测试文件内将 `asyncWrapper` 配置为通过 `act` 执行回调，并在清理时恢复原配置；参考 [模型预览测试](../src/renderer/src/components/settings/Models.test.tsx)。
+- 不依赖 `waitFor`／`findBy*` 替测试推进虚拟时间。先完成异步操作及时间推进，再使用 `getBy*`／`queryBy*` 断言；真实时钟阶段仍可使用异步查询。
+- 在 `afterEach` 或 `finally` 中先 `cleanup()` 卸载组件，再恢复 Testing Library 配置（若有修改）并调用 `vi.useRealTimers()`，即使断言失败也应恢复。
+
+更多示例见 [产品 toast 测试](../src/renderer/src/components/settings/ModelSettingsPage.test.tsx) 和 [导航高亮重置测试](../src/renderer/src/components/settings/SettingsPage.test.tsx)。renderer 全量测试可单独执行 `pnpm --dir desktop exec vitest run`。真实进程、网络、Rust 或其他 worker 的集成等待不能仅靠当前 JavaScript 测试上下文的虚拟时钟推进。
+
 ## LLM 配置与真实模型验收
 
 `llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建 desktop：`pnpm --dir desktop build`，再执行 `pnpm --dir desktop exec tsx --conditions=source --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/config.test.mjs`。
