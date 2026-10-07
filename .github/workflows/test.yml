@@ -17,6 +17,7 @@ jobs:
     env:
       HUSKY: "0"
       CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -50,8 +51,25 @@ jobs:
       - name: Set up Rust from rust-toolchain.toml
         run: rustup show active-toolchain
 
+      - name: Compute Cargo cache key
+        id: cargo-key
+        run: node scripts/ci/cargo-cache.mjs key >> "$GITHUB_OUTPUT"
+
+      # Save complete targets, including workspace crates, for each Rust input revision.
       - name: Cache Rust builds
-        uses: Swatinem/rust-cache@v2
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-key.outputs.key }}
+          restore-keys: ${{ steps.cargo-key.outputs.restore-key }}
+
+      # A new checkout must not make unchanged cached Cargo inputs look newer than their outputs.
+      - name: Restore unchanged Cargo input timestamps
+        run: node scripts/ci/cargo-cache.mjs restore
 
       - name: Set up just
         uses: extractions/setup-just@v3
@@ -64,3 +82,6 @@ jobs:
       # Prepare native outputs once, then run workspace tests serially.
       - name: Run all automated tests
         run: just test
+
+      - name: Record Cargo input timestamps for the next run
+        run: node scripts/ci/cargo-cache.mjs save

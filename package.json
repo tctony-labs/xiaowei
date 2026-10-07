@@ -20,7 +20,7 @@
     "gateway:check": "cargo run --locked -q -p xw-gateway --example generate_business -- --check",
     "gateway:test": "pnpm --filter xiaowei-gateway test",
     "test:patches": "node --experimental-import-meta-resolve --test patches/tests/*.test.mjs",
-    "test:tooling": "node --test scripts/dev/*.test.mjs scripts/tests/*.test.mjs"
+    "test:tooling": "node --test scripts/ci/*.test.mjs scripts/dev/*.test.mjs scripts/tests/*.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
