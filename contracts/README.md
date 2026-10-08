@@ -24,6 +24,8 @@ pnpm contracts:test
 
 `just gen` 先生成语言契约和 descriptor，再生成 Gateway Rust 绑定。`contracts:check` 在临时目录重建并比较文件集合与内容，不改写源码或产物；`contracts:test` 验证生成规则和三语言 codec，不启动桌面或读取用户数据。
 
+codec 测试记录每次原生调用的 case、语言顺序、模式、输入字节数、退出码和耗时，不输出输入内容。单次原生调用最多等待 10 秒，超时强制结束并使测试失败；无效 wire 只接受正常退出后的非零码，超时、信号终止和启动失败均不能算作正确拒绝。测试入口中的构建及测试阶段设 10 分钟上限，Cargo target 查询设 30 秒上限；入口还验证子进程超时终止与异常判定。
+
 本地业务默认生成 TS／Rust。服务端业务契约集中在 `proto/xiaowei/server/`，Go 通过 `xiaowei/server/**/*.proto` 自动选择整个目录；引用的公共消息仍通过 import 依赖自动纳入生成。目录组织不替代 proto 中的 package 声明。
 
 产物 `ts/src/gen/`、`rust/src/gen/` 和 `go/gen/` 全部入库，禁止手改。新增 TS 文件或 Rust package 时同步维护公共入口导出。具体修改步骤见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
