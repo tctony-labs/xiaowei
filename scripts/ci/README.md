@@ -10,6 +10,8 @@ GitHub 的测试 workflow 使用 `actions/cache` 保存 Cargo registry 压缩包
 
 本地回归通过 `pnpm test:tooling` 执行。其中包含真实 Cargo 构建：模拟恢复缓存和重新 checkout，验证未变源码显示 `Fresh`，改动源码重新编译且二进制行为更新；不访问真实远端服务。
 
-Go 使用 `server/go.mod` 的 `toolchain` 版本安装工具链；没有该指令时使用 `go` 版本。关闭 `setup-go` 内置缓存，由 `actions/cache` 分别保存 `go env GOMODCACHE` 的模块下载和 `go env GOCACHE` 的编译／测试缓存。缓存前缀包含 runner 平台、架构与实际 Go 版本。
+`go-cache.mjs version` 读取 `server/go.mod` 的 `toolchain` 版本供 workflow 安装工具链；没有该指令时使用 `go` 版本。关闭 `setup-go` 内置缓存，由 `actions/cache` 分别保存模块下载和编译／测试缓存。`go-cache.mjs key` 查询实际 Go 版本、`GOMODCACHE`、`GOCACHE`，计算输入内容哈希，输出 workflow 使用的路径、前缀和哈希；前缀包含 runner 平台、架构与实际 Go 版本，本地调用使用当前平台和架构。版本与输入数量输出到 stderr，便于查看 CI 日志，不混入 Actions outputs。
 
-模块下载 key 同时覆盖 `server/` 和 `contracts/go/` 的 `go.mod`、`go.sum`，避免只命中契约依赖的旧快照、漏存服务端下载。编译 key 另外覆盖两个模块的 Go 源码、服务端嵌入的 SQL 迁移和测试 workflow；源码变化时恢复相同编译环境的最新快照，测试成功后保存新 key，未变化的包继续复用。renderer 源码变化不轮换 Go key。Go 缓存按内容校验，无需恢复 checkout 后的源码时间戳；新增其他嵌入资源或模块时须同步扩展 key 输入。
+模块下载 key 同时覆盖 `server/` 和 `contracts/go/` 的 `go.mod`、`go.sum`，避免只命中契约依赖的旧快照、漏存服务端下载。编译 key 另外覆盖两个模块的 Go 源码、服务端嵌入的 SQL 迁移、测试 workflow 和 Go 缓存脚本；只读取 Git 跟踪的普通文件，按路径排序并哈希路径和内容。源码变化时恢复相同编译环境的最新快照，测试成功后保存新 key，未变化的包继续复用。renderer 源码变化不轮换 Go key。Go 缓存按内容校验，无需恢复 checkout 后的源码时间戳；新增其他嵌入资源或模块时须同步扩展脚本的 key 输入。
+
+Go 缓存脚本测试同样纳入 `pnpm test:tooling`，覆盖版本选择、两个模块的依赖与源码、SQL 迁移、缓存路径和环境隔离；忽略 renderer、未跟踪文件和源码时间戳变化。

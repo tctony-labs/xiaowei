@@ -44,12 +44,7 @@ jobs:
 
       - name: Select Go toolchain
         id: go-toolchain
-        run: |
-          awk '
-            $1 == "go" { version = $2 }
-            $1 == "toolchain" { version = substr($2, 3) }
-            END { print "version=" version }
-          ' server/go.mod >> "$GITHUB_OUTPUT"
+        run: node scripts/ci/go-cache.mjs version >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -59,20 +54,7 @@ jobs:
 
       - name: Locate Go caches and compute snapshot keys
         id: go-cache
-        env:
-          MODULE_HASH: >-
-            ${{ hashFiles('server/go.mod', 'server/go.sum', 'contracts/go/go.mod', 'contracts/go/go.sum') }}
-          BUILD_HASH: >-
-            ${{ hashFiles('server/**/*.go', 'server/**/*.sql', 'contracts/go/**/*.go',
-            'server/go.mod', 'server/go.sum', 'contracts/go/go.mod', 'contracts/go/go.sum',
-            '.github/workflows/test.yml') }}
-        run: |
-          go version
-          echo "module-path=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
-          echo "build-path=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-          echo "prefix=go-v1-${RUNNER_OS}-${RUNNER_ARCH}-$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
-          echo "module-hash=$MODULE_HASH" >> "$GITHUB_OUTPUT"
-          echo "build-hash=$BUILD_HASH" >> "$GITHUB_OUTPUT"
+        run: node scripts/ci/go-cache.mjs key >> "$GITHUB_OUTPUT"
 
       - name: Cache Go module downloads
         uses: actions/cache@v4
