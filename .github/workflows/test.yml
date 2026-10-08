@@ -42,11 +42,52 @@ jobs:
           restore-keys: |
             pnpm-${{ runner.os }}-${{ runner.arch }}-
 
+      - name: Select Go toolchain
+        id: go-toolchain
+        run: |
+          awk '
+            $1 == "go" { version = $2 }
+            $1 == "toolchain" { version = substr($2, 3) }
+            END { print "version=" version }
+          ' server/go.mod >> "$GITHUB_OUTPUT"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: server/go.mod
-          cache-dependency-path: contracts/go/go.sum
+          go-version: ${{ steps.go-toolchain.outputs.version }}
+          cache: false
+
+      - name: Locate Go caches and compute snapshot keys
+        id: go-cache
+        env:
+          MODULE_HASH: >-
+            ${{ hashFiles('server/go.mod', 'server/go.sum', 'contracts/go/go.mod', 'contracts/go/go.sum') }}
+          BUILD_HASH: >-
+            ${{ hashFiles('server/**/*.go', 'server/**/*.sql', 'contracts/go/**/*.go',
+            'server/go.mod', 'server/go.sum', 'contracts/go/go.mod', 'contracts/go/go.sum',
+            '.github/workflows/test.yml') }}
+        run: |
+          go version
+          echo "module-path=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          echo "build-path=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "prefix=go-v1-${RUNNER_OS}-${RUNNER_ARCH}-$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
+          echo "module-hash=$MODULE_HASH" >> "$GITHUB_OUTPUT"
+          echo "build-hash=$BUILD_HASH" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Go module downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.go-cache.outputs.module-path }}
+          key: ${{ steps.go-cache.outputs.prefix }}-modules-${{ steps.go-cache.outputs.module-hash }}
+          restore-keys: ${{ steps.go-cache.outputs.prefix }}-modules-
+
+      # Rotate immutable snapshots on Go input changes while reusing unchanged compiled packages.
+      - name: Cache Go builds
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.go-cache.outputs.build-path }}
+          key: ${{ steps.go-cache.outputs.prefix }}-build-${{ steps.go-cache.outputs.build-hash }}
+          restore-keys: ${{ steps.go-cache.outputs.prefix }}-build-
 
       - name: Set up Rust from rust-toolchain.toml
         run: rustup show active-toolchain
