@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { QuickChatLauncherPreview } from "./QuickChatLauncherPreview";
@@ -28,10 +28,18 @@ async function expand() {
 
 async function expectCollapsed() {
   expect(viewport()).toHaveAttribute("data-expanded", "false");
-  await waitFor(() => expect(screen.getByRole("textbox", { name: "搜索" })).toHaveFocus());
+  await act(async () => vi.advanceTimersByTimeAsync(299));
+  expect(viewport()).toHaveAttribute("data-animating", "true");
+  expect(chatInput()).toBeInTheDocument();
+
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(viewport()).toHaveAttribute("data-animating", "false");
+  expect(screen.queryByRole("textbox", { name: "快速对话输入" })).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "搜索" })).toHaveFocus();
 }
 
 test("empty search expands; Escape animates back before restoring search focus", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   render(<QuickChatLauncherPreview initialState="first-use" />);
   expect(viewport()).toHaveStyle({ height: "71px" });
   await expand();
@@ -46,6 +54,7 @@ test("empty search expands; Escape animates back before restoring search focus",
 });
 
 test("ArrowUp collapses only from an empty composer, not message area or nonempty input", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   render(<QuickChatLauncherPreview initiallyExpanded />);
   fireEvent.keyDown(screen.getByText("帮我整理一下本周要做的事情。"), { key: "ArrowUp" });
   expect(viewport()).toHaveAttribute("data-expanded", "true");
@@ -122,6 +131,7 @@ test.each(["归档", "删除会话"])("removing the last session through %s reac
   expect(screen.getByText("输入问题开始对话")).toBeVisible();
   await click("选择会话");
   expect(screen.getByText("暂无对话")).toBeVisible();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   fireEvent.keyDown(chatInput(), { key: "Escape" });
   fireEvent.keyDown(chatInput(), { key: "Escape" });
   await expectCollapsed();
@@ -141,7 +151,7 @@ test("create and switch sessions preserve their mock messages", async () => {
 });
 
 test("rapid reversal cancels the old collapse timer and retains the expanded composer", async () => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   render(<QuickChatLauncherPreview />);
   await expand();
   fireEvent.keyDown(chatInput(), { key: "ArrowUp" });
