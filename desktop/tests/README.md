@@ -25,6 +25,14 @@
 
 Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:test` 负责；不由该入口运行桌面业务测试。
 
+## Renderer 用例范围与交互
+
+每个用例围绕一个可观察行为组织。已有 preview 的初始状态能直接进入目标场景时，优先使用它，减少重复打开页面、填写表单和切换菜单。合并重复用例前核对断言的去向，保留成功、失败、取消及相关边界；保存行为应检查提交后的结果，字段往返应保存后重新打开验证，不能只断言按钮可点或弹窗关闭。
+
+表单测试只需设置最终字段值时可用 `fireEvent.change`；验证键盘、焦点、逐字输入或事件顺序时仍用 `userEvent`。使用 `within` 限定目标 dialog／group，嵌套弹窗和 portal 则从实际挂载位置查询，避免整页反复扫描或误选同名控件。同步 matcher 直接 `expect`，`await expect(...)` 不会自动等待状态变化；异步状态通过完成操作、推进虚拟时间或真实时钟下的异步查询来等待。
+
+模型预览的交互与字段往返见 [Models.test.tsx](../src/renderer/src/components/settings/Models.test.tsx)；产品页的 Gateway 请求、revision、隐藏字段保留和流取消见 [ModelSettingsPage.test.tsx](../src/renderer/src/components/settings/ModelSettingsPage.test.tsx)。预览覆盖不能代替产品接入测试。
+
 ## Renderer 的虚拟时钟测试
 
 组件测试中，模拟请求延迟、toast 自动消失和临时高亮等由 JavaScript 计时器驱动的行为，使用 Vitest 虚拟时钟验证，避免测试真的等待几百毫秒或几秒。只在需要的测试或阶段启用，不改变产品及 Storybook 的计时逻辑，不在全局 `setup.ts` 中启用。
@@ -48,7 +56,7 @@ expect(screen.queryByText("已保存")).toBeNull();
 - 不依赖 `waitFor`／`findBy*` 替测试推进虚拟时间。先完成异步操作及时间推进，再使用 `getBy*`／`queryBy*` 断言；真实时钟阶段仍可使用异步查询。
 - 在 `afterEach` 或 `finally` 中先 `cleanup()` 卸载组件，再恢复 Testing Library 配置（若有修改）并调用 `vi.useRealTimers()`，即使断言失败也应恢复。
 
-更多示例见 [产品 toast 测试](../src/renderer/src/components/settings/ModelSettingsPage.test.tsx) 和 [导航高亮重置测试](../src/renderer/src/components/settings/SettingsPage.test.tsx)。renderer 全量测试可单独执行 `pnpm --dir desktop exec vitest run`。真实进程、网络、Rust 或其他 worker 的集成等待不能仅靠当前 JavaScript 测试上下文的虚拟时钟推进。
+更多示例见 [产品 toast 测试](../src/renderer/src/components/settings/ModelSettingsPage.test.tsx)、[导航高亮重置测试](../src/renderer/src/components/settings/SettingsPage.test.tsx) 和 [Quick Chat 切换测试](../src/renderer/src/components/quick-chat/QuickChatTransition.test.tsx)。切换测试分别断言动画到期前仍保留 composer、到期后卸载并恢复搜索焦点，以及快速反向操作取消旧计时器。renderer 全量测试可单独执行 `pnpm --dir desktop exec vitest run`。真实进程、网络、Rust 或其他 worker 的集成等待不能仅靠当前 JavaScript 测试上下文的虚拟时钟推进。
 
 ## LLM 配置与真实模型验收
 

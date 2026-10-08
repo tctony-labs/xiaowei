@@ -15,3 +15,11 @@ GitHub 的测试 workflow 使用 `actions/cache` 保存 Cargo registry 压缩包
 模块下载 key 同时覆盖 `server/` 和 `contracts/go/` 的 `go.mod`、`go.sum`，避免只命中契约依赖的旧快照、漏存服务端下载。编译 key 另外覆盖两个模块的 Go 源码、服务端嵌入的 SQL 迁移、测试 workflow 和 Go 缓存脚本；只读取 Git 跟踪的普通文件，按路径排序并哈希路径和内容。源码变化时恢复相同编译环境的最新快照，测试成功后保存新 key，未变化的包继续复用。renderer 源码变化不轮换 Go key。Go 缓存按内容校验，无需恢复 checkout 后的源码时间戳；新增其他嵌入资源或模块时须同步扩展脚本的 key 输入。
 
 Go 缓存脚本测试同样纳入 `pnpm test:tooling`，覆盖版本选择、两个模块的依赖与源码、SQL 迁移、缓存路径和环境隔离；忽略 renderer、未跟踪文件和源码时间戳变化。
+
+## 排障与验证
+
+缓存命中只说明文件已恢复，不能证明编译器实际复用了产物。Cargo 仍重编时，先检查精确／回退 key、时间戳恢复结果及实际构建参数；workflow 的测试步骤已设置 `CARGO_LOG=cargo::core::compiler::fingerprint=info`，从失效日志确认具体原因，并结合 verbose 构建的 `Fresh`／`Compiling` 输出判断。napi 构建经过 `scripts/dev/build-napi.mjs` 注入路径 remap flags，排查时须核对该入口实际传入的 flags 和构建路径；基础 Cargo fixture 通过不等于跨 runner 的 napi 缓存复用已验证。
+
+修改缓存脚本可定向执行 `node --test scripts/ci/*.test.mjs`。Cargo 回归使用离线真实构建，同时检查未变输入复用及源码改动后二进制输出更新；Go 回归检查 key 输入与环境，不验证真实跨 CI 的编译缓存收益。CI 强制彩色 Cargo 输出，日志文本断言先用 Node 的 `stripVTControlCharacters` 去掉控制序列，保留原始 stderr 用于失败诊断，避免颜色打断匹配造成假失败。
+
+评估收益时，对比相同 runner／工具链下的冷缓存、精确命中与输入变化后的回退命中，分别查看缓存传输、原生构建和测试步骤的耗时，并计入保存成本。以真实 workflow 的结果确认净收益，不能把缓存命中或新增诊断日志视为提速已完成。
