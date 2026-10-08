@@ -104,6 +104,8 @@ jobs:
 
       # Prepare native outputs once, then run workspace tests serially.
       - name: Run all automated tests
+        env:
+          CARGO_LOG: cargo::core::compiler::fingerprint=info
         run: just test
 
       - name: Record Cargo input timestamps for the next run
