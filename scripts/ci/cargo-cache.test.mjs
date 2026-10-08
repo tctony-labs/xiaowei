@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 
 const script = fileURLToPath(new URL("./cargo-cache.mjs", import.meta.url));
 
@@ -70,10 +71,15 @@ test("Rust changes rotate snapshots, flags isolate fallbacks and renderer change
 
 test("restored Cargo artifacts stay fresh after checkout but changed Rust source recompiles", (context) => {
   const { directory, workspace, env, run } = fixture(context);
+  const buildEnv = { ...env, CARGO_TERM_COLOR: "always" };
   const build = () => {
-    const result = spawnSync("cargo", ["build", "--offline", "--verbose"], { cwd: workspace, env, encoding: "utf8" });
+    const result = spawnSync("cargo", ["build", "--offline", "--verbose"], {
+      cwd: workspace,
+      env: buildEnv,
+      encoding: "utf8",
+    });
     assert.equal(result.status, 0, result.stderr);
-    return result.stderr;
+    return stripVTControlCharacters(result.stderr);
   };
   assert.match(build(), /Compiling cargo-cache-fixture/);
   execFileSync("git", ["add", "Cargo.lock"], { cwd: workspace });
