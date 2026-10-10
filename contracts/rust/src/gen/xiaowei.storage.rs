@@ -161,6 +161,22 @@ impl ::prost::Name for SettingsSnapshot {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SettingsChanged {
+    /// Complete committed state; consumers subscribe before loading their initial snapshot.
+    #[prost(message, optional, tag = "1")]
+    pub snapshot: ::core::option::Option<SettingsSnapshot>,
+}
+impl ::prost::Name for SettingsChanged {
+    const NAME: &'static str = "SettingsChanged";
+    const PACKAGE: &'static str = "xiaowei.storage";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.storage.SettingsChanged".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.storage.SettingsChanged".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct UpdateSettingsRequest {
     /// Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
     #[prost(oneof = "update_settings_request::Change", tags = "1, 2, 3, 4, 5, 6, 7")]
@@ -195,22 +211,6 @@ impl ::prost::Name for UpdateSettingsRequest {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.storage.UpdateSettingsRequest".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SettingsChanged {
-    /// Complete committed state; consumers subscribe before loading their initial snapshot.
-    #[prost(message, optional, tag = "1")]
-    pub snapshot: ::core::option::Option<SettingsSnapshot>,
-}
-impl ::prost::Name for SettingsChanged {
-    const NAME: &'static str = "SettingsChanged";
-    const PACKAGE: &'static str = "xiaowei.storage";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.storage.SettingsChanged".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.storage.SettingsChanged".into()
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

@@ -5,6 +5,23 @@ package xiaowei.account;
 import "xiaowei/common.proto";
 import "xiaowei/server/auth.proto";
 
+service Account {
+  rpc Get(xiaowei.common.Empty) returns (AccountSnapshot);
+
+  // Saves and selects the address. Only available while signed out.
+  rpc AddServer(AddServerRequest) returns (AccountOperationResponse);
+
+  rpc SelectServer(SelectServerRequest) returns (AccountOperationResponse);
+
+  // Device identity, HTTP requests and saved credentials belong to the main owner.
+  rpc Login(AccountLoginRequest) returns (AccountOperationResponse);
+
+  rpc CancelLogin(CancelAccountLoginRequest) returns (xiaowei.common.Empty);
+
+  // Network failure retains the session for retry; successful or already-invalid sessions clear locally.
+  rpc Logout(xiaowei.common.Empty) returns (AccountOperationResponse);
+}
+
 enum AccountStatus {
   ACCOUNT_STATUS_UNSPECIFIED = 0;
   ACCOUNT_STATUS_SIGNED_OUT = 1;
@@ -60,21 +77,4 @@ message AccountLoginRequest {
 message CancelAccountLoginRequest {
   // Cancels only this attempt; a late close must never cancel a newer login.
   string attempt_id = 1;
-}
-
-service Account {
-  rpc Get(xiaowei.common.Empty) returns (AccountSnapshot);
-
-  // Saves and selects the address. Only available while signed out.
-  rpc AddServer(AddServerRequest) returns (AccountOperationResponse);
-
-  rpc SelectServer(SelectServerRequest) returns (AccountOperationResponse);
-
-  // Device identity, HTTP requests and saved credentials belong to the main owner.
-  rpc Login(AccountLoginRequest) returns (AccountOperationResponse);
-
-  rpc CancelLogin(CancelAccountLoginRequest) returns (xiaowei.common.Empty);
-
-  // Network failure retains the session for retry; successful or already-invalid sessions clear locally.
-  rpc Logout(xiaowei.common.Empty) returns (AccountOperationResponse);
 }

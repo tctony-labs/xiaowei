@@ -4,55 +4,6 @@ package xiaowei.system;
 
 import "xiaowei/common.proto";
 
-enum Theme {
-  THEME_UNSPECIFIED = 0;
-  THEME_LIGHT = 1;
-  THEME_DARK = 2;
-}
-
-message ToggleThemeResponse {
-  Theme theme = 1;
-}
-
-message OpenUrlRequest {
-  // Only http and https URLs are accepted; local paths and executable schemes are rejected.
-  string url = 1;
-}
-
-// Backend-resolved local resource; never a URL or shell command.
-message LocalPathRequest {
-  // Absolute path without NUL bytes. The target must exist.
-  string path = 1;
-}
-
-message WriteClipboardTextRequest {
-  // Plain text to replace the system clipboard with; an empty string clears text.
-  string text = 1;
-}
-
-message SetAutostartRequest {
-  bool enabled = 1;
-}
-
-enum SettingsAnchor {
-  SETTINGS_ANCHOR_UNSPECIFIED = 0;
-  SETTINGS_ANCHOR_MODEL_PROVIDERS = 1;
-}
-
-message OpenSettingsRequest {
-  // Required destination; unspecified and unknown values are rejected.
-  SettingsAnchor anchor = 1;
-}
-
-// Notification only, delivered to the destination settings window. The host
-// retains the latest pending anchor until that window consumes it.
-message SettingsNavigationRequested {}
-
-message TakeSettingsNavigationResponse {
-  // UNSPECIFIED means this window has no pending navigation.
-  SettingsAnchor anchor = 1;
-}
-
 service System {
   // Open/focus settings and request navigation. Success means the window loaded,
   // not that the renderer has completed scrolling or highlighting.
@@ -78,4 +29,53 @@ service System {
   // Reveal an existing target in the system file manager.
   // Success means the host accepted the request, not that the file manager confirmed selection.
   rpc RevealPath(LocalPathRequest) returns (xiaowei.common.Empty);
+}
+
+enum Theme {
+  THEME_UNSPECIFIED = 0;
+  THEME_LIGHT = 1;
+  THEME_DARK = 2;
+}
+
+enum SettingsAnchor {
+  SETTINGS_ANCHOR_UNSPECIFIED = 0;
+  SETTINGS_ANCHOR_MODEL_PROVIDERS = 1;
+}
+
+// Backend-resolved local resource; never a URL or shell command.
+message LocalPathRequest {
+  // Absolute path without NUL bytes. The target must exist.
+  string path = 1;
+}
+
+// Notification only, delivered to the destination settings window. The host
+// retains the latest pending anchor until that window consumes it.
+message SettingsNavigationRequested {}
+
+message OpenSettingsRequest {
+  // Required destination; unspecified and unknown values are rejected.
+  SettingsAnchor anchor = 1;
+}
+
+message TakeSettingsNavigationResponse {
+  // UNSPECIFIED means this window has no pending navigation.
+  SettingsAnchor anchor = 1;
+}
+
+message SetAutostartRequest {
+  bool enabled = 1;
+}
+
+message WriteClipboardTextRequest {
+  // Plain text to replace the system clipboard with; an empty string clears text.
+  string text = 1;
+}
+
+message ToggleThemeResponse {
+  Theme theme = 1;
+}
+
+message OpenUrlRequest {
+  // Only http and https URLs are accepted; local paths and executable schemes are rejected.
+  string url = 1;
 }

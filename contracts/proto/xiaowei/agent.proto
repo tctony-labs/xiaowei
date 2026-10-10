@@ -61,6 +61,69 @@ enum AgentSessionStatus {
   AGENT_SESSION_STATUS_DELETED = 3;
 }
 
+enum ModelInfoWarningCode {
+  MODEL_INFO_WARNING_CODE_UNSPECIFIED = 0;
+  MODEL_INFO_WARNING_CODE_NOT_FOUND = 1;
+  MODEL_INFO_WARNING_CODE_UNAVAILABLE = 2;
+  MODEL_INFO_WARNING_CODE_INVALID_RESPONSE = 3;
+}
+
+message ModelInfoWarning {
+  string model_ref = 1;
+  ModelInfoWarningCode code = 2;
+}
+
+message AgentUserInput {
+  oneof content {
+    // MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
+    string text = 1;
+  }
+}
+
+message AgentUserMessage {
+  repeated AgentUserInput content = 1;
+}
+
+message AgentMessage {
+  string text = 1;
+}
+
+message AgentReasoning {
+  string text = 1;
+}
+
+message AgentItem {
+  string item_id = 1;
+  oneof content {
+    AgentUserMessage user_message = 2;
+    AgentMessage agent_message = 3;
+    AgentReasoning reasoning = 4;
+  }
+}
+
+enum AgentRunStatus {
+  AGENT_RUN_STATUS_UNSPECIFIED = 0;
+  AGENT_RUN_STATUS_IN_PROGRESS = 1;
+  AGENT_RUN_STATUS_COMPLETED = 2;
+  AGENT_RUN_STATUS_FAILED = 3;
+  AGENT_RUN_STATUS_INTERRUPTED = 4;
+}
+
+message AgentRun {
+  string run_id = 1;
+  string input_id = 2;
+  AgentRunStatus status = 3;
+  AgentModelConfig config = 4;
+  repeated AgentItem items = 5;
+  int64 started_at_ms = 6;
+  // Absent while running; present for every terminal state.
+  optional int64 completed_at_ms = 7;
+  // Safe display message for failed runs only; no raw provider error/credentials.
+  optional string error = 8;
+  string provider_name = 9;
+  string model_name = 10;
+}
+
 message AgentSession {
   string session_id = 1;
   AgentModelConfig config = 2;
@@ -92,28 +155,13 @@ message AgentSession {
   int64 updated_at_ms = 15;
 }
 
-enum ModelInfoWarningCode {
-  MODEL_INFO_WARNING_CODE_UNSPECIFIED = 0;
-  MODEL_INFO_WARNING_CODE_NOT_FOUND = 1;
-  MODEL_INFO_WARNING_CODE_UNAVAILABLE = 2;
-  MODEL_INFO_WARNING_CODE_INVALID_RESPONSE = 3;
-}
-
-message ModelInfoWarning {
-  string model_ref = 1;
-  ModelInfoWarningCode code = 2;
-}
-
-message SetSessionConfigRequest {
-  string session_id = 1;
-  // Required full selection. Absent reasoning delegates to model defaults.
-  AgentModelConfig config = 2;
-  uint64 expected_metadata_revision = 3;
-}
-
-message SetSessionConfigResponse {
-  // Acknowledgement only; never replace a live subscription with this response.
-  uint64 metadata_revision = 1;
+// Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
+message SessionRetentionPolicy {
+  // Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
+  uint32 archive_after_days = 1;
+  // Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
+  // based on last activity, not time archived. Restoring bumps last activity.
+  uint32 delete_after_days = 2;
 }
 
 message CreateSessionRequest {
@@ -141,13 +189,6 @@ message ListSessionsRequest {
   string query = 4;
 }
 
-message ListSessionsResponse {
-  // Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
-  // this point-in-time list never replaces a SubscribeSession projection.
-  repeated AgentSessionSummary sessions = 1;
-  string continuation = 2;
-}
-
 message AgentSessionSummary {
   string session_id = 1;
   // Actual manual/generated title; empty while untitled.
@@ -165,6 +206,13 @@ message AgentSessionSummary {
   int64 updated_at_ms = 10;
 }
 
+message ListSessionsResponse {
+  // Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
+  // this point-in-time list never replaces a SubscribeSession projection.
+  repeated AgentSessionSummary sessions = 1;
+  string continuation = 2;
+}
+
 message ReadSessionRequest {
   string session_id = 1;
   // False reads metadata only; true includes all retained runs and their items.
@@ -177,6 +225,18 @@ message ReadSessionResponse {
   // False for unknown or deleted sessions; session is then absent.
   bool found = 1;
   AgentSession session = 2;
+}
+
+message SetSessionConfigRequest {
+  string session_id = 1;
+  // Required full selection. Absent reasoning delegates to model defaults.
+  AgentModelConfig config = 2;
+  uint64 expected_metadata_revision = 3;
+}
+
+message SetSessionConfigResponse {
+  // Acknowledgement only; never replace a live subscription with this response.
+  uint64 metadata_revision = 1;
 }
 
 message SetSessionTitleRequest {
@@ -205,12 +265,6 @@ message SetSessionArchivedRequest {
 message SetSessionArchivedResponse {
   bool archived = 1;
   uint64 archive_revision = 2;
-}
-
-message SessionArchivedUpdated {
-  string session_id = 1;
-  bool archived = 2;
-  uint64 archive_revision = 3;
 }
 
 message DeleteSessionTarget {
@@ -250,128 +304,11 @@ message DeleteSessionResponse {
   repeated DeleteSessionResult results = 1;
 }
 
-message RegenerateTitleRequest {
-  string session_id = 1;
-  // Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
-  string title_model_ref = 2;
-}
-
-message RegenerateTitleResponse {
-  string title = 1;
-  uint64 metadata_revision = 2;
-}
-
-message AgentUserInput {
-  oneof content {
-    // MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
-    string text = 1;
-  }
-}
-
-message StartRunRequest {
-  string session_id = 1;
-  // Stable input identity for correlation and idempotency; same ID with different
-  // input/config conflicts. A lost response does not authorize a fresh ID retry.
-  string input_id = 2;
-  // Required, 1..64 text entries, ordered and preserved without trimming.
-  repeated AgentUserInput input = 3;
-  // Absent inherits session defaults. Present overrides this run only.
-  // Persist session defaults independently through SetSessionConfig.
-  AgentModelConfig config = 4;
-  // Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
-  optional string title_model_ref = 5;
-}
-
-message StartRunResponse {
-  // Acceptance, not completion. Same run is also announced by RunStarted.
-  AgentRun run = 1;
-}
-
-message InterruptRunRequest {
-  string session_id = 1;
-  // Targets exactly this run; a stale request must not interrupt a newer run.
-  string run_id = 2;
-}
-
-message InterruptRunResponse {
-  bool found = 1;
-  // Acknowledges cancellation only. Await RunCompleted for final status.
-  bool cancellation_requested = 2;
-}
-
-enum AgentRunStatus {
-  AGENT_RUN_STATUS_UNSPECIFIED = 0;
-  AGENT_RUN_STATUS_IN_PROGRESS = 1;
-  AGENT_RUN_STATUS_COMPLETED = 2;
-  AGENT_RUN_STATUS_FAILED = 3;
-  AGENT_RUN_STATUS_INTERRUPTED = 4;
-}
-
-message AgentRun {
-  string run_id = 1;
-  string input_id = 2;
-  AgentRunStatus status = 3;
-  AgentModelConfig config = 4;
-  repeated AgentItem items = 5;
-  int64 started_at_ms = 6;
-  // Absent while running; present for every terminal state.
-  optional int64 completed_at_ms = 7;
-  // Safe display message for failed runs only; no raw provider error/credentials.
-  optional string error = 8;
-  string provider_name = 9;
-  string model_name = 10;
-}
-
-message AgentItem {
-  string item_id = 1;
-  oneof content {
-    AgentUserMessage user_message = 2;
-    AgentMessage agent_message = 3;
-    AgentReasoning reasoning = 4;
-  }
-}
-
-message AgentUserMessage {
-  repeated AgentUserInput content = 1;
-}
-
-message AgentMessage {
-  string text = 1;
-}
-
-message AgentReasoning {
-  string text = 1;
-}
-
 message SubscribeSessionRequest {
   // Required canonical UUIDv7. Observes exactly this session; missing/invalid
   // IDs are invalid-argument, unknown/deleted sessions are not-found.
   // Host authorization remains the responsibility of the transport integration.
   string session_id = 1;
-}
-
-// Ordered direct notifications. SubscriptionReady contains a snapshot captured
-// atomically with observer registration. Following frames contain only changes
-// after that snapshot; apply them once in order. No resumable event cursor.
-// Control RPC responses confirm operations; do not replace the live cache with
-// their session/run snapshots, which may arrive after newer stream events.
-message AgentEvent {
-  int64 emitted_at_ms = 1;
-  oneof payload {
-    SessionStarted session_started = 2;
-    SessionDeleted session_deleted = 3;
-    RunStarted run_started = 4;
-    RunCompleted run_completed = 5;
-    ItemStarted item_started = 6;
-    ItemCompleted item_completed = 7;
-    AgentMessageDelta agent_message_delta = 8;
-    ReasoningDelta reasoning_delta = 9;
-    SubscriptionReady subscription_ready = 10;
-    SessionTitleUpdated session_title_updated = 11;
-    SessionConfigUpdated session_config_updated = 12;
-    SessionModelInfoWarningUpdated session_model_info_warning_updated = 13;
-    SessionArchivedUpdated session_archived_updated = 14;
-  }
 }
 
 // First frame: full public state of the requested session, including retained
@@ -398,17 +335,6 @@ message RunStarted {
   AgentRun run = 2;
   uint64 session_metadata_revision = 3;
   string title_model_ref = 4;
-}
-
-message SessionTitleUpdated {
-  string session_id = 1;
-  string title = 2;
-  uint64 metadata_revision = 3;
-  string title_model_ref = 4;
-  // Committed automatic-title flag, synchronized with the title.
-  bool auto_title_enabled = 5;
-  // Committed activity time. Manual title changes advance it; automatic generation preserves it.
-  int64 updated_at_ms = 6;
 }
 
 message RunCompleted {
@@ -445,6 +371,17 @@ message ReasoningDelta {
   string delta = 4;
 }
 
+message SessionTitleUpdated {
+  string session_id = 1;
+  string title = 2;
+  uint64 metadata_revision = 3;
+  string title_model_ref = 4;
+  // Committed automatic-title flag, synchronized with the title.
+  bool auto_title_enabled = 5;
+  // Committed activity time. Manual title changes advance it; automatic generation preserves it.
+  int64 updated_at_ms = 6;
+}
+
 message SessionConfigUpdated {
   string session_id = 1;
   AgentModelConfig config = 2;
@@ -461,20 +398,34 @@ message SessionModelInfoWarningUpdated {
   string model_name = 4;
 }
 
-// Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
-message SessionRetentionPolicy {
-  // Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
-  uint32 archive_after_days = 1;
-  // Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
-  // based on last activity, not time archived. Restoring bumps last activity.
-  uint32 delete_after_days = 2;
+message SessionArchivedUpdated {
+  string session_id = 1;
+  bool archived = 2;
+  uint64 archive_revision = 3;
 }
 
-message GetSessionRetentionPolicyRequest {}
-
-message SetSessionRetentionPolicyRequest {
-  // Required full policy. Invalid/missing values leave the old policy unchanged.
-  SessionRetentionPolicy policy = 1;
+// Ordered direct notifications. SubscriptionReady contains a snapshot captured
+// atomically with observer registration. Following frames contain only changes
+// after that snapshot; apply them once in order. No resumable event cursor.
+// Control RPC responses confirm operations; do not replace the live cache with
+// their session/run snapshots, which may arrive after newer stream events.
+message AgentEvent {
+  int64 emitted_at_ms = 1;
+  oneof payload {
+    SessionStarted session_started = 2;
+    SessionDeleted session_deleted = 3;
+    RunStarted run_started = 4;
+    RunCompleted run_completed = 5;
+    ItemStarted item_started = 6;
+    ItemCompleted item_completed = 7;
+    AgentMessageDelta agent_message_delta = 8;
+    ReasoningDelta reasoning_delta = 9;
+    SubscriptionReady subscription_ready = 10;
+    SessionTitleUpdated session_title_updated = 11;
+    SessionConfigUpdated session_config_updated = 12;
+    SessionModelInfoWarningUpdated session_model_info_warning_updated = 13;
+    SessionArchivedUpdated session_archived_updated = 14;
+  }
 }
 
 message TrackSessionViewingRequest {
@@ -483,3 +434,52 @@ message TrackSessionViewingRequest {
 }
 
 message SessionViewingReady {}
+
+message StartRunRequest {
+  string session_id = 1;
+  // Stable input identity for correlation and idempotency; same ID with different
+  // input/config conflicts. A lost response does not authorize a fresh ID retry.
+  string input_id = 2;
+  // Required, 1..64 text entries, ordered and preserved without trimming.
+  repeated AgentUserInput input = 3;
+  // Absent inherits session defaults. Present overrides this run only.
+  // Persist session defaults independently through SetSessionConfig.
+  AgentModelConfig config = 4;
+  // Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
+  optional string title_model_ref = 5;
+}
+
+message StartRunResponse {
+  // Acceptance, not completion. Same run is also announced by RunStarted.
+  AgentRun run = 1;
+}
+
+message InterruptRunRequest {
+  string session_id = 1;
+  // Targets exactly this run; a stale request must not interrupt a newer run.
+  string run_id = 2;
+}
+
+message InterruptRunResponse {
+  bool found = 1;
+  // Acknowledges cancellation only. Await RunCompleted for final status.
+  bool cancellation_requested = 2;
+}
+
+message RegenerateTitleRequest {
+  string session_id = 1;
+  // Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
+  string title_model_ref = 2;
+}
+
+message RegenerateTitleResponse {
+  string title = 1;
+  uint64 metadata_revision = 2;
+}
+
+message GetSessionRetentionPolicyRequest {}
+
+message SetSessionRetentionPolicyRequest {
+  // Required full policy. Invalid/missing values leave the old policy unchanged.
+  SessionRetentionPolicy policy = 1;
+}

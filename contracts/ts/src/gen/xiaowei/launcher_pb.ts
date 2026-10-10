@@ -14,7 +14,24 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/launcher.proto.
  */
 export const file_xiaowei_launcher: GenFile = /*@__PURE__*/
-  fileDesc("ChZ4aWFvd2VpL2xhdW5jaGVyLnByb3RvEhB4aWFvd2VpLmxhdW5jaGVyIiUKFExhdW5jaGVyUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJIloKFkxhdW5jaGVyU2VhcmNoUmVzcG9uc2USDQoFdG9rZW4YASABKA0SKwoEaGl0cxgDIAMoCzIdLnhpYW93ZWkubGF1bmNoZXIuTGF1bmNoZXJIaXRKBAgCEAMirAEKC0xhdW5jaGVySGl0EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhAKCHByb3ZpZGVyGAMgASgJEg0KBWxhYmVsGAQgASgJEg0KBXNjb3JlGAUgASgBEi4KBnJhbmdlcxgGIAMoCzIeLnhpYW93ZWkuc2VhcmNoLkhpZ2hsaWdodFJhbmdlEhUKCGljb25fdXJsGAcgASgJSACIAQFCCwoJX2ljb25fdXJsIioKDVJlc3VsdFJlcXVlc3QSDQoFdG9rZW4YASABKA0SCgoCaWQYAiABKAkiUwoPRXhlY3V0ZVJlc3BvbnNlEjEKBG1vZGUYAiABKA4yHi54aWFvd2VpLmxhdW5jaGVyLkxhdW5jaGVyTW9kZUgAiAEBQgcKBV9tb2RlSgQIARACIm0KE1VwZGF0ZUxheW91dFJlcXVlc3QSFAoMcmVzdWx0X2NvdW50GAEgASgNEjEKBG1vZGUYAyABKA4yHi54aWFvd2VpLmxhdW5jaGVyLkxhdW5jaGVyTW9kZUgAiAEBQgcKBV9tb2RlSgQIAhADIkQKDkxhdW5jaGVyT3BlbmVkEiwKBG1vZGUYAiABKA4yHi54aWFvd2VpLmxhdW5jaGVyLkxhdW5jaGVyTW9kZUoECAEQAiqCAQoMTGF1bmNoZXJNb2RlEh0KGUxBVU5DSEVSX01PREVfVU5TUEVDSUZJRUQQABIYChRMQVVOQ0hFUl9NT0RFX1NFQVJDSBABEhsKF0xBVU5DSEVSX01PREVfQ0xJUEJPQVJEEAISHAoYTEFVTkNIRVJfTU9ERV9RVUlDS19DSEFUEAMy9wIKCExhdW5jaGVyElkKBVF1ZXJ5EiYueGlhb3dlaS5sYXVuY2hlci5MYXVuY2hlclF1ZXJ5UmVxdWVzdBooLnhpYW93ZWkubGF1bmNoZXIuTGF1bmNoZXJTZWFyY2hSZXNwb25zZRJNCgdFeGVjdXRlEh8ueGlhb3dlaS5sYXVuY2hlci5SZXN1bHRSZXF1ZXN0GiEueGlhb3dlaS5sYXVuY2hlci5FeGVjdXRlUmVzcG9uc2USNAoESGlkZRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GhUueGlhb3dlaS5jb21tb24uRW1wdHkSTAoMVXBkYXRlTGF5b3V0EiUueGlhb3dlaS5sYXVuY2hlci5VcGRhdGVMYXlvdXRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSPQoNUmVzZXRQb3NpdGlvbhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GhUueGlhb3dlaS5jb21tb24uRW1wdHliBnByb3RvMw", [file_xiaowei_common, file_xiaowei_search]);
+  fileDesc("ChZ4aWFvd2VpL2xhdW5jaGVyLnByb3RvEhB4aWFvd2VpLmxhdW5jaGVyIkQKDkxhdW5jaGVyT3BlbmVkEiwKBG1vZGUYAiABKA4yHi54aWFvd2VpLmxhdW5jaGVyLkxhdW5jaGVyTW9kZUoECAEQAiIlChRMYXVuY2hlclF1ZXJ5UmVxdWVzdBINCgVxdWVyeRgBIAEoCSKsAQoLTGF1bmNoZXJIaXQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSDQoFbGFiZWwYBCABKAkSDQoFc2NvcmUYBSABKAESLgoGcmFuZ2VzGAYgAygLMh4ueGlhb3dlaS5zZWFyY2guSGlnaGxpZ2h0UmFuZ2USFQoIaWNvbl91cmwYByABKAlIAIgBAUILCglfaWNvbl91cmwiWgoWTGF1bmNoZXJTZWFyY2hSZXNwb25zZRINCgV0b2tlbhgBIAEoDRIrCgRoaXRzGAMgAygLMh0ueGlhb3dlaS5sYXVuY2hlci5MYXVuY2hlckhpdEoECAIQAyIqCg1SZXN1bHRSZXF1ZXN0Eg0KBXRva2VuGAEgASgNEgoKAmlkGAIgASgJIlMKD0V4ZWN1dGVSZXNwb25zZRIxCgRtb2RlGAIgASgOMh4ueGlhb3dlaS5sYXVuY2hlci5MYXVuY2hlck1vZGVIAIgBAUIHCgVfbW9kZUoECAEQAiJtChNVcGRhdGVMYXlvdXRSZXF1ZXN0EhQKDHJlc3VsdF9jb3VudBgBIAEoDRIxCgRtb2RlGAMgASgOMh4ueGlhb3dlaS5sYXVuY2hlci5MYXVuY2hlck1vZGVIAIgBAUIHCgVfbW9kZUoECAIQAyqCAQoMTGF1bmNoZXJNb2RlEh0KGUxBVU5DSEVSX01PREVfVU5TUEVDSUZJRUQQABIYChRMQVVOQ0hFUl9NT0RFX1NFQVJDSBABEhsKF0xBVU5DSEVSX01PREVfQ0xJUEJPQVJEEAISHAoYTEFVTkNIRVJfTU9ERV9RVUlDS19DSEFUEAMy9wIKCExhdW5jaGVyElkKBVF1ZXJ5EiYueGlhb3dlaS5sYXVuY2hlci5MYXVuY2hlclF1ZXJ5UmVxdWVzdBooLnhpYW93ZWkubGF1bmNoZXIuTGF1bmNoZXJTZWFyY2hSZXNwb25zZRJNCgdFeGVjdXRlEh8ueGlhb3dlaS5sYXVuY2hlci5SZXN1bHRSZXF1ZXN0GiEueGlhb3dlaS5sYXVuY2hlci5FeGVjdXRlUmVzcG9uc2USNAoESGlkZRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GhUueGlhb3dlaS5jb21tb24uRW1wdHkSTAoMVXBkYXRlTGF5b3V0EiUueGlhb3dlaS5sYXVuY2hlci5VcGRhdGVMYXlvdXRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSPQoNUmVzZXRQb3NpdGlvbhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GhUueGlhb3dlaS5jb21tb24uRW1wdHliBnByb3RvMw", [file_xiaowei_common, file_xiaowei_search]);
+
+/**
+ * @generated from message xiaowei.launcher.LauncherOpened
+ */
+export type LauncherOpened = Message<"xiaowei.launcher.LauncherOpened"> & {
+  /**
+   * @generated from field: xiaowei.launcher.LauncherMode mode = 2;
+   */
+  mode: LauncherMode;
+};
+
+/**
+ * Describes the message xiaowei.launcher.LauncherOpened.
+ * Use `create(LauncherOpenedSchema)` to create a new message.
+ */
+export const LauncherOpenedSchema: GenMessage<LauncherOpened> = /*@__PURE__*/
+  messageDesc(file_xiaowei_launcher, 0);
 
 /**
  * @generated from message xiaowei.launcher.LauncherQueryRequest
@@ -31,28 +48,6 @@ export type LauncherQueryRequest = Message<"xiaowei.launcher.LauncherQueryReques
  * Use `create(LauncherQueryRequestSchema)` to create a new message.
  */
 export const LauncherQueryRequestSchema: GenMessage<LauncherQueryRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_launcher, 0);
-
-/**
- * @generated from message xiaowei.launcher.LauncherSearchResponse
- */
-export type LauncherSearchResponse = Message<"xiaowei.launcher.LauncherSearchResponse"> & {
-  /**
-   * @generated from field: uint32 token = 1;
-   */
-  token: number;
-
-  /**
-   * @generated from field: repeated xiaowei.launcher.LauncherHit hits = 3;
-   */
-  hits: LauncherHit[];
-};
-
-/**
- * Describes the message xiaowei.launcher.LauncherSearchResponse.
- * Use `create(LauncherSearchResponseSchema)` to create a new message.
- */
-export const LauncherSearchResponseSchema: GenMessage<LauncherSearchResponse> = /*@__PURE__*/
   messageDesc(file_xiaowei_launcher, 1);
 
 /**
@@ -107,6 +102,28 @@ export const LauncherHitSchema: GenMessage<LauncherHit> = /*@__PURE__*/
   messageDesc(file_xiaowei_launcher, 2);
 
 /**
+ * @generated from message xiaowei.launcher.LauncherSearchResponse
+ */
+export type LauncherSearchResponse = Message<"xiaowei.launcher.LauncherSearchResponse"> & {
+  /**
+   * @generated from field: uint32 token = 1;
+   */
+  token: number;
+
+  /**
+   * @generated from field: repeated xiaowei.launcher.LauncherHit hits = 3;
+   */
+  hits: LauncherHit[];
+};
+
+/**
+ * Describes the message xiaowei.launcher.LauncherSearchResponse.
+ * Use `create(LauncherSearchResponseSchema)` to create a new message.
+ */
+export const LauncherSearchResponseSchema: GenMessage<LauncherSearchResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_launcher, 3);
+
+/**
  * Execute only a result from the current query batch; stale token/ID pairs are rejected.
  *
  * @generated from message xiaowei.launcher.ResultRequest
@@ -128,7 +145,7 @@ export type ResultRequest = Message<"xiaowei.launcher.ResultRequest"> & {
  * Use `create(ResultRequestSchema)` to create a new message.
  */
 export const ResultRequestSchema: GenMessage<ResultRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_launcher, 3);
+  messageDesc(file_xiaowei_launcher, 4);
 
 /**
  * @generated from message xiaowei.launcher.ExecuteResponse
@@ -145,7 +162,7 @@ export type ExecuteResponse = Message<"xiaowei.launcher.ExecuteResponse"> & {
  * Use `create(ExecuteResponseSchema)` to create a new message.
  */
 export const ExecuteResponseSchema: GenMessage<ExecuteResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_launcher, 4);
+  messageDesc(file_xiaowei_launcher, 5);
 
 /**
  * @generated from message xiaowei.launcher.UpdateLayoutRequest
@@ -169,23 +186,6 @@ export type UpdateLayoutRequest = Message<"xiaowei.launcher.UpdateLayoutRequest"
  * Use `create(UpdateLayoutRequestSchema)` to create a new message.
  */
 export const UpdateLayoutRequestSchema: GenMessage<UpdateLayoutRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_launcher, 5);
-
-/**
- * @generated from message xiaowei.launcher.LauncherOpened
- */
-export type LauncherOpened = Message<"xiaowei.launcher.LauncherOpened"> & {
-  /**
-   * @generated from field: xiaowei.launcher.LauncherMode mode = 2;
-   */
-  mode: LauncherMode;
-};
-
-/**
- * Describes the message xiaowei.launcher.LauncherOpened.
- * Use `create(LauncherOpenedSchema)` to create a new message.
- */
-export const LauncherOpenedSchema: GenMessage<LauncherOpened> = /*@__PURE__*/
   messageDesc(file_xiaowei_launcher, 6);
 
 /**

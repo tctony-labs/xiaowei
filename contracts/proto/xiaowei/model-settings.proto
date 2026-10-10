@@ -19,10 +19,6 @@ service ModelSettings {
   rpc Reapply(xiaowei.common.Empty) returns (ModelSettingsSnapshot);
 }
 
-message AuxiliaryModelRef {
-  optional string model_ref = 1;
-}
-
 message ConfiguredModel {
   // Empty for new models; assigned on save. Existing IDs cannot move between providers.
   string id = 1;
@@ -92,6 +88,10 @@ message ModelSettingsSnapshot {
 
 message ModelSettingsChanged {
   ModelSettingsSnapshot snapshot = 1;
+}
+
+message AuxiliaryModelRef {
+  optional string model_ref = 1;
 }
 
 message SaveProviderRequest {

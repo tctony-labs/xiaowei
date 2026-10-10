@@ -16,35 +16,6 @@ impl ::prost::Name for HighlightRange {
         "/xiaowei.search.HighlightRange".into()
     }
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SearchHit {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub recency_key: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub title: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub provider: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub label: ::prost::alloc::string::String,
-    #[prost(double, tag = "6")]
-    pub score: f64,
-    #[prost(message, repeated, tag = "7")]
-    pub ranges: ::prost::alloc::vec::Vec<HighlightRange>,
-    #[prost(message, optional, tag = "10")]
-    pub action: ::core::option::Option<SearchAction>,
-}
-impl ::prost::Name for SearchHit {
-    const NAME: &'static str = "SearchHit";
-    const PACKAGE: &'static str = "xiaowei.search";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.search.SearchHit".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.search.SearchHit".into()
-    }
-}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SearchAction {
     #[prost(oneof = "search_action::Action", tags = "1, 2, 3, 4")]
@@ -74,20 +45,33 @@ impl ::prost::Name for SearchAction {
         "/xiaowei.search.SearchAction".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RecordUsageRequest {
-    /// Ranking key returned by SearchHit; not necessarily the displayed result ID.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SearchHit {
     #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
     pub recency_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub provider: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub label: ::prost::alloc::string::String,
+    #[prost(double, tag = "6")]
+    pub score: f64,
+    #[prost(message, repeated, tag = "7")]
+    pub ranges: ::prost::alloc::vec::Vec<HighlightRange>,
+    #[prost(message, optional, tag = "10")]
+    pub action: ::core::option::Option<SearchAction>,
 }
-impl ::prost::Name for RecordUsageRequest {
-    const NAME: &'static str = "RecordUsageRequest";
+impl ::prost::Name for SearchHit {
+    const NAME: &'static str = "SearchHit";
     const PACKAGE: &'static str = "xiaowei.search";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.search.RecordUsageRequest".into()
+        "xiaowei.search.SearchHit".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.search.RecordUsageRequest".into()
+        "/xiaowei.search.SearchHit".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -121,6 +105,22 @@ impl ::prost::Name for SearchResults {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.search.SearchResults".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RecordUsageRequest {
+    /// Ranking key returned by SearchHit; not necessarily the displayed result ID.
+    #[prost(string, tag = "1")]
+    pub recency_key: ::prost::alloc::string::String,
+}
+impl ::prost::Name for RecordUsageRequest {
+    const NAME: &'static str = "RecordUsageRequest";
+    const PACKAGE: &'static str = "xiaowei.search";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.search.RecordUsageRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.search.RecordUsageRequest".into()
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

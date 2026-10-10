@@ -4,6 +4,17 @@ package xiaowei.storage;
 
 import "xiaowei/common.proto";
 
+service KeyValue {
+  rpc Get(KvKey) returns (KvValue);
+
+  rpc Set(KvEntry) returns (xiaowei.common.Empty);
+
+  rpc Delete(KvKey) returns (KvDeleted);
+
+  // At most 10000 rows / 4 MiB, including keys and values.
+  rpc List(KvPrefix) returns (KvEntries);
+}
+
 message KvKey {
   // Full, case-sensitive key, 1–1024 UTF-8 bytes. setting.* and migration_v2.* are reserved.
   string key = 1;
@@ -32,15 +43,4 @@ message KvPrefix {
 message KvEntries {
   // Full public keys in binary sort order. Oversize lists fail instead of truncating.
   repeated KvEntry entries = 1;
-}
-
-service KeyValue {
-  rpc Get(KvKey) returns (KvValue);
-
-  rpc Set(KvEntry) returns (xiaowei.common.Empty);
-
-  rpc Delete(KvKey) returns (KvDeleted);
-
-  // At most 10000 rows / 4 MiB, including keys and values.
-  rpc List(KvPrefix) returns (KvEntries);
 }

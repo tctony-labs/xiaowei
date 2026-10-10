@@ -12,43 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/system.proto.
  */
 export const file_xiaowei_system: GenFile = /*@__PURE__*/
-  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iOwoTVG9nZ2xlVGhlbWVSZXNwb25zZRIkCgV0aGVtZRgBIAEoDjIVLnhpYW93ZWkuc3lzdGVtLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSIgChBMb2NhbFBhdGhSZXF1ZXN0EgwKBHBhdGgYASABKAkiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIiYKE1NldEF1dG9zdGFydFJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCCJFChNPcGVuU2V0dGluZ3NSZXF1ZXN0Ei4KBmFuY2hvchgBIAEoDjIeLnhpYW93ZWkuc3lzdGVtLlNldHRpbmdzQW5jaG9yIh0KG1NldHRpbmdzTmF2aWdhdGlvblJlcXVlc3RlZCJQCh5UYWtlU2V0dGluZ3NOYXZpZ2F0aW9uUmVzcG9uc2USLgoGYW5jaG9yGAEgASgOMh4ueGlhb3dlaS5zeXN0ZW0uU2V0dGluZ3NBbmNob3IqPwoFVGhlbWUSFQoRVEhFTUVfVU5TUEVDSUZJRUQQABIPCgtUSEVNRV9MSUdIVBABEg4KClRIRU1FX0RBUksQAipWCg5TZXR0aW5nc0FuY2hvchIfChtTRVRUSU5HU19BTkNIT1JfVU5TUEVDSUZJRUQQABIjCh9TRVRUSU5HU19BTkNIT1JfTU9ERUxfUFJPVklERVJTEAEyrgUKBlN5c3RlbRJKCgxPcGVuU2V0dGluZ3MSIy54aWFvd2VpLnN5c3RlbS5PcGVuU2V0dGluZ3NSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSXwoWVGFrZVNldHRpbmdzTmF2aWdhdGlvbhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5Gi4ueGlhb3dlaS5zeXN0ZW0uVGFrZVNldHRpbmdzTmF2aWdhdGlvblJlc3BvbnNlEkoKDFNldEF1dG9zdGFydBIjLnhpYW93ZWkuc3lzdGVtLlNldEF1dG9zdGFydFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRI6CgpIaWRlV2luZG93EhUueGlhb3dlaS5jb21tb24uRW1wdHkaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJWChJXcml0ZUNsaXBib2FyZFRleHQSKS54aWFvd2VpLnN5c3RlbS5Xcml0ZUNsaXBib2FyZFRleHRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSQwoIT3BlblBhdGgSIC54aWFvd2VpLnN5c3RlbS5Mb2NhbFBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRQoKUmV2ZWFsUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
-
-/**
- * @generated from message xiaowei.system.ToggleThemeResponse
- */
-export type ToggleThemeResponse = Message<"xiaowei.system.ToggleThemeResponse"> & {
-  /**
-   * @generated from field: xiaowei.system.Theme theme = 1;
-   */
-  theme: Theme;
-};
-
-/**
- * Describes the message xiaowei.system.ToggleThemeResponse.
- * Use `create(ToggleThemeResponseSchema)` to create a new message.
- */
-export const ToggleThemeResponseSchema: GenMessage<ToggleThemeResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_system, 0);
-
-/**
- * @generated from message xiaowei.system.OpenUrlRequest
- */
-export type OpenUrlRequest = Message<"xiaowei.system.OpenUrlRequest"> & {
-  /**
-   * Only http and https URLs are accepted; local paths and executable schemes are rejected.
-   *
-   * @generated from field: string url = 1;
-   */
-  url: string;
-};
-
-/**
- * Describes the message xiaowei.system.OpenUrlRequest.
- * Use `create(OpenUrlRequestSchema)` to create a new message.
- */
-export const OpenUrlRequestSchema: GenMessage<OpenUrlRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_system, 1);
+  fileDesc("ChR4aWFvd2VpL3N5c3RlbS5wcm90bxIOeGlhb3dlaS5zeXN0ZW0iIAoQTG9jYWxQYXRoUmVxdWVzdBIMCgRwYXRoGAEgASgJIh0KG1NldHRpbmdzTmF2aWdhdGlvblJlcXVlc3RlZCJFChNPcGVuU2V0dGluZ3NSZXF1ZXN0Ei4KBmFuY2hvchgBIAEoDjIeLnhpYW93ZWkuc3lzdGVtLlNldHRpbmdzQW5jaG9yIlAKHlRha2VTZXR0aW5nc05hdmlnYXRpb25SZXNwb25zZRIuCgZhbmNob3IYASABKA4yHi54aWFvd2VpLnN5c3RlbS5TZXR0aW5nc0FuY2hvciImChNTZXRBdXRvc3RhcnRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIjsKE1RvZ2dsZVRoZW1lUmVzcG9uc2USJAoFdGhlbWUYASABKA4yFS54aWFvd2VpLnN5c3RlbS5UaGVtZSIdCg5PcGVuVXJsUmVxdWVzdBILCgN1cmwYASABKAkqPwoFVGhlbWUSFQoRVEhFTUVfVU5TUEVDSUZJRUQQABIPCgtUSEVNRV9MSUdIVBABEg4KClRIRU1FX0RBUksQAipWCg5TZXR0aW5nc0FuY2hvchIfChtTRVRUSU5HU19BTkNIT1JfVU5TUEVDSUZJRUQQABIjCh9TRVRUSU5HU19BTkNIT1JfTU9ERUxfUFJPVklERVJTEAEyrgUKBlN5c3RlbRJKCgxPcGVuU2V0dGluZ3MSIy54aWFvd2VpLnN5c3RlbS5PcGVuU2V0dGluZ3NSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSXwoWVGFrZVNldHRpbmdzTmF2aWdhdGlvbhIVLnhpYW93ZWkuY29tbW9uLkVtcHR5Gi4ueGlhb3dlaS5zeXN0ZW0uVGFrZVNldHRpbmdzTmF2aWdhdGlvblJlc3BvbnNlEkoKDFNldEF1dG9zdGFydBIjLnhpYW93ZWkuc3lzdGVtLlNldEF1dG9zdGFydFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRI6CgpIaWRlV2luZG93EhUueGlhb3dlaS5jb21tb24uRW1wdHkaFS54aWFvd2VpLmNvbW1vbi5FbXB0eRJWChJXcml0ZUNsaXBib2FyZFRleHQSKS54aWFvd2VpLnN5c3RlbS5Xcml0ZUNsaXBib2FyZFRleHRSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSSQoLVG9nZ2xlVGhlbWUSFS54aWFvd2VpLmNvbW1vbi5FbXB0eRojLnhpYW93ZWkuc3lzdGVtLlRvZ2dsZVRoZW1lUmVzcG9uc2USQAoHT3BlblVybBIeLnhpYW93ZWkuc3lzdGVtLk9wZW5VcmxSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSQwoIT3BlblBhdGgSIC54aWFvd2VpLnN5c3RlbS5Mb2NhbFBhdGhSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHkSRQoKUmV2ZWFsUGF0aBIgLnhpYW93ZWkuc3lzdGVtLkxvY2FsUGF0aFJlcXVlc3QaFS54aWFvd2VpLmNvbW1vbi5FbXB0eWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
  * Backend-resolved local resource; never a URL or shell command.
@@ -69,25 +33,60 @@ export type LocalPathRequest = Message<"xiaowei.system.LocalPathRequest"> & {
  * Use `create(LocalPathRequestSchema)` to create a new message.
  */
 export const LocalPathRequestSchema: GenMessage<LocalPathRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_system, 2);
+  messageDesc(file_xiaowei_system, 0);
 
 /**
- * @generated from message xiaowei.system.WriteClipboardTextRequest
+ * Notification only, delivered to the destination settings window. The host
+ * retains the latest pending anchor until that window consumes it.
+ *
+ * @generated from message xiaowei.system.SettingsNavigationRequested
  */
-export type WriteClipboardTextRequest = Message<"xiaowei.system.WriteClipboardTextRequest"> & {
-  /**
-   * Plain text to replace the system clipboard with; an empty string clears text.
-   *
-   * @generated from field: string text = 1;
-   */
-  text: string;
+export type SettingsNavigationRequested = Message<"xiaowei.system.SettingsNavigationRequested"> & {
 };
 
 /**
- * Describes the message xiaowei.system.WriteClipboardTextRequest.
- * Use `create(WriteClipboardTextRequestSchema)` to create a new message.
+ * Describes the message xiaowei.system.SettingsNavigationRequested.
+ * Use `create(SettingsNavigationRequestedSchema)` to create a new message.
  */
-export const WriteClipboardTextRequestSchema: GenMessage<WriteClipboardTextRequest> = /*@__PURE__*/
+export const SettingsNavigationRequestedSchema: GenMessage<SettingsNavigationRequested> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 1);
+
+/**
+ * @generated from message xiaowei.system.OpenSettingsRequest
+ */
+export type OpenSettingsRequest = Message<"xiaowei.system.OpenSettingsRequest"> & {
+  /**
+   * Required destination; unspecified and unknown values are rejected.
+   *
+   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   */
+  anchor: SettingsAnchor;
+};
+
+/**
+ * Describes the message xiaowei.system.OpenSettingsRequest.
+ * Use `create(OpenSettingsRequestSchema)` to create a new message.
+ */
+export const OpenSettingsRequestSchema: GenMessage<OpenSettingsRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_system, 2);
+
+/**
+ * @generated from message xiaowei.system.TakeSettingsNavigationResponse
+ */
+export type TakeSettingsNavigationResponse = Message<"xiaowei.system.TakeSettingsNavigationResponse"> & {
+  /**
+   * UNSPECIFIED means this window has no pending navigation.
+   *
+   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   */
+  anchor: SettingsAnchor;
+};
+
+/**
+ * Describes the message xiaowei.system.TakeSettingsNavigationResponse.
+ * Use `create(TakeSettingsNavigationResponseSchema)` to create a new message.
+ */
+export const TakeSettingsNavigationResponseSchema: GenMessage<TakeSettingsNavigationResponse> = /*@__PURE__*/
   messageDesc(file_xiaowei_system, 3);
 
 /**
@@ -108,57 +107,58 @@ export const SetAutostartRequestSchema: GenMessage<SetAutostartRequest> = /*@__P
   messageDesc(file_xiaowei_system, 4);
 
 /**
- * @generated from message xiaowei.system.OpenSettingsRequest
+ * @generated from message xiaowei.system.WriteClipboardTextRequest
  */
-export type OpenSettingsRequest = Message<"xiaowei.system.OpenSettingsRequest"> & {
+export type WriteClipboardTextRequest = Message<"xiaowei.system.WriteClipboardTextRequest"> & {
   /**
-   * Required destination; unspecified and unknown values are rejected.
+   * Plain text to replace the system clipboard with; an empty string clears text.
    *
-   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   * @generated from field: string text = 1;
    */
-  anchor: SettingsAnchor;
+  text: string;
 };
 
 /**
- * Describes the message xiaowei.system.OpenSettingsRequest.
- * Use `create(OpenSettingsRequestSchema)` to create a new message.
+ * Describes the message xiaowei.system.WriteClipboardTextRequest.
+ * Use `create(WriteClipboardTextRequestSchema)` to create a new message.
  */
-export const OpenSettingsRequestSchema: GenMessage<OpenSettingsRequest> = /*@__PURE__*/
+export const WriteClipboardTextRequestSchema: GenMessage<WriteClipboardTextRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_system, 5);
 
 /**
- * Notification only, delivered to the destination settings window. The host
- * retains the latest pending anchor until that window consumes it.
- *
- * @generated from message xiaowei.system.SettingsNavigationRequested
+ * @generated from message xiaowei.system.ToggleThemeResponse
  */
-export type SettingsNavigationRequested = Message<"xiaowei.system.SettingsNavigationRequested"> & {
+export type ToggleThemeResponse = Message<"xiaowei.system.ToggleThemeResponse"> & {
+  /**
+   * @generated from field: xiaowei.system.Theme theme = 1;
+   */
+  theme: Theme;
 };
 
 /**
- * Describes the message xiaowei.system.SettingsNavigationRequested.
- * Use `create(SettingsNavigationRequestedSchema)` to create a new message.
+ * Describes the message xiaowei.system.ToggleThemeResponse.
+ * Use `create(ToggleThemeResponseSchema)` to create a new message.
  */
-export const SettingsNavigationRequestedSchema: GenMessage<SettingsNavigationRequested> = /*@__PURE__*/
+export const ToggleThemeResponseSchema: GenMessage<ToggleThemeResponse> = /*@__PURE__*/
   messageDesc(file_xiaowei_system, 6);
 
 /**
- * @generated from message xiaowei.system.TakeSettingsNavigationResponse
+ * @generated from message xiaowei.system.OpenUrlRequest
  */
-export type TakeSettingsNavigationResponse = Message<"xiaowei.system.TakeSettingsNavigationResponse"> & {
+export type OpenUrlRequest = Message<"xiaowei.system.OpenUrlRequest"> & {
   /**
-   * UNSPECIFIED means this window has no pending navigation.
+   * Only http and https URLs are accepted; local paths and executable schemes are rejected.
    *
-   * @generated from field: xiaowei.system.SettingsAnchor anchor = 1;
+   * @generated from field: string url = 1;
    */
-  anchor: SettingsAnchor;
+  url: string;
 };
 
 /**
- * Describes the message xiaowei.system.TakeSettingsNavigationResponse.
- * Use `create(TakeSettingsNavigationResponseSchema)` to create a new message.
+ * Describes the message xiaowei.system.OpenUrlRequest.
+ * Use `create(OpenUrlRequestSchema)` to create a new message.
  */
-export const TakeSettingsNavigationResponseSchema: GenMessage<TakeSettingsNavigationResponse> = /*@__PURE__*/
+export const OpenUrlRequestSchema: GenMessage<OpenUrlRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_system, 7);
 
 /**

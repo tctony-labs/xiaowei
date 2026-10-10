@@ -12,370 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/llm.proto.
  */
 export const file_xiaowei_llm: GenFile = /*@__PURE__*/
-  fileDesc("ChF4aWFvd2VpL2xsbS5wcm90bxILeGlhb3dlaS5sbG0iqQIKD0dlbmVyYXRlUmVxdWVzdBIRCgltb2RlbF9yZWYYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIRCgl1c2VyX3RleHQYAyABKAkSGAoLdGVtcGVyYXR1cmUYBCABKAFIAIgBARIXCgptYXhfdG9rZW5zGAUgASgNSAGIAQESKgoIbWVzc2FnZXMYBiADKAsyGC54aWFvd2VpLmxsbS5DaGF0TWVzc2FnZRIqCgV0b29scxgHIAMoCzIbLnhpYW93ZWkubGxtLlRvb2xEZWZpbml0aW9uEi8KB29wdGlvbnMYCCABKAsyHi54aWFvd2VpLmxsbS5HZW5lcmF0aW9uT3B0aW9uc0IOCgxfdGVtcGVyYXR1cmVCDQoLX21heF90b2tlbnMiMAoJVGV4dERlbHRhEhUKDWNvbnRlbnRfaW5kZXgYASABKA0SDAoEdGV4dBgCIAEoCSLfAQoKVG9rZW5Vc2FnZRINCgVpbnB1dBgBIAEoBBIOCgZvdXRwdXQYAiABKAQSEgoKY2FjaGVfcmVhZBgDIAEoBBITCgtjYWNoZV93cml0ZRgEIAEoBBINCgV0b3RhbBgFIAEoBBIWCglyZWFzb25pbmcYBiABKARIAIgBARIbCg5jYWNoZV93cml0ZV8xaBgHIAEoBEgBiAEBEiQKBGNvc3QYCCABKAsyFi54aWFvd2VpLmxsbS5Vc2FnZUNvc3RCDAoKX3JlYXNvbmluZ0IRCg9fY2FjaGVfd3JpdGVfMWgibwoSR2VuZXJhdGlvbkZpbmlzaGVkEikKBnJlYXNvbhgBIAEoDjIZLnhpYW93ZWkubGxtLkZpbmlzaFJlYXNvbhIuCgdtZXNzYWdlGAIgASgLMh0ueGlhb3dlaS5sbG0uQXNzaXN0YW50TWVzc2FnZSJTChBHZW5lcmF0aW9uRmFpbGVkEg8KB21lc3NhZ2UYASABKAkSLgoHcGFydGlhbBgCIAEoCzIdLnhpYW93ZWkubGxtLkFzc2lzdGFudE1lc3NhZ2Ui4gMKDUdlbmVyYXRlRXZlbnQSLAoKdGV4dF9kZWx0YRgBIAEoCzIWLnhpYW93ZWkubGxtLlRleHREZWx0YUgAEigKBXVzYWdlGAIgASgLMhcueGlhb3dlaS5sbG0uVG9rZW5Vc2FnZUgAEjMKCGZpbmlzaGVkGAMgASgLMh8ueGlhb3dlaS5sbG0uR2VuZXJhdGlvbkZpbmlzaGVkSAASLwoGZmFpbGVkGAQgASgLMh0ueGlhb3dlaS5sbG0uR2VuZXJhdGlvbkZhaWxlZEgAEigKB3N0YXJ0ZWQYBSABKAsyFS54aWFvd2VpLmNvbW1vbi5FbXB0eUgAEjcKDWJsb2NrX3N0YXJ0ZWQYBiABKAsyHi54aWFvd2VpLmxsbS5Db250ZW50QmxvY2tFdmVudEgAEjAKC2Jsb2NrX2RlbHRhGAcgASgLMhkueGlhb3dlaS5sbG0uQ29udGVudERlbHRhSAASOAoOYmxvY2tfZmluaXNoZWQYCCABKAsyHi54aWFvd2VpLmxsbS5Db250ZW50QmxvY2tFdmVudEgAEjsKEmZpcnN0X3NzZV9yZWNlaXZlZBgJIAEoCzIdLnhpYW93ZWkubGxtLkZpcnN0U3NlUmVjZWl2ZWRIAEIHCgVldmVudCIqChBGaXJzdFNzZVJlY2VpdmVkEhYKDnJlY2VpdmVkX2F0X21zGAEgASgDIigKE0dldE1vZGVsSW5mb1JlcXVlc3QSEQoJbW9kZWxfcmVmGAEgASgJIqoBCglNb2RlbEluZm8SEQoJbW9kZWxfcmVmGAEgASgJEhUKDXByb3ZpZGVyX25hbWUYAiABKAkSDAoEbmFtZRgDIAEoCRIRCglyZWFzb25pbmcYBCABKAgSJgoFaW5wdXQYBSADKA4yFy54aWFvd2VpLmxsbS5Nb2RlbElucHV0EhYKDmNvbnRleHRfd2luZG93GAYgASgBEhIKCm1heF90b2tlbnMYByABKAEiQwoQU2V0TW9kZWxzUmVxdWVzdBIvCgZtb2RlbHMYASADKAsyHy54aWFvd2VpLmxsbS5Nb2RlbENvbmZpZ3VyYXRpb24iWAoOTW9kZWxDb3N0UmF0ZXMSDQoFaW5wdXQYASABKAESDgoGb3V0cHV0GAIgASgBEhIKCmNhY2hlX3JlYWQYAyABKAESEwoLY2FjaGVfd3JpdGUYBCABKAEiVwoNTW9kZWxDb3N0VGllchIaChJpbnB1dF90b2tlbnNfYWJvdmUYASABKAESKgoFcmF0ZXMYAiABKAsyGy54aWFvd2VpLmxsbS5Nb2RlbENvc3RSYXRlcyKqBQoSTW9kZWxDb25maWd1cmF0aW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSEAoIbW9kZWxfaWQYBCABKAkSCwoDYXBpGAUgASgJEhAKCGJhc2VfdXJsGAYgASgJEg8KB2FwaV9rZXkYByABKAkSEQoJcmVhc29uaW5nGAggASgIEiYKBWlucHV0GAkgAygOMhcueGlhb3dlaS5sbG0uTW9kZWxJbnB1dBIWCg5jb250ZXh0X3dpbmRvdxgKIAEoARISCgptYXhfdG9rZW5zGAsgASgBEikKBGNvc3QYDCABKAsyGy54aWFvd2VpLmxsbS5Nb2RlbENvc3RSYXRlcxIuCgpjb3N0X3RpZXJzGA0gAygLMhoueGlhb3dlaS5sbG0uTW9kZWxDb3N0VGllchIYCgtjb21wYXRfanNvbhgOIAEoCUgAiAEBEiQKF3RoaW5raW5nX2xldmVsX21hcF9qc29uGA8gASgJSAGIAQESPQoHaGVhZGVycxgQIAMoCzIsLnhpYW93ZWkubGxtLk1vZGVsQ29uZmlndXJhdGlvbi5IZWFkZXJzRW50cnkSIQoUc2FtcGxpbmdfcGFyYW1zX2pzb24YESABKAlIAogBARI2ChFkZWZhdWx0X3RyYW5zcG9ydBgSIAEoDjIbLnhpYW93ZWkubGxtLk1vZGVsVHJhbnNwb3J0EhUKDXByb3ZpZGVyX25hbWUYEyABKAkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDgoMX2NvbXBhdF9qc29uQhoKGF90aGlua2luZ19sZXZlbF9tYXBfanNvbkIXChVfc2FtcGxpbmdfcGFyYW1zX2pzb24iYgoJVXNhZ2VDb3N0Eg0KBWlucHV0GAEgASgBEg4KBm91dHB1dBgCIAEoARISCgpjYWNoZV9yZWFkGAMgASgBEhMKC2NhY2hlX3dyaXRlGAQgASgBEg0KBXRvdGFsGAUgASgBIkEKC1RleHRDb250ZW50EgwKBHRleHQYASABKAkSFgoJc2lnbmF0dXJlGAIgASgJSACIAQFCDAoKX3NpZ25hdHVyZSIvCgxJbWFnZUNvbnRlbnQSEQoJbWltZV90eXBlGAEgASgJEgwKBGRhdGEYAiABKAwiVwoPVGhpbmtpbmdDb250ZW50EgwKBHRleHQYASABKAkSFgoJc2lnbmF0dXJlGAIgASgJSACIAQESEAoIcmVkYWN0ZWQYAyABKAhCDAoKX3NpZ25hdHVyZSK3AQoPVG9vbENhbGxDb250ZW50EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSGwoOYXJndW1lbnRzX2pzb24YAyABKAlIAIgBARIeChF0aG91Z2h0X3NpZ25hdHVyZRgEIAEoCUgBiAEBEhYKCW5hbWVzcGFjZRgFIAEoCUgCiAEBQhEKD19hcmd1bWVudHNfanNvbkIUChJfdGhvdWdodF9zaWduYXR1cmVCDAoKX25hbWVzcGFjZSLUAQoMQ29udGVudEJsb2NrEigKBHRleHQYASABKAsyGC54aWFvd2VpLmxsbS5UZXh0Q29udGVudEgAEioKBWltYWdlGAIgASgLMhkueGlhb3dlaS5sbG0uSW1hZ2VDb250ZW50SAASMAoIdGhpbmtpbmcYAyABKAsyHC54aWFvd2VpLmxsbS5UaGlua2luZ0NvbnRlbnRIABIxCgl0b29sX2NhbGwYBCABKAsyHC54aWFvd2VpLmxsbS5Ub29sQ2FsbENvbnRlbnRIAEIJCgdjb250ZW50Ik8KC1VzZXJNZXNzYWdlEioKB2NvbnRlbnQYASADKAsyGS54aWFvd2VpLmxsbS5Db250ZW50QmxvY2sSFAoMdGltZXN0YW1wX21zGAIgASgDIs8DChBBc3Npc3RhbnRNZXNzYWdlEioKB2NvbnRlbnQYASADKAsyGS54aWFvd2VpLmxsbS5Db250ZW50QmxvY2sSCwoDYXBpGAIgASgJEhAKCHByb3ZpZGVyGAMgASgJEhAKCG1vZGVsX2lkGAQgASgJEiYKBXVzYWdlGAUgASgLMhcueGlhb3dlaS5sbG0uVG9rZW5Vc2FnZRIuCgtzdG9wX3JlYXNvbhgGIAEoDjIZLnhpYW93ZWkubGxtLkZpbmlzaFJlYXNvbhIUCgx0aW1lc3RhbXBfbXMYByABKAMSGAoLcmVzcG9uc2VfaWQYCCABKAlIAIgBARIbCg5yZXNwb25zZV9tb2RlbBgJIAEoCUgBiAEBEiQKF3Byb3ZpZGVyX3RoaW5raW5nX2xldmVsGAogASgJSAKIAQESHAoPcmF3X3N0b3BfcmVhc29uGAsgASgJSAOIAQESFQoIZW5kX3R1cm4YDCABKAhIBIgBAUIOCgxfcmVzcG9uc2VfaWRCEQoPX3Jlc3BvbnNlX21vZGVsQhoKGF9wcm92aWRlcl90aGlua2luZ19sZXZlbEISChBfcmF3X3N0b3BfcmVhc29uQgsKCV9lbmRfdHVybiL+AQoRVG9vbFJlc3VsdE1lc3NhZ2USFAoMdG9vbF9jYWxsX2lkGAEgASgJEhEKCXRvb2xfbmFtZRgCIAEoCRIqCgdjb250ZW50GAMgAygLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrEhAKCGlzX2Vycm9yGAQgASgIEhQKDHRpbWVzdGFtcF9tcxgFIAEoAxIZCgxkZXRhaWxzX2pzb24YBiABKAlIAIgBARIYChBhZGRlZF90b29sX25hbWVzGAcgAygJEiYKBXVzYWdlGAggASgLMhcueGlhb3dlaS5sbG0uVG9rZW5Vc2FnZUIPCg1fZGV0YWlsc19qc29uIq0BCgtDaGF0TWVzc2FnZRIoCgR1c2VyGAEgASgLMhgueGlhb3dlaS5sbG0uVXNlck1lc3NhZ2VIABIyCglhc3Npc3RhbnQYAiABKAsyHS54aWFvd2VpLmxsbS5Bc3Npc3RhbnRNZXNzYWdlSAASNQoLdG9vbF9yZXN1bHQYAyABKAsyHi54aWFvd2VpLmxsbS5Ub29sUmVzdWx0TWVzc2FnZUgAQgkKB21lc3NhZ2UikgEKDlRvb2xEZWZpbml0aW9uEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSFwoPcGFyYW1ldGVyc19qc29uGAMgASgJEiYKGWNvbnN0cmFpbmVkX3NhbXBsaW5nX2pzb24YBCABKAlIAIgBAUIcChpfY29uc3RyYWluZWRfc2FtcGxpbmdfanNvbiK9BAoRR2VuZXJhdGlvbk9wdGlvbnMSFgoJcmVhc29uaW5nGAEgASgJSACIAQESIgoVdGhpbmtpbmdfYnVkZ2V0c19qc29uGAIgASgJSAGIAQESHQoQdG9vbF9jaG9pY2VfanNvbhgDIAEoCUgCiAEBEiEKFHNhbXBsaW5nX3BhcmFtc19qc29uGAQgASgJSAOIAQESHAoPY2FjaGVfcmV0ZW50aW9uGAUgASgJSASIAQESFwoKc2Vzc2lvbl9pZBgGIAEoCUgFiAEBEhYKCXRyYW5zcG9ydBgHIAEoCUgGiAEBEhcKCnRpbWVvdXRfbXMYCCABKA1IB4gBARIpChx3ZWJzb2NrZXRfY29ubmVjdF90aW1lb3V0X21zGAkgASgNSAiIAQESGgoNbWV0YWRhdGFfanNvbhgKIAEoCUgJiAEBEh0KEGFwaV9vcHRpb25zX2pzb24YCyABKAlICogBAUIMCgpfcmVhc29uaW5nQhgKFl90aGlua2luZ19idWRnZXRzX2pzb25CEwoRX3Rvb2xfY2hvaWNlX2pzb25CFwoVX3NhbXBsaW5nX3BhcmFtc19qc29uQhIKEF9jYWNoZV9yZXRlbnRpb25CDQoLX3Nlc3Npb25faWRCDAoKX3RyYW5zcG9ydEINCgtfdGltZW91dF9tc0IfCh1fd2Vic29ja2V0X2Nvbm5lY3RfdGltZW91dF9tc0IQCg5fbWV0YWRhdGFfanNvbkITChFfYXBpX29wdGlvbnNfanNvbiJUChFDb250ZW50QmxvY2tFdmVudBIVCg1jb250ZW50X2luZGV4GAEgASgNEigKBWJsb2NrGAIgASgLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrIkIKDENvbnRlbnREZWx0YRIVCg1jb250ZW50X2luZGV4GAEgASgNEgwKBGtpbmQYAiABKAkSDQoFZGVsdGEYAyABKAkilAEKEUxpc3RNb2RlbHNSZXF1ZXN0EhEKCW1vZGVsX3JlZhgBIAEoCRIyCgpjb25uZWN0aW9uGAQgASgLMh4ueGlhb3dlaS5sbG0uQ2F0YWxvZ0Nvbm5lY3Rpb24SEAoDdXJsGAIgASgJSACIAQESEwoGZm9ybWF0GAMgASgJSAGIAQFCBgoEX3VybEIJCgdfZm9ybWF0IpYCCgxDYXRhbG9nTW9kZWwSEAoIbW9kZWxfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIbCg5jb250ZXh0X3dpbmRvdxgDIAEoAUgAiAEBEhcKCm1heF90b2tlbnMYBCABKAFIAYgBARImCgVpbnB1dBgFIAMoDjIXLnhpYW93ZWkubGxtLk1vZGVsSW5wdXQSFgoJcmVhc29uaW5nGAYgASgISAKIAQESJAoXdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb24YByABKAlIA4gBAUIRCg9fY29udGV4dF93aW5kb3dCDQoLX21heF90b2tlbnNCDAoKX3JlYXNvbmluZ0IaChhfdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb24iPwoSTGlzdE1vZGVsc1Jlc3BvbnNlEikKBm1vZGVscxgBIAMoCzIZLnhpYW93ZWkubGxtLkNhdGFsb2dNb2RlbCKxAQoRQ2F0YWxvZ0Nvbm5lY3Rpb24SCwoDYXBpGAEgASgJEhAKCGJhc2VfdXJsGAIgASgJEg8KB2FwaV9rZXkYAyABKAkSPAoHaGVhZGVycxgEIAMoCzIrLnhpYW93ZWkubGxtLkNhdGFsb2dDb25uZWN0aW9uLkhlYWRlcnNFbnRyeRouCgxIZWFkZXJzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASqvAQoMRmluaXNoUmVhc29uEh0KGUZJTklTSF9SRUFTT05fVU5TUEVDSUZJRUQQABIWChJGSU5JU0hfUkVBU09OX1NUT1AQARIYChRGSU5JU0hfUkVBU09OX0xFTkdUSBACEhoKFkZJTklTSF9SRUFTT05fVE9PTF9VU0UQAxIXChNGSU5JU0hfUkVBU09OX0VSUk9SEAQSGQoVRklOSVNIX1JFQVNPTl9BQk9SVEVEEAUqVgoKTW9kZWxJbnB1dBIbChdNT0RFTF9JTlBVVF9VTlNQRUNJRklFRBAAEhQKEE1PREVMX0lOUFVUX1RFWFQQARIVChFNT0RFTF9JTlBVVF9JTUFHRRACKmQKDk1vZGVsVHJhbnNwb3J0Eh8KG01PREVMX1RSQU5TUE9SVF9VTlNQRUNJRklFRBAAEhcKE01PREVMX1RSQU5TUE9SVF9TU0UQARIYChRNT0RFTF9UUkFOU1BPUlRfQVVUTxACMq0CCgNMbG0SRgoIR2VuZXJhdGUSHC54aWFvd2VpLmxsbS5HZW5lcmF0ZVJlcXVlc3QaGi54aWFvd2VpLmxsbS5HZW5lcmF0ZUV2ZW50MAESQQoJU2V0TW9kZWxzEh0ueGlhb3dlaS5sbG0uU2V0TW9kZWxzUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EkgKDEdldE1vZGVsSW5mbxIgLnhpYW93ZWkubGxtLkdldE1vZGVsSW5mb1JlcXVlc3QaFi54aWFvd2VpLmxsbS5Nb2RlbEluZm8SUQoMTW9kZWxDYXRhbG9nEh4ueGlhb3dlaS5sbG0uTGlzdE1vZGVsc1JlcXVlc3QaHy54aWFvd2VpLmxsbS5MaXN0TW9kZWxzUmVzcG9uc2UwAWIGcHJvdG8z", [file_xiaowei_common]);
-
-/**
- * @generated from message xiaowei.llm.GenerateRequest
- */
-export type GenerateRequest = Message<"xiaowei.llm.GenerateRequest"> & {
-  /**
-   * Required local model configuration ID.
-   *
-   * @generated from field: string model_ref = 1;
-   */
-  modelRef: string;
-
-  /**
-   * Independent system instruction; empty means no system message.
-   *
-   * @generated from field: string system_prompt = 2;
-   */
-  systemPrompt: string;
-
-  /**
-   * Legacy single-turn shorthand. Must be empty when messages is populated.
-   *
-   * @generated from field: string user_text = 3;
-   */
-  userText: string;
-
-  /**
-   * Absent leaves the provider default; finite range [0, 2].
-   *
-   * @generated from field: optional double temperature = 4;
-   */
-  temperature?: number | undefined;
-
-  /**
-   * Absent uses the configured model limit; present range [1, model limit].
-   * Pi may further adjust this budget for context room and protocol-specific thinking.
-   *
-   * @generated from field: optional uint32 max_tokens = 5;
-   */
-  maxTokens?: number | undefined;
-
-  /**
-   * Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
-   *
-   * @generated from field: repeated xiaowei.llm.ChatMessage messages = 6;
-   */
-  messages: ChatMessage[];
-
-  /**
-   * @generated from field: repeated xiaowei.llm.ToolDefinition tools = 7;
-   */
-  tools: ToolDefinition[];
-
-  /**
-   * @generated from field: xiaowei.llm.GenerationOptions options = 8;
-   */
-  options?: GenerationOptions | undefined;
-};
-
-/**
- * Describes the message xiaowei.llm.GenerateRequest.
- * Use `create(GenerateRequestSchema)` to create a new message.
- */
-export const GenerateRequestSchema: GenMessage<GenerateRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 0);
-
-/**
- * @generated from message xiaowei.llm.TextDelta
- */
-export type TextDelta = Message<"xiaowei.llm.TextDelta"> & {
-  /**
-   * Pi content index, preserved across interleaved text blocks.
-   *
-   * @generated from field: uint32 content_index = 1;
-   */
-  contentIndex: number;
-
-  /**
-   * @generated from field: string text = 2;
-   */
-  text: string;
-};
-
-/**
- * Describes the message xiaowei.llm.TextDelta.
- * Use `create(TextDeltaSchema)` to create a new message.
- */
-export const TextDeltaSchema: GenMessage<TextDelta> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 1);
-
-/**
- * @generated from message xiaowei.llm.TokenUsage
- */
-export type TokenUsage = Message<"xiaowei.llm.TokenUsage"> & {
-  /**
-   * Pi token categories; input excludes cached reads/writes. Zero may mean unreported.
-   *
-   * @generated from field: uint64 input = 1;
-   */
-  input: bigint;
-
-  /**
-   * @generated from field: uint64 output = 2;
-   */
-  output: bigint;
-
-  /**
-   * @generated from field: uint64 cache_read = 3;
-   */
-  cacheRead: bigint;
-
-  /**
-   * @generated from field: uint64 cache_write = 4;
-   */
-  cacheWrite: bigint;
-
-  /**
-   * Provider/Pi total, not recomputed by the caller.
-   *
-   * @generated from field: uint64 total = 5;
-   */
-  total: bigint;
-
-  /**
-   * @generated from field: optional uint64 reasoning = 6;
-   */
-  reasoning?: bigint | undefined;
-
-  /**
-   * @generated from field: optional uint64 cache_write_1h = 7;
-   */
-  cacheWrite1h?: bigint | undefined;
-
-  /**
-   * @generated from field: xiaowei.llm.UsageCost cost = 8;
-   */
-  cost?: UsageCost | undefined;
-};
-
-/**
- * Describes the message xiaowei.llm.TokenUsage.
- * Use `create(TokenUsageSchema)` to create a new message.
- */
-export const TokenUsageSchema: GenMessage<TokenUsage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 2);
-
-/**
- * @generated from message xiaowei.llm.GenerationFinished
- */
-export type GenerationFinished = Message<"xiaowei.llm.GenerationFinished"> & {
-  /**
-   * @generated from field: xiaowei.llm.FinishReason reason = 1;
-   */
-  reason: FinishReason;
-
-  /**
-   * @generated from field: xiaowei.llm.AssistantMessage message = 2;
-   */
-  message?: AssistantMessage | undefined;
-};
-
-/**
- * Describes the message xiaowei.llm.GenerationFinished.
- * Use `create(GenerationFinishedSchema)` to create a new message.
- */
-export const GenerationFinishedSchema: GenMessage<GenerationFinished> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 3);
-
-/**
- * @generated from message xiaowei.llm.GenerationFailed
- */
-export type GenerationFailed = Message<"xiaowei.llm.GenerationFailed"> & {
-  /**
-   * Safe public diagnostic; never contains raw upstream response bodies or credentials.
-   *
-   * @generated from field: string message = 1;
-   */
-  message: string;
-
-  /**
-   * @generated from field: xiaowei.llm.AssistantMessage partial = 2;
-   */
-  partial?: AssistantMessage | undefined;
-};
-
-/**
- * Describes the message xiaowei.llm.GenerationFailed.
- * Use `create(GenerationFailedSchema)` to create a new message.
- */
-export const GenerationFailedSchema: GenMessage<GenerationFailed> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 4);
-
-/**
- * @generated from message xiaowei.llm.GenerateEvent
- */
-export type GenerateEvent = Message<"xiaowei.llm.GenerateEvent"> & {
-  /**
-   * @generated from oneof xiaowei.llm.GenerateEvent.event
-   */
-  event: {
-    /**
-     * @generated from field: xiaowei.llm.TextDelta text_delta = 1;
-     */
-    value: TextDelta;
-    case: "textDelta";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.TokenUsage usage = 2;
-     */
-    value: TokenUsage;
-    case: "usage";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.GenerationFinished finished = 3;
-     */
-    value: GenerationFinished;
-    case: "finished";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.GenerationFailed failed = 4;
-     */
-    value: GenerationFailed;
-    case: "failed";
-  } | {
-    /**
-     * @generated from field: xiaowei.common.Empty started = 5;
-     */
-    value: Empty;
-    case: "started";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.ContentBlockEvent block_started = 6;
-     */
-    value: ContentBlockEvent;
-    case: "blockStarted";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.ContentDelta block_delta = 7;
-     */
-    value: ContentDelta;
-    case: "blockDelta";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.ContentBlockEvent block_finished = 8;
-     */
-    value: ContentBlockEvent;
-    case: "blockFinished";
-  } | {
-    /**
-     * @generated from field: xiaowei.llm.FirstSseReceived first_sse_received = 9;
-     */
-    value: FirstSseReceived;
-    case: "firstSseReceived";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message xiaowei.llm.GenerateEvent.
- * Use `create(GenerateEventSchema)` to create a new message.
- */
-export const GenerateEventSchema: GenMessage<GenerateEvent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 5);
-
-/**
- * @generated from message xiaowei.llm.FirstSseReceived
- */
-export type FirstSseReceived = Message<"xiaowei.llm.FirstSseReceived"> & {
-  /**
-   * Worker-observed first complete SSE data event, not headers or first text.
-   * Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
-   *
-   * @generated from field: int64 received_at_ms = 1;
-   */
-  receivedAtMs: bigint;
-};
-
-/**
- * Describes the message xiaowei.llm.FirstSseReceived.
- * Use `create(FirstSseReceivedSchema)` to create a new message.
- */
-export const FirstSseReceivedSchema: GenMessage<FirstSseReceived> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 6);
-
-/**
- * @generated from message xiaowei.llm.GetModelInfoRequest
- */
-export type GetModelInfoRequest = Message<"xiaowei.llm.GetModelInfoRequest"> & {
-  /**
-   * @generated from field: string model_ref = 1;
-   */
-  modelRef: string;
-};
-
-/**
- * Describes the message xiaowei.llm.GetModelInfoRequest.
- * Use `create(GetModelInfoRequestSchema)` to create a new message.
- */
-export const GetModelInfoRequestSchema: GenMessage<GetModelInfoRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 7);
-
-/**
- * @generated from message xiaowei.llm.ModelInfo
- */
-export type ModelInfo = Message<"xiaowei.llm.ModelInfo"> & {
-  /**
-   * @generated from field: string model_ref = 1;
-   */
-  modelRef: string;
-
-  /**
-   * @generated from field: string provider_name = 2;
-   */
-  providerName: string;
-
-  /**
-   * @generated from field: string name = 3;
-   */
-  name: string;
-
-  /**
-   * @generated from field: bool reasoning = 4;
-   */
-  reasoning: boolean;
-
-  /**
-   * @generated from field: repeated xiaowei.llm.ModelInput input = 5;
-   */
-  input: ModelInput[];
-
-  /**
-   * @generated from field: double context_window = 6;
-   */
-  contextWindow: number;
-
-  /**
-   * @generated from field: double max_tokens = 7;
-   */
-  maxTokens: number;
-};
-
-/**
- * Describes the message xiaowei.llm.ModelInfo.
- * Use `create(ModelInfoSchema)` to create a new message.
- */
-export const ModelInfoSchema: GenMessage<ModelInfo> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 8);
-
-/**
- * @generated from message xiaowei.llm.SetModelsRequest
- */
-export type SetModelsRequest = Message<"xiaowei.llm.SetModelsRequest"> & {
-  /**
-   * @generated from field: repeated xiaowei.llm.ModelConfiguration models = 1;
-   */
-  models: ModelConfiguration[];
-};
-
-/**
- * Describes the message xiaowei.llm.SetModelsRequest.
- * Use `create(SetModelsRequestSchema)` to create a new message.
- */
-export const SetModelsRequestSchema: GenMessage<SetModelsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 9);
+  fileDesc("ChF4aWFvd2VpL2xsbS5wcm90bxILeGlhb3dlaS5sbG0iWAoOTW9kZWxDb3N0UmF0ZXMSDQoFaW5wdXQYASABKAESDgoGb3V0cHV0GAIgASgBEhIKCmNhY2hlX3JlYWQYAyABKAESEwoLY2FjaGVfd3JpdGUYBCABKAEiVwoNTW9kZWxDb3N0VGllchIaChJpbnB1dF90b2tlbnNfYWJvdmUYASABKAESKgoFcmF0ZXMYAiABKAsyGy54aWFvd2VpLmxsbS5Nb2RlbENvc3RSYXRlcyKqBQoSTW9kZWxDb25maWd1cmF0aW9uEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSEAoIbW9kZWxfaWQYBCABKAkSCwoDYXBpGAUgASgJEhAKCGJhc2VfdXJsGAYgASgJEg8KB2FwaV9rZXkYByABKAkSEQoJcmVhc29uaW5nGAggASgIEiYKBWlucHV0GAkgAygOMhcueGlhb3dlaS5sbG0uTW9kZWxJbnB1dBIWCg5jb250ZXh0X3dpbmRvdxgKIAEoARISCgptYXhfdG9rZW5zGAsgASgBEikKBGNvc3QYDCABKAsyGy54aWFvd2VpLmxsbS5Nb2RlbENvc3RSYXRlcxIuCgpjb3N0X3RpZXJzGA0gAygLMhoueGlhb3dlaS5sbG0uTW9kZWxDb3N0VGllchIYCgtjb21wYXRfanNvbhgOIAEoCUgAiAEBEiQKF3RoaW5raW5nX2xldmVsX21hcF9qc29uGA8gASgJSAGIAQESPQoHaGVhZGVycxgQIAMoCzIsLnhpYW93ZWkubGxtLk1vZGVsQ29uZmlndXJhdGlvbi5IZWFkZXJzRW50cnkSIQoUc2FtcGxpbmdfcGFyYW1zX2pzb24YESABKAlIAogBARI2ChFkZWZhdWx0X3RyYW5zcG9ydBgSIAEoDjIbLnhpYW93ZWkubGxtLk1vZGVsVHJhbnNwb3J0EhUKDXByb3ZpZGVyX25hbWUYEyABKAkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDgoMX2NvbXBhdF9qc29uQhoKGF90aGlua2luZ19sZXZlbF9tYXBfanNvbkIXChVfc2FtcGxpbmdfcGFyYW1zX2pzb24iYgoJVXNhZ2VDb3N0Eg0KBWlucHV0GAEgASgBEg4KBm91dHB1dBgCIAEoARISCgpjYWNoZV9yZWFkGAMgASgBEhMKC2NhY2hlX3dyaXRlGAQgASgBEg0KBXRvdGFsGAUgASgBIt8BCgpUb2tlblVzYWdlEg0KBWlucHV0GAEgASgEEg4KBm91dHB1dBgCIAEoBBISCgpjYWNoZV9yZWFkGAMgASgEEhMKC2NhY2hlX3dyaXRlGAQgASgEEg0KBXRvdGFsGAUgASgEEhYKCXJlYXNvbmluZxgGIAEoBEgAiAEBEhsKDmNhY2hlX3dyaXRlXzFoGAcgASgESAGIAQESJAoEY29zdBgIIAEoCzIWLnhpYW93ZWkubGxtLlVzYWdlQ29zdEIMCgpfcmVhc29uaW5nQhEKD19jYWNoZV93cml0ZV8xaCJBCgtUZXh0Q29udGVudBIMCgR0ZXh0GAEgASgJEhYKCXNpZ25hdHVyZRgCIAEoCUgAiAEBQgwKCl9zaWduYXR1cmUiLwoMSW1hZ2VDb250ZW50EhEKCW1pbWVfdHlwZRgBIAEoCRIMCgRkYXRhGAIgASgMIlcKD1RoaW5raW5nQ29udGVudBIMCgR0ZXh0GAEgASgJEhYKCXNpZ25hdHVyZRgCIAEoCUgAiAEBEhAKCHJlZGFjdGVkGAMgASgIQgwKCl9zaWduYXR1cmUitwEKD1Rvb2xDYWxsQ29udGVudBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhsKDmFyZ3VtZW50c19qc29uGAMgASgJSACIAQESHgoRdGhvdWdodF9zaWduYXR1cmUYBCABKAlIAYgBARIWCgluYW1lc3BhY2UYBSABKAlIAogBAUIRCg9fYXJndW1lbnRzX2pzb25CFAoSX3Rob3VnaHRfc2lnbmF0dXJlQgwKCl9uYW1lc3BhY2Ui1AEKDENvbnRlbnRCbG9jaxIoCgR0ZXh0GAEgASgLMhgueGlhb3dlaS5sbG0uVGV4dENvbnRlbnRIABIqCgVpbWFnZRgCIAEoCzIZLnhpYW93ZWkubGxtLkltYWdlQ29udGVudEgAEjAKCHRoaW5raW5nGAMgASgLMhwueGlhb3dlaS5sbG0uVGhpbmtpbmdDb250ZW50SAASMQoJdG9vbF9jYWxsGAQgASgLMhwueGlhb3dlaS5sbG0uVG9vbENhbGxDb250ZW50SABCCQoHY29udGVudCJPCgtVc2VyTWVzc2FnZRIqCgdjb250ZW50GAEgAygLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrEhQKDHRpbWVzdGFtcF9tcxgCIAEoAyLPAwoQQXNzaXN0YW50TWVzc2FnZRIqCgdjb250ZW50GAEgAygLMhkueGlhb3dlaS5sbG0uQ29udGVudEJsb2NrEgsKA2FwaRgCIAEoCRIQCghwcm92aWRlchgDIAEoCRIQCghtb2RlbF9pZBgEIAEoCRImCgV1c2FnZRgFIAEoCzIXLnhpYW93ZWkubGxtLlRva2VuVXNhZ2USLgoLc3RvcF9yZWFzb24YBiABKA4yGS54aWFvd2VpLmxsbS5GaW5pc2hSZWFzb24SFAoMdGltZXN0YW1wX21zGAcgASgDEhgKC3Jlc3BvbnNlX2lkGAggASgJSACIAQESGwoOcmVzcG9uc2VfbW9kZWwYCSABKAlIAYgBARIkChdwcm92aWRlcl90aGlua2luZ19sZXZlbBgKIAEoCUgCiAEBEhwKD3Jhd19zdG9wX3JlYXNvbhgLIAEoCUgDiAEBEhUKCGVuZF90dXJuGAwgASgISASIAQFCDgoMX3Jlc3BvbnNlX2lkQhEKD19yZXNwb25zZV9tb2RlbEIaChhfcHJvdmlkZXJfdGhpbmtpbmdfbGV2ZWxCEgoQX3Jhd19zdG9wX3JlYXNvbkILCglfZW5kX3R1cm4i/gEKEVRvb2xSZXN1bHRNZXNzYWdlEhQKDHRvb2xfY2FsbF9pZBgBIAEoCRIRCgl0b29sX25hbWUYAiABKAkSKgoHY29udGVudBgDIAMoCzIZLnhpYW93ZWkubGxtLkNvbnRlbnRCbG9jaxIQCghpc19lcnJvchgEIAEoCBIUCgx0aW1lc3RhbXBfbXMYBSABKAMSGQoMZGV0YWlsc19qc29uGAYgASgJSACIAQESGAoQYWRkZWRfdG9vbF9uYW1lcxgHIAMoCRImCgV1c2FnZRgIIAEoCzIXLnhpYW93ZWkubGxtLlRva2VuVXNhZ2VCDwoNX2RldGFpbHNfanNvbiKtAQoLQ2hhdE1lc3NhZ2USKAoEdXNlchgBIAEoCzIYLnhpYW93ZWkubGxtLlVzZXJNZXNzYWdlSAASMgoJYXNzaXN0YW50GAIgASgLMh0ueGlhb3dlaS5sbG0uQXNzaXN0YW50TWVzc2FnZUgAEjUKC3Rvb2xfcmVzdWx0GAMgASgLMh4ueGlhb3dlaS5sbG0uVG9vbFJlc3VsdE1lc3NhZ2VIAEIJCgdtZXNzYWdlIpIBCg5Ub29sRGVmaW5pdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhcKD3BhcmFtZXRlcnNfanNvbhgDIAEoCRImChljb25zdHJhaW5lZF9zYW1wbGluZ19qc29uGAQgASgJSACIAQFCHAoaX2NvbnN0cmFpbmVkX3NhbXBsaW5nX2pzb24ivQQKEUdlbmVyYXRpb25PcHRpb25zEhYKCXJlYXNvbmluZxgBIAEoCUgAiAEBEiIKFXRoaW5raW5nX2J1ZGdldHNfanNvbhgCIAEoCUgBiAEBEh0KEHRvb2xfY2hvaWNlX2pzb24YAyABKAlIAogBARIhChRzYW1wbGluZ19wYXJhbXNfanNvbhgEIAEoCUgDiAEBEhwKD2NhY2hlX3JldGVudGlvbhgFIAEoCUgEiAEBEhcKCnNlc3Npb25faWQYBiABKAlIBYgBARIWCgl0cmFuc3BvcnQYByABKAlIBogBARIXCgp0aW1lb3V0X21zGAggASgNSAeIAQESKQocd2Vic29ja2V0X2Nvbm5lY3RfdGltZW91dF9tcxgJIAEoDUgIiAEBEhoKDW1ldGFkYXRhX2pzb24YCiABKAlICYgBARIdChBhcGlfb3B0aW9uc19qc29uGAsgASgJSAqIAQFCDAoKX3JlYXNvbmluZ0IYChZfdGhpbmtpbmdfYnVkZ2V0c19qc29uQhMKEV90b29sX2Nob2ljZV9qc29uQhcKFV9zYW1wbGluZ19wYXJhbXNfanNvbkISChBfY2FjaGVfcmV0ZW50aW9uQg0KC19zZXNzaW9uX2lkQgwKCl90cmFuc3BvcnRCDQoLX3RpbWVvdXRfbXNCHwodX3dlYnNvY2tldF9jb25uZWN0X3RpbWVvdXRfbXNCEAoOX21ldGFkYXRhX2pzb25CEwoRX2FwaV9vcHRpb25zX2pzb24iqQIKD0dlbmVyYXRlUmVxdWVzdBIRCgltb2RlbF9yZWYYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIRCgl1c2VyX3RleHQYAyABKAkSGAoLdGVtcGVyYXR1cmUYBCABKAFIAIgBARIXCgptYXhfdG9rZW5zGAUgASgNSAGIAQESKgoIbWVzc2FnZXMYBiADKAsyGC54aWFvd2VpLmxsbS5DaGF0TWVzc2FnZRIqCgV0b29scxgHIAMoCzIbLnhpYW93ZWkubGxtLlRvb2xEZWZpbml0aW9uEi8KB29wdGlvbnMYCCABKAsyHi54aWFvd2VpLmxsbS5HZW5lcmF0aW9uT3B0aW9uc0IOCgxfdGVtcGVyYXR1cmVCDQoLX21heF90b2tlbnMiMAoJVGV4dERlbHRhEhUKDWNvbnRlbnRfaW5kZXgYASABKA0SDAoEdGV4dBgCIAEoCSJvChJHZW5lcmF0aW9uRmluaXNoZWQSKQoGcmVhc29uGAEgASgOMhkueGlhb3dlaS5sbG0uRmluaXNoUmVhc29uEi4KB21lc3NhZ2UYAiABKAsyHS54aWFvd2VpLmxsbS5Bc3Npc3RhbnRNZXNzYWdlIlMKEEdlbmVyYXRpb25GYWlsZWQSDwoHbWVzc2FnZRgBIAEoCRIuCgdwYXJ0aWFsGAIgASgLMh0ueGlhb3dlaS5sbG0uQXNzaXN0YW50TWVzc2FnZSIqChBGaXJzdFNzZVJlY2VpdmVkEhYKDnJlY2VpdmVkX2F0X21zGAEgASgDIlQKEUNvbnRlbnRCbG9ja0V2ZW50EhUKDWNvbnRlbnRfaW5kZXgYASABKA0SKAoFYmxvY2sYAiABKAsyGS54aWFvd2VpLmxsbS5Db250ZW50QmxvY2siQgoMQ29udGVudERlbHRhEhUKDWNvbnRlbnRfaW5kZXgYASABKA0SDAoEa2luZBgCIAEoCRINCgVkZWx0YRgDIAEoCSLiAwoNR2VuZXJhdGVFdmVudBIsCgp0ZXh0X2RlbHRhGAEgASgLMhYueGlhb3dlaS5sbG0uVGV4dERlbHRhSAASKAoFdXNhZ2UYAiABKAsyFy54aWFvd2VpLmxsbS5Ub2tlblVzYWdlSAASMwoIZmluaXNoZWQYAyABKAsyHy54aWFvd2VpLmxsbS5HZW5lcmF0aW9uRmluaXNoZWRIABIvCgZmYWlsZWQYBCABKAsyHS54aWFvd2VpLmxsbS5HZW5lcmF0aW9uRmFpbGVkSAASKAoHc3RhcnRlZBgFIAEoCzIVLnhpYW93ZWkuY29tbW9uLkVtcHR5SAASNwoNYmxvY2tfc3RhcnRlZBgGIAEoCzIeLnhpYW93ZWkubGxtLkNvbnRlbnRCbG9ja0V2ZW50SAASMAoLYmxvY2tfZGVsdGEYByABKAsyGS54aWFvd2VpLmxsbS5Db250ZW50RGVsdGFIABI4Cg5ibG9ja19maW5pc2hlZBgIIAEoCzIeLnhpYW93ZWkubGxtLkNvbnRlbnRCbG9ja0V2ZW50SAASOwoSZmlyc3Rfc3NlX3JlY2VpdmVkGAkgASgLMh0ueGlhb3dlaS5sbG0uRmlyc3RTc2VSZWNlaXZlZEgAQgcKBWV2ZW50IkMKEFNldE1vZGVsc1JlcXVlc3QSLwoGbW9kZWxzGAEgAygLMh8ueGlhb3dlaS5sbG0uTW9kZWxDb25maWd1cmF0aW9uIigKE0dldE1vZGVsSW5mb1JlcXVlc3QSEQoJbW9kZWxfcmVmGAEgASgJIqoBCglNb2RlbEluZm8SEQoJbW9kZWxfcmVmGAEgASgJEhUKDXByb3ZpZGVyX25hbWUYAiABKAkSDAoEbmFtZRgDIAEoCRIRCglyZWFzb25pbmcYBCABKAgSJgoFaW5wdXQYBSADKA4yFy54aWFvd2VpLmxsbS5Nb2RlbElucHV0EhYKDmNvbnRleHRfd2luZG93GAYgASgBEhIKCm1heF90b2tlbnMYByABKAEisQEKEUNhdGFsb2dDb25uZWN0aW9uEgsKA2FwaRgBIAEoCRIQCghiYXNlX3VybBgCIAEoCRIPCgdhcGlfa2V5GAMgASgJEjwKB2hlYWRlcnMYBCADKAsyKy54aWFvd2VpLmxsbS5DYXRhbG9nQ29ubmVjdGlvbi5IZWFkZXJzRW50cnkaLgoMSGVhZGVyc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEilAEKEUxpc3RNb2RlbHNSZXF1ZXN0EhEKCW1vZGVsX3JlZhgBIAEoCRIyCgpjb25uZWN0aW9uGAQgASgLMh4ueGlhb3dlaS5sbG0uQ2F0YWxvZ0Nvbm5lY3Rpb24SEAoDdXJsGAIgASgJSACIAQESEwoGZm9ybWF0GAMgASgJSAGIAQFCBgoEX3VybEIJCgdfZm9ybWF0IpYCCgxDYXRhbG9nTW9kZWwSEAoIbW9kZWxfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIbCg5jb250ZXh0X3dpbmRvdxgDIAEoAUgAiAEBEhcKCm1heF90b2tlbnMYBCABKAFIAYgBARImCgVpbnB1dBgFIAMoDjIXLnhpYW93ZWkubGxtLk1vZGVsSW5wdXQSFgoJcmVhc29uaW5nGAYgASgISAKIAQESJAoXdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb24YByABKAlIA4gBAUIRCg9fY29udGV4dF93aW5kb3dCDQoLX21heF90b2tlbnNCDAoKX3JlYXNvbmluZ0IaChhfdGhpbmtpbmdfbGV2ZWxfbWFwX2pzb24iPwoSTGlzdE1vZGVsc1Jlc3BvbnNlEikKBm1vZGVscxgBIAMoCzIZLnhpYW93ZWkubGxtLkNhdGFsb2dNb2RlbCpWCgpNb2RlbElucHV0EhsKF01PREVMX0lOUFVUX1VOU1BFQ0lGSUVEEAASFAoQTU9ERUxfSU5QVVRfVEVYVBABEhUKEU1PREVMX0lOUFVUX0lNQUdFEAIqZAoOTW9kZWxUcmFuc3BvcnQSHwobTU9ERUxfVFJBTlNQT1JUX1VOU1BFQ0lGSUVEEAASFwoTTU9ERUxfVFJBTlNQT1JUX1NTRRABEhgKFE1PREVMX1RSQU5TUE9SVF9BVVRPEAIqrwEKDEZpbmlzaFJlYXNvbhIdChlGSU5JU0hfUkVBU09OX1VOU1BFQ0lGSUVEEAASFgoSRklOSVNIX1JFQVNPTl9TVE9QEAESGAoURklOSVNIX1JFQVNPTl9MRU5HVEgQAhIaChZGSU5JU0hfUkVBU09OX1RPT0xfVVNFEAMSFwoTRklOSVNIX1JFQVNPTl9FUlJPUhAEEhkKFUZJTklTSF9SRUFTT05fQUJPUlRFRBAFMq0CCgNMbG0SRgoIR2VuZXJhdGUSHC54aWFvd2VpLmxsbS5HZW5lcmF0ZVJlcXVlc3QaGi54aWFvd2VpLmxsbS5HZW5lcmF0ZUV2ZW50MAESQQoJU2V0TW9kZWxzEh0ueGlhb3dlaS5sbG0uU2V0TW9kZWxzUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EkgKDEdldE1vZGVsSW5mbxIgLnhpYW93ZWkubGxtLkdldE1vZGVsSW5mb1JlcXVlc3QaFi54aWFvd2VpLmxsbS5Nb2RlbEluZm8SUQoMTW9kZWxDYXRhbG9nEh4ueGlhb3dlaS5sbG0uTGlzdE1vZGVsc1JlcXVlc3QaHy54aWFvd2VpLmxsbS5MaXN0TW9kZWxzUmVzcG9uc2UwAWIGcHJvdG8z", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.llm.ModelCostRates
@@ -409,7 +46,7 @@ export type ModelCostRates = Message<"xiaowei.llm.ModelCostRates"> & {
  * Use `create(ModelCostRatesSchema)` to create a new message.
  */
 export const ModelCostRatesSchema: GenMessage<ModelCostRates> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 10);
+  messageDesc(file_xiaowei_llm, 0);
 
 /**
  * @generated from message xiaowei.llm.ModelCostTier
@@ -431,7 +68,7 @@ export type ModelCostTier = Message<"xiaowei.llm.ModelCostTier"> & {
  * Use `create(ModelCostTierSchema)` to create a new message.
  */
 export const ModelCostTierSchema: GenMessage<ModelCostTier> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 11);
+  messageDesc(file_xiaowei_llm, 1);
 
 /**
  * @generated from message xiaowei.llm.ModelConfiguration
@@ -557,7 +194,7 @@ export type ModelConfiguration = Message<"xiaowei.llm.ModelConfiguration"> & {
  * Use `create(ModelConfigurationSchema)` to create a new message.
  */
 export const ModelConfigurationSchema: GenMessage<ModelConfiguration> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 12);
+  messageDesc(file_xiaowei_llm, 2);
 
 /**
  * @generated from message xiaowei.llm.UsageCost
@@ -594,7 +231,63 @@ export type UsageCost = Message<"xiaowei.llm.UsageCost"> & {
  * Use `create(UsageCostSchema)` to create a new message.
  */
 export const UsageCostSchema: GenMessage<UsageCost> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 13);
+  messageDesc(file_xiaowei_llm, 3);
+
+/**
+ * @generated from message xiaowei.llm.TokenUsage
+ */
+export type TokenUsage = Message<"xiaowei.llm.TokenUsage"> & {
+  /**
+   * Pi token categories; input excludes cached reads/writes. Zero may mean unreported.
+   *
+   * @generated from field: uint64 input = 1;
+   */
+  input: bigint;
+
+  /**
+   * @generated from field: uint64 output = 2;
+   */
+  output: bigint;
+
+  /**
+   * @generated from field: uint64 cache_read = 3;
+   */
+  cacheRead: bigint;
+
+  /**
+   * @generated from field: uint64 cache_write = 4;
+   */
+  cacheWrite: bigint;
+
+  /**
+   * Provider/Pi total, not recomputed by the caller.
+   *
+   * @generated from field: uint64 total = 5;
+   */
+  total: bigint;
+
+  /**
+   * @generated from field: optional uint64 reasoning = 6;
+   */
+  reasoning?: bigint | undefined;
+
+  /**
+   * @generated from field: optional uint64 cache_write_1h = 7;
+   */
+  cacheWrite1h?: bigint | undefined;
+
+  /**
+   * @generated from field: xiaowei.llm.UsageCost cost = 8;
+   */
+  cost?: UsageCost | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.TokenUsage.
+ * Use `create(TokenUsageSchema)` to create a new message.
+ */
+export const TokenUsageSchema: GenMessage<TokenUsage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 4);
 
 /**
  * @generated from message xiaowei.llm.TextContent
@@ -616,7 +309,7 @@ export type TextContent = Message<"xiaowei.llm.TextContent"> & {
  * Use `create(TextContentSchema)` to create a new message.
  */
 export const TextContentSchema: GenMessage<TextContent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 14);
+  messageDesc(file_xiaowei_llm, 5);
 
 /**
  * @generated from message xiaowei.llm.ImageContent
@@ -638,7 +331,7 @@ export type ImageContent = Message<"xiaowei.llm.ImageContent"> & {
  * Use `create(ImageContentSchema)` to create a new message.
  */
 export const ImageContentSchema: GenMessage<ImageContent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 15);
+  messageDesc(file_xiaowei_llm, 6);
 
 /**
  * @generated from message xiaowei.llm.ThinkingContent
@@ -665,7 +358,7 @@ export type ThinkingContent = Message<"xiaowei.llm.ThinkingContent"> & {
  * Use `create(ThinkingContentSchema)` to create a new message.
  */
 export const ThinkingContentSchema: GenMessage<ThinkingContent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 16);
+  messageDesc(file_xiaowei_llm, 7);
 
 /**
  * @generated from message xiaowei.llm.ToolCallContent
@@ -704,7 +397,7 @@ export type ToolCallContent = Message<"xiaowei.llm.ToolCallContent"> & {
  * Use `create(ToolCallContentSchema)` to create a new message.
  */
 export const ToolCallContentSchema: GenMessage<ToolCallContent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 17);
+  messageDesc(file_xiaowei_llm, 8);
 
 /**
  * @generated from message xiaowei.llm.ContentBlock
@@ -745,7 +438,7 @@ export type ContentBlock = Message<"xiaowei.llm.ContentBlock"> & {
  * Use `create(ContentBlockSchema)` to create a new message.
  */
 export const ContentBlockSchema: GenMessage<ContentBlock> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 18);
+  messageDesc(file_xiaowei_llm, 9);
 
 /**
  * @generated from message xiaowei.llm.UserMessage
@@ -767,7 +460,7 @@ export type UserMessage = Message<"xiaowei.llm.UserMessage"> & {
  * Use `create(UserMessageSchema)` to create a new message.
  */
 export const UserMessageSchema: GenMessage<UserMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 19);
+  messageDesc(file_xiaowei_llm, 10);
 
 /**
  * @generated from message xiaowei.llm.AssistantMessage
@@ -839,7 +532,7 @@ export type AssistantMessage = Message<"xiaowei.llm.AssistantMessage"> & {
  * Use `create(AssistantMessageSchema)` to create a new message.
  */
 export const AssistantMessageSchema: GenMessage<AssistantMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 20);
+  messageDesc(file_xiaowei_llm, 11);
 
 /**
  * @generated from message xiaowei.llm.ToolResultMessage
@@ -891,7 +584,7 @@ export type ToolResultMessage = Message<"xiaowei.llm.ToolResultMessage"> & {
  * Use `create(ToolResultMessageSchema)` to create a new message.
  */
 export const ToolResultMessageSchema: GenMessage<ToolResultMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 21);
+  messageDesc(file_xiaowei_llm, 12);
 
 /**
  * @generated from message xiaowei.llm.ChatMessage
@@ -926,7 +619,7 @@ export type ChatMessage = Message<"xiaowei.llm.ChatMessage"> & {
  * Use `create(ChatMessageSchema)` to create a new message.
  */
 export const ChatMessageSchema: GenMessage<ChatMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 22);
+  messageDesc(file_xiaowei_llm, 13);
 
 /**
  * @generated from message xiaowei.llm.ToolDefinition
@@ -962,7 +655,7 @@ export type ToolDefinition = Message<"xiaowei.llm.ToolDefinition"> & {
  * Use `create(ToolDefinitionSchema)` to create a new message.
  */
 export const ToolDefinitionSchema: GenMessage<ToolDefinition> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 23);
+  messageDesc(file_xiaowei_llm, 14);
 
 /**
  * @generated from message xiaowei.llm.GenerationOptions
@@ -1038,7 +731,162 @@ export type GenerationOptions = Message<"xiaowei.llm.GenerationOptions"> & {
  * Use `create(GenerationOptionsSchema)` to create a new message.
  */
 export const GenerationOptionsSchema: GenMessage<GenerationOptions> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 24);
+  messageDesc(file_xiaowei_llm, 15);
+
+/**
+ * @generated from message xiaowei.llm.GenerateRequest
+ */
+export type GenerateRequest = Message<"xiaowei.llm.GenerateRequest"> & {
+  /**
+   * Required local model configuration ID.
+   *
+   * @generated from field: string model_ref = 1;
+   */
+  modelRef: string;
+
+  /**
+   * Independent system instruction; empty means no system message.
+   *
+   * @generated from field: string system_prompt = 2;
+   */
+  systemPrompt: string;
+
+  /**
+   * Legacy single-turn shorthand. Must be empty when messages is populated.
+   *
+   * @generated from field: string user_text = 3;
+   */
+  userText: string;
+
+  /**
+   * Absent leaves the provider default; finite range [0, 2].
+   *
+   * @generated from field: optional double temperature = 4;
+   */
+  temperature?: number | undefined;
+
+  /**
+   * Absent uses the configured model limit; present range [1, model limit].
+   * Pi may further adjust this budget for context room and protocol-specific thinking.
+   *
+   * @generated from field: optional uint32 max_tokens = 5;
+   */
+  maxTokens?: number | undefined;
+
+  /**
+   * Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
+   *
+   * @generated from field: repeated xiaowei.llm.ChatMessage messages = 6;
+   */
+  messages: ChatMessage[];
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ToolDefinition tools = 7;
+   */
+  tools: ToolDefinition[];
+
+  /**
+   * @generated from field: xiaowei.llm.GenerationOptions options = 8;
+   */
+  options?: GenerationOptions | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.GenerateRequest.
+ * Use `create(GenerateRequestSchema)` to create a new message.
+ */
+export const GenerateRequestSchema: GenMessage<GenerateRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 16);
+
+/**
+ * @generated from message xiaowei.llm.TextDelta
+ */
+export type TextDelta = Message<"xiaowei.llm.TextDelta"> & {
+  /**
+   * Pi content index, preserved across interleaved text blocks.
+   *
+   * @generated from field: uint32 content_index = 1;
+   */
+  contentIndex: number;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message xiaowei.llm.TextDelta.
+ * Use `create(TextDeltaSchema)` to create a new message.
+ */
+export const TextDeltaSchema: GenMessage<TextDelta> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 17);
+
+/**
+ * @generated from message xiaowei.llm.GenerationFinished
+ */
+export type GenerationFinished = Message<"xiaowei.llm.GenerationFinished"> & {
+  /**
+   * @generated from field: xiaowei.llm.FinishReason reason = 1;
+   */
+  reason: FinishReason;
+
+  /**
+   * @generated from field: xiaowei.llm.AssistantMessage message = 2;
+   */
+  message?: AssistantMessage | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.GenerationFinished.
+ * Use `create(GenerationFinishedSchema)` to create a new message.
+ */
+export const GenerationFinishedSchema: GenMessage<GenerationFinished> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 18);
+
+/**
+ * @generated from message xiaowei.llm.GenerationFailed
+ */
+export type GenerationFailed = Message<"xiaowei.llm.GenerationFailed"> & {
+  /**
+   * Safe public diagnostic; never contains raw upstream response bodies or credentials.
+   *
+   * @generated from field: string message = 1;
+   */
+  message: string;
+
+  /**
+   * @generated from field: xiaowei.llm.AssistantMessage partial = 2;
+   */
+  partial?: AssistantMessage | undefined;
+};
+
+/**
+ * Describes the message xiaowei.llm.GenerationFailed.
+ * Use `create(GenerationFailedSchema)` to create a new message.
+ */
+export const GenerationFailedSchema: GenMessage<GenerationFailed> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 19);
+
+/**
+ * @generated from message xiaowei.llm.FirstSseReceived
+ */
+export type FirstSseReceived = Message<"xiaowei.llm.FirstSseReceived"> & {
+  /**
+   * Worker-observed first complete SSE data event, not headers or first text.
+   * Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
+   *
+   * @generated from field: int64 received_at_ms = 1;
+   */
+  receivedAtMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.llm.FirstSseReceived.
+ * Use `create(FirstSseReceivedSchema)` to create a new message.
+ */
+export const FirstSseReceivedSchema: GenMessage<FirstSseReceived> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 20);
 
 /**
  * @generated from message xiaowei.llm.ContentBlockEvent
@@ -1060,7 +908,7 @@ export type ContentBlockEvent = Message<"xiaowei.llm.ContentBlockEvent"> & {
  * Use `create(ContentBlockEventSchema)` to create a new message.
  */
 export const ContentBlockEventSchema: GenMessage<ContentBlockEvent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 25);
+  messageDesc(file_xiaowei_llm, 21);
 
 /**
  * @generated from message xiaowei.llm.ContentDelta
@@ -1089,7 +937,191 @@ export type ContentDelta = Message<"xiaowei.llm.ContentDelta"> & {
  * Use `create(ContentDeltaSchema)` to create a new message.
  */
 export const ContentDeltaSchema: GenMessage<ContentDelta> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 22);
+
+/**
+ * @generated from message xiaowei.llm.GenerateEvent
+ */
+export type GenerateEvent = Message<"xiaowei.llm.GenerateEvent"> & {
+  /**
+   * @generated from oneof xiaowei.llm.GenerateEvent.event
+   */
+  event: {
+    /**
+     * @generated from field: xiaowei.llm.TextDelta text_delta = 1;
+     */
+    value: TextDelta;
+    case: "textDelta";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.TokenUsage usage = 2;
+     */
+    value: TokenUsage;
+    case: "usage";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.GenerationFinished finished = 3;
+     */
+    value: GenerationFinished;
+    case: "finished";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.GenerationFailed failed = 4;
+     */
+    value: GenerationFailed;
+    case: "failed";
+  } | {
+    /**
+     * @generated from field: xiaowei.common.Empty started = 5;
+     */
+    value: Empty;
+    case: "started";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentBlockEvent block_started = 6;
+     */
+    value: ContentBlockEvent;
+    case: "blockStarted";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentDelta block_delta = 7;
+     */
+    value: ContentDelta;
+    case: "blockDelta";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.ContentBlockEvent block_finished = 8;
+     */
+    value: ContentBlockEvent;
+    case: "blockFinished";
+  } | {
+    /**
+     * @generated from field: xiaowei.llm.FirstSseReceived first_sse_received = 9;
+     */
+    value: FirstSseReceived;
+    case: "firstSseReceived";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.llm.GenerateEvent.
+ * Use `create(GenerateEventSchema)` to create a new message.
+ */
+export const GenerateEventSchema: GenMessage<GenerateEvent> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 23);
+
+/**
+ * @generated from message xiaowei.llm.SetModelsRequest
+ */
+export type SetModelsRequest = Message<"xiaowei.llm.SetModelsRequest"> & {
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelConfiguration models = 1;
+   */
+  models: ModelConfiguration[];
+};
+
+/**
+ * Describes the message xiaowei.llm.SetModelsRequest.
+ * Use `create(SetModelsRequestSchema)` to create a new message.
+ */
+export const SetModelsRequestSchema: GenMessage<SetModelsRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 24);
+
+/**
+ * @generated from message xiaowei.llm.GetModelInfoRequest
+ */
+export type GetModelInfoRequest = Message<"xiaowei.llm.GetModelInfoRequest"> & {
+  /**
+   * @generated from field: string model_ref = 1;
+   */
+  modelRef: string;
+};
+
+/**
+ * Describes the message xiaowei.llm.GetModelInfoRequest.
+ * Use `create(GetModelInfoRequestSchema)` to create a new message.
+ */
+export const GetModelInfoRequestSchema: GenMessage<GetModelInfoRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 25);
+
+/**
+ * @generated from message xiaowei.llm.ModelInfo
+ */
+export type ModelInfo = Message<"xiaowei.llm.ModelInfo"> & {
+  /**
+   * @generated from field: string model_ref = 1;
+   */
+  modelRef: string;
+
+  /**
+   * @generated from field: string provider_name = 2;
+   */
+  providerName: string;
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool reasoning = 4;
+   */
+  reasoning: boolean;
+
+  /**
+   * @generated from field: repeated xiaowei.llm.ModelInput input = 5;
+   */
+  input: ModelInput[];
+
+  /**
+   * @generated from field: double context_window = 6;
+   */
+  contextWindow: number;
+
+  /**
+   * @generated from field: double max_tokens = 7;
+   */
+  maxTokens: number;
+};
+
+/**
+ * Describes the message xiaowei.llm.ModelInfo.
+ * Use `create(ModelInfoSchema)` to create a new message.
+ */
+export const ModelInfoSchema: GenMessage<ModelInfo> = /*@__PURE__*/
   messageDesc(file_xiaowei_llm, 26);
+
+/**
+ * @generated from message xiaowei.llm.CatalogConnection
+ */
+export type CatalogConnection = Message<"xiaowei.llm.CatalogConnection"> & {
+  /**
+   * @generated from field: string api = 1;
+   */
+  api: string;
+
+  /**
+   * @generated from field: string base_url = 2;
+   */
+  baseUrl: string;
+
+  /**
+   * @generated from field: string api_key = 3;
+   */
+  apiKey: string;
+
+  /**
+   * @generated from field: map<string, string> headers = 4;
+   */
+  headers: { [key: string]: string };
+};
+
+/**
+ * Describes the message xiaowei.llm.CatalogConnection.
+ * Use `create(CatalogConnectionSchema)` to create a new message.
+ */
+export const CatalogConnectionSchema: GenMessage<CatalogConnection> = /*@__PURE__*/
+  messageDesc(file_xiaowei_llm, 27);
 
 /**
  * @generated from message xiaowei.llm.ListModelsRequest
@@ -1129,7 +1161,7 @@ export type ListModelsRequest = Message<"xiaowei.llm.ListModelsRequest"> & {
  * Use `create(ListModelsRequestSchema)` to create a new message.
  */
 export const ListModelsRequestSchema: GenMessage<ListModelsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 27);
+  messageDesc(file_xiaowei_llm, 28);
 
 /**
  * @generated from message xiaowei.llm.CatalogModel
@@ -1178,7 +1210,7 @@ export type CatalogModel = Message<"xiaowei.llm.CatalogModel"> & {
  * Use `create(CatalogModelSchema)` to create a new message.
  */
 export const CatalogModelSchema: GenMessage<CatalogModel> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 28);
+  messageDesc(file_xiaowei_llm, 29);
 
 /**
  * @generated from message xiaowei.llm.ListModelsResponse
@@ -1195,39 +1227,59 @@ export type ListModelsResponse = Message<"xiaowei.llm.ListModelsResponse"> & {
  * Use `create(ListModelsResponseSchema)` to create a new message.
  */
 export const ListModelsResponseSchema: GenMessage<ListModelsResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_llm, 29);
-
-/**
- * @generated from message xiaowei.llm.CatalogConnection
- */
-export type CatalogConnection = Message<"xiaowei.llm.CatalogConnection"> & {
-  /**
-   * @generated from field: string api = 1;
-   */
-  api: string;
-
-  /**
-   * @generated from field: string base_url = 2;
-   */
-  baseUrl: string;
-
-  /**
-   * @generated from field: string api_key = 3;
-   */
-  apiKey: string;
-
-  /**
-   * @generated from field: map<string, string> headers = 4;
-   */
-  headers: { [key: string]: string };
-};
-
-/**
- * Describes the message xiaowei.llm.CatalogConnection.
- * Use `create(CatalogConnectionSchema)` to create a new message.
- */
-export const CatalogConnectionSchema: GenMessage<CatalogConnection> = /*@__PURE__*/
   messageDesc(file_xiaowei_llm, 30);
+
+/**
+ * @generated from enum xiaowei.llm.ModelInput
+ */
+export enum ModelInput {
+  /**
+   * @generated from enum value: MODEL_INPUT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODEL_INPUT_TEXT = 1;
+   */
+  TEXT = 1,
+
+  /**
+   * @generated from enum value: MODEL_INPUT_IMAGE = 2;
+   */
+  IMAGE = 2,
+}
+
+/**
+ * Describes the enum xiaowei.llm.ModelInput.
+ */
+export const ModelInputSchema: GenEnum<ModelInput> = /*@__PURE__*/
+  enumDesc(file_xiaowei_llm, 0);
+
+/**
+ * @generated from enum xiaowei.llm.ModelTransport
+ */
+export enum ModelTransport {
+  /**
+   * @generated from enum value: MODEL_TRANSPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODEL_TRANSPORT_SSE = 1;
+   */
+  SSE = 1,
+
+  /**
+   * @generated from enum value: MODEL_TRANSPORT_AUTO = 2;
+   */
+  AUTO = 2,
+}
+
+/**
+ * Describes the enum xiaowei.llm.ModelTransport.
+ */
+export const ModelTransportSchema: GenEnum<ModelTransport> = /*@__PURE__*/
+  enumDesc(file_xiaowei_llm, 1);
 
 /**
  * @generated from enum xiaowei.llm.FinishReason
@@ -1268,58 +1320,6 @@ export enum FinishReason {
  * Describes the enum xiaowei.llm.FinishReason.
  */
 export const FinishReasonSchema: GenEnum<FinishReason> = /*@__PURE__*/
-  enumDesc(file_xiaowei_llm, 0);
-
-/**
- * @generated from enum xiaowei.llm.ModelInput
- */
-export enum ModelInput {
-  /**
-   * @generated from enum value: MODEL_INPUT_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: MODEL_INPUT_TEXT = 1;
-   */
-  TEXT = 1,
-
-  /**
-   * @generated from enum value: MODEL_INPUT_IMAGE = 2;
-   */
-  IMAGE = 2,
-}
-
-/**
- * Describes the enum xiaowei.llm.ModelInput.
- */
-export const ModelInputSchema: GenEnum<ModelInput> = /*@__PURE__*/
-  enumDesc(file_xiaowei_llm, 1);
-
-/**
- * @generated from enum xiaowei.llm.ModelTransport
- */
-export enum ModelTransport {
-  /**
-   * @generated from enum value: MODEL_TRANSPORT_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: MODEL_TRANSPORT_SSE = 1;
-   */
-  SSE = 1,
-
-  /**
-   * @generated from enum value: MODEL_TRANSPORT_AUTO = 2;
-   */
-  AUTO = 2,
-}
-
-/**
- * Describes the enum xiaowei.llm.ModelTransport.
- */
-export const ModelTransportSchema: GenEnum<ModelTransport> = /*@__PURE__*/
   enumDesc(file_xiaowei_llm, 2);
 
 /**

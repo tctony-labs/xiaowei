@@ -60,6 +60,18 @@ impl ::prost::Name for ClipboardCategory {
         "/xiaowei.clipboard.ClipboardCategory".into()
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardChanged {}
+impl ::prost::Name for ClipboardChanged {
+    const NAME: &'static str = "ClipboardChanged";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.ClipboardChanged".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.ClipboardChanged".into()
+    }
+}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClipboardListOptions {
     /// Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
@@ -92,49 +104,34 @@ impl ::prost::Name for ClipboardListOptions {
         "/xiaowei.clipboard.ClipboardListOptions".into()
     }
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ClipboardItems {
-    #[prost(message, repeated, tag = "1")]
-    pub items: ::prost::alloc::vec::Vec<ClipboardItem>,
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardItemRequest {
+    #[prost(uint64, tag = "1")]
+    pub id: u64,
 }
-impl ::prost::Name for ClipboardItems {
-    const NAME: &'static str = "ClipboardItems";
+impl ::prost::Name for ClipboardItemRequest {
+    const NAME: &'static str = "ClipboardItemRequest";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardItems".into()
+        "xiaowei.clipboard.ClipboardItemRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardItems".into()
+        "/xiaowei.clipboard.ClipboardItemRequest".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct OptionalItem {
-    #[prost(message, optional, tag = "1")]
-    pub item: ::core::option::Option<ClipboardItem>,
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardCategoryRequest {
+    #[prost(uint64, tag = "1")]
+    pub id: u64,
 }
-impl ::prost::Name for OptionalItem {
-    const NAME: &'static str = "OptionalItem";
+impl ::prost::Name for ClipboardCategoryRequest {
+    const NAME: &'static str = "ClipboardCategoryRequest";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.OptionalItem".into()
+        "xiaowei.clipboard.ClipboardCategoryRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.OptionalItem".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ClipboardCategories {
-    #[prost(message, repeated, tag = "1")]
-    pub items: ::prost::alloc::vec::Vec<ClipboardCategory>,
-}
-impl ::prost::Name for ClipboardCategories {
-    const NAME: &'static str = "ClipboardCategories";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardCategories".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardCategories".into()
+        "/xiaowei.clipboard.ClipboardCategoryRequest".into()
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -152,6 +149,53 @@ impl ::prost::Name for FavoriteRequest {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.clipboard.FavoriteRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetFavoriteResponse {
+    /// Whether the record existed and was updated, not its resulting favorite state.
+    #[prost(bool, tag = "1")]
+    pub updated: bool,
+}
+impl ::prost::Name for SetFavoriteResponse {
+    const NAME: &'static str = "SetFavoriteResponse";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.SetFavoriteResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.SetFavoriteResponse".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct PurgeOrdinaryResponse {
+    /// Count of records older than the request instant with no favorite, remark or category.
+    #[prost(uint32, tag = "1")]
+    pub deleted_count: u32,
+}
+impl ::prost::Name for PurgeOrdinaryResponse {
+    const NAME: &'static str = "PurgeOrdinaryResponse";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.PurgeOrdinaryResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.PurgeOrdinaryResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClipboardCategories {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<ClipboardCategory>,
+}
+impl ::prost::Name for ClipboardCategories {
+    const NAME: &'static str = "ClipboardCategories";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.ClipboardCategories".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.ClipboardCategories".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -190,23 +234,6 @@ impl ::prost::Name for SetRemarkRequest {
         "/xiaowei.clipboard.SetRemarkRequest".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct EditTextRequest {
-    #[prost(uint64, tag = "1")]
-    pub id: u64,
-    #[prost(string, tag = "2")]
-    pub text: ::prost::alloc::string::String,
-}
-impl ::prost::Name for EditTextRequest {
-    const NAME: &'static str = "EditTextRequest";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.EditTextRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.EditTextRequest".into()
-    }
-}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SetCategoryRequest {
     #[prost(uint64, tag = "1")]
@@ -226,33 +253,125 @@ impl ::prost::Name for SetCategoryRequest {
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ClipboardItemRequest {
+pub struct ClipboardResourceRequest {
     #[prost(uint64, tag = "1")]
     pub id: u64,
+    /// For a file record, omitted means all files; OpenResource requires exactly one file.
+    #[prost(uint32, optional, tag = "2")]
+    pub index: ::core::option::Option<u32>,
 }
-impl ::prost::Name for ClipboardItemRequest {
-    const NAME: &'static str = "ClipboardItemRequest";
+impl ::prost::Name for ClipboardResourceRequest {
+    const NAME: &'static str = "ClipboardResourceRequest";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardItemRequest".into()
+        "xiaowei.clipboard.ClipboardResourceRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardItemRequest".into()
+        "/xiaowei.clipboard.ClipboardResourceRequest".into()
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ClipboardCategoryRequest {
+/// Internal persistence boundary for the clipboard owner. No SQL or table names cross it.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardEntity {
     #[prost(uint64, tag = "1")]
     pub id: u64,
+    #[prost(string, tag = "2")]
+    pub kind: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "3")]
+    pub text: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "4")]
+    pub paths: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(uint32, optional, tag = "5")]
+    pub width: ::core::option::Option<u32>,
+    #[prost(uint32, optional, tag = "6")]
+    pub height: ::core::option::Option<u32>,
+    #[prost(int64, tag = "7")]
+    pub created_at_ms: i64,
+    #[prost(int64, tag = "8")]
+    pub last_used_at_ms: i64,
+    #[prost(uint32, tag = "9")]
+    pub use_count: u32,
+    #[prost(bool, tag = "10")]
+    pub favorite: bool,
+    #[prost(string, optional, tag = "11")]
+    pub remark: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(uint64, optional, tag = "12")]
+    pub category_id: ::core::option::Option<u64>,
+    #[prost(string, tag = "13")]
+    pub hash: ::prost::alloc::string::String,
 }
-impl ::prost::Name for ClipboardCategoryRequest {
-    const NAME: &'static str = "ClipboardCategoryRequest";
+impl ::prost::Name for ClipboardEntity {
+    const NAME: &'static str = "ClipboardEntity";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardCategoryRequest".into()
+        "xiaowei.clipboard.ClipboardEntity".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardCategoryRequest".into()
+        "/xiaowei.clipboard.ClipboardEntity".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AttachmentReference {
+    #[prost(string, tag = "1")]
+    pub kind: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub hash: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AttachmentReference {
+    const NAME: &'static str = "AttachmentReference";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.AttachmentReference".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.AttachmentReference".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeletedClipboardEntities {
+    #[prost(uint32, tag = "1")]
+    pub deleted_count: u32,
+    #[prost(message, repeated, tag = "2")]
+    pub attachments: ::prost::alloc::vec::Vec<AttachmentReference>,
+}
+impl ::prost::Name for DeletedClipboardEntities {
+    const NAME: &'static str = "DeletedClipboardEntities";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.DeletedClipboardEntities".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.DeletedClipboardEntities".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClipboardItems {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<ClipboardItem>,
+}
+impl ::prost::Name for ClipboardItems {
+    const NAME: &'static str = "ClipboardItems";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.ClipboardItems".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.ClipboardItems".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct OptionalItem {
+    #[prost(message, optional, tag = "1")]
+    pub item: ::core::option::Option<ClipboardItem>,
+}
+impl ::prost::Name for OptionalItem {
+    const NAME: &'static str = "OptionalItem";
+    const PACKAGE: &'static str = "xiaowei.clipboard";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.clipboard.OptionalItem".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.clipboard.OptionalItem".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -302,22 +421,6 @@ impl ::prost::Name for DeleteResponse {
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetFavoriteResponse {
-    /// Whether the record existed and was updated, not its resulting favorite state.
-    #[prost(bool, tag = "1")]
-    pub updated: bool,
-}
-impl ::prost::Name for SetFavoriteResponse {
-    const NAME: &'static str = "SetFavoriteResponse";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.SetFavoriteResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.SetFavoriteResponse".into()
-    }
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClearHistoryResponse {
     /// Favorites are retained.
     #[prost(uint32, tag = "1")]
@@ -331,22 +434,6 @@ impl ::prost::Name for ClearHistoryResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.clipboard.ClearHistoryResponse".into()
-    }
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct PurgeOrdinaryResponse {
-    /// Count of records older than the request instant with no favorite, remark or category.
-    #[prost(uint32, tag = "1")]
-    pub deleted_count: u32,
-}
-impl ::prost::Name for PurgeOrdinaryResponse {
-    const NAME: &'static str = "PurgeOrdinaryResponse";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.PurgeOrdinaryResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.PurgeOrdinaryResponse".into()
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -381,22 +468,21 @@ impl ::prost::Name for ClipboardStorageUsage {
         "/xiaowei.clipboard.ClipboardStorageUsage".into()
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ClipboardResourceRequest {
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EditTextRequest {
     #[prost(uint64, tag = "1")]
     pub id: u64,
-    /// For a file record, omitted means all files; OpenResource requires exactly one file.
-    #[prost(uint32, optional, tag = "2")]
-    pub index: ::core::option::Option<u32>,
+    #[prost(string, tag = "2")]
+    pub text: ::prost::alloc::string::String,
 }
-impl ::prost::Name for ClipboardResourceRequest {
-    const NAME: &'static str = "ClipboardResourceRequest";
+impl ::prost::Name for EditTextRequest {
+    const NAME: &'static str = "EditTextRequest";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardResourceRequest".into()
+        "xiaowei.clipboard.EditTextRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardResourceRequest".into()
+        "/xiaowei.clipboard.EditTextRequest".into()
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -418,23 +504,10 @@ impl ::prost::Name for CopyResourcePathRequest {
         "/xiaowei.clipboard.CopyResourcePathRequest".into()
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ClipboardChanged {}
-impl ::prost::Name for ClipboardChanged {
-    const NAME: &'static str = "ClipboardChanged";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardChanged".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardChanged".into()
-    }
-}
-/// Internal persistence boundary for the clipboard owner. No SQL or table names cross it.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ClipboardEntity {
-    #[prost(uint64, tag = "1")]
-    pub id: u64,
+pub struct CaptureClipboardEntityRequest {
+    #[prost(string, tag = "1")]
+    pub hash: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub kind: ::prost::alloc::string::String,
     #[prost(string, optional, tag = "3")]
@@ -447,27 +520,15 @@ pub struct ClipboardEntity {
     pub height: ::core::option::Option<u32>,
     #[prost(int64, tag = "7")]
     pub created_at_ms: i64,
-    #[prost(int64, tag = "8")]
-    pub last_used_at_ms: i64,
-    #[prost(uint32, tag = "9")]
-    pub use_count: u32,
-    #[prost(bool, tag = "10")]
-    pub favorite: bool,
-    #[prost(string, optional, tag = "11")]
-    pub remark: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(uint64, optional, tag = "12")]
-    pub category_id: ::core::option::Option<u64>,
-    #[prost(string, tag = "13")]
-    pub hash: ::prost::alloc::string::String,
 }
-impl ::prost::Name for ClipboardEntity {
-    const NAME: &'static str = "ClipboardEntity";
+impl ::prost::Name for CaptureClipboardEntityRequest {
+    const NAME: &'static str = "CaptureClipboardEntityRequest";
     const PACKAGE: &'static str = "xiaowei.clipboard";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.ClipboardEntity".into()
+        "xiaowei.clipboard.CaptureClipboardEntityRequest".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.ClipboardEntity".into()
+        "/xiaowei.clipboard.CaptureClipboardEntityRequest".into()
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -558,33 +619,6 @@ impl ::prost::Name for OptionalClipboardEntity {
         "/xiaowei.clipboard.OptionalClipboardEntity".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CaptureClipboardEntityRequest {
-    #[prost(string, tag = "1")]
-    pub hash: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub kind: ::prost::alloc::string::String,
-    #[prost(string, optional, tag = "3")]
-    pub text: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(string, repeated, tag = "4")]
-    pub paths: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(uint32, optional, tag = "5")]
-    pub width: ::core::option::Option<u32>,
-    #[prost(uint32, optional, tag = "6")]
-    pub height: ::core::option::Option<u32>,
-    #[prost(int64, tag = "7")]
-    pub created_at_ms: i64,
-}
-impl ::prost::Name for CaptureClipboardEntityRequest {
-    const NAME: &'static str = "CaptureClipboardEntityRequest";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.CaptureClipboardEntityRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.CaptureClipboardEntityRequest".into()
-    }
-}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct TouchClipboardEntityRequest {
     #[prost(uint64, tag = "1")]
@@ -626,23 +660,6 @@ impl ::prost::Name for EditClipboardEntityTextRequest {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct AttachmentReference {
-    #[prost(string, tag = "1")]
-    pub kind: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub hash: ::prost::alloc::string::String,
-}
-impl ::prost::Name for AttachmentReference {
-    const NAME: &'static str = "AttachmentReference";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.AttachmentReference".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.AttachmentReference".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct EditClipboardEntityTextResponse {
     #[prost(message, optional, tag = "1")]
     pub entity: ::core::option::Option<ClipboardEntity>,
@@ -657,23 +674,6 @@ impl ::prost::Name for EditClipboardEntityTextResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.clipboard.EditClipboardEntityTextResponse".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DeletedClipboardEntities {
-    #[prost(uint32, tag = "1")]
-    pub deleted_count: u32,
-    #[prost(message, repeated, tag = "2")]
-    pub attachments: ::prost::alloc::vec::Vec<AttachmentReference>,
-}
-impl ::prost::Name for DeletedClipboardEntities {
-    const NAME: &'static str = "DeletedClipboardEntities";
-    const PACKAGE: &'static str = "xiaowei.clipboard";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.clipboard.DeletedClipboardEntities".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.clipboard.DeletedClipboardEntities".into()
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]

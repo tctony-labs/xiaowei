@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/agent.proto.
  */
 export const file_xiaowei_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChN4aWFvd2VpL2FnZW50LnByb3RvEg14aWFvd2VpLmFnZW50IksKEEFnZW50TW9kZWxDb25maWcSEQoJbW9kZWxfcmVmGAEgASgJEhYKCXJlYXNvbmluZxgCIAEoCUgAiAEBQgwKCl9yZWFzb25pbmcizgMKDEFnZW50U2Vzc2lvbhISCgpzZXNzaW9uX2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIxCgZzdGF0dXMYAyABKA4yIS54aWFvd2VpLmFnZW50LkFnZW50U2Vzc2lvblN0YXR1cxIVCg1jcmVhdGVkX2F0X21zGAQgASgDEhkKEW1ldGFkYXRhX3JldmlzaW9uGAUgASgEEiUKBHJ1bnMYBiADKAsyFy54aWFvd2VpLmFnZW50LkFnZW50UnVuEg0KBXRpdGxlGAcgASgJEhcKD3RpdGxlX21vZGVsX3JlZhgIIAEoCRIaChJhdXRvX3RpdGxlX2VuYWJsZWQYCSABKAgSFQoNcHJvdmlkZXJfbmFtZRgKIAEoCRISCgptb2RlbF9uYW1lGAsgASgJEjsKEm1vZGVsX2luZm9fd2FybmluZxgMIAEoCzIfLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZxIQCghhcmNoaXZlZBgNIAEoCBIYChBhcmNoaXZlX3JldmlzaW9uGA4gASgEEhUKDXVwZGF0ZWRfYXRfbXMYDyABKAMiWAoQTW9kZWxJbmZvV2FybmluZxIRCgltb2RlbF9yZWYYASABKAkSMQoEY29kZRgCIAEoDjIjLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZ0NvZGUiggEKF1NldFNlc3Npb25Db25maWdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSLwoGY29uZmlnGAIgASgLMh8ueGlhb3dlaS5hZ2VudC5BZ2VudE1vZGVsQ29uZmlnEiIKGmV4cGVjdGVkX21ldGFkYXRhX3JldmlzaW9uGAMgASgEIjUKGFNldFNlc3Npb25Db25maWdSZXNwb25zZRIZChFtZXRhZGF0YV9yZXZpc2lvbhgBIAEoBCJ7ChRDcmVhdGVTZXNzaW9uUmVxdWVzdBIZChFjbGllbnRfcmVxdWVzdF9pZBgBIAEoCRIvCgZjb25maWcYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSFwoPdGl0bGVfbW9kZWxfcmVmGAMgASgJIkUKFUNyZWF0ZVNlc3Npb25SZXNwb25zZRIsCgdzZXNzaW9uGAEgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iXwoTTGlzdFNlc3Npb25zUmVxdWVzdBIQCghhcmNoaXZlZBgBIAEoCBIRCglwYWdlX3NpemUYAiABKA0SFAoMY29udGludWF0aW9uGAMgASgJEg0KBXF1ZXJ5GAQgASgJImIKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEjQKCHNlc3Npb25zGAEgAygLMiIueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb25TdW1tYXJ5EhQKDGNvbnRpbnVhdGlvbhgCIAEoCSKXAgoTQWdlbnRTZXNzaW9uU3VtbWFyeRISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEjEKBnN0YXR1cxgEIAEoDjIhLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3RhdHVzEhUKDWNyZWF0ZWRfYXRfbXMYBSABKAMSGQoRbWV0YWRhdGFfcmV2aXNpb24YBiABKAQSGgoSYXV0b190aXRsZV9lbmFibGVkGAcgASgIEhAKCGFyY2hpdmVkGAggASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YCSABKAQSFQoNdXBkYXRlZF9hdF9tcxgKIAEoA0oECAMQBFITZmlyc3RfaW5wdXRfcHJldmlldyI+ChJSZWFkU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpbmNsdWRlX3J1bnMYAiABKAgiUgoTUmVhZFNlc3Npb25SZXNwb25zZRINCgVmb3VuZBgBIAEoCBIsCgdzZXNzaW9uGAIgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iOwoWU2V0U2Vzc2lvblRpdGxlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJIkMKF1NldFNlc3Npb25UaXRsZVJlc3BvbnNlEg0KBXRpdGxlGAEgASgJEhkKEW1ldGFkYXRhX3JldmlzaW9uGAIgASgEImQKGVNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghhcmNoaXZlZBgCIAEoCBIhChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgEIkgKGlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEhAKCGFyY2hpdmVkGAEgASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YAiABKAQiWAoWU2Vzc2lvbkFyY2hpdmVkVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGFyY2hpdmVkGAIgASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YAyABKAQikwEKE0RlbGV0ZVNlc3Npb25UYXJnZXQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIiChpleHBlY3RlZF9tZXRhZGF0YV9yZXZpc2lvbhgCIAEoBBImChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgESACIAQFCHAoaX2V4cGVjdGVkX2FyY2hpdmVfcmV2aXNpb24iSwoURGVsZXRlU2Vzc2lvblJlcXVlc3QSMwoHdGFyZ2V0cxgBIAMoCzIiLnhpYW93ZWkuYWdlbnQuRGVsZXRlU2Vzc2lvblRhcmdldCJsChNEZWxldGVTZXNzaW9uUmVzdWx0EhIKCnNlc3Npb25faWQYASABKAkSMgoGc3RhdHVzGAIgASgOMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uU3RhdHVzEg0KBWVycm9yGAMgASgJIkwKFURlbGV0ZVNlc3Npb25SZXNwb25zZRIzCgdyZXN1bHRzGAEgAygLMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzdWx0IkUKFlJlZ2VuZXJhdGVUaXRsZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIXCg90aXRsZV9tb2RlbF9yZWYYAiABKAkiQwoXUmVnZW5lcmF0ZVRpdGxlUmVzcG9uc2USDQoFdGl0bGUYASABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YAiABKAQiKwoOQWdlbnRVc2VySW5wdXQSDgoEdGV4dBgBIAEoCUgAQgkKB2NvbnRlbnQiyAEKD1N0YXJ0UnVuUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGlucHV0X2lkGAIgASgJEiwKBWlucHV0GAMgAygLMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFVzZXJJbnB1dBIvCgZjb25maWcYBCABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSHAoPdGl0bGVfbW9kZWxfcmVmGAUgASgJSACIAQFCEgoQX3RpdGxlX21vZGVsX3JlZiI4ChBTdGFydFJ1blJlc3BvbnNlEiQKA3J1bhgBIAEoCzIXLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW4iOQoTSW50ZXJydXB0UnVuUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJFChRJbnRlcnJ1cHRSdW5SZXNwb25zZRINCgVmb3VuZBgBIAEoCBIeChZjYW5jZWxsYXRpb25fcmVxdWVzdGVkGAIgASgIIscCCghBZ2VudFJ1bhIOCgZydW5faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSLQoGc3RhdHVzGAMgASgOMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFJ1blN0YXR1cxIvCgZjb25maWcYBCABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSJwoFaXRlbXMYBSADKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbRIVCg1zdGFydGVkX2F0X21zGAYgASgDEhwKD2NvbXBsZXRlZF9hdF9tcxgHIAEoA0gAiAEBEhIKBWVycm9yGAggASgJSAGIAQESFQoNcHJvdmlkZXJfbmFtZRgJIAEoCRISCgptb2RlbF9uYW1lGAogASgJQhIKEF9jb21wbGV0ZWRfYXRfbXNCCAoGX2Vycm9yIsoBCglBZ2VudEl0ZW0SDwoHaXRlbV9pZBgBIAEoCRI3Cgx1c2VyX21lc3NhZ2UYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50VXNlck1lc3NhZ2VIABI0Cg1hZ2VudF9tZXNzYWdlGAMgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudE1lc3NhZ2VIABIyCglyZWFzb25pbmcYBCABKAsyHS54aWFvd2VpLmFnZW50LkFnZW50UmVhc29uaW5nSABCCQoHY29udGVudCJCChBBZ2VudFVzZXJNZXNzYWdlEi4KB2NvbnRlbnQYASADKAsyHS54aWFvd2VpLmFnZW50LkFnZW50VXNlcklucHV0IhwKDEFnZW50TWVzc2FnZRIMCgR0ZXh0GAEgASgJIh4KDkFnZW50UmVhc29uaW5nEgwKBHRleHQYASABKAkiLQoXU3Vic2NyaWJlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSLlBgoKQWdlbnRFdmVudBIVCg1lbWl0dGVkX2F0X21zGAEgASgDEjgKD3Nlc3Npb25fc3RhcnRlZBgCIAEoCzIdLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblN0YXJ0ZWRIABI4Cg9zZXNzaW9uX2RlbGV0ZWQYAyABKAsyHS54aWFvd2VpLmFnZW50LlNlc3Npb25EZWxldGVkSAASMAoLcnVuX3N0YXJ0ZWQYBCABKAsyGS54aWFvd2VpLmFnZW50LlJ1blN0YXJ0ZWRIABI0Cg1ydW5fY29tcGxldGVkGAUgASgLMhsueGlhb3dlaS5hZ2VudC5SdW5Db21wbGV0ZWRIABIyCgxpdGVtX3N0YXJ0ZWQYBiABKAsyGi54aWFvd2VpLmFnZW50Lkl0ZW1TdGFydGVkSAASNgoOaXRlbV9jb21wbGV0ZWQYByABKAsyHC54aWFvd2VpLmFnZW50Lkl0ZW1Db21wbGV0ZWRIABI/ChNhZ2VudF9tZXNzYWdlX2RlbHRhGAggASgLMiAueGlhb3dlaS5hZ2VudC5BZ2VudE1lc3NhZ2VEZWx0YUgAEjgKD3JlYXNvbmluZ19kZWx0YRgJIAEoCzIdLnhpYW93ZWkuYWdlbnQuUmVhc29uaW5nRGVsdGFIABI+ChJzdWJzY3JpcHRpb25fcmVhZHkYCiABKAsyIC54aWFvd2VpLmFnZW50LlN1YnNjcmlwdGlvblJlYWR5SAASQwoVc2Vzc2lvbl90aXRsZV91cGRhdGVkGAsgASgLMiIueGlhb3dlaS5hZ2VudC5TZXNzaW9uVGl0bGVVcGRhdGVkSAASRQoWc2Vzc2lvbl9jb25maWdfdXBkYXRlZBgMIAEoCzIjLnhpYW93ZWkuYWdlbnQuU2Vzc2lvbkNvbmZpZ1VwZGF0ZWRIABJbCiJzZXNzaW9uX21vZGVsX2luZm9fd2FybmluZ191cGRhdGVkGA0gASgLMi0ueGlhb3dlaS5hZ2VudC5TZXNzaW9uTW9kZWxJbmZvV2FybmluZ1VwZGF0ZWRIABJJChhzZXNzaW9uX2FyY2hpdmVkX3VwZGF0ZWQYDiABKAsyJS54aWFvd2VpLmFnZW50LlNlc3Npb25BcmNoaXZlZFVwZGF0ZWRIAEIJCgdwYXlsb2FkIkEKEVN1YnNjcmlwdGlvblJlYWR5EiwKB3Nlc3Npb24YASABKAsyGy54aWFvd2VpLmFnZW50LkFnZW50U2Vzc2lvbiI+Cg5TZXNzaW9uU3RhcnRlZBIsCgdzZXNzaW9uGAEgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iJAoOU2Vzc2lvbkRlbGV0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCSKCAQoKUnVuU3RhcnRlZBISCgpzZXNzaW9uX2lkGAEgASgJEiQKA3J1bhgCIAEoCzIXLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW4SIQoZc2Vzc2lvbl9tZXRhZGF0YV9yZXZpc2lvbhgDIAEoBBIXCg90aXRsZV9tb2RlbF9yZWYYBCABKAkinwEKE1Nlc3Npb25UaXRsZVVwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIZChFtZXRhZGF0YV9yZXZpc2lvbhgDIAEoBBIXCg90aXRsZV9tb2RlbF9yZWYYBCABKAkSGgoSYXV0b190aXRsZV9lbmFibGVkGAUgASgIEhUKDXVwZGF0ZWRfYXRfbXMYBiABKAMiSAoMUnVuQ29tcGxldGVkEhIKCnNlc3Npb25faWQYASABKAkSJAoDcnVuGAIgASgLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1biJZCgtJdGVtU3RhcnRlZBISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRImCgRpdGVtGAMgASgLMhgueGlhb3dlaS5hZ2VudC5BZ2VudEl0ZW0iWwoNSXRlbUNvbXBsZXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRImCgRpdGVtGAMgASgLMhgueGlhb3dlaS5hZ2VudC5BZ2VudEl0ZW0iVwoRQWdlbnRNZXNzYWdlRGVsdGESEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDwoHaXRlbV9pZBgDIAEoCRINCgVkZWx0YRgEIAEoCSJUCg5SZWFzb25pbmdEZWx0YRISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIPCgdpdGVtX2lkGAMgASgJEg0KBWRlbHRhGAQgASgJIqEBChRTZXNzaW9uQ29uZmlnVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIVCg1wcm92aWRlcl9uYW1lGAMgASgJEhIKCm1vZGVsX25hbWUYBCABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YBSABKAQikQEKHlNlc3Npb25Nb2RlbEluZm9XYXJuaW5nVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEjAKB3dhcm5pbmcYAiABKAsyHy54aWFvd2VpLmFnZW50Lk1vZGVsSW5mb1dhcm5pbmcSFQoNcHJvdmlkZXJfbmFtZRgDIAEoCRISCgptb2RlbF9uYW1lGAQgASgJIk8KFlNlc3Npb25SZXRlbnRpb25Qb2xpY3kSGgoSYXJjaGl2ZV9hZnRlcl9kYXlzGAEgASgNEhkKEWRlbGV0ZV9hZnRlcl9kYXlzGAIgASgNIiIKIEdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0IlkKIFNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0EjUKBnBvbGljeRgBIAEoCzIlLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblJldGVudGlvblBvbGljeSIwChpUcmFja1Nlc3Npb25WaWV3aW5nUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJIhUKE1Nlc3Npb25WaWV3aW5nUmVhZHkqnQEKEkFnZW50U2Vzc2lvblN0YXR1cxIkCiBBR0VOVF9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUFHRU5UX1NFU1NJT05fU1RBVFVTX0lETEUQARIgChxBR0VOVF9TRVNTSU9OX1NUQVRVU19SVU5OSU5HEAISIAocQUdFTlRfU0VTU0lPTl9TVEFUVVNfREVMRVRFRBADKr0BChRNb2RlbEluZm9XYXJuaW5nQ29kZRInCiNNT0RFTF9JTkZPX1dBUk5JTkdfQ09ERV9VTlNQRUNJRklFRBAAEiUKIU1PREVMX0lORk9fV0FSTklOR19DT0RFX05PVF9GT1VORBABEicKI01PREVMX0lORk9fV0FSTklOR19DT0RFX1VOQVZBSUxBQkxFEAISLAooTU9ERUxfSU5GT19XQVJOSU5HX0NPREVfSU5WQUxJRF9SRVNQT05TRRADKswBChNEZWxldGVTZXNzaW9uU3RhdHVzEiUKIURFTEVURV9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEiEKHURFTEVURV9TRVNTSU9OX1NUQVRVU19ERUxFVEVEEAESIQodREVMRVRFX1NFU1NJT05fU1RBVFVTX1NLSVBQRUQQAhIgChxERUxFVEVfU0VTU0lPTl9TVEFUVVNfRkFJTEVEEAMSJgoiREVMRVRFX1NFU1NJT05fU1RBVFVTX05PVF9FWEVDVVRFRBAEKrMBCg5BZ2VudFJ1blN0YXR1cxIgChxBR0VOVF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIAocQUdFTlRfUlVOX1NUQVRVU19JTl9QUk9HUkVTUxABEh4KGkFHRU5UX1JVTl9TVEFUVVNfQ09NUExFVEVEEAISGwoXQUdFTlRfUlVOX1NUQVRVU19GQUlMRUQQAxIgChxBR0VOVF9SVU5fU1RBVFVTX0lOVEVSUlVQVEVEEAQy0woKBUFnZW50EloKDUNyZWF0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkNyZWF0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5DcmVhdGVTZXNzaW9uUmVzcG9uc2USVwoMTGlzdFNlc3Npb25zEiIueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXNwb25zZRJUCgtSZWFkU2Vzc2lvbhIhLnhpYW93ZWkuYWdlbnQuUmVhZFNlc3Npb25SZXF1ZXN0GiIueGlhb3dlaS5hZ2VudC5SZWFkU2Vzc2lvblJlc3BvbnNlEmMKEFNldFNlc3Npb25Db25maWcSJi54aWFvd2VpLmFnZW50LlNldFNlc3Npb25Db25maWdSZXF1ZXN0GicueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uQ29uZmlnUmVzcG9uc2USYAoPU2V0U2Vzc2lvblRpdGxlEiUueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXF1ZXN0GiYueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXNwb25zZRJpChJTZXRTZXNzaW9uQXJjaGl2ZWQSKC54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QaKS54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEloKDURlbGV0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzcG9uc2USVwoQU3Vic2NyaWJlU2Vzc2lvbhImLnhpYW93ZWkuYWdlbnQuU3Vic2NyaWJlU2Vzc2lvblJlcXVlc3QaGS54aWFvd2VpLmFnZW50LkFnZW50RXZlbnQwARJmChNUcmFja1Nlc3Npb25WaWV3aW5nEikueGlhb3dlaS5hZ2VudC5UcmFja1Nlc3Npb25WaWV3aW5nUmVxdWVzdBoiLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblZpZXdpbmdSZWFkeTABEksKCFN0YXJ0UnVuEh4ueGlhb3dlaS5hZ2VudC5TdGFydFJ1blJlcXVlc3QaHy54aWFvd2VpLmFnZW50LlN0YXJ0UnVuUmVzcG9uc2USVwoMSW50ZXJydXB0UnVuEiIueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXNwb25zZRJgCg9SZWdlbmVyYXRlVGl0bGUSJS54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlcXVlc3QaJi54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlc3BvbnNlEnMKGUdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LkdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5EnMKGVNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LlNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5YgZwcm90bzM");
+  fileDesc("ChN4aWFvd2VpL2FnZW50LnByb3RvEg14aWFvd2VpLmFnZW50IksKEEFnZW50TW9kZWxDb25maWcSEQoJbW9kZWxfcmVmGAEgASgJEhYKCXJlYXNvbmluZxgCIAEoCUgAiAEBQgwKCl9yZWFzb25pbmciWAoQTW9kZWxJbmZvV2FybmluZxIRCgltb2RlbF9yZWYYASABKAkSMQoEY29kZRgCIAEoDjIjLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZ0NvZGUiKwoOQWdlbnRVc2VySW5wdXQSDgoEdGV4dBgBIAEoCUgAQgkKB2NvbnRlbnQiQgoQQWdlbnRVc2VyTWVzc2FnZRIuCgdjb250ZW50GAEgAygLMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFVzZXJJbnB1dCIcCgxBZ2VudE1lc3NhZ2USDAoEdGV4dBgBIAEoCSIeCg5BZ2VudFJlYXNvbmluZxIMCgR0ZXh0GAEgASgJIsoBCglBZ2VudEl0ZW0SDwoHaXRlbV9pZBgBIAEoCRI3Cgx1c2VyX21lc3NhZ2UYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50VXNlck1lc3NhZ2VIABI0Cg1hZ2VudF9tZXNzYWdlGAMgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudE1lc3NhZ2VIABIyCglyZWFzb25pbmcYBCABKAsyHS54aWFvd2VpLmFnZW50LkFnZW50UmVhc29uaW5nSABCCQoHY29udGVudCLHAgoIQWdlbnRSdW4SDgoGcnVuX2lkGAEgASgJEhAKCGlucHV0X2lkGAIgASgJEi0KBnN0YXR1cxgDIAEoDjIdLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW5TdGF0dXMSLwoGY29uZmlnGAQgASgLMh8ueGlhb3dlaS5hZ2VudC5BZ2VudE1vZGVsQ29uZmlnEicKBWl0ZW1zGAUgAygLMhgueGlhb3dlaS5hZ2VudC5BZ2VudEl0ZW0SFQoNc3RhcnRlZF9hdF9tcxgGIAEoAxIcCg9jb21wbGV0ZWRfYXRfbXMYByABKANIAIgBARISCgVlcnJvchgIIAEoCUgBiAEBEhUKDXByb3ZpZGVyX25hbWUYCSABKAkSEgoKbW9kZWxfbmFtZRgKIAEoCUISChBfY29tcGxldGVkX2F0X21zQggKBl9lcnJvciLOAwoMQWdlbnRTZXNzaW9uEhIKCnNlc3Npb25faWQYASABKAkSLwoGY29uZmlnGAIgASgLMh8ueGlhb3dlaS5hZ2VudC5BZ2VudE1vZGVsQ29uZmlnEjEKBnN0YXR1cxgDIAEoDjIhLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3RhdHVzEhUKDWNyZWF0ZWRfYXRfbXMYBCABKAMSGQoRbWV0YWRhdGFfcmV2aXNpb24YBSABKAQSJQoEcnVucxgGIAMoCzIXLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW4SDQoFdGl0bGUYByABKAkSFwoPdGl0bGVfbW9kZWxfcmVmGAggASgJEhoKEmF1dG9fdGl0bGVfZW5hYmxlZBgJIAEoCBIVCg1wcm92aWRlcl9uYW1lGAogASgJEhIKCm1vZGVsX25hbWUYCyABKAkSOwoSbW9kZWxfaW5mb193YXJuaW5nGAwgASgLMh8ueGlhb3dlaS5hZ2VudC5Nb2RlbEluZm9XYXJuaW5nEhAKCGFyY2hpdmVkGA0gASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YDiABKAQSFQoNdXBkYXRlZF9hdF9tcxgPIAEoAyJPChZTZXNzaW9uUmV0ZW50aW9uUG9saWN5EhoKEmFyY2hpdmVfYWZ0ZXJfZGF5cxgBIAEoDRIZChFkZWxldGVfYWZ0ZXJfZGF5cxgCIAEoDSJ7ChRDcmVhdGVTZXNzaW9uUmVxdWVzdBIZChFjbGllbnRfcmVxdWVzdF9pZBgBIAEoCRIvCgZjb25maWcYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSFwoPdGl0bGVfbW9kZWxfcmVmGAMgASgJIkUKFUNyZWF0ZVNlc3Npb25SZXNwb25zZRIsCgdzZXNzaW9uGAEgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iXwoTTGlzdFNlc3Npb25zUmVxdWVzdBIQCghhcmNoaXZlZBgBIAEoCBIRCglwYWdlX3NpemUYAiABKA0SFAoMY29udGludWF0aW9uGAMgASgJEg0KBXF1ZXJ5GAQgASgJIpcCChNBZ2VudFNlc3Npb25TdW1tYXJ5EhIKCnNlc3Npb25faWQYASABKAkSDQoFdGl0bGUYAiABKAkSMQoGc3RhdHVzGAQgASgOMiEueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb25TdGF0dXMSFQoNY3JlYXRlZF9hdF9tcxgFIAEoAxIZChFtZXRhZGF0YV9yZXZpc2lvbhgGIAEoBBIaChJhdXRvX3RpdGxlX2VuYWJsZWQYByABKAgSEAoIYXJjaGl2ZWQYCCABKAgSGAoQYXJjaGl2ZV9yZXZpc2lvbhgJIAEoBBIVCg11cGRhdGVkX2F0X21zGAogASgDSgQIAxAEUhNmaXJzdF9pbnB1dF9wcmV2aWV3ImIKFExpc3RTZXNzaW9uc1Jlc3BvbnNlEjQKCHNlc3Npb25zGAEgAygLMiIueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb25TdW1tYXJ5EhQKDGNvbnRpbnVhdGlvbhgCIAEoCSI+ChJSZWFkU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIUCgxpbmNsdWRlX3J1bnMYAiABKAgiUgoTUmVhZFNlc3Npb25SZXNwb25zZRINCgVmb3VuZBgBIAEoCBIsCgdzZXNzaW9uGAIgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iggEKF1NldFNlc3Npb25Db25maWdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSLwoGY29uZmlnGAIgASgLMh8ueGlhb3dlaS5hZ2VudC5BZ2VudE1vZGVsQ29uZmlnEiIKGmV4cGVjdGVkX21ldGFkYXRhX3JldmlzaW9uGAMgASgEIjUKGFNldFNlc3Npb25Db25maWdSZXNwb25zZRIZChFtZXRhZGF0YV9yZXZpc2lvbhgBIAEoBCI7ChZTZXRTZXNzaW9uVGl0bGVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDQoFdGl0bGUYAiABKAkiQwoXU2V0U2Vzc2lvblRpdGxlUmVzcG9uc2USDQoFdGl0bGUYASABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YAiABKAQiZAoZU2V0U2Vzc2lvbkFyY2hpdmVkUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGFyY2hpdmVkGAIgASgIEiEKGWV4cGVjdGVkX2FyY2hpdmVfcmV2aXNpb24YAyABKAQiSAoaU2V0U2Vzc2lvbkFyY2hpdmVkUmVzcG9uc2USEAoIYXJjaGl2ZWQYASABKAgSGAoQYXJjaGl2ZV9yZXZpc2lvbhgCIAEoBCKTAQoTRGVsZXRlU2Vzc2lvblRhcmdldBISCgpzZXNzaW9uX2lkGAEgASgJEiIKGmV4cGVjdGVkX21ldGFkYXRhX3JldmlzaW9uGAIgASgEEiYKGWV4cGVjdGVkX2FyY2hpdmVfcmV2aXNpb24YAyABKARIAIgBAUIcChpfZXhwZWN0ZWRfYXJjaGl2ZV9yZXZpc2lvbiJLChREZWxldGVTZXNzaW9uUmVxdWVzdBIzCgd0YXJnZXRzGAEgAygLMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uVGFyZ2V0ImwKE0RlbGV0ZVNlc3Npb25SZXN1bHQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIyCgZzdGF0dXMYAiABKA4yIi54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25TdGF0dXMSDQoFZXJyb3IYAyABKAkiTAoVRGVsZXRlU2Vzc2lvblJlc3BvbnNlEjMKB3Jlc3VsdHMYASADKAsyIi54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25SZXN1bHQiLQoXU3Vic2NyaWJlU2Vzc2lvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSJBChFTdWJzY3JpcHRpb25SZWFkeRIsCgdzZXNzaW9uGAEgASgLMhsueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb24iPgoOU2Vzc2lvblN0YXJ0ZWQSLAoHc2Vzc2lvbhgBIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIiQKDlNlc3Npb25EZWxldGVkEhIKCnNlc3Npb25faWQYASABKAkiggEKClJ1blN0YXJ0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIkCgNydW4YAiABKAsyFy54aWFvd2VpLmFnZW50LkFnZW50UnVuEiEKGXNlc3Npb25fbWV0YWRhdGFfcmV2aXNpb24YAyABKAQSFwoPdGl0bGVfbW9kZWxfcmVmGAQgASgJIkgKDFJ1bkNvbXBsZXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEiQKA3J1bhgCIAEoCzIXLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW4iWQoLSXRlbVN0YXJ0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSJgoEaXRlbRgDIAEoCzIYLnhpYW93ZWkuYWdlbnQuQWdlbnRJdGVtIlsKDUl0ZW1Db21wbGV0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSJgoEaXRlbRgDIAEoCzIYLnhpYW93ZWkuYWdlbnQuQWdlbnRJdGVtIlcKEUFnZW50TWVzc2FnZURlbHRhEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg8KB2l0ZW1faWQYAyABKAkSDQoFZGVsdGEYBCABKAkiVAoOUmVhc29uaW5nRGVsdGESEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDwoHaXRlbV9pZBgDIAEoCRINCgVkZWx0YRgEIAEoCSKfAQoTU2Vzc2lvblRpdGxlVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhkKEW1ldGFkYXRhX3JldmlzaW9uGAMgASgEEhcKD3RpdGxlX21vZGVsX3JlZhgEIAEoCRIaChJhdXRvX3RpdGxlX2VuYWJsZWQYBSABKAgSFQoNdXBkYXRlZF9hdF9tcxgGIAEoAyKhAQoUU2Vzc2lvbkNvbmZpZ1VwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIvCgZjb25maWcYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSFQoNcHJvdmlkZXJfbmFtZRgDIAEoCRISCgptb2RlbF9uYW1lGAQgASgJEhkKEW1ldGFkYXRhX3JldmlzaW9uGAUgASgEIpEBCh5TZXNzaW9uTW9kZWxJbmZvV2FybmluZ1VwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIwCgd3YXJuaW5nGAIgASgLMh8ueGlhb3dlaS5hZ2VudC5Nb2RlbEluZm9XYXJuaW5nEhUKDXByb3ZpZGVyX25hbWUYAyABKAkSEgoKbW9kZWxfbmFtZRgEIAEoCSJYChZTZXNzaW9uQXJjaGl2ZWRVcGRhdGVkEhIKCnNlc3Npb25faWQYASABKAkSEAoIYXJjaGl2ZWQYAiABKAgSGAoQYXJjaGl2ZV9yZXZpc2lvbhgDIAEoBCLlBgoKQWdlbnRFdmVudBIVCg1lbWl0dGVkX2F0X21zGAEgASgDEjgKD3Nlc3Npb25fc3RhcnRlZBgCIAEoCzIdLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblN0YXJ0ZWRIABI4Cg9zZXNzaW9uX2RlbGV0ZWQYAyABKAsyHS54aWFvd2VpLmFnZW50LlNlc3Npb25EZWxldGVkSAASMAoLcnVuX3N0YXJ0ZWQYBCABKAsyGS54aWFvd2VpLmFnZW50LlJ1blN0YXJ0ZWRIABI0Cg1ydW5fY29tcGxldGVkGAUgASgLMhsueGlhb3dlaS5hZ2VudC5SdW5Db21wbGV0ZWRIABIyCgxpdGVtX3N0YXJ0ZWQYBiABKAsyGi54aWFvd2VpLmFnZW50Lkl0ZW1TdGFydGVkSAASNgoOaXRlbV9jb21wbGV0ZWQYByABKAsyHC54aWFvd2VpLmFnZW50Lkl0ZW1Db21wbGV0ZWRIABI/ChNhZ2VudF9tZXNzYWdlX2RlbHRhGAggASgLMiAueGlhb3dlaS5hZ2VudC5BZ2VudE1lc3NhZ2VEZWx0YUgAEjgKD3JlYXNvbmluZ19kZWx0YRgJIAEoCzIdLnhpYW93ZWkuYWdlbnQuUmVhc29uaW5nRGVsdGFIABI+ChJzdWJzY3JpcHRpb25fcmVhZHkYCiABKAsyIC54aWFvd2VpLmFnZW50LlN1YnNjcmlwdGlvblJlYWR5SAASQwoVc2Vzc2lvbl90aXRsZV91cGRhdGVkGAsgASgLMiIueGlhb3dlaS5hZ2VudC5TZXNzaW9uVGl0bGVVcGRhdGVkSAASRQoWc2Vzc2lvbl9jb25maWdfdXBkYXRlZBgMIAEoCzIjLnhpYW93ZWkuYWdlbnQuU2Vzc2lvbkNvbmZpZ1VwZGF0ZWRIABJbCiJzZXNzaW9uX21vZGVsX2luZm9fd2FybmluZ191cGRhdGVkGA0gASgLMi0ueGlhb3dlaS5hZ2VudC5TZXNzaW9uTW9kZWxJbmZvV2FybmluZ1VwZGF0ZWRIABJJChhzZXNzaW9uX2FyY2hpdmVkX3VwZGF0ZWQYDiABKAsyJS54aWFvd2VpLmFnZW50LlNlc3Npb25BcmNoaXZlZFVwZGF0ZWRIAEIJCgdwYXlsb2FkIjAKGlRyYWNrU2Vzc2lvblZpZXdpbmdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiFQoTU2Vzc2lvblZpZXdpbmdSZWFkeSLIAQoPU3RhcnRSdW5SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSLAoFaW5wdXQYAyADKAsyHS54aWFvd2VpLmFnZW50LkFnZW50VXNlcklucHV0Ei8KBmNvbmZpZxgEIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIcCg90aXRsZV9tb2RlbF9yZWYYBSABKAlIAIgBAUISChBfdGl0bGVfbW9kZWxfcmVmIjgKEFN0YXJ0UnVuUmVzcG9uc2USJAoDcnVuGAEgASgLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1biI5ChNJbnRlcnJ1cHRSdW5SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJIkUKFEludGVycnVwdFJ1blJlc3BvbnNlEg0KBWZvdW5kGAEgASgIEh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYAiABKAgiRQoWUmVnZW5lcmF0ZVRpdGxlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhcKD3RpdGxlX21vZGVsX3JlZhgCIAEoCSJDChdSZWdlbmVyYXRlVGl0bGVSZXNwb25zZRINCgV0aXRsZRgBIAEoCRIZChFtZXRhZGF0YV9yZXZpc2lvbhgCIAEoBCIiCiBHZXRTZXNzaW9uUmV0ZW50aW9uUG9saWN5UmVxdWVzdCJZCiBTZXRTZXNzaW9uUmV0ZW50aW9uUG9saWN5UmVxdWVzdBI1CgZwb2xpY3kYASABKAsyJS54aWFvd2VpLmFnZW50LlNlc3Npb25SZXRlbnRpb25Qb2xpY3kqnQEKEkFnZW50U2Vzc2lvblN0YXR1cxIkCiBBR0VOVF9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUFHRU5UX1NFU1NJT05fU1RBVFVTX0lETEUQARIgChxBR0VOVF9TRVNTSU9OX1NUQVRVU19SVU5OSU5HEAISIAocQUdFTlRfU0VTU0lPTl9TVEFUVVNfREVMRVRFRBADKr0BChRNb2RlbEluZm9XYXJuaW5nQ29kZRInCiNNT0RFTF9JTkZPX1dBUk5JTkdfQ09ERV9VTlNQRUNJRklFRBAAEiUKIU1PREVMX0lORk9fV0FSTklOR19DT0RFX05PVF9GT1VORBABEicKI01PREVMX0lORk9fV0FSTklOR19DT0RFX1VOQVZBSUxBQkxFEAISLAooTU9ERUxfSU5GT19XQVJOSU5HX0NPREVfSU5WQUxJRF9SRVNQT05TRRADKrMBCg5BZ2VudFJ1blN0YXR1cxIgChxBR0VOVF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIAocQUdFTlRfUlVOX1NUQVRVU19JTl9QUk9HUkVTUxABEh4KGkFHRU5UX1JVTl9TVEFUVVNfQ09NUExFVEVEEAISGwoXQUdFTlRfUlVOX1NUQVRVU19GQUlMRUQQAxIgChxBR0VOVF9SVU5fU1RBVFVTX0lOVEVSUlVQVEVEEAQqzAEKE0RlbGV0ZVNlc3Npb25TdGF0dXMSJQohREVMRVRFX1NFU1NJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodREVMRVRFX1NFU1NJT05fU1RBVFVTX0RFTEVURUQQARIhCh1ERUxFVEVfU0VTU0lPTl9TVEFUVVNfU0tJUFBFRBACEiAKHERFTEVURV9TRVNTSU9OX1NUQVRVU19GQUlMRUQQAxImCiJERUxFVEVfU0VTU0lPTl9TVEFUVVNfTk9UX0VYRUNVVEVEEAQy0woKBUFnZW50EloKDUNyZWF0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkNyZWF0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5DcmVhdGVTZXNzaW9uUmVzcG9uc2USVwoMTGlzdFNlc3Npb25zEiIueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXNwb25zZRJUCgtSZWFkU2Vzc2lvbhIhLnhpYW93ZWkuYWdlbnQuUmVhZFNlc3Npb25SZXF1ZXN0GiIueGlhb3dlaS5hZ2VudC5SZWFkU2Vzc2lvblJlc3BvbnNlEmMKEFNldFNlc3Npb25Db25maWcSJi54aWFvd2VpLmFnZW50LlNldFNlc3Npb25Db25maWdSZXF1ZXN0GicueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uQ29uZmlnUmVzcG9uc2USYAoPU2V0U2Vzc2lvblRpdGxlEiUueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXF1ZXN0GiYueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXNwb25zZRJpChJTZXRTZXNzaW9uQXJjaGl2ZWQSKC54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QaKS54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEloKDURlbGV0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzcG9uc2USVwoQU3Vic2NyaWJlU2Vzc2lvbhImLnhpYW93ZWkuYWdlbnQuU3Vic2NyaWJlU2Vzc2lvblJlcXVlc3QaGS54aWFvd2VpLmFnZW50LkFnZW50RXZlbnQwARJmChNUcmFja1Nlc3Npb25WaWV3aW5nEikueGlhb3dlaS5hZ2VudC5UcmFja1Nlc3Npb25WaWV3aW5nUmVxdWVzdBoiLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblZpZXdpbmdSZWFkeTABEksKCFN0YXJ0UnVuEh4ueGlhb3dlaS5hZ2VudC5TdGFydFJ1blJlcXVlc3QaHy54aWFvd2VpLmFnZW50LlN0YXJ0UnVuUmVzcG9uc2USVwoMSW50ZXJydXB0UnVuEiIueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXNwb25zZRJgCg9SZWdlbmVyYXRlVGl0bGUSJS54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlcXVlc3QaJi54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlc3BvbnNlEnMKGUdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LkdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5EnMKGVNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LlNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5YgZwcm90bzM");
 
 /**
  * @generated from message xiaowei.agent.AgentModelConfig
@@ -39,6 +39,210 @@ export type AgentModelConfig = Message<"xiaowei.agent.AgentModelConfig"> & {
  */
 export const AgentModelConfigSchema: GenMessage<AgentModelConfig> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 0);
+
+/**
+ * @generated from message xiaowei.agent.ModelInfoWarning
+ */
+export type ModelInfoWarning = Message<"xiaowei.agent.ModelInfoWarning"> & {
+  /**
+   * @generated from field: string model_ref = 1;
+   */
+  modelRef: string;
+
+  /**
+   * @generated from field: xiaowei.agent.ModelInfoWarningCode code = 2;
+   */
+  code: ModelInfoWarningCode;
+};
+
+/**
+ * Describes the message xiaowei.agent.ModelInfoWarning.
+ * Use `create(ModelInfoWarningSchema)` to create a new message.
+ */
+export const ModelInfoWarningSchema: GenMessage<ModelInfoWarning> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 1);
+
+/**
+ * @generated from message xiaowei.agent.AgentUserInput
+ */
+export type AgentUserInput = Message<"xiaowei.agent.AgentUserInput"> & {
+  /**
+   * @generated from oneof xiaowei.agent.AgentUserInput.content
+   */
+  content: {
+    /**
+     * MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
+     *
+     * @generated from field: string text = 1;
+     */
+    value: string;
+    case: "text";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentUserInput.
+ * Use `create(AgentUserInputSchema)` to create a new message.
+ */
+export const AgentUserInputSchema: GenMessage<AgentUserInput> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 2);
+
+/**
+ * @generated from message xiaowei.agent.AgentUserMessage
+ */
+export type AgentUserMessage = Message<"xiaowei.agent.AgentUserMessage"> & {
+  /**
+   * @generated from field: repeated xiaowei.agent.AgentUserInput content = 1;
+   */
+  content: AgentUserInput[];
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentUserMessage.
+ * Use `create(AgentUserMessageSchema)` to create a new message.
+ */
+export const AgentUserMessageSchema: GenMessage<AgentUserMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 3);
+
+/**
+ * @generated from message xiaowei.agent.AgentMessage
+ */
+export type AgentMessage = Message<"xiaowei.agent.AgentMessage"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentMessage.
+ * Use `create(AgentMessageSchema)` to create a new message.
+ */
+export const AgentMessageSchema: GenMessage<AgentMessage> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 4);
+
+/**
+ * @generated from message xiaowei.agent.AgentReasoning
+ */
+export type AgentReasoning = Message<"xiaowei.agent.AgentReasoning"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentReasoning.
+ * Use `create(AgentReasoningSchema)` to create a new message.
+ */
+export const AgentReasoningSchema: GenMessage<AgentReasoning> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 5);
+
+/**
+ * @generated from message xiaowei.agent.AgentItem
+ */
+export type AgentItem = Message<"xiaowei.agent.AgentItem"> & {
+  /**
+   * @generated from field: string item_id = 1;
+   */
+  itemId: string;
+
+  /**
+   * @generated from oneof xiaowei.agent.AgentItem.content
+   */
+  content: {
+    /**
+     * @generated from field: xiaowei.agent.AgentUserMessage user_message = 2;
+     */
+    value: AgentUserMessage;
+    case: "userMessage";
+  } | {
+    /**
+     * @generated from field: xiaowei.agent.AgentMessage agent_message = 3;
+     */
+    value: AgentMessage;
+    case: "agentMessage";
+  } | {
+    /**
+     * @generated from field: xiaowei.agent.AgentReasoning reasoning = 4;
+     */
+    value: AgentReasoning;
+    case: "reasoning";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentItem.
+ * Use `create(AgentItemSchema)` to create a new message.
+ */
+export const AgentItemSchema: GenMessage<AgentItem> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 6);
+
+/**
+ * @generated from message xiaowei.agent.AgentRun
+ */
+export type AgentRun = Message<"xiaowei.agent.AgentRun"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string input_id = 2;
+   */
+  inputId: string;
+
+  /**
+   * @generated from field: xiaowei.agent.AgentRunStatus status = 3;
+   */
+  status: AgentRunStatus;
+
+  /**
+   * @generated from field: xiaowei.agent.AgentModelConfig config = 4;
+   */
+  config?: AgentModelConfig | undefined;
+
+  /**
+   * @generated from field: repeated xiaowei.agent.AgentItem items = 5;
+   */
+  items: AgentItem[];
+
+  /**
+   * @generated from field: int64 started_at_ms = 6;
+   */
+  startedAtMs: bigint;
+
+  /**
+   * Absent while running; present for every terminal state.
+   *
+   * @generated from field: optional int64 completed_at_ms = 7;
+   */
+  completedAtMs?: bigint | undefined;
+
+  /**
+   * Safe display message for failed runs only; no raw provider error/credentials.
+   *
+   * @generated from field: optional string error = 8;
+   */
+  error?: string | undefined;
+
+  /**
+   * @generated from field: string provider_name = 9;
+   */
+  providerName: string;
+
+  /**
+   * @generated from field: string model_name = 10;
+   */
+  modelName: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentRun.
+ * Use `create(AgentRunSchema)` to create a new message.
+ */
+export const AgentRunSchema: GenMessage<AgentRun> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 7);
 
 /**
  * @generated from message xiaowei.agent.AgentSession
@@ -145,77 +349,36 @@ export type AgentSession = Message<"xiaowei.agent.AgentSession"> & {
  * Use `create(AgentSessionSchema)` to create a new message.
  */
 export const AgentSessionSchema: GenMessage<AgentSession> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 1);
+  messageDesc(file_xiaowei_agent, 8);
 
 /**
- * @generated from message xiaowei.agent.ModelInfoWarning
+ * Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
+ *
+ * @generated from message xiaowei.agent.SessionRetentionPolicy
  */
-export type ModelInfoWarning = Message<"xiaowei.agent.ModelInfoWarning"> & {
+export type SessionRetentionPolicy = Message<"xiaowei.agent.SessionRetentionPolicy"> & {
   /**
-   * @generated from field: string model_ref = 1;
-   */
-  modelRef: string;
-
-  /**
-   * @generated from field: xiaowei.agent.ModelInfoWarningCode code = 2;
-   */
-  code: ModelInfoWarningCode;
-};
-
-/**
- * Describes the message xiaowei.agent.ModelInfoWarning.
- * Use `create(ModelInfoWarningSchema)` to create a new message.
- */
-export const ModelInfoWarningSchema: GenMessage<ModelInfoWarning> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 2);
-
-/**
- * @generated from message xiaowei.agent.SetSessionConfigRequest
- */
-export type SetSessionConfigRequest = Message<"xiaowei.agent.SetSessionConfigRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Required full selection. Absent reasoning delegates to model defaults.
+   * Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
    *
-   * @generated from field: xiaowei.agent.AgentModelConfig config = 2;
+   * @generated from field: uint32 archive_after_days = 1;
    */
-  config?: AgentModelConfig | undefined;
+  archiveAfterDays: number;
 
   /**
-   * @generated from field: uint64 expected_metadata_revision = 3;
-   */
-  expectedMetadataRevision: bigint;
-};
-
-/**
- * Describes the message xiaowei.agent.SetSessionConfigRequest.
- * Use `create(SetSessionConfigRequestSchema)` to create a new message.
- */
-export const SetSessionConfigRequestSchema: GenMessage<SetSessionConfigRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 3);
-
-/**
- * @generated from message xiaowei.agent.SetSessionConfigResponse
- */
-export type SetSessionConfigResponse = Message<"xiaowei.agent.SetSessionConfigResponse"> & {
-  /**
-   * Acknowledgement only; never replace a live subscription with this response.
+   * Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
+   * based on last activity, not time archived. Restoring bumps last activity.
    *
-   * @generated from field: uint64 metadata_revision = 1;
+   * @generated from field: uint32 delete_after_days = 2;
    */
-  metadataRevision: bigint;
+  deleteAfterDays: number;
 };
 
 /**
- * Describes the message xiaowei.agent.SetSessionConfigResponse.
- * Use `create(SetSessionConfigResponseSchema)` to create a new message.
+ * Describes the message xiaowei.agent.SessionRetentionPolicy.
+ * Use `create(SessionRetentionPolicySchema)` to create a new message.
  */
-export const SetSessionConfigResponseSchema: GenMessage<SetSessionConfigResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 4);
+export const SessionRetentionPolicySchema: GenMessage<SessionRetentionPolicy> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 9);
 
 /**
  * @generated from message xiaowei.agent.CreateSessionRequest
@@ -250,7 +413,7 @@ export type CreateSessionRequest = Message<"xiaowei.agent.CreateSessionRequest">
  * Use `create(CreateSessionRequestSchema)` to create a new message.
  */
 export const CreateSessionRequestSchema: GenMessage<CreateSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 5);
+  messageDesc(file_xiaowei_agent, 10);
 
 /**
  * @generated from message xiaowei.agent.CreateSessionResponse
@@ -267,7 +430,7 @@ export type CreateSessionResponse = Message<"xiaowei.agent.CreateSessionResponse
  * Use `create(CreateSessionResponseSchema)` to create a new message.
  */
 export const CreateSessionResponseSchema: GenMessage<CreateSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 6);
+  messageDesc(file_xiaowei_agent, 11);
 
 /**
  * @generated from message xiaowei.agent.ListSessionsRequest
@@ -305,32 +468,7 @@ export type ListSessionsRequest = Message<"xiaowei.agent.ListSessionsRequest"> &
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
 export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 7);
-
-/**
- * @generated from message xiaowei.agent.ListSessionsResponse
- */
-export type ListSessionsResponse = Message<"xiaowei.agent.ListSessionsResponse"> & {
-  /**
-   * Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
-   * this point-in-time list never replaces a SubscribeSession projection.
-   *
-   * @generated from field: repeated xiaowei.agent.AgentSessionSummary sessions = 1;
-   */
-  sessions: AgentSessionSummary[];
-
-  /**
-   * @generated from field: string continuation = 2;
-   */
-  continuation: string;
-};
-
-/**
- * Describes the message xiaowei.agent.ListSessionsResponse.
- * Use `create(ListSessionsResponseSchema)` to create a new message.
- */
-export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 8);
+  messageDesc(file_xiaowei_agent, 12);
 
 /**
  * @generated from message xiaowei.agent.AgentSessionSummary
@@ -393,7 +531,32 @@ export type AgentSessionSummary = Message<"xiaowei.agent.AgentSessionSummary"> &
  * Use `create(AgentSessionSummarySchema)` to create a new message.
  */
 export const AgentSessionSummarySchema: GenMessage<AgentSessionSummary> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 9);
+  messageDesc(file_xiaowei_agent, 13);
+
+/**
+ * @generated from message xiaowei.agent.ListSessionsResponse
+ */
+export type ListSessionsResponse = Message<"xiaowei.agent.ListSessionsResponse"> & {
+  /**
+   * Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
+   * this point-in-time list never replaces a SubscribeSession projection.
+   *
+   * @generated from field: repeated xiaowei.agent.AgentSessionSummary sessions = 1;
+   */
+  sessions: AgentSessionSummary[];
+
+  /**
+   * @generated from field: string continuation = 2;
+   */
+  continuation: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.ListSessionsResponse.
+ * Use `create(ListSessionsResponseSchema)` to create a new message.
+ */
+export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 14);
 
 /**
  * @generated from message xiaowei.agent.ReadSessionRequest
@@ -419,7 +582,7 @@ export type ReadSessionRequest = Message<"xiaowei.agent.ReadSessionRequest"> & {
  * Use `create(ReadSessionRequestSchema)` to create a new message.
  */
 export const ReadSessionRequestSchema: GenMessage<ReadSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 10);
+  messageDesc(file_xiaowei_agent, 15);
 
 /**
  * @generated from message xiaowei.agent.ReadSessionResponse
@@ -443,7 +606,55 @@ export type ReadSessionResponse = Message<"xiaowei.agent.ReadSessionResponse"> &
  * Use `create(ReadSessionResponseSchema)` to create a new message.
  */
 export const ReadSessionResponseSchema: GenMessage<ReadSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 11);
+  messageDesc(file_xiaowei_agent, 16);
+
+/**
+ * @generated from message xiaowei.agent.SetSessionConfigRequest
+ */
+export type SetSessionConfigRequest = Message<"xiaowei.agent.SetSessionConfigRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Required full selection. Absent reasoning delegates to model defaults.
+   *
+   * @generated from field: xiaowei.agent.AgentModelConfig config = 2;
+   */
+  config?: AgentModelConfig | undefined;
+
+  /**
+   * @generated from field: uint64 expected_metadata_revision = 3;
+   */
+  expectedMetadataRevision: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.SetSessionConfigRequest.
+ * Use `create(SetSessionConfigRequestSchema)` to create a new message.
+ */
+export const SetSessionConfigRequestSchema: GenMessage<SetSessionConfigRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 17);
+
+/**
+ * @generated from message xiaowei.agent.SetSessionConfigResponse
+ */
+export type SetSessionConfigResponse = Message<"xiaowei.agent.SetSessionConfigResponse"> & {
+  /**
+   * Acknowledgement only; never replace a live subscription with this response.
+   *
+   * @generated from field: uint64 metadata_revision = 1;
+   */
+  metadataRevision: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.SetSessionConfigResponse.
+ * Use `create(SetSessionConfigResponseSchema)` to create a new message.
+ */
+export const SetSessionConfigResponseSchema: GenMessage<SetSessionConfigResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 18);
 
 /**
  * @generated from message xiaowei.agent.SetSessionTitleRequest
@@ -469,7 +680,7 @@ export type SetSessionTitleRequest = Message<"xiaowei.agent.SetSessionTitleReque
  * Use `create(SetSessionTitleRequestSchema)` to create a new message.
  */
 export const SetSessionTitleRequestSchema: GenMessage<SetSessionTitleRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 12);
+  messageDesc(file_xiaowei_agent, 19);
 
 /**
  * @generated from message xiaowei.agent.SetSessionTitleResponse
@@ -494,7 +705,7 @@ export type SetSessionTitleResponse = Message<"xiaowei.agent.SetSessionTitleResp
  * Use `create(SetSessionTitleResponseSchema)` to create a new message.
  */
 export const SetSessionTitleResponseSchema: GenMessage<SetSessionTitleResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 13);
+  messageDesc(file_xiaowei_agent, 20);
 
 /**
  * Archived sessions cannot be opened or mutated until unarchived.
@@ -524,7 +735,7 @@ export type SetSessionArchivedRequest = Message<"xiaowei.agent.SetSessionArchive
  * Use `create(SetSessionArchivedRequestSchema)` to create a new message.
  */
 export const SetSessionArchivedRequestSchema: GenMessage<SetSessionArchivedRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 14);
+  messageDesc(file_xiaowei_agent, 21);
 
 /**
  * @generated from message xiaowei.agent.SetSessionArchivedResponse
@@ -546,34 +757,7 @@ export type SetSessionArchivedResponse = Message<"xiaowei.agent.SetSessionArchiv
  * Use `create(SetSessionArchivedResponseSchema)` to create a new message.
  */
 export const SetSessionArchivedResponseSchema: GenMessage<SetSessionArchivedResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 15);
-
-/**
- * @generated from message xiaowei.agent.SessionArchivedUpdated
- */
-export type SessionArchivedUpdated = Message<"xiaowei.agent.SessionArchivedUpdated"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: bool archived = 2;
-   */
-  archived: boolean;
-
-  /**
-   * @generated from field: uint64 archive_revision = 3;
-   */
-  archiveRevision: bigint;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionArchivedUpdated.
- * Use `create(SessionArchivedUpdatedSchema)` to create a new message.
- */
-export const SessionArchivedUpdatedSchema: GenMessage<SessionArchivedUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 16);
+  messageDesc(file_xiaowei_agent, 22);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionTarget
@@ -605,7 +789,7 @@ export type DeleteSessionTarget = Message<"xiaowei.agent.DeleteSessionTarget"> &
  * Use `create(DeleteSessionTargetSchema)` to create a new message.
  */
 export const DeleteSessionTargetSchema: GenMessage<DeleteSessionTarget> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 17);
+  messageDesc(file_xiaowei_agent, 23);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionRequest
@@ -625,7 +809,7 @@ export type DeleteSessionRequest = Message<"xiaowei.agent.DeleteSessionRequest">
  * Use `create(DeleteSessionRequestSchema)` to create a new message.
  */
 export const DeleteSessionRequestSchema: GenMessage<DeleteSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 18);
+  messageDesc(file_xiaowei_agent, 24);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionResult
@@ -654,7 +838,7 @@ export type DeleteSessionResult = Message<"xiaowei.agent.DeleteSessionResult"> &
  * Use `create(DeleteSessionResultSchema)` to create a new message.
  */
 export const DeleteSessionResultSchema: GenMessage<DeleteSessionResult> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 19);
+  messageDesc(file_xiaowei_agent, 25);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionResponse
@@ -674,349 +858,7 @@ export type DeleteSessionResponse = Message<"xiaowei.agent.DeleteSessionResponse
  * Use `create(DeleteSessionResponseSchema)` to create a new message.
  */
 export const DeleteSessionResponseSchema: GenMessage<DeleteSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 20);
-
-/**
- * @generated from message xiaowei.agent.RegenerateTitleRequest
- */
-export type RegenerateTitleRequest = Message<"xiaowei.agent.RegenerateTitleRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
-   *
-   * @generated from field: string title_model_ref = 2;
-   */
-  titleModelRef: string;
-};
-
-/**
- * Describes the message xiaowei.agent.RegenerateTitleRequest.
- * Use `create(RegenerateTitleRequestSchema)` to create a new message.
- */
-export const RegenerateTitleRequestSchema: GenMessage<RegenerateTitleRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 21);
-
-/**
- * @generated from message xiaowei.agent.RegenerateTitleResponse
- */
-export type RegenerateTitleResponse = Message<"xiaowei.agent.RegenerateTitleResponse"> & {
-  /**
-   * @generated from field: string title = 1;
-   */
-  title: string;
-
-  /**
-   * @generated from field: uint64 metadata_revision = 2;
-   */
-  metadataRevision: bigint;
-};
-
-/**
- * Describes the message xiaowei.agent.RegenerateTitleResponse.
- * Use `create(RegenerateTitleResponseSchema)` to create a new message.
- */
-export const RegenerateTitleResponseSchema: GenMessage<RegenerateTitleResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 22);
-
-/**
- * @generated from message xiaowei.agent.AgentUserInput
- */
-export type AgentUserInput = Message<"xiaowei.agent.AgentUserInput"> & {
-  /**
-   * @generated from oneof xiaowei.agent.AgentUserInput.content
-   */
-  content: {
-    /**
-     * MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
-     *
-     * @generated from field: string text = 1;
-     */
-    value: string;
-    case: "text";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message xiaowei.agent.AgentUserInput.
- * Use `create(AgentUserInputSchema)` to create a new message.
- */
-export const AgentUserInputSchema: GenMessage<AgentUserInput> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 23);
-
-/**
- * @generated from message xiaowei.agent.StartRunRequest
- */
-export type StartRunRequest = Message<"xiaowei.agent.StartRunRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Stable input identity for correlation and idempotency; same ID with different
-   * input/config conflicts. A lost response does not authorize a fresh ID retry.
-   *
-   * @generated from field: string input_id = 2;
-   */
-  inputId: string;
-
-  /**
-   * Required, 1..64 text entries, ordered and preserved without trimming.
-   *
-   * @generated from field: repeated xiaowei.agent.AgentUserInput input = 3;
-   */
-  input: AgentUserInput[];
-
-  /**
-   * Absent inherits session defaults. Present overrides this run only.
-   * Persist session defaults independently through SetSessionConfig.
-   *
-   * @generated from field: xiaowei.agent.AgentModelConfig config = 4;
-   */
-  config?: AgentModelConfig | undefined;
-
-  /**
-   * Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
-   *
-   * @generated from field: optional string title_model_ref = 5;
-   */
-  titleModelRef?: string | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.StartRunRequest.
- * Use `create(StartRunRequestSchema)` to create a new message.
- */
-export const StartRunRequestSchema: GenMessage<StartRunRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 24);
-
-/**
- * @generated from message xiaowei.agent.StartRunResponse
- */
-export type StartRunResponse = Message<"xiaowei.agent.StartRunResponse"> & {
-  /**
-   * Acceptance, not completion. Same run is also announced by RunStarted.
-   *
-   * @generated from field: xiaowei.agent.AgentRun run = 1;
-   */
-  run?: AgentRun | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.StartRunResponse.
- * Use `create(StartRunResponseSchema)` to create a new message.
- */
-export const StartRunResponseSchema: GenMessage<StartRunResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 25);
-
-/**
- * @generated from message xiaowei.agent.InterruptRunRequest
- */
-export type InterruptRunRequest = Message<"xiaowei.agent.InterruptRunRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Targets exactly this run; a stale request must not interrupt a newer run.
-   *
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-};
-
-/**
- * Describes the message xiaowei.agent.InterruptRunRequest.
- * Use `create(InterruptRunRequestSchema)` to create a new message.
- */
-export const InterruptRunRequestSchema: GenMessage<InterruptRunRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 26);
-
-/**
- * @generated from message xiaowei.agent.InterruptRunResponse
- */
-export type InterruptRunResponse = Message<"xiaowei.agent.InterruptRunResponse"> & {
-  /**
-   * @generated from field: bool found = 1;
-   */
-  found: boolean;
-
-  /**
-   * Acknowledges cancellation only. Await RunCompleted for final status.
-   *
-   * @generated from field: bool cancellation_requested = 2;
-   */
-  cancellationRequested: boolean;
-};
-
-/**
- * Describes the message xiaowei.agent.InterruptRunResponse.
- * Use `create(InterruptRunResponseSchema)` to create a new message.
- */
-export const InterruptRunResponseSchema: GenMessage<InterruptRunResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 27);
-
-/**
- * @generated from message xiaowei.agent.AgentRun
- */
-export type AgentRun = Message<"xiaowei.agent.AgentRun"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: string input_id = 2;
-   */
-  inputId: string;
-
-  /**
-   * @generated from field: xiaowei.agent.AgentRunStatus status = 3;
-   */
-  status: AgentRunStatus;
-
-  /**
-   * @generated from field: xiaowei.agent.AgentModelConfig config = 4;
-   */
-  config?: AgentModelConfig | undefined;
-
-  /**
-   * @generated from field: repeated xiaowei.agent.AgentItem items = 5;
-   */
-  items: AgentItem[];
-
-  /**
-   * @generated from field: int64 started_at_ms = 6;
-   */
-  startedAtMs: bigint;
-
-  /**
-   * Absent while running; present for every terminal state.
-   *
-   * @generated from field: optional int64 completed_at_ms = 7;
-   */
-  completedAtMs?: bigint | undefined;
-
-  /**
-   * Safe display message for failed runs only; no raw provider error/credentials.
-   *
-   * @generated from field: optional string error = 8;
-   */
-  error?: string | undefined;
-
-  /**
-   * @generated from field: string provider_name = 9;
-   */
-  providerName: string;
-
-  /**
-   * @generated from field: string model_name = 10;
-   */
-  modelName: string;
-};
-
-/**
- * Describes the message xiaowei.agent.AgentRun.
- * Use `create(AgentRunSchema)` to create a new message.
- */
-export const AgentRunSchema: GenMessage<AgentRun> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 28);
-
-/**
- * @generated from message xiaowei.agent.AgentItem
- */
-export type AgentItem = Message<"xiaowei.agent.AgentItem"> & {
-  /**
-   * @generated from field: string item_id = 1;
-   */
-  itemId: string;
-
-  /**
-   * @generated from oneof xiaowei.agent.AgentItem.content
-   */
-  content: {
-    /**
-     * @generated from field: xiaowei.agent.AgentUserMessage user_message = 2;
-     */
-    value: AgentUserMessage;
-    case: "userMessage";
-  } | {
-    /**
-     * @generated from field: xiaowei.agent.AgentMessage agent_message = 3;
-     */
-    value: AgentMessage;
-    case: "agentMessage";
-  } | {
-    /**
-     * @generated from field: xiaowei.agent.AgentReasoning reasoning = 4;
-     */
-    value: AgentReasoning;
-    case: "reasoning";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message xiaowei.agent.AgentItem.
- * Use `create(AgentItemSchema)` to create a new message.
- */
-export const AgentItemSchema: GenMessage<AgentItem> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 29);
-
-/**
- * @generated from message xiaowei.agent.AgentUserMessage
- */
-export type AgentUserMessage = Message<"xiaowei.agent.AgentUserMessage"> & {
-  /**
-   * @generated from field: repeated xiaowei.agent.AgentUserInput content = 1;
-   */
-  content: AgentUserInput[];
-};
-
-/**
- * Describes the message xiaowei.agent.AgentUserMessage.
- * Use `create(AgentUserMessageSchema)` to create a new message.
- */
-export const AgentUserMessageSchema: GenMessage<AgentUserMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 30);
-
-/**
- * @generated from message xiaowei.agent.AgentMessage
- */
-export type AgentMessage = Message<"xiaowei.agent.AgentMessage"> & {
-  /**
-   * @generated from field: string text = 1;
-   */
-  text: string;
-};
-
-/**
- * Describes the message xiaowei.agent.AgentMessage.
- * Use `create(AgentMessageSchema)` to create a new message.
- */
-export const AgentMessageSchema: GenMessage<AgentMessage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 31);
-
-/**
- * @generated from message xiaowei.agent.AgentReasoning
- */
-export type AgentReasoning = Message<"xiaowei.agent.AgentReasoning"> & {
-  /**
-   * @generated from field: string text = 1;
-   */
-  text: string;
-};
-
-/**
- * Describes the message xiaowei.agent.AgentReasoning.
- * Use `create(AgentReasoningSchema)` to create a new message.
- */
-export const AgentReasoningSchema: GenMessage<AgentReasoning> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 32);
 
 /**
  * @generated from message xiaowei.agent.SubscribeSessionRequest
@@ -1037,7 +879,388 @@ export type SubscribeSessionRequest = Message<"xiaowei.agent.SubscribeSessionReq
  * Use `create(SubscribeSessionRequestSchema)` to create a new message.
  */
 export const SubscribeSessionRequestSchema: GenMessage<SubscribeSessionRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 27);
+
+/**
+ * First frame: full public state of the requested session, including retained
+ * runs/items. Session is always present on a successfully opened subscription.
+ * Snapshot and registration use the same serial boundary; earlier events are
+ * not replayed. Later deletion/run/item changes follow on this stream.
+ * Reject subscription with resource-exhausted if initial state exceeds its
+ * frame budget; never truncate state or yield an already-invalid subscription.
+ *
+ * @generated from message xiaowei.agent.SubscriptionReady
+ */
+export type SubscriptionReady = Message<"xiaowei.agent.SubscriptionReady"> & {
+  /**
+   * @generated from field: xiaowei.agent.AgentSession session = 1;
+   */
+  session?: AgentSession | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.SubscriptionReady.
+ * Use `create(SubscriptionReadySchema)` to create a new message.
+ */
+export const SubscriptionReadySchema: GenMessage<SubscriptionReady> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 28);
+
+/**
+ * @generated from message xiaowei.agent.SessionStarted
+ */
+export type SessionStarted = Message<"xiaowei.agent.SessionStarted"> & {
+  /**
+   * @generated from field: xiaowei.agent.AgentSession session = 1;
+   */
+  session?: AgentSession | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionStarted.
+ * Use `create(SessionStartedSchema)` to create a new message.
+ */
+export const SessionStartedSchema: GenMessage<SessionStarted> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 29);
+
+/**
+ * @generated from message xiaowei.agent.SessionDeleted
+ */
+export type SessionDeleted = Message<"xiaowei.agent.SessionDeleted"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionDeleted.
+ * Use `create(SessionDeletedSchema)` to create a new message.
+ */
+export const SessionDeletedSchema: GenMessage<SessionDeleted> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 30);
+
+/**
+ * @generated from message xiaowei.agent.RunStarted
+ */
+export type RunStarted = Message<"xiaowei.agent.RunStarted"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Includes the immutable selection captured for this run.
+   *
+   * @generated from field: xiaowei.agent.AgentRun run = 2;
+   */
+  run?: AgentRun | undefined;
+
+  /**
+   * @generated from field: uint64 session_metadata_revision = 3;
+   */
+  sessionMetadataRevision: bigint;
+
+  /**
+   * @generated from field: string title_model_ref = 4;
+   */
+  titleModelRef: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.RunStarted.
+ * Use `create(RunStartedSchema)` to create a new message.
+ */
+export const RunStartedSchema: GenMessage<RunStarted> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 31);
+
+/**
+ * @generated from message xiaowei.agent.RunCompleted
+ */
+export type RunCompleted = Message<"xiaowei.agent.RunCompleted"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Final run status and complete public items, including any partial display.
+   *
+   * @generated from field: xiaowei.agent.AgentRun run = 2;
+   */
+  run?: AgentRun | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.RunCompleted.
+ * Use `create(RunCompletedSchema)` to create a new message.
+ */
+export const RunCompletedSchema: GenMessage<RunCompleted> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 32);
+
+/**
+ * @generated from message xiaowei.agent.ItemStarted
+ */
+export type ItemStarted = Message<"xiaowei.agent.ItemStarted"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: xiaowei.agent.AgentItem item = 3;
+   */
+  item?: AgentItem | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.ItemStarted.
+ * Use `create(ItemStartedSchema)` to create a new message.
+ */
+export const ItemStartedSchema: GenMessage<ItemStarted> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 33);
+
+/**
+ * @generated from message xiaowei.agent.ItemCompleted
+ */
+export type ItemCompleted = Message<"xiaowei.agent.ItemCompleted"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * Final display content, even if run fails or is interrupted. This does not
+   * imply the item is eligible for inclusion in future model context.
+   *
+   * @generated from field: xiaowei.agent.AgentItem item = 3;
+   */
+  item?: AgentItem | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.ItemCompleted.
+ * Use `create(ItemCompletedSchema)` to create a new message.
+ */
+export const ItemCompletedSchema: GenMessage<ItemCompleted> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 34);
+
+/**
+ * @generated from message xiaowei.agent.AgentMessageDelta
+ */
+export type AgentMessageDelta = Message<"xiaowei.agent.AgentMessageDelta"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string item_id = 3;
+   */
+  itemId: string;
+
+  /**
+   * @generated from field: string delta = 4;
+   */
+  delta: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentMessageDelta.
+ * Use `create(AgentMessageDeltaSchema)` to create a new message.
+ */
+export const AgentMessageDeltaSchema: GenMessage<AgentMessageDelta> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 35);
+
+/**
+ * @generated from message xiaowei.agent.ReasoningDelta
+ */
+export type ReasoningDelta = Message<"xiaowei.agent.ReasoningDelta"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string item_id = 3;
+   */
+  itemId: string;
+
+  /**
+   * @generated from field: string delta = 4;
+   */
+  delta: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.ReasoningDelta.
+ * Use `create(ReasoningDeltaSchema)` to create a new message.
+ */
+export const ReasoningDeltaSchema: GenMessage<ReasoningDelta> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 36);
+
+/**
+ * @generated from message xiaowei.agent.SessionTitleUpdated
+ */
+export type SessionTitleUpdated = Message<"xiaowei.agent.SessionTitleUpdated"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: uint64 metadata_revision = 3;
+   */
+  metadataRevision: bigint;
+
+  /**
+   * @generated from field: string title_model_ref = 4;
+   */
+  titleModelRef: string;
+
+  /**
+   * Committed automatic-title flag, synchronized with the title.
+   *
+   * @generated from field: bool auto_title_enabled = 5;
+   */
+  autoTitleEnabled: boolean;
+
+  /**
+   * Committed activity time. Manual title changes advance it; automatic generation preserves it.
+   *
+   * @generated from field: int64 updated_at_ms = 6;
+   */
+  updatedAtMs: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionTitleUpdated.
+ * Use `create(SessionTitleUpdatedSchema)` to create a new message.
+ */
+export const SessionTitleUpdatedSchema: GenMessage<SessionTitleUpdated> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 37);
+
+/**
+ * @generated from message xiaowei.agent.SessionConfigUpdated
+ */
+export type SessionConfigUpdated = Message<"xiaowei.agent.SessionConfigUpdated"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: xiaowei.agent.AgentModelConfig config = 2;
+   */
+  config?: AgentModelConfig | undefined;
+
+  /**
+   * @generated from field: string provider_name = 3;
+   */
+  providerName: string;
+
+  /**
+   * @generated from field: string model_name = 4;
+   */
+  modelName: string;
+
+  /**
+   * @generated from field: uint64 metadata_revision = 5;
+   */
+  metadataRevision: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionConfigUpdated.
+ * Use `create(SessionConfigUpdatedSchema)` to create a new message.
+ */
+export const SessionConfigUpdatedSchema: GenMessage<SessionConfigUpdated> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 38);
+
+/**
+ * @generated from message xiaowei.agent.SessionModelInfoWarningUpdated
+ */
+export type SessionModelInfoWarningUpdated = Message<"xiaowei.agent.SessionModelInfoWarningUpdated"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Absent clears the warning. Snapshot + subsequent events share one serial boundary.
+   *
+   * @generated from field: xiaowei.agent.ModelInfoWarning warning = 2;
+   */
+  warning?: ModelInfoWarning | undefined;
+
+  /**
+   * @generated from field: string provider_name = 3;
+   */
+  providerName: string;
+
+  /**
+   * @generated from field: string model_name = 4;
+   */
+  modelName: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionModelInfoWarningUpdated.
+ * Use `create(SessionModelInfoWarningUpdatedSchema)` to create a new message.
+ */
+export const SessionModelInfoWarningUpdatedSchema: GenMessage<SessionModelInfoWarningUpdated> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 39);
+
+/**
+ * @generated from message xiaowei.agent.SessionArchivedUpdated
+ */
+export type SessionArchivedUpdated = Message<"xiaowei.agent.SessionArchivedUpdated"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: bool archived = 2;
+   */
+  archived: boolean;
+
+  /**
+   * @generated from field: uint64 archive_revision = 3;
+   */
+  archiveRevision: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.SessionArchivedUpdated.
+ * Use `create(SessionArchivedUpdatedSchema)` to create a new message.
+ */
+export const SessionArchivedUpdatedSchema: GenMessage<SessionArchivedUpdated> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 40);
 
 /**
  * Ordered direct notifications. SubscriptionReady contains a snapshot captured
@@ -1143,422 +1366,7 @@ export type AgentEvent = Message<"xiaowei.agent.AgentEvent"> & {
  * Use `create(AgentEventSchema)` to create a new message.
  */
 export const AgentEventSchema: GenMessage<AgentEvent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 34);
-
-/**
- * First frame: full public state of the requested session, including retained
- * runs/items. Session is always present on a successfully opened subscription.
- * Snapshot and registration use the same serial boundary; earlier events are
- * not replayed. Later deletion/run/item changes follow on this stream.
- * Reject subscription with resource-exhausted if initial state exceeds its
- * frame budget; never truncate state or yield an already-invalid subscription.
- *
- * @generated from message xiaowei.agent.SubscriptionReady
- */
-export type SubscriptionReady = Message<"xiaowei.agent.SubscriptionReady"> & {
-  /**
-   * @generated from field: xiaowei.agent.AgentSession session = 1;
-   */
-  session?: AgentSession | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.SubscriptionReady.
- * Use `create(SubscriptionReadySchema)` to create a new message.
- */
-export const SubscriptionReadySchema: GenMessage<SubscriptionReady> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 35);
-
-/**
- * @generated from message xiaowei.agent.SessionStarted
- */
-export type SessionStarted = Message<"xiaowei.agent.SessionStarted"> & {
-  /**
-   * @generated from field: xiaowei.agent.AgentSession session = 1;
-   */
-  session?: AgentSession | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionStarted.
- * Use `create(SessionStartedSchema)` to create a new message.
- */
-export const SessionStartedSchema: GenMessage<SessionStarted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 36);
-
-/**
- * @generated from message xiaowei.agent.SessionDeleted
- */
-export type SessionDeleted = Message<"xiaowei.agent.SessionDeleted"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionDeleted.
- * Use `create(SessionDeletedSchema)` to create a new message.
- */
-export const SessionDeletedSchema: GenMessage<SessionDeleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 37);
-
-/**
- * @generated from message xiaowei.agent.RunStarted
- */
-export type RunStarted = Message<"xiaowei.agent.RunStarted"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Includes the immutable selection captured for this run.
-   *
-   * @generated from field: xiaowei.agent.AgentRun run = 2;
-   */
-  run?: AgentRun | undefined;
-
-  /**
-   * @generated from field: uint64 session_metadata_revision = 3;
-   */
-  sessionMetadataRevision: bigint;
-
-  /**
-   * @generated from field: string title_model_ref = 4;
-   */
-  titleModelRef: string;
-};
-
-/**
- * Describes the message xiaowei.agent.RunStarted.
- * Use `create(RunStartedSchema)` to create a new message.
- */
-export const RunStartedSchema: GenMessage<RunStarted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 38);
-
-/**
- * @generated from message xiaowei.agent.SessionTitleUpdated
- */
-export type SessionTitleUpdated = Message<"xiaowei.agent.SessionTitleUpdated"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string title = 2;
-   */
-  title: string;
-
-  /**
-   * @generated from field: uint64 metadata_revision = 3;
-   */
-  metadataRevision: bigint;
-
-  /**
-   * @generated from field: string title_model_ref = 4;
-   */
-  titleModelRef: string;
-
-  /**
-   * Committed automatic-title flag, synchronized with the title.
-   *
-   * @generated from field: bool auto_title_enabled = 5;
-   */
-  autoTitleEnabled: boolean;
-
-  /**
-   * Committed activity time. Manual title changes advance it; automatic generation preserves it.
-   *
-   * @generated from field: int64 updated_at_ms = 6;
-   */
-  updatedAtMs: bigint;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionTitleUpdated.
- * Use `create(SessionTitleUpdatedSchema)` to create a new message.
- */
-export const SessionTitleUpdatedSchema: GenMessage<SessionTitleUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 39);
-
-/**
- * @generated from message xiaowei.agent.RunCompleted
- */
-export type RunCompleted = Message<"xiaowei.agent.RunCompleted"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Final run status and complete public items, including any partial display.
-   *
-   * @generated from field: xiaowei.agent.AgentRun run = 2;
-   */
-  run?: AgentRun | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.RunCompleted.
- * Use `create(RunCompletedSchema)` to create a new message.
- */
-export const RunCompletedSchema: GenMessage<RunCompleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 40);
-
-/**
- * @generated from message xiaowei.agent.ItemStarted
- */
-export type ItemStarted = Message<"xiaowei.agent.ItemStarted"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: xiaowei.agent.AgentItem item = 3;
-   */
-  item?: AgentItem | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.ItemStarted.
- * Use `create(ItemStartedSchema)` to create a new message.
- */
-export const ItemStartedSchema: GenMessage<ItemStarted> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 41);
-
-/**
- * @generated from message xiaowei.agent.ItemCompleted
- */
-export type ItemCompleted = Message<"xiaowei.agent.ItemCompleted"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-
-  /**
-   * Final display content, even if run fails or is interrupted. This does not
-   * imply the item is eligible for inclusion in future model context.
-   *
-   * @generated from field: xiaowei.agent.AgentItem item = 3;
-   */
-  item?: AgentItem | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.ItemCompleted.
- * Use `create(ItemCompletedSchema)` to create a new message.
- */
-export const ItemCompletedSchema: GenMessage<ItemCompleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 42);
-
-/**
- * @generated from message xiaowei.agent.AgentMessageDelta
- */
-export type AgentMessageDelta = Message<"xiaowei.agent.AgentMessageDelta"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: string item_id = 3;
-   */
-  itemId: string;
-
-  /**
-   * @generated from field: string delta = 4;
-   */
-  delta: string;
-};
-
-/**
- * Describes the message xiaowei.agent.AgentMessageDelta.
- * Use `create(AgentMessageDeltaSchema)` to create a new message.
- */
-export const AgentMessageDeltaSchema: GenMessage<AgentMessageDelta> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 43);
-
-/**
- * @generated from message xiaowei.agent.ReasoningDelta
- */
-export type ReasoningDelta = Message<"xiaowei.agent.ReasoningDelta"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: string item_id = 3;
-   */
-  itemId: string;
-
-  /**
-   * @generated from field: string delta = 4;
-   */
-  delta: string;
-};
-
-/**
- * Describes the message xiaowei.agent.ReasoningDelta.
- * Use `create(ReasoningDeltaSchema)` to create a new message.
- */
-export const ReasoningDeltaSchema: GenMessage<ReasoningDelta> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 44);
-
-/**
- * @generated from message xiaowei.agent.SessionConfigUpdated
- */
-export type SessionConfigUpdated = Message<"xiaowei.agent.SessionConfigUpdated"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: xiaowei.agent.AgentModelConfig config = 2;
-   */
-  config?: AgentModelConfig | undefined;
-
-  /**
-   * @generated from field: string provider_name = 3;
-   */
-  providerName: string;
-
-  /**
-   * @generated from field: string model_name = 4;
-   */
-  modelName: string;
-
-  /**
-   * @generated from field: uint64 metadata_revision = 5;
-   */
-  metadataRevision: bigint;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionConfigUpdated.
- * Use `create(SessionConfigUpdatedSchema)` to create a new message.
- */
-export const SessionConfigUpdatedSchema: GenMessage<SessionConfigUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 45);
-
-/**
- * @generated from message xiaowei.agent.SessionModelInfoWarningUpdated
- */
-export type SessionModelInfoWarningUpdated = Message<"xiaowei.agent.SessionModelInfoWarningUpdated"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * Absent clears the warning. Snapshot + subsequent events share one serial boundary.
-   *
-   * @generated from field: xiaowei.agent.ModelInfoWarning warning = 2;
-   */
-  warning?: ModelInfoWarning | undefined;
-
-  /**
-   * @generated from field: string provider_name = 3;
-   */
-  providerName: string;
-
-  /**
-   * @generated from field: string model_name = 4;
-   */
-  modelName: string;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionModelInfoWarningUpdated.
- * Use `create(SessionModelInfoWarningUpdatedSchema)` to create a new message.
- */
-export const SessionModelInfoWarningUpdatedSchema: GenMessage<SessionModelInfoWarningUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 46);
-
-/**
- * Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
- *
- * @generated from message xiaowei.agent.SessionRetentionPolicy
- */
-export type SessionRetentionPolicy = Message<"xiaowei.agent.SessionRetentionPolicy"> & {
-  /**
-   * Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
-   *
-   * @generated from field: uint32 archive_after_days = 1;
-   */
-  archiveAfterDays: number;
-
-  /**
-   * Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
-   * based on last activity, not time archived. Restoring bumps last activity.
-   *
-   * @generated from field: uint32 delete_after_days = 2;
-   */
-  deleteAfterDays: number;
-};
-
-/**
- * Describes the message xiaowei.agent.SessionRetentionPolicy.
- * Use `create(SessionRetentionPolicySchema)` to create a new message.
- */
-export const SessionRetentionPolicySchema: GenMessage<SessionRetentionPolicy> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 47);
-
-/**
- * @generated from message xiaowei.agent.GetSessionRetentionPolicyRequest
- */
-export type GetSessionRetentionPolicyRequest = Message<"xiaowei.agent.GetSessionRetentionPolicyRequest"> & {
-};
-
-/**
- * Describes the message xiaowei.agent.GetSessionRetentionPolicyRequest.
- * Use `create(GetSessionRetentionPolicyRequestSchema)` to create a new message.
- */
-export const GetSessionRetentionPolicyRequestSchema: GenMessage<GetSessionRetentionPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 48);
-
-/**
- * @generated from message xiaowei.agent.SetSessionRetentionPolicyRequest
- */
-export type SetSessionRetentionPolicyRequest = Message<"xiaowei.agent.SetSessionRetentionPolicyRequest"> & {
-  /**
-   * Required full policy. Invalid/missing values leave the old policy unchanged.
-   *
-   * @generated from field: xiaowei.agent.SessionRetentionPolicy policy = 1;
-   */
-  policy?: SessionRetentionPolicy | undefined;
-};
-
-/**
- * Describes the message xiaowei.agent.SetSessionRetentionPolicyRequest.
- * Use `create(SetSessionRetentionPolicyRequestSchema)` to create a new message.
- */
-export const SetSessionRetentionPolicyRequestSchema: GenMessage<SetSessionRetentionPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 49);
 
 /**
  * @generated from message xiaowei.agent.TrackSessionViewingRequest
@@ -1577,7 +1385,7 @@ export type TrackSessionViewingRequest = Message<"xiaowei.agent.TrackSessionView
  * Use `create(TrackSessionViewingRequestSchema)` to create a new message.
  */
 export const TrackSessionViewingRequestSchema: GenMessage<TrackSessionViewingRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 50);
+  messageDesc(file_xiaowei_agent, 42);
 
 /**
  * @generated from message xiaowei.agent.SessionViewingReady
@@ -1590,6 +1398,198 @@ export type SessionViewingReady = Message<"xiaowei.agent.SessionViewingReady"> &
  * Use `create(SessionViewingReadySchema)` to create a new message.
  */
 export const SessionViewingReadySchema: GenMessage<SessionViewingReady> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 43);
+
+/**
+ * @generated from message xiaowei.agent.StartRunRequest
+ */
+export type StartRunRequest = Message<"xiaowei.agent.StartRunRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Stable input identity for correlation and idempotency; same ID with different
+   * input/config conflicts. A lost response does not authorize a fresh ID retry.
+   *
+   * @generated from field: string input_id = 2;
+   */
+  inputId: string;
+
+  /**
+   * Required, 1..64 text entries, ordered and preserved without trimming.
+   *
+   * @generated from field: repeated xiaowei.agent.AgentUserInput input = 3;
+   */
+  input: AgentUserInput[];
+
+  /**
+   * Absent inherits session defaults. Present overrides this run only.
+   * Persist session defaults independently through SetSessionConfig.
+   *
+   * @generated from field: xiaowei.agent.AgentModelConfig config = 4;
+   */
+  config?: AgentModelConfig | undefined;
+
+  /**
+   * Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
+   *
+   * @generated from field: optional string title_model_ref = 5;
+   */
+  titleModelRef?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.StartRunRequest.
+ * Use `create(StartRunRequestSchema)` to create a new message.
+ */
+export const StartRunRequestSchema: GenMessage<StartRunRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 44);
+
+/**
+ * @generated from message xiaowei.agent.StartRunResponse
+ */
+export type StartRunResponse = Message<"xiaowei.agent.StartRunResponse"> & {
+  /**
+   * Acceptance, not completion. Same run is also announced by RunStarted.
+   *
+   * @generated from field: xiaowei.agent.AgentRun run = 1;
+   */
+  run?: AgentRun | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.StartRunResponse.
+ * Use `create(StartRunResponseSchema)` to create a new message.
+ */
+export const StartRunResponseSchema: GenMessage<StartRunResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 45);
+
+/**
+ * @generated from message xiaowei.agent.InterruptRunRequest
+ */
+export type InterruptRunRequest = Message<"xiaowei.agent.InterruptRunRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Targets exactly this run; a stale request must not interrupt a newer run.
+   *
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.InterruptRunRequest.
+ * Use `create(InterruptRunRequestSchema)` to create a new message.
+ */
+export const InterruptRunRequestSchema: GenMessage<InterruptRunRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 46);
+
+/**
+ * @generated from message xiaowei.agent.InterruptRunResponse
+ */
+export type InterruptRunResponse = Message<"xiaowei.agent.InterruptRunResponse"> & {
+  /**
+   * @generated from field: bool found = 1;
+   */
+  found: boolean;
+
+  /**
+   * Acknowledges cancellation only. Await RunCompleted for final status.
+   *
+   * @generated from field: bool cancellation_requested = 2;
+   */
+  cancellationRequested: boolean;
+};
+
+/**
+ * Describes the message xiaowei.agent.InterruptRunResponse.
+ * Use `create(InterruptRunResponseSchema)` to create a new message.
+ */
+export const InterruptRunResponseSchema: GenMessage<InterruptRunResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 47);
+
+/**
+ * @generated from message xiaowei.agent.RegenerateTitleRequest
+ */
+export type RegenerateTitleRequest = Message<"xiaowei.agent.RegenerateTitleRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
+   *
+   * @generated from field: string title_model_ref = 2;
+   */
+  titleModelRef: string;
+};
+
+/**
+ * Describes the message xiaowei.agent.RegenerateTitleRequest.
+ * Use `create(RegenerateTitleRequestSchema)` to create a new message.
+ */
+export const RegenerateTitleRequestSchema: GenMessage<RegenerateTitleRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 48);
+
+/**
+ * @generated from message xiaowei.agent.RegenerateTitleResponse
+ */
+export type RegenerateTitleResponse = Message<"xiaowei.agent.RegenerateTitleResponse"> & {
+  /**
+   * @generated from field: string title = 1;
+   */
+  title: string;
+
+  /**
+   * @generated from field: uint64 metadata_revision = 2;
+   */
+  metadataRevision: bigint;
+};
+
+/**
+ * Describes the message xiaowei.agent.RegenerateTitleResponse.
+ * Use `create(RegenerateTitleResponseSchema)` to create a new message.
+ */
+export const RegenerateTitleResponseSchema: GenMessage<RegenerateTitleResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 49);
+
+/**
+ * @generated from message xiaowei.agent.GetSessionRetentionPolicyRequest
+ */
+export type GetSessionRetentionPolicyRequest = Message<"xiaowei.agent.GetSessionRetentionPolicyRequest"> & {
+};
+
+/**
+ * Describes the message xiaowei.agent.GetSessionRetentionPolicyRequest.
+ * Use `create(GetSessionRetentionPolicyRequestSchema)` to create a new message.
+ */
+export const GetSessionRetentionPolicyRequestSchema: GenMessage<GetSessionRetentionPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 50);
+
+/**
+ * @generated from message xiaowei.agent.SetSessionRetentionPolicyRequest
+ */
+export type SetSessionRetentionPolicyRequest = Message<"xiaowei.agent.SetSessionRetentionPolicyRequest"> & {
+  /**
+   * Required full policy. Invalid/missing values leave the old policy unchanged.
+   *
+   * @generated from field: xiaowei.agent.SessionRetentionPolicy policy = 1;
+   */
+  policy?: SessionRetentionPolicy | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.SetSessionRetentionPolicyRequest.
+ * Use `create(SetSessionRetentionPolicyRequestSchema)` to create a new message.
+ */
+export const SetSessionRetentionPolicyRequestSchema: GenMessage<SetSessionRetentionPolicyRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 51);
 
 /**
@@ -1655,6 +1655,42 @@ export const ModelInfoWarningCodeSchema: GenEnum<ModelInfoWarningCode> = /*@__PU
   enumDesc(file_xiaowei_agent, 1);
 
 /**
+ * @generated from enum xiaowei.agent.AgentRunStatus
+ */
+export enum AgentRunStatus {
+  /**
+   * @generated from enum value: AGENT_RUN_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: AGENT_RUN_STATUS_IN_PROGRESS = 1;
+   */
+  IN_PROGRESS = 1,
+
+  /**
+   * @generated from enum value: AGENT_RUN_STATUS_COMPLETED = 2;
+   */
+  COMPLETED = 2,
+
+  /**
+   * @generated from enum value: AGENT_RUN_STATUS_FAILED = 3;
+   */
+  FAILED = 3,
+
+  /**
+   * @generated from enum value: AGENT_RUN_STATUS_INTERRUPTED = 4;
+   */
+  INTERRUPTED = 4,
+}
+
+/**
+ * Describes the enum xiaowei.agent.AgentRunStatus.
+ */
+export const AgentRunStatusSchema: GenEnum<AgentRunStatus> = /*@__PURE__*/
+  enumDesc(file_xiaowei_agent, 2);
+
+/**
  * @generated from enum xiaowei.agent.DeleteSessionStatus
  */
 export enum DeleteSessionStatus {
@@ -1690,42 +1726,6 @@ export enum DeleteSessionStatus {
  * Describes the enum xiaowei.agent.DeleteSessionStatus.
  */
 export const DeleteSessionStatusSchema: GenEnum<DeleteSessionStatus> = /*@__PURE__*/
-  enumDesc(file_xiaowei_agent, 2);
-
-/**
- * @generated from enum xiaowei.agent.AgentRunStatus
- */
-export enum AgentRunStatus {
-  /**
-   * @generated from enum value: AGENT_RUN_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: AGENT_RUN_STATUS_IN_PROGRESS = 1;
-   */
-  IN_PROGRESS = 1,
-
-  /**
-   * @generated from enum value: AGENT_RUN_STATUS_COMPLETED = 2;
-   */
-  COMPLETED = 2,
-
-  /**
-   * @generated from enum value: AGENT_RUN_STATUS_FAILED = 3;
-   */
-  FAILED = 3,
-
-  /**
-   * @generated from enum value: AGENT_RUN_STATUS_INTERRUPTED = 4;
-   */
-  INTERRUPTED = 4,
-}
-
-/**
- * Describes the enum xiaowei.agent.AgentRunStatus.
- */
-export const AgentRunStatusSchema: GenEnum<AgentRunStatus> = /*@__PURE__*/
   enumDesc(file_xiaowei_agent, 3);
 
 /**

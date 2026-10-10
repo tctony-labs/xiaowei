@@ -4,6 +4,15 @@ package xiaowei.server.common;
 
 import "xiaowei/common.proto";
 
+service Health {
+  // No login required. Success means the server process can respond.
+  rpc Check(xiaowei.common.Empty) returns (BaseResponse);
+
+  // No login required. Probes database availability for up to two seconds.
+  // Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
+  rpc Ready(xiaowei.common.Empty) returns (BaseResponse);
+}
+
 // Common error codes occupy 10000-10099; zero means success.
 enum ErrorCode {
   ERROR_CODE_SUCCESS = 0;
@@ -26,13 +35,4 @@ message BaseResponse {
   int32 code = 1;
   // Safe human-readable description. Clients must not parse this to classify errors.
   string msg = 2;
-}
-
-service Health {
-  // No login required. Success means the server process can respond.
-  rpc Check(xiaowei.common.Empty) returns (BaseResponse);
-
-  // No login required. Probes database availability for up to two seconds.
-  // Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
-  rpc Ready(xiaowei.common.Empty) returns (BaseResponse);
 }

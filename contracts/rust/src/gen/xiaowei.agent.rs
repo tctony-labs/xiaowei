@@ -20,6 +20,156 @@ impl ::prost::Name for AgentModelConfig {
         "/xiaowei.agent.AgentModelConfig".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ModelInfoWarning {
+    #[prost(string, tag = "1")]
+    pub model_ref: ::prost::alloc::string::String,
+    #[prost(enumeration = "ModelInfoWarningCode", tag = "2")]
+    pub code: i32,
+}
+impl ::prost::Name for ModelInfoWarning {
+    const NAME: &'static str = "ModelInfoWarning";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ModelInfoWarning".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ModelInfoWarning".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentUserInput {
+    #[prost(oneof = "agent_user_input::Content", tags = "1")]
+    pub content: ::core::option::Option<agent_user_input::Content>,
+}
+/// Nested message and enum types in `AgentUserInput`.
+pub mod agent_user_input {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Content {
+        /// MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
+        #[prost(string, tag = "1")]
+        Text(::prost::alloc::string::String),
+    }
+}
+impl ::prost::Name for AgentUserInput {
+    const NAME: &'static str = "AgentUserInput";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentUserInput".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentUserInput".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AgentUserMessage {
+    #[prost(message, repeated, tag = "1")]
+    pub content: ::prost::alloc::vec::Vec<AgentUserInput>,
+}
+impl ::prost::Name for AgentUserMessage {
+    const NAME: &'static str = "AgentUserMessage";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentUserMessage".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentUserMessage".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentMessage {
+    #[prost(string, tag = "1")]
+    pub text: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AgentMessage {
+    const NAME: &'static str = "AgentMessage";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentMessage".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentMessage".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentReasoning {
+    #[prost(string, tag = "1")]
+    pub text: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AgentReasoning {
+    const NAME: &'static str = "AgentReasoning";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentReasoning".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentReasoning".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AgentItem {
+    #[prost(string, tag = "1")]
+    pub item_id: ::prost::alloc::string::String,
+    #[prost(oneof = "agent_item::Content", tags = "2, 3, 4")]
+    pub content: ::core::option::Option<agent_item::Content>,
+}
+/// Nested message and enum types in `AgentItem`.
+pub mod agent_item {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Content {
+        #[prost(message, tag = "2")]
+        UserMessage(super::AgentUserMessage),
+        #[prost(message, tag = "3")]
+        AgentMessage(super::AgentMessage),
+        #[prost(message, tag = "4")]
+        Reasoning(super::AgentReasoning),
+    }
+}
+impl ::prost::Name for AgentItem {
+    const NAME: &'static str = "AgentItem";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentItem".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentItem".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AgentRun {
+    #[prost(string, tag = "1")]
+    pub run_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub input_id: ::prost::alloc::string::String,
+    #[prost(enumeration = "AgentRunStatus", tag = "3")]
+    pub status: i32,
+    #[prost(message, optional, tag = "4")]
+    pub config: ::core::option::Option<AgentModelConfig>,
+    #[prost(message, repeated, tag = "5")]
+    pub items: ::prost::alloc::vec::Vec<AgentItem>,
+    #[prost(int64, tag = "6")]
+    pub started_at_ms: i64,
+    /// Absent while running; present for every terminal state.
+    #[prost(int64, optional, tag = "7")]
+    pub completed_at_ms: ::core::option::Option<i64>,
+    /// Safe display message for failed runs only; no raw provider error/credentials.
+    #[prost(string, optional, tag = "8")]
+    pub error: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, tag = "9")]
+    pub provider_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "10")]
+    pub model_name: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AgentRun {
+    const NAME: &'static str = "AgentRun";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentRun".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentRun".into()
+    }
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentSession {
     #[prost(string, tag = "1")]
@@ -76,57 +226,25 @@ impl ::prost::Name for AgentSession {
         "/xiaowei.agent.AgentSession".into()
     }
 }
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ModelInfoWarning {
-    #[prost(string, tag = "1")]
-    pub model_ref: ::prost::alloc::string::String,
-    #[prost(enumeration = "ModelInfoWarningCode", tag = "2")]
-    pub code: i32,
-}
-impl ::prost::Name for ModelInfoWarning {
-    const NAME: &'static str = "ModelInfoWarning";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.ModelInfoWarning".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.ModelInfoWarning".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetSessionConfigRequest {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    /// Required full selection. Absent reasoning delegates to model defaults.
-    #[prost(message, optional, tag = "2")]
-    pub config: ::core::option::Option<AgentModelConfig>,
-    #[prost(uint64, tag = "3")]
-    pub expected_metadata_revision: u64,
-}
-impl ::prost::Name for SetSessionConfigRequest {
-    const NAME: &'static str = "SetSessionConfigRequest";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SetSessionConfigRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SetSessionConfigRequest".into()
-    }
-}
+/// Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetSessionConfigResponse {
-    /// Acknowledgement only; never replace a live subscription with this response.
-    #[prost(uint64, tag = "1")]
-    pub metadata_revision: u64,
+pub struct SessionRetentionPolicy {
+    /// Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
+    #[prost(uint32, tag = "1")]
+    pub archive_after_days: u32,
+    /// Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
+    /// based on last activity, not time archived. Restoring bumps last activity.
+    #[prost(uint32, tag = "2")]
+    pub delete_after_days: u32,
 }
-impl ::prost::Name for SetSessionConfigResponse {
-    const NAME: &'static str = "SetSessionConfigResponse";
+impl ::prost::Name for SessionRetentionPolicy {
+    const NAME: &'static str = "SessionRetentionPolicy";
     const PACKAGE: &'static str = "xiaowei.agent";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SetSessionConfigResponse".into()
+        "xiaowei.agent.SessionRetentionPolicy".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SetSessionConfigResponse".into()
+        "/xiaowei.agent.SessionRetentionPolicy".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -192,25 +310,6 @@ impl ::prost::Name for ListSessionsRequest {
         "/xiaowei.agent.ListSessionsRequest".into()
     }
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ListSessionsResponse {
-    /// Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
-    /// this point-in-time list never replaces a SubscribeSession projection.
-    #[prost(message, repeated, tag = "1")]
-    pub sessions: ::prost::alloc::vec::Vec<AgentSessionSummary>,
-    #[prost(string, tag = "2")]
-    pub continuation: ::prost::alloc::string::String,
-}
-impl ::prost::Name for ListSessionsResponse {
-    const NAME: &'static str = "ListSessionsResponse";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.ListSessionsResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.ListSessionsResponse".into()
-    }
-}
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AgentSessionSummary {
     #[prost(string, tag = "1")]
@@ -243,6 +342,25 @@ impl ::prost::Name for AgentSessionSummary {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.AgentSessionSummary".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListSessionsResponse {
+    /// Registered sessions, ordered by updated_at_ms then ID descending. Refresh on menu open;
+    /// this point-in-time list never replaces a SubscribeSession projection.
+    #[prost(message, repeated, tag = "1")]
+    pub sessions: ::prost::alloc::vec::Vec<AgentSessionSummary>,
+    #[prost(string, tag = "2")]
+    pub continuation: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ListSessionsResponse {
+    const NAME: &'static str = "ListSessionsResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ListSessionsResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ListSessionsResponse".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -281,6 +399,42 @@ impl ::prost::Name for ReadSessionResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.ReadSessionResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetSessionConfigRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Required full selection. Absent reasoning delegates to model defaults.
+    #[prost(message, optional, tag = "2")]
+    pub config: ::core::option::Option<AgentModelConfig>,
+    #[prost(uint64, tag = "3")]
+    pub expected_metadata_revision: u64,
+}
+impl ::prost::Name for SetSessionConfigRequest {
+    const NAME: &'static str = "SetSessionConfigRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.SetSessionConfigRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.SetSessionConfigRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetSessionConfigResponse {
+    /// Acknowledgement only; never replace a live subscription with this response.
+    #[prost(uint64, tag = "1")]
+    pub metadata_revision: u64,
+}
+impl ::prost::Name for SetSessionConfigResponse {
+    const NAME: &'static str = "SetSessionConfigResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.SetSessionConfigResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.SetSessionConfigResponse".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -361,25 +515,6 @@ impl ::prost::Name for SetSessionArchivedResponse {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SessionArchivedUpdated {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    #[prost(bool, tag = "2")]
-    pub archived: bool,
-    #[prost(uint64, tag = "3")]
-    pub archive_revision: u64,
-}
-impl ::prost::Name for SessionArchivedUpdated {
-    const NAME: &'static str = "SessionArchivedUpdated";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SessionArchivedUpdated".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SessionArchivedUpdated".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionTarget {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
@@ -456,255 +591,6 @@ impl ::prost::Name for DeleteSessionResponse {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RegenerateTitleRequest {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    /// Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
-    #[prost(string, tag = "2")]
-    pub title_model_ref: ::prost::alloc::string::String,
-}
-impl ::prost::Name for RegenerateTitleRequest {
-    const NAME: &'static str = "RegenerateTitleRequest";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.RegenerateTitleRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.RegenerateTitleRequest".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct RegenerateTitleResponse {
-    #[prost(string, tag = "1")]
-    pub title: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "2")]
-    pub metadata_revision: u64,
-}
-impl ::prost::Name for RegenerateTitleResponse {
-    const NAME: &'static str = "RegenerateTitleResponse";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.RegenerateTitleResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.RegenerateTitleResponse".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct AgentUserInput {
-    #[prost(oneof = "agent_user_input::Content", tags = "1")]
-    pub content: ::core::option::Option<agent_user_input::Content>,
-}
-/// Nested message and enum types in `AgentUserInput`.
-pub mod agent_user_input {
-    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
-    pub enum Content {
-        /// MVP supports text only. Nonblank UTF-8; request total <= 64 KiB.
-        #[prost(string, tag = "1")]
-        Text(::prost::alloc::string::String),
-    }
-}
-impl ::prost::Name for AgentUserInput {
-    const NAME: &'static str = "AgentUserInput";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentUserInput".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentUserInput".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StartRunRequest {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    /// Stable input identity for correlation and idempotency; same ID with different
-    /// input/config conflicts. A lost response does not authorize a fresh ID retry.
-    #[prost(string, tag = "2")]
-    pub input_id: ::prost::alloc::string::String,
-    /// Required, 1..64 text entries, ordered and preserved without trimming.
-    #[prost(message, repeated, tag = "3")]
-    pub input: ::prost::alloc::vec::Vec<AgentUserInput>,
-    /// Absent inherits session defaults. Present overrides this run only.
-    /// Persist session defaults independently through SetSessionConfig.
-    #[prost(message, optional, tag = "4")]
-    pub config: ::core::option::Option<AgentModelConfig>,
-    /// Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
-    #[prost(string, optional, tag = "5")]
-    pub title_model_ref: ::core::option::Option<::prost::alloc::string::String>,
-}
-impl ::prost::Name for StartRunRequest {
-    const NAME: &'static str = "StartRunRequest";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.StartRunRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.StartRunRequest".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StartRunResponse {
-    /// Acceptance, not completion. Same run is also announced by RunStarted.
-    #[prost(message, optional, tag = "1")]
-    pub run: ::core::option::Option<AgentRun>,
-}
-impl ::prost::Name for StartRunResponse {
-    const NAME: &'static str = "StartRunResponse";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.StartRunResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.StartRunResponse".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct InterruptRunRequest {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    /// Targets exactly this run; a stale request must not interrupt a newer run.
-    #[prost(string, tag = "2")]
-    pub run_id: ::prost::alloc::string::String,
-}
-impl ::prost::Name for InterruptRunRequest {
-    const NAME: &'static str = "InterruptRunRequest";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.InterruptRunRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.InterruptRunRequest".into()
-    }
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct InterruptRunResponse {
-    #[prost(bool, tag = "1")]
-    pub found: bool,
-    /// Acknowledges cancellation only. Await RunCompleted for final status.
-    #[prost(bool, tag = "2")]
-    pub cancellation_requested: bool,
-}
-impl ::prost::Name for InterruptRunResponse {
-    const NAME: &'static str = "InterruptRunResponse";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.InterruptRunResponse".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.InterruptRunResponse".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AgentRun {
-    #[prost(string, tag = "1")]
-    pub run_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub input_id: ::prost::alloc::string::String,
-    #[prost(enumeration = "AgentRunStatus", tag = "3")]
-    pub status: i32,
-    #[prost(message, optional, tag = "4")]
-    pub config: ::core::option::Option<AgentModelConfig>,
-    #[prost(message, repeated, tag = "5")]
-    pub items: ::prost::alloc::vec::Vec<AgentItem>,
-    #[prost(int64, tag = "6")]
-    pub started_at_ms: i64,
-    /// Absent while running; present for every terminal state.
-    #[prost(int64, optional, tag = "7")]
-    pub completed_at_ms: ::core::option::Option<i64>,
-    /// Safe display message for failed runs only; no raw provider error/credentials.
-    #[prost(string, optional, tag = "8")]
-    pub error: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(string, tag = "9")]
-    pub provider_name: ::prost::alloc::string::String,
-    #[prost(string, tag = "10")]
-    pub model_name: ::prost::alloc::string::String,
-}
-impl ::prost::Name for AgentRun {
-    const NAME: &'static str = "AgentRun";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentRun".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentRun".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AgentItem {
-    #[prost(string, tag = "1")]
-    pub item_id: ::prost::alloc::string::String,
-    #[prost(oneof = "agent_item::Content", tags = "2, 3, 4")]
-    pub content: ::core::option::Option<agent_item::Content>,
-}
-/// Nested message and enum types in `AgentItem`.
-pub mod agent_item {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Content {
-        #[prost(message, tag = "2")]
-        UserMessage(super::AgentUserMessage),
-        #[prost(message, tag = "3")]
-        AgentMessage(super::AgentMessage),
-        #[prost(message, tag = "4")]
-        Reasoning(super::AgentReasoning),
-    }
-}
-impl ::prost::Name for AgentItem {
-    const NAME: &'static str = "AgentItem";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentItem".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentItem".into()
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AgentUserMessage {
-    #[prost(message, repeated, tag = "1")]
-    pub content: ::prost::alloc::vec::Vec<AgentUserInput>,
-}
-impl ::prost::Name for AgentUserMessage {
-    const NAME: &'static str = "AgentUserMessage";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentUserMessage".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentUserMessage".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct AgentMessage {
-    #[prost(string, tag = "1")]
-    pub text: ::prost::alloc::string::String,
-}
-impl ::prost::Name for AgentMessage {
-    const NAME: &'static str = "AgentMessage";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentMessage".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentMessage".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct AgentReasoning {
-    #[prost(string, tag = "1")]
-    pub text: ::prost::alloc::string::String,
-}
-impl ::prost::Name for AgentReasoning {
-    const NAME: &'static str = "AgentReasoning";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentReasoning".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentReasoning".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SubscribeSessionRequest {
     /// Required canonical UUIDv7. Observes exactly this session; missing/invalid
     /// IDs are invalid-argument, unknown/deleted sessions are not-found.
@@ -720,63 +606,6 @@ impl ::prost::Name for SubscribeSessionRequest {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.SubscribeSessionRequest".into()
-    }
-}
-/// Ordered direct notifications. SubscriptionReady contains a snapshot captured
-/// atomically with observer registration. Following frames contain only changes
-/// after that snapshot; apply them once in order. No resumable event cursor.
-/// Control RPC responses confirm operations; do not replace the live cache with
-/// their session/run snapshots, which may arrive after newer stream events.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AgentEvent {
-    #[prost(int64, tag = "1")]
-    pub emitted_at_ms: i64,
-    #[prost(
-        oneof = "agent_event::Payload",
-        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14"
-    )]
-    pub payload: ::core::option::Option<agent_event::Payload>,
-}
-/// Nested message and enum types in `AgentEvent`.
-pub mod agent_event {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Payload {
-        #[prost(message, tag = "2")]
-        SessionStarted(super::SessionStarted),
-        #[prost(message, tag = "3")]
-        SessionDeleted(super::SessionDeleted),
-        #[prost(message, tag = "4")]
-        RunStarted(super::RunStarted),
-        #[prost(message, tag = "5")]
-        RunCompleted(super::RunCompleted),
-        #[prost(message, tag = "6")]
-        ItemStarted(super::ItemStarted),
-        #[prost(message, tag = "7")]
-        ItemCompleted(super::ItemCompleted),
-        #[prost(message, tag = "8")]
-        AgentMessageDelta(super::AgentMessageDelta),
-        #[prost(message, tag = "9")]
-        ReasoningDelta(super::ReasoningDelta),
-        #[prost(message, tag = "10")]
-        SubscriptionReady(super::SubscriptionReady),
-        #[prost(message, tag = "11")]
-        SessionTitleUpdated(super::SessionTitleUpdated),
-        #[prost(message, tag = "12")]
-        SessionConfigUpdated(super::SessionConfigUpdated),
-        #[prost(message, tag = "13")]
-        SessionModelInfoWarningUpdated(super::SessionModelInfoWarningUpdated),
-        #[prost(message, tag = "14")]
-        SessionArchivedUpdated(super::SessionArchivedUpdated),
-    }
-}
-impl ::prost::Name for AgentEvent {
-    const NAME: &'static str = "AgentEvent";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.AgentEvent".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.AgentEvent".into()
     }
 }
 /// First frame: full public state of the requested session, including retained
@@ -850,33 +679,6 @@ impl ::prost::Name for RunStarted {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.RunStarted".into()
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SessionTitleUpdated {
-    #[prost(string, tag = "1")]
-    pub session_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub title: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "3")]
-    pub metadata_revision: u64,
-    #[prost(string, tag = "4")]
-    pub title_model_ref: ::prost::alloc::string::String,
-    /// Committed automatic-title flag, synchronized with the title.
-    #[prost(bool, tag = "5")]
-    pub auto_title_enabled: bool,
-    /// Committed activity time. Manual title changes advance it; automatic generation preserves it.
-    #[prost(int64, tag = "6")]
-    pub updated_at_ms: i64,
-}
-impl ::prost::Name for SessionTitleUpdated {
-    const NAME: &'static str = "SessionTitleUpdated";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SessionTitleUpdated".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SessionTitleUpdated".into()
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -980,6 +782,33 @@ impl ::prost::Name for ReasoningDelta {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SessionTitleUpdated {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub metadata_revision: u64,
+    #[prost(string, tag = "4")]
+    pub title_model_ref: ::prost::alloc::string::String,
+    /// Committed automatic-title flag, synchronized with the title.
+    #[prost(bool, tag = "5")]
+    pub auto_title_enabled: bool,
+    /// Committed activity time. Manual title changes advance it; automatic generation preserves it.
+    #[prost(int64, tag = "6")]
+    pub updated_at_ms: i64,
+}
+impl ::prost::Name for SessionTitleUpdated {
+    const NAME: &'static str = "SessionTitleUpdated";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.SessionTitleUpdated".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.SessionTitleUpdated".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SessionConfigUpdated {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
@@ -1024,53 +853,80 @@ impl ::prost::Name for SessionModelInfoWarningUpdated {
         "/xiaowei.agent.SessionModelInfoWarningUpdated".into()
     }
 }
-/// Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SessionRetentionPolicy {
-    /// Allowed: 1, 3, 7, 15. Age is measured from last activity (updated_at_ms).
-    #[prost(uint32, tag = "1")]
-    pub archive_after_days: u32,
-    /// Allowed: 0 (off), 30, 90, 180, 365. Only archived sessions are deleted,
-    /// based on last activity, not time archived. Restoring bumps last activity.
-    #[prost(uint32, tag = "2")]
-    pub delete_after_days: u32,
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SessionArchivedUpdated {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub archived: bool,
+    #[prost(uint64, tag = "3")]
+    pub archive_revision: u64,
 }
-impl ::prost::Name for SessionRetentionPolicy {
-    const NAME: &'static str = "SessionRetentionPolicy";
+impl ::prost::Name for SessionArchivedUpdated {
+    const NAME: &'static str = "SessionArchivedUpdated";
     const PACKAGE: &'static str = "xiaowei.agent";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SessionRetentionPolicy".into()
+        "xiaowei.agent.SessionArchivedUpdated".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SessionRetentionPolicy".into()
+        "/xiaowei.agent.SessionArchivedUpdated".into()
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetSessionRetentionPolicyRequest {}
-impl ::prost::Name for GetSessionRetentionPolicyRequest {
-    const NAME: &'static str = "GetSessionRetentionPolicyRequest";
+/// Ordered direct notifications. SubscriptionReady contains a snapshot captured
+/// atomically with observer registration. Following frames contain only changes
+/// after that snapshot; apply them once in order. No resumable event cursor.
+/// Control RPC responses confirm operations; do not replace the live cache with
+/// their session/run snapshots, which may arrive after newer stream events.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AgentEvent {
+    #[prost(int64, tag = "1")]
+    pub emitted_at_ms: i64,
+    #[prost(
+        oneof = "agent_event::Payload",
+        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14"
+    )]
+    pub payload: ::core::option::Option<agent_event::Payload>,
+}
+/// Nested message and enum types in `AgentEvent`.
+pub mod agent_event {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Payload {
+        #[prost(message, tag = "2")]
+        SessionStarted(super::SessionStarted),
+        #[prost(message, tag = "3")]
+        SessionDeleted(super::SessionDeleted),
+        #[prost(message, tag = "4")]
+        RunStarted(super::RunStarted),
+        #[prost(message, tag = "5")]
+        RunCompleted(super::RunCompleted),
+        #[prost(message, tag = "6")]
+        ItemStarted(super::ItemStarted),
+        #[prost(message, tag = "7")]
+        ItemCompleted(super::ItemCompleted),
+        #[prost(message, tag = "8")]
+        AgentMessageDelta(super::AgentMessageDelta),
+        #[prost(message, tag = "9")]
+        ReasoningDelta(super::ReasoningDelta),
+        #[prost(message, tag = "10")]
+        SubscriptionReady(super::SubscriptionReady),
+        #[prost(message, tag = "11")]
+        SessionTitleUpdated(super::SessionTitleUpdated),
+        #[prost(message, tag = "12")]
+        SessionConfigUpdated(super::SessionConfigUpdated),
+        #[prost(message, tag = "13")]
+        SessionModelInfoWarningUpdated(super::SessionModelInfoWarningUpdated),
+        #[prost(message, tag = "14")]
+        SessionArchivedUpdated(super::SessionArchivedUpdated),
+    }
+}
+impl ::prost::Name for AgentEvent {
+    const NAME: &'static str = "AgentEvent";
     const PACKAGE: &'static str = "xiaowei.agent";
     fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.GetSessionRetentionPolicyRequest".into()
+        "xiaowei.agent.AgentEvent".into()
     }
     fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.GetSessionRetentionPolicyRequest".into()
-    }
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetSessionRetentionPolicyRequest {
-    /// Required full policy. Invalid/missing values leave the old policy unchanged.
-    #[prost(message, optional, tag = "1")]
-    pub policy: ::core::option::Option<SessionRetentionPolicy>,
-}
-impl ::prost::Name for SetSessionRetentionPolicyRequest {
-    const NAME: &'static str = "SetSessionRetentionPolicyRequest";
-    const PACKAGE: &'static str = "xiaowei.agent";
-    fn full_name() -> ::prost::alloc::string::String {
-        "xiaowei.agent.SetSessionRetentionPolicyRequest".into()
-    }
-    fn type_url() -> ::prost::alloc::string::String {
-        "/xiaowei.agent.SetSessionRetentionPolicyRequest".into()
+        "/xiaowei.agent.AgentEvent".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1099,6 +955,150 @@ impl ::prost::Name for SessionViewingReady {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.SessionViewingReady".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StartRunRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Stable input identity for correlation and idempotency; same ID with different
+    /// input/config conflicts. A lost response does not authorize a fresh ID retry.
+    #[prost(string, tag = "2")]
+    pub input_id: ::prost::alloc::string::String,
+    /// Required, 1..64 text entries, ordered and preserved without trimming.
+    #[prost(message, repeated, tag = "3")]
+    pub input: ::prost::alloc::vec::Vec<AgentUserInput>,
+    /// Absent inherits session defaults. Present overrides this run only.
+    /// Persist session defaults independently through SetSessionConfig.
+    #[prost(message, optional, tag = "4")]
+    pub config: ::core::option::Option<AgentModelConfig>,
+    /// Deprecated and ignored. Auxiliary selection is obtained from AgentHost per task.
+    #[prost(string, optional, tag = "5")]
+    pub title_model_ref: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for StartRunRequest {
+    const NAME: &'static str = "StartRunRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.StartRunRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.StartRunRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StartRunResponse {
+    /// Acceptance, not completion. Same run is also announced by RunStarted.
+    #[prost(message, optional, tag = "1")]
+    pub run: ::core::option::Option<AgentRun>,
+}
+impl ::prost::Name for StartRunResponse {
+    const NAME: &'static str = "StartRunResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.StartRunResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.StartRunResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InterruptRunRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Targets exactly this run; a stale request must not interrupt a newer run.
+    #[prost(string, tag = "2")]
+    pub run_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for InterruptRunRequest {
+    const NAME: &'static str = "InterruptRunRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InterruptRunRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InterruptRunRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InterruptRunResponse {
+    #[prost(bool, tag = "1")]
+    pub found: bool,
+    /// Acknowledges cancellation only. Await RunCompleted for final status.
+    #[prost(bool, tag = "2")]
+    pub cancellation_requested: bool,
+}
+impl ::prost::Name for InterruptRunResponse {
+    const NAME: &'static str = "InterruptRunResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InterruptRunResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InterruptRunResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegenerateTitleRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Deprecated and ignored. AgentHost chooses the current auxiliary model per task.
+    #[prost(string, tag = "2")]
+    pub title_model_ref: ::prost::alloc::string::String,
+}
+impl ::prost::Name for RegenerateTitleRequest {
+    const NAME: &'static str = "RegenerateTitleRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.RegenerateTitleRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.RegenerateTitleRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RegenerateTitleResponse {
+    #[prost(string, tag = "1")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "2")]
+    pub metadata_revision: u64,
+}
+impl ::prost::Name for RegenerateTitleResponse {
+    const NAME: &'static str = "RegenerateTitleResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.RegenerateTitleResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.RegenerateTitleResponse".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetSessionRetentionPolicyRequest {}
+impl ::prost::Name for GetSessionRetentionPolicyRequest {
+    const NAME: &'static str = "GetSessionRetentionPolicyRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.GetSessionRetentionPolicyRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.GetSessionRetentionPolicyRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetSessionRetentionPolicyRequest {
+    /// Required full policy. Invalid/missing values leave the old policy unchanged.
+    #[prost(message, optional, tag = "1")]
+    pub policy: ::core::option::Option<SessionRetentionPolicy>,
+}
+impl ::prost::Name for SetSessionRetentionPolicyRequest {
+    const NAME: &'static str = "SetSessionRetentionPolicyRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.SetSessionRetentionPolicyRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.SetSessionRetentionPolicyRequest".into()
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -1167,6 +1167,41 @@ impl ModelInfoWarningCode {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
+pub enum AgentRunStatus {
+    Unspecified = 0,
+    InProgress = 1,
+    Completed = 2,
+    Failed = 3,
+    Interrupted = 4,
+}
+impl AgentRunStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_RUN_STATUS_UNSPECIFIED",
+            Self::InProgress => "AGENT_RUN_STATUS_IN_PROGRESS",
+            Self::Completed => "AGENT_RUN_STATUS_COMPLETED",
+            Self::Failed => "AGENT_RUN_STATUS_FAILED",
+            Self::Interrupted => "AGENT_RUN_STATUS_INTERRUPTED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_RUN_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_RUN_STATUS_IN_PROGRESS" => Some(Self::InProgress),
+            "AGENT_RUN_STATUS_COMPLETED" => Some(Self::Completed),
+            "AGENT_RUN_STATUS_FAILED" => Some(Self::Failed),
+            "AGENT_RUN_STATUS_INTERRUPTED" => Some(Self::Interrupted),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
 pub enum DeleteSessionStatus {
     Unspecified = 0,
     Deleted = 1,
@@ -1197,41 +1232,6 @@ impl DeleteSessionStatus {
             "DELETE_SESSION_STATUS_SKIPPED" => Some(Self::Skipped),
             "DELETE_SESSION_STATUS_FAILED" => Some(Self::Failed),
             "DELETE_SESSION_STATUS_NOT_EXECUTED" => Some(Self::NotExecuted),
-            _ => None,
-        }
-    }
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum AgentRunStatus {
-    Unspecified = 0,
-    InProgress = 1,
-    Completed = 2,
-    Failed = 3,
-    Interrupted = 4,
-}
-impl AgentRunStatus {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "AGENT_RUN_STATUS_UNSPECIFIED",
-            Self::InProgress => "AGENT_RUN_STATUS_IN_PROGRESS",
-            Self::Completed => "AGENT_RUN_STATUS_COMPLETED",
-            Self::Failed => "AGENT_RUN_STATUS_FAILED",
-            Self::Interrupted => "AGENT_RUN_STATUS_INTERRUPTED",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "AGENT_RUN_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
-            "AGENT_RUN_STATUS_IN_PROGRESS" => Some(Self::InProgress),
-            "AGENT_RUN_STATUS_COMPLETED" => Some(Self::Completed),
-            "AGENT_RUN_STATUS_FAILED" => Some(Self::Failed),
-            "AGENT_RUN_STATUS_INTERRUPTED" => Some(Self::Interrupted),
             _ => None,
         }
     }

@@ -4,6 +4,12 @@ package xiaowei.storage;
 
 import "xiaowei/common.proto";
 
+service Settings {
+  rpc Get(xiaowei.common.Empty) returns (SettingsSnapshot);
+
+  rpc Update(UpdateSettingsRequest) returns (SettingsSnapshot);
+}
+
 enum ThemeMode {
   THEME_MODE_UNSPECIFIED = 0;
   THEME_MODE_SYSTEM = 1;
@@ -34,6 +40,11 @@ message SettingsSnapshot {
   int32 clipboard_retention_days = 7;
 }
 
+message SettingsChanged {
+  // Complete committed state; consumers subscribe before loading their initial snapshot.
+  SettingsSnapshot snapshot = 1;
+}
+
 message UpdateSettingsRequest {
   // Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
   oneof change {
@@ -45,15 +56,4 @@ message UpdateSettingsRequest {
     bool clipboard_auto_paste = 6;
     int32 clipboard_retention_days = 7;
   }
-}
-
-message SettingsChanged {
-  // Complete committed state; consumers subscribe before loading their initial snapshot.
-  SettingsSnapshot snapshot = 1;
-}
-
-service Settings {
-  rpc Get(xiaowei.common.Empty) returns (SettingsSnapshot);
-
-  rpc Update(UpdateSettingsRequest) returns (SettingsSnapshot);
 }

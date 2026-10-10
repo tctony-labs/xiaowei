@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/settings.proto.
  */
 export const file_xiaowei_settings: GenFile = /*@__PURE__*/
-  fileDesc("ChZ4aWFvd2VpL3NldHRpbmdzLnByb3RvEg94aWFvd2VpLnN0b3JhZ2UiHwoPU2hvcnRjdXRCaW5kaW5nEgwKBGtleXMYASADKAkisgEKFVNob3J0Y3V0Q29uZmlndXJhdGlvbhIuCgRtYWluGAEgASgLMiAueGlhb3dlaS5zdG9yYWdlLlNob3J0Y3V0QmluZGluZxIzCgljbGlwYm9hcmQYAiABKAsyIC54aWFvd2VpLnN0b3JhZ2UuU2hvcnRjdXRCaW5kaW5nEjQKCnF1aWNrX2NoYXQYAyABKAsyIC54aWFvd2VpLnN0b3JhZ2UuU2hvcnRjdXRCaW5kaW5nIogCChBTZXR0aW5nc1NuYXBzaG90EikKBXRoZW1lGAEgASgOMhoueGlhb3dlaS5zdG9yYWdlLlRoZW1lTW9kZRIRCglhdXRvc3RhcnQYAiABKAgSIAoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgIEjkKCXNob3J0Y3V0cxgEIAEoCzImLnhpYW93ZWkuc3RvcmFnZS5TaG9ydGN1dENvbmZpZ3VyYXRpb24SGQoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAgSHAoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAgSIAoYY2xpcGJvYXJkX3JldGVudGlvbl9kYXlzGAcgASgFIqUCChVVcGRhdGVTZXR0aW5nc1JlcXVlc3QSKwoFdGhlbWUYASABKA4yGi54aWFvd2VpLnN0b3JhZ2UuVGhlbWVNb2RlSAASEwoJYXV0b3N0YXJ0GAIgASgISAASIgoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgISAASOwoJc2hvcnRjdXRzGAQgASgLMiYueGlhb3dlaS5zdG9yYWdlLlNob3J0Y3V0Q29uZmlndXJhdGlvbkgAEhsKEWNsaXBib2FyZF9lbmFibGVkGAUgASgISAASHgoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAhIABIiChhjbGlwYm9hcmRfcmV0ZW50aW9uX2RheXMYByABKAVIAEIICgZjaGFuZ2UiRgoPU2V0dGluZ3NDaGFuZ2VkEjMKCHNuYXBzaG90GAEgASgLMiEueGlhb3dlaS5zdG9yYWdlLlNldHRpbmdzU25hcHNob3QqaQoJVGhlbWVNb2RlEhoKFlRIRU1FX01PREVfVU5TUEVDSUZJRUQQABIVChFUSEVNRV9NT0RFX1NZU1RFTRABEhQKEFRIRU1FX01PREVfTElHSFQQAhITCg9USEVNRV9NT0RFX0RBUksQAzKgAQoIU2V0dGluZ3MSPwoDR2V0EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIS54aWFvd2VpLnN0b3JhZ2UuU2V0dGluZ3NTbmFwc2hvdBJTCgZVcGRhdGUSJi54aWFvd2VpLnN0b3JhZ2UuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0GiEueGlhb3dlaS5zdG9yYWdlLlNldHRpbmdzU25hcHNob3RiBnByb3RvMw", [file_xiaowei_common]);
+  fileDesc("ChZ4aWFvd2VpL3NldHRpbmdzLnByb3RvEg94aWFvd2VpLnN0b3JhZ2UiHwoPU2hvcnRjdXRCaW5kaW5nEgwKBGtleXMYASADKAkisgEKFVNob3J0Y3V0Q29uZmlndXJhdGlvbhIuCgRtYWluGAEgASgLMiAueGlhb3dlaS5zdG9yYWdlLlNob3J0Y3V0QmluZGluZxIzCgljbGlwYm9hcmQYAiABKAsyIC54aWFvd2VpLnN0b3JhZ2UuU2hvcnRjdXRCaW5kaW5nEjQKCnF1aWNrX2NoYXQYAyABKAsyIC54aWFvd2VpLnN0b3JhZ2UuU2hvcnRjdXRCaW5kaW5nIogCChBTZXR0aW5nc1NuYXBzaG90EikKBXRoZW1lGAEgASgOMhoueGlhb3dlaS5zdG9yYWdlLlRoZW1lTW9kZRIRCglhdXRvc3RhcnQYAiABKAgSIAoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgIEjkKCXNob3J0Y3V0cxgEIAEoCzImLnhpYW93ZWkuc3RvcmFnZS5TaG9ydGN1dENvbmZpZ3VyYXRpb24SGQoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAgSHAoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAgSIAoYY2xpcGJvYXJkX3JldGVudGlvbl9kYXlzGAcgASgFIkYKD1NldHRpbmdzQ2hhbmdlZBIzCghzbmFwc2hvdBgBIAEoCzIhLnhpYW93ZWkuc3RvcmFnZS5TZXR0aW5nc1NuYXBzaG90IqUCChVVcGRhdGVTZXR0aW5nc1JlcXVlc3QSKwoFdGhlbWUYASABKA4yGi54aWFvd2VpLnN0b3JhZ2UuVGhlbWVNb2RlSAASEwoJYXV0b3N0YXJ0GAIgASgISAASIgoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgISAASOwoJc2hvcnRjdXRzGAQgASgLMiYueGlhb3dlaS5zdG9yYWdlLlNob3J0Y3V0Q29uZmlndXJhdGlvbkgAEhsKEWNsaXBib2FyZF9lbmFibGVkGAUgASgISAASHgoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAhIABIiChhjbGlwYm9hcmRfcmV0ZW50aW9uX2RheXMYByABKAVIAEIICgZjaGFuZ2UqaQoJVGhlbWVNb2RlEhoKFlRIRU1FX01PREVfVU5TUEVDSUZJRUQQABIVChFUSEVNRV9NT0RFX1NZU1RFTRABEhQKEFRIRU1FX01PREVfTElHSFQQAhITCg9USEVNRV9NT0RFX0RBUksQAzKgAQoIU2V0dGluZ3MSPwoDR2V0EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIS54aWFvd2VpLnN0b3JhZ2UuU2V0dGluZ3NTbmFwc2hvdBJTCgZVcGRhdGUSJi54aWFvd2VpLnN0b3JhZ2UuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0GiEueGlhb3dlaS5zdG9yYWdlLlNldHRpbmdzU25hcHNob3RiBnByb3RvMw", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.storage.ShortcutBinding
@@ -112,6 +112,25 @@ export const SettingsSnapshotSchema: GenMessage<SettingsSnapshot> = /*@__PURE__*
   messageDesc(file_xiaowei_settings, 2);
 
 /**
+ * @generated from message xiaowei.storage.SettingsChanged
+ */
+export type SettingsChanged = Message<"xiaowei.storage.SettingsChanged"> & {
+  /**
+   * Complete committed state; consumers subscribe before loading their initial snapshot.
+   *
+   * @generated from field: xiaowei.storage.SettingsSnapshot snapshot = 1;
+   */
+  snapshot?: SettingsSnapshot | undefined;
+};
+
+/**
+ * Describes the message xiaowei.storage.SettingsChanged.
+ * Use `create(SettingsChangedSchema)` to create a new message.
+ */
+export const SettingsChangedSchema: GenMessage<SettingsChanged> = /*@__PURE__*/
+  messageDesc(file_xiaowei_settings, 3);
+
+/**
  * @generated from message xiaowei.storage.UpdateSettingsRequest
  */
 export type UpdateSettingsRequest = Message<"xiaowei.storage.UpdateSettingsRequest"> & {
@@ -170,25 +189,6 @@ export type UpdateSettingsRequest = Message<"xiaowei.storage.UpdateSettingsReque
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_settings, 3);
-
-/**
- * @generated from message xiaowei.storage.SettingsChanged
- */
-export type SettingsChanged = Message<"xiaowei.storage.SettingsChanged"> & {
-  /**
-   * Complete committed state; consumers subscribe before loading their initial snapshot.
-   *
-   * @generated from field: xiaowei.storage.SettingsSnapshot snapshot = 1;
-   */
-  snapshot?: SettingsSnapshot | undefined;
-};
-
-/**
- * Describes the message xiaowei.storage.SettingsChanged.
- * Use `create(SettingsChangedSchema)` to create a new message.
- */
-export const SettingsChangedSchema: GenMessage<SettingsChanged> = /*@__PURE__*/
   messageDesc(file_xiaowei_settings, 4);
 
 /**

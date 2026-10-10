@@ -4,22 +4,16 @@ package xiaowei.search;
 
 import "xiaowei/common.proto";
 
+// Reusable, window-independent search and usage feedback; returns typed actions for the executor.
+// Development-only command availability comes from host initialization, not the query payload.
+service Search {
+  rpc Query(SearchRequest) returns (SearchResults);
+  rpc RecordUsage(RecordUsageRequest) returns (xiaowei.common.Empty);
+}
+
 message HighlightRange {
   uint32 start = 1;
   uint32 end = 2;
-}
-
-message SearchHit {
-  string id = 1;
-  string recency_key = 2;
-  string title = 3;
-  string provider = 4;
-  string label = 5;
-  double score = 6;
-  repeated HighlightRange ranges = 7;
-  reserved 8, 9;
-  reserved "action_type", "action_value";
-  SearchAction action = 10;
 }
 
 enum SearchCommand {
@@ -38,9 +32,17 @@ message SearchAction {
   }
 }
 
-message RecordUsageRequest {
-  // Ranking key returned by SearchHit; not necessarily the displayed result ID.
-  string recency_key = 1;
+message SearchHit {
+  string id = 1;
+  string recency_key = 2;
+  string title = 3;
+  string provider = 4;
+  string label = 5;
+  double score = 6;
+  repeated HighlightRange ranges = 7;
+  reserved 8, 9;
+  reserved "action_type", "action_value";
+  SearchAction action = 10;
 }
 
 message SearchRequest {
@@ -55,9 +57,7 @@ message SearchResults {
   repeated SearchHit hits = 1;
 }
 
-// Reusable, window-independent search and usage feedback; returns typed actions for the executor.
-// Development-only command availability comes from host initialization, not the query payload.
-service Search {
-  rpc Query(SearchRequest) returns (SearchResults);
-  rpc RecordUsage(RecordUsageRequest) returns (xiaowei.common.Empty);
+message RecordUsageRequest {
+  // Ranking key returned by SearchHit; not necessarily the displayed result ID.
+  string recency_key = 1;
 }

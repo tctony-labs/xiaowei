@@ -5,6 +5,15 @@ package xiaowei.launcher;
 import "xiaowei/common.proto";
 import "xiaowei/search.proto";
 
+// Window-bound query batches, result execution and presentation lifecycle.
+service Launcher {
+  rpc Query(LauncherQueryRequest) returns (LauncherSearchResponse);
+  rpc Execute(ResultRequest) returns (ExecuteResponse);
+  rpc Hide(xiaowei.common.Empty) returns (xiaowei.common.Empty);
+  rpc UpdateLayout(UpdateLayoutRequest) returns (xiaowei.common.Empty);
+  rpc ResetPosition(xiaowei.common.Empty) returns (xiaowei.common.Empty);
+}
+
 enum LauncherMode {
   LAUNCHER_MODE_UNSPECIFIED = 0;
   LAUNCHER_MODE_SEARCH = 1;
@@ -13,14 +22,13 @@ enum LauncherMode {
   LAUNCHER_MODE_QUICK_CHAT = 3;
 }
 
-message LauncherQueryRequest {
-  string query = 1;
+message LauncherOpened {
+  reserved 1;
+  LauncherMode mode = 2;
 }
 
-message LauncherSearchResponse {
-  uint32 token = 1;
-  reserved 2;
-  repeated LauncherHit hits = 3;
+message LauncherQueryRequest {
+  string query = 1;
 }
 
 // Display-only result. Actions and application paths remain with the host.
@@ -33,6 +41,12 @@ message LauncherHit {
   repeated xiaowei.search.HighlightRange ranges = 6;
   // Optional image resource URL; clients load it as an image rather than calling an icon RPC.
   optional string icon_url = 7;
+}
+
+message LauncherSearchResponse {
+  uint32 token = 1;
+  reserved 2;
+  repeated LauncherHit hits = 3;
 }
 
 // Execute only a result from the current query batch; stale token/ID pairs are rejected.
@@ -51,18 +65,4 @@ message UpdateLayoutRequest {
   uint32 result_count = 1;
   reserved 2;
   optional LauncherMode mode = 3;
-}
-
-message LauncherOpened {
-  reserved 1;
-  LauncherMode mode = 2;
-}
-
-// Window-bound query batches, result execution and presentation lifecycle.
-service Launcher {
-  rpc Query(LauncherQueryRequest) returns (LauncherSearchResponse);
-  rpc Execute(ResultRequest) returns (ExecuteResponse);
-  rpc Hide(xiaowei.common.Empty) returns (xiaowei.common.Empty);
-  rpc UpdateLayout(UpdateLayoutRequest) returns (xiaowei.common.Empty);
-  rpc ResetPosition(xiaowei.common.Empty) returns (xiaowei.common.Empty);
 }

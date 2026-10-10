@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/search.proto.
  */
 export const file_xiaowei_search: GenFile = /*@__PURE__*/
-  fileDesc("ChR4aWFvd2VpL3NlYXJjaC5wcm90bxIOeGlhb3dlaS5zZWFyY2giLAoOSGlnaGxpZ2h0UmFuZ2USDQoFc3RhcnQYASABKA0SCwoDZW5kGAIgASgNIvABCglTZWFyY2hIaXQSCgoCaWQYASABKAkSEwoLcmVjZW5jeV9rZXkYAiABKAkSDQoFdGl0bGUYAyABKAkSEAoIcHJvdmlkZXIYBCABKAkSDQoFbGFiZWwYBSABKAkSDQoFc2NvcmUYBiABKAESLgoGcmFuZ2VzGAcgAygLMh4ueGlhb3dlaS5zZWFyY2guSGlnaGxpZ2h0UmFuZ2USLAoGYWN0aW9uGAogASgLMhwueGlhb3dlaS5zZWFyY2guU2VhcmNoQWN0aW9uSgQICBAJSgQICRAKUgthY3Rpb25fdHlwZVIMYWN0aW9uX3ZhbHVlIokBCgxTZWFyY2hBY3Rpb24SEwoJY29weV90ZXh0GAEgASgJSAASEgoIb3Blbl91cmwYAiABKAlIABIUCgpsYXVuY2hfYXBwGAMgASgJSAASMAoHY29tbWFuZBgEIAEoDjIdLnhpYW93ZWkuc2VhcmNoLlNlYXJjaENvbW1hbmRIAEIICgZhY3Rpb24iKQoSUmVjb3JkVXNhZ2VSZXF1ZXN0EhMKC3JlY2VuY3lfa2V5GAEgASgJInUKDVNlYXJjaFJlcXVlc3QSDQoFcXVlcnkYASABKAkSJQoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgISACIAQFCGwoZX2luY2x1ZGVfY2hyb21lX2Jvb2ttYXJrc0oECAIQA1ILZGV2ZWxvcG1lbnQiOAoNU2VhcmNoUmVzdWx0cxInCgRoaXRzGAEgAygLMhkueGlhb3dlaS5zZWFyY2guU2VhcmNoSGl0KpsBCg1TZWFyY2hDb21tYW5kEh4KGlNFQVJDSF9DT01NQU5EX1VOU1BFQ0lGSUVEEAASIQodU0VBUkNIX0NPTU1BTkRfT1BFTl9DTElQQk9BUkQQARIfChtTRUFSQ0hfQ09NTUFORF9UT0dHTEVfVEhFTUUQAhImCiJTRUFSQ0hfQ09NTUFORF9SRVNUQVJUX0RFVkVMT1BNRU5UEAMymQEKBlNlYXJjaBJFCgVRdWVyeRIdLnhpYW93ZWkuc2VhcmNoLlNlYXJjaFJlcXVlc3QaHS54aWFvd2VpLnNlYXJjaC5TZWFyY2hSZXN1bHRzEkgKC1JlY29yZFVzYWdlEiIueGlhb3dlaS5zZWFyY2guUmVjb3JkVXNhZ2VSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHliBnByb3RvMw", [file_xiaowei_common]);
+  fileDesc("ChR4aWFvd2VpL3NlYXJjaC5wcm90bxIOeGlhb3dlaS5zZWFyY2giLAoOSGlnaGxpZ2h0UmFuZ2USDQoFc3RhcnQYASABKA0SCwoDZW5kGAIgASgNIokBCgxTZWFyY2hBY3Rpb24SEwoJY29weV90ZXh0GAEgASgJSAASEgoIb3Blbl91cmwYAiABKAlIABIUCgpsYXVuY2hfYXBwGAMgASgJSAASMAoHY29tbWFuZBgEIAEoDjIdLnhpYW93ZWkuc2VhcmNoLlNlYXJjaENvbW1hbmRIAEIICgZhY3Rpb24i8AEKCVNlYXJjaEhpdBIKCgJpZBgBIAEoCRITCgtyZWNlbmN5X2tleRgCIAEoCRINCgV0aXRsZRgDIAEoCRIQCghwcm92aWRlchgEIAEoCRINCgVsYWJlbBgFIAEoCRINCgVzY29yZRgGIAEoARIuCgZyYW5nZXMYByADKAsyHi54aWFvd2VpLnNlYXJjaC5IaWdobGlnaHRSYW5nZRIsCgZhY3Rpb24YCiABKAsyHC54aWFvd2VpLnNlYXJjaC5TZWFyY2hBY3Rpb25KBAgIEAlKBAgJEApSC2FjdGlvbl90eXBlUgxhY3Rpb25fdmFsdWUidQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIlChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAhIAIgBAUIbChlfaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzSgQIAhADUgtkZXZlbG9wbWVudCI4Cg1TZWFyY2hSZXN1bHRzEicKBGhpdHMYASADKAsyGS54aWFvd2VpLnNlYXJjaC5TZWFyY2hIaXQiKQoSUmVjb3JkVXNhZ2VSZXF1ZXN0EhMKC3JlY2VuY3lfa2V5GAEgASgJKpsBCg1TZWFyY2hDb21tYW5kEh4KGlNFQVJDSF9DT01NQU5EX1VOU1BFQ0lGSUVEEAASIQodU0VBUkNIX0NPTU1BTkRfT1BFTl9DTElQQk9BUkQQARIfChtTRUFSQ0hfQ09NTUFORF9UT0dHTEVfVEhFTUUQAhImCiJTRUFSQ0hfQ09NTUFORF9SRVNUQVJUX0RFVkVMT1BNRU5UEAMymQEKBlNlYXJjaBJFCgVRdWVyeRIdLnhpYW93ZWkuc2VhcmNoLlNlYXJjaFJlcXVlc3QaHS54aWFvd2VpLnNlYXJjaC5TZWFyY2hSZXN1bHRzEkgKC1JlY29yZFVzYWdlEiIueGlhb3dlaS5zZWFyY2guUmVjb3JkVXNhZ2VSZXF1ZXN0GhUueGlhb3dlaS5jb21tb24uRW1wdHliBnByb3RvMw", [file_xiaowei_common]);
 
 /**
  * @generated from message xiaowei.search.HighlightRange
@@ -35,6 +35,47 @@ export type HighlightRange = Message<"xiaowei.search.HighlightRange"> & {
  */
 export const HighlightRangeSchema: GenMessage<HighlightRange> = /*@__PURE__*/
   messageDesc(file_xiaowei_search, 0);
+
+/**
+ * @generated from message xiaowei.search.SearchAction
+ */
+export type SearchAction = Message<"xiaowei.search.SearchAction"> & {
+  /**
+   * @generated from oneof xiaowei.search.SearchAction.action
+   */
+  action: {
+    /**
+     * @generated from field: string copy_text = 1;
+     */
+    value: string;
+    case: "copyText";
+  } | {
+    /**
+     * @generated from field: string open_url = 2;
+     */
+    value: string;
+    case: "openUrl";
+  } | {
+    /**
+     * @generated from field: string launch_app = 3;
+     */
+    value: string;
+    case: "launchApp";
+  } | {
+    /**
+     * @generated from field: xiaowei.search.SearchCommand command = 4;
+     */
+    value: SearchCommand;
+    case: "command";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.search.SearchAction.
+ * Use `create(SearchActionSchema)` to create a new message.
+ */
+export const SearchActionSchema: GenMessage<SearchAction> = /*@__PURE__*/
+  messageDesc(file_xiaowei_search, 1);
 
 /**
  * @generated from message xiaowei.search.SearchHit
@@ -86,67 +127,7 @@ export type SearchHit = Message<"xiaowei.search.SearchHit"> & {
  * Use `create(SearchHitSchema)` to create a new message.
  */
 export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
-  messageDesc(file_xiaowei_search, 1);
-
-/**
- * @generated from message xiaowei.search.SearchAction
- */
-export type SearchAction = Message<"xiaowei.search.SearchAction"> & {
-  /**
-   * @generated from oneof xiaowei.search.SearchAction.action
-   */
-  action: {
-    /**
-     * @generated from field: string copy_text = 1;
-     */
-    value: string;
-    case: "copyText";
-  } | {
-    /**
-     * @generated from field: string open_url = 2;
-     */
-    value: string;
-    case: "openUrl";
-  } | {
-    /**
-     * @generated from field: string launch_app = 3;
-     */
-    value: string;
-    case: "launchApp";
-  } | {
-    /**
-     * @generated from field: xiaowei.search.SearchCommand command = 4;
-     */
-    value: SearchCommand;
-    case: "command";
-  } | { case: undefined; value?: undefined };
-};
-
-/**
- * Describes the message xiaowei.search.SearchAction.
- * Use `create(SearchActionSchema)` to create a new message.
- */
-export const SearchActionSchema: GenMessage<SearchAction> = /*@__PURE__*/
   messageDesc(file_xiaowei_search, 2);
-
-/**
- * @generated from message xiaowei.search.RecordUsageRequest
- */
-export type RecordUsageRequest = Message<"xiaowei.search.RecordUsageRequest"> & {
-  /**
-   * Ranking key returned by SearchHit; not necessarily the displayed result ID.
-   *
-   * @generated from field: string recency_key = 1;
-   */
-  recencyKey: string;
-};
-
-/**
- * Describes the message xiaowei.search.RecordUsageRequest.
- * Use `create(RecordUsageRequestSchema)` to create a new message.
- */
-export const RecordUsageRequestSchema: GenMessage<RecordUsageRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_search, 3);
 
 /**
  * @generated from message xiaowei.search.SearchRequest
@@ -170,7 +151,7 @@ export type SearchRequest = Message<"xiaowei.search.SearchRequest"> & {
  * Use `create(SearchRequestSchema)` to create a new message.
  */
 export const SearchRequestSchema: GenMessage<SearchRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_search, 4);
+  messageDesc(file_xiaowei_search, 3);
 
 /**
  * @generated from message xiaowei.search.SearchResults
@@ -187,6 +168,25 @@ export type SearchResults = Message<"xiaowei.search.SearchResults"> & {
  * Use `create(SearchResultsSchema)` to create a new message.
  */
 export const SearchResultsSchema: GenMessage<SearchResults> = /*@__PURE__*/
+  messageDesc(file_xiaowei_search, 4);
+
+/**
+ * @generated from message xiaowei.search.RecordUsageRequest
+ */
+export type RecordUsageRequest = Message<"xiaowei.search.RecordUsageRequest"> & {
+  /**
+   * Ranking key returned by SearchHit; not necessarily the displayed result ID.
+   *
+   * @generated from field: string recency_key = 1;
+   */
+  recencyKey: string;
+};
+
+/**
+ * Describes the message xiaowei.search.RecordUsageRequest.
+ * Use `create(RecordUsageRequestSchema)` to create a new message.
+ */
+export const RecordUsageRequestSchema: GenMessage<RecordUsageRequest> = /*@__PURE__*/
   messageDesc(file_xiaowei_search, 5);
 
 /**

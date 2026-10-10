@@ -21,101 +21,6 @@ service Llm {
   rpc ModelCatalog(ListModelsRequest) returns (stream ListModelsResponse);
 }
 
-message GenerateRequest {
-  // Required local model configuration ID.
-  string model_ref = 1;
-  // Independent system instruction; empty means no system message.
-  string system_prompt = 2;
-  // Legacy single-turn shorthand. Must be empty when messages is populated.
-  string user_text = 3;
-  // Absent leaves the provider default; finite range [0, 2].
-  optional double temperature = 4;
-  // Absent uses the configured model limit; present range [1, model limit].
-  // Pi may further adjust this budget for context room and protocol-specific thinking.
-  optional uint32 max_tokens = 5;
-  // Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
-  repeated ChatMessage messages = 6;
-  repeated ToolDefinition tools = 7;
-  GenerationOptions options = 8;
-}
-
-message TextDelta {
-  // Pi content index, preserved across interleaved text blocks.
-  uint32 content_index = 1;
-  string text = 2;
-}
-
-message TokenUsage {
-  // Pi token categories; input excludes cached reads/writes. Zero may mean unreported.
-  uint64 input = 1;
-  uint64 output = 2;
-  uint64 cache_read = 3;
-  uint64 cache_write = 4;
-  // Provider/Pi total, not recomputed by the caller.
-  uint64 total = 5;
-  optional uint64 reasoning = 6;
-  optional uint64 cache_write_1h = 7;
-  UsageCost cost = 8;
-}
-
-enum FinishReason {
-  FINISH_REASON_UNSPECIFIED = 0;
-  FINISH_REASON_STOP = 1;
-  FINISH_REASON_LENGTH = 2;
-  FINISH_REASON_TOOL_USE = 3;
-  FINISH_REASON_ERROR = 4;
-  FINISH_REASON_ABORTED = 5;
-}
-
-message GenerationFinished {
-  FinishReason reason = 1;
-  AssistantMessage message = 2;
-}
-
-message GenerationFailed {
-  // Safe public diagnostic; never contains raw upstream response bodies or credentials.
-  string message = 1;
-  AssistantMessage partial = 2;
-}
-
-message GenerateEvent {
-  oneof event {
-    TextDelta text_delta = 1;
-    TokenUsage usage = 2;
-    GenerationFinished finished = 3;
-    GenerationFailed failed = 4;
-    xiaowei.common.Empty started = 5;
-    ContentBlockEvent block_started = 6;
-    ContentDelta block_delta = 7;
-    ContentBlockEvent block_finished = 8;
-    FirstSseReceived first_sse_received = 9;
-  }
-}
-
-message FirstSseReceived {
-  // Worker-observed first complete SSE data event, not headers or first text.
-  // Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
-  int64 received_at_ms = 1;
-}
-
-message GetModelInfoRequest {
-  string model_ref = 1;
-}
-
-message ModelInfo {
-  string model_ref = 1;
-  string provider_name = 2;
-  string name = 3;
-  bool reasoning = 4;
-  repeated ModelInput input = 5;
-  double context_window = 6;
-  double max_tokens = 7;
-}
-
-message SetModelsRequest {
-  repeated ModelConfiguration models = 1;
-}
-
 enum ModelInput {
   MODEL_INPUT_UNSPECIFIED = 0;
   MODEL_INPUT_TEXT = 1;
@@ -173,12 +78,34 @@ message ModelConfiguration {
   string provider_name = 19;
 }
 
+enum FinishReason {
+  FINISH_REASON_UNSPECIFIED = 0;
+  FINISH_REASON_STOP = 1;
+  FINISH_REASON_LENGTH = 2;
+  FINISH_REASON_TOOL_USE = 3;
+  FINISH_REASON_ERROR = 4;
+  FINISH_REASON_ABORTED = 5;
+}
+
 message UsageCost {
   double input = 1;
   double output = 2;
   double cache_read = 3;
   double cache_write = 4;
   double total = 5;
+}
+
+message TokenUsage {
+  // Pi token categories; input excludes cached reads/writes. Zero may mean unreported.
+  uint64 input = 1;
+  uint64 output = 2;
+  uint64 cache_read = 3;
+  uint64 cache_write = 4;
+  // Provider/Pi total, not recomputed by the caller.
+  uint64 total = 5;
+  optional uint64 reasoning = 6;
+  optional uint64 cache_write_1h = 7;
+  UsageCost cost = 8;
 }
 
 message TextContent {
@@ -282,6 +209,47 @@ message GenerationOptions {
   optional string api_options_json = 11;
 }
 
+message GenerateRequest {
+  // Required local model configuration ID.
+  string model_ref = 1;
+  // Independent system instruction; empty means no system message.
+  string system_prompt = 2;
+  // Legacy single-turn shorthand. Must be empty when messages is populated.
+  string user_text = 3;
+  // Absent leaves the provider default; finite range [0, 2].
+  optional double temperature = 4;
+  // Absent uses the configured model limit; present range [1, model limit].
+  // Pi may further adjust this budget for context room and protocol-specific thinking.
+  optional uint32 max_tokens = 5;
+  // Ordered history. Exclusive with user_text. Full histories receive all block lifecycle events.
+  repeated ChatMessage messages = 6;
+  repeated ToolDefinition tools = 7;
+  GenerationOptions options = 8;
+}
+
+message TextDelta {
+  // Pi content index, preserved across interleaved text blocks.
+  uint32 content_index = 1;
+  string text = 2;
+}
+
+message GenerationFinished {
+  FinishReason reason = 1;
+  AssistantMessage message = 2;
+}
+
+message GenerationFailed {
+  // Safe public diagnostic; never contains raw upstream response bodies or credentials.
+  string message = 1;
+  AssistantMessage partial = 2;
+}
+
+message FirstSseReceived {
+  // Worker-observed first complete SSE data event, not headers or first text.
+  // Unix milliseconds; emitted at most once, absent for unobserved/non-SSE calls.
+  int64 received_at_ms = 1;
+}
+
 message ContentBlockEvent {
   uint32 content_index = 1;
   ContentBlock block = 2;
@@ -292,6 +260,45 @@ message ContentDelta {
   // thinking or toolcall; text uses GenerateEvent.text_delta.
   string kind = 2;
   string delta = 3;
+}
+
+message GenerateEvent {
+  oneof event {
+    TextDelta text_delta = 1;
+    TokenUsage usage = 2;
+    GenerationFinished finished = 3;
+    GenerationFailed failed = 4;
+    xiaowei.common.Empty started = 5;
+    ContentBlockEvent block_started = 6;
+    ContentDelta block_delta = 7;
+    ContentBlockEvent block_finished = 8;
+    FirstSseReceived first_sse_received = 9;
+  }
+}
+
+message SetModelsRequest {
+  repeated ModelConfiguration models = 1;
+}
+
+message GetModelInfoRequest {
+  string model_ref = 1;
+}
+
+message ModelInfo {
+  string model_ref = 1;
+  string provider_name = 2;
+  string name = 3;
+  bool reasoning = 4;
+  repeated ModelInput input = 5;
+  double context_window = 6;
+  double max_tokens = 7;
+}
+
+message CatalogConnection {
+  string api = 1;
+  string base_url = 2;
+  string api_key = 3;
+  map<string, string> headers = 4;
 }
 
 message ListModelsRequest {
@@ -318,11 +325,4 @@ message CatalogModel {
 
 message ListModelsResponse {
   repeated CatalogModel models = 1;
-}
-
-message CatalogConnection {
-  string api = 1;
-  string base_url = 2;
-  string api_key = 3;
-  map<string, string> headers = 4;
 }
