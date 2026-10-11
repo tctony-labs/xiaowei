@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -63,8 +64,9 @@ type Auth struct {
 }
 
 type Server struct {
-	RateLimit  ServerRateLimit `yaml:"rate_limit"`
-	ListenAddr string          `yaml:"listen_addr"`
+	RateLimit         ServerRateLimit `yaml:"rate_limit"`
+	ListenAddr        string          `yaml:"listen_addr"`
+	TrustedProxyCIDRs []netip.Prefix  `yaml:"trusted_proxy_cidrs"`
 }
 
 type Database struct {
@@ -122,6 +124,18 @@ func Load(path string) (Config, error) {
 		}
 		value, ok := fileEnv[name]
 		return value, ok
+	}
+	if value, ok := lookup("XIAOWEI_TRUSTED_PROXY_CIDRS"); ok {
+		cfg.Server.TrustedProxyCIDRs = nil
+		if strings.TrimSpace(value) != "" {
+			for _, entry := range strings.Split(value, ",") {
+				prefix, err := netip.ParsePrefix(strings.TrimSpace(entry))
+				if err != nil {
+					return Config{}, errors.New("XIAOWEI_TRUSTED_PROXY_CIDRS must contain comma-separated CIDRs")
+				}
+				cfg.Server.TrustedProxyCIDRs = append(cfg.Server.TrustedProxyCIDRs, prefix)
+			}
+		}
 	}
 
 	overrides := []struct {
@@ -222,6 +236,15 @@ func validateNode(node *yaml.Node, path string) error {
 		"auth.rate_limit.login_email_ip.limit", "auth.rate_limit.refresh_ip.limit":
 		if node.Kind != yaml.ScalarNode || node.Tag != "!!int" {
 			return fmt.Errorf("config %s must be an integer (line %d)", path, node.Line)
+		}
+	case "server.trusted_proxy_cidrs":
+		if node.Kind != yaml.SequenceNode || node.Tag != "!!seq" {
+			return errors.New("server.trusted_proxy_cidrs must be a list of CIDRs")
+		}
+		for _, entry := range node.Content {
+			if entry.Kind != yaml.ScalarNode || entry.Tag != "!!str" {
+				return errors.New("server.trusted_proxy_cidrs must be a list of CIDRs")
+			}
 		}
 	default:
 		return fmt.Errorf("config has an unknown field (line %d)", node.Line)

@@ -18,6 +18,7 @@
 - [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)：检查、查询日志或重启当前工作区的客户端与 Go 服务端开发实例时使用；优先通过 cmux 定位并操作 console，无法实现时回退到进程检查、客户端日志文件和既有重启入口。
 - [maintain-gateway-contract](.agent/skills/maintain-gateway-contract/SKILL.md)：修改业务 proto service／消息、Rust 模块依赖的 service、Gateway handler 或 typed client 调用时使用；覆盖生成、接入和验证。
 - [maintain-agent-session](.agent/skills/maintain-agent-session/SKILL.md)：用户要求查看或清理 Agent 会话数据时使用；`Workflow Inpsect` 按 session ID 定位 SQLite／JSONL 数据，`Workflow Clean` 离线清理会话历史。
+- [depoly-server](.agent/skills/depoly-server/SKILL.md)：用户明确要求部署服务器时使用；手动触发 server 镜像构建，关联本次产物并执行配置预检查、生产部署和上线验收。
 
 ## 运行实例
 

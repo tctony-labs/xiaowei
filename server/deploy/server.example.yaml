@@ -1,0 +1,14 @@
+# Credentials are supplied by config/.env in the deployment root.
+server:
+  listen_addr: "0.0.0.0:10001"
+
+database:
+  host: "db"
+  port: 5432
+  name: "xiaowei"
+  user: "xiaowei"
+  ssl_mode: "disable" # PostgreSQL is on the same host's private Compose network.
+
+auth:
+  access_token_ttl: "2h"
+  refresh_token_ttl: "720h"

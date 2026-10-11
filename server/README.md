@@ -7,13 +7,14 @@
 | 目录 | 职责 |
 | --- | --- |
 | `cmd/xiaowei-server/` | 进程入口、模块装配与启动退出 |
+| `cmd/xiaowei-healthcheck/` | 容器内 readiness 探针，检查 HTTP 状态与业务 code |
 | `internal/config/` | 配置读取与校验 |
 | `internal/db/` | PostgreSQL 连接、迁移及用户、身份与会话存储 |
 | `internal/auth/` | 密码校验、随机登录凭据与设备会话规则 |
 | `internal/httpapi/` | HTTP 路由、认证接入、限流与健康检查 |
 | `internal/scheduler/` | 后台定时任务、执行超时与退出取消 |
 | `config/` | YAML、`.env` 及模板 |
-| `deploy/` | Dockerfile 与 Compose 文件 |
+| `deploy/` | Dockerfile、独立生产 Compose、部署模板与隔离容器验收 |
 
 ## 文档
 
@@ -25,6 +26,8 @@
 - [限流设计](docs/rate-limiting.md)
 - [认证与会话](docs/authentication.md)
 - [部署交付](docs/deployment.md)
+
+生产使用 CI 发布的 GHCR 镜像和部署包，不需要服务器持有源码。生产 Compose 与本地开发依赖清单独立；发布、HTTPS、初始化、升级与备份恢复步骤统一维护在部署文档。
 
 ## 本地开发
 
@@ -69,6 +72,14 @@ just server
 go run ./cmd/xiaowei-server --config /path/to/server.yaml
 ```
 
+仅检查配置、不连接数据库或启动 HTTP：
+
+```sh
+go run ./cmd/xiaowei-server --config /path/to/server.yaml --check-config
+```
+
+检查复用正常启动的配置加载与静态校验，成功退出 0，失败返回非零且不输出配置秘密；数据库连通性和迁移仍由启动验收覆盖。
+
 服务完成数据库连接与迁移后才监听 HTTP，失败则退出。迁移使用 UTC 时间戳版本；其他分支已执行的迁移会保留并提示，不阻止启动。迁移约定见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md#启动迁移与健康检查)。另开终端检查：
 
 ```sh
@@ -98,3 +109,12 @@ CGO_ENABLED=0 go build -trimpath -o bin/xiaowei-server ./cmd/xiaowei-server
 ```sh
 node --test scripts/dev/server.test.mjs
 ```
+
+生产容器验收在仓库根目录执行，仅使用自己创建的隔离 Compose 项目和临时数据目录：
+
+```sh
+docker build --platform linux/amd64 --file server/deploy/Dockerfile --tag xiaowei-server:delivery-test .
+XIAOWEI_DEPLOY_TEST_IMAGE=xiaowei-server:delivery-test node server/deploy/verify.mjs
+```
+
+它验证无数据库配置预检查、检查失败保留旧服务、管理员初始化、真实认证 HTTP、重建保留会话、数据库故障 readiness、单份备份、备份失败恢复旧服务、重试保护和数据库恢复。服务端发布仅面向 linux/amd64：手动触发 CI，执行该验收和真实 PostgreSQL race 测试，通过后发布 GHCR 镜像。实际发布与线上验收需由用户发起部署，具体步骤见部署文档。
