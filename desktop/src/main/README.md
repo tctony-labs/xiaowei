@@ -51,6 +51,8 @@ main 统一接收并写入各执行环境的日志，链路、轮转保留和接
 
 LLM 的生成接口、模型配置持久化与 Responses WebSocket 行为见 [LLM provider](../../../docs/llm-provider.md)。
 
+账号的服务器选择、设备身份、登录态持久化及恢复规则见 [桌面账号](../../docs/account.md)；服务器 typed API 与传输边界见 [xwapi](../../../docs/xwapi.md)。
+
 ## Host 与 worker 的代码组织
 
 service 使用 worker 执行业务时，按执行位置划分目录，让路径直接表达运行边界。位于 `src/main/` 下只表示由 main 装配，不表示全部在主线程执行。

@@ -1,6 +1,6 @@
 # Go 服务端
 
-独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、首次管理员初始化、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，设计与验收结果见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md)。
+独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、首次管理员初始化、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，当前实现见下列模块文档，未完成范围由 [server-development](../.agent/records/active/2026-10-11-server-development.md) 跟进；历史取舍与验收见 [用户与登录归档](../.agent/records/archived/2026-09-25-user-authentication.md)。
 
 ## 模块索引
 
@@ -22,6 +22,7 @@
 
 - [配置模板](config/server.example.yaml)
 - [环境变量模板](config/.env.example)
+- [配置、存储与迁移](docs/persistence.md)
 - [HTTP 接口](docs/http.md)
 - [限流设计](docs/rate-limiting.md)
 - [认证与会话](docs/authentication.md)
@@ -80,7 +81,7 @@ go run ./cmd/xiaowei-server --config /path/to/server.yaml --check-config
 
 检查复用正常启动的配置加载与静态校验，成功退出 0，失败返回非零且不输出配置秘密；数据库连通性和迁移仍由启动验收覆盖。
 
-服务完成数据库连接与迁移后才监听 HTTP，失败则退出。迁移使用 UTC 时间戳版本；其他分支已执行的迁移会保留并提示，不阻止启动。迁移约定见 [用户与登录 record](../.agent/records/active/2026-09-25-user-authentication.md#启动迁移与健康检查)。另开终端检查：
+服务完成数据库连接、迁移及按需管理员初始化后才监听 HTTP，失败则退出。迁移使用 UTC 时间戳版本；其他分支已执行的迁移会保留并提示，不阻止启动。迁移约定见 [数据库迁移](docs/persistence.md#数据库迁移)。另开终端检查：
 
 ```sh
 curl -f http://127.0.0.1:10001/healthz
