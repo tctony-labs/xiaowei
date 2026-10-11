@@ -14,6 +14,8 @@ import type { ServiceClient } from "xiaowei-gateway";
 import { normalizeServerAddress } from "../../../shared/server-address";
 import { AccountError } from "./errors";
 
+const DEFAULT_SERVER = "https://xiaowei.tctony.com";
+
 export interface AccountDocument {
   version: 1;
   deviceId: string;
@@ -42,8 +44,8 @@ export class AccountStore {
       document = {
         version: 1,
         deviceId: randomUUID(),
-        servers: [],
-        selectedServer: "",
+        servers: [DEFAULT_SERVER],
+        selectedServer: DEFAULT_SERVER,
       };
       const json = JSON.stringify(document);
       await this.meta.set(create(KvEntrySchema, { key: "account.config", json }));
@@ -51,6 +53,12 @@ export class AccountStore {
       console.info("Account settings initialized in meta");
     } else {
       document = this.readConfiguration(entry.json);
+      if (!document.servers.includes(DEFAULT_SERVER)) {
+        document.servers.push(DEFAULT_SERVER);
+        if (!document.selectedServer) document.selectedServer = DEFAULT_SERVER;
+        await this.meta.set(create(KvEntrySchema, { key: "account.config", json: JSON.stringify(document) }));
+        console.info("Default account server added to settings");
+      }
       this.configuration = JSON.stringify(document);
     }
 

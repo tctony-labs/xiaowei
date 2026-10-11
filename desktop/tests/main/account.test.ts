@@ -16,6 +16,7 @@ import {
   CancelAccountLoginRequestSchema,
   EmptySchema,
   ErrorCode,
+  KvEntrySchema,
   KvKeySchema,
   SelectServerRequestSchema,
 } from "xiaowei-contracts";
@@ -49,8 +50,8 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
     if (snapshot) events.push(snapshot.status);
   });
   t.after(() => subscription.close());
-  assert.deepEqual((await api.get(create(EmptySchema))).servers, []);
-  assert.equal((await api.get(create(EmptySchema))).selectedServer, "");
+  assert.deepEqual((await api.get(create(EmptySchema))).servers, ["https://xiaowei.tctony.com"]);
+  assert.equal((await api.get(create(EmptySchema))).selectedServer, "https://xiaowei.tctony.com");
   assert.equal((await api.addServer(create(AddServerRequestSchema, { serverAddress: `${server.url}/` }))).code, 0);
 
   const request = create(AccountLoginRequestSchema, {
@@ -80,7 +81,7 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
 
   const contents = await readFile(path, "utf8");
   const configuration = JSON.parse((await meta.get(create(KvKeySchema, { key: "account.config" }))).json ?? "");
-  assert.deepEqual(configuration.servers, [server.url]);
+  assert.deepEqual(configuration.servers, ["https://xiaowei.tctony.com", server.url]);
   assert.equal(configuration.selectedServer, server.url);
   assert.equal(configuration.deviceId, server.state.deviceId);
   assert.deepEqual(Object.keys(JSON.parse(contents)).sort(), ["authenticated", "server", "version"]);
@@ -95,8 +96,17 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   }
   assert.equal((await stat(path)).mode & 0o777, 0o600);
   await owner.close();
+  // Simulate an existing installation without the default server, retaining its selected server and session.
+  await meta.set(
+    create(KvEntrySchema, {
+      key: "account.config",
+      json: JSON.stringify({ ...configuration, servers: [server.url] }),
+    }),
+  );
   const reopened = await openAccount(t, { store: new AccountStore(path, meta), deviceName: "test" });
   t.after(() => reopened.close());
+  assert.deepEqual(reopened.snapshot().servers, [server.url, "https://xiaowei.tctony.com"]);
+  assert.equal(reopened.snapshot().selectedServer, server.url);
   assert.equal(reopened.snapshot().status, AccountStatus.RESTORING);
   await reopened.restore();
   assert.equal(reopened.snapshot().status, AccountStatus.SIGNED_IN);
@@ -106,7 +116,9 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   assert.equal(server.state.revoked, true);
   assert.equal(reopened.snapshot().user, undefined);
   await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" });
-  assert.equal((await store.load()).deviceId, server.state.deviceId);
+  const reloaded = await store.load();
+  assert.equal(reloaded.deviceId, server.state.deviceId);
+  assert.deepEqual(reloaded.servers, [server.url, "https://xiaowei.tctony.com"]);
   assert.ok(events.includes(AccountStatus.SIGNING_IN));
   assert.ok(events.includes(AccountStatus.SIGNED_IN));
 });
