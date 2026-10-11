@@ -1,29 +1,65 @@
-# Deployment adds the application to the dependency services in compose.yaml.
+# Standalone production configuration. Copy to the deployment root as compose.yaml.
 services:
   server:
-    image: ${XIAOWEI_SERVER_IMAGE:?Set XIAOWEI_SERVER_IMAGE in config/.env}
+    image: ${XIAOWEI_SERVER_IMAGE:?Set XIAOWEI_SERVER_IMAGE to a published image digest}
     command: ["--config", "/etc/xiaowei/server.yaml"]
     env_file:
-      - ../config/.env
+      - ./config/.env
     environment:
       XIAOWEI_LISTEN_ADDR: "0.0.0.0:10001"
       XIAOWEI_DATABASE_HOST: "db"
+      XIAOWEI_DATABASE_PORT: "5432"
+      XIAOWEI_DATABASE_SSL_MODE: "disable"
       XIAOWEI_DATABASE_NAME: ${XIAOWEI_DATABASE_NAME-xiaowei}
       XIAOWEI_DATABASE_USER: ${XIAOWEI_DATABASE_USER-xiaowei}
-      XIAOWEI_DATABASE_PASSWORD: ${XIAOWEI_DATABASE_PASSWORD:?Set XIAOWEI_DATABASE_PASSWORD in server/config/.env}
+      XIAOWEI_DATABASE_PASSWORD: ${XIAOWEI_DATABASE_PASSWORD:?Set a production database password}
     volumes:
       - type: bind
-        source: ../config/server.yaml
+        source: ./config/server.yaml
         target: /etc/xiaowei/server.yaml
         read_only: true
         bind:
           create_host_path: false
     ports:
-      - "127.0.0.1:10001:10001"
+      - "127.0.0.1:${XIAOWEI_SERVER_PORT-10001}:10001"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/xiaowei-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
-    ports: !reset []
+    image: postgres:17.9-bookworm
+    environment:
+      POSTGRES_DB: ${XIAOWEI_DATABASE_NAME-xiaowei}
+      POSTGRES_USER: ${XIAOWEI_DATABASE_USER-xiaowei}
+      POSTGRES_PASSWORD: ${XIAOWEI_DATABASE_PASSWORD:?Set a production database password}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

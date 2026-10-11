@@ -22,18 +22,28 @@ import (
 
 func main() {
 	configPath := flag.String("config", "config/server.yaml", "path to the server YAML configuration")
+	checkConfig := flag.Bool("check-config", false,
+		"validate configuration without connecting to the database or serving HTTP")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		slog.Error("unexpected positional arguments")
 		os.Exit(1)
 	}
-	if err := run(*configPath); err != nil {
+	if err := run(*configPath, *checkConfig); err != nil {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(configPath string) error {
+func run(configPath string, checkConfig bool) error {
+	if checkConfig {
+		if _, err := config.Load(configPath); err != nil {
+			return fmt.Errorf("check config %s: %w", configPath, err)
+		}
+		slog.Info("server configuration valid", "path", configPath)
+		return nil
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return serve(ctx, configPath)
@@ -95,8 +105,13 @@ func serve(ctx context.Context, configPath string) error {
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
 	}
+	handler := httpapi.NewHandler(store.Ping, authService, cfg.Server.RateLimit, cfg.Auth.RateLimit)
+	handler = httpapi.WithTrustedProxies(handler, cfg.Server.TrustedProxyCIDRs)
+	if len(cfg.Server.TrustedProxyCIDRs) > 0 {
+		slog.Info("trusted reverse proxies configured", "networks", len(cfg.Server.TrustedProxyCIDRs))
+	}
 	server := &http.Server{
-		Handler:           httpapi.NewHandler(store.Ping, authService, cfg.Server.RateLimit, cfg.Auth.RateLimit),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

@@ -1,5 +1,6 @@
 server:
   listen_addr: "127.0.0.1:10001"
+  trusted_proxy_cidrs: [] # Direct requests ignore proxy headers unless explicitly configured.
   rate_limit:
     ip:
       limit: 300

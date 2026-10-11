@@ -203,9 +203,9 @@ thirdparty_bind_token 是短期随机凭据，有效期 15 分钟，由服务端
 
 用户已确认启动时自动执行数据库迁移，完成后才开放 HTTP；失败回滚并退出，不自动清库或降级。当前已实现，验收结果见 Outcome。
 
-### TODO：部署交付
+### 部署交付
 
-部署相关事项暂缓，TODO 集中维护在 [部署交付](../../../server/docs/deployment.md)，留到切片 07 对齐；不在本记录重复部署流程。
+切片 07 已完成计划对齐，用户已授权恢复代码实施；当前决定与待办见 Current work 和对应 Plan，操作流程统一维护在 [部署交付](../../../server/docs/deployment.md)。
 
 ### 切片 01 实施结果
 
@@ -360,7 +360,11 @@ curl -f http://127.0.0.1:10001/readyz
 
 客户端与服务器统一 HTTP 调用日志已作为独立切片实现并验证。通用 HTTP 层仅记录请求元信息，业务层保留必要事件并遵守敏感信息规则；当前模块边界、等级与字段规则见 [HTTP 请求日志](../../../server/docs/http.md#请求日志)。桌面实例已重启并验证启动恢复的 `/me` 开始和结束日志，均为单行 key=val；服务端所有接口（包括健康检查）的开始及成功结束统一为 info，客户端为 debug，失败继续按 warn／error 分级，不输出 outcome。现有 Go 开发进程尚未重启，新服务端日志已通过隔离运行实例验证。
 
-部署交付继续只保留 TODO，收藏不纳入本轮范围。
+用户要求提前推进切片 07，部署目标确定为上海 tctony.com、业务域名 xiaowei.tctony.com、目录 /data/xiaowei/，首次管理员邮箱为 tony@tctony.com。用户曾要求暂停代码修改、先对齐计划，现已完成对齐并明确授权开始实现；尚未提交、发布镜像或改动线上服务。首次部署顺序确定为镜像发布 → 生产部署 → HTTPS 接入 → 初始化与登录 → 运维流程。常规升级复用现有 HTTPS 接入，仅验证公网访问；接入配置变化时才更新并重载 Nginx。
+
+发布方式确定为用户明确发起部署后，由 Agent 使用 [depoly-server skill](../../skills/depoly-server/SKILL.md) 手动触发 server 镜像构建，再执行后续上线流程；不通过 push、PR 或 server tag 自动构建发布。升级前使用新镜像对候选配置执行独立的 `--check-config`，检查通过后才替换旧服务；该入口已实现并通过本地验收。当前 [Plan](../../plans/2026-09-25-user-authentication/07-server-delivery.md) 继续维护待办与验收边界，原切片 07 的 SMTP／邀请注册与 WSS 验收仍依赖 03–06。收藏不纳入本轮范围。
+
+用户进一步确认仅发布 linux/amd64，不需要 arm64；使用 GHCR，默认部署远端 develop 的最新已提交版本，也可指定分支或 commit。采用单实例原地升级，允许短暂停机。升级前备份数据库及匹配的配置、Compose、镜像版本，仅保留最近一份作为升级失败的回滚点；新备份成功并校验后才替换上一份，失败重试不覆盖原回滚点。升级成功后保留该备份至下一次有效备份替换，不增加定时备份或历史保留。上述决定已完成本地代码实施及验收；线上构建发布与部署仍等用户明确发起。
 
 ## Outcome
 
@@ -453,3 +457,9 @@ Go HTTP 接入的解析、认证、限流、未知路径、错误方法、非规
 
 
 客户端 HTTP 调用重组已由 [xwapi 事项](../archived/2026-10-07-xwapi-service.md)交付：原始服务器接口经 Gateway 对 TS／Rust 提供强类型调用，默认在本地检查 access 会话，仅登录、刷新及两个健康检查免除普通登录要求。xwapi 不管理会话，Account 产品登录、刷新、恢复、取消补偿及退出语义继续保留；当前边界及未来 WebSocket 方向见 [xwapi 长期文档](../../../docs/xwapi.md)，验收证据保留在归档 record。
+
+切片 07 的本地实现已收敛：服务端新增 --check-config，复用配置加载校验并在数据库连接、迁移和 HTTP 启动前退出；错误仅指出文件／字段，不输出秘密。server-image workflow 仅手动触发、仅发布 linux/amd64，source_ref 解析为固定 SHA 后供测试和发布共用，部署包通过 release.txt 关联源码、run 和镜像 digest，不创建 server tag 或 GitHub Release。depoly-server 技能已同步实际输入及产物核对方式；workflow headSha 与应用源码 SHA 分开核对。
+
+升级新增 backup.sh，保存数据库、完整配置及权限、Compose 和版本信息，以原子替换维护唯一 latest.tar；备份失败保留原副本并恢复旧服务，upgrade-pending 防止失败重试覆盖回滚点。恢复流程在需要数据库降级时重建目标数据库再导入，避免遗留失败迁移新增对象。部署文档已包含候选配置检查、备份／恢复命令及首次接入步骤。
+
+本次验证通过专用临时 PostgreSQL 上的完整 go test -count=1 -race ./...、just check（含 Go vet）、actionlint、技能格式／链接和 git diff --check。linux/amd64 镜像已在本机 Docker 构建并运行完整隔离 Compose 验收：无依赖配置检查、错误配置保留旧服务、初始化／登录／刷新／退出、容器重建保留会话、数据库故障探针、单份备份及 0600 权限、备份失败恢复旧服务、pending 重试保护、完整配置目录及权限恢复、移除失败迁移新增表并恢复账号与会话。测试容器和临时数据已清理；仅有既有 Select.tsx 的 Biome 信息提示。尚未提交／推送代码、触发真实 CI 发布或改动线上服务；原生 amd64 CI、上海部署和公网登录仍待用户发起部署后验收，07 Plan 因这些剩余项保留。

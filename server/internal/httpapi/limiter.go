@@ -72,6 +72,9 @@ func (l *limiter) allow(now time.Time, quotas ...quota) time.Duration {
 }
 
 func sourceIP(r *http.Request) string {
+	if client, ok := r.Context().Value(sourceIPKey{}).(string); ok {
+		return client
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return "unknown"

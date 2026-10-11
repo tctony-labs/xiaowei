@@ -32,6 +32,7 @@ func cleanOverrides(t *testing.T) {
 		"XIAOWEI_DATABASE_SSL_MODE",
 		"XIAOWEI_AUTH_ACCESS_TOKEN_TTL", "XIAOWEI_AUTH_REFRESH_TOKEN_TTL",
 		"XIAOWEI_BOOTSTRAP_ADMIN_EMAIL", "XIAOWEI_BOOTSTRAP_ADMIN_PASSWORD",
+		"XIAOWEI_TRUSTED_PROXY_CIDRS",
 	}
 	for _, prefix := range []string{
 		"SERVER_RATE_LIMIT_IP", "AUTH_RATE_LIMIT_LOGIN_IP",
@@ -51,6 +52,51 @@ func cleanOverrides(t *testing.T) {
 				_ = os.Unsetenv(name)
 			}
 		})
+	}
+}
+
+func TestTrustedProxyConfiguration(t *testing.T) {
+	cleanOverrides(t)
+	path := configFile(t, validYAML+"server:\n  trusted_proxy_cidrs: [\"172.18.0.1/32\", \"::1/128\"]\n")
+	cfg, err := Load(path)
+	if err != nil || len(cfg.Server.TrustedProxyCIDRs) != 2 {
+		t.Fatalf("YAML proxy CIDRs not loaded: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(path), ".env"),
+		[]byte("XIAOWEI_TRUSTED_PROXY_CIDRS=192.0.2.1/32\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = Load(path)
+	if err != nil || len(cfg.Server.TrustedProxyCIDRs) != 1 ||
+		cfg.Server.TrustedProxyCIDRs[0].String() != "192.0.2.1/32" {
+		t.Fatal("dotenv proxy CIDRs did not override YAML")
+	}
+	t.Setenv("XIAOWEI_TRUSTED_PROXY_CIDRS", " 198.51.100.1/32, ::1/128 ")
+	cfg, err = Load(path)
+	if err != nil || len(cfg.Server.TrustedProxyCIDRs) != 2 ||
+		cfg.Server.TrustedProxyCIDRs[0].String() != "198.51.100.1/32" {
+		t.Fatal("process proxy CIDRs did not override dotenv")
+	}
+	t.Setenv("XIAOWEI_TRUSTED_PROXY_CIDRS", "")
+	cfg, err = Load(path)
+	if err != nil || len(cfg.Server.TrustedProxyCIDRs) != 0 {
+		t.Fatal("empty override did not disable proxy trust")
+	}
+	for _, value := range []string{"private-secret", "127.0.0.1", "127.0.0.1/32,"} {
+		t.Setenv("XIAOWEI_TRUSTED_PROXY_CIDRS", value)
+		if _, err := Load(path); err == nil || strings.Contains(err.Error(), "private-secret") {
+			t.Fatal("invalid proxy override accepted or exposed")
+		}
+	}
+}
+
+func TestInvalidTrustedProxyYAML(t *testing.T) {
+	cleanOverrides(t)
+	for _, value := range []string{"null", "127.0.0.1/32", "[123]", "[private-secret]", "[127.0.0.1]"} {
+		path := configFile(t, validYAML+"server:\n  trusted_proxy_cidrs: "+value+"\n")
+		if _, err := Load(path); err == nil || strings.Contains(err.Error(), "private-secret") {
+			t.Fatal("invalid proxy YAML accepted or exposed")
+		}
 	}
 }
 
