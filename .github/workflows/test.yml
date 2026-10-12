@@ -20,22 +20,22 @@ jobs:
       CARGO_INCREMENTAL: "0"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Locate pnpm store
         id: pnpm-store
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -47,7 +47,7 @@ jobs:
         run: node scripts/ci/go-cache.mjs version >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ steps.go-toolchain.outputs.version }}
           cache: false
@@ -57,7 +57,7 @@ jobs:
         run: node scripts/ci/go-cache.mjs key >> "$GITHUB_OUTPUT"
 
       - name: Cache Go module downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.go-cache.outputs.module-path }}
           key: ${{ steps.go-cache.outputs.prefix }}-modules-${{ steps.go-cache.outputs.module-hash }}
@@ -65,7 +65,7 @@ jobs:
 
       # Rotate immutable snapshots on Go input changes while reusing unchanged compiled packages.
       - name: Cache Go builds
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.go-cache.outputs.build-path }}
           key: ${{ steps.go-cache.outputs.prefix }}-build-${{ steps.go-cache.outputs.build-hash }}
@@ -80,7 +80,7 @@ jobs:
 
       # Save complete targets, including workspace crates, for each Rust input revision.
       - name: Cache Rust builds
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -95,7 +95,7 @@ jobs:
         run: node scripts/ci/cargo-cache.mjs restore
 
       - name: Set up just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
         with:
           just-version: "1.46.0"
 

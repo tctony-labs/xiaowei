@@ -34,12 +34,12 @@ jobs:
       CSC_NAME: ${{ vars.MACOS_APPLICATION_CERT_NAME }}
     steps:
       - name: Check out the release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
@@ -64,14 +64,14 @@ jobs:
           test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Select Go toolchain
         id: go-toolchain
         run: node scripts/ci/go-cache.mjs version >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ steps.go-toolchain.outputs.version }}
           cache: false
@@ -136,7 +136,7 @@ jobs:
         run: node scripts/release/generate-appcast.mjs "$RELEASE_TAG"
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-arm64-${{ env.RELEASE_TAG }}
           path: |
