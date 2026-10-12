@@ -75,8 +75,9 @@ Electron 通过 `workspace:*` 引用本地 npm 入口包，例如 `"xiaowei-sear
 
 正常构建流程由各 napi 包的 `package.json` 和 `scripts/dev/` 下的对应构建脚本维护；具体命令、参数和执行顺序以脚本为准，本文不重复维护。
 
-- 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。构建入口以受影响 napi 包的 `package.json` 中的 `build:debug` 脚本为准；内部共享 crate 变更时，沿依赖关系重建所有受影响的 napi 包。
-- `cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
+- 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建实际受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。构建入口以对应 napi 包的 `package.json` 中的 `build:debug` 脚本为准。
+- 共享 crate 变更时，根据各 napi 包实际使用的 API、类型及实现路径确定重建范围，并考虑共享初始化、ABI、编译配置和链接行为的变化。仅依赖同一 crate，或 Cargo 会重新编译该 crate，不构成重建所有依赖包的理由。例如，修改 Sparkle 更新实现时，只使用该 crate 图标或外观能力的 Search 无需重建，除非改动也影响这些能力或共同的构建与运行行为。
+- 对实际受影响的 napi 包，`cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
 - 有运行实例时，按 [AGENTS.md 的运行实例规则](../AGENTS.md#运行实例) 确认归属后可直接执行 `just rs`，由共用构建入口完成 napi 增量构建并重启；必须确认构建成功且 Electron 加载新模块。已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
 - 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 通过已有 nodemon 流程触发 napi 构建，不新增 Rust 源码自动监听或自动重启机制。
 
