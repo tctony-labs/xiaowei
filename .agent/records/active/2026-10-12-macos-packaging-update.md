@@ -32,7 +32,7 @@
 - 前两阶段本地打包与更新联调已完成；用户已要求继续第三阶段。按 [正式发布实施计划](../../plans/2026-10-12-macos-packaging-update/02-signed-release.md) 准备正式签名、公证与 GitHub Release 流水线。
 - 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。尚未运行实际签名或 CI，不以静态检查代替正式包验收。
 - 个人身份已确认；已安装 cmux 的公开签名为 Developer ID Application: Chang Tang (NSWMLDGCEZ)。本机没有可用的该 Developer ID 私钥，正式构建使用 org 的现有 .p12，不自动使用本机公司证书。
-- 当前 GitHub token 无权读取 org secrets／variables 元数据（403），所以尚未验证 org 配置对 xiaowei 仓库的可见性；预检查会拒绝缺失值。用户已授权提交、推送本分支，并创建 v0.1.0 tag 触发正式打包；当前正在执行该流程。Release 产物保持草稿，正式发布与升级验收尚待完成；事项未归档。
+- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已请求用户授权该 secret 对 xiaowei 可见或配置同名仓库 secret，随后可重跑同一 CI，无需移动 tag。正式发布与升级验收尚待完成；事项未归档。
 - 第三阶段必要验收：实际签名、公证、Gatekeeper、正式包两版本更新与 GitHub 下载链路；不能用既有 ad-hoc 测试包或私钥已丢弃的临时更新密钥替代。
 
 ## Outcome
@@ -76,3 +76,9 @@
 - actionlint 1.7.7 通过；完整 just check、Biome 和 diff whitespace 检查通过。以已安装 cmux 的实际 codesign 元数据运行本项目正式验证器，Developer ID／Team ID NSWMLDGCEZ／hardened runtime 校验通过，未修改或启动 cmux。实际小微 Developer ID／公证／CI／正式升级仍未执行。
 
 第三阶段修改后重跑实际本地目录打包入口：release 构建、desktop 构建、distribution 模式 ad-hoc 签名、包内配置与五个 arm64 addon 加载／系统动态依赖检查通过，未启动应用。此目录包继续使用测试公钥，不作为正式分发产物。
+
+### 首次正式 CI
+
+用户已授权提交、推送并触发 0.1.0 打包。提交 `14cfe99` 与 tag `v0.1.0` 已推送至 origin，工作分支仍为 `feat_macos_packaging_update`，未合并 develop。
+
+[Actions run 38218192990](https://github.com/tctony-labs/xiaowei/actions/runs/38218192990) 在配置预检查失败：Apple 签名／公证输入均非空，org 的个人身份与 Team ID 符合预期；映射的 `SPARKLE_PRIVATE_KEY` 未传入，报错 `SPARKLE_ED_PRIVATE_KEY is required`。尚未编译、生成产物或创建 Release。需补齐该 secret 的仓库可见性或同名仓库配置后重跑当前 run；未自动创建／替换更新密钥。

@@ -103,7 +103,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 CI 推导 `SPARKLE_ED_PUBLIC_KEY`，验证公私钥配对后只将公钥写入后续步骤的环境。无需单独配置 org 公钥变量。正式打包前也可本地执行 `node scripts/release/check-release.mjs v<version>`；本地需提供表中对应环境变量和 `SPARKLE_ED_PUBLIC_KEY`。此入口以无敏感内容的 challenge 做真实签名／验签，确认公私钥配对后才构建，不输出私钥、不操作个人 Keychain。
 
-org 设置查询受到当前 GitHub token 权限限制（403），尚未确认这些 org secrets／variables 是否允许 xiaowei 仓库使用。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
+org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已确认 Apple 签名／公证配置可见，但 `SPARKLE_PRIVATE_KEY` 为空；需允许 xiaowei 使用该 org secret，或配置同名仓库 secret。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
 
 ### 正式包最终验收
 
