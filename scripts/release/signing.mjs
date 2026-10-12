@@ -44,6 +44,26 @@ export function verifySignedCode(path, team, hardenedRuntime = true) {
   }
 }
 
+export function runStapler(action, path) {
+  const delays = [5000, 10000, 20000];
+  for (let attempt = 0; ; attempt += 1) {
+    const result = spawnSync("xcrun", ["stapler", action, path], { stdio: "inherit" });
+    if (result.error) throw result.error;
+    if (result.status === 0) {
+      if (attempt > 0) console.info(`stapler ${action} recovered on attempt ${attempt + 1}: ${path}`);
+      return;
+    }
+
+    // stapler uses EX_NOHOST (68) for CloudKit ticket-service failures.
+    const delay = delays[attempt];
+    if (result.status !== 68 || delay === undefined) {
+      throw new Error(`stapler ${action} failed with status ${result.status}: ${path}`);
+    }
+    console.warn(`stapler ${action} failed with status 68; retry ${attempt + 1}/3 in ${delay / 1000}s: ${path}`);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+  }
+}
+
 export function notarizeDmg(path, env = process.env) {
   const result = spawnSync(
     "xcrun",
@@ -67,7 +87,7 @@ export function notarizeDmg(path, env = process.env) {
   const submission = JSON.parse(result.stdout);
   if (submission.status !== "Accepted") throw new Error(`DMG notarization failed: ${submission.status}`);
   console.info(`DMG notarization accepted: submission=${submission.id}`);
-  run("xcrun", ["stapler", "staple", path]);
-  run("xcrun", ["stapler", "validate", path]);
+  runStapler("staple", path);
+  runStapler("validate", path);
   run("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=2", path]);
 }

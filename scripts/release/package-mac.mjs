@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { localUpdateAppId, localUpdateDirectory, localUpdateName, localUpdateOrigin } from "./local-update-config.mjs";
-import { notarizeDmg, signingConfiguration, verifySignedCode } from "./signing.mjs";
+import { notarizeDmg, runStapler, signingConfiguration, verifySignedCode } from "./signing.mjs";
 import { desktopDirectory, ensureSparkle, feedUrl, publicKey, releaseVersion, run } from "./sparkle.mjs";
 
 export function packageMac({ signed = false, directoryOnly = false, localVersion, key, build = true } = {}) {
@@ -115,7 +115,7 @@ export function packageMac({ signed = false, directoryOnly = false, localVersion
     ]) {
       verifySignedCode(code, signingTeam);
     }
-    run("xcrun", ["stapler", "validate", app]);
+    runStapler("validate", app);
     run("spctl", ["--assess", "--type", "execute", "--verbose=2", app]);
     if (!directoryOnly) {
       const dmg = join(output, `${name}-${version}-arm64.dmg`);

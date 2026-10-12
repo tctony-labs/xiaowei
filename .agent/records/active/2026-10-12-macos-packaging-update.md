@@ -30,7 +30,7 @@
 ## Current work
 
 - 前两阶段本地打包与更新联调已完成；用户已要求继续第三阶段。按 [正式发布实施计划](../../plans/2026-10-12-macos-packaging-update/02-signed-release.md) 准备正式签名、公证与 GitHub Release 流水线。
-- 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。CI 已运行，实际签名尚未执行；当前失败原因与修复见下，不以静态检查代替正式包验收。
+- 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。CI 已完成 app 签名与公证，app 票据校验被 Apple 网络中断阻塞；当前失败原因与修复见下，不以静态检查代替完整正式包验收。
 - 个人身份已确认；已安装 cmux 的公开签名为 Developer ID Application: Chang Tang (NSWMLDGCEZ)。本机没有可用的该 Developer ID 私钥，正式构建使用 org 的现有 .p12，不自动使用本机公司证书。
 - 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已按用户要求生成小微独立密钥并导出至 /tmp/xiaowei-sparkle-private-key.txt。用户确认已添加 secret，现已重跑同一 CI（attempt 2），原 run attempt 2 的 Go 缺失已修复，用户确认后提交 4ed3793 并更新 v0.1.0 tag。[新 run 38237430177](https://github.com/tctony-labs/xiaowei/actions/runs/38237430177) 的配置、Go、五个 debug napi、检查与全部 desktop 测试均通过；正式 release 构建耗时异常，用户要求后于 19:27 取消，状态 completed／cancelled；尚未进入签名／公证，没有产物或 Release 草稿。正式发布与升级验收尚待完成；事项未归档。
 - 编译阻塞的两项修复已实现并完成相关本地验收：jieba fork dev 已提交 70a1d962，小微固定新 rev，发布流程一次 release 构建供测试与打包复用。用户现已授权提交／推送小微修复，并将 v0.1.0 从 4ed3793 更新到本次修复，触发新的 CI。
@@ -121,3 +121,9 @@
 ### 修复提交与 CI 重启授权
 
 用户明确要求提交、推送 tag 并重新触发 CI。本次提交包含 fork 固定 rev／锁文件、release 复用入口与回归、workflow 及对应说明和已有进展记录。保持 0.1.0 版本；更新既有 v0.1.0 tag，推送时核对远程旧 tag，避免覆盖并发修改。当前没有 v0.1.0 Release 草稿或已发布产物。后续核对新 run 的 head SHA、编译／签名／公证与产物；正式发布和正式升级仍待验收。
+
+### Apple 票据校验网络重试
+
+[run 38247984788](https://github.com/tctony-labs/xiaowei/actions/runs/38247984788) 对应提交 9ac4744，生产 release 构建和测试通过，app 签名、公证及包内五个原生模块加载成功。随后 `stapler validate` 访问 Apple CloudKit 票据服务时出现 NSURLErrorDomain -1005（连接中断），退出 68；app Gatekeeper、DMG 公证、产物上传与 Release 草稿尚未执行。
+
+用户要求修复、提交并更新 v0.1.0 tag 重新触发。发布脚本为 app 票据校验及 DMG staple／validate 增加仅针对退出码 68 的有限退避重试，行为详见发布文档；不绕过校验或重复提交公证。回归先复现旧实现收到 68 立即失败，再确认恢复后才执行 Gatekeeper、持续失败最多四次、其他错误与进程启动失败不重试、成功无需等待；发布与产物复用测试共 18 项通过。真实 Apple 网络交互仍待新 CI 验证，事项保持 active。

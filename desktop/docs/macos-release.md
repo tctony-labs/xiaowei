@@ -30,7 +30,7 @@ pnpm --dir desktop package:mac --dir
 pnpm --dir desktop package:mac --signed
 ```
 
-正式入口通过 builder 公证并 staple app，生成 ZIP 和已签名 DMG，再单独向 Apple 提交 DMG 公证并 staple。核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和五个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。当前只完成入口实现与自动输入／签名格式回归，实际 Developer ID 包、公证和 Gatekeeper 结果仍待 CI 使用 org 凭据运行，不能以本地 ad-hoc 测试代替。
+正式入口通过 builder 公证并 staple app，生成 ZIP 和已签名 DMG，再单独向 Apple 提交 DMG 公证并 staple。核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和五个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。发布脚本中的 app 票据校验、DMG staple 与票据校验遇到 stapler CloudKit 错误 68 时，按 5、10、20 秒间隔最多重试三次，保留命令输出并记录重试与恢复；其他错误或重试耗尽仍阻止发布，不重复提交公证。CI 已完成 app 签名与公证，但首次票据校验被 Apple 网络中断阻塞；完整 Gatekeeper、DMG 公证和产物验收仍待后续 CI，不能以本地 ad-hoc 测试代替。
 
 原有 `pnpm --dir desktop package` 保留为通用开发目录包入口，不携带 Sparkle；验收更新必须使用 `package:mac` 的产物。
 
@@ -122,7 +122,7 @@ org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已�
 3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。由用户启动已安装旧版，通过可访问的签名 feed 下载新版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。
 4. 最后单独通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，并由维护者发布草稿。草稿附件不能作为所有未登录用户可访问的更新源；不要把草稿升级测试描述为正式 GitHub 下载链路验收完成。
 
-上述实际签名、公证、CI 与正式升级尚未执行，仍属于本事项必要验收。
+上述验收尚未全部完成，具体 CI 进度见开发记录；正式升级仍属于本事项必要验收。
 
 ## 运行与验收
 

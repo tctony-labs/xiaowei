@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import childProcess, { spawnSync } from "node:child_process";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { once } from "node:events";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -10,10 +11,99 @@ import { fileURLToPath } from "node:url";
 import { checkRelease, deriveUpdatePublicKey, verifyUpdateKeyPair } from "../release/check-release.mjs";
 import { localUpdateAppId, localUpdateName, localUpdateOrigin } from "../release/local-update-config.mjs";
 import { createLocalUpdateServer } from "../release/local-update-server.mjs";
-import { signingConfiguration, verifySigningDetails } from "../release/signing.mjs";
+import { notarizeDmg, signingConfiguration, verifySigningDetails } from "../release/signing.mjs";
 import { publicKey, releaseVersion, verifySignedAppcast, verifyUpdateArchive } from "../release/sparkle.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../../desktop/package.json", import.meta.url), "utf8"));
+
+function mockNotarization(t, staplerResult) {
+  const calls = [];
+  t.mock.method(childProcess, "spawnSync", (command, args) => {
+    calls.push([command, ...args]);
+    if (args[0] === "notarytool") return { status: 0, stdout: '{"status":"Accepted","id":"test-submission"}' };
+    if (args[0] === "stapler") return staplerResult(args[1]);
+    return { status: 0 };
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  const waits = t.mock.method(Atomics, "wait", () => "timed-out");
+  const warnings = t.mock.method(console, "warn", () => {});
+  t.mock.method(console, "info", () => {});
+  return { calls, waits, warnings };
+}
+
+test("DMG ticket operations recover from CloudKit errors before Gatekeeper assessment", (t) => {
+  const attempts = { staple: 0, validate: 0 };
+  const { calls, waits, warnings } = mockNotarization(t, (action) => {
+    attempts[action] += 1;
+    return { status: attempts[action] === 1 ? 68 : 0 };
+  });
+
+  notarizeDmg("/tmp/Test App.dmg", {});
+
+  assert.deepEqual(attempts, { staple: 2, validate: 2 });
+  assert.deepEqual(
+    waits.mock.calls.map((call) => call.arguments[3]),
+    [5000, 5000],
+  );
+  assert.equal(warnings.mock.callCount(), 2);
+  assert.equal(calls.filter((call) => call[1] === "notarytool").length, 1);
+  assert.equal(calls.at(-1)[0], "spctl");
+});
+
+test("persistent CloudKit errors exhaust bounded backoff and prevent Gatekeeper assessment", (t) => {
+  const { calls, waits } = mockNotarization(t, () => ({ status: 68 }));
+
+  assert.throws(() => notarizeDmg("/tmp/Test.dmg", {}), /stapler staple failed with status 68/);
+
+  assert.equal(calls.filter((call) => call[1] === "stapler").length, 4);
+  assert.deepEqual(
+    waits.mock.calls.map((call) => call.arguments[3]),
+    [5000, 10000, 20000],
+  );
+  assert.equal(
+    calls.some((call) => call[0] === "spctl"),
+    false,
+  );
+});
+
+test("stapler rejects non-CloudKit failures without retrying", (t) => {
+  const { calls, waits } = mockNotarization(t, () => ({ status: 65 }));
+
+  assert.throws(() => notarizeDmg("/tmp/Test.dmg", {}), /stapler staple failed with status 65/);
+
+  assert.equal(calls.filter((call) => call[1] === "stapler").length, 1);
+  assert.equal(waits.mock.callCount(), 0);
+  assert.equal(
+    calls.some((call) => call[0] === "spctl"),
+    false,
+  );
+});
+
+test("stapler preserves process launch errors without retrying", (t) => {
+  const error = new Error("spawn xcrun ENOENT");
+  const { waits } = mockNotarization(t, () => ({ status: null, error }));
+
+  assert.throws(
+    () => notarizeDmg("/tmp/Test.dmg", {}),
+    (actual) => actual === error,
+  );
+  assert.equal(waits.mock.callCount(), 0);
+});
+
+test("successful ticket operations proceed without waiting or warnings", (t) => {
+  const { calls, waits, warnings } = mockNotarization(t, () => ({ status: 0 }));
+
+  notarizeDmg("/tmp/Test.dmg", {});
+
+  assert.equal(calls.filter((call) => call[1] === "stapler").length, 2);
+  assert.equal(waits.mock.callCount(), 0);
+  assert.equal(warnings.mock.callCount(), 0);
+  assert.equal(calls.at(-1)[0], "spctl");
+});
 
 test("formal signatures require the selected Developer ID team and hardened runtime", () => {
   const team = "ABCDEFGHIJ";
