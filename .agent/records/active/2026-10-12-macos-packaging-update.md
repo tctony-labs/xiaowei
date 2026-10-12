@@ -21,7 +21,7 @@
 
 使用官方 Sparkle 2.10.0（固定上游归档 SHA-256），通过现有 `xw-platform`／`xiaowei-platform` 提供动态框架桥接；平台层持有 controller、delegate 与安装 continuation，TS main 持有检查策略、日志和退出协调。旧版插件只作为接口／行为参考，不依赖 Tauri。现成 `electron-sparkle-updater@0.5.3` 采用 silent user driver，关闭原生窗口并自动下载，不符合本次体验，未引入。
 
-发布入口、更新行为、密钥配置和人工验收要求统一维护在 [macOS 发布](../../../desktop/docs/macos-release.md)。稳定 `x.y.z` 版本与 `v<version>` tag 对齐；首期仅完整 ZIP，不做 delta／多渠道。feed 和更新包均采用 Ed25519 验签，本地打包与更新联调已通过；第三阶段 GitHub Release 草稿流水线已实现，实际正式签名与分发验收仍待执行。
+发布入口、更新行为、密钥配置和人工验收要求统一维护在 [macOS 发布](../../../desktop/docs/macos-release.md)。稳定 `x.y.z` 版本与 `v<version>` tag 对齐；首期仅完整 ZIP，不做 delta／多渠道。feed 和更新包均采用 Ed25519 验签，本地打包与更新联调已通过；第三阶段签名、公证与 GitHub Release 流水线已通过真实 CI，v0.1.1 已发布；后续流水线在全部前置校验成功后直接发布稳定 Release 并设为 latest，实际升级及离线安装仍待运行验收。
 
 本地更新联调使用专用测试包身份 `com.tctony.xiaowei.local-update` 和 loopback HTTP feed，两个版本共用一次构建的 release 原生模块及一套临时 Ed25519 密钥。所有业务数据、Agent 与模型目录隔离于独立测试根；私钥只驻留构建进程，公钥和产物信息进入忽略的本地 manifest。正式包不包含本地 HTTP 的 ATS 配置。Sparkle 2.10.0 要求签名 feed 同时开启解包前验签，打包配置和包内验证均已补齐此项。
 
@@ -139,7 +139,12 @@
 
 用户要求明确后续版本发布流程，并授权发布 v0.1.1。已在 macOS 发布说明中补齐版本来源、提交与 tag、CI 草稿核验、正式发布和公开更新源验证的顺序；desktop/package.json 升为 0.1.1，内部 workspace 包及 Rust crate 版本保持各自生命周期。此次发布包含已提交的单次 DMG 公证与独立阶段计时修复。
 
-远程 v0.1.1 tag 尚不存在，v0.1.0 Release 为草稿，旧 run 38254060941 已成功。发布提交 65409b3 与新 v0.1.1 tag 已推送，CI 38258295087 全部通过。只提交一次 DMG 公证，submission=5b2c85e3-a7c8-4f6c-8679-c03342648439；DMG 与外部同一份 app 的票据和 Gatekeeper 校验均通过。经下载最终附件复核后，按用户授权正式发布并设为 latest；公开 feed、DMG 和 ZIP 下载地址均返回 HTTP 200，公开 feed 与核验过的签名内容一致。DMG 离线安装与用户启动的正式升级验收仍需另行完成，不因发布成功自动归档事项。
+准备发布时，远程 v0.1.1 tag 尚不存在，v0.1.0 Release 为草稿，旧 run 38254060941 已成功。发布提交 65409b3 与新 v0.1.1 tag 已推送，CI 38258295087 全部通过。只提交一次 DMG 公证，submission=5b2c85e3-a7c8-4f6c-8679-c03342648439；DMG 与外部同一份 app 的票据和 Gatekeeper 校验均通过。经下载最终附件复核后，按用户授权正式发布并设为 latest；公开 feed、DMG 和 ZIP 下载地址均返回 HTTP 200，公开 feed 与核验过的签名内容一致。DMG 离线安装与用户启动的正式升级验收仍需另行完成，不因发布成功自动归档事项。
 
 
 本轮独立阶段实际耗时：生产原生模块 6m29s，检查与 desktop 测试 4m54s，app 打包签名 1m51s，DMG 制作签名 39s，单次公证与两份票据／Gatekeeper 校验 1m29s，ZIP 制作 24s，appcast 生成验证 11s。正式 Release 为 https://github.com/tctony-labs/xiaowei/releases/tag/v0.1.1 。最终产物已核验，未由 Agent 启动 Electron 或执行升级安装；运行验收边界保持如上。
+
+
+### 后续版本自动正式发布
+
+用户要求去掉 workflow 中的 draft。发布命令已从 `--draft` 改为 `--latest`，job 与 step 名称同步调整；后续 tag 构建在测试、签名、公证、票据和 appcast 校验全部成功后直接发布稳定 Release，公开 latest feed 随之生效。发布流程说明同步明确：确认正式发布后推送 tag，没有草稿转正式的人工步骤。本次仅调整后续 workflow，不修改已发布 v0.1.1 的 tag 或产物；已有 0.1.0 草稿保留。

@@ -104,7 +104,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 3. `notarize`：只提交 DMG，等待 Accepted，然后分别附加并校验 DMG 与 app 票据和 Gatekeeper。
 4. `zip`：重新校验 app 票据后，用 ditto 制作最终更新 ZIP，不重建 DMG。
 
-每个 step 独立显示耗时，前一步失败会阻止后续发布。随后生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。本地一键入口不指定 stage 时按相同顺序执行；ad-hoc 模式跳过公证。
+每个 step 独立显示耗时，前一步失败会阻止后续发布。随后生成验证 appcast，上传 Actions artifact，并直接发布稳定 GitHub Release、设为 latest；公开更新源随之生效。本地一键入口不指定 stage 时按相同顺序执行；ad-hoc 模式跳过公证。
 
 发布测试先在独立 `target/rust-napi-tests/search` 目录构建启用 gateway-fixtures 的 Search 测试模块，成功后才向平台／desktop 测试子进程设置已有的 `XIAOWEI_TEST_NAPI_PREPARED=1`。消费测试跳过生产 debug 重建，仍执行原有测试列表和生产接口检查。发布入口在测试前后核对五个生产 `.node` 的 SHA-256；构建 fixture 或测试失败、生产文件缺失或发生变化均阻止打包。测试 fixture 使用 debug profile，不进入应用。普通 `test.yml → just test` 保持原有 debug 构建及 fixture 准备流程，本地 `package:mac` 默认仍自行构建 release。
 
@@ -134,10 +134,10 @@ org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已�
 
 1. 确定高于当前已分发版本的稳定 `x.y.z` 版本，修改 `desktop/package.json`，整理该版本的改动说明。继续使用原有 Developer ID 身份与长期 Sparkle 更新密钥。
 2. 完成相关回归和 `just check`，确认待发布代码、版本和必要文档均已提交，工作区没有遗漏的发布改动。
-3. 推送发布提交，再在同一提交上创建并推送 `v<version>` annotated tag。tag 推送会触发 macOS release workflow；CI 检出 tag 指向的提交，并核对 tag、应用版本与 HEAD 一致。已发布版本的 tag 和附件不覆盖；修正已分发版本时递增版本重新发布。
+3. 决定正式发布时，推送发布提交，再在同一提交上创建并推送 `v<version>` annotated tag。tag 推送会触发 macOS release workflow，校验成功后自动正式发布；CI 检出 tag 指向的提交，并核对 tag、应用版本与 HEAD 一致。已发布版本的 tag 和附件不覆盖；修正已分发版本时递增版本重新发布。
 4. 等待 CI 完成构建／测试、app 签名、DMG 制作、单次公证及两份票据校验、最终 ZIP 与 appcast 签名验证。核对 run 的 head SHA 与发布 tag 一致，所有发布阶段成功。
-5. 核对 Release 草稿包含本版本的 `XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip` 和 `appcast.xml`，检查版本、签名身份、公证及更新下载地址，整理 Release notes。用户运行验收按下节执行，未完成的项目明确保留为待验收。
-6. 获得正式发布授权后，将草稿作为稳定 Release 发布，并设为 latest。CI 只创建草稿；单独推送 tag 不会让已安装应用发现该版本。
+5. CI 在所有前置阶段成功后直接发布稳定 Release、设为 latest，并生成 Release notes。推送 tag 是本次正式发布的触发点，后续没有草稿转正式的人工步骤。
+6. 核对已发布 Release 包含本版本的 `XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip` 和 `appcast.xml`，检查版本、签名身份、公证、更新下载地址及 Release notes。用户运行验收按下节执行，未完成的项目明确保留为待验收。
 7. 发布后通过未登录下载地址验证 DMG、ZIP 和 `releases/latest/download/appcast.xml`；确认 latest feed 的版本、ZIP 下载地址、长度与签名匹配最终产物。由用户启动已安装旧版，通过检查更新完成安装、重启及数据保留验收。
 
 以 `0.1.1` 为例，在版本改动已提交且相关检查通过后，触发构建的命令为：
@@ -153,9 +153,9 @@ git push origin refs/tags/v0.1.1
 ### 正式包最终验收
 
 1. 核对现有 org 设置对 xiaowei 仓库的可见性；CI 使用已确认的个人 Developer ID、Apple ID 公证和长期更新密钥重新构建，不能上传本地测试包或复用其 feed。
-2. 源码提交／推送与 tag 后运行真实 CI，检查签名主体、公证 Accepted、app／DMG 票据和 Gatekeeper，保留可审查的 Release 草稿。
-3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。发布前可用草稿产物和受控的签名 feed 运行联调；由用户启动已安装旧版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。
-4. 经授权发布草稿后，单独通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，再验证正式更新链路。草稿附件不能作为所有未登录用户可访问的更新源；不要把受控 feed 的草稿升级测试描述为正式 GitHub 下载链路验收完成。
+2. 源码提交／推送与 tag 后运行真实 CI，检查签名主体、公证 Accepted、app／DMG 票据和 Gatekeeper；所有前置阶段成功后自动正式发布。
+3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。由用户启动已安装旧版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。正式发布前的受控 feed 联调不能代替公开更新链路验收。
+4. 发布后通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，再验证正式更新链路。历史草稿附件不属于公开更新源。
 
 上述验收尚未全部完成，具体 CI 进度见开发记录；正式升级仍属于本事项必要验收。
 
