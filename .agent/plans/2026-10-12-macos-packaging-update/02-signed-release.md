@@ -7,7 +7,7 @@
 - 使用 GitHub Releases、仅 arm64、Sparkle 标准原生 UI、稳定 `x.y.z`／`v<version>`、完整 ZIP 和 DMG。
 - 正式包要求显式 Developer ID Application 与预期 Team ID，Apple ID app-specific password 公证凭据，以及长期 Ed25519 更新密钥；不能复用本地测试密钥。不得自动使用本机公司证书。
 - 流水线核对版本、构建／测试、签名与公证、验证包内模块和 Sparkle helper、生成签名 feed，并创建 Release 草稿；正式发布由维护者在最终验收后执行。
-- 用户已授权提交、推送本分支，并创建 v0.1.0 tag 触发 CI；正式发布仍由维护者确认。org 凭据对本仓库的可见性待 CI 核对，真实正式包验收目前尚未执行。
+- 用户已授权提交、推送本分支并发布 v0.1.1；CI、签名、公证及最终附件验证通过，已正式发布。真实旧版更新及 DMG 离线安装仍待用户运行验收。
 
 ## 文件与接口
 
@@ -36,8 +36,10 @@
 
 ## 当前结果
 
-发布预检查、签名与公证校验、workflow 和文档准备已实现；八项 tooling、实际 ad-hoc 拒绝校验、actionlint 和完整 just check 通过。已复用 cmux 的 org 证书／Apple ID／Sparkle 配置，兼容省略 Base64 padding 并由私钥推导公钥。已安装 cmux 的公开签名验证了个人 Team ID NSWMLDGCEZ。首次 v0.1.0 CI 已运行，Apple 签名／公证配置均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败。已按用户要求单独生成并导出小微密钥，用户确认添加 secret 后重跑原 CI，attempt 2 配置预检查与五个原生模块构建通过，但 contracts:check 因 runner 缺少 Go 而失败。已补齐与现有测试 workflow 一致的 Go 安装步骤，用户确认后已提交 4ed3793 并更新 tag，新的 run 38237430177 检查／测试通过，原生 release 编译异常慢。隔离复现定位到 jieba-rs 词典宏生成的巨大 Vec 初始化触发 LLVM SLP 向量化高耗时；静态数组后 to_vec 的等价临时实验冷 release 构建与两组分词校验共 11.90 秒。用户选择先等待当前 CI，后要求停止；run 38237430177 已取消，未生成产物或草稿。用户已授权两项修复；fork 已更新至 70a1d962，发布一次 release 产物复用已实现，相关本地分词／FTS、fixture 隔离、release 集成及 build:false 目录包验证已通过，结果已回填 record；实际签名／公证／正式升级仍待执行。本 Plan 保留，直到本切片必要的正式验证完成或用户明确收窄范围。
+发布提交 65409b3 与 v0.1.1 tag 已推送，CI 38258295087 全部通过，单次 DMG 公证成功并获取 DMG 与外部 app 的两份票据。下载最终附件的签名、arm64、版本、公钥一致性、Gatekeeper、票据、DMG 完整性和 Sparkle feed／ZIP 签名检查均通过。用户已授权正式发布，v0.1.1 已发布并设为 latest；未登录公开 feed 与附件地址均返回 HTTP 200。
+
+当前仍需由用户启动已安装 0.1.0，验证通过正式 feed 下载 0.1.1、安装前业务关闭、重启、版本和数据保留，并完成 DMG 离线安装运行。本 Plan 保留至这些必要运行验收完成或用户明确收窄范围；不以成功发布代替升级验收。
 
 ## 单次公证调整
 
-用户确认先记录通用笔记，再将重复公证改为单次 DMG 提交。完整发布顺序为 app 签名、DMG 制作与签名、DMG 公证并给 DMG／app 附加票据、最终 ZIP 制作；每段独立 Actions step。electron-builder 自动公证关闭，DMG 公证后不再重建。目录包入口没有 DMG，保留通过临时 ZIP 对 app 提交一次公证的行为。具体实现及验收证据持续回填 record；真实 Apple 单次提交、DMG 离线安装及正式 ZIP 更新仍须 CI 与用户启动验收。
+用户确认先记录通用笔记，再将重复公证改为单次 DMG 提交。完整发布顺序为 app 签名、DMG 制作与签名、DMG 公证并给 DMG／app 附加票据、最终 ZIP 制作；每段独立 Actions step。electron-builder 自动公证关闭，DMG 公证后不再重建。目录包入口没有 DMG，保留通过临时 ZIP 对 app 提交一次公证的行为。具体实现及验收证据持续回填 record；真实 Apple 单次提交与两份票据验证已通过 CI 和最终附件复核；DMG 离线安装及正式 ZIP 更新仍须用户启动验收。

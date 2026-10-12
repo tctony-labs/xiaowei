@@ -29,12 +29,9 @@
 
 ## Current work
 
-- 前两阶段本地打包与更新联调已完成；用户已要求继续第三阶段。按 [正式发布实施计划](../../plans/2026-10-12-macos-packaging-update/02-signed-release.md) 准备正式签名、公证与 GitHub Release 流水线。
-- 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。CI 已完成 app 签名与公证，app 票据校验被 Apple 网络中断阻塞；当前失败原因与修复见下，不以静态检查代替完整正式包验收。
-- 个人身份已确认；已安装 cmux 的公开签名为 Developer ID Application: Chang Tang (NSWMLDGCEZ)。本机没有可用的该 Developer ID 私钥，正式构建使用 org 的现有 .p12，不自动使用本机公司证书。
-- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已按用户要求生成小微独立密钥并导出至 /tmp/xiaowei-sparkle-private-key.txt。用户确认已添加 secret，现已重跑同一 CI（attempt 2），原 run attempt 2 的 Go 缺失已修复，用户确认后提交 4ed3793 并更新 v0.1.0 tag。[新 run 38237430177](https://github.com/tctony-labs/xiaowei/actions/runs/38237430177) 的配置、Go、五个 debug napi、检查与全部 desktop 测试均通过；正式 release 构建耗时异常，用户要求后于 19:27 取消，状态 completed／cancelled；尚未进入签名／公证，没有产物或 Release 草稿。正式发布与升级验收尚待完成；事项未归档。
-- 编译阻塞的两项修复已实现并完成相关本地验收：jieba fork dev 已提交 70a1d962，小微固定新 rev，发布流程一次 release 构建供测试与打包复用。用户现已授权提交／推送小微修复，并将 v0.1.0 从 4ed3793 更新到本次修复，触发新的 CI。
-- 第三阶段必要验收：后续提交修复后运行正式 CI，验证实际签名、公证、Gatekeeper、正式包两版本更新与 GitHub 下载链路；不能用既有 ad-hoc 测试包或私钥已丢弃的临时更新密钥替代。
+- 单次 DMG 公证与 Actions 阶段拆分已实现，真实 CI [38258295087](https://github.com/tctony-labs/xiaowei/actions/runs/38258295087) 全部通过；v0.1.1 已按用户授权于 2026-10-12 22:08:50（Asia/Shanghai）正式发布并设为 latest。
+- 已下载最终发布附件，核对版本、同一长期 Sparkle 公钥、Developer ID／Team ID、五个 napi 的签名与 arm64、两份公证票据、Gatekeeper、DMG 完整性，以及 appcast／ZIP 签名。公开 latest feed 已返回 HTTP 200；已安装 0.1.0 的更新检查此前因草稿没有公开 feed 而返回 404，发布后可重试。
+- 尚需由用户运行 DMG 离线安装与已安装 0.1.0 → 0.1.1 的实际更新、重启和数据保留验收。保留正式发布 Plan，事项保持 active，未归档；0.1.0 草稿未发布。
 
 ## Outcome
 
@@ -142,4 +139,7 @@
 
 用户要求明确后续版本发布流程，并授权发布 v0.1.1。已在 macOS 发布说明中补齐版本来源、提交与 tag、CI 草稿核验、正式发布和公开更新源验证的顺序；desktop/package.json 升为 0.1.1，内部 workspace 包及 Rust crate 版本保持各自生命周期。此次发布包含已提交的单次 DMG 公证与独立阶段计时修复。
 
-远程 v0.1.1 tag 尚不存在，v0.1.0 Release 为草稿，旧 run 38254060941 已成功。待推送本次发布提交与新 tag，核对 CI 签名／单次公证、票据与最终产物后正式发布 0.1.1，并检查公开 latest feed。DMG 离线安装与用户启动的正式升级验收仍需另行完成，不因发布成功自动归档事项。
+远程 v0.1.1 tag 尚不存在，v0.1.0 Release 为草稿，旧 run 38254060941 已成功。发布提交 65409b3 与新 v0.1.1 tag 已推送，CI 38258295087 全部通过。只提交一次 DMG 公证，submission=5b2c85e3-a7c8-4f6c-8679-c03342648439；DMG 与外部同一份 app 的票据和 Gatekeeper 校验均通过。经下载最终附件复核后，按用户授权正式发布并设为 latest；公开 feed、DMG 和 ZIP 下载地址均返回 HTTP 200，公开 feed 与核验过的签名内容一致。DMG 离线安装与用户启动的正式升级验收仍需另行完成，不因发布成功自动归档事项。
+
+
+本轮独立阶段实际耗时：生产原生模块 6m29s，检查与 desktop 测试 4m54s，app 打包签名 1m51s，DMG 制作签名 39s，单次公证与两份票据／Gatekeeper 校验 1m29s，ZIP 制作 24s，appcast 生成验证 11s。正式 Release 为 https://github.com/tctony-labs/xiaowei/releases/tag/v0.1.1 。最终产物已核验，未由 Agent 启动 Electron 或执行升级安装；运行验收边界保持如上。
