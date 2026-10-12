@@ -4,29 +4,53 @@ import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { localUpdateAppId, localUpdateDirectory, localUpdateName, localUpdateOrigin } from "./local-update-config.mjs";
-import { notarizeDmg, runStapler, signingConfiguration, verifySignedCode } from "./signing.mjs";
+import { notarizeApp, notarizeDmg, runStapler, signingConfiguration, verifySignedCode } from "./signing.mjs";
 import { desktopDirectory, ensureSparkle, feedUrl, publicKey, releaseVersion, run } from "./sparkle.mjs";
 
-export function packageMac({ signed = false, directoryOnly = false, localVersion, key, build = true } = {}) {
+export function packageMac({
+  signed = false,
+  directoryOnly = false,
+  localVersion,
+  key,
+  build = true,
+  stage = "all",
+} = {}) {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("macOS packaging must run on an Apple Silicon Mac");
   }
+  if (!["all", "app", "dmg", "notarize", "zip"].includes(stage)) throw new Error(`Unknown packaging stage: ${stage}`);
+  if (stage === "notarize" && !signed) throw new Error("Notarization requires signed packaging");
+  if (stage !== "all" && directoryOnly) throw new Error("directoryOnly cannot be combined with a packaging stage");
+
   key = publicKey(key ?? process.env.SPARKLE_ED_PUBLIC_KEY);
   const pkg = JSON.parse(readFileSync(join(desktopDirectory, "package.json"), "utf8"));
   const version = releaseVersion(localVersion ?? pkg.version);
   const localTest = localVersion !== undefined;
   if (localTest && signed) throw new Error("Local update tests must not use Developer ID credentials");
-  const signing = signed ? signingConfiguration() : undefined;
-  const signingTeam = signing?.team;
+  let steps = ["app"];
+  if (!directoryOnly) steps = ["app", "dmg", ...(signed ? ["notarize"] : []), "zip"];
+  if (stage !== "all") steps = [stage];
+  if (signed && (steps.includes("app") || steps.includes("dmg"))) signingConfiguration();
+  const signingTeam = signed ? process.env.APPLE_TEAM_ID : undefined;
+  const output = localTest ? join(localUpdateDirectory, version) : join(desktopDirectory, "dist");
+  const name = localTest ? localUpdateName : "XiaoWei";
+  const app = join(output, "mac-arm64", `${name}.app`);
+  const dmg = join(output, `${name}-${version}-arm64.dmg`);
+  const archive = join(output, `${name}-${version}-arm64.zip`);
+  const verification = { app, version, key, localTest, signed, signingTeam };
 
-  ensureSparkle();
-  console.info(`Building macOS arm64 ${version}; signing=${signed ? "Developer ID and notarization" : "ad-hoc"}`);
-  if (build) {
-    run("pnpm", ["--filter", "./crates/*/napi", "--workspace-concurrency=1", "run", "build"], {
-      cwd: join(desktopDirectory, ".."),
-    });
-    run("pnpm", ["build"]);
+  if (steps.includes("app")) {
+    ensureSparkle();
+    if (build) {
+      run("pnpm", ["--filter", "./crates/*/napi", "--workspace-concurrency=1", "run", "build"], {
+        cwd: join(desktopDirectory, ".."),
+      });
+      run("pnpm", ["build"]);
+    }
+  } else {
+    verifyPackagedApp(verification);
   }
+
   const builderEnv = {
     ...process.env,
     SPARKLE_ED_PUBLIC_KEY: key,
@@ -37,7 +61,7 @@ export function packageMac({ signed = false, directoryOnly = false, localVersion
   if (!signed) {
     for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD", "CSC_NAME"]) delete builderEnv[name];
   }
-  // Use the selected organization Apple ID credentials instead of an ambient API or Keychain profile.
+  // Use explicit Apple ID credentials only in our single notarization submission.
   for (const name of [
     "APPLE_API_KEY",
     "APPLE_API_KEY_ID",
@@ -47,25 +71,54 @@ export function packageMac({ signed = false, directoryOnly = false, localVersion
   ]) {
     delete builderEnv[name];
   }
-  run(
-    "pnpm",
-    [
-      "exec",
-      "electron-builder",
-      "--config",
-      localTest ? "electron-builder.mac-test.cjs" : "electron-builder.mac.cjs",
-      "--mac",
-      "--arm64",
-      "--publish",
-      "never",
-      ...(directoryOnly ? ["--dir"] : []),
-    ],
-    { env: builderEnv },
-  );
 
-  const output = localTest ? join(localUpdateDirectory, version) : join(desktopDirectory, "dist");
-  const name = localTest ? localUpdateName : "XiaoWei";
-  const app = join(output, "mac-arm64", `${name}.app`);
+  for (const step of steps) {
+    console.info(`macOS arm64 ${version}: ${step}; signing=${signed ? "Developer ID" : "ad-hoc"}`);
+    if (step === "notarize") {
+      verifySignedCode(dmg, signingTeam, false);
+      notarizeDmg(dmg, app);
+      console.info("macOS packaging stage complete: notarize");
+      continue;
+    }
+    if (step === "zip" && signed) {
+      // A separate CI step must never archive an app without its notarization ticket.
+      runStapler("validate", app);
+      run("spctl", ["--assess", "--type", "execute", "--verbose=2", app]);
+    }
+
+    if (step === "zip") {
+      // Archive the stapled app directly; do not rebuild or re-sign either distribution artifact.
+      run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, archive]);
+    } else {
+      run(
+        "pnpm",
+        [
+          "exec",
+          "electron-builder",
+          "--config",
+          localTest ? "electron-builder.mac-test.cjs" : "electron-builder.mac.cjs",
+          "--mac",
+          ...(step === "dmg" ? ["dmg"] : []),
+          "--arm64",
+          "--publish",
+          "never",
+          ...(step === "app" ? ["--dir"] : ["--prepackaged", app]),
+        ],
+        { env: builderEnv },
+      );
+    }
+
+    if (step === "app") verifyPackagedApp(verification);
+    if (step === "dmg" && signed) verifySignedCode(dmg, signingTeam, false);
+    console.info(`macOS packaging stage complete: ${step}`);
+  }
+
+  // Directory-only packaging has no DMG; submit the app once via a temporary ZIP.
+  if (directoryOnly && signed) notarizeApp(app);
+  return { app, version, output, archive, dmg };
+}
+
+function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }) {
   run("codesign", ["--verify", "--deep", "--strict", app]);
   const expectedInfo = {
     CFBundleIdentifier: localTest ? localUpdateAppId : "com.tctony.xiaowei",
@@ -115,17 +168,9 @@ export function packageMac({ signed = false, directoryOnly = false, localVersion
     ]) {
       verifySignedCode(code, signingTeam);
     }
-    runStapler("validate", app);
-    run("spctl", ["--assess", "--type", "execute", "--verbose=2", app]);
-    if (!directoryOnly) {
-      const dmg = join(output, `${name}-${version}-arm64.dmg`);
-      verifySignedCode(dmg, signingTeam, false);
-      notarizeDmg(dmg);
-    }
-    console.info(`Developer ID signatures, hardened runtime and notarization verified: team=${signingTeam}`);
+    console.info(`Developer ID signatures and hardened runtime verified: team=${signingTeam}`);
   }
   console.info("Packaged app signature, version, update configuration and arm64 native modules verified");
-  return { app, version, output, archive: join(output, `${name}-${version}-arm64.zip`) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

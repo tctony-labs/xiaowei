@@ -2,27 +2,40 @@ import assert from "node:assert/strict";
 import childProcess, { spawnSync } from "node:child_process";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { syncBuiltinESMExports } from "node:module";
+import fs, { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import moduleApi, { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { checkRelease, deriveUpdatePublicKey, verifyUpdateKeyPair } from "../release/check-release.mjs";
 import { localUpdateAppId, localUpdateName, localUpdateOrigin } from "../release/local-update-config.mjs";
 import { createLocalUpdateServer } from "../release/local-update-server.mjs";
-import { notarizeDmg, signingConfiguration, verifySigningDetails } from "../release/signing.mjs";
-import { publicKey, releaseVersion, verifySignedAppcast, verifyUpdateArchive } from "../release/sparkle.mjs";
+import { packageMac } from "../release/package-mac.mjs";
+import { notarizeApp, notarizeDmg, signingConfiguration, verifySigningDetails } from "../release/signing.mjs";
+import {
+  feedUrl,
+  publicKey,
+  releaseVersion,
+  sparkleDigest,
+  verifySignedAppcast,
+  verifyUpdateArchive,
+} from "../release/sparkle.mjs";
 
 const { version } = JSON.parse(readFileSync(new URL("../../desktop/package.json", import.meta.url), "utf8"));
 
-function mockNotarization(t, staplerResult) {
+function mockNotarization(
+  t,
+  staplerResult,
+  submission = { status: 0, stdout: '{"status":"Accepted","id":"test"}' },
+  commandResult = () => ({ status: 0 }),
+) {
   const calls = [];
   t.mock.method(childProcess, "spawnSync", (command, args) => {
     calls.push([command, ...args]);
-    if (args[0] === "notarytool") return { status: 0, stdout: '{"status":"Accepted","id":"test-submission"}' };
-    if (args[0] === "stapler") return staplerResult(args[1]);
-    return { status: 0 };
+    if (args[0] === "notarytool") return submission;
+    if (args[0] === "stapler") return staplerResult(args[1], args[2]);
+    return commandResult(command, args);
   });
   syncBuiltinESMExports();
   t.after(() => {
@@ -35,6 +48,188 @@ function mockNotarization(t, staplerResult) {
   return { calls, waits, warnings };
 }
 
+function mockPackaging(t, submission, staplerResult = () => ({ status: 0 })) {
+  const env = {
+    CSC_LINK: "test-certificate",
+    CSC_KEY_PASSWORD: "test-password",
+    CSC_NAME: "Developer ID Application: Test (ABCDEFGHIJ)",
+    APPLE_TEAM_ID: "ABCDEFGHIJ",
+    APPLE_ID: "test@example.test",
+    APPLE_APP_SPECIFIC_PASSWORD: "test-password",
+    SPARKLE_ED_PUBLIC_KEY: Buffer.alloc(32, 1).toString("base64"),
+  };
+  const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, env);
+  t.after(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const info = {
+    CFBundleIdentifier: "com.tctony.xiaowei",
+    CFBundleShortVersionString: version,
+    CFBundleVersion: version,
+    SUFeedURL: feedUrl,
+    SUPublicEDKey: env.SPARKLE_ED_PUBLIC_KEY,
+    SURequireSignedFeed: "true",
+    SUVerifyUpdateBeforeExtraction: "true",
+  };
+  const result = mockNotarization(t, staplerResult, submission, (command, args) => {
+    if (command.endsWith("PlistBuddy")) return { status: 0, stdout: info[args[1].slice("Print :".length)] };
+    if (command === "otool") return { status: 0, stdout: "" };
+    if (command === "codesign" && args.includes("--display")) {
+      return {
+        status: 0,
+        stderr: [
+          "TeamIdentifier=ABCDEFGHIJ",
+          "Authority=Developer ID Application: Test (ABCDEFGHIJ)",
+          "CodeDirectory flags=0x10000",
+        ].join("\n"),
+      };
+    }
+    return { status: 0 };
+  });
+  const read = fs.readFileSync;
+  const exists = fs.existsSync;
+  t.mock.method(fs, "readFileSync", (path, ...args) =>
+    String(path).endsWith(".verified") ? sparkleDigest : read(path, ...args),
+  );
+  t.mock.method(fs, "existsSync", (path) => String(path).endsWith(".verified") || exists(path));
+  t.mock.method(moduleApi, "createRequire", () => () => ({ SparkleUpdater() {} }));
+  syncBuiltinESMExports();
+  return result;
+}
+
+const macOnly = { skip: process.platform !== "darwin" || process.arch !== "arm64" };
+
+test("full signed packaging submits only the DMG and archives the app after both tickets", macOnly, (t) => {
+  const { calls } = mockPackaging(t);
+  const result = packageMac({ signed: true, build: false });
+
+  const submissions = calls.filter((call) => call[1] === "notarytool");
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0][3], result.dmg);
+  const builders = calls.filter((call) => call.includes("electron-builder"));
+  assert.equal(builders.length, 2);
+  assert.ok(builders[0].includes("--dir"));
+  assert.equal(builders[1][builders[1].indexOf("--mac") + 1], "dmg");
+  assert.equal(builders[1][builders[1].indexOf("--prepackaged") + 1], result.app);
+  assert.ok(calls.indexOf(builders[1]) < calls.indexOf(submissions[0]));
+  const staples = calls.filter((call) => call[1] === "stapler" && call[2] === "staple");
+  assert.deepEqual(
+    staples.map((call) => call[3]),
+    [result.dmg, result.app],
+  );
+  assert.deepEqual(calls.at(-1), ["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", result.app, result.archive]);
+});
+
+test("CI stages submit once and the ZIP stage needs no signing or notarization secrets", macOnly, (t) => {
+  const workflow = readFileSync(new URL("../../.github/workflows/macos-release.yml", import.meta.url), "utf8");
+  const stages = [...workflow.matchAll(/packageMac\(\{ signed: true, build: false, stage: "([a-z]+)" \}\)/g)];
+  assert.deepEqual(
+    stages.map((match) => match[1]),
+    ["app", "dmg", "notarize", "zip"],
+  );
+  const { calls } = mockPackaging(t);
+  for (const [, stage] of stages) {
+    if (stage === "notarize") {
+      delete process.env.CSC_LINK;
+      delete process.env.CSC_KEY_PASSWORD;
+    }
+    if (stage === "zip") delete process.env.APPLE_APP_SPECIFIC_PASSWORD;
+    packageMac({ signed: true, build: false, stage });
+  }
+  assert.equal(calls.filter((call) => call[1] === "notarytool").length, 1);
+  assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 2);
+  assert.equal(calls.at(-1)[0], "ditto");
+});
+
+test("rejected DMG notarization prevents ZIP creation in the full release entry point", macOnly, (t) => {
+  const { calls } = mockPackaging(t, { status: 0, stdout: '{"status":"Invalid"}' });
+
+  assert.throws(() => packageMac({ signed: true, build: false }), /DMG notarization failed: Invalid/);
+  assert.equal(calls.filter((call) => call[1] === "notarytool").length, 1);
+  assert.equal(
+    calls.some((call) => call[0] === "ditto" || call[1] === "stapler"),
+    false,
+  );
+});
+
+test("a standalone signed ZIP stage rejects a missing app ticket before creating an archive", macOnly, (t) => {
+  const { calls } = mockPackaging(t, undefined, () => ({ status: 66 }));
+
+  assert.throws(() => packageMac({ signed: true, build: false, stage: "zip" }), /stapler validate failed/);
+  assert.equal(
+    calls.some((call) => call[0] === "ditto" || call.includes("electron-builder")),
+    false,
+  );
+});
+
+test("failure to staple the nested app prevents the final ZIP without resubmitting", macOnly, (t) => {
+  const { calls } = mockPackaging(t, undefined, (_action, path) => ({ status: path.endsWith(".app") ? 65 : 0 }));
+
+  assert.throws(() => packageMac({ signed: true, build: false }), /stapler staple failed with status 65/);
+  assert.equal(calls.filter((call) => call[1] === "notarytool").length, 1);
+  assert.equal(
+    calls.some((call) => call[0] === "ditto"),
+    false,
+  );
+});
+
+test("signed directory-only packaging submits the app once without producing a DMG", macOnly, (t) => {
+  const { calls } = mockPackaging(t);
+  const result = packageMac({ signed: true, build: false, directoryOnly: true });
+
+  const submissions = calls.filter((call) => call[1] === "notarytool");
+  assert.equal(submissions.length, 1);
+  assert.ok(submissions[0][3].endsWith("/app.zip"));
+  assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
+  assert.equal(
+    calls.some((call) => call.includes(result.dmg)),
+    false,
+  );
+});
+
+test("app notarization submits a temporary ZIP before stapling and Gatekeeper assessment", (t) => {
+  const { calls } = mockNotarization(t, () => ({ status: 0 }));
+  const app = "/tmp/Test App.app";
+
+  notarizeApp(app, {});
+
+  const archive = calls[0].at(-1);
+  assert.deepEqual(calls[0], ["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, archive]);
+  assert.deepEqual(calls[1].slice(0, 4), ["xcrun", "notarytool", "submit", archive]);
+  assert.deepEqual(calls.slice(2), [
+    ["xcrun", "stapler", "staple", app],
+    ["xcrun", "stapler", "validate", app],
+    ["spctl", "--assess", "--type", "execute", "--verbose=2", app],
+  ]);
+  assert.equal(existsSync(dirname(archive)), false);
+});
+
+test("rejected app notarization stops before stapling and cleans the temporary ZIP", (t) => {
+  const { calls } = mockNotarization(t, () => assert.fail("must not staple a rejected app"), {
+    status: 0,
+    stdout: '{"status":"Invalid","id":"test"}',
+  });
+
+  assert.throws(() => notarizeApp("/tmp/Test.app", {}), /App notarization failed: Invalid/);
+
+  assert.equal(calls.length, 2);
+  assert.equal(existsSync(dirname(calls[0].at(-1))), false);
+});
+
+test("failed DMG notarization stops before stapling", (t) => {
+  const { calls } = mockNotarization(t, () => assert.fail("must not staple after a failed submission"), {
+    status: 1,
+    stdout: "",
+  });
+
+  assert.throws(() => notarizeDmg("/tmp/Test.dmg", "/tmp/Test.app", {}), /DMG notarization command failed/);
+  assert.equal(calls.length, 1);
+});
+
 test("DMG ticket operations recover from CloudKit errors before Gatekeeper assessment", (t) => {
   const attempts = { staple: 0, validate: 0 };
   const { calls, waits, warnings } = mockNotarization(t, (action) => {
@@ -42,9 +237,9 @@ test("DMG ticket operations recover from CloudKit errors before Gatekeeper asses
     return { status: attempts[action] === 1 ? 68 : 0 };
   });
 
-  notarizeDmg("/tmp/Test App.dmg", {});
+  notarizeDmg("/tmp/Test App.dmg", "/tmp/Test App.app", {});
 
-  assert.deepEqual(attempts, { staple: 2, validate: 2 });
+  assert.deepEqual(attempts, { staple: 3, validate: 3 });
   assert.deepEqual(
     waits.mock.calls.map((call) => call.arguments[3]),
     [5000, 5000],
@@ -57,7 +252,7 @@ test("DMG ticket operations recover from CloudKit errors before Gatekeeper asses
 test("persistent CloudKit errors exhaust bounded backoff and prevent Gatekeeper assessment", (t) => {
   const { calls, waits } = mockNotarization(t, () => ({ status: 68 }));
 
-  assert.throws(() => notarizeDmg("/tmp/Test.dmg", {}), /stapler staple failed with status 68/);
+  assert.throws(() => notarizeDmg("/tmp/Test.dmg", "/tmp/Test.app", {}), /stapler staple failed with status 68/);
 
   assert.equal(calls.filter((call) => call[1] === "stapler").length, 4);
   assert.deepEqual(
@@ -73,7 +268,7 @@ test("persistent CloudKit errors exhaust bounded backoff and prevent Gatekeeper 
 test("stapler rejects non-CloudKit failures without retrying", (t) => {
   const { calls, waits } = mockNotarization(t, () => ({ status: 65 }));
 
-  assert.throws(() => notarizeDmg("/tmp/Test.dmg", {}), /stapler staple failed with status 65/);
+  assert.throws(() => notarizeDmg("/tmp/Test.dmg", "/tmp/Test.app", {}), /stapler staple failed with status 65/);
 
   assert.equal(calls.filter((call) => call[1] === "stapler").length, 1);
   assert.equal(waits.mock.callCount(), 0);
@@ -88,7 +283,7 @@ test("stapler preserves process launch errors without retrying", (t) => {
   const { waits } = mockNotarization(t, () => ({ status: null, error }));
 
   assert.throws(
-    () => notarizeDmg("/tmp/Test.dmg", {}),
+    () => notarizeDmg("/tmp/Test.dmg", "/tmp/Test.app", {}),
     (actual) => actual === error,
   );
   assert.equal(waits.mock.callCount(), 0);
@@ -97,9 +292,9 @@ test("stapler preserves process launch errors without retrying", (t) => {
 test("successful ticket operations proceed without waiting or warnings", (t) => {
   const { calls, waits, warnings } = mockNotarization(t, () => ({ status: 0 }));
 
-  notarizeDmg("/tmp/Test.dmg", {});
+  notarizeDmg("/tmp/Test.dmg", "/tmp/Test.app", {});
 
-  assert.equal(calls.filter((call) => call[1] === "stapler").length, 2);
+  assert.equal(calls.filter((call) => call[1] === "stapler").length, 4);
   assert.equal(waits.mock.callCount(), 0);
   assert.equal(warnings.mock.callCount(), 0);
   assert.equal(calls.at(-1)[0], "spctl");
@@ -146,7 +341,7 @@ test("formal release preflight rejects missing credentials, nonmatching tags and
   assert.equal(config.mac.identity, "Release Publisher (ABCDEFGHIJ)");
   assert.equal(config.mac.type, "distribution");
   assert.equal(config.mac.hardenedRuntime, true);
-  assert.equal(config.mac.notarize, true);
+  assert.equal(config.mac.notarize, false);
   assert.equal(config.dmg.sign, true);
   assert.deepEqual(checkRelease(`v${version}`, version, env), { tag: `v${version}`, version, team: "ABCDEFGHIJ" });
   assert.throws(() => checkRelease("wrong-tag", version, {}), /Release tag/);

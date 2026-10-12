@@ -127,3 +127,13 @@
 [run 38247984788](https://github.com/tctony-labs/xiaowei/actions/runs/38247984788) 对应提交 9ac4744，生产 release 构建和测试通过，app 签名、公证及包内五个原生模块加载成功。随后 `stapler validate` 访问 Apple CloudKit 票据服务时出现 NSURLErrorDomain -1005（连接中断），退出 68；app Gatekeeper、DMG 公证、产物上传与 Release 草稿尚未执行。
 
 用户要求修复、提交并更新 v0.1.0 tag 重新触发。发布脚本为 app 票据校验及 DMG staple／validate 增加仅针对退出码 68 的有限退避重试，行为详见发布文档；不绕过校验或重复提交公证。回归先复现旧实现收到 68 立即失败，再确认恢复后才执行 Gatekeeper、持续失败最多四次、其他错误与进程启动失败不重试、成功无需等待；发布与产物复用测试共 18 项通过。真实 Apple 网络交互仍待新 CI 验证，事项保持 active。
+
+### 单次 DMG 公证与阶段耗时
+
+用户先要求拆分 Actions 阶段以查看耗时，随后要求优先消除 app 与 DMG 的两次公证提交，并确认先记录通用笔记再改代码。笔记已保存至 `~/notes/tools/macos-single-notarization.md`。核对 Apple 官方文档后确认：公证顶层 DMG 会同时处理嵌套 App，票据按已签名内容关联；同一份 App 的工作目录原件可以获取对应票据，无需再提交一次。
+
+正式完整发布已改为四个可独立运行的阶段：app 打包签名 → DMG 制作签名 → 只提交 DMG 并给 DMG／app 分别附加、验证票据 → 制作最终 ZIP。electron-builder 自动公证关闭；DMG 从 `--prepackaged` app 制作，公证后不重建；ZIP 在 app 票据校验之后由 ditto 生成。原生构建和 desktop 测试构建产物继续复用。`--signed --dir` 没有 DMG，保留通过临时 ZIP 提交 app 公证一次的行为。原有限重试继续用于票据操作，不重试公证提交。
+
+27 项相关回归、完整 just check、actionlint 和最终 Biome／diff／显示宽度检查通过。验证覆盖完整 packageMac 入口与 workflow 各阶段，确认只有一次 DMG 提交、两个目标各自附加票据、拒绝公证或 app 票据失败时不生成 ZIP，以及单独 ZIP 阶段不依赖签名私钥或 Apple 密码。实际本地 ad-hoc App／DMG／ZIP 分阶段打包通过；整个 App 文件树在后续制包中保持一致，ZIP 制作前后 DMG SHA-256 相同，解压 ZIP 的 App 与源目录文件树一致且 strict codesign 通过，DMG hdiutil 校验通过，官方 Sparkle 工具对最终 ZIP 生成并验证签名 appcast 成功。临时测试包 0.1.901 和临时密钥已清理，未启动 Electron。
+
+首次本地打包遇到已有 Platform 二进制缺少 SparkleUpdater 导出，按既有入口重新构建该 napi release 后验证通过；未修改 Rust 源码。真实 Developer ID 单次提交及两个票据的服务端匹配仍待新 CI；DMG 离线安装运行和正式 ZIP／Sparkle 更新仍需用户启动验收。用户已要求提交本次修改；未推送或更新 tag，事项及正式发布 Plan 保持 active。

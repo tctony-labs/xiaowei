@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { run } from "./sparkle.mjs";
 
 export function signingConfiguration(env = process.env) {
@@ -64,7 +67,7 @@ export function runStapler(action, path) {
   }
 }
 
-export function notarizeDmg(path, env = process.env) {
+function submitNotarization(path, label, env) {
   const result = spawnSync(
     "xcrun",
     [
@@ -83,11 +86,36 @@ export function notarizeDmg(path, env = process.env) {
     ],
     { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
-  if (result.status !== 0) throw new Error("DMG notarization command failed");
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`${label} notarization command failed`);
   const submission = JSON.parse(result.stdout);
-  if (submission.status !== "Accepted") throw new Error(`DMG notarization failed: ${submission.status}`);
-  console.info(`DMG notarization accepted: submission=${submission.id}`);
+  if (submission.status !== "Accepted") {
+    throw new Error(`${label} notarization failed: ${submission.status}; submission=${submission.id}`);
+  }
+  console.info(`${label} notarization accepted: submission=${submission.id}`);
+}
+
+export function notarizeApp(path, env = process.env) {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-notarize-"));
+  try {
+    const archive = join(directory, "app.zip");
+    run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", path, archive]);
+    submitNotarization(archive, "App", env);
+    runStapler("staple", path);
+    runStapler("validate", path);
+    run("spctl", ["--assess", "--type", "execute", "--verbose=2", path]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+export function notarizeDmg(path, app, env = process.env) {
+  submitNotarization(path, "DMG", env);
   runStapler("staple", path);
   runStapler("validate", path);
   run("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=2", path]);
+  // Apple also issued a ticket for the identical signed app contained in the DMG.
+  runStapler("staple", app);
+  runStapler("validate", app);
+  run("spctl", ["--assess", "--type", "execute", "--verbose=2", app]);
 }

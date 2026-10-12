@@ -14,7 +14,7 @@
 | 文件 | 类型 | 本切片改动 |
 | --- | --- | --- |
 | `desktop/electron-builder.mac.cjs` | 修改 | 按完整证书名的持有人／Team ID 选择 distribution 身份、禁止开发证书回退，DMG 显式签名 |
-| `scripts/release/package-mac.mjs` | 修改 | signed 模式要求 Team ID；核对主 app、五个 addon、Electron／Sparkle 代码签名身份与 hardened runtime；单独提交 DMG 公证并 staple，执行 app／DMG 的票据与 Gatekeeper 校验 |
+| `scripts/release/package-mac.mjs` | 修改 | signed 模式要求 Team ID；核对主 app、五个 addon、Electron／Sparkle 代码签名身份与 hardened runtime；完整发布只提交 DMG 公证一次，分别给 DMG 与同一份 app 附加票据，最后制作 ZIP；CI 阶段独立计时 |
 | `scripts/release/signing.mjs` | 新增 | 解析 codesign 验证结果、明确校验 Developer ID／Team ID／runtime，构建前校验必需凭据 |
 | `.github/workflows/macos-release.yml` | 新增 | 稳定 tag／手动触发，macOS arm64，locked 安装、工作区检查和 desktop／原生测试、正式构建、appcast、artifact 和 Release 草稿 |
 | `scripts/release/sparkle_generate_keys.sh` | 新增 | 显式使用官方工具与独立 xiaowei Keychain account 生成／导出私钥至指定 /tmp 文件，验证配对、拒绝覆盖，备份和配置由用户完成 |
@@ -37,3 +37,7 @@
 ## 当前结果
 
 发布预检查、签名与公证校验、workflow 和文档准备已实现；八项 tooling、实际 ad-hoc 拒绝校验、actionlint 和完整 just check 通过。已复用 cmux 的 org 证书／Apple ID／Sparkle 配置，兼容省略 Base64 padding 并由私钥推导公钥。已安装 cmux 的公开签名验证了个人 Team ID NSWMLDGCEZ。首次 v0.1.0 CI 已运行，Apple 签名／公证配置均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败。已按用户要求单独生成并导出小微密钥，用户确认添加 secret 后重跑原 CI，attempt 2 配置预检查与五个原生模块构建通过，但 contracts:check 因 runner 缺少 Go 而失败。已补齐与现有测试 workflow 一致的 Go 安装步骤，用户确认后已提交 4ed3793 并更新 tag，新的 run 38237430177 检查／测试通过，原生 release 编译异常慢。隔离复现定位到 jieba-rs 词典宏生成的巨大 Vec 初始化触发 LLVM SLP 向量化高耗时；静态数组后 to_vec 的等价临时实验冷 release 构建与两组分词校验共 11.90 秒。用户选择先等待当前 CI，后要求停止；run 38237430177 已取消，未生成产物或草稿。用户已授权两项修复；fork 已更新至 70a1d962，发布一次 release 产物复用已实现，相关本地分词／FTS、fixture 隔离、release 集成及 build:false 目录包验证已通过，结果已回填 record；实际签名／公证／正式升级仍待执行。本 Plan 保留，直到本切片必要的正式验证完成或用户明确收窄范围。
+
+## 单次公证调整
+
+用户确认先记录通用笔记，再将重复公证改为单次 DMG 提交。完整发布顺序为 app 签名、DMG 制作与签名、DMG 公证并给 DMG／app 附加票据、最终 ZIP 制作；每段独立 Actions step。electron-builder 自动公证关闭，DMG 公证后不再重建。目录包入口没有 DMG，保留通过临时 ZIP 对 app 提交一次公证的行为。具体实现及验收证据持续回填 record；真实 Apple 单次提交、DMG 离线安装及正式 ZIP 更新仍须 CI 与用户启动验收。

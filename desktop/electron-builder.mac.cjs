@@ -22,7 +22,8 @@ module.exports = {
     ],
     identity: signed ? signing.identity : "-",
     hardenedRuntime: signed,
-    notarize: signed,
+    // Submit only the final DMG; its notarization also covers the signed app inside.
+    notarize: false,
     entitlements: "resources/entitlements.mac.plist",
     entitlementsInherit: "resources/entitlements.mac.plist",
     extendInfo: {

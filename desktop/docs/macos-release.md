@@ -30,7 +30,11 @@ pnpm --dir desktop package:mac --dir
 pnpm --dir desktop package:mac --signed
 ```
 
-正式入口通过 builder 公证并 staple app，生成 ZIP 和已签名 DMG，再单独向 Apple 提交 DMG 公证并 staple。核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和五个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。发布脚本中的 app 票据校验、DMG staple 与票据校验遇到 stapler CloudKit 错误 68 时，按 5、10、20 秒间隔最多重试三次，保留命令输出并记录重试与恢复；其他错误或重试耗尽仍阻止发布，不重复提交公证。CI 已完成 app 签名与公证，但首次票据校验被 Apple 网络中断阻塞；完整 Gatekeeper、DMG 公证和产物验收仍待后续 CI，不能以本地 ad-hoc 测试代替。
+正式完整打包只向 Apple 提交最终 DMG 公证一次。顺序为：打包并签名 app → 从同一份 app 制作并签名 DMG → 提交 DMG 公证 → 分别给 DMG 和工作目录中的 app 附加票据并验证 → 用已附加票据的 app 制作 ZIP。Apple 会处理 DMG 内的签名代码并生成对应票据；工作目录中的 app 与 DMG 内的 app 签名身份相同，因此可以取得其票据。electron-builder 自动公证已关闭，DMG 公证后不再重新打包或签名，ZIP 使用 ditto 在票据附加之后生成。依据见 [Apple 公证工作流](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
+
+核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和五个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。stapler 返回 CloudKit 错误 68 时，按 5、10、20 秒间隔最多重试三次；其他错误或重试耗尽仍阻止发布，不重复提交公证。单独执行 ZIP 阶段也必须通过 app 票据与 Gatekeeper 校验。`--signed --dir` 不生成 DMG，因此只通过临时 ZIP 提交 app 公证一次并附加票据，临时 ZIP 随后删除。
+
+DMG 内的 app 在制包时尚未单独附加票据，DMG 分发携带外层票据；更新 ZIP 中的 app 携带自身票据。正式验收需分别覆盖 DMG 离线安装运行与 ZIP／Sparkle 更新，不能只凭本地 ad-hoc 打包或在线 stapler 校验认定离线体验已通过。
 
 原有 `pnpm --dir desktop package` 保留为通用开发目录包入口，不携带 Sparkle；验收更新必须使用 `package:mac` 的产物。
 
@@ -93,7 +97,14 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 ## GitHub Release 准备
 
-[macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，顺序构建一次五个生产 napi release addon，再通过 `scripts/release/test-prebuilt.mjs` 执行工作区检查、tooling、平台和 desktop 测试。desktop 测试生成的 main／preload／renderer 与这些生产 addon 一起供打包复用；签名步骤调用现有 `packageMac({signed:true, build:false})`，不重复编译。随后签名、公证 app 和 DMG、校验产物、生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。
+[macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，顺序构建一次五个生产 napi release addon，再通过 `scripts/release/test-prebuilt.mjs` 执行工作区检查、tooling、平台和 desktop 测试。desktop 测试生成的 main／preload／renderer 与这些生产 addon 一起供打包复用；发布脚本以 `packageMac({signed:true, build:false, stage})` 按以下四个独立 Actions step 执行，不重复编译：
+
+1. `app`：生成目录包、签名并验证 app。
+2. `dmg`：通过 electron-builder 的 `--prepackaged` 复用 app，仅制作并签名 DMG。
+3. `notarize`：只提交 DMG，等待 Accepted，然后分别附加并校验 DMG 与 app 票据和 Gatekeeper。
+4. `zip`：重新校验 app 票据后，用 ditto 制作最终更新 ZIP，不重建 DMG。
+
+每个 step 独立显示耗时，前一步失败会阻止后续发布。随后生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。本地一键入口不指定 stage 时按相同顺序执行；ad-hoc 模式跳过公证。
 
 发布测试先在独立 `target/rust-napi-tests/search` 目录构建启用 gateway-fixtures 的 Search 测试模块，成功后才向平台／desktop 测试子进程设置已有的 `XIAOWEI_TEST_NAPI_PREPARED=1`。消费测试跳过生产 debug 重建，仍执行原有测试列表和生产接口检查。发布入口在测试前后核对五个生产 `.node` 的 SHA-256；构建 fixture 或测试失败、生产文件缺失或发生变化均阻止打包。测试 fixture 使用 debug profile，不进入应用。普通 `test.yml → just test` 保持原有 debug 构建及 fixture 准备流程，本地 `package:mac` 默认仍自行构建 release。
 
