@@ -939,7 +939,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 [[package]]
 name = "jieba-macros"
 version = "0.8.1"
-source = "git+https://github.com/tctony/jieba-rs?rev=f6d5461001da18039fa0aca73f0b62ac80e130a7#f6d5461001da18039fa0aca73f0b62ac80e130a7"
+source = "git+https://github.com/tctony/jieba-rs?rev=70a1d9623e2713345aa708089766ba606342d8d8#70a1d9623e2713345aa708089766ba606342d8d8"
 dependencies = [
  "phf_codegen",
 ]
@@ -947,7 +947,7 @@ dependencies = [
 [[package]]
 name = "jieba-rs"
 version = "0.8.1"
-source = "git+https://github.com/tctony/jieba-rs?rev=f6d5461001da18039fa0aca73f0b62ac80e130a7#f6d5461001da18039fa0aca73f0b62ac80e130a7"
+source = "git+https://github.com/tctony/jieba-rs?rev=70a1d9623e2713345aa708089766ba606342d8d8#70a1d9623e2713345aa708089766ba606342d8d8"
 dependencies = [
  "include-flate",
  "jieba-macros",
@@ -2908,7 +2908,7 @@ checksum = "aed111bd9e48a802518765906cbdadf0b45afb72b9c81ab049a3b86252adffdd"
 [[package]]
 name = "yada-macros"
 version = "0.1.0"
-source = "git+https://github.com/tctony/jieba-rs?rev=f6d5461001da18039fa0aca73f0b62ac80e130a7#f6d5461001da18039fa0aca73f0b62ac80e130a7"
+source = "git+https://github.com/tctony/jieba-rs?rev=70a1d9623e2713345aa708089766ba606342d8d8#70a1d9623e2713345aa708089766ba606342d8d8"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",

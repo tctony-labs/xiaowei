@@ -82,22 +82,23 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Prepare native test modules
-        run: pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
+      - name: Build production release native modules once
+        run: pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build
 
       - name: Check and test the desktop and release tools
-        run: |
-          pnpm check
-          node --test scripts/tests/macos-release.test.mjs
-          pnpm --filter xiaowei-platform test
-          pnpm --dir desktop test
+        run: node scripts/release/test-prebuilt.mjs
 
       - name: Build, sign and notarize the app and DMG
         env:
           CSC_LINK: ${{ secrets.MACOS_APPLICATION_CERT_P12 }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_APPLICATION_CERT_P12_PASS }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASS }}
-        run: pnpm --dir desktop package:mac --signed
+        run: |
+          node --input-type=module <<'JS'
+          import { packageMac } from "./scripts/release/package-mac.mjs";
+
+          packageMac({ signed: true, build: false });
+          JS
 
       - name: Generate and verify the signed appcast
         env:

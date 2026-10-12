@@ -32,8 +32,9 @@
 - 前两阶段本地打包与更新联调已完成；用户已要求继续第三阶段。按 [正式发布实施计划](../../plans/2026-10-12-macos-packaging-update/02-signed-release.md) 准备正式签名、公证与 GitHub Release 流水线。
 - 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。CI 已运行，实际签名尚未执行；当前失败原因与修复见下，不以静态检查代替正式包验收。
 - 个人身份已确认；已安装 cmux 的公开签名为 Developer ID Application: Chang Tang (NSWMLDGCEZ)。本机没有可用的该 Developer ID 私钥，正式构建使用 org 的现有 .p12，不自动使用本机公司证书。
-- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已按用户要求生成小微独立密钥并导出至 /tmp/xiaowei-sparkle-private-key.txt。用户确认已添加 secret，现已重跑同一 CI（attempt 2），配置预检查与五个原生模块构建通过，但契约检查因 runner 未安装 Go 而失败。已补齐 Go 安装步骤；需要提交修复并更新 v0.1.0 tag 指向才能继续。正式发布与升级验收尚待完成；事项未归档。
-- 第三阶段必要验收：实际签名、公证、Gatekeeper、正式包两版本更新与 GitHub 下载链路；不能用既有 ad-hoc 测试包或私钥已丢弃的临时更新密钥替代。
+- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已按用户要求生成小微独立密钥并导出至 /tmp/xiaowei-sparkle-private-key.txt。用户确认已添加 secret，现已重跑同一 CI（attempt 2），原 run attempt 2 的 Go 缺失已修复，用户确认后提交 4ed3793 并更新 v0.1.0 tag。[新 run 38237430177](https://github.com/tctony-labs/xiaowei/actions/runs/38237430177) 的配置、Go、五个 debug napi、检查与全部 desktop 测试均通过；正式 release 构建耗时异常，用户要求后于 19:27 取消，状态 completed／cancelled；尚未进入签名／公证，没有产物或 Release 草稿。正式发布与升级验收尚待完成；事项未归档。
+- 编译阻塞的两项修复已实现并完成相关本地验收：jieba fork dev 已提交 70a1d962，小微固定新 rev，发布流程一次 release 构建供测试与打包复用。用户现已授权提交／推送小微修复，并将 v0.1.0 从 4ed3793 更新到本次修复，触发新的 CI。
+- 第三阶段必要验收：后续提交修复后运行正式 CI，验证实际签名、公证、Gatekeeper、正式包两版本更新与 GitHub 下载链路；不能用既有 ad-hoc 测试包或私钥已丢弃的临时更新密钥替代。
 
 ## Outcome
 
@@ -90,3 +91,33 @@
 ### 第二次 CI 与 Go 工具链修复
 
 用户确认添加私钥后重跑原 run（attempt 2）。配置预检查通过，推导公钥与本地生成结果一致；工具链、locked 依赖安装及五个 napi debug 构建通过。`pnpm check` 的 contracts:check 在首次安装 protoc-gen-go 时报告 `spawnSync go ENOENT`：发布 workflow 缺少现有测试 workflow 的 Go 安装步骤。已复用 `scripts/ci/go-cache.mjs version` 与 actions/setup-go，静态 actionlint 通过。尚未生成正式包，需提交该修复并将 v0.1.0 更新到新提交后触发新构建；旧 run 重跑不会应用本地修复。
+
+### Release 编译耗时定位
+
+新 run 的原生 release 输出长期停在 Storage，但 Cargo 会并行编译依赖，最后一行不能代表唯一活跃 crate。Agent 在独立 `/tmp/xiaowei-ci-storage-probe` target 目录冷构建复现，确认活跃 rustc 是 `jieba_rs`，opt-level=3，持续约单核 100% CPU。进程采样集中于 LLVM SLPVectorizer 的 store-chain 调度。当前 fork 的 yada_dict 宏把 349045 行词典的词频生成为巨大的 vec! 初始化。
+
+仅在 `/tmp/xiaowei-jieba-macro-probe` 的源码副本将频次生成为静态 usize 数组，再 to_vec，保持 opt-level=3 与原有词典内容。临时 jieba 验证工程的完整独立冷 release 构建及两组中文分词校验用时 11.90 秒（不代表小微完整打包耗时）；原写法的本地进程仍在长时间优化，采样后已停止该临时诊断进程。可审查差异保存于 `/tmp/xiaowei-jieba-static-frequencies.patch`。实验时尚未修改或推送 fork，也未改变小微依赖 rev／打包流程；后续 CI 取消及正式修复见下。
+
+生产模块测试可加载 release addon，原流水线先 debug 后 release 是沿用测试准备入口的选择。已将生产 release 构建、测试和打包复用一次产物，测试 fixture 单独构建；词典宏修复涉及另一个仓库。用户最初选择等待、随后取消 CI；现已确认分别修复 fork 和发布产物复用，并授权直接修改远程 fork。
+
+### 用户取消当前 CI
+
+用户先要求等待当前打包，随后要求停止本轮 CI。已取消 [run 38237430177](https://github.com/tctony-labs/xiaowei/actions/runs/38237430177)，GitHub 确认 status=completed、conclusion=cancelled。日志在 19:27:17 报告 The operation was canceled；release 阶段的 Agent（1m29s）、Platform（56.36s）、Search（42.88s）已完成，Storage 及其 jieba-rs 依赖未返回完成输出。最后一条编译输出是 18:49:15，直到取消仍未继续。上传产物与 Release 草稿步骤均 skipped，artifact 数量为 0。
+
+取消时 tag 指向 4ed3793，未生成产物；后续修复与验证见下，正式签名／公证／升级验收仍待后续工作。
+
+### 词典宏修复与 release 复用
+
+用户确认分别修复两项，并授权直接修改远程 jieba fork。远程 dev 已通过 GitHub Contents API 更新为 [70a1d962](https://github.com/tctony/jieba-rs/commit/70a1d9623e2713345aa708089766ba606342d8d8)，仅改 yada-macros/src/lib.rs：局部静态频次数组后 to_vec，保留词典、类型及 release 优化等级。临时完整 fork 副本的默认 Yada release 单测 14 项与 doctest 3 项通过；额外关键词 feature 与现有 Yada 实现不兼容，不改变当前 feature。小微已固定新 rev，Cargo 更新锁文件仅替换三个同仓库包的 source。
+
+发布 workflow 已改为先构建一次生产 release addon，通过发布专用 test-prebuilt.mjs 准备独立 Search fixture 后设置已有 prepared 变量，再复用生产模块和 desktop 测试构建输出打包。测试前后五个 .node SHA-256 必须一致；测试或完整性检查失败阻止打包。长期说明见 [macOS 发布说明](../../../desktop/docs/macos-release.md#github-release-准备)。普通 test workflow、root／desktop 测试 runner 及共享 fixture helper 未修改。本地验证结果如下；小微改动尚未提交，不变更 tag 或重启已取消的 CI。
+
+- 用户指出本次只需相关测试后，不继续全量 just test。中断前 Rust workspace 测试已完成，其中 xw-tokenizer 6 项、Storage 23 项（含 4 项 clipboard_search 和逐连接／重开 FTS 注册）均通过；五个生产 debug napi 与隔离 fixture 构建通过。pnpm 工作区全量测试中途终止，不宣称 just test 全量通过。普通测试 workflow、root／desktop runner 与共享 fixture helper 的 diff 均为空。
+- 五个生产 release napi 顺序构建成功；Storage 增量 release 为 10.45 秒、Clipboard 为 7.56 秒。这是已有本地缓存条件下的构建时间，不代表 CI 冷构建或完整打包耗时。
+- 实际 release 验证使用 testPrebuilt 的真实 fixture／哈希逻辑，仅将测试执行器收窄为相关入口：发布／复用／fixture tooling 19 项、平台 3 项、Storage napi 1 项、desktop Storage／生产业务边界 5 项均通过。Search fixture 输出到独立目录；四个 Gateway 生产模块接口检查通过；五个生产 .node SHA-256 在测试前后相同。未重跑完整 desktop 测试列表，发布 CI 保留原有列表。
+- 同一 release 产物通过 packageMac({build:false, directoryOnly:true}) 生成本地 ad-hoc 应用，strict codesign、版本／更新元数据、arm64／系统依赖和包内五个 addon 加载均通过；打包前后工作区原生产物 SHA-256 与测试后快照一致。生成目录为 desktop/dist/mac-arm64/XiaoWei.app；未生成新的 DMG／ZIP，未启动 Electron。日志保存于 /tmp/xiaowei-fixes-prebuilt-package.log。
+- just check、actionlint、针对新增脚本的 Biome、diff 空白与显示宽度检查通过。仅 fork 已远程提交；小微修复、记录和发布说明保持未提交。正式 Developer ID／公证／GitHub 下载与升级验收仍由 02 Plan 承载。
+
+### 修复提交与 CI 重启授权
+
+用户明确要求提交、推送 tag 并重新触发 CI。本次提交包含 fork 固定 rev／锁文件、release 复用入口与回归、workflow 及对应说明和已有进展记录。保持 0.1.0 版本；更新既有 v0.1.0 tag，推送时核对远程旧 tag，避免覆盖并发修改。当前没有 v0.1.0 Release 草稿或已发布产物。后续核对新 run 的 head SHA、编译／签名／公证与产物；正式发布和正式升级仍待验收。

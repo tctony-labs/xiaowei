@@ -93,7 +93,9 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 ## GitHub Release 准备
 
-[macOS release workflow](../../.github/workflows/macos-release.yml) 已接入源码，支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，构建原生测试模块并执行检查／desktop／平台／发布 tooling 测试；随后重新 release 构建、签名、公证 app 和 DMG，校验产物，再生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。
+[macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，顺序构建一次五个生产 napi release addon，再通过 `scripts/release/test-prebuilt.mjs` 执行工作区检查、tooling、平台和 desktop 测试。desktop 测试生成的 main／preload／renderer 与这些生产 addon 一起供打包复用；签名步骤调用现有 `packageMac({signed:true, build:false})`，不重复编译。随后签名、公证 app 和 DMG、校验产物、生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。
+
+发布测试先在独立 `target/rust-napi-tests/search` 目录构建启用 gateway-fixtures 的 Search 测试模块，成功后才向平台／desktop 测试子进程设置已有的 `XIAOWEI_TEST_NAPI_PREPARED=1`。消费测试跳过生产 debug 重建，仍执行原有测试列表和生产接口检查。发布入口在测试前后核对五个生产 `.node` 的 SHA-256；构建 fixture 或测试失败、生产文件缺失或发生变化均阻止打包。测试 fixture 使用 debug profile，不进入应用。普通 `test.yml → just test` 保持原有 debug 构建及 fixture 准备流程，本地 `package:mac` 默认仍自行构建 release。
 
 各版本发布构建串行执行。参考本机 `~/Develop/Projects/cmux/.github/workflows/build-tctony.yml`，复用 tctony-labs org 的个人 Developer ID 和 Apple ID 公证配置，Sparkle 更新私钥单独配置在 xiaowei 仓库，不需要新增 App Store Connect API key。证书由 electron-builder 导入构建用临时 Keychain；Apple ID 密码只注入签名／公证步骤，Sparkle 私钥只在预检查／appcast 步骤注入，经 stdin 交给官方工具。流水线不自动创建或替换长期更新密钥。
 

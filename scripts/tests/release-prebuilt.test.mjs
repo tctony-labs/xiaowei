@@ -1,0 +1,103 @@
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { nativeHashes, testPrebuilt } from "../release/test-prebuilt.mjs";
+
+test("release tests set prepared only after fixture preparation and never build production addons", async () => {
+  const calls = [];
+  await testPrebuilt({
+    hashes: () => ["unchanged"],
+    run(args, env) {
+      calls.push(args);
+      if (args.includes("test")) assert.equal(env.XIAOWEI_TEST_NAPI_PREPARED, "1");
+    },
+    async fixtures(packages, tests, options) {
+      assert.deepEqual(packages, ["search"]);
+      assert.deepEqual(options, { prepared: false, productionPrepared: true });
+      calls.push("fixture prepared");
+      await tests();
+    },
+  });
+  assert.deepEqual(calls, [
+    ["check"],
+    [
+      "exec",
+      "node",
+      "--test",
+      "scripts/tests/macos-release.test.mjs",
+      "scripts/tests/release-prebuilt.test.mjs",
+      "scripts/tests/rust-napi-fixtures.test.mjs",
+    ],
+    "fixture prepared",
+    ["--filter", "xiaowei-platform", "test"],
+    ["--dir", "desktop", "test"],
+  ]);
+});
+
+test("failed fixture preparation prevents consumer tests and still checks artifact integrity", async () => {
+  let checks = 0;
+  const failure = new Error("fixture build failed");
+  await assert.rejects(
+    testPrebuilt({
+      hashes: () => {
+        checks += 1;
+        return ["unchanged"];
+      },
+      run: (args) => assert.ok(!args.includes("test")),
+      fixtures: async () => {
+        throw failure;
+      },
+    }),
+    (error) => error === failure,
+  );
+  assert.equal(checks, 2);
+});
+
+test("changed production addon aborts release even when tests pass", async () => {
+  let checks = 0;
+  await assert.rejects(
+    testPrebuilt({
+      hashes: () => [String(checks++)],
+      run() {},
+      fixtures: async (_packages, tests) => tests(),
+    }),
+    /Production release addons changed/,
+  );
+});
+
+test("test failure and overwritten production addon are both reported", async () => {
+  let checks = 0;
+  const failure = new Error("tests failed");
+  await assert.rejects(
+    testPrebuilt({
+      hashes: () => [String(checks++)],
+      run: () => {
+        throw failure;
+      },
+      fixtures: () => assert.fail("checks failed before fixtures"),
+    }),
+    (error) => error instanceof AggregateError && error.errors[0] === failure && error.errors.length === 2,
+  );
+});
+
+test("hashes cover all five package binaries and missing binaries fail before tests", (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-release-hashes-"));
+  context.after(() => rmSync(directory, { recursive: true, force: true }));
+  const binaries = ["agent", "platform", "search", "storage", "clipboard"].map((name) => {
+    const output = join(directory, "crates", `xiaowei-${name}`, "napi");
+    mkdirSync(output, { recursive: true });
+    const binary = join(output, `xiaowei-${name}.darwin-arm64.node`);
+    writeFileSync(binary, name);
+    return binary;
+  });
+  const before = nativeHashes(directory);
+  assert.equal(before.length, 5);
+  for (const [index, binary] of binaries.entries()) {
+    writeFileSync(binary, "changed");
+    assert.notEqual(nativeHashes(directory)[index], before[index]);
+  }
+  rmSync(binaries[4]);
+  assert.throws(() => nativeHashes(directory), /ENOENT/);
+});
