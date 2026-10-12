@@ -242,7 +242,21 @@ export function SettingsPage({
       case "archive":
         return <ArchiveSettingsPage services={services} />;
       case "about":
-        return <AboutSettings version={version} development={development} showCheckUpdate={false} />;
+        return (
+          <AboutSettings
+            version={version}
+            development={development}
+            onCheckUpdate={() => {
+              setError("");
+              void services
+                .getSystem()
+                .checkForUpdates(create(EmptySchema))
+                .catch((cause: unknown) => {
+                  setError(`检查更新失败：${String(cause)}`);
+                });
+            }}
+          />
+        );
       default:
         return null;
     }

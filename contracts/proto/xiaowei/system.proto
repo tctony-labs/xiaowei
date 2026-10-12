@@ -29,6 +29,10 @@ service System {
   // Reveal an existing target in the system file manager.
   // Success means the host accepted the request, not that the file manager confirmed selection.
   rpc RevealPath(LocalPathRequest) returns (xiaowei.common.Empty);
+  // Start Sparkle's interactive check in the packaged macOS application.
+  // Success means the check was accepted, not that an update was found or installed.
+  // Development, unsupported platforms, unavailable updater and an active update session fail the call.
+  rpc CheckForUpdates(xiaowei.common.Empty) returns (xiaowei.common.Empty);
 }
 
 enum Theme {

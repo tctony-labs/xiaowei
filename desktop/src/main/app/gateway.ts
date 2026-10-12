@@ -36,6 +36,7 @@ export async function createApplicationGateway(
     updateShortcuts(shortcuts: ShortcutConfig): void;
     openSettings(): Promise<BrowserWindow>;
     hideWindow(window: Pick<BrowserWindow, "hide">): Promise<void>;
+    checkForUpdates?(): void;
   },
   config?: { path: string; document: ModelConfigDocument },
 ) {
@@ -92,7 +93,7 @@ export async function createApplicationGateway(
     agent = await Agent.open(agentDirectory);
     agentEndpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
-    system = registerSystem(host, windowFor, actions.openSettings, actions.hideWindow);
+    system = registerSystem(host, windowFor, actions.openSettings, actions.hideWindow, actions.checkForUpdates);
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());

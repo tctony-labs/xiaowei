@@ -779,5 +779,6 @@ function __napiStampBindingTarget(exportsObject, target) {
 module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __napiLoadedBindingTarget)
 module.exports = nativeBinding
 module.exports.FocusSnapshot = nativeBinding.FocusSnapshot
+module.exports.SparkleUpdater = nativeBinding.SparkleUpdater
 module.exports.captureFocus = nativeBinding.captureFocus
 module.exports.frontmostProcess = nativeBinding.frontmostProcess

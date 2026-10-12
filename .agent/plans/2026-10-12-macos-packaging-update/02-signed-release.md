@@ -1,0 +1,38 @@
+# 正式签名、公证与 GitHub Release 准备
+
+用户已要求继续第三阶段；本地打包和更新联调结果见 [record](../../records/active/2026-10-12-macos-packaging-update.md)。用户已确认个人身份，并指定参考本机 cmux；已对齐其现有 org 配置。
+
+## 范围与前置条件
+
+- 使用 GitHub Releases、仅 arm64、Sparkle 标准原生 UI、稳定 `x.y.z`／`v<version>`、完整 ZIP 和 DMG。
+- 正式包要求显式 Developer ID Application 与预期 Team ID，Apple ID app-specific password 公证凭据，以及长期 Ed25519 更新密钥；不能复用本地测试密钥。不得自动使用本机公司证书。
+- 流水线核对版本、构建／测试、签名与公证、验证包内模块和 Sparkle helper、生成签名 feed，并创建 Release 草稿；正式发布由维护者在最终验收后执行。
+- 用户已授权提交、推送本分支，并创建 v0.1.0 tag 触发 CI；正式发布仍由维护者确认。org 凭据对本仓库的可见性待 CI 核对，真实正式包验收目前尚未执行。
+
+## 文件与接口
+
+| 文件 | 类型 | 本切片改动 |
+| --- | --- | --- |
+| `desktop/electron-builder.mac.cjs` | 修改 | 按完整证书名的持有人／Team ID 选择 distribution 身份、禁止开发证书回退，DMG 显式签名 |
+| `scripts/release/package-mac.mjs` | 修改 | signed 模式要求 Team ID；核对主 app、五个 addon、Electron／Sparkle 代码签名身份与 hardened runtime；单独提交 DMG 公证并 staple，执行 app／DMG 的票据与 Gatekeeper 校验 |
+| `scripts/release/signing.mjs` | 新增 | 解析 codesign 验证结果、明确校验 Developer ID／Team ID／runtime，构建前校验必需凭据 |
+| `.github/workflows/macos-release.yml` | 新增 | 稳定 tag／手动触发，macOS arm64，locked 安装、工作区检查和 desktop／原生测试、正式构建、appcast、artifact 和 Release 草稿 |
+| `scripts/release/check-release.mjs` | 新增 | 版本／tag、公钥／私钥配对、Team ID 和发布输入预检查；不输出凭据 |
+| `scripts/tests/macos-release.test.mjs` | 修改 | 签名验证、版本／身份／缺失凭据与配对错误回归，使用临时密钥不访问个人 Keychain |
+| `desktop/docs/macos-release.md` | 修改 | 凭据名称、签名／公证入口、CI 流程与正式包两版本验收步骤；区分已验证与未执行结果 |
+| `.agent/records/active/2026-10-12-macos-packaging-update.md` | 修改 | 记录第三阶段确认、准备结果、已确认身份、org 配置映射与验收边界 |
+
+不新增包或依赖，不改变 Rust／Gateway／renderer，不修改根 `docs/`。更新说明与自定义窗口布局不扩展为本切片实现需求。
+
+## 实施顺序与验收
+
+1. 发布输入预检查：tag 必须匹配版本，Ed25519 私钥与公钥配对，必需凭据缺失／非法 Team ID 失败；定向运行真实密码学回归。生产私钥只经 stdin 交给官方工具。
+2. signed 包校验：构建后 strict codesign、预期 Developer ID／Team ID、hardened runtime、公证票据、Gatekeeper、包内 addon／framework／helper 校验，避免本地 ad-hoc 测试掩盖正式库校验问题。自动测试解析真实格式与拒绝错误身份；实际签名／公证使用 cmux 现有 org 配置，要在 CI 核对凭据可见性。
+3. workflow 与文档：与现有 Actions 风格和构建入口对齐，先验证配置／版本，再安装依赖和运行检查，构建签名包，生成／验证 appcast，上传三种发布产物并创建草稿。静态 actionlint 和项目检查通过后，准备结果可审查。
+4. 正式运行：个人身份已确认，源码提交／推送及 tag 后运行真实 CI，核对现有 org 凭据的可见性。用户冷启动正式旧版，再用同一长期公钥的新版走真实下载、签名／公证、安装重启和数据保留；通过后发布草稿。
+
+前三步能独立完成实现准备；第 4 步是正式发布验收，未执行时保留事项 active，不报告第三阶段全部完成。本 Plan 覆盖实现与必要正式验收，结果持续回填 record／文档；正式验收完成后删除，未完成验收与外部动作列入 Current work。
+
+## 当前结果
+
+发布预检查、签名与公证校验、workflow 和文档准备已实现；八项 tooling、实际 ad-hoc 拒绝校验、actionlint 和完整 just check 通过。已复用 cmux 的 org 证书／Apple ID／Sparkle 配置，兼容省略 Base64 padding 并由私钥推导公钥。已安装 cmux 的公开签名验证了个人 Team ID NSWMLDGCEZ。org 设置查询受 token 权限限制，实际配置可见性、签名／CI／正式升级仍待执行。本 Plan 保留，直到本切片必要的正式验证完成或用户明确收窄范围。

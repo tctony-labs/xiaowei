@@ -2,11 +2,13 @@
 pub mod app_icon;
 pub mod app_name;
 pub mod focus;
+pub mod sparkle;
 
 #[cfg(target_os = "macos")]
 mod macos {
     pub mod app_name;
     pub mod focus;
+    pub mod sparkle;
 }
 
 pub mod appearance;

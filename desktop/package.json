@@ -10,6 +10,9 @@
     "build": "electron-vite build",
     "check": "tsgo -p tsconfig.node.json && tsgo -p tsconfig.web.json",
     "package": "electron-builder --dir",
+    "package:mac": "node ../scripts/release/package-mac.mjs",
+    "package:mac:test": "node ../scripts/release/local-update.mjs",
+    "update:mac:serve": "node ../scripts/release/local-update-server.mjs",
     "dev:main": "node ../scripts/dev/build-desktop-main.mjs && electron .",
     "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open --disable-telemetry",
     "storybook:build": "storybook build --disable-telemetry"

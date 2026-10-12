@@ -6,10 +6,12 @@ import { app, clipboard, globalShortcut, protocol, screen, shell } from "electro
 import { initializeLogging as initializeAgentLogging } from "xiaowei-agent";
 import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
+import { SparkleUpdater } from "xiaowei-platform";
 import { initializeLogging, initializeSearch } from "xiaowei-search";
 import { loadConfig } from "../services/llm/config";
 import { createShortcutRegistry } from "../services/shortcuts/registry";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
+import { createUpdateService } from "../services/update/service";
 import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
 import { createOrdinaryWindows } from "../windows/ordinary-windows";
@@ -28,6 +30,29 @@ export function startApplication(moduleDir: string): void {
 
   let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
   let tray: ReturnType<typeof createTray> | undefined;
+  let shutdownComplete = false;
+  let shutdown: Promise<void> | undefined;
+  const updates = createUpdateService({
+    packaged: app.isPackaged,
+    platform: process.platform,
+    frameworkPath: app.isPackaged ? join(process.resourcesPath, "../Frameworks/Sparkle.framework") : "",
+    open: (path, event) => SparkleUpdater.open(path, event),
+    async prepareInstall() {
+      console.info("Preparing application for Sparkle installation");
+      await closeApplication();
+    },
+  });
+
+  function closeApplication(): Promise<void> {
+    shutdown ??= (async () => {
+      launcher.prepareQuit();
+      ordinaryWindows.close();
+      tray?.close();
+      await gateway?.close();
+      shutdownComplete = true;
+    })();
+    return shutdown;
+  }
   const resourceDirectory = app.isPackaged
     ? join(process.resourcesPath, "logo-sizes")
     : join(app.getAppPath(), "resources/logo-sizes");
@@ -56,9 +81,10 @@ export function startApplication(moduleDir: string): void {
     clipboard: () => launcher.openMode("clipboard"),
   });
 
-  app.setName("XiaoWei");
-  app.setAppUserModelId("com.tctony.xiaowei");
-  const paths = createPaths(app.getPath("appData"));
+  const localUpdateTest = app.isPackaged && app.getName() === "XiaoWei Local Update";
+  app.setName(localUpdateTest ? "XiaoWei Local Update" : "XiaoWei");
+  app.setAppUserModelId(localUpdateTest ? "com.tctony.xiaowei.local-update" : "com.tctony.xiaowei");
+  const paths = createPaths(app.getPath("appData"), process.env, localUpdateTest);
   mkdirSync(paths.electronRootDir, { recursive: true });
   app.setPath("userData", paths.electronRootDir);
 
@@ -83,6 +109,7 @@ export function startApplication(moduleDir: string): void {
     console.info("Application starting", {
       version: app.getVersion(),
       logs: paths.logs,
+      localUpdateTest,
     });
     app.on("will-quit", () => console.info("Application stopping"));
     app.on("second-instance", process.platform === "darwin" ? ordinaryWindows.activate : launcher.show);
@@ -93,7 +120,7 @@ export function startApplication(moduleDir: string): void {
         installMenu(async () => {
           await settingsWindow.open();
         });
-        const models = await loadConfig(process.env, paths.models);
+        const models = await loadConfig(localUpdateTest ? {} : process.env, paths.models);
         console.debug("Application module paths resolved", { agent: paths.xiaoweiAgentRootDir, models: models.path });
         gateway = await createApplicationGateway(
           paths.clipboard,
@@ -133,6 +160,7 @@ export function startApplication(moduleDir: string): void {
             updateShortcuts(config) {
               shortcuts.replace(config);
             },
+            checkForUpdates: updates.check,
           },
           models,
         );
@@ -158,6 +186,7 @@ export function startApplication(moduleDir: string): void {
         app.once("before-quit", () => clearTimeout(searchWarmup));
         shortcuts.registerInitial(shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts));
         app.on("activate", ordinaryWindows.activate);
+        updates.start();
       })
       .catch((error: unknown) => {
         console.error("Application startup failed", error);
@@ -169,20 +198,21 @@ export function startApplication(moduleDir: string): void {
     if (process.platform !== "darwin") app.quit();
   });
 
-  let shutdownComplete = false;
   app.on("before-quit", (event) => {
-    launcher.prepareQuit();
-    ordinaryWindows.close();
-    tray?.close();
     if (gateway && !shutdownComplete) {
       event.preventDefault();
-      void gateway.close().finally(() => {
+      void closeApplication().finally(() => {
         shutdownComplete = true;
         app.quit();
       });
+    } else {
+      launcher.prepareQuit();
+      ordinaryWindows.close();
+      tray?.close();
     }
   });
   app.on("will-quit", () => {
+    updates.close();
     shortcuts.close();
     shortcutRegistry.close();
     globalShortcut.unregisterAll();

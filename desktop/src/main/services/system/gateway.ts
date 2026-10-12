@@ -30,6 +30,7 @@ export function registerSystem(
   windowFor: (context: CallContext) => Pick<BrowserWindow, "hide">,
   openSettings?: () => Promise<Pick<BrowserWindow, "hide">>,
   hideWindow?: (window: Pick<BrowserWindow, "hide">) => Promise<void>,
+  checkForUpdates?: () => void,
 ) {
   const pending = new WeakMap<object, SettingsAnchor>();
   const listeners = new Map<object, Set<EventSink>>();
@@ -49,6 +50,11 @@ export function registerSystem(
     bindHandlers(
       System,
       {
+        checkForUpdates() {
+          if (!checkForUpdates) throw new Error("Update service unavailable");
+          checkForUpdates();
+          return create(EmptySchema);
+        },
         async openSettings(request, client) {
           const context = client.context();
           windowFor(context);

@@ -2,6 +2,8 @@ use napi_derive::napi;
 use std::sync::{Arc, Mutex};
 use xiaowei_platform::focus;
 
+mod sparkle;
+
 #[napi]
 pub fn frontmost_process() -> Option<u32> {
     focus::frontmost_process()

@@ -2,11 +2,20 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 
 // Main owns application directories; native modules own files within their supplied directory.
-export function createPaths(systemAppData: string, env: Readonly<Record<string, string | undefined>> = process.env) {
-  const electronRootDir = join(systemAppData, "com.tctony.xiaowei");
+export function createPaths(
+  systemAppData: string,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+  localUpdateTest = false,
+) {
+  const electronRootDir = join(
+    systemAppData,
+    localUpdateTest ? "com.tctony.xiaowei.local-update" : "com.tctony.xiaowei",
+  );
   const xiaoweiRootDir = join(electronRootDir, "xiaowei");
 
-  const xiaoweiAgentRootDir = env.XIAOWEI_AGENT_HOME ?? join(homedir(), ".xiaowei");
+  const xiaoweiAgentRootDir = localUpdateTest
+    ? join(xiaoweiRootDir, "agent")
+    : (env.XIAOWEI_AGENT_HOME ?? join(homedir(), ".xiaowei"));
   if (!isAbsolute(xiaoweiAgentRootDir)) throw new Error("XIAOWEI_AGENT_HOME must be an absolute path");
 
   // 新增目录或文件路径时按所属根目录分组，组间留空行。

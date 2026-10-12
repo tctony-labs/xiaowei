@@ -111,4 +111,6 @@ pub mod xiaowei_system_system_service {
         xw_gateway::binding::Method::new("xiaowei.system.System.OpenPath", xw_gateway::MethodKind::Unary);
     pub const REVEAL_PATH: xw_gateway::binding::Method<xw_contracts::xiaowei::system::LocalPathRequest, xw_contracts::xiaowei::common::Empty> =
         xw_gateway::binding::Method::new("xiaowei.system.System.RevealPath", xw_gateway::MethodKind::Unary);
+    pub const CHECK_FOR_UPDATES: xw_gateway::binding::Method<xw_contracts::xiaowei::common::Empty, xw_contracts::xiaowei::common::Empty> =
+        xw_gateway::binding::Method::new("xiaowei.system.System.CheckForUpdates", xw_gateway::MethodKind::Unary);
 }

@@ -1,6 +1,6 @@
 # xiaowei-platform
 
-向 TS 提供通用原生系统能力的 napi 包裹层，当前提供 macOS 前台进程查询和焦点快照。
+向 TS 提供通用原生系统能力的 napi 包裹层，当前提供 macOS 前台进程查询、焦点快照和 Sparkle 框架桥接。
 
 ## 模块边界
 
@@ -32,3 +32,9 @@ Rust 调用方 → xw-platform
 - `isFrontmost()`：异步查询快照目标是否位于前台。`release()` 幂等释放引用；释放后 restore 和 isFrontmost 拒绝调用。
 
 快照的应用引用用于区分应用实例，不依赖裸 PID 查找并重新启动应用。AX 调用在线程池执行并设置消息超时。其他平台暂返回空快照和空前台进程，不承诺跨平台焦点恢复。
+
+## Sparkle 接口
+
+`SparkleUpdater.open(frameworkPath, callback)` 返回持有原生标准更新窗口的独立 controller。`check(true)` 后台检查，`check(false)` 交互式检查；`resumeInstall()` 恢复被 delegate 延期的安装。`close()` 幂等释放 controller，关闭后的操作失败。所有调用及释放必须在 macOS 主线程进行，不在线程池执行。
+
+callback 通过弱引用 napi threadsafe function 投递日志事件及 `prepare-install` 通知，不阻止进程退出，也不携带 renderer 命令。宿主 TS 的更新 service 决定检查和关闭时机；安装前等待应用资源关闭后再恢复 continuation。打包与发布配置见 [macOS 发布](../../desktop/docs/macos-release.md)。

@@ -8,10 +8,15 @@ import { mock, test } from "node:test";
 
 const require = createRequire(new URL("../../package.json", import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), "llm-startup-"));
+let localPackage = false;
+let userData: unknown;
 const app = Object.assign(new EventEmitter(), {
   setName() {},
   setAppUserModelId() {},
-  setPath() {},
+  setPath(name: string, path: string) {
+    if (name === "userData") userData = path;
+  },
+  getName: () => (localPackage ? "XiaoWei Local Update" : "XiaoWei"),
   getPath: () => directory,
   getAppPath: () => directory,
   requestSingleInstanceLock: () => true,
@@ -27,6 +32,7 @@ let failed = false;
 let received: unknown;
 let receivedAgentRoot: unknown;
 let modelDefaultPath: unknown;
+let modelEnv: unknown;
 const models = { path: join(directory, "models.json"), document: { version: 1, providers: [], defaults: {} } };
 let created = false;
 const noop = () => {};
@@ -49,6 +55,16 @@ mock.module(require.resolve("xiaowei-search"), {
 });
 mock.module(require.resolve("xiaowei-clipboard"), { exports: { initializeLogging: noop } });
 mock.module(require.resolve("xiaowei-agent"), { exports: { initializeLogging: noop } });
+mock.module(require.resolve("xiaowei-platform"), {
+  exports: {
+    SparkleUpdater: {
+      open() {
+        if (!localPackage) throw new Error("Development must not initialize Sparkle");
+        return { check() {}, close() {} };
+      },
+    },
+  },
+});
 const replace = (path: string, exports: Record<string, unknown>) =>
   mock.module(new URL(`../../src/main/${path}.ts`, import.meta.url).href, { exports });
 replace("app/logging", {
@@ -79,7 +95,8 @@ replace("services/shortcuts/shortcuts", {
   shortcutConfig: noop,
 });
 replace("services/llm/config", {
-  loadConfig: async (_env: unknown, path: string) => {
+  loadConfig: async (env: unknown, path: string) => {
+    modelEnv = env;
     modelDefaultPath = path;
     if (failed) throw new Error("configuration failure");
     return models;
@@ -97,10 +114,18 @@ const { startApplication } = await import("../../src/main/app/bootstrap.ts");
 test("bootstrap injects startup models and stops before gateway creation on configuration failure", async () => {
   try {
     const previousRoot = process.env.XIAOWEI_AGENT_HOME;
+    const resourcesDescriptor = Object.getOwnPropertyDescriptor(process, "resourcesPath");
+    Object.defineProperty(process, "resourcesPath", { value: directory, configurable: true });
     process.env.XIAOWEI_AGENT_HOME = join(directory, "module-root");
     try {
-      for (const fail of [false, true]) {
+      for (const [fail, local] of [
+        [false, false],
+        [true, false],
+        [false, true],
+      ]) {
         failed = fail;
+        localPackage = local;
+        app.isPackaged = local;
         received = undefined;
         receivedAgentRoot = undefined;
         created = false;
@@ -110,12 +135,20 @@ test("bootstrap injects startup models and stops before gateway creation on conf
         assert.equal(quit, fail);
         assert.equal(created, !fail);
         assert.equal(received, fail ? undefined : models);
-        assert.equal(modelDefaultPath, join(directory, "module-root", "models.json"));
-        assert.equal(receivedAgentRoot, fail ? undefined : join(directory, "module-root"));
+        const expectedAgentRoot = local
+          ? join(directory, "com.tctony.xiaowei.local-update/xiaowei/agent")
+          : join(directory, "module-root");
+        assert.equal(modelDefaultPath, join(expectedAgentRoot, "models.json"));
+        assert.equal(receivedAgentRoot, fail ? undefined : expectedAgentRoot);
+        assert.equal(userData, join(directory, local ? "com.tctony.xiaowei.local-update" : "com.tctony.xiaowei"));
+        if (local) assert.deepEqual(modelEnv, {});
         app.emit("before-quit", { preventDefault: noop });
+        app.emit("will-quit");
         app.removeAllListeners();
       }
     } finally {
+      if (resourcesDescriptor) Object.defineProperty(process, "resourcesPath", resourcesDescriptor);
+      else Reflect.deleteProperty(process, "resourcesPath");
       if (previousRoot === undefined) delete process.env.XIAOWEI_AGENT_HOME;
       else process.env.XIAOWEI_AGENT_HOME = previousRoot;
     }

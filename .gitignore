@@ -3,6 +3,7 @@ node_modules/
 target/
 desktop/out/
 desktop/dist/
+desktop/.sparkle/
 server/bin/
 desktop/.rs
 coverage/

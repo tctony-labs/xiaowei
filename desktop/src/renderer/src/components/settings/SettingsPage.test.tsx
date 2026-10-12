@@ -123,6 +123,41 @@ test("product settings loads saved values and sends changes and cleanup to servi
   expect(screen.queryByRole("button", { name: "检查更新" })).not.toBeInTheDocument();
 });
 
+test("packaged About checks for updates through System and displays host failures", async () => {
+  const host = new GatewayHost();
+  let fail = false;
+  const checks = vi.fn(() => {
+    if (fail) throw new Error("Updater unavailable");
+    return create(EmptySchema);
+  });
+  host.registerOwner(
+    "system",
+    bindHandlers(
+      System,
+      {
+        takeSettingsNavigation: () => create(TakeSettingsNavigationResponseSchema),
+        checkForUpdates: checks,
+      },
+      { partial: true },
+    ),
+  );
+  host.registerOwner(
+    "settings",
+    bindHandlers(Settings, { get: () => create(SettingsSnapshotSchema) }, { partial: true }),
+    [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  const services = createServices(() => host.client({ caller: "settings-update-test", trusted: true }));
+  render(<SettingsPage version="0.1.0" development={false} services={services} />);
+  await screen.findByRole("switch", { name: "全局搜索包含Chrome书签" });
+  await userEvent.click(screen.getByRole("button", { name: "关于" }));
+  await userEvent.click(screen.getByRole("button", { name: "检查更新" }));
+  await waitFor(() => expect(checks).toHaveBeenCalledOnce());
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  fail = true;
+  await userEvent.click(screen.getByRole("button", { name: "检查更新" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("检查更新失败");
+});
+
 test("navigation waits for models to load and repeated navigation restarts the highlight", async () => {
   const scroll = vi.fn();
   const original = HTMLElement.prototype.scrollIntoView;

@@ -2,7 +2,7 @@
 
 通用原生系统能力的 Rust 实现，不依赖 Electron、Gateway、napi、项目配置或业务模块，可由本项目及其他 Rust 项目直接依赖。
 
-当前提供应用名称、应用图标、系统主题及 macOS 焦点快照能力。`focus` 公开平台分派与快照类型，`macos/focus.rs` 承载应用激活和 AX 窗口操作；调用不申请辅助功能权限。
+当前提供应用名称、应用图标、系统主题、macOS 焦点快照和 Sparkle 原生框架桥接能力。`focus` 公开平台分派与快照类型，`macos/focus.rs` 承载应用激活和 AX 窗口操作；调用不申请辅助功能权限。
 
 ## 调用与复用
 
@@ -16,3 +16,9 @@ Rust 调用方直接依赖本 crate，使用其公开接口。TS 通过 [xiaowei
 - 返回能力、目标有效性及操作结果，不隐藏权限不足、目标失效等情况，不替调用方决定业务动作。
 
 平台实现按目标系统隔离，通用内存管理约定见 [Rust 原生模块开发](../README.md#实现易错点)。
+
+## Sparkle 桥接
+
+`sparkle::SparkleUpdater` 动态加载调用方提供的 `Sparkle.framework`，持有标准原生 UI controller 和 delegate；从主应用 `Info.plist` 读取 feed、公钥及周期设置。它不决定发布地址、版本、更新策略或应用退出流程，这些由宿主配置与调用方负责。
+
+创建、检查、恢复安装和释放均在 macOS 主线程执行。安装 delegate 返回延期，并持有 Sparkle 的 continuation；调用方处理 `prepare-install` 通知、关闭自身资源后，再调用 `resume_install()`。其他通知用于记录可用版本、无更新和错误。非 macOS 返回不支持，不提供替代更新实现。

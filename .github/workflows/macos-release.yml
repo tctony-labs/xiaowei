@@ -1,0 +1,113 @@
+name: macOS arm64 release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing stable tag matching desktop/package.json, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build signed arm64 app and draft release
+    runs-on: macos-15
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      HUSKY: "0"
+      CARGO_INCREMENTAL: "0"
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      APPLE_ID: ${{ vars.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      CSC_NAME: ${{ vars.MACOS_APPLICATION_CERT_NAME }}
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Validate organization release configuration
+        env:
+          CSC_LINK: ${{ secrets.MACOS_APPLICATION_CERT_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_APPLICATION_CERT_P12_PASS }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASS }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { checkRelease, deriveUpdatePublicKey } from "./scripts/release/check-release.mjs";
+
+          const { version } = JSON.parse(readFileSync("desktop/package.json", "utf8"));
+          process.env.SPARKLE_ED_PUBLIC_KEY = deriveUpdatePublicKey(process.env.SPARKLE_ED_PRIVATE_KEY);
+          const release = checkRelease(process.env.RELEASE_TAG, version);
+          writeFileSync(process.env.GITHUB_ENV,
+            `SPARKLE_ED_PUBLIC_KEY=${process.env.SPARKLE_ED_PUBLIC_KEY}\n`, { flag: "a" });
+          console.info(`Release inputs verified: ${release.tag}; signing team=${release.team}`);
+          JS
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Rust from rust-toolchain.toml
+        run: rustup show active-toolchain
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare native test modules
+        run: pnpm --filter './crates/*/napi' --workspace-concurrency=1 run build:debug
+
+      - name: Check and test the desktop and release tools
+        run: |
+          pnpm check
+          node --test scripts/tests/macos-release.test.mjs
+          pnpm --filter xiaowei-platform test
+          pnpm --dir desktop test
+
+      - name: Build, sign and notarize the app and DMG
+        env:
+          CSC_LINK: ${{ secrets.MACOS_APPLICATION_CERT_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_APPLICATION_CERT_P12_PASS }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASS }}
+        run: pnpm --dir desktop package:mac --signed
+
+      - name: Generate and verify the signed appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: node scripts/release/generate-appcast.mjs "$RELEASE_TAG"
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-${{ env.RELEASE_TAG }}
+          path: |
+            desktop/dist/XiaoWei-*-arm64.dmg
+            desktop/dist/XiaoWei-*-arm64.zip
+            desktop/dist/appcast.xml
+          if-no-files-found: error
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes \
+            --title "XiaoWei $RELEASE_TAG" \
+            desktop/dist/XiaoWei-*-arm64.dmg desktop/dist/XiaoWei-*-arm64.zip desktop/dist/appcast.xml

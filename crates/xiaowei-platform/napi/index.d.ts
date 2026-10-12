@@ -16,6 +16,13 @@ export declare class FocusSnapshot {
   isFrontmost(): Promise<boolean>
 }
 
+export declare class SparkleUpdater {
+  static open(frameworkPath: string, callback: (event: string) => void): SparkleUpdater
+  check(background: boolean): void
+  resumeInstall(): void
+  close(): void
+}
+
 export declare function captureFocus(): Promise<FocusSnapshot | null>
 
 export declare function frontmostProcess(): number | null

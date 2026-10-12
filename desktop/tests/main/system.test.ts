@@ -284,3 +284,34 @@ test("HideWindow waits for focus confirmation and propagates restoration failure
     owner.close();
   }
 });
+
+test("CheckForUpdates calls the host updater and propagates unavailable or active-session failures", async () => {
+  const host = new GatewayHost();
+  let checks = 0;
+  let busy = false;
+  const api = bindClient(System, host.client({ caller: "settings-window", trusted: true }));
+  const unavailable = registerSystem(host, () => ({ hide() {} }));
+  await assert.rejects(api.checkForUpdates(create(EmptySchema)));
+  unavailable.close();
+  const owner = registerSystem(
+    host,
+    () => ({ hide() {} }),
+    undefined,
+    undefined,
+    () => {
+      if (busy) throw new Error("Update session in progress");
+      checks++;
+    },
+  );
+  try {
+    await api.checkForUpdates(create(EmptySchema));
+    assert.equal(checks, 1);
+    busy = true;
+    await assert.rejects(api.checkForUpdates(create(EmptySchema)));
+    assert.equal(checks, 1);
+    owner.close();
+    await assert.rejects(api.checkForUpdates(create(EmptySchema)));
+  } finally {
+    owner.close();
+  }
+});

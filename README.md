@@ -20,3 +20,5 @@ just start
 启动后可在终端按 `r` 重新构建并重启应用，按 `R` 重启整个开发环境，按 `Ctrl+C` 退出。
 
 目录职责与模块关系见 [工作区详情](docs/workspace.md)。
+
+macOS arm64 的 DMG 打包、Sparkle 自动更新及 GitHub Releases 配置见 [macOS 发布](desktop/docs/macos-release.md)。

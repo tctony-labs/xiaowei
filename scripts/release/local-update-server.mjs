@@ -1,0 +1,74 @@
+import { createReadStream, readFileSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { localUpdateDirectory, localUpdateOrigin, localUpdatePort } from "./local-update-config.mjs";
+import { verifySignedAppcast, verifyUpdateArchive } from "./sparkle.mjs";
+
+export function createLocalUpdateServer(directory, scenario = "valid") {
+  if (!["valid", "invalid-feed", "invalid-archive"].includes(scenario)) throw new Error("Unknown update scenario");
+  const manifest = JSON.parse(readFileSync(join(directory, "test.json"), "utf8"));
+  const source = join(directory, "source");
+  const feed = readFileSync(join(source, "appcast.xml"));
+  const archivePath = join(source, manifest.archive);
+  const length = statSync(archivePath).size;
+  verifySignedAppcast({ feed, key: manifest.key });
+  verifyUpdateArchive({
+    xml: feed.toString(),
+    archive: readFileSync(archivePath),
+    key: manifest.key,
+    version: manifest.newVersion,
+    url: `${localUpdateOrigin}/${encodeURIComponent(manifest.archive)}`,
+  });
+
+  return createServer((request, response) => {
+    const pathname = new URL(request.url, localUpdateOrigin).pathname;
+    response.on("finish", () => console.info(`Local update ${request.method} ${pathname}: ${response.statusCode}`));
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      response.writeHead(405, { Allow: "GET, HEAD" }).end();
+      return;
+    }
+    response.setHeader("Cache-Control", "no-store");
+    if (pathname === "/appcast.xml") {
+      const payload =
+        scenario === "invalid-feed"
+          ? Buffer.from(feed.toString().replace("<sparkle:version>", "<!-- tampered --><sparkle:version>"))
+          : feed;
+      response.writeHead(200, { "Content-Type": "application/xml", "Content-Length": payload.length });
+      response.end(request.method === "HEAD" ? undefined : payload);
+      return;
+    }
+    if (pathname !== `/${encodeURIComponent(manifest.archive)}`) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "application/zip", "Content-Length": length });
+    if (request.method === "HEAD") {
+      response.end();
+      return;
+    }
+    const tampered = scenario === "invalid-archive";
+    if (tampered) response.write(Buffer.from([0]));
+    const stream = createReadStream(archivePath, tampered ? { start: 1 } : undefined);
+    stream.on("error", (error) => {
+      console.error("Local update archive read failed", error.message);
+      response.destroy(error);
+    });
+    response.on("close", () => stream.destroy());
+    stream.pipe(response);
+  });
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.length > 3) throw new Error("Usage: local-update-server.mjs [valid|invalid-feed|invalid-archive]");
+  const scenario = process.argv[2] ?? "valid";
+  const server = createLocalUpdateServer(localUpdateDirectory, scenario);
+  server.on("error", (error) => {
+    console.error("Local update source failed", error.message);
+    process.exitCode = 1;
+  });
+  server.listen(localUpdatePort, "127.0.0.1", () => {
+    console.info(`Local update source ready: ${localUpdateOrigin}/appcast.xml; scenario=${scenario}`);
+  });
+  for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => server.close());
+}

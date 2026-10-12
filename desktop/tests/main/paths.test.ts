@@ -34,6 +34,17 @@ test("invalid home overrides fail instead of writing relative to the working dir
   }
 });
 
+test("local update packages isolate Electron, business and Agent data from production overrides", () => {
+  const appData = join(tmpdir(), "system-app-data");
+  const paths = createPaths(appData, { XIAOWEI_AGENT_HOME: join(tmpdir(), "production-agent") }, true);
+  const root = join(appData, "com.tctony.xiaowei.local-update");
+  assert.equal(paths.electronRootDir, root);
+  assert.equal(paths.database, join(root, "xiaowei/storage.sqlite"));
+  assert.equal(paths.auth, join(root, "xiaowei/auth.json"));
+  assert.equal(paths.xiaoweiAgentRootDir, join(root, "xiaowei/agent"));
+  assert.equal(paths.models, join(root, "xiaowei/agent/models.json"));
+});
+
 test("model settings read and write the selected home, retaining the explicit file override", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "module-paths-"));
   t.after(() => rm(root, { recursive: true, force: true }));
