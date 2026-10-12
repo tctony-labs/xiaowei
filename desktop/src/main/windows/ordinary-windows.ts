@@ -9,6 +9,7 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
   const windows = new Map<OrdinaryWindow, { shown: boolean; unregister(): void }>();
   let recent: OrdinaryWindow | undefined;
   let focused: OrdinaryWindow | undefined;
+  let nativeWindowVisible = false;
   let closed = false;
   let dockUpdate: Promise<void> | undefined;
   let dockDirty = false;
@@ -27,7 +28,7 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
     dockUpdate = (async () => {
       while (!closed && dockDirty) {
         dockDirty = false;
-        const visible = candidates().length > 0;
+        const visible = nativeWindowVisible || candidates().length > 0;
         if (dock.isVisible() === visible) break;
         if (visible) {
           await dock.show();
@@ -53,6 +54,11 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
 
   return {
     initialize: updateDock,
+    setNativeWindowVisible(visible: boolean) {
+      if (closed || nativeWindowVisible === visible) return;
+      nativeWindowVisible = visible;
+      updateDock();
+    },
     register(window: OrdinaryWindow) {
       if (closed || windows.has(window)) return;
       const shown = () => {

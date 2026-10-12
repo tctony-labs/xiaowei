@@ -38,3 +38,5 @@ Rust 调用方 → xw-platform
 `SparkleUpdater.open(frameworkPath, callback)` 返回持有原生标准更新窗口的独立 controller。`check(true)` 后台检查，`check(false)` 交互式检查；`resumeInstall()` 恢复被 delegate 延期的安装。`close()` 幂等释放 controller，关闭后的操作失败。所有调用及释放必须在 macOS 主线程进行，不在线程池执行。
 
 callback 通过弱引用 napi threadsafe function 投递日志事件及 `prepare-install` 通知，不阻止进程退出，也不携带 renderer 命令。宿主 TS 的更新 service 决定检查和关闭时机；安装前等待应用资源关闭后再恢复 continuation。打包与发布配置见 [macOS 发布](../../desktop/docs/macos-release.md)。
+
+`ui-visible`／`ui-hidden` 通过同一 callback 报告 Sparkle 标准原生 UI 的显示与会话结束，供宿主同步 Dock 等可见窗口策略。callback 非阻塞投递到 Node 主线程，不接管 Sparkle 窗口。

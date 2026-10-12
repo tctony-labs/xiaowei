@@ -14,10 +14,12 @@ function fixture(packaged = true, platform = "darwin") {
     finish = resolve;
   });
   let prepared = 0;
+  const visibility: boolean[] = [];
   const service = createUpdateService({
     packaged,
     platform,
     frameworkPath: "/test/Sparkle.framework",
+    windowVisibilityChanged: (visible) => visibility.push(visible),
     open(path, event) {
       assert.equal(path, "/test/Sparkle.framework");
       opened++;
@@ -43,6 +45,7 @@ function fixture(packaged = true, platform = "darwin") {
   return {
     service,
     checks,
+    visibility,
     emit: (event: string) => emit(event),
     finish: () => finish(),
     failCheck: (value: boolean) => {
@@ -116,6 +119,7 @@ test("native initialization failure leaves manual checks unavailable without abo
     packaged: true,
     platform: "darwin",
     frameworkPath: "/missing/Sparkle.framework",
+    windowVisibilityChanged() {},
     open() {
       throw new Error("Missing SUPublicEDKey");
     },
@@ -139,6 +143,7 @@ test("failed application preparation blocks installation and records the failure
     packaged: true,
     platform: "darwin",
     frameworkPath: "/test/Sparkle.framework",
+    windowVisibilityChanged() {},
     open(_path, callback) {
       emit = callback;
       return {
@@ -163,4 +168,33 @@ test("failed application preparation blocks installation and records the failure
     service.close();
     error.mock.restore();
   }
+});
+
+test("native update windows keep Dock visibility until dismissal and ignore late events", () => {
+  const item = fixture();
+  item.service.start();
+  assert.deepEqual(item.visibility, []);
+  item.emit("ui-visible");
+  item.emit("ui-visible");
+  item.emit("ui-hidden");
+  item.service.check();
+  item.emit("ui-visible");
+  item.emit("ui-hidden");
+  assert.deepEqual(item.visibility, [true, false, true, false]);
+  item.emit("ui-visible");
+  item.service.close();
+  item.emit("ui-visible");
+  assert.deepEqual(item.visibility, [true, false, true, false, true, false]);
+});
+
+test("a rejected manual check restores previous native window visibility", () => {
+  const item = fixture();
+  item.service.start();
+  item.failCheck(true);
+  assert.throws(() => item.service.check());
+  assert.deepEqual(item.visibility, [true, false]);
+  item.emit("ui-visible");
+  assert.throws(() => item.service.check());
+  assert.deepEqual(item.visibility, [true, false, true]);
+  item.service.close();
 });

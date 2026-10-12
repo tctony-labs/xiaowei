@@ -37,6 +37,7 @@ export function startApplication(moduleDir: string): void {
     platform: process.platform,
     frameworkPath: app.isPackaged ? join(process.resourcesPath, "../Frameworks/Sparkle.framework") : "",
     open: (path, event) => SparkleUpdater.open(path, event),
+    windowVisibilityChanged: (visible) => ordinaryWindows.setNativeWindowVisible(visible),
     async prepareInstall() {
       console.info("Preparing application for Sparkle installation");
       await closeApplication();

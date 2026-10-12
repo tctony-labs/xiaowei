@@ -81,6 +81,68 @@ test("closing the last window while Dock show is pending eventually hides the Do
   manager.close();
 });
 
+test("native windows share Dock visibility with ordinary windows", async () => {
+  let visible = false;
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    async show() {
+      visible = true;
+    },
+    hide() {
+      visible = false;
+    },
+  });
+
+  manager.initialize();
+  manager.setNativeWindowVisible(true);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+
+  const settings = new Window();
+  manager.register(settings);
+  settings.show();
+  manager.setNativeWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+
+  manager.setNativeWindowVisible(true);
+  settings.emit("closed");
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+  manager.setNativeWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+
+  manager.close();
+  manager.setNativeWindowVisible(true);
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+});
+
+test("native UI dismissal while Dock show is pending eventually hides the Dock", async () => {
+  let visible = false;
+  let finish;
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    show: () =>
+      new Promise((resolve) => {
+        finish = () => {
+          visible = true;
+          resolve();
+        };
+      }),
+    hide() {
+      visible = false;
+    },
+  });
+  manager.setNativeWindowVisible(true);
+  manager.setNativeWindowVisible(false);
+  finish();
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+  manager.close();
+});
+
 function guardedDock() {
   let visible = false;
   let shownAt = 0;

@@ -163,6 +163,8 @@ git push origin refs/tags/v0.1.1
 
 main 持有更新 service，正式 macOS 包启动后执行后台检查，Sparkle 按一周间隔检查；自动下载关闭，用户在原生窗口决定下载和安装。关于页使用已确认的按钮，通过 `System.CheckForUpdates` 触发交互式检查。开发态隐藏按钮且不初始化 Sparkle；不支持的平台或未携带正确配置的包不会提供有效更新能力。
 
+Sparkle 原生更新 UI 通过标准 user driver delegate 的生命周期事件接入 Dock 可见状态。即使设置窗口已关闭，只要更新提示、检查或下载／安装 UI 仍处于会话中，Dock 图标保持可见；原生 UI 结束后，按其余普通窗口决定显隐。更新重启沿用普通后台启动行为。
+
 原生安装 delegate 延期安装，向 main 投递 `prepare-install`；main 等待 Gateway、Agent／LLM、剪贴板与 Storage 等业务关闭，再恢复 Sparkle 的安装 continuation。正常退出复用同一次关闭 Promise，controller 在 `will-quit` 释放。更新初始化、检查、发现版本、错误和安装准备写入既有桌面日志。
 
 ```mermaid

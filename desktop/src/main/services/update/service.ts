@@ -7,16 +7,29 @@ export function createUpdateService(options: {
   platform: string;
   frameworkPath: string;
   open(path: string, event: (event: string) => void): Updater;
+  windowVisibilityChanged(visible: boolean): void;
   prepareInstall(): Promise<void>;
 }) {
   let updater: Updater | undefined;
   let closed = false;
   let preparing = false;
+  let windowVisible = false;
+
+  function setWindowVisible(visible: boolean) {
+    if (windowVisible === visible) return;
+    windowVisible = visible;
+    options.windowVisibilityChanged(visible);
+    console.info("Sparkle window visibility changed", visible);
+  }
 
   function event(message: string) {
     if (closed) return;
     if (message.startsWith("error ")) {
       console.warn("Sparkle update failed", message.slice(6));
+      return;
+    }
+    if (message === "ui-visible" || message === "ui-hidden") {
+      setWindowVisible(message === "ui-visible");
       return;
     }
     console.info("Sparkle update event", message);
@@ -44,11 +57,19 @@ export function createUpdateService(options: {
     },
     check() {
       if (closed || !updater) throw new Error("Sparkle updater unavailable in this application");
-      updater.check(false);
+      const wasVisible = windowVisible;
+      setWindowVisible(true);
+      try {
+        updater.check(false);
+      } catch (error) {
+        setWindowVisible(wasVisible);
+        throw error;
+      }
       console.info("Sparkle interactive check started");
     },
     close() {
       if (closed) return;
+      setWindowVisible(false);
       closed = true;
       updater?.close();
       updater = undefined;

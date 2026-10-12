@@ -25,6 +25,34 @@ define_class!(
     struct Delegate;
 
     impl Delegate {
+        #[unsafe(method(standardUserDriverWillHandleShowingUpdate:forUpdate:state:))]
+        fn showing_update(&self, handle: bool, _item: &NSObject, _state: &NSObject) {
+            if handle {
+                (self.ivars().event)("ui-visible".into());
+            }
+        }
+
+        #[unsafe(method(standardUserDriverWillShowModalAlert))]
+        fn showing_alert(&self) {
+            (self.ivars().event)("ui-visible".into());
+        }
+
+        #[unsafe(method(standardUserDriverDidShowModalAlert))]
+        fn finished_alert(&self) {
+            // Sparkle invokes this after the modal alert has been dismissed.
+            (self.ivars().event)("ui-hidden".into());
+        }
+
+        #[unsafe(method(standardUserDriverWillFinishUpdateSession))]
+        fn finished_session(&self) {
+            (self.ivars().event)("ui-hidden".into());
+        }
+
+        #[unsafe(method(updater:didFinishUpdateCycleForUpdateCheck:error:))]
+        fn finished_check(&self, _updater: &NSObject, _check: isize, _error: Option<&NSError>) {
+            (self.ivars().event)("ui-hidden".into());
+        }
+
         #[unsafe(method(updater:didFindValidUpdate:))]
         fn found(&self, _updater: &NSObject, item: &NSObject) {
             let version: Retained<NSString> = unsafe { msg_send![item, displayVersionString] };
@@ -98,7 +126,7 @@ impl SparkleUpdater {
                 Controller::alloc(marker),
                 initWithStartingUpdater: false,
                 updaterDelegate: &*delegate,
-                userDriverDelegate: Option::<&NSObject>::None,
+                userDriverDelegate: &*delegate,
             ];
             let updater: Retained<NSObject> = msg_send![&controller, updater];
             let _: Option<Retained<NSObject>> = msg_send![&updater, clearFeedURLFromUserDefaults];
