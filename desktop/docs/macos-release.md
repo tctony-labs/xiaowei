@@ -126,12 +126,36 @@ CI 推导 `SPARKLE_ED_PUBLIC_KEY`，验证公私钥配对后只将公钥写入�
 
 org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已确认 Apple 签名／公证配置可见，但 `SPARKLE_PRIVATE_KEY` 为空；用户已要求单独生成小微密钥，由用户备份并配置同名仓库 secret。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
 
+### 发布新版本
+
+应用版本只维护在 `desktop/package.json`。例如发布 `0.1.1`，将其 `version` 从 `0.1.0` 改为 `0.1.1`，对应 tag 为 `v0.1.1`。关于页通过 `app.getVersion()` 显示该版本；打包流程由它生成 `CFBundleShortVersionString`、`CFBundleVersion`、DMG／ZIP 文件名及 Sparkle 更新版本。内部 workspace npm 包与 Rust crate 不需要随应用发布同步递增版本。只打新 tag 而不改应用版本会被 CI 预检查拒绝。
+
+每次发布按以下顺序执行：
+
+1. 确定高于当前已分发版本的稳定 `x.y.z` 版本，修改 `desktop/package.json`，整理该版本的改动说明。继续使用原有 Developer ID 身份与长期 Sparkle 更新密钥。
+2. 完成相关回归和 `just check`，确认待发布代码、版本和必要文档均已提交，工作区没有遗漏的发布改动。
+3. 推送发布提交，再在同一提交上创建并推送 `v<version>` annotated tag。tag 推送会触发 macOS release workflow；CI 检出 tag 指向的提交，并核对 tag、应用版本与 HEAD 一致。已发布版本的 tag 和附件不覆盖；修正已分发版本时递增版本重新发布。
+4. 等待 CI 完成构建／测试、app 签名、DMG 制作、单次公证及两份票据校验、最终 ZIP 与 appcast 签名验证。核对 run 的 head SHA 与发布 tag 一致，所有发布阶段成功。
+5. 核对 Release 草稿包含本版本的 `XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip` 和 `appcast.xml`，检查版本、签名身份、公证及更新下载地址，整理 Release notes。用户运行验收按下节执行，未完成的项目明确保留为待验收。
+6. 获得正式发布授权后，将草稿作为稳定 Release 发布，并设为 latest。CI 只创建草稿；单独推送 tag 不会让已安装应用发现该版本。
+7. 发布后通过未登录下载地址验证 DMG、ZIP 和 `releases/latest/download/appcast.xml`；确认 latest feed 的版本、ZIP 下载地址、长度与签名匹配最终产物。由用户启动已安装旧版，通过检查更新完成安装、重启及数据保留验收。
+
+以 `0.1.1` 为例，在版本改动已提交且相关检查通过后，触发构建的命令为：
+
+```sh
+git push origin HEAD
+git tag -a v0.1.1 -m "XiaoWei v0.1.1"
+git push origin refs/tags/v0.1.1
+```
+
+网络等临时故障可以重跑相同提交的 CI；需要修改源码时，新提交不会自动进入旧 tag 的构建。尚未分发的 tag 如需调整，先确认没有并发构建或已发布产物，再按用户授权更新；已公开分发的版本使用新版本号。
+
 ### 正式包最终验收
 
 1. 核对现有 org 设置对 xiaowei 仓库的可见性；CI 使用已确认的个人 Developer ID、Apple ID 公证和长期更新密钥重新构建，不能上传本地测试包或复用其 feed。
 2. 源码提交／推送与 tag 后运行真实 CI，检查签名主体、公证 Accepted、app／DMG 票据和 Gatekeeper，保留可审查的 Release 草稿。
-3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。由用户启动已安装旧版，通过可访问的签名 feed 下载新版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。
-4. 最后单独通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，并由维护者发布草稿。草稿附件不能作为所有未登录用户可访问的更新源；不要把草稿升级测试描述为正式 GitHub 下载链路验收完成。
+3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。发布前可用草稿产物和受控的签名 feed 运行联调；由用户启动已安装旧版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。
+4. 经授权发布草稿后，单独通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，再验证正式更新链路。草稿附件不能作为所有未登录用户可访问的更新源；不要把受控 feed 的草稿升级测试描述为正式 GitHub 下载链路验收完成。
 
 上述验收尚未全部完成，具体 CI 进度见开发记录；正式升级仍属于本事项必要验收。
 

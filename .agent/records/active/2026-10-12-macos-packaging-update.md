@@ -137,3 +137,9 @@
 27 项相关回归、完整 just check、actionlint 和最终 Biome／diff／显示宽度检查通过。验证覆盖完整 packageMac 入口与 workflow 各阶段，确认只有一次 DMG 提交、两个目标各自附加票据、拒绝公证或 app 票据失败时不生成 ZIP，以及单独 ZIP 阶段不依赖签名私钥或 Apple 密码。实际本地 ad-hoc App／DMG／ZIP 分阶段打包通过；整个 App 文件树在后续制包中保持一致，ZIP 制作前后 DMG SHA-256 相同，解压 ZIP 的 App 与源目录文件树一致且 strict codesign 通过，DMG hdiutil 校验通过，官方 Sparkle 工具对最终 ZIP 生成并验证签名 appcast 成功。临时测试包 0.1.901 和临时密钥已清理，未启动 Electron。
 
 首次本地打包遇到已有 Platform 二进制缺少 SparkleUpdater 导出，按既有入口重新构建该 napi release 后验证通过；未修改 Rust 源码。真实 Developer ID 单次提交及两个票据的服务端匹配仍待新 CI；DMG 离线安装运行和正式 ZIP／Sparkle 更新仍需用户启动验收。用户已要求提交本次修改；未推送或更新 tag，事项及正式发布 Plan 保持 active。
+
+### 0.1.1 发布
+
+用户要求明确后续版本发布流程，并授权发布 v0.1.1。已在 macOS 发布说明中补齐版本来源、提交与 tag、CI 草稿核验、正式发布和公开更新源验证的顺序；desktop/package.json 升为 0.1.1，内部 workspace 包及 Rust crate 版本保持各自生命周期。此次发布包含已提交的单次 DMG 公证与独立阶段计时修复。
+
+远程 v0.1.1 tag 尚不存在，v0.1.0 Release 为草稿，旧 run 38254060941 已成功。待推送本次发布提交与新 tag，核对 CI 签名／单次公证、票据与最终产物后正式发布 0.1.1，并检查公开 latest feed。DMG 离线安装与用户启动的正式升级验收仍需另行完成，不因发布成功自动归档事项。
