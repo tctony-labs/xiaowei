@@ -71,7 +71,15 @@ pnpm --dir desktop update:mac:serve invalid-archive
 
 ## 更新密钥与 appcast
 
-Sparkle 的 Ed25519 更新签名密钥与 Apple 代码签名证书是两套独立凭据。本项目复用 tctony-labs org 已有的 `SPARKLE_PRIVATE_KEY`；CI 从私钥推导公钥，并通过真实签名／验签确认配对。长期密钥必须由发布者保存；脚本不会自动创建或替换。需要另行管理密钥时，官方密钥工具位于 `desktop/.sparkle/2.10.0/bin/generate_keys`，默认会操作登录 Keychain，应由发布者显式运行、备份私钥，并将公钥配置到构建环境。私钥不得进入仓库、日志或长期开发记录。
+Sparkle 的 Ed25519 更新签名密钥与 Apple 代码签名证书是两套独立凭据。小微使用独立的长期更新密钥，在 xiaowei 仓库配置 Actions secret `SPARKLE_PRIVATE_KEY`。CI 从私钥推导公钥，并通过真实签名／验签确认配对；发布流水线不会自动生成或替换密钥。私钥不得进入仓库、日志或长期开发记录。
+
+首次生成或重新导出现有密钥时，显式执行：
+
+```sh
+scripts/release/sparkle_generate_keys.sh
+```
+
+脚本参考 cmux，使用已固定的官方 Sparkle 2.10.0 `generate_keys`，在登录 Keychain 的 `xiaowei` account 中生成或读取密钥，再导出到 `/tmp/xiaowei-sparkle-private-key.txt`（权限 `0600`）。导出前验证公私钥配对，只输出公钥和文件路径；目标文件已存在时拒绝覆盖。由发布者备份该文件，并把文件中的 Base64 私钥作为 xiaowei 仓库 secret `SPARKLE_PRIVATE_KEY` 的值；无需添加公钥变量。完成备份和配置后由发布者移除临时导出文件。
 
 完成 DMG／ZIP 打包后，在环境中提供 `SPARKLE_ED_PRIVATE_KEY`（官方导出的 Base64 私钥种子或兼容格式），生成 appcast：
 
@@ -87,11 +95,11 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 [macOS release workflow](../../.github/workflows/macos-release.yml) 已接入源码，支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，构建原生测试模块并执行检查／desktop／平台／发布 tooling 测试；随后重新 release 构建、签名、公证 app 和 DMG，校验产物，再生成验证 appcast，上传 Actions artifact 并创建 GitHub Release **草稿**。
 
-各版本发布构建串行执行。参考本机 `~/Develop/Projects/cmux/.github/workflows/build-tctony.yml`，复用 tctony-labs org 的个人 Developer ID、Apple ID 公证与 Sparkle 更新密钥配置，不需要新增 App Store Connect API key。证书由 electron-builder 导入构建用临时 Keychain；Apple ID 密码只注入签名／公证步骤，Sparkle 私钥只在预检查／appcast 步骤注入，经 stdin 交给官方工具。流水线不自动创建或替换长期更新密钥。
+各版本发布构建串行执行。参考本机 `~/Develop/Projects/cmux/.github/workflows/build-tctony.yml`，复用 tctony-labs org 的个人 Developer ID 和 Apple ID 公证配置，Sparkle 更新私钥单独配置在 xiaowei 仓库，不需要新增 App Store Connect API key。证书由 electron-builder 导入构建用临时 Keychain；Apple ID 密码只注入签名／公证步骤，Sparkle 私钥只在预检查／appcast 步骤注入，经 stdin 交给官方工具。流水线不自动创建或替换长期更新密钥。
 
-用户已确认使用个人身份。已安装 cmux 的公开签名元数据显示 `Developer ID Application: Chang Tang (NSWMLDGCEZ)`；CI 仍以 org 配置为输入并校验其一致性。以下名称与 cmux 完全一致：
+用户已确认使用个人身份。已安装 cmux 的公开签名元数据显示 `Developer ID Application: Chang Tang (NSWMLDGCEZ)`；CI 仍以 org 配置为输入并校验其一致性。配置名称与 cmux 一致；Apple 配置来自 org，Sparkle 私钥由小微单独生成并配置在仓库：
 
-| org 类型 | org 名称 | 本地脚本环境变量与用途 |
+| 配置类型 | 配置名称 | 本地脚本环境变量与用途 |
 | --- | --- | --- |
 | Variable | `APPLE_ID` | `APPLE_ID`：公证 Apple ID |
 | Variable | `APPLE_TEAM_ID` | `APPLE_TEAM_ID`：Developer Team ID |
@@ -99,11 +107,11 @@ node scripts/release/generate-appcast.mjs v0.1.0
 | Secret | `MACOS_APPLICATION_CERT_P12` | `CSC_LINK`：包含证书及私钥的 Base64 `.p12` |
 | Secret | `MACOS_APPLICATION_CERT_P12_PASS` | `CSC_KEY_PASSWORD`：`.p12` 密码 |
 | Secret | `APPLE_ID_PASS` | `APPLE_APP_SPECIFIC_PASSWORD`：Apple ID app-specific password |
-| Secret | `SPARKLE_PRIVATE_KEY` | `SPARKLE_ED_PRIVATE_KEY`：官方更新私钥，支持 32 字节 seed 和旧版 96 字节导出，也兼容省略 Base64 padding |
+| Repository Secret | `SPARKLE_PRIVATE_KEY` | `SPARKLE_ED_PRIVATE_KEY`：官方更新私钥，支持 32 字节 seed 和旧版 96 字节导出，也兼容省略 Base64 padding |
 
 CI 推导 `SPARKLE_ED_PUBLIC_KEY`，验证公私钥配对后只将公钥写入后续步骤的环境。无需单独配置 org 公钥变量。正式打包前也可本地执行 `node scripts/release/check-release.mjs v<version>`；本地需提供表中对应环境变量和 `SPARKLE_ED_PUBLIC_KEY`。此入口以无敏感内容的 challenge 做真实签名／验签，确认公私钥配对后才构建，不输出私钥、不操作个人 Keychain。
 
-org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已确认 Apple 签名／公证配置可见，但 `SPARKLE_PRIVATE_KEY` 为空；需允许 xiaowei 使用该 org secret，或配置同名仓库 secret。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
+org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已确认 Apple 签名／公证配置可见，但 `SPARKLE_PRIVATE_KEY` 为空；用户已要求单独生成小微密钥，由用户备份并配置同名仓库 secret。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
 
 ### 正式包最终验收
 

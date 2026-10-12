@@ -25,14 +25,14 @@
 
 本地更新联调使用专用测试包身份 `com.tctony.xiaowei.local-update` 和 loopback HTTP feed，两个版本共用一次构建的 release 原生模块及一套临时 Ed25519 密钥。所有业务数据、Agent 与模型目录隔离于独立测试根；私钥只驻留构建进程，公钥和产物信息进入忽略的本地 manifest。正式包不包含本地 HTTP 的 ATS 配置。Sparkle 2.10.0 要求签名 feed 同时开启解包前验签，打包配置和包内验证均已补齐此项。
 
-本地默认 ad-hoc，不自动选择现有 Tencent 证书。用户已确认使用个人签名身份，并要求参考本机 cmux。正式入口已复用 cmux 的 tctony-labs org 凭据名称，以完整 Developer ID 证书名和 APPLE_TEAM_ID 选择 distribution 身份，使用 Apple ID app-specific password 公证，避免回退到开发证书。CI 从已有 Sparkle 私钥推导并验证公钥，不需要新增 API key 或 org 公钥变量。Sparkle 可用 ad-hoc 与 Ed25519 更新，但 Gatekeeper 的对外分发验收需正式凭据。
+本地默认 ad-hoc，不自动选择现有 Tencent 证书。用户已确认使用个人签名身份，并要求参考本机 cmux。正式入口已复用 cmux 的 tctony-labs org 凭据名称，以完整 Developer ID 证书名和 APPLE_TEAM_ID 选择 distribution 身份，使用 Apple ID app-specific password 公证，避免回退到开发证书。CI 从 Sparkle 私钥推导并验证公钥，不需要新增 API key 或 org 公钥变量。首次 CI 缺少更新私钥后，用户要求参考 cmux 单独生成小微密钥，并由用户备份与配置仓库 secret；生成方式见发布文档。Sparkle 可用 ad-hoc 与 Ed25519 更新，但 Gatekeeper 的对外分发验收需正式凭据。
 
 ## Current work
 
 - 前两阶段本地打包与更新联调已完成；用户已要求继续第三阶段。按 [正式发布实施计划](../../plans/2026-10-12-macos-packaging-update/02-signed-release.md) 准备正式签名、公证与 GitHub Release 流水线。
-- 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。尚未运行实际签名或 CI，不以静态检查代替正式包验收。
+- 发布输入预检查、Team ID／Developer ID／hardened runtime 校验、app／DMG 公证与票据／Gatekeeper 校验入口、Release 草稿 workflow 已实现。CI 已运行，实际签名尚未执行；当前失败原因与修复见下，不以静态检查代替正式包验收。
 - 个人身份已确认；已安装 cmux 的公开签名为 Developer ID Application: Chang Tang (NSWMLDGCEZ)。本机没有可用的该 Developer ID 私钥，正式构建使用 org 的现有 .p12，不自动使用本机公司证书。
-- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已请求用户授权该 secret 对 xiaowei 可见或配置同名仓库 secret，随后可重跑同一 CI，无需移动 tag。正式发布与升级验收尚待完成；事项未归档。
+- 已提交 14cfe99 并推送分支及 v0.1.0 tag。首次 CI 确认 Apple ID、Team ID、证书名、证书 .p12／密码、公证密码均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败，尚未进入编译／签名／公证。当前 GitHub token 无权读取或调整 org secrets 元数据（403）；已按用户要求生成小微独立密钥并导出至 /tmp/xiaowei-sparkle-private-key.txt。用户确认已添加 secret，现已重跑同一 CI（attempt 2），配置预检查与五个原生模块构建通过，但契约检查因 runner 未安装 Go 而失败。已补齐 Go 安装步骤；需要提交修复并更新 v0.1.0 tag 指向才能继续。正式发布与升级验收尚待完成；事项未归档。
 - 第三阶段必要验收：实际签名、公证、Gatekeeper、正式包两版本更新与 GitHub 下载链路；不能用既有 ad-hoc 测试包或私钥已丢弃的临时更新密钥替代。
 
 ## Outcome
@@ -82,3 +82,11 @@
 用户已授权提交、推送并触发 0.1.0 打包。提交 `14cfe99` 与 tag `v0.1.0` 已推送至 origin，工作分支仍为 `feat_macos_packaging_update`，未合并 develop。
 
 [Actions run 38218192990](https://github.com/tctony-labs/xiaowei/actions/runs/38218192990) 在配置预检查失败：Apple 签名／公证输入均非空，org 的个人身份与 Team ID 符合预期；映射的 `SPARKLE_PRIVATE_KEY` 未传入，报错 `SPARKLE_ED_PRIVATE_KEY is required`。尚未编译、生成产物或创建 Release。需补齐该 secret 的仓库可见性或同名仓库配置后重跑当前 run；未自动创建／替换更新密钥。
+
+### 小微独立更新密钥
+
+用户要求参考 cmux 的 sparkle_generate_keys.sh，私钥导出到 `/tmp/xiaowei-sparkle-private-key.txt`，备份与 GitHub secret 配置由用户完成。已新增 `scripts/release/sparkle_generate_keys.sh`，复用固定的官方 Sparkle 2.10.0 工具，使用登录 Keychain 独立 account `xiaowei`。实际生成／导出成功，私钥文件权限 0600，真实官方工具签名与公钥验签通过；拒绝覆盖已有文件的检查通过。私钥未输出到日志或写入仓库，备份和远程 secret 由用户完成；用户确认添加后已由 Agent 重跑原 CI。
+
+### 第二次 CI 与 Go 工具链修复
+
+用户确认添加私钥后重跑原 run（attempt 2）。配置预检查通过，推导公钥与本地生成结果一致；工具链、locked 依赖安装及五个 napi debug 构建通过。`pnpm check` 的 contracts:check 在首次安装 protoc-gen-go 时报告 `spawnSync go ENOENT`：发布 workflow 缺少现有测试 workflow 的 Go 安装步骤。已复用 `scripts/ci/go-cache.mjs version` 与 actions/setup-go，静态 actionlint 通过。尚未生成正式包，需提交该修复并将 v0.1.0 更新到新提交后触发新构建；旧 run 重跑不会应用本地修复。

@@ -17,6 +17,7 @@
 | `scripts/release/package-mac.mjs` | 修改 | signed 模式要求 Team ID；核对主 app、五个 addon、Electron／Sparkle 代码签名身份与 hardened runtime；单独提交 DMG 公证并 staple，执行 app／DMG 的票据与 Gatekeeper 校验 |
 | `scripts/release/signing.mjs` | 新增 | 解析 codesign 验证结果、明确校验 Developer ID／Team ID／runtime，构建前校验必需凭据 |
 | `.github/workflows/macos-release.yml` | 新增 | 稳定 tag／手动触发，macOS arm64，locked 安装、工作区检查和 desktop／原生测试、正式构建、appcast、artifact 和 Release 草稿 |
+| `scripts/release/sparkle_generate_keys.sh` | 新增 | 显式使用官方工具与独立 xiaowei Keychain account 生成／导出私钥至指定 /tmp 文件，验证配对、拒绝覆盖，备份和配置由用户完成 |
 | `scripts/release/check-release.mjs` | 新增 | 版本／tag、公钥／私钥配对、Team ID 和发布输入预检查；不输出凭据 |
 | `scripts/tests/macos-release.test.mjs` | 修改 | 签名验证、版本／身份／缺失凭据与配对错误回归，使用临时密钥不访问个人 Keychain |
 | `desktop/docs/macos-release.md` | 修改 | 凭据名称、签名／公证入口、CI 流程与正式包两版本验收步骤；区分已验证与未执行结果 |
@@ -35,4 +36,4 @@
 
 ## 当前结果
 
-发布预检查、签名与公证校验、workflow 和文档准备已实现；八项 tooling、实际 ad-hoc 拒绝校验、actionlint 和完整 just check 通过。已复用 cmux 的 org 证书／Apple ID／Sparkle 配置，兼容省略 Base64 padding 并由私钥推导公钥。已安装 cmux 的公开签名验证了个人 Team ID NSWMLDGCEZ。首次 v0.1.0 CI 已运行，Apple 签名／公证配置均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败。需用户补齐该 secret 的可见性或仓库配置后重跑；实际签名／公证／正式升级仍待执行。本 Plan 保留，直到本切片必要的正式验证完成或用户明确收窄范围。
+发布预检查、签名与公证校验、workflow 和文档准备已实现；八项 tooling、实际 ad-hoc 拒绝校验、actionlint 和完整 just check 通过。已复用 cmux 的 org 证书／Apple ID／Sparkle 配置，兼容省略 Base64 padding 并由私钥推导公钥。已安装 cmux 的公开签名验证了个人 Team ID NSWMLDGCEZ。首次 v0.1.0 CI 已运行，Apple 签名／公证配置均可见，但 SPARKLE_PRIVATE_KEY 为空，预检查失败。已按用户要求单独生成并导出小微密钥，用户确认添加 secret 后重跑原 CI，attempt 2 配置预检查与五个原生模块构建通过，但 contracts:check 因 runner 缺少 Go 而失败。已补齐与现有测试 workflow 一致的 Go 安装步骤，待提交修复并更新 tag 后触发新构建；实际签名／公证／正式升级仍待执行。本 Plan 保留，直到本切片必要的正式验证完成或用户明确收窄范围。
