@@ -13,27 +13,33 @@
 
 ## How
 
-当前工作分支为 `feat_macos_packaging_update`，通过 Git Flow 从 `develop` 创建。发布仓库现有 origin 为 `tctony-labs/xiaowei`，通过 `gh repo view` 确认是公开仓库，可供未登录客户端下载 release。
+用户明确选择 Sparkle 标准原生更新窗口，保留 `com.tctony.xiaowei`，首期仅支持 arm64、GitHub Releases 和完整 ZIP／DMG，不扩展 delta 或多渠道。已对照旧版启动检查、原生交互、安装前退出及配置行为；分发源按用户选择从旧版 COS 改为 GitHub Releases。
 
-已核对旧版 `/Users/changtang/Develop/XiaoWei/workspace/src/xiaowei-next` 的 `xiaowei/src-tauri/src/biz/update.rs`、启动初始化、`Info.plist` 与关于页：更新由外层 host 持有，使用 Sparkle 的交互式检查与整包替换，debug 隐藏入口，启动后台检查，定期检查间隔为一周，关闭自动安装，安装前处理退出相关工作。旧版上传至 COS，产物带渠道及流水线构建号。
+使用固定 SHA-256 的官方 Sparkle 2.10.0，通过现有平台模块桥接，不引入额外更新框架。原生层持有 controller、delegate 与安装 continuation，TS main 负责检查策略、日志、业务关闭及 Dock 可见状态。保留原生 UI 是主要取舍：评估的 electron-sparkle-updater 使用 silent user driver，不满足交互要求。
 
-用户明确选择继续使用 Sparkle，保留原生交互式更新窗口，不采用 electron-updater／Squirrel.Mac。现有 appId 保持 `com.tctony.xiaowei`。
+正式发布使用个人 Developer ID 与独立长期 Sparkle Ed25519 密钥，不自动选择本机公司证书。完整发布采用单次 DMG 公证，再分别给 DMG 与同一份 App 附加票据，最后制作 ZIP；避免重复提交和各阶段重新构建产物。用户取消了更新重启后自动打开设置窗口和显示 toast 的方案，继续采用普通后台启动行为。
 
-使用官方 Sparkle 2.10.0（固定上游归档 SHA-256），通过现有 `xw-platform`／`xiaowei-platform` 提供动态框架桥接；平台层持有 controller、delegate 与安装 continuation，TS main 持有检查策略、日志和退出协调。旧版插件只作为接口／行为参考，不依赖 Tauri。现成 `electron-sparkle-updater@0.5.3` 采用 silent user driver，关闭原生窗口并自动下载，不符合本次体验，未引入。
+当前维护入口：
 
-发布入口、更新行为、密钥配置和人工验收要求统一维护在 [macOS 发布](../../../desktop/docs/macos-release.md)。稳定 `x.y.z` 版本与 `v<version>` tag 对齐；首期仅完整 ZIP，不做 delta／多渠道。feed 和更新包均采用 Ed25519 验签，本地打包与更新联调已通过；第三阶段签名、公证与 GitHub Release 流水线已通过真实 CI，v0.1.1 已发布；后续流水线在全部前置校验成功后直接发布稳定 Release 并设为 latest，实际升级及离线安装仍待运行验收。
-
-本地更新联调使用专用测试包身份 `com.tctony.xiaowei.local-update` 和 loopback HTTP feed，两个版本共用一次构建的 release 原生模块及一套临时 Ed25519 密钥。所有业务数据、Agent 与模型目录隔离于独立测试根；私钥只驻留构建进程，公钥和产物信息进入忽略的本地 manifest。正式包不包含本地 HTTP 的 ATS 配置。Sparkle 2.10.0 要求签名 feed 同时开启解包前验签，打包配置和包内验证均已补齐此项。
-
-本地默认 ad-hoc，不自动选择现有 Tencent 证书。用户已确认使用个人签名身份，并要求参考本机 cmux。正式入口已复用 cmux 的 tctony-labs org 凭据名称，以完整 Developer ID 证书名和 APPLE_TEAM_ID 选择 distribution 身份，使用 Apple ID app-specific password 公证，避免回退到开发证书。CI 从 Sparkle 私钥推导并验证公钥，不需要新增 API key 或 org 公钥变量。首次 CI 缺少更新私钥后，用户要求参考 cmux 单独生成小微密钥，并由用户备份与配置仓库 secret；生成方式见发布文档。Sparkle 可用 ad-hoc 与 Ed25519 更新，但 Gatekeeper 的对外分发验收需正式凭据。
-
-## Current work
-
-- 单次 DMG 公证与 Actions 阶段拆分已实现，真实 CI [38258295087](https://github.com/tctony-labs/xiaowei/actions/runs/38258295087) 全部通过；v0.1.1 已按用户授权于 2026-10-12 22:08:50（Asia/Shanghai）正式发布并设为 latest。
-- 已下载最终发布附件，核对版本、同一长期 Sparkle 公钥、Developer ID／Team ID、五个 napi 的签名与 arm64、两份公证票据、Gatekeeper、DMG 完整性，以及 appcast／ZIP 签名。公开 latest feed 已返回 HTTP 200；已安装 0.1.0 的更新检查此前因草稿没有公开 feed 而返回 404，发布后可重试。
-- 尚需由用户运行 DMG 离线安装与已安装 0.1.0 → 0.1.1 的实际更新、重启和数据保留验收。保留正式发布 Plan，事项保持 active，未归档；0.1.0 草稿未发布。
+- [macOS 发布与更新说明](../../../desktop/docs/macos-release.md)：打包、版本、签名／公证、密钥、发布流程、更新行为和验收步骤。
+- [xw-platform](../../../crates/xw-platform/README.md) 与 [xiaowei-platform](../../../crates/xiaowei-platform/README.md)：原生与 napi 边界。
+- [main 模块说明](../../../desktop/src/main/README.md)：更新 service、关闭协调和 Dock 状态接入。
 
 ## Outcome
+
+### 归档范围与最终结果
+
+用户明确要求归档本事项。以已经交付的打包、正式发布与自动更新建设作为本次收尾范围，不再基于本 record 进行重大改动；此前 Plan 中尚未执行的独立验证项拆出为下述后续验证边界。长期说明已经落在现有包文档，实施 Plan 删除，后续常规修复更新代码与长期说明，不再追加本记录。
+
+- v0.1.1 已正式发布并设为 latest；真实 CI、Developer ID 签名、单次 DMG 公证及两份票据验证通过。最终公开 feed、DMG、ZIP 可下载，附件版本、arm64、Sparkle 公钥、签名和完整性均已核验。
+- 用户已明确确认从正式 0.1.0 成功更新到 0.1.1。这补齐了公开 GitHub 更新链路的实际升级结果；不据此声称所有数据保留场景或离线安装已验证。
+- 后续 workflow 已移除 draft，所有前置检查成功后直接发布稳定 Release 并设为 latest；此项不修改已发布的 v0.1.1 tag 或附件。旧 0.1.0 草稿保留。
+- Sparkle 原生窗口已通过现有 Rust → napi → TS 回调接入 Dock 可见状态。16 项更新 service／Dock 测试、3 项平台测试、原生构建、`just check` 与 diff 检查通过；没有保留重启后自动开窗、toast 或完成标记。
+- 原生构建规则已收紧到实际受 API、实现路径、ABI、共享初始化或构建行为影响的 napi 包，不再仅因依赖同一 crate 扩大重建范围。
+
+独立后续验证边界：DMG 离线安装运行、新 Dock 行为在下一份正式包中的实际窗口验证，以及未单独覆盖的正式升级数据保留场景。后续 workflow 的自动正式发布需下一次 tag 运行验证。这些项目未在本次归档中宣称通过，也不启动新的应用实例或发布新版本；需要继续验证时按独立任务开展。
+
+以下保留各实施阶段的历史结果；其中“待验收”“未发布”等描述只对应当时阶段，最终结果及未验证边界以上文为准。
 
 ### 本地打包与自动验证
 

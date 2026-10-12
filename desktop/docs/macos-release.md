@@ -124,7 +124,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 CI 推导 `SPARKLE_ED_PUBLIC_KEY`，验证公私钥配对后只将公钥写入后续步骤的环境。无需单独配置 org 公钥变量。正式打包前也可本地执行 `node scripts/release/check-release.mjs v<version>`；本地需提供表中对应环境变量和 `SPARKLE_ED_PUBLIC_KEY`。此入口以无敏感内容的 challenge 做真实签名／验签，确认公私钥配对后才构建，不输出私钥、不操作个人 Keychain。
 
-org 设置查询受到当前 GitHub token 权限限制（403）。首次 CI 已确认 Apple 签名／公证配置可见，但 `SPARKLE_PRIVATE_KEY` 为空；用户已要求单独生成小微密钥，由用户备份并配置同名仓库 secret。流水线预检查会对缺失值直接报错。CI 必须使用已提交的版本源码，才能验证配置可见性与实际签名、公证；具体执行进度与验收结果见 [开发记录](../../.agent/records/active/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
+org 设置查询曾受到 GitHub token 权限限制（403）。小微使用独立 Sparkle 更新密钥，由用户备份并配置 `SPARKLE_PRIVATE_KEY`；v0.1.1 的真实 CI 已验证必需凭据可见性及正式签名、公证。流水线预检查会对缺失值直接报错，CI 必须使用已提交的版本源码。该次建设的验收结果见 [归档记录](../../.agent/records/archived/2026-10-12-macos-packaging-update.md)。私钥、证书与密码不要粘贴到聊天或提交到仓库。
 
 ### 发布新版本
 
@@ -157,7 +157,7 @@ git push origin refs/tags/v0.1.1
 3. 使用同一长期公钥、同一已确认 Developer ID 的两个递增正式版本。由用户启动已安装旧版，复验原生窗口、取消／失败、安装前业务关闭、重启、版本、数据保留和无新 crash。正式发布前的受控 feed 联调不能代替公开更新链路验收。
 4. 发布后通过 GitHub 正式下载地址核对 feed／ZIP 与重定向，再验证正式更新链路。历史草稿附件不属于公开更新源。
 
-上述验收尚未全部完成，具体 CI 进度见开发记录；正式升级仍属于本事项必要验收。
+上述步骤用于各版本的正式验收。v0.1.1 已完成签名、公证、附件核验，用户已确认从正式 0.1.0 成功升级；DMG 离线安装、新 Dock 行为的正式包验证和其他未覆盖场景见归档记录中的后续验证边界。
 
 ## 运行与验收
 
