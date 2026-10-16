@@ -7,7 +7,7 @@ edition = "2021"
 log = "0.4"
 xw-gateway = { path = "../../gateway/rust" }
 xw-contracts = { path = "../../contracts/rust" }
-prost = "=0.14.4"
+prost = { workspace = true }
 tokio = { version = "1", features = ["rt"] }
 evalexpr = "11"
 nucleo-matcher = "0.3"

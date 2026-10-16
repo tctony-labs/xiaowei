@@ -56,7 +56,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "2.15.0"
+    "@bufbuild/protobuf": "catalog:"
   },
   "devDependencies": {
     "xiaowei-contracts": "workspace:*",

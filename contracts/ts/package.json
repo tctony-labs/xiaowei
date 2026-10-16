@@ -10,10 +10,10 @@
     "check": "tsgo --noEmit"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "2.15.0"
+    "@bufbuild/protobuf": "catalog:"
   },
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "2.15.0",
+    "@bufbuild/protoc-gen-es": "catalog:",
     "@types/node": "26.5.1",
     "tsx": "4.23.13"
   }

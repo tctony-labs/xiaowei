@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 xw-gateway = { path = "../../gateway/rust" }
 xw-contracts = { path = "../../contracts/rust" }
-prost = "=0.14.4"
+prost = { workspace = true }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }

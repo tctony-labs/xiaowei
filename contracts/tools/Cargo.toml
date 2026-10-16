@@ -5,4 +5,4 @@ edition = "2024"
 publish = false
 
 [dependencies]
-prost-build = "=0.14.4"
+prost-build = { workspace = true }

@@ -162,6 +162,15 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@bufbuild/protobuf':
+      specifier: 2.15.0
+      version: 2.15.0
+    '@bufbuild/protoc-gen-es':
+      specifier: 2.15.0
+      version: 2.15.0
+
 overrides:
   tsx: 4.23.13
 
@@ -197,11 +206,11 @@ importers:
   contracts/ts:
     dependencies:
       '@bufbuild/protobuf':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0
     devDependencies:
       '@bufbuild/protoc-gen-es':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0(@bufbuild/protobuf@2.15.0)(supports-color@5.5.0)
       '@types/node':
         specifier: 26.5.1
@@ -213,7 +222,7 @@ importers:
   crates/xiaowei-agent/napi:
     devDependencies:
       '@bufbuild/protobuf':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0
       '@napi-rs/cli':
         specifier: 3.10.1
@@ -267,7 +276,7 @@ importers:
   desktop:
     dependencies:
       '@bufbuild/protobuf':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0
       '@earendil-works/pi-ai':
         specifier: 0.87.1
@@ -373,7 +382,7 @@ importers:
   gateway/tests:
     devDependencies:
       '@bufbuild/protobuf':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0
       electron:
         specifier: 44.3.0
@@ -394,7 +403,7 @@ importers:
   gateway/ts:
     dependencies:
       '@bufbuild/protobuf':
-        specifier: 2.15.0
+        specifier: 'catalog:'
         version: 2.15.0
     devDependencies:
       '@types/node':

@@ -5,6 +5,12 @@ packages:
   - desktop
   - packages/*
   - crates/*/napi
+
+# Protobuf-ES 的运行库与生成器必须同一版本，各包统一写 "catalog:"。
+catalog:
+  "@bufbuild/protobuf": 2.15.0
+  "@bufbuild/protoc-gen-es": 2.15.0
+
 allowBuilds:
   electron: true
   esbuild: true

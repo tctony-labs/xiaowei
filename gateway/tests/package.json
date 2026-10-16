@@ -6,7 +6,7 @@
     "build:electron": "node electron/build.mjs"
   },
   "devDependencies": {
-    "@bufbuild/protobuf": "2.15.0",
+    "@bufbuild/protobuf": "catalog:",
     "electron": "44.3.0",
     "vite": "7.3.6",
     "xiaowei-contracts": "workspace:*",

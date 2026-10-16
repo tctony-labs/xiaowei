@@ -10,7 +10,7 @@ xw-agent-runtime = { path = "../xw-agent-runtime" }
 xw-contracts = { path = "../../contracts/rust" }
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 uuid = { version = "1", features = ["v7"] }
-prost = "=0.14.4"
+prost = { workspace = true }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
 thiserror = "2"
 log = "0.4"

@@ -68,7 +68,7 @@ Go 产物按 proto 相对目录组织。生成器读取 [go/go.mod](go/go.mod) �
 
 - protoc 从官方 release 下载，校验固定 SHA-256、可执行版本和 include 目录后原子安装。复用时检查平台及安装元数据；缓存属于当前机器，不能跨架构同步。
 - Go 插件按固定版本安装到独立缓存，安装子进程使用临时 GOBIN，校验后原子移入版本目录。同版本可跨项目复用，不同版本并存，不覆盖全局插件。
-- ES 插件由 [ensure-protoc-gen-es.mjs](scripts/ensure-protoc-gen-es.mjs) 准备，期望版本取自 `ts/package.json` 的 devDependency，安装版本由 pnpm 锁文件固定。插件缺失或版本不符时，在仓库根目录执行 `pnpm install --frozen-lockfile`，再次校验通过后使用，不另建缓存。
+- ES 插件由 [ensure-protoc-gen-es.mjs](scripts/ensure-protoc-gen-es.mjs) 准备，期望版本取自根目录 `pnpm-workspace.yaml` 的 `catalog`，并要求与 `@bufbuild/protobuf` 相同，安装版本由 pnpm 锁文件固定。所有 TS 使用方的 `@bufbuild/protobuf` 一律写 `"catalog:"`，避免 pnpm 为不同声明装出多份运行库。插件缺失或版本不符时，在仓库根目录执行 `pnpm install --frozen-lockfile`，再次校验通过后使用，不另建缓存。
 - 缓存不可执行、版本或平台不符时明确失败，不静默回退到全局工具。未配置的平台直接拒绝，不把其他平台的产物视为可用。
 - 各语言使用同一个 protoc；插件使用明确路径，Rust 生成进程显式设置 `PROTOC` 和 `PROTOC_INCLUDE`，不修改全局 PATH 或系统工具安装。
 
