@@ -24,6 +24,8 @@ pnpm --dir desktop package:mac
 - `desktop/dist/XiaoWei-<version>-arm64.dmg`
 - `desktop/dist/XiaoWei-<version>-arm64.zip`
 
+macOS 的原生 `build --release` 在 napi 构建成功后执行 `xcrun strip -x`，移除本地符号并记录前后字节数；裁剪失败会阻止后续发布。裁剪发生在原生测试、ASAR 完整性元数据生成和代码签名前，CI 与本地打包共用此入口；`build:debug` 保留符号。`packageMac({ build: false })` 复用已经完成裁剪并经过测试的 release 产物，不重复处理。
+
 默认采用 ad-hoc 签名，不自动选用本机 Developer ID；不公证、不上传，也不启动应用。Sparkle 支持 ad-hoc 应用通过 Ed25519 验证更新，但这不等于应用已获得 Gatekeeper 的对外分发认可。`--dir` 仅生成应用目录，仍执行相同的原生 release 构建和签名流程：
 
 ```sh

@@ -31,6 +31,7 @@ export async function testPrebuilt({
       "exec",
       "node",
       "--test",
+      "scripts/dev/build-napi.test.mjs",
       "scripts/tests/macos-release.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",
