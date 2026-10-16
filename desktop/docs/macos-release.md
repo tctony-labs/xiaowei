@@ -6,6 +6,8 @@
 
 发布文件过滤器排除所有 `*.map`，包括生产依赖自带的 source map；本地更新测试包沿用此规则。构建目录中的调试资料不因此删除，但不进入分发 ASAR。
 
+LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口裁剪其他环境构建。Google GenAI 仅删除 `dist/web` 及通用 `dist/index.mjs`／`dist/index.cjs`，保留 Node 的 ESM／CJS、tokenizer 和 Vertex 支撑代码。依赖升级后需重新核对 exports 与实际导入路径，并从分发包验证 provider 加载及相关功能。
+
 仅在 renderer 使用、由 Vite bundled 的 React、React DOM、React Markdown、remark-gfm 和 zustand 声明为 `devDependencies`，打包时不再携带独立的生产依赖副本。main／LLM worker 的外部依赖和五个原生包继续作为生产依赖保留；构建回归检查 renderer 确实包含所需 React 与 Markdown 实现。
 
 ## 本地打包

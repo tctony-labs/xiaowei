@@ -6,7 +6,13 @@ const signing = signed ? signingConfiguration() : undefined;
 
 module.exports = {
   ...base,
-  files: [...base.files, "!**/*.map"],
+  files: [
+    ...base.files,
+    "!**/*.map",
+    // Node exports select dist/node; retain its ESM/CJS entries and tokenizer support.
+    "!**/node_modules/@google/genai/dist/web/**",
+    "!**/node_modules/@google/genai/dist/index.{mjs,cjs}",
+  ],
   buildVersion: require("./package.json").version,
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.
   artifactName: "${productName}-${version}-${arch}.${ext}",

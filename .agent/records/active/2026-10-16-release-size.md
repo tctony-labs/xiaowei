@@ -15,7 +15,9 @@
 
 本轮保留简体中文和英文 Electron 语言资源，排除 release 中所有 `.map` 文件，剔除已经 bundled 的前端运行库副本，并在 macOS 包签名前对五个生产 `.node` 执行 `strip -x`。保留必要的原生导出与加载入口，保持开发构建、LLM provider、更新签名与公证流程正常。
 
-验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布或提交。
+后续用户授权继续裁剪依赖中不需要的其他环境代码。范围为 Google GenAI 的 Web／通用构建、polyfill／protobuf 浏览器构建以及 AWS／Smithy 等 Node 未选中的环境分支；按独立优化点验证并提交。不在本轮清理类型／TS 源码、合并原生模块或启用 LTO。
+
+验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布；用户已授权每个优化点单独提交。
 
 ## How
 
@@ -31,6 +33,7 @@
 - source map 排除已完成：同一份 release 构建重新打包后，ASAR 中 `.map` 数量从 2,684 降至 0；五个 addon 加载、签名及发布元数据校验通过。语言裁剪后的目录包为 361,504,097 bytes，source map 排除后的体积将在最终对照表汇总。
 - 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
+- 其他环境代码裁剪：Google GenAI 已完成并验证，下一步处理 polyfill／protobuf 和 AWS／Smithy。每组对实际目录包做隔离验证和体积对照。
 
 ## Outcome
 
@@ -46,7 +49,7 @@
 | 再移除重复前端依赖 | 332,216,062 | 316.826 | 9.654 MiB |
 | 再裁剪原生本地符号 | 322,596,822 | 307.652 | 9.174 MiB（包含重新签名后的差异） |
 
-最终目录包为忽略的 `desktop/dist/mac-arm64/XiaoWei.app`。相对已安装基线减少约 83.922 MiB（21.43%）；基线与当前源码并非同一提交，语言包以外的三步则是本次连续构建产物对照。此版本号仍为 0.1.1，仅用于本地验收，不作为新正式版本发布。
+首轮目录包为忽略的 `desktop/dist/mac-arm64/XiaoWei.app`，后续优化继续更新该路径。首轮相对已安装基线减少约 83.922 MiB（21.43%）；基线与当前源码并非同一提交，语言包以外的三步则是本次连续构建产物对照。此版本号仍为 0.1.1，仅用于本地验收，不作为新正式版本发布。
 
 验证结果：
 
@@ -60,10 +63,21 @@
 
 尚未验证：真实 Electron GUI、非中文／英文系统语言回退、Developer ID／公证与正式更新链路。需由用户启动新目录包并按发布文档完成交互验收；ad-hoc、Node 加载和 worker 检查不替代这些项目。
 
+### 其他环境代码裁剪
+
+用户要求继续处理未使用的其他环境构建，复用首轮相同源码及 release 构建；只增加发布文件过滤，不修改已安装依赖或生产业务逻辑。
+
+| 阶段 | 逻辑字节数 | 本步减少 |
+| --- | ---: | ---: |
+| 首轮优化完成 | 322,596,822 | — |
+| Google GenAI Web／通用构建 | 319,481,137 | 2.971 MiB |
+
+Google GenAI 的 Node 条件入口指向 `dist/node`；排除 `dist/web` 与顶层通用 `index.mjs`／`index.cjs`，保留 Node ESM／CJS、tokenizer、Vertex 支撑代码。从实际 ASAR 解包到隔离临时目录后，十种 provider 实现、Google Node ESM／CJS 与 tokenizer 均成功加载；用本地 fetch 替身验证 Google 内容生成请求及响应解析，同时验证 stream ponyfill、fetch-blob、protobuf 编解码和包内 LLM worker 启动。未访问远程模型，临时目录已删除；打包入口的签名、元数据及五个原生模块加载校验通过。
+
 ## 后续工作
 
 - 评估 SDK 的 ESM／CJS／Web／Node 多份构建与 polyfill 变体裁剪；按实际导入路径验证，不能整包删除生产 AI SDK。
 - 核实类型声明和 TypeScript 源码的运行时入口后按需裁剪；原基线中分别约 3.75 MiB 与 4.30 MiB，与依赖移除可能重叠。
-- 评估 Rust LTO：保留 LLVM 中间表示，在链接阶段跨 crate／编译单元优化、内联和移除无用代码；对比 `thin`／完整 LTO 的体积、构建时间与功能回归。本轮不启用，收益尚未测量。
+- Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
 - 如继续评估 SwiftShader（约 15.9 MiB），先明确 GPU 不可用时的软件图形回退与兼容性要求。
 - 新正式版本仍需 Developer ID 签名／公证、安装及 Sparkle 更新验收；本地 ad-hoc 目录包不能替代。
