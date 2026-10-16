@@ -38,6 +38,15 @@ test("desktop bundles Gateway source in all targets; Node source condition resol
       !modules.some((id) => id.includes("/gateway/ts/dist/")),
       `${target} must not consume Gateway dist`,
     );
+
+    if (target === "renderer") {
+      for (const dependency of ["react", "react-dom", "react-markdown", "remark-gfm"]) {
+        assert.ok(
+          modules.some((id) => id.includes(`/node_modules/${dependency}/`)),
+          `renderer must bundle ${dependency}; it is not shipped as a runtime package`,
+        );
+      }
+    }
   }
   const configWithSource = await storybook.viteFinal({});
   assert.ok(configWithSource.resolve.conditions.includes("source"));

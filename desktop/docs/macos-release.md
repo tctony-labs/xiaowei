@@ -6,6 +6,8 @@
 
 发布文件过滤器排除所有 `*.map`，包括生产依赖自带的 source map；本地更新测试包沿用此规则。构建目录中的调试资料不因此删除，但不进入分发 ASAR。
 
+仅在 renderer 使用、由 Vite bundled 的 React、React DOM、React Markdown、remark-gfm 和 zustand 声明为 `devDependencies`，打包时不再携带独立的生产依赖副本。main／LLM worker 的外部依赖和五个原生包继续作为生产依赖保留；构建回归检查 renderer 确实包含所需 React 与 Markdown 实现。
+
 ## 本地打包
 
 准备工作区依赖、固定的 Node／pnpm／Rust 工具链和 Xcode Command Line Tools，在 Apple Silicon Mac 上执行：

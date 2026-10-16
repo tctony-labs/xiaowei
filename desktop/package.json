@@ -20,13 +20,8 @@
   "dependencies": {
     "@earendil-works/pi-ai": "0.87.1",
     "electron-log": "5.4.4",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1",
     "xiaowei-clipboard": "workspace:*",
     "xiaowei-search": "workspace:*",
-    "zustand": "5.0.8",
     "xiaowei-gateway": "workspace:*",
     "xiaowei-contracts": "workspace:*",
     "@bufbuild/protobuf": "catalog:",
@@ -35,6 +30,11 @@
     "xiaowei-agent": "workspace:*"
   },
   "devDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
+    "zustand": "5.0.8",
     "tsx": "4.23.13",
     "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",

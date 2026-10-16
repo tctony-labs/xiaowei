@@ -27,7 +27,8 @@
 
 - 已创建 `br/chore_release_size`；语言裁剪已完成：实际 ad-hoc 目录包仅有 `zh_CN.lproj` 与 `en.lproj` 的 `locale.pak`，五个 addon 加载与包签名校验通过；相同 Electron 版本对应语言资源减少约 46.9 MiB。发布相关 27 项回归通过，提交 hook 的 `just check` 作为每次提交的必需检查。
 - source map 排除已完成：同一份 release 构建重新打包后，ASAR 中 `.map` 数量从 2,684 降至 0；五个 addon 加载、签名及发布元数据校验通过。语言裁剪后的目录包为 361,504,097 bytes，source map 排除后的体积将在最终对照表汇总。
-- 下一步去除重复前端依赖并接入本地符号裁剪。
+- 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
+- 下一步接入本地符号裁剪。
 - 待测量实际新目录包，回填本轮结果与仍需用户启动的运行验收。
 
 ## 后续工作
