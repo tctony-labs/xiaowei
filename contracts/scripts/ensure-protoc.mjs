@@ -13,7 +13,7 @@ const archives = {
   "linux-x64": ["linux-x86_64", "121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278"],
 };
 
-export function projectProtoc() {
+export function ensureProtoc() {
   const platform = `${process.platform}-${process.arch}`;
   const archive = archives[platform];
   if (!archive) throw new Error(`Project protoc download is not configured for ${platform}`);

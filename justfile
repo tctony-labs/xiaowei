@@ -132,7 +132,7 @@ prepare-server:
     node scripts/dev/server.mjs --prepare
 
 # Generate contracts and their Rust Gateway bindings.
-gen:
+gen: prepare
     pnpm contracts:generate
     pnpm gateway:generate
 

@@ -3,17 +3,22 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from "node:os";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { projectProtoc } from "./protoc.mjs";
-import { projectProtocGenGo } from "./protoc-gen-go.mjs";
+import { ensureProtoc } from "./ensure-protoc.mjs";
+import { ensureProtocGenEs } from "./ensure-protoc-gen-es.mjs";
+import { ensureProtocGenGo } from "./ensure-protoc-gen-go.mjs";
 
-import { selectProtoFiles } from "./ts/proto-selection.mjs";
-
-const root = dirname(fileURLToPath(import.meta.url));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(root, "..");
 const check = process.argv.includes("--check");
 if (process.argv.slice(2).some((arg) => arg !== "--check")) throw new Error("Usage: generate.mjs [--check]");
 const run = (cmd, args, options = {}) => execFileSync(cmd, args, { cwd: workspace, stdio: "inherit", ...options });
-const protoc = projectProtoc();
+const protoc = ensureProtoc();
+const protocGenGo = ensureProtocGenGo();
+const protocGenEs = ensureProtocGenEs();
+
+// Load workspace dependencies only after ensureProtocGenEs has prepared them.
+const { selectProtoFiles } = await import("../ts/proto-selection.mjs");
+
 function files(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true })
@@ -39,13 +44,7 @@ try {
   if (selected.ts.length) {
     run(
       protoc,
-      [
-        ...includes,
-        `--plugin=protoc-gen-es=${join(root, "ts/node_modules/.bin/protoc-gen-es")}`,
-        `--es_out=${ts}`,
-        "--es_opt=target=ts",
-        ...selected.ts,
-      ],
+      [...includes, `--plugin=protoc-gen-es=${protocGenEs}`, `--es_out=${ts}`, "--es_opt=target=ts", ...selected.ts],
       {
         // @typescript/vfs probes localStorage on import; this CLI does not use Web Storage.
         env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --no-experimental-webstorage` },
@@ -57,7 +56,7 @@ try {
     if (!goModule) throw new Error("Missing module declaration in contracts/go/go.mod");
     run(protoc, [
       ...includes,
-      `--plugin=protoc-gen-go=${projectProtocGenGo()}`,
+      `--plugin=protoc-gen-go=${protocGenGo}`,
       `--go_out=${go}`,
       "--go_opt=paths=source_relative",
       ...selected.go.map((file) => `--go_opt=M${file}=${posix.join(goModule, "gen", dirname(file))}`),

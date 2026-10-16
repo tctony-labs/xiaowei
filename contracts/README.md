@@ -25,7 +25,7 @@
 
 ## 生成与检查
 
-安装工作区依赖后，从仓库根目录运行：
+从仓库根目录运行：
 
 ```sh
 just gen
@@ -33,7 +33,7 @@ pnpm contracts:check
 pnpm contracts:test
 ```
 
-`just gen` 先生成语言契约和 descriptor，再生成 Gateway Rust 绑定。`contracts:check` 在临时目录重建并比较文件集合与内容，不改写源码或产物；`contracts:test` 验证生成规则和三语言 codec，不启动桌面或读取用户数据。
+`just gen` 自动先执行 `just prepare`，安装锁定的工作区依赖并初始化 Git hooks，然后生成语言契约和 descriptor，最后生成 Gateway Rust 绑定。`contracts:check` 在临时目录重建并比较文件集合与内容，不改写源码或产物；`contracts:test` 验证生成规则和三语言 codec，不启动桌面或读取用户数据。
 
 codec 测试记录每次原生调用的 case、语言顺序、模式、输入字节数、退出码和耗时，不输出输入内容。单次原生调用最多等待 10 秒，超时强制结束并使测试失败；无效 wire 只接受正常退出后的非零码，超时、信号终止和启动失败均不能算作正确拒绝。测试入口中的构建及测试阶段设 10 分钟上限，Cargo target 查询设 30 秒上限；入口还验证子进程超时终止与异常判定。
 
@@ -51,23 +51,24 @@ codec 测试记录每次原生调用的 case、语言顺序、模式、输入字
 
 Go 产物按 proto 相对目录组织。生成器读取 [go/go.mod](go/go.mod) 的 module，统一映射所有选中项目 proto 的 Go import 路径，覆盖 proto 内的 `go_package`；跨文件引用使用相同映射，官方 well-known types 保持运行库路径。
 
-实现见 [generate.mjs](generate.mjs) 和 [proto-selection.mjs](ts/proto-selection.mjs)。
+实现见 [generate.mjs](scripts/generate.mjs) 和 [proto-selection.mjs](ts/proto-selection.mjs)。
 
 ## 生成与漂移检查的边界
 
 生成和检查使用同一配置，先在临时目录完成各语言生成：
 
 - 生成模式替换对应产物目录，移除不再需要的旧文件；缩小配置范围或关闭某语言会删除其多余产物。
-- 检查模式比较文件集合及字节内容，缺失、多余或陈旧文件均失败；不修改源码、生成产物或暂存区，但允许更新工具和构建缓存。
+- 检查模式比较文件集合及字节内容，缺失、多余或陈旧文件均失败；不修改源码、生成产物或暂存区，但允许安装工作区依赖、更新工具和构建缓存。
 
 漂移检查只证明当前源码与产物一致，不证明历史兼容性或业务正确性。文件选择、递归依赖和配置边界由 [选择规则测试](ts/test/proto-selection.test.mjs) 覆盖，跨语言编解码由 [codec 测试](tests/codec.mjs) 覆盖。
 
 ## 工具隔离与缓存
 
-工具版本、下载校验值和支持的平台以 [protoc.mjs](protoc.mjs)、[protoc-gen-go.mjs](protoc-gen-go.mjs)、依赖清单及锁文件为准，不自动跟随最新版本。
+工具版本、下载校验值和支持的平台以 [ensure-protoc.mjs](scripts/ensure-protoc.mjs)、[ensure-protoc-gen-go.mjs](scripts/ensure-protoc-gen-go.mjs)、依赖清单及锁文件为准，不自动跟随最新版本。
 
 - protoc 从官方 release 下载，校验固定 SHA-256、可执行版本和 include 目录后原子安装。复用时检查平台及安装元数据；缓存属于当前机器，不能跨架构同步。
 - Go 插件按固定版本安装到独立缓存，安装子进程使用临时 GOBIN，校验后原子移入版本目录。同版本可跨项目复用，不同版本并存，不覆盖全局插件。
+- ES 插件由 [ensure-protoc-gen-es.mjs](scripts/ensure-protoc-gen-es.mjs) 准备，期望版本取自 `ts/package.json` 的 devDependency，安装版本由 pnpm 锁文件固定。插件缺失或版本不符时，在仓库根目录执行 `pnpm install --frozen-lockfile`，再次校验通过后使用，不另建缓存。
 - 缓存不可执行、版本或平台不符时明确失败，不静默回退到全局工具。未配置的平台直接拒绝，不把其他平台的产物视为可用。
 - 各语言使用同一个 protoc；插件使用明确路径，Rust 生成进程显式设置 `PROTOC` 和 `PROTOC_INCLUDE`，不修改全局 PATH 或系统工具安装。
 

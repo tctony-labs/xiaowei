@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 const version = "v1.36.6";
 
-export function projectProtocGenGo() {
+export function ensureProtocGenGo() {
   const cache = join(homedir(), ".cache", "protoc-gen-go");
   const destination = join(cache, version);
   const executable = join(destination, "bin", "protoc-gen-go");
