@@ -6,6 +6,7 @@ const signing = signed ? signingConfiguration() : undefined;
 
 module.exports = {
   ...base,
+  files: [...base.files, "!**/*.map"],
   buildVersion: require("./package.json").version,
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.
   artifactName: "${productName}-${version}-${arch}.${ext}",
