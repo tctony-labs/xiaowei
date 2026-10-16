@@ -33,7 +33,7 @@
 - source map 排除已完成：同一份 release 构建重新打包后，ASAR 中 `.map` 数量从 2,684 降至 0；五个 addon 加载、签名及发布元数据校验通过。语言裁剪后的目录包为 361,504,097 bytes，source map 排除后的体积将在最终对照表汇总。
 - 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
-- 其他环境代码裁剪：Google GenAI 已完成并验证，下一步处理 polyfill／protobuf 和 AWS／Smithy。每组对实际目录包做隔离验证和体积对照。
+- 其他环境代码裁剪：Google GenAI、stream polyfill 已完成并验证，下一步处理 protobuf 和 AWS／Smithy。每组对实际目录包做隔离验证和体积对照。
 
 ## Outcome
 
@@ -71,8 +71,11 @@
 | --- | ---: | ---: |
 | 首轮优化完成 | 322,596,822 | — |
 | Google GenAI Web／通用构建 | 319,481,137 | 2.971 MiB |
+| stream polyfill 脚本变体 | 317,195,900 | 2.179 MiB |
 
 Google GenAI 的 Node 条件入口指向 `dist/node`；排除 `dist/web` 与顶层通用 `index.mjs`／`index.cjs`，保留 Node ESM／CJS、tokenizer、Vertex 支撑代码。从实际 ASAR 解包到隔离临时目录后，十种 provider 实现、Google Node ESM／CJS 与 tokenizer 均成功加载；用本地 fetch 替身验证 Google 内容生成请求及响应解析，同时验证 stream ponyfill、fetch-blob、protobuf 编解码和包内 LLM worker 启动。未访问远程模型，临时目录已删除；打包入口的签名、元数据及五个原生模块加载校验通过。
+
+stream polyfill 排除未使用的模块／目标版本和浏览器压缩构建，保留 Node 主入口 `polyfill.js` 与 fetch-blob 显式引用的 `ponyfill.es2018.js`。对实际新 ASAR 重新执行上述隔离验证，并验证 polyfill 主入口、ponyfill 可读流和 Blob 文本读取，全部通过；实际目录包减少 2.179 MiB。
 
 ## 后续工作
 

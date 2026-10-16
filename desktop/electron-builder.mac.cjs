@@ -12,6 +12,9 @@ module.exports = {
     // Node exports select dist/node; retain its ESM/CJS entries and tokenizer support.
     "!**/node_modules/@google/genai/dist/web/**",
     "!**/node_modules/@google/genai/dist/index.{mjs,cjs}",
+    // Keep the package's Node main and fetch-blob's explicit ES2018 ponyfill import.
+    "!**/node_modules/web-streams-polyfill/dist/*.{mjs,min.js}",
+    "!**/node_modules/web-streams-polyfill/dist/{polyfill.es6.js,polyfill.es2018.js,ponyfill.js,ponyfill.es6.js}",
   ],
   buildVersion: require("./package.json").version,
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.
