@@ -9,6 +9,8 @@ import { mock, test } from "node:test";
 const require = createRequire(new URL("../../package.json", import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), "llm-startup-"));
 let localPackage = false;
+let singleInstance = true;
+const warnings: unknown[][] = [];
 let userData: unknown;
 const app = Object.assign(new EventEmitter(), {
   setName() {},
@@ -19,7 +21,7 @@ const app = Object.assign(new EventEmitter(), {
   getName: () => (localPackage ? "XiaoWei Local Update" : "XiaoWei"),
   getPath: () => directory,
   getAppPath: () => directory,
-  requestSingleInstanceLock: () => true,
+  requestSingleInstanceLock: () => singleInstance,
   whenReady: () => Promise.resolve(),
   isPackaged: false,
   getVersion: () => "test",
@@ -71,7 +73,17 @@ mock.module(require.resolve("xiaowei-platform"), {
 const replace = (path: string, exports: Record<string, unknown>) =>
   mock.module(new URL(`../../src/main/${path}.ts`, import.meta.url).href, { exports });
 replace("app/logging", {
-  createLoggers: () => ({ main: { functions: {}, error: noop }, renderer: {} }),
+  createLoggers: () => ({
+    main: {
+      functions: {},
+      error: noop,
+      warn: (...args: unknown[]) => {
+        assert.equal(quit, false, "explain the rejected startup before quitting");
+        warnings.push(args);
+      },
+    },
+    renderer: {},
+  }),
   createNativeLogSink: () => noop,
   attachRendererLogging: noop,
 });
@@ -114,8 +126,27 @@ replace("app/gateway", {
 });
 const { startApplication } = await import("../../src/main/app/bootstrap.ts");
 
-test("bootstrap injects startup models and stops before gateway creation on configuration failure", async () => {
+test("bootstrap explains single-instance rejection and validates models before gateway creation", async () => {
   try {
+    singleInstance = false;
+    startApplication(directory);
+    assert.equal(quit, true);
+    assert.equal(created, false);
+    assert.equal(received, undefined);
+    assert.equal(modelDefaultPath, undefined);
+    assert.deepEqual(warnings, [
+      [
+        "Application startup skipped: single-instance lock unavailable; another XiaoWei instance may be running",
+        {
+          pid: process.pid,
+          appPath: directory,
+          userData: join(directory, "com.tctony.xiaowei"),
+        },
+      ],
+    ]);
+    app.removeAllListeners();
+    singleInstance = true;
+
     const previousRoot = process.env.XIAOWEI_AGENT_HOME;
     const resourcesDescriptor = Object.getOwnPropertyDescriptor(process, "resourcesPath");
     Object.defineProperty(process, "resourcesPath", { value: directory, configurable: true });

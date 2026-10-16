@@ -99,6 +99,7 @@ export function runSession({
       .finally(() => {
         process.off("SIGINT", onSignal);
         process.off("SIGTERM", onSignal);
+        process.off("SIGHUP", onSignal);
         process.off("message", onMessage);
         process.off("disconnect", onSignal);
         if (process.connected) process.disconnect();
@@ -111,10 +112,24 @@ export function runSession({
   function onMessage(message) {
     if (message?.type === "stop") void stop();
   }
+  function onOutputError(error) {
+    if (stopping) return;
+    if (error.code === "EPIPE" || error.code === "EIO") {
+      void stop();
+    } else {
+      console.error("开发终端输出失败，正在退出开发实例", error);
+      void stop(1);
+    }
+  }
+
+  // Pending terminal writes can fail even after the watcher closes; retain these until exit.
+  process.stdout.on("error", onOutputError);
+  process.stderr.on("error", onOutputError);
   process.on("message", onMessage);
   process.on("disconnect", onSignal);
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
+  process.on("SIGHUP", onSignal);
   const startup = start();
   startup.catch((error) => {
     console.error(error);

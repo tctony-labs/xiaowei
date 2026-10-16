@@ -12,6 +12,7 @@ function touchRestart() {
 
 export function runDevelopment({
   input = process.stdin,
+  output = process.stdout,
   signals = process,
   print = console.log,
   startSession = () =>
@@ -111,6 +112,7 @@ export function runDevelopment({
       .finally(() => {
         signals.off("SIGINT", onInterrupt);
         signals.off("SIGTERM", onTerminate);
+        signals.off("SIGHUP", onHangup);
       });
     return stopped;
   }
@@ -125,10 +127,24 @@ export function runDevelopment({
   function onTerminate() {
     stopFromSignal("SIGTERM");
   }
+  function onHangup() {
+    stopFromSignal("SIGHUP");
+  }
+  function onOutputError(error) {
+    if (stopping) return;
+    if (error.code !== "EPIPE" && error.code !== "EIO") {
+      console.error("开发终端输出失败，正在退出开发实例", error);
+      signals.exitCode = 1;
+    }
+    void stop();
+  }
 
+  // Completion notices can fail after cleanup; keep the handler for the controller's lifetime.
+  output.on("error", onOutputError);
   start();
   signals.on("SIGINT", onInterrupt);
   signals.on("SIGTERM", onTerminate);
+  signals.on("SIGHUP", onHangup);
   if (input.isTTY) {
     emitKeypressEvents(input);
     input.setRawMode(true);

@@ -94,14 +94,18 @@ export function startApplication(moduleDir: string): void {
   mkdirSync(paths.electronRootDir, { recursive: true });
   app.setPath("userData", paths.electronRootDir);
 
+  const logs = createLoggers(paths.logs, !app.isPackaged);
   if (!app.requestSingleInstanceLock()) {
+    logs.main.warn(
+      "Application startup skipped: single-instance lock unavailable; another XiaoWei instance may be running",
+      { pid: process.pid, appPath: app.getAppPath(), userData: paths.electronRootDir },
+    );
     app.quit();
   } else {
     if (process.platform === "darwin") {
       ordinaryWindows.initialize();
     }
 
-    const logs = createLoggers(paths.logs, !app.isPackaged);
     Object.assign(console, logs.main.functions);
     process.on("uncaughtExceptionMonitor", (error, origin) => logs.main.error(origin, error));
     process.on("unhandledRejection", (error) => logs.main.error("Unhandled rejection", error));

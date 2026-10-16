@@ -10,7 +10,7 @@ export function forwardOutput(input, output, isStopping) {
       /^\/.+\/electron\/dist\/Electron\.app\/Contents\/MacOS\/Electron exited with signal SIGTERM$/.test(
         text,
       );
-    if (isStopping() && stopNotice) return;
+    if (output.destroyed || (isStopping() && stopNotice)) return;
     output.write(`${line}\n`);
   });
   return lines;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -17,12 +17,14 @@ function fixture(context, tty = true) {
     input.isRaw = value;
   };
   const signals = new EventEmitter();
+  const outputStream = new PassThrough();
   const children = [];
   const output = [];
   let touches = 0;
   let autoClose = false;
   const controller = runDevelopment({
     input,
+    output: outputStream,
     signals,
     print: (message) => output.push(stripVTControlCharacters(message)),
     restartElectron: () => {
@@ -51,8 +53,9 @@ function fixture(context, tty = true) {
     for (const child of children) if (child.kills.length && child.exitCode === null) child.finish();
     await controller.stop();
     input.destroy();
+    outputStream.destroy();
   });
-  return { input, signals, children, output, controller, touches: () => touches };
+  return { input, outputStream, signals, children, output, controller, touches: () => touches };
 }
 
 test("r only touches the existing nodemon restart trigger; h lists registered commands", async (context) => {
@@ -394,7 +397,7 @@ test("start cleanup lets dev.mjs finish its IPC shutdown before signalling desce
   }
 });
 
-for (const signal of ["SIGTERM", "SIGINT"]) {
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
   test(`${signal} announces external shutdown once and reports completion after cleanup`, async (context) => {
     const state = fixture(context, false);
     state.signals.emit(signal);
@@ -411,6 +414,74 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
   });
 }
 
+test("start shell handles HUP through cleanup and removes its PID file", {
+  timeout: 10000,
+}, async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-start-hup-"));
+  const pidFile = join(directory, "dev.pid");
+  const sessionCode = `
+    process.on('message', (message) => {
+      if (message.type === 'stop') {
+        console.log('session stopped');
+        process.disconnect();
+      }
+    });
+    console.log('ready');
+  `;
+  const controllerCode = `
+    import { spawn } from 'node:child_process';
+    import { runDevelopment } from ${JSON.stringify(new URL("./dev.mjs", import.meta.url).href)};
+    runDevelopment({
+      startSession: () => spawn(process.execPath, ['-e', ${JSON.stringify(sessionCode)}], {
+        stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+      }),
+    });
+  `;
+  const justfile = readFileSync(new URL("../../justfile", import.meta.url), "utf8");
+  const cleanupStart = justfile.indexOf("    kill_tree() {");
+  const cleanupEnd = justfile.indexOf("\n    }", cleanupStart) + "\n    }".length;
+  const cleanup = justfile.slice(cleanupStart, cleanupEnd);
+  const lifecycle = justfile
+    .slice(justfile.indexOf("    node scripts/dev/dev.mjs"), justfile.indexOf("\n# Restart"))
+    .replace("node scripts/dev/dev.mjs", '"$1" --input-type=module -e "$2"');
+  const shell = spawn(
+    "bash",
+    [
+      "-c",
+      `${cleanup}\npidfile=$3\n${lifecycle}`,
+      "test-start",
+      process.execPath,
+      controllerCode,
+      pidFile,
+    ],
+    { detached: true, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const closed = once(shell, "close");
+  let output = "";
+  shell.stdout.on("data", (chunk) => {
+    output += chunk;
+  });
+  shell.stderr.on("data", (chunk) => {
+    output += chunk;
+  });
+  context.after(async () => {
+    try {
+      process.kill(-shell.pid, "SIGKILL");
+    } catch {}
+    await closed;
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  await once(shell.stdout, "data");
+  assert.match(output, /ready/);
+  assert.equal(existsSync(pidFile), true);
+  shell.kill("SIGHUP");
+  assert.deepEqual(await closed, [129, null], output);
+  assert.match(output, /session stopped/);
+  assert.match(output, /开发实例已退出/);
+  assert.equal(existsSync(pidFile), false);
+});
+
 test("Ctrl+C reports a session cleanup failure without claiming successful shutdown", async (context) => {
   const state = fixture(context);
   state.input.write("\x03");
@@ -423,4 +494,15 @@ test("Ctrl+C reports a session cleanup failure without claiming successful shutd
   assert.equal(state.children.length, 1);
   assert.match(state.output.at(-1), /开发进程退出失败.*清理失败/);
   assert.ok(!state.output.includes("开发实例已退出。"));
+});
+
+test("terminal output errors trigger cleanup and late completion errors remain handled", async (context) => {
+  const state = fixture(context, false);
+  const error = Object.assign(new Error("terminal disconnected"), { code: "EIO" });
+  state.outputStream.emit("error", error);
+  await Promise.resolve();
+  assert.deepEqual(state.children[0].kills, ["SIGTERM"]);
+  state.children[0].finish();
+  await state.controller.stop();
+  assert.doesNotThrow(() => state.outputStream.emit("error", error));
 });

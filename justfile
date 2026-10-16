@@ -113,6 +113,7 @@ start:
     trap cleanup EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    trap 'exit 129' HUP
     wait "$child_pid"
 
 # Restart this workspace's running desktop app.
