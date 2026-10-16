@@ -32,7 +32,7 @@
 实例检查、日志读取及重启优先使用 cmux，具体流程与回退方式见 [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)。
 
 - `just start` 使用全局 `~/.xiaowei/.dev.pid`，会停止其中记录的旧开发实例及其子进程，再启动当前工作区；可能影响其他工作区，与旧 `xiaowei-next` 共用此 PID 文件。
-- 服务端入口为 `just server`，由用户冷启动；它先执行 `just prepare-server` 检查本地配置并启动 Docker 依赖，再启动本机 Go 服务端。运行 console 支持 `r` 小重启、`R` 重启 Docker 依赖与 Go 服务端；准备与退出行为见 [服务端本地开发](server/README.md#本地开发)。
+- 服务端入口为 `just server`，由用户冷启动；它先准备本地配置并检查 HTTP 端口，完成接管确认后确保共享 PostgreSQL 就绪，再启动本机 Go 服务端。运行 console 支持 `r` 重启 Go，退出不停止数据库；共享 PostgreSQL 通过 `just db start|stop|restart|status` 独立管理，具体行为见 [服务端本地开发](server/README.md#本地开发)。
 - 冷启动由用户执行。Agent 不运行 `just start`、`pnpm dev`、直接 Electron 启动或冒烟脚本等会创建应用实例的入口。
 - 重启前先检查活进程，通过进程命令中的绝对路径、cwd 和父子进程关系确认 Electron 与开发监听进程属于当前工作区。不能只凭 `.rs`、PID 文件、端口或应用名称判断实例存活及归属。
 - 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 依次构建所有 napi 包、main/preload 并重启；构建失败不启动 Electron。

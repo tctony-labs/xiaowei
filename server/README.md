@@ -34,13 +34,20 @@
 
 安装 Node.js（版本要求见根目录 [package.json](../package.json)）、Go、just 和 Docker Compose。日常在 Docker 中运行 PostgreSQL，在本机运行 Go；以下命令在仓库根目录执行。
 
-先准备配置与 Docker 依赖：
+共享 PostgreSQL 通过独立入口管理：
 
 ```sh
-just prepare-server
+just db start
+just db stop
+just db restart
+just db status
 ```
 
-配置缺失时，命令会输出需要执行的 `cp` 命令并停止，不自动创建或覆盖文件。两份模板使用本地开发密码 `password`，默认本地开发无需修改配置；调整密码时修改 `.env` 中的 `XIAOWEI_DATABASE_PASSWORD` 即可。准备命令只检查文件是否存在，配置内容由 Docker Compose 与 Go server 在启动时校验。复制后重新执行，命令会启动依赖并等待就绪；重复执行不会重启配置未变化的正常容器。
+`start` 创建或启动数据库并等待就绪；`stop` 停止数据库，保留容器与数据卷；`restart` 先停止再启动；`status` 只查询容器状态、健康状态和端口。停止或重启会影响所有工作区的数据库连接。
+
+本地配置文件的准备统一放在 `scripts/dev/server-config.mjs`。`just server` 在 `.env` 或 `server.yaml` 缺失时，分别从同目录的 `.env.example`／`server.example.yaml` 自动复制并继续启动；已有文件不覆盖。`just db start`／`restart` 只准备共享 `.env`，不要求应用的 `server.yaml` 存在。`.env` 同时包含数据库和其他服务端设置，配置准备逻辑不属于 PostgreSQL 生命周期脚本。
+
+两份模板使用本地开发密码 `password`，默认本地开发无需修改配置；调整密码时修改 `.env` 中的 `XIAOWEI_DATABASE_PASSWORD` 即可。配置内容由 Docker Compose 与 Go server 在启动时校验。重复启动数据库不会重启配置未变化的正常容器。
 
 需要首个登录账号时，在 `.env` 中设置管理员初始化邮箱和密码；具体规则见 [首次管理员初始化](docs/authentication.md#首次管理员初始化)。
 
@@ -50,18 +57,21 @@ just prepare-server
 just server
 ```
 
-`just server` 会先执行 `prepare-server`，然后启动 Go server。Go 默认监听 `127.0.0.1:10001`，连接 Docker 数据库的 `127.0.0.1:5432`。
+`just server` 依次检查配置、检查 HTTP 端口并处理接管确认、确保共享 PostgreSQL 就绪，最后启动 Go server；端口接管回答 `no` 时不会操作数据库。Go 默认监听 `127.0.0.1:10001`，连接 Docker 数据库的 `127.0.0.1:5432`。
+
+首次启动时，开发脚本 `scripts/dev/server.mjs` 在运行 Go 前检查配置中的监听地址能否绑定；配置优先级为默认值 < YAML < `.env` < 外部进程环境变量。地址被占用时调用本机 `lsof`／`ps` 报告监听地址、PID、父进程和 cwd，并在终端询问是否终止已展示的监听进程：输入 `yes`／`y` 后发送 SIGTERM，确认端口释放后继续本次启动；输入 `no`、直接回车或结束输入则退出。确认后会重新核对进程身份；信息不足、终止失败或端口五秒内未释放时停止，不自动强杀。非交互终端不终止占用者。接管只终止监听进程，保留对方控制脚本及 Docker 依赖。`r` 不执行预检；预检释放端口后仍可能发生竞争，最终以 Go 的实际监听结果为准。
 
 运行终端支持直接按键，无需回车：
 
 | 按键 | 行为 |
 | --- | --- |
 | `r` | 重新编译并重启 Go server，保留依赖容器 |
-| `R` | 停止 Go server，重建依赖容器并等待就绪，再重新编译并启动 Go server；保留数据库数据卷 |
 | `h` | 显示帮助 |
-| `Ctrl+C` | 先退出 Go server，再停止 Docker 依赖，保留容器与数据卷；下次准备时重新启动 |
+| `Ctrl+C` | 退出当前 Go server 与控制脚本，保留共享 PostgreSQL 运行 |
 
 依赖清单位于 `deploy/compose.yaml`，不包含小微 server，后续新增依赖也放入这份清单。数据库用户名、库名与密码的初始化设置只作用于空数据卷，重建容器不会修改已有数据库中的账号。
+
+各工作区使用固定的 Compose 项目名 `xiaowei-dev`，共用数据库容器与数据卷；重复启动会确保同一容器运行，不会为每个工作区新建数据库。Go 的重启和退出不操作共享数据库；需要停止或重启时使用 `just db stop`／`just db restart`。
 
 ## 配置与健康检查
 
@@ -108,7 +118,7 @@ CGO_ENABLED=0 go build -trimpath -o bin/xiaowei-server ./cmd/xiaowei-server
 开发启动脚本的测试在仓库根目录执行：
 
 ```sh
-node --test scripts/dev/server.test.mjs
+node --test scripts/dev/server.test.mjs scripts/dev/pgsql.test.mjs
 ```
 
 生产容器验收在仓库根目录执行，仅使用自己创建的隔离 Compose 项目和临时数据目录：

@@ -125,12 +125,13 @@ storybook:
     pnpm --dir desktop storybook
 
 # Start the interactive Go development server.
-server: prepare-server
+server:
     node scripts/dev/server.mjs
 
-# Check local server configuration and start development dependencies.
-prepare-server:
-    node scripts/dev/server.mjs --prepare
+# Manage the shared PostgreSQL container: start, stop, restart, status.
+[positional-arguments]
+db *args:
+    node scripts/dev/pgsql.mjs "$@"
 
 # Generate contracts and their Rust Gateway bindings.
 gen: prepare

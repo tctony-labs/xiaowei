@@ -1,82 +1,185 @@
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { lookup } from "node:dns/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
-import { emitKeypressEvents } from "node:readline";
+import { createInterface, emitKeypressEvents } from "node:readline";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { styleText } from "node:util";
+import { parseEnv, styleText } from "node:util";
+import { load } from "js-yaml";
 import { stopProcessGroup } from "./dev-process.mjs";
+import { start as startPostgres } from "./pgsql.mjs";
+import { ensureServerConfiguration } from "./server-config.mjs";
 
 const workspace = fileURLToPath(new URL("../../", import.meta.url));
-const compose = [
-  "compose",
-  "--env-file",
-  "server/config/.env",
-  "-p",
-  "xiaowei-dev",
-  "-f",
-  "server/deploy/compose.yaml",
-];
-
-async function runCommand(command, args, { cwd, signal }) {
-  signal?.throwIfAborted();
-  const child = spawn(command, args, {
-    cwd,
-    detached: true,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-  let failure;
-  child.on("error", (error) => {
-    failure = error;
-  });
-  const closed = new Promise((resolve) => child.once("close", resolve));
-  let cleanup;
-  const abort = () => {
-    cleanup = stopProcessGroup(child, closed);
-    cleanup.catch(() => {});
-  };
-  signal?.addEventListener("abort", abort, { once: true });
+export async function checkServerPort({
+  root = workspace,
+  env = process.env,
+  print = console.log,
+  confirm = confirmPortTermination,
+} = {}) {
+  let address;
   try {
-    const code = await closed;
-    await cleanup;
-    signal?.throwIfAborted();
-    if (failure) throw new Error(`无法运行 ${command}，请检查是否安装。`);
-    if (code !== 0) throw new Error(`${command} ${args.at(0)} 失败，请检查配置与服务状态。`);
-  } finally {
-    signal?.removeEventListener("abort", abort);
+    const configuration = load(readFileSync(join(root, "server/config/server.yaml"), "utf8"));
+    const envPath = join(root, "server/config/.env");
+    const fileEnv = existsSync(envPath) ? parseEnv(readFileSync(envPath, "utf8")) : {};
+    address =
+      env.XIAOWEI_LISTEN_ADDR ??
+      fileEnv.XIAOWEI_LISTEN_ADDR ??
+      configuration?.server?.listen_addr ??
+      "127.0.0.1:10001";
+  } catch {
+    throw new Error("无法读取服务端监听配置，请检查 server/config/server.yaml 和 .env。");
+  }
+
+  const match = typeof address === "string" && /^(?:\[([^\]]+)\]|([^:]*)):(\d+)$/.exec(address);
+  const port = match && Number(match[3]);
+  if (!match || port < 1 || port > 65535) {
+    throw new Error("server.listen_addr / XIAOWEI_LISTEN_ADDR 必须为有效的 host:port 地址。");
+  }
+
+  const host = match[1] ?? (match[2] || undefined);
+  let bindHost;
+  async function probe() {
+    return new Promise((resolve, reject) => {
+      const listener = createServer();
+      listener.once("error", reject);
+      listener.listen({ host: bindHost, port, exclusive: true }, () => {
+        listener.close((error) => (error ? reject(error) : resolve()));
+      });
+    });
+  }
+
+  try {
+    bindHost = host ? (await lookup(host)).address : undefined;
+    await probe();
+    return;
+  } catch (error) {
+    print(`监听地址 ${address} 不可用（${error.code}），Go server 未启动。`);
+    if (error.code !== "EADDRINUSE") throw new Error("监听地址预检失败，已取消启动。");
+  }
+
+  const users = reportPortUsers(port, bindHost, print);
+  if (!users.length) throw new Error("无法确认占用进程，已取消启动。");
+  const pids = users.map((user) => user.pid).join(", ");
+  const accepted = await confirm(
+    `是否终止以上监听进程（PID: ${pids}）并继续启动？[yes/no，默认 no] `,
+  );
+  if (!accepted) throw new Error("未确认终止进程，已取消启动。");
+
+  for (const user of users) {
+    let current;
+    try {
+      current = processIdentity(user.pid);
+    } catch (error) {
+      if (error.status === 1) continue;
+      throw new Error(`无法重新核对 PID=${user.pid}，已取消启动。`);
+    }
+    if (current !== user.identity) {
+      throw new Error(`PID=${user.pid} 的进程信息已变化，请重新启动并核对。`);
+    }
+    try {
+      execFileSync("kill", ["-TERM", user.pid], { timeout: 1000, stdio: "pipe" });
+    } catch {
+      throw new Error(`终止 PID=${user.pid} 失败，请检查权限与进程状态。`);
+    }
+    print(`已向监听进程 PID=${user.pid} 发送 SIGTERM，等待端口释放……`);
+  }
+
+  const deadline = Date.now() + 5000;
+  while (true) {
+    try {
+      await probe();
+      print(`监听地址 ${address} 已释放，继续启动。`);
+      return;
+    } catch (error) {
+      if (error.code !== "EADDRINUSE" || Date.now() >= deadline) {
+        throw new Error(`监听地址 ${address} 仍不可用（${error.code}），未启动 Go server。`);
+      }
+      await delay(100);
+    }
   }
 }
 
-export async function prepareServer({
-  root = workspace,
-  run = runCommand,
-  print = console.log,
-  signal,
-  recreate = false,
-} = {}) {
-  const templates = [
-    ["server/config/server.example.yaml", "server/config/server.yaml"],
-    ["server/config/.env.example", "server/config/.env"],
-  ];
-  const missing = templates.filter(([, path]) => !existsSync(join(root, path)));
-  if (missing.length) {
-    print("缺少本地服务端配置。\n");
+async function confirmPortTermination(question) {
+  if (!process.stdin.isTTY) return false;
+  const terminal = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await new Promise((resolve) => {
+      terminal.once("close", () => resolve(""));
+      terminal.question(question, resolve);
+    });
+    return /^(yes|y)$/i.test(answer.trim());
+  } finally {
+    terminal.close();
+  }
+}
 
-    print("1. 在仓库根目录复制缺少的配置文件：\n");
-    for (const [template, path] of missing) print(`cp ${template} ${path}`);
+function processIdentity(pid) {
+  return execFileSync("ps", ["-p", pid, "-o", "pid=,ppid=,lstart=,comm="], {
+    encoding: "utf8",
+    timeout: 1000,
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
 
-    print("\n2. 完成后重新运行：\n");
-    print("just prepare-server\n");
-
-    throw new Error("配置文件尚未准备好，未启动 Docker 依赖。");
+function reportPortUsers(port, host, print) {
+  const deadline = Date.now() + 5000;
+  function query(command, args) {
+    return execFileSync(command, args, {
+      encoding: "utf8",
+      timeout: Math.max(1, deadline - Date.now()),
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
   }
 
-  print(
-    recreate ? "重建 Docker 依赖容器（保留数据卷），等待就绪……" : "启动 Docker 依赖，等待就绪……",
-  );
-  const args = [...compose, "up", "-d", "--wait", "--wait-timeout", "60"];
-  if (recreate) args.push("--force-recreate");
-  await run("docker", args, { cwd: root, signal });
-  print("Docker 依赖已就绪。");
+  function reportProcess(pid, label) {
+    try {
+      const fields = query("ps", ["-p", pid, "-o", "pid=,ppid=,pgid=,comm="]).split(/\s+/);
+      print(
+        `${label} PID=${fields[0]} PPID=${fields[1]} PGID=${fields[2]} 程序=${fields.slice(3).join(" ")}`,
+      );
+      const cwd = query("lsof", ["-a", "-p", pid, "-d", "cwd", "-Fn"])
+        .split("\n")
+        .find((line) => line.startsWith("n"));
+      print(`  cwd=${cwd?.slice(1) ?? "未知"}`);
+      return fields[1];
+    } catch {
+      print(`${label} PID=${pid}（部分进程信息无法读取，进程可能已退出或权限不足）`);
+    }
+  }
+
+  try {
+    const records = query("lsof", ["-nP", "-a", `-iTCP:${port}`, "-sTCP:LISTEN", "-Fpn"]);
+    const listeners = [];
+    let listener;
+    for (const record of records.split("\n")) {
+      if (record.startsWith("p")) {
+        listener = { pid: record.slice(1), addresses: [] };
+        listeners.push(listener);
+      } else if (record.startsWith("n")) {
+        listener?.addresses.push(record.slice(1));
+      }
+    }
+    const users = listeners.filter((user) =>
+      user.addresses.some((address) => {
+        const local = address.slice(0, address.lastIndexOf(":")).replace(/^\[|\]$/g, "");
+        return !host || host === "0.0.0.0" || host === "::" || local === "*" || local === host;
+      }),
+    );
+    print("占用进程（请结合地址和 cwd 核对归属）：");
+    for (const user of users) {
+      user.identity = processIdentity(user.pid);
+      const parent = reportProcess(user.pid, "监听进程");
+      if (parent && parent !== "1") reportProcess(parent, "父进程");
+      for (const address of user.addresses) print(`  监听地址：${address}`);
+    }
+    return users;
+  } catch {
+    print("无法取得监听进程信息（lsof 不可用、权限不足或占用已变化），请手动检查。");
+    return [];
+  }
 }
 
 export function runServerDevelopment({
@@ -90,8 +193,6 @@ export function runServerDevelopment({
       stdio: ["ignore", "inherit", "inherit"],
     }),
   stopServer = stopProcessGroup,
-  restartDependencies = (signal) => prepareServer({ recreate: true, signal, print }),
-  stopDependencies = () => runCommand("docker", [...compose, "stop"], { cwd: workspace }),
 } = {}) {
   let child;
   let closed;
@@ -99,7 +200,6 @@ export function runServerDevelopment({
   let stopping = false;
   let restarting = false;
   let stopped;
-  const cancellation = new AbortController();
   const wasRaw = input.isRaw;
 
   function start() {
@@ -119,12 +219,10 @@ export function runServerDevelopment({
     });
   }
 
-  async function restart(full) {
+  async function restart() {
     restarting = true;
     try {
       await stopServer(child, closed);
-      if (stopping) return;
-      if (full) await restartDependencies(cancellation.signal);
       if (!stopping) start();
     } finally {
       restarting = false;
@@ -132,8 +230,7 @@ export function runServerDevelopment({
   }
 
   const commands = [
-    { key: "r", description: "重新编译并重启 Go server", run: () => restart(false) },
-    { key: "R", description: "重启 Docker 依赖与 Go server（保留数据）", run: () => restart(true) },
+    { key: "r", description: "重新编译并重启 Go server", run: restart },
     { key: "h", description: "显示命令列表", run: () => showHelp() },
   ];
 
@@ -143,7 +240,7 @@ export function runServerDevelopment({
       [
         "\n服务端开发命令（直接按键，无需回车）：",
         ...entries,
-        "  Ctrl+C  退出并停止 Docker 依赖，保留数据\n",
+        "  Ctrl+C  退出 Go server，保留共享 PostgreSQL\n",
       ].join("\n"),
     );
   }
@@ -180,7 +277,6 @@ export function runServerDevelopment({
   function stop() {
     if (stopped) return stopped;
     stopping = true;
-    cancellation.abort();
     input.off("keypress", onKey);
     if (input.isTTY) {
       input.setRawMode(Boolean(wasRaw));
@@ -188,11 +284,7 @@ export function runServerDevelopment({
     }
     stopped = queue
       .then(() => stopServer(child, closed))
-      .then(async () => {
-        print("停止 Docker 依赖，保留数据……");
-        await stopDependencies();
-        print("服务端开发实例已退出，Docker 依赖已停止，数据保留。");
-      })
+      .then(() => print("服务端开发实例已退出；共享 PostgreSQL 请用 just db 管理。"))
       .catch((error) => {
         print(`服务端退出失败：${error.message}`);
         signals.exitCode = 1;
@@ -231,24 +323,27 @@ export function runServerDevelopment({
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (process.argv.length === 3 && process.argv[2] === "--prepare") {
+  if (process.argv.length !== 2) {
+    console.error("用法：node scripts/dev/server.mjs");
+    process.exitCode = 1;
+  } else {
     const cancellation = new AbortController();
-    const stop = () => cancellation.abort();
-    process.on("SIGINT", stop);
-    process.on("SIGTERM", stop);
+    const abort = () => cancellation.abort();
+    process.on("SIGINT", abort);
+    process.on("SIGTERM", abort);
+    let ready = false;
     try {
-      await prepareServer({ signal: cancellation.signal });
+      ensureServerConfiguration();
+      await checkServerPort();
+      await startPostgres({ signal: cancellation.signal });
+      ready = true;
     } catch (error) {
       console.error(cancellation.signal.aborted ? "服务端准备已取消。" : error.message);
       process.exitCode = 1;
     } finally {
-      process.off("SIGINT", stop);
-      process.off("SIGTERM", stop);
+      process.off("SIGINT", abort);
+      process.off("SIGTERM", abort);
     }
-  } else if (process.argv.length === 2) {
-    runServerDevelopment();
-  } else {
-    console.error("用法：node scripts/dev/server.mjs [--prepare]");
-    process.exitCode = 1;
+    if (ready) runServerDevelopment();
   }
 }

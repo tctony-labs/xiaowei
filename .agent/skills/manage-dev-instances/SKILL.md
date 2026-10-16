@@ -62,9 +62,9 @@ cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
 | 实例 | `r` | `R` |
 | --- | --- | --- |
 | 客户端 `scripts/dev/dev.mjs` | 经 `.rs` 触发原生包、main／preload 构建并重启 Electron | 重启 Vite 与 Electron 开发会话 |
-| 服务端 `scripts/dev/server.mjs` | 重新编译并重启 Go，保留 Docker 依赖 | 重建 Docker 依赖并重启 Go，保留数据卷 |
+| 服务端 `scripts/dev/server.mjs` | 重新编译并重启 Go，保留共享 PostgreSQL | 不提供；共享数据库通过 `just db` 独立管理 |
 
-普通加载代码改动使用 `r`；只有任务需要重启整个开发会话或 Docker 依赖时才使用 `R`。不要用结束 Go 子进程代替重启：当前控制脚本不会自动重新拉起它。
+普通加载代码改动使用 `r`；客户端需要重启整个开发会话时才使用 `R`。共享 PostgreSQL 可用 `just db status` 查询；用户明确要求时使用 `just db start`／`stop`／`restart` 管理，停止和重启影响所有工作区，保留数据卷。服务端控制脚本退出不停止共享数据库。不要用结束 Go 子进程代替重启：当前控制脚本不会自动重新拉起它。
 
 无法通过 cmux 操作时：
 
@@ -74,7 +74,7 @@ cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
 发送成功或 `.rs` 已更新只代表重启请求已送出，必须继续验证实际结果：
 
 - 客户端：旧 Electron 退出，新进程及其 cwd／父子关系属于当前工作区；构建完成且新启动日志正常。核对本次任务所需的运行行为；构建失败时不要声称已重启成功。
-- 服务端：核对停止、编译与重新监听的日志，新 Go 进程仍属于同一控制脚本；按实际配置地址请求 `/readyz`，检查 HTTP 200 和业务 code 为 0。小重启时核对 Docker 容器未更换；不能只凭端口恢复判断进程归属。
+- 服务端：核对停止、编译与重新监听的日志，新 Go 进程仍属于同一控制脚本；按实际配置地址请求 `/readyz`，检查 HTTP 200 和业务 code 为 0。重启 Go 时核对共享 PostgreSQL 容器未更换；不能只凭端口恢复判断进程归属。
 - 查询失败或尚未看到完成时，先核对进程和新日志，不重复发送重启请求。确认失败后报告实际状态与可执行的下一步。
 
 开发入口的当前实现见 [客户端控制脚本](../../../scripts/dev/dev.mjs)、[服务端控制脚本](../../../scripts/dev/server.mjs) 和 [justfile](../../../justfile)。
