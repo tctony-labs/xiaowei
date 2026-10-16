@@ -1,15 +1,22 @@
 # XiaoWei
 
-## 开发记录与文档
+## Documentation
 
-- [`.agent/records/`](.agent/records/README.md)：事项的理由、取舍和结果。实施期间可在 active 事项的 `How` 维护当前说明；事项完成且不再基于原事项进行重大改动时，提议沉淀长期说明并归档。归档须由用户明确发起或确认；归档后的 record 只供历史参考，长期文档持续更新。
-- [`.agent/plans/`](.agent/plans/README.md)：正在实施事项的临时步骤；创建和维护 Plan 时先读取该目录的 README。
-- 长期文档按 package 边界放置：跨 package 的架构、接入与完整功能说明放根 [`docs/`](docs/)；包内部的实现和使用说明放对应包目录，README 保留职责与入口，详细内容放包内 `docs/`。同一内容只维护一处，通过链接串联，不要求每个事项都新增文档。
-- 根 [`docs/`](docs/) 仅在用户明确指令要求，或询问并获得用户授权后，才能新增、修改、移动或删除；其他规范中的文档同步要求不视为自动授权。
+- 放置：同一内容只维护一处，通过链接串联。长期文档按 package 边界放置：跨 package 的架构和完整功能说明放根 [`docs/`](docs/)；包内部的实现和使用说明放对应包目录。包 README 说明用途、准备与运行入口，详细内容放包内 `docs/`。
+- 授权：根 [`docs/`](docs/) 仅在用户明确要求，或询问并获得用户授权后，才能新增、修改、移动或删除。
+- 根 README：根 [`README.md`](README.md) 由用户维护。新增、移动或删除文档时不要在其中增删或改写链接，仅在用户明确要求时修改。
+- 依据：实际架构和行为以当前代码为准。发现文档与代码不一致时，按上述规则进行更新。
 
-开始非平凡开发事项前，先完整读取并遵循 [开发事项生命周期](.agent/records/README.md)。新建 record 前须说明事项及理由并获得用户确认；用户已明确要求创建时无需重复确认。
+## Development Records
 
-实际架构和行为以当前代码为准；已有说明因修改失效时，同步更新其承载文档。README 说明模块用途、准备与运行，AGENTS.md 维护 Agent 约束，`.agent/skills/` 维护可复用流程，record 记录理由、取舍与结果。
+开始非平凡开发事项前，先完整读取 [`.agent/records/README.md`](.agent/records/README.md)，并遵循其中的事项生命周期。
+
+- 存放：事项的 why、what、how、进展和结果维护在 `.agent/records/`；当前状态和事实按需维护在 `docs/`；临时实施步骤维护在 `.agent/plans/`。
+- 创建：满足创建条件时，Agent 主动提出创建 record，但必须先说明拟记录的事项和创建理由，获得用户确认后才能新建；用户已明确要求创建该 record 时无需重复确认。
+- Plan：创建和维护 Plan 时先读取 [`.agent/plans/README.md`](.agent/plans/README.md)。Plan 不要求任务已有 record，不得为了创建 Plan 而擅自新建 record；已有 record 时，只有正在实施的 active 事项可以拥有 Plan。
+- 完成：已有 record 的事项实施完成或离开 active 时，必须回填 Outcome，更新相关的当前状态文档，并删除对应 Plan。
+- 归档：事项范围已完成并验证，且不再有基于原事项的重大改动时，应向用户提议沉淀长期说明并归档。归档须由用户明确发起或确认，未获确认时保留在 active。成果仍在生效不妨碍完成归档。
+- 归档后：record 冻结，长期文档持续更新。
 
 ## Coding Agent Skills
 
