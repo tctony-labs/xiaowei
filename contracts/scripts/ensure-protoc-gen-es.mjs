@@ -25,10 +25,10 @@ export function ensureProtocGenEs() {
 
   const executable = join(tsPackage, "node_modules", ".bin", "protoc-gen-es");
   const installed = existsSync(executable) ? installedVersion(executable) : "missing";
-  if (installed !== version) {
-    console.log(`[contracts] Preparing protoc-gen-es: want ${version}, got ${installed}; running pnpm install.`);
-    execFileSync("pnpm", ["install", "--frozen-lockfile"], { cwd: workspace, stdio: "inherit" });
-  }
+  if (installed === version) return executable;
+
+  console.log(`[contracts] Preparing protoc-gen-es: want ${version}, got ${installed}; running pnpm install.`);
+  execFileSync("pnpm", ["install", "--frozen-lockfile"], { cwd: workspace, stdio: "inherit" });
 
   const actual = existsSync(executable) ? installedVersion(executable) : "missing";
   if (actual !== version) {

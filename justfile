@@ -137,7 +137,7 @@ gen: prepare
     pnpm gateway:generate
 
 # Format source files explicitly.
-fmt:
+format:
     pnpm exec biome check --write .
     cargo fmt --all
     cd server && go fmt ./...

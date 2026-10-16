@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,15 +17,70 @@ const protoc = ensureProtoc();
 const protocGenGo = ensureProtocGenGo();
 const protocGenEs = ensureProtocGenEs();
 
-// Load workspace dependencies only after ensureProtocGenEs has prepared them.
-const { selectProtoFiles } = await import("../ts/proto-selection.mjs");
-
 function files(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true })
     .flatMap((entry) => (entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name)]))
     .sort();
 }
+
+function checkFingerprint() {
+  const paths = [
+    ...files(join(root, "proto")).filter((file) => file.endsWith(".proto")),
+    ...files(join(root, "scripts")),
+    ...files(join(root, "tools/src")),
+    ...files(join(workspace, ".cargo")),
+    ...files(join(root, "ts/src/gen")),
+    ...files(join(root, "rust/src/gen")),
+    ...files(join(root, "go/gen")),
+    ...[
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      ".node-version",
+      "contracts/generate.config.json",
+      "contracts/tools/Cargo.toml",
+      "contracts/tools/build.rs",
+      "contracts/ts/package.json",
+      "contracts/ts/proto-selection.mjs",
+      "contracts/go/go.mod",
+      "contracts/go/go.sum",
+    ].map((path) => join(workspace, path)),
+  ].sort();
+  const entries = paths.map((path) => [
+    relative(workspace, path),
+    existsSync(path) ? createHash("sha256").update(readFileSync(path)).digest("hex") : null,
+  ]);
+  const environment = [
+    process.platform,
+    process.arch,
+    process.version,
+    process.env.NODE_OPTIONS,
+    process.env.RUSTUP_TOOLCHAIN,
+    process.env.RUSTFLAGS,
+    process.env.CARGO_ENCODED_RUSTFLAGS,
+    protoc,
+    protocGenGo,
+    protocGenEs,
+  ];
+  return createHash("sha256")
+    .update(JSON.stringify([environment, entries]))
+    .digest("hex");
+}
+
+const cachePath = join(workspace, "target/contracts-check.sha256");
+const fingerprint = check ? checkFingerprint() : null;
+if (check && existsSync(cachePath) && readFileSync(cachePath, "utf8") === fingerprint) {
+  console.log("Contracts are up to date (cached; inputs and generated files unchanged).");
+  process.exit(0);
+}
+
+// Load workspace dependencies only after ensureProtocGenEs has prepared them.
+const { selectProtoFiles } = await import("../ts/proto-selection.mjs");
+
 const temp = mkdtempSync(join(tmpdir(), "contracts-"));
 try {
   const ts = join(temp, "ts");
@@ -107,6 +163,11 @@ try {
     }
   }
   if (drift.length) throw new Error(`Stale contracts; run pnpm contracts:generate:\n${drift.join("\n")}`);
+  // Do not cache a check if its inputs or outputs changed while generators were running.
+  if (check && checkFingerprint() === fingerprint) {
+    mkdirSync(dirname(cachePath), { recursive: true });
+    writeFileSync(cachePath, fingerprint);
+  }
   console.log(check ? "Contracts are up to date." : "Contracts generated.");
 } finally {
   rmSync(temp, { recursive: true, force: true });

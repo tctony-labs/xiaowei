@@ -1,6 +1,22 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { lstatSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve, sep } from "node:path";
+
+function run(command, args, options = {}) {
+  console.log(`[pre-commit] ${command} ${args.join(" ")}`);
+  const result = spawnSync(command, args, { stdio: "inherit", ...options });
+  if (result.error) console.error(result.error.message);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  return result.stdout;
+}
+
+function changedFiles(args) {
+  return execFileSync("git", ["diff", "--name-only", "-z", ...args])
+    .toString()
+    .split("\0")
+    .filter(Boolean);
+}
 
 function hash(path) {
   try {
@@ -11,16 +27,52 @@ function hash(path) {
   }
 }
 
-const staged = execFileSync("git", ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"])
-  .toString()
-  .split("\0")
-  .filter(Boolean);
-const before = new Map(staged.map((path) => [path, hash(path)]));
+const staged = changedFiles(["--cached", "--diff-filter=ACMR"]);
+const unstaged = new Set(changedFiles([]));
+const partial = staged.filter((path) => unstaged.has(path));
+if (partial.length > 0) {
+  console.error("以下待提交文件还有未暂存改动，请先全部暂存或 stash 未暂存改动后提交：");
+  for (const path of partial) console.error(`  ${path}`);
+  process.exit(1);
+}
 
-for (const recipe of ["fmt", "check"]) {
-  const result = spawnSync("just", [recipe], { stdio: "inherit" });
-  if (result.error) console.error(result.error.message);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+const before = new Map(staged.map((path) => [path, hash(path)]));
+const files = staged.filter((path) => lstatSync(path).isFile()).map((path) => `./${path}`);
+
+if (files.length > 0) {
+  run("pnpm", [
+    "exec",
+    "biome",
+    "check",
+    "--write",
+    "--files-ignore-unknown=true",
+    "--no-errors-on-unmatched",
+    ...files,
+  ]);
+}
+
+const rust = files.filter((path) => path.endsWith(".rs"));
+if (rust.length > 0) {
+  const metadata = execFileSync("cargo", ["metadata", "--no-deps", "--format-version", "1", "--locked"]);
+  const packages = JSON.parse(metadata).packages.sort((a, b) => b.manifest_path.length - a.manifest_path.length);
+  for (const path of rust) {
+    const pkg = packages.find((pkg) => resolve(path).startsWith(`${dirname(pkg.manifest_path)}${sep}`));
+    if (!pkg) throw new Error(`Cannot determine Rust edition for ${path}`);
+
+    // Formatting stdin avoids following mod declarations into unstaged files.
+    const source = readFileSync(path);
+    const formatted = run("rustfmt", ["--edition", pkg.edition, "--emit", "stdout"], {
+      cwd: dirname(resolve(path)),
+      input: source,
+      stdio: ["pipe", "pipe", "inherit"],
+    });
+    if (!source.equals(formatted)) writeFileSync(path, formatted);
+  }
+}
+
+const go = files.filter((path) => path.endsWith(".go"));
+if (go.length > 0) {
+  run("gofmt", ["-w", ...go]);
 }
 
 const changed = staged.filter((path) => hash(path) !== before.get(path));
@@ -29,3 +81,5 @@ if (changed.length > 0) {
   for (const path of changed) console.error(`  ${path}`);
   process.exit(1);
 }
+
+run("just", ["check"]);
