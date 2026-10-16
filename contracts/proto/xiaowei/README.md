@@ -8,17 +8,6 @@
 
 不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约。只定义当前需要的能力，真正共用的消息才放入 `common`。
 
-## 声明组织
-
-业务 proto（包括 Gateway 与服务端契约）统一按以下顺序组织：
-
-1. 文件头：`syntax`／`edition`、`package`、`import`、文件级 `option`（如有）。
-2. service 定义：放在类型声明前，先展示接口及其请求、响应类型。
-3. 公共 enum 与数据 message：按依赖关系排列，相关 enum 放在使用它的数据 message 前，基础类型放在组合类型前；同一业务概念的类型相邻，不将所有 enum 单独集中排列。
-4. 接口专用类型：接口组的顺序与 service 中的 RPC 顺序一致，每组按 Request、专用结果类型、Response 排列。仅该接口使用的 enum 和辅助 message 放在使用它们的类型前面。
-
-不将所有 Request 和所有 Response 分别集中排列。复用公共类型时不重复声明；请求复用 Empty 时不新增空 Request。
-
 ## 消息语义
 
 - 字段名应说明内容；同领域、同含义的消息可以复用，不因标量类型相同就统一包装为 `Text`、`Boolean`、`Count` 等通用消息。

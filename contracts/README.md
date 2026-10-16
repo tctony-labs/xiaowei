@@ -12,6 +12,17 @@
 - [`go/`](go/)：module `github.com/tctony-labs/xiaowei/contracts/go`。本地消费者在自己的 go.mod 中 require，并用 replace 指向该目录；不复制生成文件，不要求根 go.work。
 - [`tools/`](tools/)：生成时使用的 Rust codegen，不是契约运行依赖。
 
+## 书写顺序
+
+业务 proto（包括 Gateway 与服务端契约）统一按以下顺序组织：
+
+1. 文件头：`syntax`／`edition`、`package`、`import`、文件级 `option`（如有）。
+2. service 定义：放在类型声明前，先展示接口及其请求、响应类型。
+3. 公共 enum 与数据 message：按依赖关系排列，相关 enum 放在使用它的数据 message 前，基础类型放在组合类型前；同一业务概念的类型相邻，不将所有 enum 单独集中排列。
+4. 接口专用类型：接口组的顺序与 service 中的 RPC 顺序一致，每组按 Request、专用结果类型、Response 排列。仅该接口使用的 enum 和辅助 message 放在使用它们的类型前面。
+
+不将所有 Request 和所有 Response 分别集中排列。复用公共类型时不重复声明；请求复用 Empty 时不新增空 Request。
+
 ## 生成与检查
 
 安装工作区依赖后，从仓库根目录运行：
