@@ -8,6 +8,8 @@
 
 生产依赖中的 `.d.ts`／`.d.mts`／`.d.cts` 类型声明不进入发布包，仅在开发和类型检查时使用；运行入口及其 JavaScript 实现保留。
 
+OpenAI／Anthropic SDK 的运行时 exports 指向编译后的 `.js`／`.mjs`，因此排除它们的原始 `src/`。不对所有包统一删除 `src` 或 `.ts`：内部源码包以及 protobufjs 等库的 Node 实现仍需按各自入口处理。SDK 清理验收需覆盖分发包中 ESM 与 CJS 客户端的请求构造和响应解析。
+
 LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口裁剪其他环境构建。Google GenAI 仅删除 `dist/web` 及通用 `dist/index.mjs`／`dist/index.cjs`，保留 Node 的 ESM／CJS、tokenizer 和 Vertex 支撑代码。依赖升级后需重新核对 exports 与实际导入路径，并从分发包验证 provider 加载及相关功能。
 
 `web-streams-polyfill` 保留 Node 主入口 `dist/polyfill.js` 和 fetch-blob 显式引用的 `dist/ponyfill.es2018.js`，排除其余脚本变体。验证时除包加载外，还需检查保留的 ponyfill 可读流及 fetch-blob 的 Blob 读取。

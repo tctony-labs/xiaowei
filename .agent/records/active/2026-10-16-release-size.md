@@ -36,7 +36,7 @@
 - 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
 - 其他环境代码裁剪四组实现及实际包隔离验证已完成，结果见下表。目录包现在为 300.020 MiB；未冷启动，仍待用户进行 Electron GUI 与正式发布链路验收。
-- 类型声明裁剪已完成，实际 ASAR 中声明文件数量为 0；下一步只处理 OpenAI／Anthropic SDK 原始 TypeScript 源码。内部包副本不在本轮修改范围。
+- 类型声明与 OpenAI／Anthropic SDK 原始 TypeScript 源码均已裁剪并通过实际包隔离验证。目录包更新为 291.937 MiB；内部包副本未修改，仍待用户进行 Electron GUI 与正式发布链路验收。
 
 ## Outcome
 
@@ -90,8 +90,6 @@ SDK／支撑依赖裁剪 AWS／Smithy 未被 Node 选择的 `dist-es`、Smithy �
 
 本轮在同源码目录包中累计减少 7.632 MiB，最终为 314,594,133 bytes（300.020 MiB）。相对最初已安装 0.1.1 基线减少约 91.554 MiB（23.38%，基线源码存在差异）；版本、业务实现、依赖版本、原生接口未改变。每组修改与记录分别提交，提交 hook 执行 `just check`；五个原生包最后恢复 debug 构建，最终目录包仍保留 release 裁剪副本。目录包签名、原生加载、语言筛选、无 source map／重复前端依赖的检查继续通过。临时解包验证目录已清理，未访问远程模型，未发布或覆盖已安装应用。
 
-## 后续工作
-
 ### 类型声明与 SDK 原始源码
 
 用户同意分别清理声明和 SDK 源码，保持 Gateway／contracts 等内部包独立副本不变。沿用上一轮目录包及相同 release 原生产物，只增加发布过滤。
@@ -100,15 +98,22 @@ SDK／支撑依赖裁剪 AWS／Smithy 未被 Node 选择的 `dist-es`、Smithy �
 | --- | ---: | ---: |
 | 其他环境清理完成 | 314,594,133 | — |
 | 类型声明裁剪 | 310,377,318 | 4.021 MiB |
+| OpenAI／Anthropic 原始源码裁剪 | 306,118,222 | 4.062 MiB |
 
 声明基线为 3,917,343 bytes，主要来自 OpenAI、Anthropic 与 TypeBox 的 `.d.mts`。新增发布排除 `.d.ts`／`.d.mts`／`.d.cts` 后，实际 ASAR 的声明文件为 0；包含 ASAR 元数据后减少 4.021 MiB，Node JS 入口保留。
 
 实际包解包隔离验证通过：十种 provider、Google Node ESM／CJS／tokenizer、96 次 AWS／Smithy 公共入口解析、stream／Blob／protobuf、Node helper 与本地 WebSocket、包内 worker 启动；额外覆盖 TypeBox 正确／错误数据的 schema 校验。Google fetch 替身校验 URL、POST、API key header 与请求内容，再验证响应文本；Bedrock handler 校验 POST 与签名头格式，再解码模拟响应。未独立复算 Bedrock 签名、未测试真实云端鉴权和网络。此前记录中的“请求签名验证”准确含义为经过 SDK 签名流程，不能视为签名内容的独立校验。
 
-### 剩余事项
+OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编译后的 JS 未发现对这两个原始源码目录的导入。发布过滤只排除这两个 SDK 的 `src/`，保留其他库的运行源码与所有 SDK 编译后 ESM／CJS 入口。实际 ASAR 中声明文件及两个 SDK 原始目录均不存在；内部 Gateway／contracts／protobuf 的 236 个保留文件与裁剪前逐文件 SHA-256 对照一致。
+
+从新 ASAR 隔离解包后，分别调用 OpenAI 与 Anthropic 的 ESM 和 CJS 客户端，共四次 fetch 替身请求，校验 API 路径、POST、鉴权头和请求消息，并断言 SDK 解析出预期响应文本；前述 provider／Google／Bedrock／schema／stream／protobuf／WebSocket／worker 验证全部继续通过。polyfill 主入口验证改为独立 Node 子进程，避免它替换全局 ReadableStream 后污染 HTTP Response 测试；这属于验证脚本隔离修正，未改变应用实现。
+
+本阶段累计减少 8.083 MiB（含 ASAR 元数据），实际目录包为 306,118,222 bytes（291.937 MiB）。类型声明和 SDK 源码各自单独提交，提交 hook 执行 `just check`。只修改分发过滤和相关文档，开发依赖源码保留；工作区原生包恢复 debug 构建，release 目录包通过签名、版本、arm64 和五个 addon 加载检查。临时验证目录及哈希快照已清理。
+
+## 后续工作
 
 - 如继续评估 OpenAI／Anthropic 等 SDK 在 Node 内的 ESM／CJS 双格式重复，需要单独追踪交叉引用；本轮保留必要的两种格式，不按扩展名统一删除。
-- 核实类型声明和 TypeScript 源码的运行时入口后按需裁剪；原基线中分别约 3.75 MiB 与 4.30 MiB，与依赖移除可能重叠。
+- 已 bundled 的内部 Gateway／contracts／protobuf 独立包副本仅完成说明，本轮未处理。若用户后续授权，需先确认所有 main／worker／preload 入口均不再依赖其独立运行文件，再裁剪重复副本。
 - Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
 - 如继续评估 SwiftShader（约 15.9 MiB），先明确 GPU 不可用时的软件图形回退与兼容性要求。
 - 新正式版本仍需 Developer ID 签名／公证、安装及 Sparkle 更新验收；本地 ad-hoc 目录包不能替代。

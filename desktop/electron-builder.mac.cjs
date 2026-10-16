@@ -11,6 +11,10 @@ module.exports = {
     "!**/*.map",
     "!**/node_modules/**/*.d.{ts,mts,cts}",
 
+    // These SDKs export compiled JS; their original TypeScript is not loaded at runtime.
+    "!**/node_modules/openai/src/**",
+    "!**/node_modules/@anthropic-ai/sdk/src/**",
+
     // Node exports select dist/node; retain its ESM/CJS entries and tokenizer support.
     "!**/node_modules/@google/genai/dist/web/**",
     "!**/node_modules/@google/genai/dist/index.{mjs,cjs}",
