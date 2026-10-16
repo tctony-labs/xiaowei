@@ -19,7 +19,7 @@
 
 用户随后同意继续清理类型声明与 SDK 原始 TypeScript 源码，分别验证并提交；该阶段尚未修改已 bundled 的内部包独立副本。
 
-用户现要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。当前已进入实施阶段，实施细节见 [构建与分发边界 Plan](../../plans/2026-10-16-release-size/01-runtime-package-boundary.md)。
+用户随后要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。构建与分发边界现已实施并通过自动验收，结果见 Outcome，当前约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
 
 验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布；用户已授权每个优化点单独提交。
 
@@ -27,7 +27,7 @@
 
 实施前测量：220 份 Electron `locale.pak` 合计 48.0 MiB，仅保留 `zh_CN` 和 `en` 可减少约 46.9 MiB；依赖 source map 合计 17.6 MiB；React／React DOM／React Markdown／remark-gfm／zustand／scheduler 的重复副本约 8.0 MiB；临时副本 `strip -x` 合计减少约 9.1 MiB。收益基于 0.1.1，当前源码重新构建后的最终结果另行测量，不能视为同源码对照。
 
-语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在 main／preload／renderer 构建目标显式设置 `sourcemap: false`，验证构建与分发产物均无 map，旧的 source map 文件过滤也已移除。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
+语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在构建阶段关闭生成，并验证构建与分发产物，旧的 source map 文件过滤已移除。当前打包边界与维护入口统一见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
 
 原方案考虑在 `afterPack` 处理打包副本，但核实 ASAR 会记录 unpacked 原生文件的大小与哈希，而 hook 发生在元数据生成后。改为 release 构建后立即裁剪，使 CI 的功能测试和 SHA-256 保护、ASAR 元数据及最终签名均基于相同产物。签名仍由既有 electron-builder 流程负责。
 
@@ -36,7 +36,7 @@
 - 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
 - 实际 ad-hoc 目录包为 294,287,179 bytes（280.654 MiB），ASAR 仅 74 个文件；相对上一轮减少 11.283 MiB。五个签名后二进制的大小和 SHA-256 与上一轮完全一致。
 - 73 项 LLM 测试、59 项 main 测试与 48 项构建／发布回归通过。真实包的隔离目录验收另通过 7 项 provider／worker 测试及五个 native 包加载器；详细范围见 Outcome。
-- 剩余实施工作为发布说明和 Plan 收尾。真实 Electron GUI、语言回退及正式签名／公证／Sparkle 更新验收仍由用户启动后完成；未发布、未覆盖安装，record 保留 active。
+- 代码与发布说明已完成，实施 Plan 已删除。真实 Electron GUI、语言回退及正式签名／公证／Sparkle 更新验收仍由用户启动后完成；未发布、未覆盖安装，record 保留 active。
 
 ## Outcome
 
@@ -87,6 +87,8 @@
 五个签名后 native 二进制大小及逐文件 SHA-256 与调整前一致；unpacked 的差异来自移除额外 Rust／Cargo 文件，应用整体差额还包含代码签名元数据变化。最终 ASAR 只有 out、应用 package.json，以及五个 native 包各自三个文件；共 74 个文件，没有独立纯 JS 运行包、原始源码／声明和 source map。Electron locale.pak 仍只有 en 与 zh_CN。
 
 通过既有打包入口生成真实 ad-hoc 目录包后，签名、版本、Sparkle 元数据、arm64 与五个二进制加载均通过。再将实际 ASAR 解包到工作区外，通过其五个生成加载器加载 native；只复制该包 main 输出到另一无 node_modules 的目录，plain Node worker 加载十种 provider chunk，7 项隔离测试通过。新增 Google 本地 SSE 生成／鉴权头／请求正文检查，以及 Bedrock 本地 HTTP/1 请求与 403 错误响应检查；Bedrock 使用 SDK 的 dummy-credential 模式，验证 AWS4 签名头格式和请求正文，不涉及真实云端认证或独立签名复算。临时目录全部清理。
+
+最终配置再次生成目录包并通过同样的 7 项实际包隔离测试与五个 native 加载器；应用总字节数保持 294,287,179。五个工作区 native 包已重新构建为 debug，未触发 strip；目录包保留 release 裁剪副本。
 
 调整后 73 项 LLM 测试及 48 项构建／发布回归通过，包含真实 ASAR 成功与失败边界、发布内容失败后阻断后续制作。构建源码与产物内容检查已加入 release CI prebuilt 入口；isolated worker 测试由既有 desktop 测试通配入口覆盖。
 

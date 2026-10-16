@@ -4,23 +4,19 @@
 
 发布包通过 `mac.electronLanguages` 仅保留简体中文（`zh_CN`）和英文（`en`）的 Electron 语言资源；本地更新测试包继承相同设置。`CFBundleLocalizations` 声明应用支持的语言，不承担资源裁剪。
 
-发布文件过滤器排除所有 `*.map`，包括生产依赖自带的 source map；本地更新测试包沿用此规则。构建目录中的调试资料不因此删除，但不进入分发 ASAR。
+main、LLM worker、preload 和 renderer 的纯 JS／TS（含工作区包与第三方 SDK）由 electron-vite 构建到 `out/`。main／preload 关闭依赖自动外置，工作区仍通过 `source` 条件消费源码；Electron 和 Node 内置模块由宿主提供，不复制到应用。
 
-生产依赖中的 `.d.ts`／`.d.mts`／`.d.cts` 类型声明不进入发布包，仅在开发和类型检查时使用；运行入口及其 JavaScript 实现保留。
+生产依赖只保留 `xiaowei-agent`、`xiaowei-search`、`xiaowei-clipboard`、`xiaowei-storage` 和 `xiaowei-platform` 五个 native 包；pi-ai、electron-log、Gateway、contracts、protobuf 和前端依赖均为构建输入，放在 `devDependencies`。macOS 打包明确收集 `out/`、应用元数据，以及每个 native 包的 `index.js`、`package.json` 和 `darwin-arm64.node`。electron-builder 不遵循依赖包的 npm `files` 清单，因此发布 FileSet 先重置其默认全选，再声明这些输入；不再维护逐 SDK／其他环境／声明或源码删除规则。
 
-OpenAI／Anthropic SDK 的运行时 exports 指向编译后的 `.js`／`.mjs`，因此排除它们的原始 `src/`。不对所有包统一删除 `src` 或 `.ts`：内部源码包以及 protobufjs 等库的 Node 实现仍需按各自入口处理。SDK 清理验收需覆盖分发包中 ESM 与 CJS 客户端的请求构造和响应解析。
+懒加载通过构建生成的相邻 chunk 保留。动态 import 的目标须可被 bundler 静态分析；Bedrock 使用 pi-ai 的公开 `lazyApi` 和字面量 `import("@earendil-works/pi-ai/api/bedrock-converse-stream")`，保持首次调用再加载 AWS 实现。不要将整个 SDK 外置以绕过动态路径，也不要直接修改第三方源码。
 
-LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口裁剪其他环境构建。Google GenAI 仅删除 `dist/web` 及通用 `dist/index.mjs`／`dist/index.cjs`，保留 Node 的 ESM／CJS、tokenizer 和 Vertex 支撑代码。依赖升级后需重新核对 exports 与实际导入路径，并从分发包验证 provider 加载及相关功能。
+非 JS 资源须明确声明文件和用途。应用图标沿用 `extraResources`，Sparkle framework 和 LICENSE 沿用 `extraFiles`／`extraResources`；后续依赖若需运行时读取资源，应单独接入具体文件，不能恢复整个依赖目录复制。
 
-`web-streams-polyfill` 保留 Node 主入口 `dist/polyfill.js` 和 fetch-blob 显式引用的 `dist/ponyfill.es2018.js`，排除其余脚本变体。验证时除包加载外，还需检查保留的 ponyfill 可读流及 fetch-blob 的 Blob 读取。
+main／preload／renderer 显式设置 `build.sourcemap: false`。构建回归检查无 map 输出或引用，最终分发检查同时拒绝 `.map` 和 inline map 引用，不依赖打包后删除。native 类型声明及 Rust／Cargo 源码不在输入清单中；生成的 JS 加载器保留。
 
-`protobufjs/dist` 的独立浏览器 bundles 不进入分发包；Node 使用的根入口、`src` 与 `minimal.js` 保留。验证覆盖 Google tokenizer 导入和 Node protobuf 的消息编解码。
+每次 macOS 打包及独立发布阶段都会执行 `scripts/release/verify-package-content.mjs`，检查实际 ASAR、应用依赖声明、必需入口及 `app.asar.unpacked`。多余运行包、原始源码、声明、source map、其他架构二进制或缺失必需文件会阻止后续发布；签名、元数据、arm64 与五个 addon 的加载检查继续由既有打包入口执行。
 
-AWS／Smithy 在 Node 的 ESM 和 CJS 调用中均通过 `main`／`node` exports 选择 `dist-cjs`，因此发布包排除它们的 `dist-es` 及 Smithy CJS 的 browser／React Native 分支，并排除 Anthropic SDK 的 `.browser.js`／`.browser.mjs`。依赖升级时需复核公共子入口解析，并验证 Bedrock 的请求签名和响应解析；不对所有依赖统一删除 ESM 或 CJS。
-
-同时排除 gaxios 的浏览器测试、ws／debug 的浏览器入口和 Bowser 的浏览器独立 bundle，保留各自 Node 入口。不要按 `browser` 名称统一删除文件：Google Auth 在 Node 中仍会导入 WebCrypto 实现，OpenAI 的全局 WebSocket 适配和 Bowser 的浏览器 UA 解析也不能按名称裁剪。
-
-仅在 renderer 使用、由 Vite bundled 的 React、React DOM、React Markdown、remark-gfm 和 zustand 声明为 `devDependencies`，打包时不再携带独立的生产依赖副本。main／LLM worker 的外部依赖和五个原生包继续作为生产依赖保留；构建回归检查 renderer 确实包含所需 React 与 Markdown 实现。
+依赖升级或新增后须通过 `scripts/dev/desktop-source-resolution.test.mjs` 的构建图检查，以及 `desktop/tests/llm/bundled-worker.test.mjs` 的工作区外隔离运行检查。前者只允许宿主和五个 native 外部入口；后者不复制 SDK node_modules，覆盖十种 provider chunk 加载、HTTP/SSE、WebSocket、失败、取消和关闭。实际包验收时，将 ASAR 解包到工作区之外，验证 native 生成加载器，并通过 `XIAOWEI_TEST_BUNDLED_MAIN_DIR=<解包目录>/out/main` 对包内 worker 重跑隔离测试。该环境变量只用于测试，不改变应用运行入口。
 
 ## 本地打包
 
