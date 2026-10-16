@@ -17,7 +17,9 @@ fn binding_path(module: &str) -> PathBuf {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mode = std::env::args().nth(1).ok_or("expected --write or --check")?;
+    let mode = std::env::args()
+        .nth(1)
+        .ok_or("expected --write or --check")?;
     if mode != "--write" && mode != "--check" {
         return Err("expected --write or --check".into());
     }
@@ -69,7 +71,11 @@ pub fn generate(services: &[&str]) -> Result<String, Box<dyn Error>> {
             }
         });
     }
-    let mut missing: Vec<&str> = services.iter().copied().filter(|name| !found.contains(*name)).collect();
+    let mut missing: Vec<&str> = services
+        .iter()
+        .copied()
+        .filter(|name| !found.contains(*name))
+        .collect();
     if !missing.is_empty() {
         missing.sort();
         return Err(format!("unknown Gateway services: {}", missing.join(", ")).into());

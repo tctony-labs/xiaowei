@@ -22,10 +22,17 @@ impl Resources {
     }
 
     pub fn resolve(&self, item: ClipboardItem, index: Option<u32>) -> Result<Vec<String>> {
-        let directory = self.directory.as_ref().ok_or("Clipboard resources closed")?;
+        let directory = self
+            .directory
+            .as_ref()
+            .ok_or("Clipboard resources closed")?;
         let paths = if item.kind == "file" {
             match index {
-                Some(index) => vec![item.paths.get(index as usize).ok_or("Invalid file index")?.clone()],
+                Some(index) => vec![item
+                    .paths
+                    .get(index as usize)
+                    .ok_or("Invalid file index")?
+                    .clone()],
                 None => item.paths,
             }
         } else {

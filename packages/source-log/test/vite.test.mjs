@@ -29,14 +29,25 @@ test("does not rewrite shadowed console, aliases, dependencies or disabled modul
   assert.equal(transform('import console from "custom"; console.info("local");'), null);
   assert.equal(transform('const { info } = console; info("alias");'), null);
   assert.equal(transform('console.info("off")', false), null);
-  assert.equal(transform('console.info("dependency")', true, "/node_modules/dependency/index.ts"), null);
+  assert.equal(
+    transform('console.info("dependency")', true, "/node_modules/dependency/index.ts"),
+    null,
+  );
   assert.equal(transform('const x = "console.info()";'), null);
 });
 
 test("covers workspace packages and rejects external paths and build output", () => {
   const root = new URL("../../../", import.meta.url);
-  for (const path of ["packages/utils/src/index.ts", "contracts/ts/src/log.ts", "scripts/task.mjs"]) {
-    const result = transform('console.info("workspace");', true, fileURLToPath(new URL(path, root)));
+  for (const path of [
+    "packages/utils/src/index.ts",
+    "contracts/ts/src/log.ts",
+    "scripts/task.mjs",
+  ]) {
+    const result = transform(
+      'console.info("workspace");',
+      true,
+      fileURLToPath(new URL(path, root)),
+    );
     assert.ok(result.code.includes(`${path}:1`));
     assert.equal(hasSourceLocation(`[${path}:1] workspace`), true);
   }
@@ -49,14 +60,20 @@ test("covers workspace packages and rejects external paths and build output", ()
     "node_modules/example/index.ts",
     "packages/source-log/runtime.ts",
   ]) {
-    assert.equal(transform('console.info("excluded");', true, fileURLToPath(new URL(path, root))), null, path);
+    assert.equal(
+      transform('console.info("excluded");', true, fileURLToPath(new URL(path, root))),
+      null,
+      path,
+    );
   }
 });
 
 test("Vite bundles workspace package sources with their original locations", async () => {
   const { build } = await import("vite");
   const entry = fileURLToPath(new URL("./fixtures/entry.ts", import.meta.url));
-  const dependency = fileURLToPath(new URL("../../../packages/log-fixture/src/index.ts", import.meta.url));
+  const dependency = fileURLToPath(
+    new URL("../../../packages/log-fixture/src/index.ts", import.meta.url),
+  );
   for (const enabled of [false, true]) {
     const result = await build({
       configFile: false,

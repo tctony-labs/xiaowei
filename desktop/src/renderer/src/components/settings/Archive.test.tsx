@@ -9,7 +9,9 @@ test("SearchAndDelete", async () => {
   const { container: canvasElement } = render(<SettingsPreview initialTab="archive" />);
   const canvas = within(canvasElement);
   const page = within(document.body);
-  fireEvent.change(canvas.getByPlaceholderText("搜索标题或工作区"), { target: { value: "XiaoWei" } });
+  fireEvent.change(canvas.getByPlaceholderText("搜索标题或工作区"), {
+    target: { value: "XiaoWei" },
+  });
   await expect(canvas.getByText("搜索与剪贴板交互讨论")).toBeVisible();
   await waitFor(() => expect(canvas.queryByText("整理本周的开发事项")).not.toBeInTheDocument());
   await userEvent.click(canvas.getByRole("button", { name: "删除" }));

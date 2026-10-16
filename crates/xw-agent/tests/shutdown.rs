@@ -23,7 +23,10 @@ async fn close_wakes_waiters_rejects_commands_and_is_repeatable() {
     tokio::task::yield_now().await;
     service.close().await.unwrap();
     service.close().await.unwrap();
-    timeout(Duration::from_secs(1), waiter).await.unwrap().unwrap();
+    timeout(Duration::from_secs(1), waiter)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         service
             .read_session(ReadSessionRequest {
@@ -57,5 +60,10 @@ async fn dropping_service_does_not_leave_observers_waiting_forever() {
         .expect("memory operation completes immediately")
         .unwrap();
     drop(service);
-    assert_eq!(timeout(Duration::from_secs(1), observer.recv()).await.unwrap(), None);
+    assert_eq!(
+        timeout(Duration::from_secs(1), observer.recv())
+            .await
+            .unwrap(),
+        None
+    );
 }

@@ -27,10 +27,16 @@ pub(crate) async fn validate(
         let code = ffi::sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, &mut tail);
 
         let result = if code != ffi::SQLITE_OK {
-            Err(invalid(CStr::from_ptr(ffi::sqlite3_errmsg(db)).to_string_lossy()))
+            Err(invalid(
+                CStr::from_ptr(ffi::sqlite3_errmsg(db)).to_string_lossy(),
+            ))
         } else if statement.is_null() {
             Err(invalid("An executable SQL statement is required"))
-        } else if !CStr::from_ptr(tail).to_bytes().iter().all(u8::is_ascii_whitespace) {
+        } else if !CStr::from_ptr(tail)
+            .to_bytes()
+            .iter()
+            .all(u8::is_ascii_whitespace)
+        {
             Err(invalid("Exactly one SQL statement is required"))
         } else if ffi::sqlite3_bind_parameter_count(statement) as usize != parameters {
             Err(invalid("SQL parameter count mismatch"))

@@ -2,7 +2,10 @@ use xw_agent_types::{InputId, InputSource, SessionId};
 
 use crate::{AgentError, protocol::*, session::parse_id};
 
-pub(crate) fn validate(request: &StartRunRequest, source: &InputSource) -> Result<SessionId, AgentError> {
+pub(crate) fn validate(
+    request: &StartRunRequest,
+    source: &InputSource,
+) -> Result<SessionId, AgentError> {
     let session = parse_id(&request.session_id, "session_id")?;
     let _: InputId = parse_id(&request.input_id, "input_id")?;
     if request.input.is_empty() || request.input.len() > 64 {

@@ -13,10 +13,14 @@ import { createContext, GatewayHost } from "../src/core/registry.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 test("shared PB contract executes TS → Rust and Rust → TS through generic adapters", async () => {
-  const build = spawnSync("cargo", ["build", "-q", "-p", "xw-gateway", "--example", "fixture_transport"], {
-    cwd: root,
-    encoding: "utf8",
-  });
+  const build = spawnSync(
+    "cargo",
+    ["build", "-q", "-p", "xw-gateway", "--example", "fixture_transport"],
+    {
+      cwd: root,
+      encoding: "utf8",
+    },
+  );
   assert.equal(build.status, 0, build.stderr);
   const binary = `${root}/target/debug/examples/fixture_transport`;
   const child = spawn(binary, [], { stdio: ["pipe", "pipe", "inherit"] });
@@ -49,19 +53,24 @@ test("shared PB contract executes TS → Rust and Rust → TS through generic ad
     }
     await assert.rejects(
       transport.invoke(methodRoute(Fixture.method.echo), new Uint8Array([255])),
-      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+      (error: unknown) =>
+        error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
     );
     await assert.rejects(
       echo.echo(create(EnvelopeSchema, { text: "fail" })),
       (error: unknown) => error instanceof GatewayFailure && error.detail.code === "HANDLER_ERROR",
     );
     await assert.rejects(
-      transport.invoke({ ...methodRoute(Fixture.method.echo), name: "missing.route" }, new Uint8Array()),
+      transport.invoke(
+        { ...methodRoute(Fixture.method.echo), name: "missing.route" },
+        new Uint8Array(),
+      ),
       (error: unknown) => error instanceof GatewayFailure && error.detail.code === "UNKNOWN_ROUTE",
     );
     await assert.rejects(
       transport.invoke(methodRoute(Fixture.method.watch), new Uint8Array()),
-      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "WRONG_METHOD_KIND",
+      (error: unknown) =>
+        error instanceof GatewayFailure && error.detail.code === "WRONG_METHOD_KIND",
     );
   } finally {
     child.stdin.end();
@@ -78,7 +87,9 @@ test("shared PB contract executes TS → Rust and Rust → TS through generic ad
       frame.route,
       Uint8Array.from(frame.payload),
     );
-    rustClient.stdin.end(`${JSON.stringify(result.ok ? { ok: true, value: [...result.value] } : result)}\n`);
+    rustClient.stdin.end(
+      `${JSON.stringify(result.ok ? { ok: true, value: [...result.value] } : result)}\n`,
+    );
   }
   assert.equal((await exited)[0], 0);
 });

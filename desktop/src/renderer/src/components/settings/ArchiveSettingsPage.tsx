@@ -49,13 +49,16 @@ export function ArchiveSettingsPage({ services = defaultServices }: { services?:
           position
             ? [
                 ...previous,
-                ...page.sessions.filter((next) => !previous.some((item) => item.sessionId === next.sessionId)),
+                ...page.sessions.filter(
+                  (next) => !previous.some((item) => item.sessionId === next.sessionId),
+                ),
               ]
             : page.sessions,
         );
         setContinuation(page.continuation);
       } catch (cause) {
-        if (alive.current && current === generation.current) setError(`加载归档失败：${String(cause)}`);
+        if (alive.current && current === generation.current)
+          setError(`加载归档失败：${String(cause)}`);
       } finally {
         if (alive.current && current === generation.current) setLoading(false);
       }
@@ -83,7 +86,9 @@ export function ArchiveSettingsPage({ services = defaultServices }: { services?:
     const current = ++policyGeneration.current;
     setPolicyError("");
     try {
-      const response = await api.getSessionRetentionPolicy(create(GetSessionRetentionPolicyRequestSchema));
+      const response = await api.getSessionRetentionPolicy(
+        create(GetSessionRetentionPolicyRequestSchema),
+      );
       if (alive.current && current === policyGeneration.current) setPolicy(response);
     } catch (cause) {
       if (alive.current && current === policyGeneration.current) {
@@ -176,11 +181,20 @@ export function ArchiveSettingsPage({ services = defaultServices }: { services?:
           })),
         }),
       );
-      const deleted = response.results.filter((result) => result.status === DeleteSessionStatus.DELETED).length;
-      const skipped = response.results.filter((result) => result.status === DeleteSessionStatus.SKIPPED).length;
-      const failed = response.results.find((result) => result.status === DeleteSessionStatus.FAILED);
-      const pending = response.results.filter((result) => result.status === DeleteSessionStatus.NOT_EXECUTED).length;
-      if (failed) return `已删除 ${deleted} 条，跳过 ${skipped} 条，未执行 ${pending} 条。删除失败：${failed.error}`;
+      const deleted = response.results.filter(
+        (result) => result.status === DeleteSessionStatus.DELETED,
+      ).length;
+      const skipped = response.results.filter(
+        (result) => result.status === DeleteSessionStatus.SKIPPED,
+      ).length;
+      const failed = response.results.find(
+        (result) => result.status === DeleteSessionStatus.FAILED,
+      );
+      const pending = response.results.filter(
+        (result) => result.status === DeleteSessionStatus.NOT_EXECUTED,
+      ).length;
+      if (failed)
+        return `已删除 ${deleted} 条，跳过 ${skipped} 条，未执行 ${pending} 条。删除失败：${failed.error}`;
       if (skipped) return `已删除 ${deleted} 条，跳过 ${skipped} 条（会话状态已变化或已不存在）`;
       return `已删除 ${deleted} 条对话`;
     });

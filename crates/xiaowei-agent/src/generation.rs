@@ -2,8 +2,9 @@ use std::sync::Mutex;
 
 use futures_util::{StreamExt, stream};
 use xw_agent::{
-    AgentHost, AuxiliaryModelError, AuxiliaryModelRefFuture, CancellationToken, GenerationError, GenerationEvent,
-    GenerationFuture, GenerationRequest, GenerationStream, ModelInfo, ModelInfoError, ModelInfoFuture,
+    AgentHost, AuxiliaryModelError, AuxiliaryModelRefFuture, CancellationToken, GenerationError,
+    GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream, ModelInfo,
+    ModelInfoError, ModelInfoFuture,
 };
 use xw_agent_types::AgentMessage;
 use xw_contracts::xiaowei::llm as pb;
@@ -85,10 +86,11 @@ impl AgentHost for GatewayGeneration {
         let client = self.client.lock().unwrap().clone();
         Box::pin(async move {
             let client = client.ok_or(AuxiliaryModelError::Unavailable)?;
-            let response = crate::gateway_binding::xiaowei_llm_model_settings_service::GET_AUXILIARY_MODEL_REF
-                .call(&client, xw_contracts::xiaowei::common::Empty {})
-                .await
-                .map_err(|_| AuxiliaryModelError::Unavailable)?;
+            let response =
+                crate::gateway_binding::xiaowei_llm_model_settings_service::GET_AUXILIARY_MODEL_REF
+                    .call(&client, xw_contracts::xiaowei::common::Empty {})
+                    .await
+                    .map_err(|_| AuxiliaryModelError::Unavailable)?;
             if response
                 .model_ref
                 .as_ref()
@@ -100,7 +102,11 @@ impl AgentHost for GatewayGeneration {
         })
     }
 
-    fn generate(&self, request: GenerationRequest, cancellation: CancellationToken) -> GenerationFuture {
+    fn generate(
+        &self,
+        request: GenerationRequest,
+        cancellation: CancellationToken,
+    ) -> GenerationFuture {
         let client = self.client.lock().unwrap().clone();
         Box::pin(async move {
             let client = client.ok_or(GenerationError::Unavailable)?;
@@ -129,15 +135,18 @@ impl AgentHost for GatewayGeneration {
             };
             // TypedResponseStream's lease cancels the remote source on drop, including
             // cancellation while next() is pending and rejection of a terminal message.
-            let stream = stream::unfold((upstream, cancellation), |(mut upstream, cancellation)| async move {
-                let result = tokio::select! {
-                    biased;
-                    _ = cancellation.cancelled() => return None,
-                    event = upstream.next() => event?,
-                };
-                let event = result.map_err(|_| unavailable()).and_then(decode_event);
-                Some((event, (upstream, cancellation)))
-            });
+            let stream = stream::unfold(
+                (upstream, cancellation),
+                |(mut upstream, cancellation)| async move {
+                    let result = tokio::select! {
+                        biased;
+                        _ = cancellation.cancelled() => return None,
+                        event = upstream.next() => event?,
+                    };
+                    let event = result.map_err(|_| unavailable()).and_then(decode_event);
+                    Some((event, (upstream, cancellation)))
+                },
+            );
             Ok(Box::pin(stream) as GenerationStream)
         })
     }
@@ -165,7 +174,11 @@ fn decode_event(event: pb::GenerateEvent) -> Result<GenerationEvent, GenerationE
             content_index: d.content_index,
             text: d.delta,
         },
-        Event::BlockDelta(_) => return Err(GenerationError::Failed("tools are not supported in text runs".into())),
+        Event::BlockDelta(_) => {
+            return Err(GenerationError::Failed(
+                "tools are not supported in text runs".into(),
+            ));
+        }
         Event::BlockStarted(b) => GenerationEvent::BlockStarted {
             content_index: b.content_index,
             block: codec::decode_block(b.block.ok_or_else(invalid)?).map_err(|_| invalid())?,

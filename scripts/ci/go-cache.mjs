@@ -6,7 +6,9 @@ import { join } from "node:path";
 const mode = process.argv[2];
 if (!["version", "key"].includes(mode)) throw new Error("Usage: go-cache.mjs version|key");
 
-const workspace = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+const workspace = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+  encoding: "utf8",
+}).trim();
 
 if (mode === "version") {
   const manifest = readFileSync(join(workspace, "server/go.mod"), "utf8");
@@ -16,7 +18,10 @@ if (mode === "version") {
   console.log(`version=${version}`);
 } else {
   const environment = JSON.parse(
-    execFileSync("go", ["env", "-json", "GOMODCACHE", "GOCACHE", "GOVERSION"], { cwd: workspace, encoding: "utf8" }),
+    execFileSync("go", ["env", "-json", "GOMODCACHE", "GOCACHE", "GOVERSION"], {
+      cwd: workspace,
+      encoding: "utf8",
+    }),
   );
   const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: workspace, encoding: "utf8" })
     .split("\0")
@@ -40,7 +45,9 @@ if (mode === "version") {
   }
 
   function fingerprint(inputs) {
-    return hash(JSON.stringify(inputs.map((path) => [path, hash(readFileSync(join(workspace, path)))])));
+    return hash(
+      JSON.stringify(inputs.map((path) => [path, hash(readFileSync(join(workspace, path)))])),
+    );
   }
 
   const platform = process.env.RUNNER_OS ?? process.platform;
@@ -51,5 +58,7 @@ if (mode === "version") {
   console.log(`prefix=${prefix}`);
   console.log(`module-hash=${fingerprint(modules)}`);
   console.log(`build-hash=${fingerprint(builds)}`);
-  console.error(`Go cache: ${environment.GOVERSION}, ${modules.length} module inputs, ${builds.length} build inputs`);
+  console.error(
+    `Go cache: ${environment.GOVERSION}, ${modules.length} module inputs, ${builds.length} build inputs`,
+  );
 }

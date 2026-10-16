@@ -9,7 +9,8 @@ const meta = {
     layout: "fullscreen",
     docs: {
       description: {
-        component: "最小内存对话预览：使用默认模型与思考强度，不提供选择控件。回复为模拟流，不调用真实模型。",
+        component:
+          "最小内存对话预览：使用默认模型与思考强度，不提供选择控件。回复为模拟流，不调用真实模型。",
       },
     },
   },

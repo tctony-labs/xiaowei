@@ -83,7 +83,10 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
       "archive_revision",
       "deleting",
     ]);
-    assert.equal(db.prepare("SELECT title FROM session WHERE session_id = ?").get(first.sessionId).title, "手动标题");
+    assert.equal(
+      db.prepare("SELECT title FROM session WHERE session_id = ?").get(first.sessionId).title,
+      "手动标题",
+    );
     db.exec(
       `CREATE TRIGGER fail_title BEFORE UPDATE ON session
        BEGIN SELECT RAISE(ABORT, 'fixture disk failure'); END`,
@@ -101,12 +104,16 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
       ),
     );
     assert.equal(
-      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId }))).session.title,
+      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId })))
+        .session.title,
       "手动标题",
     );
     db.exec("DROP TRIGGER fail_title");
     await api.setSessionTitle(
-      create(pb.SetSessionTitleRequestSchema, { sessionId: first.sessionId, title: "恢复后的标题" }),
+      create(pb.SetSessionTitleRequestSchema, {
+        sessionId: first.sessionId,
+        title: "恢复后的标题",
+      }),
     );
     assert.deepEqual(await readFile(path), original);
     for (let i = 2; i <= 18; i++) {
@@ -124,7 +131,10 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
       create(pb.ListSessionsRequestSchema, { pageSize: 5, continuation: page.continuation }),
     );
     assert.equal(next.sessions.length, 5);
-    assert.equal(new Set([...page.sessions, ...next.sessions].map((session) => session.sessionId)).size, 10);
+    assert.equal(
+      new Set([...page.sessions, ...next.sessions].map((session) => session.sessionId)).size,
+      10,
+    );
     await api.setSessionArchived(
       create(pb.SetSessionArchivedRequestSchema, {
         sessionId: first.sessionId,
@@ -132,12 +142,17 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
         expectedArchiveRevision: 1n,
       }),
     );
-    await assert.rejects(api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId })));
     await assert.rejects(
-      api.setSessionTitle(create(pb.SetSessionTitleRequestSchema, { sessionId: first.sessionId, title: "blocked" })),
+      api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId })),
+    );
+    await assert.rejects(
+      api.setSessionTitle(
+        create(pb.SetSessionTitleRequestSchema, { sessionId: first.sessionId, title: "blocked" }),
+      ),
     );
     assert.equal(
-      (await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }))).sessions[0].title,
+      (await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }))).sessions[0]
+        .title,
       "恢复后的标题",
     );
     db.close();
@@ -152,7 +167,9 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
     await writeFile(orphan, "invalid orphan\n");
     agent = await Agent.open(root);
     endpoint = await attachRustNapi(host, "reopened-agent", agent.createGatewayEndpoint());
-    const archived = (await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }))).sessions[0];
+    const archived = (
+      await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }))
+    ).sessions[0];
     assert.equal(archived.archiveRevision, 2n);
     await api.setSessionArchived(
       create(pb.SetSessionArchivedRequestSchema, {
@@ -161,8 +178,9 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
         expectedArchiveRevision: 2n,
       }),
     );
-    const retried = (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId })))
-      .session;
+    const retried = (
+      await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: first.sessionId }))
+    ).session;
     assert.equal(retried.sessionId, first.sessionId);
     assert.equal(retried.title, "恢复后的标题");
     assert.equal(retried.autoTitleEnabled, false);
@@ -178,10 +196,14 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
       }),
     );
     assert.equal(deletion.results[0].status, pb.DeleteSessionStatus.DELETED);
-    assert.equal((await api.listSessions(create(pb.ListSessionsRequestSchema))).sessions.length, 17);
+    assert.equal(
+      (await api.listSessions(create(pb.ListSessionsRequestSchema))).sessions.length,
+      17,
+    );
     db = new DatabaseSync(join(root, "sessions.sqlite"));
     assert.equal(
-      db.prepare("SELECT count(*) AS count FROM session WHERE session_id = ?").get(first.sessionId).count,
+      db.prepare("SELECT count(*) AS count FROM session WHERE session_id = ?").get(first.sessionId)
+        .count,
       0,
     );
     await assert.rejects(readFile(path), { code: "ENOENT" });
@@ -230,7 +252,11 @@ test("formal Agent batch delete respects searched page targets, restoration and 
         }),
       );
     }
-    const listing = create(pb.ListSessionsRequestSchema, { archived: true, query: "match", pageSize: 2 });
+    const listing = create(pb.ListSessionsRequestSchema, {
+      archived: true,
+      query: "match",
+      pageSize: 2,
+    });
     const page = await api.listSessions(listing);
     assert.equal(page.sessions.length, 2);
     assert.ok(page.continuation);
@@ -281,7 +307,9 @@ test("formal Agent batch delete respects searched page targets, restoration and 
     db.exec(`CREATE TRIGGER fail_delete BEFORE UPDATE ON session
       WHEN NEW.deleting = 1 AND OLD.session_id = '${nextTargets[0].sessionId}'
       BEGIN SELECT RAISE(ABORT, 'fixture disk failure'); END`);
-    const partial = await api.deleteSession(create(pb.DeleteSessionRequestSchema, { targets: nextTargets }));
+    const partial = await api.deleteSession(
+      create(pb.DeleteSessionRequestSchema, { targets: nextTargets }),
+    );
     assert.deepEqual(
       partial.results.map((result) => result.status),
       [pb.DeleteSessionStatus.FAILED, pb.DeleteSessionStatus.NOT_EXECUTED],
@@ -289,10 +317,14 @@ test("formal Agent batch delete respects searched page targets, restoration and 
     assert.ok(partial.results[0].error);
     assert.equal((await api.listSessions(listing)).sessions.length, 2);
     db.exec("DROP TRIGGER fail_delete");
-    const retry = await api.deleteSession(create(pb.DeleteSessionRequestSchema, { targets: nextTargets }));
+    const retry = await api.deleteSession(
+      create(pb.DeleteSessionRequestSchema, { targets: nextTargets }),
+    );
     assert.ok(retry.results.every((result) => result.status === pb.DeleteSessionStatus.DELETED));
     assert.equal((await api.listSessions(listing)).sessions.length, 0);
-    const unaffected = await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }));
+    const unaffected = await api.listSessions(
+      create(pb.ListSessionsRequestSchema, { archived: true }),
+    );
     assert.deepEqual(
       unaffected.sessions.map((session) => session.title),
       ["other"],
@@ -321,7 +353,9 @@ test("formal Agent persists retention policy and automatically archives/deletes 
   try {
     agent = await Agent.open(root);
     endpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
-    const defaults = await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema));
+    const defaults = await api.getSessionRetentionPolicy(
+      create(pb.GetSessionRetentionPolicyRequestSchema),
+    );
     assert.equal(defaults.archiveAfterDays, 3);
     assert.equal(defaults.deleteAfterDays, 0);
     await assert.rejects(
@@ -361,7 +395,9 @@ test("formal Agent persists retention policy and automatically archives/deletes 
     }
     let deletedPath;
     db = new DatabaseSync(join(root, "sessions.sqlite"));
-    db.exec("CREATE TRIGGER fail_policy BEFORE UPDATE ON meta BEGIN SELECT RAISE(ABORT, 'failure'); END");
+    db.exec(
+      "CREATE TRIGGER fail_policy BEFORE UPDATE ON meta BEGIN SELECT RAISE(ABORT, 'failure'); END",
+    );
     await assert.rejects(
       api.setSessionRetentionPolicy(
         create(pb.SetSessionRetentionPolicyRequestSchema, {
@@ -370,7 +406,8 @@ test("formal Agent persists retention policy and automatically archives/deletes 
       ),
     );
     assert.equal(
-      (await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema))).deleteAfterDays,
+      (await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema)))
+        .deleteAfterDays,
       30,
     );
     db.exec("DROP TRIGGER fail_policy");
@@ -379,7 +416,9 @@ test("formal Agent persists retention policy and automatically archives/deletes 
     agent = undefined;
     endpoint = undefined;
     const day = 86_400_000;
-    const update = db.prepare("UPDATE session SET created_at_ms = ?, updated_at_ms = ? WHERE session_id = ?");
+    const update = db.prepare(
+      "UPDATE session SET created_at_ms = ?, updated_at_ms = ? WHERE session_id = ?",
+    );
     for (let i = 0; i < ids.length; i++) {
       const time = Date.now() - (i === 0 ? 40 : 4) * day;
       const path = await ageSession(root, ids[i], time);
@@ -403,7 +442,8 @@ test("formal Agent persists retention policy and automatically archives/deletes 
     );
     assert.equal((await api.listSessions(create(pb.ListSessionsRequestSchema))).sessions.length, 0);
     assert.equal(
-      (await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema))).deleteAfterDays,
+      (await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema)))
+        .deleteAfterDays,
       30,
     );
     await agent.close();
@@ -464,7 +504,9 @@ test("saving policy through Gateway restarts live maintenance; failed KV save pr
     const waitForList = async (count) => {
       const deadline = Date.now() + 5000;
       do {
-        const response = await api.listSessions(create(pb.ListSessionsRequestSchema, { archived: true }));
+        const response = await api.listSessions(
+          create(pb.ListSessionsRequestSchema, { archived: true }),
+        );
         if (response.sessions.length === count) return;
         await new Promise((resolve) => setTimeout(resolve, 10));
       } while (Date.now() < deadline);
@@ -478,7 +520,9 @@ test("saving policy through Gateway restarts live maintenance; failed KV save pr
       policy: { archiveAfterDays: 7, deleteAfterDays: 30 },
     });
     await assert.rejects(api.setSessionRetentionPolicy(request));
-    const unchanged = await api.getSessionRetentionPolicy(create(pb.GetSessionRetentionPolicyRequestSchema));
+    const unchanged = await api.getSessionRetentionPolicy(
+      create(pb.GetSessionRetentionPolicyRequestSchema),
+    );
     assert.equal(unchanged.archiveAfterDays, 3);
     assert.equal(unchanged.deleteAfterDays, 0);
     assert.ok(await readFile(path));

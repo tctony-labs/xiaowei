@@ -1,7 +1,13 @@
 import type { IpcMain, IpcMainInvokeEvent, WebContents, WebFrameMain } from "electron";
 import { type CallContext, createContext, type Permissions } from "../core/context.js";
 import { type ElectronRequest, GATEWAY_CHANNEL, GATEWAY_EVENT } from "../core/electron-protocol.js";
-import { CONTROL_VERSION, failure, GatewayFailure, type Subscription, success } from "../core/protocol.js";
+import {
+  CONTROL_VERSION,
+  failure,
+  GatewayFailure,
+  type Subscription,
+  success,
+} from "../core/protocol.js";
 import type { GatewayHost } from "../core/registry.js";
 import { encodeFrame, type ResponseStream } from "../core/stream.js";
 
@@ -13,10 +19,14 @@ interface Session {
   closed: boolean;
   calls: Map<string, AbortController>;
   subscriptions: Map<string, { handle?: Subscription; cancelled?: boolean }>;
-  streams: Map<string, { controller: AbortController; stream?: ResponseStream<Uint8Array>; seq: number }>;
+  streams: Map<
+    string,
+    { controller: AbortController; stream?: ResponseStream<Uint8Array>; seq: number }
+  >;
 }
 
-const unavailable = () => new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "frame session closed" });
+const unavailable = () =>
+  new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "frame session closed" });
 export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | "removeHandler">) {
   const allowed = new Map<WebContents, Permissions>();
   const sessions = new Map<WebContents, Session>();
@@ -50,7 +60,12 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
     ) => {
       try {
         const permissions = allowed.get(event.sender);
-        if (stopped || !permissions || event.senderFrame !== event.sender.mainFrame || !event.senderFrame)
+        if (
+          stopped ||
+          !permissions ||
+          event.senderFrame !== event.sender.mainFrame ||
+          !event.senderFrame
+        )
           throw unavailable();
         if (!request || request.version !== CONTROL_VERSION)
           return failure("INCOMPATIBLE", "Electron control version mismatch");
@@ -72,7 +87,12 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
           return id;
         }
         const session = sessions.get(event.sender);
-        if (!session || session.closed || session.id !== request.session || session.frame !== event.senderFrame)
+        if (
+          !session ||
+          session.closed ||
+          session.id !== request.session ||
+          session.frame !== event.senderFrame
+        )
           throw unavailable();
         const id = request.id ?? "";
         if (!id || id.length > 200) return failure("INVALID_ARGUMENT", "invalid handle ID");
@@ -104,7 +124,8 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
           case "subscribe": {
             if (!request.event || session.subscriptions.has(id))
               return failure("INVALID_ARGUMENT", "invalid subscription");
-            if (session.subscriptions.size >= 128) return failure("RESOURCE_EXHAUSTED", "frame subscriptions full");
+            if (session.subscriptions.size >= 128)
+              return failure("RESOURCE_EXHAUSTED", "frame subscriptions full");
             const slot: { handle?: Subscription; cancelled?: boolean } = {};
             session.subscriptions.set(id, slot);
             try {
@@ -141,8 +162,10 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
             return success(new Uint8Array());
           }
           case "stream.open": {
-            if (!request.route || session.streams.has(id)) return failure("INVALID_ARGUMENT", "invalid stream");
-            if (session.streams.size >= 128) return failure("RESOURCE_EXHAUSTED", "frame streams full");
+            if (!request.route || session.streams.has(id))
+              return failure("INVALID_ARGUMENT", "invalid stream");
+            if (session.streams.size >= 128)
+              return failure("RESOURCE_EXHAUSTED", "frame streams full");
             const slot = {
               controller: new AbortController(),
               seq: 0,
@@ -192,7 +215,10 @@ export function attachElectron(host: GatewayHost, ipc: Pick<IpcMain, "handle" | 
   );
 
   return {
-    register(contents: WebContents, permissions: Permissions = { caller: "renderer", trusted: true }) {
+    register(
+      contents: WebContents,
+      permissions: Permissions = { caller: "renderer", trusted: true },
+    ) {
       allowed.set(contents, permissions);
       // A navigation attempt can be cancelled while the current document stays alive.
       // did-navigate runs after main-frame commit, before the new preload connects.

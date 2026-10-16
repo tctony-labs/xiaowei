@@ -137,7 +137,12 @@ pub enum ExecutionPolicy {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum RunCause {
     Send {
         input_id: InputId,

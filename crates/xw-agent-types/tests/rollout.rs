@@ -84,5 +84,8 @@ fn checkpoints_keep_the_last_conversation_measurement_but_make_it_stale() {
     let budget = ContextBudgetSnapshot::from_entries(&entries).unwrap();
     assert_eq!(budget.context_tokens, Some(125));
     assert!(budget.stale);
-    assert_eq!(budget.latest_compaction_id, Some(entries.last().unwrap().entry_id));
+    assert_eq!(
+        budget.latest_compaction_id,
+        Some(entries.last().unwrap().entry_id)
+    );
 }

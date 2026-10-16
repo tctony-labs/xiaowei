@@ -18,7 +18,11 @@ test("codec subprocess preserves empty input and large binary output", () => {
 test("invalid wire requires a normal nonzero exit; success and signals fail the check", () => {
   const input = new Uint8Array([0x80]);
   const reject = ["-e", "process.stderr.write('invalid wire'); process.exit(1)"];
-  runCodec(process.execPath, input, { caseName: "invalid wire", args: reject, expectFailure: true });
+  runCodec(process.execPath, input, {
+    caseName: "invalid wire",
+    args: reject,
+    expectFailure: true,
+  });
   assert.throws(
     () => runCodec(process.execPath, input, { caseName: "unexpected failure", args: reject }),
     /unexpected failure:.*unexpected exit code 1; invalid wire/,

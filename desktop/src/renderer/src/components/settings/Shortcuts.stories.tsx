@@ -15,6 +15,8 @@ type Story = StoryObj<typeof meta>;
 export const Configured: Story = {};
 export const Recording: Story = {
   play: async ({ canvasElement }) => {
-    await userEvent.click(within(canvasElement).getByRole("textbox", { name: "录制全局搜索快捷键" }));
+    await userEvent.click(
+      within(canvasElement).getByRole("textbox", { name: "录制全局搜索快捷键" }),
+    );
   },
 };

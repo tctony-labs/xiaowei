@@ -60,13 +60,17 @@ export function agentFixture(host = new GatewayHost()) {
     if (!run) throw new Error("No run");
     run.status = status;
     run.completedAtMs = BigInt(Date.now());
-    session.updatedAtMs = run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
+    session.updatedAtMs =
+      run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
     run.items = [
       run.items[0],
       {
         $typeName: "xiaowei.agent.AgentItem",
         itemId: agentIdentity(),
-        content: { case: "reasoning", value: { $typeName: "xiaowei.agent.AgentReasoning", text: thinking } },
+        content: {
+          case: "reasoning",
+          value: { $typeName: "xiaowei.agent.AgentReasoning", text: thinking },
+        },
       },
       {
         $typeName: "xiaowei.agent.AgentItem",
@@ -75,7 +79,11 @@ export function agentFixture(host = new GatewayHost()) {
       },
     ];
     session.status = AgentSessionStatus.IDLE;
-    emit(create(AgentEventSchema, { payload: { case: "runCompleted", value: { sessionId: session.sessionId, run } } }));
+    emit(
+      create(AgentEventSchema, {
+        payload: { case: "runCompleted", value: { sessionId: session.sessionId, run } },
+      }),
+    );
   }
   const owner = host.registerOwner("agent-fixture", [
     ...bindHandlers(Agent, {
@@ -112,7 +120,10 @@ export function agentFixture(host = new GatewayHost()) {
         return create(ListSessionsResponseSchema, {
           sessions: [...sessions.values()]
             .filter((s) => s.archived === request.archived)
-            .sort((a, b) => Number(b.updatedAtMs - a.updatedAtMs) || b.sessionId.localeCompare(a.sessionId))
+            .sort(
+              (a, b) =>
+                Number(b.updatedAtMs - a.updatedAtMs) || b.sessionId.localeCompare(a.sessionId),
+            )
             .map((session) =>
               create(AgentSessionSummarySchema, {
                 sessionId: session.sessionId,
@@ -131,7 +142,8 @@ export function agentFixture(host = new GatewayHost()) {
       setSessionArchived(request) {
         const session = sessions.get(request.sessionId);
         if (!session) throw new Error("unknown session");
-        if (session.archiveRevision !== request.expectedArchiveRevision) throw new Error("archive revision conflict");
+        if (session.archiveRevision !== request.expectedArchiveRevision)
+          throw new Error("archive revision conflict");
         if (request.archived && session.status === AgentSessionStatus.RUNNING) {
           finish(AgentRunStatus.INTERRUPTED, "partial", "", request.sessionId);
         }
@@ -185,7 +197,9 @@ export function agentFixture(host = new GatewayHost()) {
             },
           }),
         );
-        return create(SetSessionConfigResponseSchema, { metadataRevision: session.metadataRevision });
+        return create(SetSessionConfigResponseSchema, {
+          metadataRevision: session.metadataRevision,
+        });
       },
       setSessionTitle(request) {
         const session = sessions.get(request.sessionId);
@@ -196,12 +210,18 @@ export function agentFixture(host = new GatewayHost()) {
         }
         setTitleRequests.push({ sessionId: request.sessionId, title });
         updateTitle(title, session.titleModelRef, request.sessionId, false);
-        return create(SetSessionTitleResponseSchema, { title, metadataRevision: session.metadataRevision });
+        return create(SetSessionTitleResponseSchema, {
+          title,
+          metadataRevision: session.metadataRevision,
+        });
       },
       regenerateTitle(request) {
         titleRequests.push(request.sessionId);
         if (!auxiliaryAvailable) {
-          throw new GatewayFailure({ code: "HANDLER_ERROR", message: "尚未配置小文本任务模型，请先在设置中选择" });
+          throw new GatewayFailure({
+            code: "HANDLER_ERROR",
+            message: "尚未配置小文本任务模型，请先在设置中选择",
+          });
         }
         updateTitle("生成的标题", request.titleModelRef, request.sessionId);
         const session = sessions.get(request.sessionId);
@@ -231,7 +251,8 @@ export function agentFixture(host = new GatewayHost()) {
         const session = sessions.get(request.sessionId);
         if (!session) throw new Error("No session");
         requests.push(request);
-        if (failBeforeAcceptance) throw new GatewayFailure({ code: "TIMEOUT", message: "unknown acceptance" });
+        if (failBeforeAcceptance)
+          throw new GatewayFailure({ code: "TIMEOUT", message: "unknown acceptance" });
         if (!session.runs.length && !session.title) {
           const initial = request.input
             .flatMap((input) => (input.content.case === "text" ? [input.content.value] : []))
@@ -244,7 +265,12 @@ export function agentFixture(host = new GatewayHost()) {
           status: AgentRunStatus.IN_PROGRESS,
           config: request.config ?? session.config,
           startedAtMs: BigInt(Date.now()),
-          items: [{ itemId: agentIdentity(), content: { case: "userMessage", value: { content: request.input } } }],
+          items: [
+            {
+              itemId: agentIdentity(),
+              content: { case: "userMessage", value: { content: request.input } },
+            },
+          ],
         });
         session.runs.push(run);
         session.updatedAtMs = run.startedAtMs;
@@ -291,7 +317,10 @@ export function agentFixture(host = new GatewayHost()) {
         }
         const queue: AgentEvent[] = [
           create(AgentEventSchema, {
-            payload: { case: "subscriptionReady", value: { session: clone(AgentSessionSchema, session) } },
+            payload: {
+              case: "subscriptionReady",
+              value: { session: clone(AgentSessionSchema, session) },
+            },
           }),
         ];
         let wake: (() => void) | undefined;

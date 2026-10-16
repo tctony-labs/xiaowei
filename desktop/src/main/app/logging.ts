@@ -7,7 +7,11 @@ import log from "electron-log/node";
 import { hasSourceLocation } from "../../../../packages/source-log/runtime.ts";
 
 // Ignore sync and async terminal write failures without feeding them back into the logger.
-const terminal = new Console({ stdout: process.stdout, stderr: process.stderr, ignoreErrors: true });
+const terminal = new Console({
+  stdout: process.stdout,
+  stderr: process.stderr,
+  ignoreErrors: true,
+});
 const reportFileError = terminal.error.bind(terminal);
 
 function localDate(date: Date): string {
@@ -29,7 +33,10 @@ function dailyFiles(directory: string) {
       cutoff.setDate(cutoff.getDate() - 14);
       try {
         for (const entry of readdirSync(directory, { withFileTypes: true })) {
-          const match = /^(\d{4}-\d{2}-\d{2})-xiaowei(?:-\d{2}-\d{2}-\d{2}-\d{3}(?:-\d+)?)?\.log$/.exec(entry.name);
+          const match =
+            /^(\d{4}-\d{2}-\d{2})-xiaowei(?:-\d{2}-\d{2}-\d{2}-\d{3}(?:-\d+)?)?\.log$/.exec(
+              entry.name,
+            );
           if (entry.isFile() && match && match[1] < localDate(cutoff)) {
             try {
               unlinkSync(join(directory, entry.name));
@@ -72,7 +79,10 @@ export function createLoggers(directory: string, development: boolean) {
     const logger = log.create({ logId: name });
     logger.hooks.push((message) => {
       const first = message.data[0];
-      const worker = name === "main" && typeof first === "string" ? /^\[(worker\.[^\]\r\n]+)\] /.exec(first) : null;
+      const worker =
+        name === "main" && typeof first === "string"
+          ? /^\[(worker\.[^\]\r\n]+)\] /.exec(first)
+          : null;
       return {
         ...message,
         data: worker ? [first.slice(worker[0].length), ...message.data.slice(1)] : message.data,
@@ -97,7 +107,8 @@ export function createLoggers(directory: string, development: boolean) {
       logger.transports.console.useStyles = false;
     }
     logger.transports.console.writeFn = ({ message }) => {
-      const method = message.level === "verbose" || message.level === "silly" ? "info" : message.level;
+      const method =
+        message.level === "verbose" || message.level === "silly" ? "info" : message.level;
       terminal[method](...message.data);
     };
     if (logger.transports.ipc) logger.transports.ipc.level = false;
@@ -106,7 +117,8 @@ export function createLoggers(directory: string, development: boolean) {
     logger.transports.file.format = format;
     logger.transports.console.format = format;
     logger.transports.console.transforms.push(({ data, message }) => {
-      const stream = message.level === "error" || message.level === "warn" ? process.stderr : process.stdout;
+      const stream =
+        message.level === "error" || message.level === "warn" ? process.stderr : process.stdout;
       const useStyles = logger.transports.console.useStyles;
       if (!(typeof useStyles === "boolean" ? useStyles : stream.isTTY)) return data;
 
@@ -120,11 +132,16 @@ export function createLoggers(directory: string, development: boolean) {
   return { main: create("main"), renderer: create("renderer") };
 }
 
-export function attachRendererLogging(contents: WebContents, logger: ReturnType<typeof createLoggers>["renderer"]) {
+export function attachRendererLogging(
+  contents: WebContents,
+  logger: ReturnType<typeof createLoggers>["renderer"],
+) {
   contents.on("console-message", (event) => {
     const level = event.level === "warning" ? "warn" : event.level;
     logger[level](
-      hasSourceLocation(event.message) ? event.message : `${event.message} (${event.sourceId}:${event.lineNumber})`,
+      hasSourceLocation(event.message)
+        ? event.message
+        : `${event.message} (${event.sourceId}:${event.lineNumber})`,
     );
   });
   contents.on("render-process-gone", (_event, details) => {

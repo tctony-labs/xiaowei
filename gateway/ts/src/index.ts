@@ -1,4 +1,9 @@
-export type { ServiceClient, ServiceHandlers, StreamClient, StreamHandlers } from "./binding/index.js";
+export type {
+  ServiceClient,
+  ServiceHandlers,
+  StreamClient,
+  StreamHandlers,
+} from "./binding/index.js";
 export {
   bindClient,
   bindEvent,

@@ -10,7 +10,8 @@ export async function* listModels(
   models: ReadonlyMap<string, ResolvedModelConfig>,
   signal: AbortSignal,
 ) {
-  if (Boolean(request.modelRef) === Boolean(request.connection)) invalid("provide model reference or connection");
+  if (Boolean(request.modelRef) === Boolean(request.connection))
+    invalid("provide model reference or connection");
   const model = request.connection ?? models.get(request.modelRef);
   if (!model) invalid("unknown model reference");
   let baseUrl: URL;
@@ -37,7 +38,11 @@ export async function* listModels(
   ].includes(model.api);
   const format =
     request.format ??
-    (deepseek || openaiCompatible ? "openai" : model.api === "anthropic-messages" ? "anthropic" : undefined);
+    (deepseek || openaiCompatible
+      ? "openai"
+      : model.api === "anthropic-messages"
+        ? "anthropic"
+        : undefined);
   if (format !== "openai" && format !== "anthropic") invalid("unsupported catalog format");
   let url: URL;
   try {
@@ -55,7 +60,8 @@ export async function* listModels(
   const visited = new Set<string>();
   const seen = new Set<string>();
   while (true) {
-    if (visited.has(url.href)) throw new GatewayFailure({ code: "HANDLER_ERROR", message: "catalog pagination loop" });
+    if (visited.has(url.href))
+      throw new GatewayFailure({ code: "HANDLER_ERROR", message: "catalog pagination loop" });
     visited.add(url.href);
     let page: Record<string, unknown>;
     try {

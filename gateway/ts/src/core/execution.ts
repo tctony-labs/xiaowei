@@ -85,7 +85,8 @@ export class ExecutionScope {
     options: StreamOptions = {},
   ) {
     const handler = registration.streamHandler;
-    if (!handler) throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "no stream handler" });
+    if (!handler)
+      throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "no stream handler" });
     const policy = streamPolicy(registration.streamPolicy);
     const id = caller(context);
     const active = [...this.streams];
@@ -118,13 +119,17 @@ export class ExecutionScope {
     );
   }
 
-  close(owner: object, reason: GatewayError = { code: "OWNER_UNAVAILABLE", message: "owner closed" }) {
+  close(
+    owner: object,
+    reason: GatewayError = { code: "OWNER_UNAVAILABLE", message: "owner closed" },
+  ) {
     for (const state of this.pending) {
       if (state.owner !== owner) continue;
       state.finish({ ok: false, error: reason });
       state.controller.abort(new GatewayFailure(reason));
     }
-    for (const state of this.streams) if (state.owner === owner) state.controller.abort(new GatewayFailure(reason));
+    for (const state of this.streams)
+      if (state.owner === owner) state.controller.abort(new GatewayFailure(reason));
   }
 
   cleanupCaller(id: string) {

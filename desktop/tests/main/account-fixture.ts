@@ -77,7 +77,9 @@ export async function authServer() {
     }
     const send = <S extends DescMessage>(schema: S, value: MessageShape<S>) => {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(toJsonString(schema, value, { useProtoFieldName: true, alwaysEmitImplicit: true }));
+      response.end(
+        toJsonString(schema, value, { useProtoFieldName: true, alwaysEmitImplicit: true }),
+      );
     };
     const fail = (code: number, msg: string) => {
       response.writeHead(200, { "Content-Type": "application/json" });
@@ -141,7 +143,11 @@ export async function authServer() {
           GetCurrentUserResponseSchema,
           create(GetCurrentUserResponseSchema, {
             msg: "ok",
-            data: { user, sessionId: state.tokens.sessionId, device: { deviceId: state.deviceId, deviceName: "test" } },
+            data: {
+              user,
+              sessionId: state.tokens.sessionId,
+              device: { deviceId: state.deviceId, deviceName: "test" },
+            },
           }),
         );
       } else {

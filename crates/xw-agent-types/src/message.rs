@@ -134,7 +134,9 @@ mod cost_value {
 
     pub fn serialize<S: Serializer>(value: &f64, serializer: S) -> Result<S::Ok, S::Error> {
         if !value.is_finite() || *value < 0.0 {
-            return Err(serde::ser::Error::custom("cost must be finite and nonnegative"));
+            return Err(serde::ser::Error::custom(
+                "cost must be finite and nonnegative",
+            ));
         }
 
         serializer.serialize_f64(*value)
@@ -143,7 +145,9 @@ mod cost_value {
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
         let value = f64::deserialize(deserializer)?;
         if !value.is_finite() || value < 0.0 {
-            return Err(serde::de::Error::custom("cost must be finite and nonnegative"));
+            return Err(serde::de::Error::custom(
+                "cost must be finite and nonnegative",
+            ));
         }
 
         Ok(value)

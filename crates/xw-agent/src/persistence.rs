@@ -43,7 +43,8 @@ pub(crate) fn initial_meta(session: &Session) -> domain::SessionMeta {
     domain::SessionMeta {
         model_ref: Some(config.model_ref.clone()),
         reasoning: config.reasoning.clone(),
-        provider_name: (!session.view.provider_name.is_empty()).then(|| session.view.provider_name.clone()),
+        provider_name: (!session.view.provider_name.is_empty())
+            .then(|| session.view.provider_name.clone()),
         model_name: (!session.view.model_name.is_empty()).then(|| session.view.model_name.clone()),
     }
 }
@@ -103,7 +104,12 @@ impl Session {
         self.history = restored.history;
         self.requests = restored.requests;
         for run in restored.view.runs {
-            if !self.view.runs.iter().any(|current| current.run_id == run.run_id) {
+            if !self
+                .view
+                .runs
+                .iter()
+                .any(|current| current.run_id == run.run_id)
+            {
                 self.view.runs.push(run);
             }
         }
@@ -123,10 +129,15 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
         through_entry_id: entries.last().map(|entry| entry.entry_id),
         after_turn_id: None,
     };
-    let rebuilt = crate::rebuild_context(entries, &boundary).map_err(|_| AgentError::Persistence)?;
+    let rebuilt =
+        crate::rebuild_context(entries, &boundary).map_err(|_| AgentError::Persistence)?;
     let id = entries[0].session_id;
     let config = AgentModelConfig {
-        model_ref: rebuilt.meta.model_ref.clone().ok_or(AgentError::Persistence)?,
+        model_ref: rebuilt
+            .meta
+            .model_ref
+            .clone()
+            .ok_or(AgentError::Persistence)?,
         reasoning: rebuilt.meta.reasoning.clone(),
     };
     let mut session = Session::new(id, entries[0].timestamp_ms, config);
@@ -170,7 +181,9 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     started_at_ms: entry.timestamp_ms,
                     items: vec![AgentItem {
                         item_id: input.message.block_ids[0].to_string(),
-                        content: Some(agent_item::Content::UserMessage(AgentUserMessage { content })),
+                        content: Some(agent_item::Content::UserMessage(AgentUserMessage {
+                            content,
+                        })),
                     }],
                     ..Default::default()
                 });
@@ -186,10 +199,14 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     for (id, block) in message.block_ids.iter().zip(&assistant.content) {
                         let content = match block {
                             domain::ContentBlock::Text { text, .. } => {
-                                agent_item::Content::AgentMessage(AgentMessage { text: text.clone() })
+                                agent_item::Content::AgentMessage(AgentMessage {
+                                    text: text.clone(),
+                                })
                             }
                             domain::ContentBlock::Thinking { text, .. } => {
-                                agent_item::Content::Reasoning(AgentReasoning { text: text.clone() })
+                                agent_item::Content::Reasoning(AgentReasoning {
+                                    text: text.clone(),
+                                })
                             }
                             _ => continue,
                         };
@@ -311,10 +328,13 @@ impl Session {
                 mode: domain::InputMode::Send,
                 expected_run_id: None,
                 expected_head: None,
-                selection: request.config.as_ref().map(|config| domain::ModelSelection {
-                    model_ref: config.model_ref.clone(),
-                    reasoning: config.reasoning.clone(),
-                }),
+                selection: request
+                    .config
+                    .as_ref()
+                    .map(|config| domain::ModelSelection {
+                        model_ref: config.model_ref.clone(),
+                        reasoning: config.reasoning.clone(),
+                    }),
                 message: domain::RecordedMessage {
                     message_id: domain::MessageId::new(),
                     block_ids,

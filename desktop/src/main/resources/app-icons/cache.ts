@@ -4,7 +4,10 @@ import { join } from "node:path";
 
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
-export function createAppIconCache(directory: string, extract: (path: string) => Promise<Buffer | null>) {
+export function createAppIconCache(
+  directory: string,
+  extract: (path: string) => Promise<Buffer | null>,
+) {
   const pending = new Map<string, Promise<Buffer | null>>();
 
   async function load(path: string): Promise<Buffer | null> {

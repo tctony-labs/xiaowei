@@ -35,7 +35,10 @@ impl Agent {
     }
 
     #[napi]
-    pub fn create_gateway_endpoint(&self, env: napi::Env) -> napi::Result<gateway::GatewayEndpoint> {
+    pub fn create_gateway_endpoint(
+        &self,
+        env: napi::Env,
+    ) -> napi::Result<gateway::GatewayEndpoint> {
         let mut current = self.endpoint.lock().unwrap();
         if current.as_ref().and_then(Weak::upgrade).is_some() {
             return Err(napi::Error::from_reason("Agent endpoint already created"));
@@ -48,7 +51,12 @@ impl Agent {
     #[napi(ts_return_type = "Promise<void>")]
     pub fn close<'env>(&self, env: &'env napi::Env) -> napi::Result<PromiseRaw<'env, ()>> {
         let agent = self.inner.clone();
-        let endpoint = self.endpoint.lock().unwrap().as_ref().and_then(Weak::upgrade);
+        let endpoint = self
+            .endpoint
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(Weak::upgrade);
         env.spawn_future(async move {
             let service = agent.close().await;
             if let Some(endpoint) = endpoint {

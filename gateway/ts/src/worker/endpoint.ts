@@ -5,7 +5,14 @@ import { ExecutionScope, executionError } from "../core/execution.js";
 import { accepts, GatewayFailure, type Manifest, unwrap, validateRoute } from "../core/protocol.js";
 import type { Registration } from "../core/registry.js";
 import { streamPolicy } from "../core/stream.js";
-import { type Command, Connection, type Metadata, RpcLink, StreamLink, unavailable } from "./protocol.js";
+import {
+  type Command,
+  Connection,
+  type Metadata,
+  RpcLink,
+  StreamLink,
+  unavailable,
+} from "./protocol.js";
 
 function permissions(metadata: Metadata): Permissions {
   const value = metadata.permissions;
@@ -13,26 +20,38 @@ function permissions(metadata: Metadata): Permissions {
     !value ||
     typeof value.caller !== "string" ||
     typeof value.trusted !== "boolean" ||
-    (value.invoke !== undefined && (!Array.isArray(value.invoke) || value.invoke.some((v) => typeof v !== "string"))) ||
+    (value.invoke !== undefined &&
+      (!Array.isArray(value.invoke) || value.invoke.some((v) => typeof v !== "string"))) ||
     (value.subscribe !== undefined &&
       (!Array.isArray(value.subscribe) || value.subscribe.some((v) => typeof v !== "string")))
   )
-    throw new GatewayFailure({ code: "UNAUTHORIZED", message: "missing authenticated worker metadata" });
+    throw new GatewayFailure({
+      code: "UNAUTHORIZED",
+      message: "missing authenticated worker metadata",
+    });
   return value;
 }
 
 /** Fixed local service endpoint, not a second routing host. Its clients always return through main. */
-export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: readonly Registration[]) {
+export function exposeWorkerEndpoint(
+  parentPort: MessagePort,
+  registrations: readonly Registration[],
+) {
   const entries = new Map<string, Registration & { timeoutMs: number; maxConcurrency: number }>();
   for (const registration of registrations) {
     validateRoute(registration.route);
     if (entries.has(registration.route.name))
       throw new GatewayFailure({ code: "CONFLICT", message: "duplicate worker route" });
     if (
-      (registration.route.kind === "unary" && (!registration.handler || registration.streamHandler)) ||
-      (registration.route.kind === "serverStreaming" && (!registration.streamHandler || registration.handler))
+      (registration.route.kind === "unary" &&
+        (!registration.handler || registration.streamHandler)) ||
+      (registration.route.kind === "serverStreaming" &&
+        (!registration.streamHandler || registration.handler))
     )
-      throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid worker handler kind" });
+      throw new GatewayFailure({
+        code: "INVALID_ARGUMENT",
+        message: "invalid worker handler kind",
+      });
     const timeoutMs = registration.timeoutMs ?? 30_000;
     const maxConcurrency = registration.maxConcurrency ?? 32;
     if (
@@ -42,7 +61,10 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
       !Number.isSafeInteger(maxConcurrency) ||
       maxConcurrency <= 0
     )
-      throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid worker execution policy" });
+      throw new GatewayFailure({
+        code: "INVALID_ARGUMENT",
+        message: "invalid worker execution policy",
+      });
     entries.set(
       registration.route.name,
       Object.freeze({
@@ -80,25 +102,43 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
     closing = execution.drained();
     return closing;
   };
-  const client = (context: Metadata, localContext: CallContext, signal: AbortSignal, serviceOptions?: Uint8Array) =>
+  const client = (
+    context: Metadata,
+    localContext: CallContext,
+    signal: AbortSignal,
+    serviceOptions?: Uint8Array,
+  ) =>
     createClient(
       {
         async invoke(route, payload, signal, serviceOptions) {
           try {
-            const value = await rpcs.invoke(route, payload, { token: context.token }, signal, serviceOptions);
+            const value = await rpcs.invoke(
+              route,
+              payload,
+              { token: context.token },
+              signal,
+              serviceOptions,
+            );
             return { ok: true, value };
           } catch (error) {
             return executionError(error);
           }
         },
-        stream: (route, payload, options) => streams.open(route, payload, { token: context.token }, options),
+        stream: (route, payload, options) =>
+          streams.open(route, payload, { token: context.token }, options),
         async subscribe() {
-          throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker events unsupported" });
+          throw new GatewayFailure({
+            code: "WRONG_METHOD_KIND",
+            message: "worker events unsupported",
+          });
         },
       },
       { context: localContext, signal, serviceOptions },
     );
-  const handler = async (command: Command, accept: (timeoutMs: number) => void): Promise<unknown> => {
+  const handler = async (
+    command: Command,
+    accept: (timeoutMs: number) => void,
+  ): Promise<unknown> => {
     if (command.op === "close") return close();
     if (closed) throw unavailable();
     if (command.op === "hello") {
@@ -113,11 +153,13 @@ export function exposeWorkerEndpoint(parentPort: MessagePort, registrations: rea
     }
     if (!active) throw unavailable();
     if (command.op === "invoke.cancel") return rpcs.cancel(command);
-    if (command.op === "stream.next" || command.op === "stream.cancel") return streams.control(command);
+    if (command.op === "stream.next" || command.op === "stream.cancel")
+      return streams.control(command);
     const context = createContext(permissions(command.context));
     authorize(context, command.route.name);
     const registration = entries.get(command.route.name);
-    if (!registration) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "worker route not registered" });
+    if (!registration)
+      throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "worker route not registered" });
     const compatible =
       command.op === "invoke"
         ? accepts(registration.route, command.route)

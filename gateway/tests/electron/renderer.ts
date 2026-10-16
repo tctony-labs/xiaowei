@@ -1,5 +1,12 @@
 import { create } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture, KeyValue, KvEntrySchema, KvKeySchema } from "xiaowei-contracts";
+import {
+  ChangedSchema,
+  EnvelopeSchema,
+  Fixture,
+  KeyValue,
+  KvEntrySchema,
+  KvKeySchema,
+} from "xiaowei-contracts";
 import { bindClient, bindStreamClient } from "xiaowei-gateway";
 import { createRendererClient, type GatewayBridge } from "xiaowei-gateway/renderer";
 

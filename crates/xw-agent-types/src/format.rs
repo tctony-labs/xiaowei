@@ -31,7 +31,10 @@ fn get<T: serde::de::DeserializeOwned>(value: &Value, key: &str) -> Result<T, Fo
 }
 
 fn put<T: serde::Serialize>(value: &mut Value, key: &str, field: T) -> Result<(), FormatError> {
-    object(value)?.insert(key.into(), serde_json::to_value(field).map_err(|_| invalid())?);
+    object(value)?.insert(
+        key.into(),
+        serde_json::to_value(field).map_err(|_| invalid())?,
+    );
     Ok(())
 }
 
@@ -96,12 +99,17 @@ fn generation(history: &[JournalEntry], id: GenId) -> Result<&GenStarted, Format
     })
 }
 
-fn configuration<'a>(history: &'a [JournalEntry], generation: &'a GenStarted) -> Result<&'a RunContext, FormatError> {
+fn configuration<'a>(
+    history: &'a [JournalEntry],
+    generation: &'a GenStarted,
+) -> Result<&'a RunContext, FormatError> {
     if let Some(context) = &generation.context {
         return Ok(context);
     }
     find(history, |payload| match payload {
-        EntryPayload::RunStarted(run) if Some(run.run_id) == generation.run_id => Some(&run.context),
+        EntryPayload::RunStarted(run) if Some(run.run_id) == generation.run_id => {
+            Some(&run.context)
+        }
         _ => None,
     })
 }
@@ -120,7 +128,10 @@ fn tool(history: &[JournalEntry], id: ToolId) -> Result<&ToolIntent, FormatError
     })
 }
 
-fn call(history: &[JournalEntry], id: BlockId) -> Result<(&RecordedMessage, &ContentBlock), FormatError> {
+fn call(
+    history: &[JournalEntry],
+    id: BlockId,
+) -> Result<(&RecordedMessage, &ContentBlock), FormatError> {
     for entry in history.iter().rev() {
         if let EntryPayload::Message(message) = &entry.payload
             && let Some(index) = message.block_ids.iter().position(|block| *block == id)
@@ -147,18 +158,26 @@ fn last_gen(history: &[JournalEntry], id: TurnId) -> Option<GenId> {
     })
 }
 
-fn error_cause<'a>(history: &'a [JournalEntry], payload: &EntryPayload) -> Option<(&'a JournalEntry, &'a SafeError)> {
-    history.iter().rev().find_map(|entry| match (payload, &entry.payload) {
-        (EntryPayload::TurnEnded(turn), EntryPayload::GenEnded(end)) if turn.final_gen_id == Some(end.gen_id) => {
-            end.error.as_ref().map(|error| (entry, error))
-        }
-        (EntryPayload::RunEnd(run), EntryPayload::TurnEnded(end))
-            if turn(history, end.turn_id).is_ok_and(|turn| turn.run_id == run.run_id) =>
-        {
-            end.error.as_ref().map(|error| (entry, error))
-        }
-        _ => None,
-    })
+fn error_cause<'a>(
+    history: &'a [JournalEntry],
+    payload: &EntryPayload,
+) -> Option<(&'a JournalEntry, &'a SafeError)> {
+    history
+        .iter()
+        .rev()
+        .find_map(|entry| match (payload, &entry.payload) {
+            (EntryPayload::TurnEnded(turn), EntryPayload::GenEnded(end))
+                if turn.final_gen_id == Some(end.gen_id) =>
+            {
+                end.error.as_ref().map(|error| (entry, error))
+            }
+            (EntryPayload::RunEnd(run), EntryPayload::TurnEnded(end))
+                if turn(history, end.turn_id).is_ok_and(|turn| turn.run_id == run.run_id) =>
+            {
+                end.error.as_ref().map(|error| (entry, error))
+            }
+            _ => None,
+        })
 }
 
 fn context_encode(value: &mut Value) -> Result<(), FormatError> {
@@ -174,7 +193,11 @@ fn context_decode(value: &mut Value) -> Result<(), FormatError> {
     let budget = model.get("budget").cloned().ok_or_else(invalid)?;
     if let Some(capabilities) = model.get_mut("capabilities") {
         absent(capabilities, &["context_window", "max_output_tokens"])?;
-        put(capabilities, "context_window", get::<u64>(&budget, "context_window")?)?;
+        put(
+            capabilities,
+            "context_window",
+            get::<u64>(&budget, "context_window")?,
+        )?;
         put(
             capabilities,
             "max_output_tokens",
@@ -214,7 +237,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
     }
     let mut candidate = history.to_vec();
     candidate.push(entry.clone());
-    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure { path: Some(error.path) })?;
+    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure {
+        path: Some(error.path),
+    })?;
     let mut stored = serde_json::to_value(entry).map_err(|_| invalid())?;
     remove(&mut stored, &["sequence"])?;
     if !history.is_empty() {
@@ -241,7 +266,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
         }
         EntryPayload::GenStarted(generation) => {
             remove(data, &["attempt"])?;
-            if generation.turn_id.is_some() || matches!(generation.purpose, GenPurpose::ToolExtraction { .. }) {
+            if generation.turn_id.is_some()
+                || matches!(generation.purpose, GenPurpose::ToolExtraction { .. })
+            {
                 remove(data, &["run_id"])?;
             }
             if generation.started_at_ms == entry.timestamp_ms {
@@ -280,9 +307,15 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
             }
         }
         EntryPayload::TurnEnded(_) => remove(data, &["final_gen_id"])?,
-        EntryPayload::RunEnd(_) => remove(data, &["had_assistant_output", "tool_calls_used", "context_tokens"])?,
+        EntryPayload::RunEnd(_) => remove(
+            data,
+            &["had_assistant_output", "tool_calls_used", "context_tokens"],
+        )?,
         EntryPayload::ToolIntent(_) => {
-            remove(data, &["key", "assistant_message_id", "tool_name", "arguments_json"])?;
+            remove(
+                data,
+                &["key", "assistant_message_id", "tool_name", "arguments_json"],
+            )?;
         }
         EntryPayload::ToolOutcome(_) => {
             remove(data, &["key"])?;
@@ -294,7 +327,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
             )?;
         }
         EntryPayload::InteractionOpened(_) => remove(data, &["run_id", "revision"])?,
-        EntryPayload::InteractionResolved(_) | EntryPayload::InteractionExpired(_) => remove(data, &["revision"])?,
+        EntryPayload::InteractionResolved(_) | EntryPayload::InteractionExpired(_) => {
+            remove(data, &["revision"])?
+        }
         EntryPayload::Compacted(_) => remove(
             data,
             &[
@@ -421,7 +456,11 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             absent(data, &["assistant_message_id"])?;
             let id: GenId = get(data, "gen_id")?;
             let message = assistant(history, id);
-            put(data, "assistant_message_id", message.map(|message| message.message_id))?;
+            put(
+                data,
+                "assistant_message_id",
+                message.map(|message| message.message_id),
+            )?;
             if data.get("ended_at_ms").is_none() {
                 put(data, "ended_at_ms", outer_time)?;
             }
@@ -438,10 +477,17 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
         }
         "turn_ended" => {
             absent(data, &["final_gen_id"])?;
-            put(data, "final_gen_id", last_gen(history, get(data, "turn_id")?))?;
+            put(
+                data,
+                "final_gen_id",
+                last_gen(history, get(data, "turn_id")?),
+            )?;
         }
         "run_end" => {
-            absent(data, &["had_assistant_output", "tool_calls_used", "context_tokens"])?;
+            absent(
+                data,
+                &["had_assistant_output", "tool_calls_used", "context_tokens"],
+            )?;
             let id: RunId = get(data, "run_id")?;
             let had_output = history.iter().any(|entry| {
                 matches!(&entry.payload,
@@ -461,8 +507,9 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
                 .rev()
                 .find_map(|entry| match &entry.payload {
                     EntryPayload::GenEnded(end)
-                        if generation(history, end.gen_id)
-                            .is_ok_and(|g| g.run_id == Some(id) && g.purpose == GenPurpose::Conversation) =>
+                        if generation(history, end.gen_id).is_ok_and(|g| {
+                            g.run_id == Some(id) && g.purpose == GenPurpose::Conversation
+                        }) =>
                     {
                         Some(end.context_tokens)
                     }
@@ -474,7 +521,10 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             put(data, "context_tokens", tokens)?;
         }
         "tool_intent" => {
-            absent(data, &["key", "assistant_message_id", "tool_name", "arguments_json"])?;
+            absent(
+                data,
+                &["key", "assistant_message_id", "tool_name", "arguments_json"],
+            )?;
             let block_id: BlockId = get(data, "block_id")?;
             let (message, block) = call(history, block_id)?;
             let ContentBlock::ToolCall {
@@ -517,7 +567,11 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
         }
         "interaction_opened" => {
             absent(data, &["run_id", "revision"])?;
-            put(data, "run_id", tool(history, get(data, "tool_id")?)?.key.run_id)?;
+            put(
+                data,
+                "run_id",
+                tool(history, get(data, "tool_id")?)?.key.run_id,
+            )?;
             put(data, "revision", 1)?;
         }
         "interaction_resolved" | "interaction_expired" => {
@@ -570,7 +624,10 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             put(
                 data,
                 "context_window",
-                configuration(history, generation)?.model.budget.context_window,
+                configuration(history, generation)?
+                    .model
+                    .budget
+                    .context_window,
             )?;
             put(data, "duration_ms", end.duration_ms)?;
         }
@@ -580,22 +637,32 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
     let error_ref = object(data)?.remove("error_ref");
     if let Some(reference) = error_ref {
         absent(data, &["error"])?;
-        let payload: EntryPayload = serde_json::from_value(stored["payload"].clone()).map_err(|_| invalid())?;
+        let payload: EntryPayload =
+            serde_json::from_value(stored["payload"].clone()).map_err(|_| invalid())?;
         let (cause, error) = error_cause(history, &payload).ok_or_else(invalid)?;
         if serde_json::from_value::<EntryId>(reference).map_err(|_| invalid())? != cause.entry_id {
             return Err(invalid());
         }
-        put(member(member(&mut stored, "payload")?, "data")?, "error", error)?;
+        put(
+            member(member(&mut stored, "payload")?, "data")?,
+            "error",
+            error,
+        )?;
     }
     decode_stored(stored, history)
 }
 
 fn decode_stored(stored: Value, history: &[JournalEntry]) -> Result<JournalEntry, FormatError> {
     let entry: JournalEntry = serde_json::from_value(stored.clone()).map_err(|_| invalid())?;
-    check_object_shapes(&stored, &serde_json::to_value(&entry).map_err(|_| invalid())?)?;
+    check_object_shapes(
+        &stored,
+        &serde_json::to_value(&entry).map_err(|_| invalid())?,
+    )?;
     let mut candidate = history.to_vec();
     candidate.push(entry.clone());
-    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure { path: Some(error.path) })?;
+    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure {
+        path: Some(error.path),
+    })?;
     Ok(entry)
 }
 
@@ -622,8 +689,11 @@ pub fn encode_deletion_marker(marker: &DeletionMarker) -> Result<String, FormatE
             version: marker.schema_version,
         });
     }
-    crate::validation::validate_deletion_marker(marker)
-        .map_err(|error| FormatError::InvalidStructure { path: Some(error.path) })?;
+    crate::validation::validate_deletion_marker(marker).map_err(|error| {
+        FormatError::InvalidStructure {
+            path: Some(error.path),
+        }
+    })?;
     serde_json::to_string(marker).map_err(|_| invalid())
 }
 
@@ -639,7 +709,10 @@ pub fn decode_deletion_marker(text: &str) -> Result<DeletionMarker, FormatError>
         });
     }
     let marker = serde_json::from_str(text).map_err(|_| invalid())?;
-    crate::validation::validate_deletion_marker(&marker)
-        .map_err(|error| FormatError::InvalidStructure { path: Some(error.path) })?;
+    crate::validation::validate_deletion_marker(&marker).map_err(|error| {
+        FormatError::InvalidStructure {
+            path: Some(error.path),
+        }
+    })?;
     Ok(marker)
 }

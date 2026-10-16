@@ -8,10 +8,18 @@ import {
 } from "xiaowei-contracts";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
 
-export function applyAgentEvent(current: AgentSession | undefined, event: AgentEvent): AgentSession | undefined {
+export function applyAgentEvent(
+  current: AgentSession | undefined,
+  event: AgentEvent,
+): AgentSession | undefined {
   const { payload } = event;
   if (payload.case === "subscriptionReady") return payload.value.session;
-  if (!payload.case || !current || !("sessionId" in payload.value) || payload.value.sessionId !== current.sessionId)
+  if (
+    !payload.case ||
+    !current ||
+    !("sessionId" in payload.value) ||
+    payload.value.sessionId !== current.sessionId
+  )
     return current;
   const session = clone(AgentSessionSchema, current);
   if (payload.case === "sessionDeleted") return undefined;
@@ -26,7 +34,9 @@ export function applyAgentEvent(current: AgentSession | undefined, event: AgentE
     session.autoTitleEnabled = payload.value.autoTitleEnabled;
     session.metadataRevision = payload.value.metadataRevision;
     session.updatedAtMs =
-      payload.value.updatedAtMs > session.updatedAtMs ? payload.value.updatedAtMs : session.updatedAtMs;
+      payload.value.updatedAtMs > session.updatedAtMs
+        ? payload.value.updatedAtMs
+        : session.updatedAtMs;
   } else if (payload.case === "sessionConfigUpdated") {
     session.config = payload.value.config;
     session.providerName = payload.value.providerName;
@@ -38,7 +48,8 @@ export function applyAgentEvent(current: AgentSession | undefined, event: AgentE
     session.modelName = payload.value.modelName;
   } else if (payload.case === "runStarted") {
     if (!payload.value.run) throw new Error("Missing accepted run");
-    if (!session.runs.some((run) => run.runId === payload.value.run?.runId)) session.runs.push(payload.value.run);
+    if (!session.runs.some((run) => run.runId === payload.value.run?.runId))
+      session.runs.push(payload.value.run);
     session.metadataRevision = payload.value.sessionMetadataRevision;
     session.titleModelRef = payload.value.titleModelRef;
     session.status = AgentSessionStatus.RUNNING;
@@ -52,7 +63,11 @@ export function applyAgentEvent(current: AgentSession | undefined, event: AgentE
     if (final.completedAtMs !== undefined && final.completedAtMs > session.updatedAtMs) {
       session.updatedAtMs = final.completedAtMs;
     }
-  } else if (["itemStarted", "itemCompleted", "agentMessageDelta", "reasoningDelta"].includes(payload.case ?? "")) {
+  } else if (
+    ["itemStarted", "itemCompleted", "agentMessageDelta", "reasoningDelta"].includes(
+      payload.case ?? "",
+    )
+  ) {
     if (!payload.case || !("runId" in payload.value)) return current;
     const runId = payload.value.runId;
     const run = session.runs.find((run) => run.runId === runId);
@@ -105,7 +120,8 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
         text,
         thinking,
         status,
-        error: status === "failed" ? run.error || "模型请求失败，请检查模型配置后重试。" : undefined,
+        error:
+          status === "failed" ? run.error || "模型请求失败，请检查模型配置后重试。" : undefined,
       },
     ] satisfies QuickChatMessage[];
   });

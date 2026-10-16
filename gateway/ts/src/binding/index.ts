@@ -12,14 +12,23 @@ import {
 } from "@bufbuild/protobuf";
 import type { Client } from "../core/client.js";
 import type { EventExport } from "../core/event.js";
-import { type Backpressure, CONTRACT_VERSION, CONTROL_VERSION, GatewayFailure, type Route } from "../core/protocol.js";
+import {
+  type Backpressure,
+  CONTRACT_VERSION,
+  CONTROL_VERSION,
+  GatewayFailure,
+  type Route,
+} from "../core/protocol.js";
 import type { Registration } from "../core/registry.js";
 import { createRpc, type Rpc } from "../core/rpc.js";
 import type { ResponseStream, StreamOptions } from "../core/stream.js";
 
 export function methodRoute(method: DescService["methods"][number]): Route {
   if (method.methodKind !== "unary" && method.methodKind !== "server_streaming")
-    throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "client streaming is unsupported" });
+    throw new GatewayFailure({
+      code: "WRONG_METHOD_KIND",
+      message: "client streaming is unsupported",
+    });
   return {
     name: `${method.parent.typeName}.${method.name}`,
     kind: method.methodKind === "unary" ? "unary" : "serverStreaming",
@@ -53,25 +62,37 @@ export function bindClient<S extends DescService, O extends DescMessage | undefi
   const methods: Record<string, unknown> = {};
   for (const method of service.methods) {
     if (method.methodKind !== "unary") continue;
-    methods[method.localName] = (request: MessageShape<typeof method.input>, options?: MessageInitShape<DescMessage>) =>
+    methods[method.localName] = (
+      request: MessageShape<typeof method.input>,
+      options?: MessageInitShape<DescMessage>,
+    ) =>
       createRpc(async (signal) => {
         let bytes: Uint8Array;
         try {
           bytes = toBinary(method.input, request);
         } catch {
-          throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
+          throw new GatewayFailure({
+            code: "INVALID_ARGUMENT",
+            message: "invalid request protobuf",
+          });
         }
         let serviceOptions: Uint8Array | undefined;
         if (options !== undefined) {
           if (!config.optionsSchema)
-            throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "service has no options schema" });
+            throw new GatewayFailure({
+              code: "INVALID_ARGUMENT",
+              message: "service has no options schema",
+            });
           try {
             serviceOptions = toBinary(
               config.optionsSchema as DescMessage,
               create(config.optionsSchema as DescMessage, options),
             );
           } catch {
-            throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid service options" });
+            throw new GatewayFailure({
+              code: "INVALID_ARGUMENT",
+              message: "invalid service options",
+            });
           }
         }
         const rpc = client.invoke(methodRoute(method), bytes, serviceOptions);
@@ -111,14 +132,18 @@ export function bindHandlers<S extends DescService>(
 ): Registration[] {
   for (const method of service.methods) methodRoute(method);
   return service.methods
-    .filter((method) => method.methodKind === "unary" && (!options.partial || method.localName in handlers))
+    .filter(
+      (method) =>
+        method.methodKind === "unary" && (!options.partial || method.localName in handlers),
+    )
     .map((method) => {
       const route = methodRoute(method);
       const handler = handlers[method.localName as UnaryKey<S>] as unknown as (
         request: Message,
         client: Client,
       ) => Message | Promise<Message>;
-      if (!handler) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing unary handler" });
+      if (!handler)
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing unary handler" });
       return {
         route,
         optionsSchema: options.optionsSchema?.typeName,
@@ -127,14 +152,20 @@ export function bindHandlers<S extends DescService>(
           try {
             request = fromBinary(method.input, bytes);
           } catch {
-            throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid request protobuf" });
+            throw new GatewayFailure({
+              code: "INVALID_ARGUMENT",
+              message: "invalid request protobuf",
+            });
           }
           if (options.optionsSchema) client.options(options.optionsSchema);
           const response = await handler(request, client);
           try {
             return toBinary(method.output, response);
           } catch {
-            throw new GatewayFailure({ code: "HANDLER_ERROR", message: "invalid response protobuf" });
+            throw new GatewayFailure({
+              code: "HANDLER_ERROR",
+              message: "invalid response protobuf",
+            });
           }
         },
       };
@@ -157,12 +188,22 @@ export type StreamHandlers<S extends DescService> = {
     | AsyncIterable<MessageShape<S["method"][K]["output"]>>
     | Promise<AsyncIterable<MessageShape<S["method"][K]["output"]>>>;
 };
-export function bindStreamClient<S extends DescService>(service: S, client: Client): StreamClient<S> {
+export function bindStreamClient<S extends DescService>(
+  service: S,
+  client: Client,
+): StreamClient<S> {
   const methods: Record<string, unknown> = {};
   for (const method of service.methods) {
     if (method.methodKind !== "server_streaming") continue;
-    methods[method.localName] = async (request: MessageShape<typeof method.input>, options?: StreamOptions) => {
-      const stream = await client.stream(methodRoute(method), toBinary(method.input, request), options);
+    methods[method.localName] = async (
+      request: MessageShape<typeof method.input>,
+      options?: StreamOptions,
+    ) => {
+      const stream = await client.stream(
+        methodRoute(method),
+        toBinary(method.input, request),
+        options,
+      );
       return {
         [Symbol.asyncIterator]() {
           return this;
@@ -204,7 +245,10 @@ function checkChunkObject(value: unknown): void {
   };
   visit(value, 0);
 }
-export function bindStreamHandlers<S extends DescService>(service: S, handlers: StreamHandlers<S>): Registration[] {
+export function bindStreamHandlers<S extends DescService>(
+  service: S,
+  handlers: StreamHandlers<S>,
+): Registration[] {
   return service.methods
     .filter((m) => m.methodKind === "server_streaming")
     .map((method) => {
@@ -212,11 +256,14 @@ export function bindStreamHandlers<S extends DescService>(service: S, handlers: 
         request: Message,
         client: Client,
       ) => AsyncIterable<Message> | Promise<AsyncIterable<Message>>;
-      if (!handler) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing stream handler" });
+      if (!handler)
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing stream handler" });
       return {
         route: methodRoute(method),
         async streamHandler(bytes, client) {
-          const source = (await handler(fromBinary(method.input, bytes), client))[Symbol.asyncIterator]();
+          const source = (await handler(fromBinary(method.input, bytes), client))[
+            Symbol.asyncIterator
+          ]();
           const iterator: AsyncIterableIterator<Uint8Array> = {
             [Symbol.asyncIterator]() {
               return this;
@@ -266,7 +313,8 @@ export function bindEvent<P extends DescMessage, F extends DescMessage>(
   };
 }
 export function parseId(value: string): bigint {
-  if (!/^\d+$/.test(value)) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid uint64 ID" });
+  if (!/^\d+$/.test(value))
+    throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid uint64 ID" });
   const id = BigInt(value);
   if (id > 0xffffffffffffffffn)
     throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "uint64 ID out of range" });

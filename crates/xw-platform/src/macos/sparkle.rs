@@ -1,7 +1,9 @@
 use block2::{Block, RcBlock};
 use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::{AnyClass, NSObject};
-use objc2::{define_class, extern_class, msg_send, DeclaredClass, MainThreadMarker, MainThreadOnly};
+use objc2::{
+    define_class, extern_class, msg_send, DeclaredClass, MainThreadMarker, MainThreadOnly,
+};
 use objc2_foundation::{NSBundle, NSError, NSString};
 use std::cell::RefCell;
 

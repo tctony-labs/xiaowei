@@ -62,7 +62,13 @@ export interface ModelValues {
   localEnabled: boolean;
   localModel: string;
 }
-export type DownloadState = "missing" | "downloading" | "verifying" | "unzipping" | "ready" | "failed";
+export type DownloadState =
+  | "missing"
+  | "downloading"
+  | "verifying"
+  | "unzipping"
+  | "ready"
+  | "failed";
 export interface LocalModel {
   id: string;
   name: string;
@@ -80,7 +86,11 @@ export interface ModelSettingsProps {
   diskGB: number;
   onChange: (values: ModelValues) => void;
   onSaveProvider: (provider: Provider, key: string) => Promise<Provider>;
-  onFetchModels: (provider: Provider, key: string, signal?: AbortSignal) => Promise<ProviderModel[]>;
+  onFetchModels: (
+    provider: Provider,
+    key: string,
+    signal?: AbortSignal,
+  ) => Promise<ProviderModel[]>;
   onDeleteProvider: (id: string, revision?: bigint) => Promise<void>;
   onSelectLocal: (id: string) => void;
   onOpenDirectory: () => void;
@@ -91,7 +101,8 @@ export interface ModelSettingsProps {
   imageTesting?: boolean;
   remoteOnly?: boolean;
 }
-const actionClass = "cursor-pointer rounded-md bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary-text";
+const actionClass =
+  "cursor-pointer rounded-md bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary-text";
 const inputClass =
   "w-full rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] outline-none focus:border-primary";
 const emptyProvider: Provider = {
@@ -163,7 +174,8 @@ export function ModelSettings(props: ModelSettingsProps) {
     ...(values.localEnabled ? [{ value: "local", label: current?.name ?? "local" }] : []),
   ];
   const imageOptions = [{ value: "", label: "未设置" }, ...remoteOptions];
-  const update = (key: keyof ModelValues, value: string | boolean) => onChange({ ...values, [key]: value });
+  const update = (key: keyof ModelValues, value: string | boolean) =>
+    onChange({ ...values, [key]: value });
   async function testImage(id: string) {
     if (!id) {
       update("imageModel", "");
@@ -198,7 +210,13 @@ export function ModelSettings(props: ModelSettingsProps) {
         <SettingRow title="默认思考强度" description="新建对话时使用的思考强度">
           <Select
             ariaLabel="默认思考强度"
-            placeholder={!selectedModel ? "请先选择默认模型" : !thinkingOptions.length ? "不支持推理" : "未设置"}
+            placeholder={
+              !selectedModel
+                ? "请先选择默认模型"
+                : !thinkingOptions.length
+                  ? "不支持推理"
+                  : "未设置"
+            }
             disabled={!thinkingOptions.length}
             value={values.reasoning}
             onChange={(value) => update("reasoning", value)}
@@ -252,7 +270,9 @@ export function ModelSettings(props: ModelSettingsProps) {
             </div>
           </SettingRow>
           <div className="space-y-2 px-5 py-3">
-            {!providers.length && <p className="py-2 text-center text-[12px] text-muted">暂无模型提供商，请添加</p>}
+            {!providers.length && (
+              <p className="py-2 text-center text-[12px] text-muted">暂无模型提供商，请添加</p>
+            )}
             {providers.map((provider) => (
               <div
                 key={provider.id}
@@ -285,9 +305,15 @@ export function ModelSettings(props: ModelSettingsProps) {
         </SettingCard>
       </div>
       {!props.remoteOnly && (
-        <div id="settings-local-model" className={`rounded-xl ${props.highlightLocal ? "ring-2 ring-primary/60" : ""}`}>
+        <div
+          id="settings-local-model"
+          className={`rounded-xl ${props.highlightLocal ? "ring-2 ring-primary/60" : ""}`}
+        >
           <SettingCard>
-            <SettingRow title="启用本地模型" description="开启后会下载并运行本地模型，使用时可保护个人隐私">
+            <SettingRow
+              title="启用本地模型"
+              description="开启后会下载并运行本地模型，使用时可保护个人隐私"
+            >
               <Toggle
                 ariaLabel="启用本地模型"
                 checked={values.localEnabled}
@@ -403,7 +429,15 @@ export function ModelStateBadge({ model }: { model?: LocalModel }) {
     </span>
   );
 }
-function LocalModelRow({ model, active, onSelect }: { model: LocalModel; active: boolean; onSelect: () => void }) {
+function LocalModelRow({
+  model,
+  active,
+  onSelect,
+}: {
+  model: LocalModel;
+  active: boolean;
+  onSelect: () => void;
+}) {
   const busy = ["downloading", "verifying", "unzipping"].includes(model.state);
   return (
     <div
@@ -420,7 +454,9 @@ function LocalModelRow({ model, active, onSelect }: { model: LocalModel; active:
         <div className="mt-1 text-xs text-muted">
           磁盘 {model.disk.toFixed(2)} GB · 内存 {model.memory?.toFixed(2) ?? "—"} GB
         </div>
-        {model.state === "failed" && <p className="mt-1 text-[10px] text-danger">{model.failure}</p>}
+        {model.state === "failed" && (
+          <p className="mt-1 text-[10px] text-danger">{model.failure}</p>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {busy ? (
@@ -434,7 +470,11 @@ function LocalModelRow({ model, active, onSelect }: { model: LocalModel; active:
               />
             </div>
             <span className="text-[10px] text-muted">
-              {model.state === "downloading" ? `${model.progress}%` : model.state === "verifying" ? "校验中" : "解压中"}
+              {model.state === "downloading"
+                ? `${model.progress}%`
+                : model.state === "verifying"
+                  ? "校验中"
+                  : "解压中"}
             </span>
           </>
         ) : (
@@ -462,7 +502,11 @@ export function ProviderEditor({
   onClose: () => void;
   onSave: (provider: Provider, key: string) => Promise<void>;
   onDelete: () => Promise<void>;
-  onFetchModels: (provider: Provider, key: string, signal?: AbortSignal) => Promise<ProviderModel[]>;
+  onFetchModels: (
+    provider: Provider,
+    key: string,
+    signal?: AbortSignal,
+  ) => Promise<ProviderModel[]>;
 }) {
   const [form, setForm] = useState(provider);
   const [nameTouched, setNameTouched] = useState(false);
@@ -486,30 +530,46 @@ export function ProviderEditor({
   const [error, setError] = useState("");
   const locked = busy || fetching;
   const selectedPreset = presets.find((preset) => preset.id === form.preset);
-  const protocols = selectedPreset?.connections.map((connection) => connection.protocol) ?? modelProtocols;
+  const protocols =
+    selectedPreset?.connections.map((connection) => connection.protocol) ?? modelProtocols;
   const connectionReady =
     !!form.name.trim() &&
     /^https?:\/\//.test(form.baseUrl.trim()) &&
     !form.baseUrl.includes("{") &&
     (form.hasApiKey || !!apiKey.trim() || !!form.apiKeyEnv?.trim());
   const trimmedName = form.name.trim();
-  const duplicateName = providers.some((entry) => entry.id !== provider.id && entry.name.trim() === trimmedName);
+  const duplicateName = providers.some(
+    (entry) => entry.id !== provider.id && entry.name.trim() === trimmedName,
+  );
   const nameError = !trimmedName ? "请输入提供方名称" : duplicateName ? "提供方名称已存在" : "";
   const canSave = connectionReady && !nameError;
   const update = (next: Partial<Provider>) => setForm((current) => ({ ...current, ...next }));
 
   function selectProvider(next: Partial<Provider>) {
-    const preset = presets.find((entry) => entry.id === (next.preset === undefined ? form.preset : next.preset));
+    const preset = presets.find(
+      (entry) => entry.id === (next.preset === undefined ? form.preset : next.preset),
+    );
     const models = preset?.models ?? [];
     update({
       ...next,
       models: models.map((model) => model.id),
-      modelContextWindows: Object.fromEntries(models.map((model) => [model.id, model.contextWindow])),
-      modelContextLimits: Object.fromEntries(models.map((model) => [model.id, model.contextWindow])),
+      modelContextWindows: Object.fromEntries(
+        models.map((model) => [model.id, model.contextWindow]),
+      ),
+      modelContextLimits: Object.fromEntries(
+        models.map((model) => [model.id, model.contextWindow]),
+      ),
       modelConfigs: Object.fromEntries(
         models.map(({ id, name, supportsImage, reasoning, thinkingLevelMap, maxOutput }) => [
           id,
-          { name, supportsImage, reasoning, thinkingLevelMap, maxOutput, defaultMaxOutput: maxOutput },
+          {
+            name,
+            supportsImage,
+            reasoning,
+            thinkingLevelMap,
+            maxOutput,
+            defaultMaxOutput: maxOutput,
+          },
         ]),
       ),
     });
@@ -532,7 +592,8 @@ export function ProviderEditor({
       if (request !== fetchRequest.current) return;
       setCandidates([...new Map(fetchedModels.map((model) => [model.id, model])).values()]);
     } catch (e) {
-      if (request === fetchRequest.current) setFetchError(e instanceof Error ? e.message : String(e));
+      if (request === fetchRequest.current)
+        setFetchError(e instanceof Error ? e.message : String(e));
     } finally {
       if (request === fetchRequest.current) setFetching(false);
     }
@@ -560,7 +621,10 @@ export function ProviderEditor({
   }
 
   function addSelected() {
-    const added = candidates?.filter((model) => selected.includes(model.id) && !form.models.includes(model.id)) ?? [];
+    const added =
+      candidates?.filter(
+        (model) => selected.includes(model.id) && !form.models.includes(model.id),
+      ) ?? [];
     update({
       models: [...form.models, ...added.map((model) => model.id)],
       modelConfigs: {
@@ -572,7 +636,9 @@ export function ProviderEditor({
               name: model.name,
               supportsImage: model.supportsImage ?? false,
               reasoning: Boolean(model.reasoning && matchThinkingMap(model.thinkingLevelMap)),
-              thinkingLevelMap: model.reasoning ? matchThinkingMap(model.thinkingLevelMap)?.map : undefined,
+              thinkingLevelMap: model.reasoning
+                ? matchThinkingMap(model.thinkingLevelMap)?.map
+                : undefined,
               maxOutput: model.maxOutput,
               defaultMaxOutput: model.maxOutput,
             },
@@ -582,22 +648,29 @@ export function ProviderEditor({
       modelContextWindows: {
         ...form.modelContextWindows,
         ...Object.fromEntries(
-          added.flatMap((model) => (model.contextWindow == null ? [] : [[model.id, model.contextWindow]])),
+          added.flatMap((model) =>
+            model.contextWindow == null ? [] : [[model.id, model.contextWindow]],
+          ),
         ),
       },
       modelContextLimits: {
         ...form.modelContextLimits,
         ...Object.fromEntries(
-          added.flatMap((model) => (model.contextWindow == null ? [] : [[model.id, model.contextWindow]])),
+          added.flatMap((model) =>
+            model.contextWindow == null ? [] : [[model.id, model.contextWindow]],
+          ),
         ),
       },
     });
     setCandidates(null);
   }
 
-  const visible = (candidates ?? []).filter((model) => model.id.toLowerCase().includes(search.toLowerCase()));
+  const visible = (candidates ?? []).filter((model) =>
+    model.id.toLowerCase().includes(search.toLowerCase()),
+  );
   const available = visible.filter((model) => !form.models.includes(model.id));
-  const allSelected = available.length > 0 && available.every((model) => selected.includes(model.id));
+  const allSelected =
+    available.length > 0 && available.every((model) => selected.includes(model.id));
   const modelPicker =
     candidates !== null ? (
       <Modal
@@ -617,7 +690,11 @@ export function ProviderEditor({
         }
       >
         {fetching ? (
-          <div role="status" aria-label="加载模型" className="flex min-h-0 flex-1 items-center justify-center">
+          <div
+            role="status"
+            aria-label="加载模型"
+            className="flex min-h-0 flex-1 items-center justify-center"
+          >
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-primary" />
           </div>
         ) : fetchError ? (
@@ -646,7 +723,9 @@ export function ProviderEditor({
                 onClick={() => {
                   const ids = available.map((model) => model.id);
                   setSelected(
-                    allSelected ? selected.filter((id) => !ids.includes(id)) : [...new Set([...selected, ...ids])],
+                    allSelected
+                      ? selected.filter((id) => !ids.includes(id))
+                      : [...new Set([...selected, ...ids])],
                   );
                 }}
               >
@@ -667,11 +746,15 @@ export function ProviderEditor({
                       checked={exists || selected.includes(model.id)}
                       onChange={(event) =>
                         setSelected(
-                          event.target.checked ? [...selected, model.id] : selected.filter((id) => id !== model.id),
+                          event.target.checked
+                            ? [...selected, model.id]
+                            : selected.filter((id) => id !== model.id),
                         )
                       }
                     />
-                    <span className="min-w-0 flex-1 break-all">{modelDisplayName(model.name, model.id)}</span>
+                    <span className="min-w-0 flex-1 break-all">
+                      {modelDisplayName(model.name, model.id)}
+                    </span>
                     {exists && <span className="shrink-0 text-[11px] text-muted">已添加</span>}
                   </label>
                 );
@@ -717,7 +800,11 @@ export function ProviderEditor({
             <ModalButton onClick={close} disabled={locked}>
               取消
             </ModalButton>
-            <ModalButton variant="primary" disabled={locked || !canSave} onClick={() => void submit()}>
+            <ModalButton
+              variant="primary"
+              disabled={locked || !canSave}
+              onClick={() => void submit()}
+            >
               {busy ? "保存中..." : "保存"}
             </ModalButton>
           </>
@@ -746,10 +833,17 @@ export function ProviderEditor({
                     name: preset.name,
                     apiKeyEnv: preset.apiKeyEnv,
                     supportsWebSocket: preset.supportsWebSocket ?? false,
-                    transport: preset.supportsWebSocket === false ? "http" : emptyProvider.transport,
+                    transport:
+                      preset.supportsWebSocket === false ? "http" : emptyProvider.transport,
                     ...preset.connections[0],
                   });
-                } else selectProvider({ ...emptyProvider, id: form.id, revision: form.revision, apiKeyEnv: "" });
+                } else
+                  selectProvider({
+                    ...emptyProvider,
+                    id: form.id,
+                    revision: form.revision,
+                    apiKeyEnv: "",
+                  });
               }}
               menuPortal
             />
@@ -795,7 +889,9 @@ export function ProviderEditor({
               disabled={locked || protocols.length === 1}
               options={protocols.map((protocol) => ({ value: protocol, label: protocol }))}
               onChange={(protocol) => {
-                const connection = selectedPreset?.connections.find((entry) => entry.protocol === protocol);
+                const connection = selectedPreset?.connections.find(
+                  (entry) => entry.protocol === protocol,
+                );
                 update({
                   ...(connection ?? { protocol }),
                   ...(selectedPreset?.supportsWebSocket === false ? { transport: "http" } : {}),
@@ -867,7 +963,11 @@ export function ProviderEditor({
                 导入模型
               </button>
             </div>
-            <ModelCatalog provider={form} onChange={update} onDialogOpenChange={setModelDialogOpen} />
+            <ModelCatalog
+              provider={form}
+              onChange={update}
+              onDialogOpenChange={setModelDialogOpen}
+            />
           </section>
           {error && (
             <p role="alert" className="text-[12px] text-danger">

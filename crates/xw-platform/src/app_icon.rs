@@ -11,14 +11,18 @@ pub fn read_app_icon(path: &Path) -> Option<Vec<u8>> {
         use objc2_app_kit::{NSBitmapImageFileType, NSBitmapImageRep, NSWorkspace};
         use objc2_foundation::{NSDictionary, NSSize, NSString};
         autoreleasepool(|_| unsafe {
-            let image = NSWorkspace::sharedWorkspace().iconForFile(&NSString::from_str(path.to_str()?));
+            let image =
+                NSWorkspace::sharedWorkspace().iconForFile(&NSString::from_str(path.to_str()?));
             image.setSize(NSSize {
                 width: 128.0,
                 height: 128.0,
             });
             let tiff = image.TIFFRepresentation()?;
             let rep = NSBitmapImageRep::imageRepWithData(&tiff)?;
-            let png = rep.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new())?;
+            let png = rep.representationUsingType_properties(
+                NSBitmapImageFileType::PNG,
+                &NSDictionary::new(),
+            )?;
             Some(png.to_vec())
         })
     }

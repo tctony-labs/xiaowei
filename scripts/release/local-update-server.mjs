@@ -2,11 +2,16 @@ import { createReadStream, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { localUpdateDirectory, localUpdateOrigin, localUpdatePort } from "./local-update-config.mjs";
+import {
+  localUpdateDirectory,
+  localUpdateOrigin,
+  localUpdatePort,
+} from "./local-update-config.mjs";
 import { verifySignedAppcast, verifyUpdateArchive } from "./sparkle.mjs";
 
 export function createLocalUpdateServer(directory, scenario = "valid") {
-  if (!["valid", "invalid-feed", "invalid-archive"].includes(scenario)) throw new Error("Unknown update scenario");
+  if (!["valid", "invalid-feed", "invalid-archive"].includes(scenario))
+    throw new Error("Unknown update scenario");
   const manifest = JSON.parse(readFileSync(join(directory, "test.json"), "utf8"));
   const source = join(directory, "source");
   const feed = readFileSync(join(source, "appcast.xml"));
@@ -23,7 +28,9 @@ export function createLocalUpdateServer(directory, scenario = "valid") {
 
   return createServer((request, response) => {
     const pathname = new URL(request.url, localUpdateOrigin).pathname;
-    response.on("finish", () => console.info(`Local update ${request.method} ${pathname}: ${response.statusCode}`));
+    response.on("finish", () =>
+      console.info(`Local update ${request.method} ${pathname}: ${response.statusCode}`),
+    );
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { Allow: "GET, HEAD" }).end();
       return;
@@ -32,9 +39,14 @@ export function createLocalUpdateServer(directory, scenario = "valid") {
     if (pathname === "/appcast.xml") {
       const payload =
         scenario === "invalid-feed"
-          ? Buffer.from(feed.toString().replace("<sparkle:version>", "<!-- tampered --><sparkle:version>"))
+          ? Buffer.from(
+              feed.toString().replace("<sparkle:version>", "<!-- tampered --><sparkle:version>"),
+            )
           : feed;
-      response.writeHead(200, { "Content-Type": "application/xml", "Content-Length": payload.length });
+      response.writeHead(200, {
+        "Content-Type": "application/xml",
+        "Content-Length": payload.length,
+      });
       response.end(request.method === "HEAD" ? undefined : payload);
       return;
     }
@@ -60,7 +72,8 @@ export function createLocalUpdateServer(directory, scenario = "valid") {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv.length > 3) throw new Error("Usage: local-update-server.mjs [valid|invalid-feed|invalid-archive]");
+  if (process.argv.length > 3)
+    throw new Error("Usage: local-update-server.mjs [valid|invalid-feed|invalid-archive]");
   const scenario = process.argv[2] ?? "valid";
   const server = createLocalUpdateServer(localUpdateDirectory, scenario);
   server.on("error", (error) => {
@@ -68,7 +81,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 1;
   });
   server.listen(localUpdatePort, "127.0.0.1", () => {
-    console.info(`Local update source ready: ${localUpdateOrigin}/appcast.xml; scenario=${scenario}`);
+    console.info(
+      `Local update source ready: ${localUpdateOrigin}/appcast.xml; scenario=${scenario}`,
+    );
   });
   for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => server.close());
 }

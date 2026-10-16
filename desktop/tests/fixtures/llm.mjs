@@ -43,15 +43,29 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
       await new Promise((resolve) => resume.set(text, resolve));
     }
     if (text.startsWith("features")) {
-      const send = (event) => outgoing.write(`event: ${event.type ?? "message"}\ndata: ${JSON.stringify(event)}\n\n`);
+      const send = (event) =>
+        outgoing.write(`event: ${event.type ?? "message"}\ndata: ${JSON.stringify(event)}\n\n`);
       const args = '{"text":"中文参数"}';
       if (new URL(incoming.url, "http://localhost").pathname.endsWith("/messages")) {
         send({
           type: "message_start",
-          message: { id: "msg_features", model: body.model, usage: { input_tokens: 5, output_tokens: 0 }, content: [] },
+          message: {
+            id: "msg_features",
+            model: body.model,
+            usage: { input_tokens: 5, output_tokens: 0 },
+            content: [],
+          },
         });
-        send({ type: "content_block_start", index: 0, content_block: { type: "thinking", thinking: "" } });
-        send({ type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "分析" } });
+        send({
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "thinking", thinking: "" },
+        });
+        send({
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "thinking_delta", thinking: "分析" },
+        });
         if (text === "features-cancel-thinking") return;
         send({
           type: "content_block_delta",
@@ -60,7 +74,11 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
         });
         send({ type: "content_block_stop", index: 0 });
         send({ type: "content_block_start", index: 1, content_block: { type: "text", text: "" } });
-        send({ type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "调用工具" } });
+        send({
+          type: "content_block_delta",
+          index: 1,
+          delta: { type: "text_delta", text: "调用工具" },
+        });
         send({ type: "content_block_stop", index: 1 });
         send({
           type: "content_block_start",
@@ -68,10 +86,18 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
           content_block: { type: "tool_use", id: "call_1", name: "echo", input: {} },
         });
         for (const fragment of [args.slice(0, 9), args.slice(9)])
-          send({ type: "content_block_delta", index: 2, delta: { type: "input_json_delta", partial_json: fragment } });
+          send({
+            type: "content_block_delta",
+            index: 2,
+            delta: { type: "input_json_delta", partial_json: fragment },
+          });
         if (text === "features-cancel-tool") return;
         send({ type: "content_block_stop", index: 2 });
-        send({ type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 4 } });
+        send({
+          type: "message_delta",
+          delta: { stop_reason: "tool_use" },
+          usage: { output_tokens: 4 },
+        });
         send({ type: "message_stop" });
       } else if (new URL(incoming.url, "http://localhost").pathname.endsWith("/responses")) {
         send({ type: "response.created", response: { id: "resp_features" } });
@@ -92,12 +118,22 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
             summary: [{ type: "summary_text", text: "分析" }],
           },
         });
-        const call = { type: "function_call", id: "fc_1", call_id: "call_1", name: "echo", arguments: "" };
+        const call = {
+          type: "function_call",
+          id: "fc_1",
+          call_id: "call_1",
+          name: "echo",
+          arguments: "",
+        };
         send({ type: "response.output_item.added", output_index: 1, item: call });
         for (const delta of [args.slice(0, 9), args.slice(9)])
           send({ type: "response.function_call_arguments.delta", output_index: 1, delta });
         if (text === "features-cancel-tool") return;
-        send({ type: "response.output_item.done", output_index: 1, item: { ...call, arguments: args } });
+        send({
+          type: "response.output_item.done",
+          output_index: 1,
+          item: { ...call, arguments: args },
+        });
         send({
           type: "response.completed",
           response: {
@@ -115,7 +151,12 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
         chunk({ content: "调用工具" });
         chunk({
           tool_calls: [
-            { index: 0, id: "call_1", type: "function", function: { name: "echo", arguments: args.slice(0, 9) } },
+            {
+              index: 0,
+              id: "call_1",
+              type: "function",
+              function: { name: "echo", arguments: args.slice(0, 9) },
+            },
           ],
         });
         chunk({ tool_calls: [{ index: 0, function: { arguments: args.slice(9) } }] });
@@ -127,7 +168,8 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
       return;
     }
     if (new URL(incoming.url, "http://localhost").pathname.endsWith("/messages")) {
-      const send = (event) => outgoing.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      const send = (event) =>
+        outgoing.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       send({
         type: "message_start",
         message: {
@@ -138,7 +180,12 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
           content: [],
           stop_reason: null,
           stop_sequence: null,
-          usage: { input_tokens: 5, output_tokens: 0, cache_read_input_tokens: 3, cache_creation_input_tokens: 0 },
+          usage: {
+            input_tokens: 5,
+            output_tokens: 0,
+            cache_read_input_tokens: 3,
+            cache_creation_input_tokens: 0,
+          },
         },
       });
       send({ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } });
@@ -162,7 +209,8 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
       return;
     }
     if (new URL(incoming.url, "http://localhost").pathname.endsWith("/responses")) {
-      const send = (event) => outgoing.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      const send = (event) =>
+        outgoing.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       send({ type: "response.created", response: { id: "response_test" } });
       const item = { id: "msg_test", type: "message", role: "assistant", content: [] };
       send({ type: "response.output_item.added", output_index: 0, item });
@@ -256,7 +304,11 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
     maxTokens: 4096,
     contextWindow: 8192,
   };
-  const owner = await attachLlm(host, [model], new URL("../../out/main/llm-worker.js", import.meta.url));
+  const owner = await attachLlm(
+    host,
+    [model],
+    new URL("../../out/main/llm-worker.js", import.meta.url),
+  );
   t.after(() => owner.close());
   const client = bindStreamClient(Llm, host.client({ caller: "llm-test", trusted: true }));
   return { host, client, owner, model, requests, disconnected, resume };

@@ -79,9 +79,11 @@ impl Database {
             })
             .connect_with(options)
             .await?;
-        sqlx::query("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)")
-            .execute(&pool)
-            .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)",
+        )
+        .execute(&pool)
+        .await?;
         let database = Self {
             pool,
             path: std::path::absolute(path)?,
@@ -98,15 +100,29 @@ impl Database {
 
     pub(crate) async fn query(&self, statement: sql::SqlStatement) -> Result<sql::SqlResult> {
         let mut connection = self.pool.acquire().await?;
-        run(&mut connection, &statement, &[], true, &mut Budget::default()).await
+        run(
+            &mut connection,
+            &statement,
+            &[],
+            true,
+            &mut Budget::default(),
+        )
+        .await
     }
 
     pub(crate) async fn execute(&self, statement: sql::SqlStatement) -> Result<sql::SqlResult> {
-        let mut result = self.transaction(sql::SqlTransaction { steps: vec![statement] }).await?;
+        let mut result = self
+            .transaction(sql::SqlTransaction {
+                steps: vec![statement],
+            })
+            .await?;
         Ok(result.results.remove(0))
     }
 
-    pub(crate) async fn transaction(&self, batch: sql::SqlTransaction) -> Result<sql::SqlTransactionResult> {
+    pub(crate) async fn transaction(
+        &self,
+        batch: sql::SqlTransaction,
+    ) -> Result<sql::SqlTransactionResult> {
         if batch.steps.is_empty() || batch.steps.len() > 64 {
             return Err(invalid("A transaction requires 1 to 64 steps"));
         }
@@ -135,8 +151,13 @@ pub(crate) async fn run(
         .await?
         .set_progress_handler(1000, move || !progress.load(Ordering::Relaxed));
     let _cancel = CancelOnDrop(cancelled);
-    let (columns, statement_readonly) =
-        validation::validate(connection, &statement.sql, statement.parameters.len(), readonly).await?;
+    let (columns, statement_readonly) = validation::validate(
+        connection,
+        &statement.sql,
+        statement.parameters.len(),
+        readonly,
+    )
+    .await?;
     budget.consume(columns.iter().map(|name| name.len() + 8).sum(), 0)?;
     let mut query = sqlx::query(&statement.sql).persistent(false);
     for parameter in &statement.parameters {
@@ -184,7 +205,9 @@ pub(crate) async fn run(
                             "REAL" => Kind::Real(row.try_get(index)?),
                             "TEXT" => Kind::Text(row.try_get(index)?),
                             "BLOB" => Kind::Blob(row.try_get(index)?),
-                            name => return Err(invalid(format!("Unsupported SQLite value: {name}"))),
+                            name => {
+                                return Err(invalid(format!("Unsupported SQLite value: {name}")))
+                            }
                         }
                     };
                     let size = match &kind {

@@ -21,7 +21,10 @@ impl SearchService {
             let start = std::time::Instant::now();
             log::info!("Search index initialization started");
             let engine = SearchEngine::open_default();
-            log::info!("Search index initialized in {} ms", start.elapsed().as_millis());
+            log::info!(
+                "Search index initialized in {} ms",
+                start.elapsed().as_millis()
+            );
             Mutex::new(engine)
         })
     }
@@ -50,7 +53,10 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
             let service = query.clone();
             async move {
                 if r.query.len() > 4096 {
-                    return Err(GatewayError::new(ErrorCode::InvalidArgument, "Search query too long"));
+                    return Err(GatewayError::new(
+                        ErrorCode::InvalidArgument,
+                        "Search query too long",
+                    ));
                 }
 
                 if r.query.trim().is_empty() {
@@ -64,7 +70,11 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
                         .map_err(|_| error("Search engine unavailable"))?;
                     Ok(pb::SearchResults {
                         hits: engine
-                            .search_with_options(&r.query, development, r.include_chrome_bookmarks.unwrap_or(true))
+                            .search_with_options(
+                                &r.query,
+                                development,
+                                r.include_chrome_bookmarks.unwrap_or(true),
+                            )
                             .into_iter()
                             .map(|hit| {
                                 use pb::search_action::Action as WireAction;
@@ -72,13 +82,15 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
                                     Action::CopyText(value) => WireAction::CopyText(value),
                                     Action::OpenUrl(value) => WireAction::OpenUrl(value),
                                     Action::LaunchApp(value) => WireAction::LaunchApp(value),
-                                    Action::RunCommand(value) => WireAction::Command(match value.as_str() {
-                                        "clipboard" => pb::SearchCommand::OpenClipboard,
-                                        "toggle-system-theme" => pb::SearchCommand::ToggleTheme,
-                                        "rs" => pb::SearchCommand::RestartDevelopment,
-                                        _ => pb::SearchCommand::Unspecified,
+                                    Action::RunCommand(value) => {
+                                        WireAction::Command(match value.as_str() {
+                                            "clipboard" => pb::SearchCommand::OpenClipboard,
+                                            "toggle-system-theme" => pb::SearchCommand::ToggleTheme,
+                                            "rs" => pb::SearchCommand::RestartDevelopment,
+                                            _ => pb::SearchCommand::Unspecified,
+                                        }
+                                            as i32)
                                     }
-                                        as i32),
                                 };
                                 pb::SearchHit {
                                     id: hit.id,
@@ -92,7 +104,9 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
                                         .into_iter()
                                         .map(|[start, end]| pb::HighlightRange { start, end })
                                         .collect(),
-                                    action: Some(pb::SearchAction { action: Some(action) }),
+                                    action: Some(pb::SearchAction {
+                                        action: Some(action),
+                                    }),
                                 }
                             })
                             .collect(),

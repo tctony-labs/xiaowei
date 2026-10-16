@@ -61,7 +61,10 @@ impl AgentService {
         Ok(state)
     }
 
-    pub(crate) fn subscribe_loaded(&self, request: SubscribeSessionRequest) -> Result<EventSubscription, AgentError> {
+    pub(crate) fn subscribe_loaded(
+        &self,
+        request: SubscribeSessionRequest,
+    ) -> Result<EventSubscription, AgentError> {
         let id: SessionId = parse_id(&request.session_id, "session_id")?;
         let mut state = self.state()?;
         let session = state
@@ -71,9 +74,11 @@ impl AgentService {
             .ok_or(AgentError::NotFound("session"))?
             .view
             .clone();
-        state
-            .observers
-            .retain(|observer| observer.upgrade().is_some_and(|observer| !observer.is_closed()));
+        state.observers.retain(|observer| {
+            observer
+                .upgrade()
+                .is_some_and(|observer| !observer.is_closed())
+        });
         if state.observers.len() >= MAX_OBSERVERS {
             return Err(AgentError::ResourceExhausted("observers"));
         }
@@ -99,8 +104,11 @@ impl AgentService {
         if source.principal_id.trim().is_empty() {
             return Err(AgentError::InvalidArgument("source.principal_id"));
         }
-        let request_id: ClientRequestId = parse_id(&request.client_request_id, "client_request_id")?;
-        let config = request.config.ok_or(AgentError::InvalidArgument("config"))?;
+        let request_id: ClientRequestId =
+            parse_id(&request.client_request_id, "client_request_id")?;
+        let config = request
+            .config
+            .ok_or(AgentError::InvalidArgument("config"))?;
         input::validate_config(&config)?;
         let info = self.host.get_model_info(config.model_ref.clone()).await;
         let mut state = self.state()?;
@@ -116,7 +124,13 @@ impl AgentService {
         if self.index.is_none() && state.creations.len() >= MAX_CREATIONS {
             return Err(AgentError::ResourceExhausted("session creation identities"));
         }
-        if self.index.is_none() && state.sessions.values().filter(|session| !session.deleted()).count() >= MAX_SESSIONS
+        if self.index.is_none()
+            && state
+                .sessions
+                .values()
+                .filter(|session| !session.deleted())
+                .count()
+                >= MAX_SESSIONS
         {
             return Err(AgentError::ResourceExhausted("sessions"));
         }
@@ -150,7 +164,10 @@ impl AgentService {
         Ok(response)
     }
 
-    pub(crate) fn list_loaded(&self, request: ListSessionsRequest) -> Result<ListSessionsResponse, AgentError> {
+    pub(crate) fn list_loaded(
+        &self,
+        request: ListSessionsRequest,
+    ) -> Result<ListSessionsResponse, AgentError> {
         let state = self.state()?;
         let query = request.query.trim().to_lowercase();
         if request.query.trim().len() > 256 {
@@ -187,7 +204,10 @@ impl AgentService {
         })
     }
 
-    pub(crate) fn read_loaded(&self, request: ReadSessionRequest) -> Result<ReadSessionResponse, AgentError> {
+    pub(crate) fn read_loaded(
+        &self,
+        request: ReadSessionRequest,
+    ) -> Result<ReadSessionResponse, AgentError> {
         let id: SessionId = parse_id(&request.session_id, "session_id")?;
         let state = self.state()?;
         let session = state
@@ -213,7 +233,10 @@ impl AgentService {
         })
     }
 
-    pub(crate) async fn delete_loaded(&self, request: DeleteSessionTarget) -> Result<bool, AgentError> {
+    pub(crate) async fn delete_loaded(
+        &self,
+        request: DeleteSessionTarget,
+    ) -> Result<bool, AgentError> {
         let id: SessionId = parse_id(&request.session_id, "session_id")?;
         if request.expected_metadata_revision == 0 {
             return Err(AgentError::InvalidArgument("expected_metadata_revision"));
@@ -250,12 +273,17 @@ impl AgentService {
             done.cancelled().await;
         }
         let mut state = self.state()?;
-        let session = state.sessions.get_mut(&id).ok_or(AgentError::NotFound("session"))?;
+        let session = state
+            .sessions
+            .get_mut(&id)
+            .ok_or(AgentError::NotFound("session"))?;
         if session.deletion_announced {
             return Ok(true);
         }
         if let Some(journal) = &mut session.journal {
-            journal.delete(now_ms()?).map_err(crate::persistence::storage_error)?;
+            journal
+                .delete(now_ms()?)
+                .map_err(crate::persistence::storage_error)?;
         }
         session.journal = None;
         session.deletion_announced = true;
@@ -275,14 +303,21 @@ impl AgentService {
         Ok(true)
     }
 
-    pub fn interrupt_run(&self, request: InterruptRunRequest) -> Result<InterruptRunResponse, AgentError> {
+    pub fn interrupt_run(
+        &self,
+        request: InterruptRunRequest,
+    ) -> Result<InterruptRunResponse, AgentError> {
         let id: SessionId = parse_id(&request.session_id, "session_id")?;
         let run_id: RunId = parse_id(&request.run_id, "run_id")?;
         let state = self.state()?;
         let Some(session) = state.sessions.get(&id).filter(|s| !s.deleted()) else {
             return Ok(InterruptRunResponse::default());
         };
-        let found = session.view.runs.iter().any(|r| r.run_id == run_id.to_string());
+        let found = session
+            .view
+            .runs
+            .iter()
+            .any(|r| r.run_id == run_id.to_string());
         let active = session.active.as_ref().filter(|a| a.run_id == run_id);
         if let Some(active) = active {
             active.cancellation.cancel();
@@ -348,7 +383,11 @@ impl AgentService {
                 active.cancellation.cancel();
             }
         }
-        for observer in state.observers.drain(..).filter_map(|observer| observer.upgrade()) {
+        for observer in state
+            .observers
+            .drain(..)
+            .filter_map(|observer| observer.upgrade())
+        {
             observer.close();
         }
         state.sessions.clear();
@@ -428,18 +467,24 @@ mod tests {
         {
             let mut state = service.state().unwrap();
             // Seed a display projection; execution remains disconnected in step 1.
-            state.sessions.get_mut(&session_id).unwrap().view.runs.push(AgentRun {
-                run_id: run_id.clone(),
-                input_id: InputId::new().to_string(),
-                status: AgentRunStatus::InProgress.into(),
-                items: vec![AgentItem {
-                    item_id: item_id.clone(),
-                    content: Some(agent_item::Content::AgentMessage(AgentMessage {
-                        text: "before".into(),
-                    })),
-                }],
-                ..Default::default()
-            });
+            state
+                .sessions
+                .get_mut(&session_id)
+                .unwrap()
+                .view
+                .runs
+                .push(AgentRun {
+                    run_id: run_id.clone(),
+                    input_id: InputId::new().to_string(),
+                    status: AgentRunStatus::InProgress.into(),
+                    items: vec![AgentItem {
+                        item_id: item_id.clone(),
+                        content: Some(agent_item::Content::AgentMessage(AgentMessage {
+                            text: "before".into(),
+                        })),
+                    }],
+                    ..Default::default()
+                });
         }
 
         let mut stream = service
@@ -452,7 +497,9 @@ mod tests {
         {
             let mut state = service.state().unwrap();
             let view = &mut state.sessions.get_mut(&session_id).unwrap().view;
-            let Some(agent_item::Content::AgentMessage(message)) = &mut view.runs[0].items[0].content else {
+            let Some(agent_item::Content::AgentMessage(message)) =
+                &mut view.runs[0].items[0].content
+            else {
                 unreachable!();
             };
             message.text.push_str("after");

@@ -22,7 +22,9 @@ impl GatewayEndpoint {
             .map_err(|error| napi::Error::from_reason(error.to_string()))
     }
 
-    #[napi(ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string")]
+    #[napi(
+        ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string"
+    )]
     pub fn bind(&self, callback: Arc<Callback>, context: String) -> napi::Result<()> {
         self.inner
             .bind(callback, &context)
@@ -47,7 +49,9 @@ impl GatewayEndpoint {
     ) -> napi::Result<PromiseRaw<'env, Reply>> {
         let inner = self.inner.clone();
         let payload = payload.to_vec();
-        env.spawn_future(async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) })
+        env.spawn_future(
+            async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) },
+        )
     }
 
     #[napi(ts_return_type = "Promise<Buffer | string>")]
@@ -101,7 +105,9 @@ impl GatewayEndpoint {
         let filter = filter.map(|v| v.to_vec());
         env.spawn_future(async move {
             Ok(reply(
-                inner.subscribe_local(&id, &event, filter, &context).map(|_| vec![]),
+                inner
+                    .subscribe_local(&id, &event, filter, &context)
+                    .map(|_| vec![]),
             ))
         })
     }
@@ -138,10 +144,17 @@ impl GatewayEndpoint {
     }
 }
 
-pub(crate) fn create_key_value_endpoint(database: &Arc<Database>, env: napi::Env) -> napi::Result<GatewayEndpoint> {
+pub(crate) fn create_key_value_endpoint(
+    database: &Arc<Database>,
+    env: napi::Env,
+) -> napi::Result<GatewayEndpoint> {
     let registry = XwInvokeRegistry::new();
     let owner = registry
-        .register_owner("key-value", xiaowei_storage::gateway::registrations(database), vec![])
+        .register_owner(
+            "key-value",
+            xiaowei_storage::gateway::registrations(database),
+            vec![],
+        )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     let inner = Endpoint::new(registry, owner);
     inner.install_cleanup(&env)?;
@@ -152,7 +165,10 @@ pub(crate) fn create_key_value_endpoint(database: &Arc<Database>, env: napi::Env
     })
 }
 
-pub(crate) fn create_clipboard_dao_endpoint(database: &Arc<Database>, env: napi::Env) -> napi::Result<GatewayEndpoint> {
+pub(crate) fn create_clipboard_dao_endpoint(
+    database: &Arc<Database>,
+    env: napi::Env,
+) -> napi::Result<GatewayEndpoint> {
     let dao = Arc::new(ClipboardDao::new(database.clone()));
     let registry = XwInvokeRegistry::new();
     let owner = registry

@@ -27,12 +27,21 @@ impl RolloutStore {
         &self.root
     }
 
-    pub fn create(&self, id: SessionId, created_at_ms: i64, meta: xw_agent_types::SessionMeta) -> Result<Journal> {
+    pub fn create(
+        &self,
+        id: SessionId,
+        created_at_ms: i64,
+        meta: xw_agent_types::SessionMeta,
+    ) -> Result<Journal> {
         let path = self.registered_path(id, created_at_ms)?;
         let directory = path.parent().expect("session path has a directory");
         fs::create_dir_all(directory)?;
         let lock = self.lock(id)?;
-        let file = OpenOptions::new().create_new(true).read(true).write(true).open(&path)?;
+        let file = OpenOptions::new()
+            .create_new(true)
+            .read(true)
+            .write(true)
+            .open(&path)?;
         let mut journal = Journal {
             id,
             root: self.root.clone(),
@@ -73,7 +82,12 @@ impl RolloutStore {
         self.open_path(id, lock, path)
     }
 
-    fn open_path(&self, id: SessionId, lock: WriterLock, path: PathBuf) -> Result<(Journal, Repair)> {
+    fn open_path(
+        &self,
+        id: SessionId,
+        lock: WriterLock,
+        path: PathBuf,
+    ) -> Result<(Journal, Repair)> {
         let mut file = OpenOptions::new().read(true).write(true).open(&path)?;
         let (entries, repair) = read_and_repair(&mut file, &path, id)?;
         if entries.is_empty() {
@@ -102,7 +116,8 @@ impl RolloutStore {
         if created_at_ms < 0 {
             return Err(RolloutError::InvalidHistory);
         }
-        let date = DateTime::from_timestamp_millis(created_at_ms).ok_or(RolloutError::InvalidHistory)?;
+        let date =
+            DateTime::from_timestamp_millis(created_at_ms).ok_or(RolloutError::InvalidHistory)?;
         let parts = [
             "sessions".into(),
             format!("{:04}", date.year()),
@@ -159,7 +174,9 @@ impl RolloutStore {
                 }
                 for file in fs::read_dir(month.path())? {
                     let file = file?;
-                    if !file.file_type()?.is_file() || file.path().extension().is_none_or(|ext| ext != "jsonl") {
+                    if !file.file_type()?.is_file()
+                        || file.path().extension().is_none_or(|ext| ext != "jsonl")
+                    {
                         continue;
                     }
                     if let Some(id) = file
@@ -167,7 +184,11 @@ impl RolloutStore {
                         .file_stem()
                         .and_then(|stem| stem.to_str())
                         .and_then(|stem| stem.parse().ok())
-                        && !self.root.join("deletions").join(format!("{id}.json")).exists()
+                        && !self
+                            .root
+                            .join("deletions")
+                            .join(format!("{id}.json"))
+                            .exists()
                     {
                         ids.push(id);
                     }
@@ -222,7 +243,10 @@ impl SessionFiles {
             Err(error) => return Err(error.into()),
         }
         let workspaces = root.join("workspaces");
-        if workspaces.symlink_metadata().is_ok_and(|meta| meta.is_symlink()) {
+        if workspaces
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.is_symlink())
+        {
             return Err(RolloutError::InvalidHistory);
         }
         let workspace = workspaces.join(id.to_string());
@@ -278,7 +302,8 @@ impl Journal {
             deleted_at_ms,
             committed_sequence: Sequence(self.entries.len() as u64),
         };
-        let encoded = xw_agent_types::encode_deletion_marker(&marker).map_err(|_| RolloutError::InvalidHistory)?;
+        let encoded = xw_agent_types::encode_deletion_marker(&marker)
+            .map_err(|_| RolloutError::InvalidHistory)?;
         let marker_path = directory.join(format!("{}.json", self.id));
         let temporary = directory.join(format!("{}.tmp", self.id));
         let mut file = OpenOptions::new()
@@ -338,16 +363,20 @@ impl Journal {
             return Err(RolloutError::NeedsCheck);
         }
         xw_agent_types::validate_entry(&entry)?;
-        let encoded = encode_entry(&entry, &self.entries).map_err(|_| RolloutError::InvalidHistory)?;
+        let encoded =
+            encode_entry(&entry, &self.entries).map_err(|_| RolloutError::InvalidHistory)?;
         // Keep the live cache identical to replay, including fields derived by the compact codec.
-        let entry = xw_agent_types::decode_entry(&encoded, &self.entries).map_err(|_| RolloutError::InvalidHistory)?;
+        let entry = xw_agent_types::decode_entry(&encoded, &self.entries)
+            .map_err(|_| RolloutError::InvalidHistory)?;
         let result = (|| -> std::io::Result<()> {
             #[cfg(any(test, feature = "test-support"))]
             if self.fault.is_some_and(|(remaining, _)| remaining == 0) {
                 let (_, fault) = self.fault.take().expect("fault is set");
                 match fault {
                     TestFault::BeforeWrite => {}
-                    TestFault::Partial => self.file.write_all(&encoded.as_bytes()[..encoded.len() / 2])?,
+                    TestFault::Partial => self
+                        .file
+                        .write_all(&encoded.as_bytes()[..encoded.len() / 2])?,
                     TestFault::AfterLine | TestFault::Sync => {
                         self.file.write_all(encoded.as_bytes())?;
                         self.file.write_all(b"\n")?;
@@ -388,8 +417,13 @@ impl Journal {
         let diagnostic_path = if tail.is_empty() {
             None
         } else {
-            let path = self.path.with_extension(format!("jsonl.tail-{}", EntryId::new()));
-            let mut file = OpenOptions::new().create_new(true).write(true).open(&path)?;
+            let path = self
+                .path
+                .with_extension(format!("jsonl.tail-{}", EntryId::new()));
+            let mut file = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&path)?;
             file.write_all(&tail)?;
             file.sync_all()?;
             Some(path)
@@ -429,7 +463,9 @@ mod tests {
             TestFault::Sync,
         ] {
             let directory = tempfile::tempdir().unwrap();
-            let entries = xw_agent_types::decode_history(include_str!("../tests/fixtures/basic.jsonl")).unwrap();
+            let entries =
+                xw_agent_types::decode_history(include_str!("../tests/fixtures/basic.jsonl"))
+                    .unwrap();
             let EntryPayload::Meta(meta) = &entries[1].payload else {
                 panic!()
             };

@@ -38,7 +38,9 @@ export function createTray(options: {
         label: "设置",
         accelerator: "CommandOrControl+,",
         click: () => {
-          void options.openSettings().catch((error: unknown) => console.error("Open settings failed", error));
+          void options
+            .openSettings()
+            .catch((error: unknown) => console.error("Open settings failed", error));
         },
       },
       { type: "separator" },

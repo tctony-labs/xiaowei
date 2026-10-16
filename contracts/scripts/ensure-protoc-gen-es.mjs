@@ -15,7 +15,9 @@ export function ensureProtocGenEs() {
   const version = catalog.get("@bufbuild/protoc-gen-es");
   const runtime = catalog.get("@bufbuild/protobuf");
   if (!version || !runtime) {
-    throw new Error("Missing @bufbuild/protoc-gen-es or @bufbuild/protobuf in the pnpm-workspace.yaml catalog");
+    throw new Error(
+      "Missing @bufbuild/protoc-gen-es or @bufbuild/protobuf in the pnpm-workspace.yaml catalog",
+    );
   }
   if (version !== runtime) {
     throw new Error(
@@ -27,7 +29,9 @@ export function ensureProtocGenEs() {
   const installed = existsSync(executable) ? installedVersion(executable) : "missing";
   if (installed === version) return executable;
 
-  console.log(`[contracts] Preparing protoc-gen-es: want ${version}, got ${installed}; running pnpm install.`);
+  console.log(
+    `[contracts] Preparing protoc-gen-es: want ${version}, got ${installed}; running pnpm install.`,
+  );
   execFileSync("pnpm", ["install", "--frozen-lockfile"], { cwd: workspace, stdio: "inherit" });
 
   const actual = existsSync(executable) ? installedVersion(executable) : "missing";

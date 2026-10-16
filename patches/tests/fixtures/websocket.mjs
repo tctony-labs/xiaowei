@@ -124,7 +124,12 @@ export function textEvents(id = "resp_test", text = "OK") {
   return [
     { type: "response.created", response: { id } },
     { type: "response.output_item.added", output_index: 0, item },
-    { type: "response.content_part.added", output_index: 0, content_index: 0, part: { type: "output_text", text: "" } },
+    {
+      type: "response.content_part.added",
+      output_index: 0,
+      content_index: 0,
+      part: { type: "output_text", text: "" },
+    },
     { type: "response.output_text.delta", output_index: 0, content_index: 0, delta: text },
     {
       type: "response.output_item.done",

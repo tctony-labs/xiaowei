@@ -58,8 +58,13 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const scrollSession = useRef(props.sessionId ?? "");
   const [composerHeight, setComposerHeight] = useState(65);
   const canSend =
-    props.configured && !!props.draft.trim() && !props.generating && !props.loading && !props.configSaving;
-  const title = props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
+    props.configured &&
+    !!props.draft.trim() &&
+    !props.generating &&
+    !props.loading &&
+    !props.configSaving;
+  const title =
+    props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
   useLayoutEffect(() => {
     if (!props.expanded) return;
@@ -93,7 +98,9 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
     }
     if (!props.messages.length) followOutput.current = true;
     if (scroll.current && props.expanded) {
-      scroll.current.scrollTop = followOutput.current ? scroll.current.scrollHeight : scrollPosition.current;
+      scroll.current.scrollTop = followOutput.current
+        ? scroll.current.scrollHeight
+        : scrollPosition.current;
     }
   }, [props.messages, props.expanded, props.sessionId]);
 
@@ -145,8 +152,20 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
           {props.generating ? (
             <span className="size-3 rounded-sm bg-current" />
           ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-              <path d="m5 12 7-7 7 7M12 5v14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="m5 12 7-7 7 7M12 5v14"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           )}
         </button>
@@ -163,10 +182,18 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
         if (event.currentTarget.querySelector('[data-quick-chat-keyboard-layer="true"]')) return;
         const inComposer = event.target === composer.current;
-        if (event.key === "Escape" || (event.key === "ArrowUp" && inComposer && !props.draft.trim())) {
+        if (
+          event.key === "Escape" ||
+          (event.key === "ArrowUp" && inComposer && !props.draft.trim())
+        ) {
           event.preventDefault();
           props.onCollapse();
-        } else if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key === "n") {
+        } else if (
+          (event.metaKey || event.ctrlKey) &&
+          !event.shiftKey &&
+          !event.altKey &&
+          event.key === "n"
+        ) {
           event.preventDefault();
           newConversation();
         }
@@ -220,13 +247,16 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                 const element = scroll.current;
                 if (element && props.expanded) {
                   scrollPosition.current = element.scrollTop;
-                  followOutput.current = element.scrollHeight - element.clientHeight - element.scrollTop < 40;
+                  followOutput.current =
+                    element.scrollHeight - element.clientHeight - element.scrollTop < 40;
                 }
               }}
               className={`min-h-0 flex-1 px-4 ${animating ? "overflow-hidden" : "overflow-y-auto"}`}
             >
               {!props.messages.length && props.emptyState ? (
-                <div className="flex min-h-full items-center justify-center py-8">{props.emptyState}</div>
+                <div className="flex min-h-full items-center justify-center py-8">
+                  {props.emptyState}
+                </div>
               ) : (
                 <div className="flex flex-col gap-3 py-3">
                   {!props.messages.length && !props.error && (
@@ -247,18 +277,24 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                       {message.thinking && (
                         <details className="mb-2 border-l-2 border-line pl-3 text-xs text-muted">
                           <summary className="cursor-pointer py-1">
-                            {message.status === "generating" && !message.text ? "正在思考" : "思考过程"}
+                            {message.status === "generating" && !message.text
+                              ? "正在思考"
+                              : "思考过程"}
                           </summary>
                           <p className="whitespace-pre-wrap break-words">{message.thinking}</p>
                         </details>
                       )}
-                      {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
+                      {message.text && (
+                        <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                      )}
                       {message.status === "generating" && !message.text && !message.thinking && (
                         <p role="status" className="text-xs text-muted">
                           正在等待回复…
                         </p>
                       )}
-                      {message.status === "cancelled" && <p className="mt-1 text-xs text-muted">已停止</p>}
+                      {message.status === "cancelled" && (
+                        <p className="mt-1 text-xs text-muted">已停止</p>
+                      )}
                       {message.error && (
                         <p role="alert" className="mt-1 text-xs text-danger">
                           {message.error}
@@ -266,7 +302,9 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                       )}
                     </article>
                   ))}
-                  {props.emptyState && <div className="flex items-center justify-center py-8">{props.emptyState}</div>}
+                  {props.emptyState && (
+                    <div className="flex items-center justify-center py-8">{props.emptyState}</div>
+                  )}
                   {props.error && !props.emptyState && (
                     <p role="alert" className="text-xs text-danger">
                       {props.error}
@@ -276,7 +314,10 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
               )}
             </section>
             {props.modelHint && (
-              <div role="status" className="flex shrink-0 items-center gap-3 px-4 py-2 text-xs text-muted">
+              <div
+                role="status"
+                className="flex shrink-0 items-center gap-3 px-4 py-2 text-xs text-muted"
+              >
                 <span className="h-px flex-1 bg-line" />
                 <span className="max-w-[80%] text-center break-words">{props.modelHint}</span>
                 <span className="h-px flex-1 bg-line" />

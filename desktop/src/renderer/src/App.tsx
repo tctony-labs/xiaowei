@@ -13,14 +13,16 @@ function LauncherWithTheme() {
     let subscription: { close(): void } | undefined;
     let revision = 0;
     void (async () => {
-      const handle = await services.getGateway().subscribe(SettingsChangedSchema.typeName, undefined, (bytes) => {
-        const snapshot = fromBinary(SettingsChangedSchema, bytes).snapshot;
-        if (active && snapshot) {
-          revision += 1;
-          applyTheme(snapshot.theme);
-          setRefreshToken((current) => current + 1);
-        }
-      });
+      const handle = await services
+        .getGateway()
+        .subscribe(SettingsChangedSchema.typeName, undefined, (bytes) => {
+          const snapshot = fromBinary(SettingsChangedSchema, bytes).snapshot;
+          if (active && snapshot) {
+            revision += 1;
+            applyTheme(snapshot.theme);
+            setRefreshToken((current) => current + 1);
+          }
+        });
       if (!active) {
         handle.close();
         return;
@@ -42,7 +44,10 @@ export function App() {
   const parameters = new URLSearchParams(window.location.search);
   if (parameters.get("window") === "settings") {
     return (
-      <SettingsPage version={parameters.get("version") ?? ""} development={parameters.get("development") === "true"} />
+      <SettingsPage
+        version={parameters.get("version") ?? ""}
+        development={parameters.get("development") === "true"}
+      />
     );
   }
   return <LauncherWithTheme />;

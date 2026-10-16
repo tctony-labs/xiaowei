@@ -57,9 +57,12 @@ function compose(args, options) {
 }
 
 function sql(statement) {
-  return compose(["exec", "-T", "db", "psql", "-U", "xiaowei", "-d", "xiaowei", "-v", "ON_ERROR_STOP=1"], {
-    input: statement,
-  });
+  return compose(
+    ["exec", "-T", "db", "psql", "-U", "xiaowei", "-d", "xiaowei", "-v", "ON_ERROR_STOP=1"],
+    {
+      input: statement,
+    },
+  );
 }
 
 let address;
@@ -113,7 +116,10 @@ try {
   );
 
   const config = JSON.parse(compose(["config", "--format", "json"]).toString());
-  assert.ok(!config.services.db.ports?.length, "Production PostgreSQL must not publish a host port");
+  assert.ok(
+    !config.services.db.ports?.length,
+    "Production PostgreSQL must not publish a host port",
+  );
   assert.equal(config.services.server.ports[0].host_ip, "127.0.0.1");
   const checkArgs = [
     "run",
@@ -141,7 +147,11 @@ try {
   assert.equal(inspection.Config.User, "65532");
   assert.equal(inspection.HostConfig.ReadonlyRootfs, true);
   const deviceID = randomUUID();
-  const loginBody = { device_id: deviceID, device_name: "Delivery test", password: { email, password } };
+  const loginBody = {
+    device_id: deviceID,
+    device_name: "Delivery test",
+    password: { email, password },
+  };
   await request("/api/auth/login", {
     body: { ...loginBody, password: { email, password: "wrong-password" } },
     code: 10100,
@@ -178,14 +188,29 @@ try {
   stage("Failed candidate configuration leaves the old server and session running");
 
   writeFileSync(join(root, "config/.env"), `${databaseEnv.join("\n")}\n`, { mode: 0o600 });
-  compose(["up", "--detach", "--no-deps", "--force-recreate", "--wait", "--wait-timeout", "120", "server"]);
+  compose([
+    "up",
+    "--detach",
+    "--no-deps",
+    "--force-recreate",
+    "--wait",
+    "--wait-timeout",
+    "120",
+    "server",
+  ]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
   const restored = await request("/api/auth/me", { token: credentials.tokens.access_token });
-  assert.ok(restored.user.user_id === credentials.user.user_id, "Container replacement changed account identity");
+  assert.ok(
+    restored.user.user_id === credentials.user.user_id,
+    "Container replacement changed account identity",
+  );
   const refreshed = await request("/api/auth/refresh", {
     body: { refresh_token: credentials.tokens.refresh_token },
   });
-  await request("/api/auth/refresh", { body: { refresh_token: credentials.tokens.refresh_token }, code: 10002 });
+  await request("/api/auth/refresh", {
+    body: { refresh_token: credentials.tokens.refresh_token },
+    code: 10002,
+  });
   await request("/api/auth/me", { token: refreshed.access_token });
   stage("Container replacement, persistent session and refresh rotation passed");
 
@@ -199,7 +224,10 @@ try {
   await request("/api/auth/me", { token: refreshed.access_token });
   stage("HTTP 200 database failure correctly fails the container readiness probe");
 
-  writeFileSync(join(root, "release.txt"), `sha=isolated-test\nrun_id=isolated-test\nimage=${image}\n`);
+  writeFileSync(
+    join(root, "release.txt"),
+    `sha=isolated-test\nrun_id=isolated-test\nimage=${image}\n`,
+  );
   const backupArgs = [join(source, "backup.sh"), root, project];
   const backupOptions = { env, timeout: 180_000, stdio: ["pipe", "pipe", "pipe"] };
   execFileSync("bash", backupArgs, backupOptions);
@@ -207,7 +235,11 @@ try {
   const firstBackup = readFileSync(backupPath);
   assert.equal(statSync(backupPath).mode & 0o777, 0o600);
   assert.throws(() => execFileSync("bash", backupArgs, backupOptions));
-  assert.deepEqual(readFileSync(backupPath), firstBackup, "Retry overwrote the pending rollback point");
+  assert.deepEqual(
+    readFileSync(backupPath),
+    firstBackup,
+    "Retry overwrote the pending rollback point",
+  );
 
   compose(["up", "--detach", "--no-deps", "--wait", "--wait-timeout", "120", "server"]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
@@ -221,7 +253,12 @@ try {
   const quotedDocker = `'${dockerPath.replaceAll("'", "'\\''")}'`;
   writeFileSync(
     join(faultBin, "docker"),
-    ["#!/bin/sh", 'case "$*" in *"exec pg_dump"*) exit 91 ;; esac', `exec ${quotedDocker} "$@"`, ""].join("\n"),
+    [
+      "#!/bin/sh",
+      'case "$*" in *"exec pg_dump"*) exit 91 ;; esac',
+      `exec ${quotedDocker} "$@"`,
+      "",
+    ].join("\n"),
     { mode: 0o700 },
   );
   assert.throws(
@@ -236,7 +273,11 @@ try {
       return true;
     },
   );
-  assert.deepEqual(readFileSync(backupPath), firstBackup, "Failed backup replaced the previous backup");
+  assert.deepEqual(
+    readFileSync(backupPath),
+    firstBackup,
+    "Failed backup replaced the previous backup",
+  );
   assert.ok(!existsSync(join(root, "backups/upgrade-pending")));
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
   await request("/api/auth/me", { token: refreshed.access_token });
@@ -247,17 +288,31 @@ try {
   const restoredDir = join(root, "rollback");
   mkdirSync(restoredDir, { mode: 0o700 });
   execFileSync("tar", ["-xpf", backupPath, "-C", restoredDir]);
-  assert.deepEqual(readFileSync(join(restoredDir, "config/.env")), readFileSync(join(root, "config/.env")));
-  assert.deepEqual(readFileSync(join(restoredDir, "compose.yaml")), readFileSync(join(root, "compose.yaml")));
-  assert.deepEqual(readFileSync(join(restoredDir, "release.txt")), readFileSync(join(root, "release.txt")));
-  sql("CREATE TABLE failed_migration_marker (id integer); TRUNCATE users CASCADE; DELETE FROM admin_bootstrap;\n");
+  assert.deepEqual(
+    readFileSync(join(restoredDir, "config/.env")),
+    readFileSync(join(root, "config/.env")),
+  );
+  assert.deepEqual(
+    readFileSync(join(restoredDir, "compose.yaml")),
+    readFileSync(join(root, "compose.yaml")),
+  );
+  assert.deepEqual(
+    readFileSync(join(restoredDir, "release.txt")),
+    readFileSync(join(root, "release.txt")),
+  );
+  sql(
+    "CREATE TABLE failed_migration_marker (id integer); TRUNCATE users CASCADE; DELETE FROM admin_bootstrap;\n",
+  );
   // Recreate the database: pg_restore --clean alone leaves objects introduced by the failed version.
   compose(["exec", "-T", "db", "dropdb", "-U", "xiaowei", "--force", "xiaowei"]);
   compose(["exec", "-T", "db", "createdb", "-U", "xiaowei", "--owner", "xiaowei", "xiaowei"]);
   compose(["exec", "-T", "db", "pg_restore", "-U", "xiaowei", "-d", "xiaowei", "--exit-on-error"], {
     input: readFileSync(join(restoredDir, "database.dump")),
   });
-  assert.match(sql("SELECT to_regclass('public.failed_migration_marker') IS NULL;\n").toString(), /\n t\s*\n/);
+  assert.match(
+    sql("SELECT to_regclass('public.failed_migration_marker') IS NULL;\n").toString(),
+    /\n t\s*\n/,
+  );
   copyFileSync(join(restoredDir, "compose.yaml"), join(root, "compose.yaml"));
   renameSync(join(root, "config"), join(restoredDir, "replaced-config"));
   execFileSync("cp", ["-pR", join(restoredDir, "config"), join(root, "config")]);
@@ -270,10 +325,18 @@ try {
   await request("/api/auth/logout", { token: refreshed.access_token, method: "POST" });
   await request("/api/auth/me", { token: refreshed.access_token, code: 10002 });
   rmSync(join(root, "backups/upgrade-pending"));
-  stage("Single rollback snapshot restores configuration, database, accounts and sessions; logout passed");
+  stage(
+    "Single rollback snapshot restores configuration, database, accounts and sessions; logout passed",
+  );
 
   const logs = compose(["logs", "--no-color", "server"]).toString();
-  for (const secret of [databasePassword, password, email, refreshed.access_token, refreshed.refresh_token]) {
+  for (const secret of [
+    databasePassword,
+    password,
+    email,
+    refreshed.access_token,
+    refreshed.refresh_token,
+  ]) {
     assert.ok(!logs.includes(secret), "Deployment logs contain a secret");
   }
   stage("Production Compose acceptance passed");
@@ -294,7 +357,9 @@ try {
     ]);
     rmSync(root, { recursive: true, force: true });
   } catch {
-    console.error(`Could not fully clean the isolated deployment project ${project}; files: ${root}`);
+    console.error(
+      `Could not fully clean the isolated deployment project ${project}; files: ${root}`,
+    );
     process.exitCode = 1;
   }
 }

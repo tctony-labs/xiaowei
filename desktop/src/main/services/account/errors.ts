@@ -13,7 +13,8 @@ export class AccountError extends Error {
 export function accountError(error: unknown): AccountError {
   if (error instanceof AccountError) return error;
   if (error instanceof GatewayFailure) {
-    if (error.detail.code === "UNAUTHORIZED") return new AccountError(ErrorCode.PERMISSION_DENIED, "账号调用权限不足");
+    if (error.detail.code === "UNAUTHORIZED")
+      return new AccountError(ErrorCode.PERMISSION_DENIED, "账号调用权限不足");
     if (error.detail.code === "INVALID_ARGUMENT")
       return new AccountError(ErrorCode.INVALID_ARGUMENT, "账号请求参数无效");
     return new AccountError(

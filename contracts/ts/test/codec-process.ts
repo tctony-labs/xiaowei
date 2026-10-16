@@ -8,7 +8,11 @@ interface CodecOptions {
   timeoutMs?: number;
 }
 
-export function runCodec(bin: string, input: Uint8Array, options: CodecOptions): Uint8Array<ArrayBuffer> {
+export function runCodec(
+  bin: string,
+  input: Uint8Array,
+  options: CodecOptions,
+): Uint8Array<ArrayBuffer> {
   const { caseName, args = [], expectFailure = false, timeoutMs = 10_000 } = options;
   const context = `${caseName}: ${basename(bin)} (${args[0] ?? "envelope"}, ${input.byteLength} input bytes)`;
   console.log(`[codec] Starting ${context}`);
@@ -32,9 +36,13 @@ export function runCodec(bin: string, input: Uint8Array, options: CodecOptions):
   }
   if (expectFailure ? result.status === 0 : result.status !== 0) {
     const stderr = result.stderr.toString().trim();
-    throw new Error(`${context}: unexpected exit code ${result.status}${stderr ? `; ${stderr}` : ""}`);
+    throw new Error(
+      `${context}: unexpected exit code ${result.status}${stderr ? `; ${stderr}` : ""}`,
+    );
   }
 
-  console.log(`[codec] Finished ${context}: exit ${result.status}, ${Math.round(performance.now() - started)}ms`);
+  console.log(
+    `[codec] Finished ${context}: exit ${result.status}, ${Math.round(performance.now() - started)}ms`,
+  );
   return new Uint8Array(result.stdout);
 }

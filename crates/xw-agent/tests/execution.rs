@@ -4,10 +4,12 @@ use std::time::Duration;
 
 use futures_util::{StreamExt, stream};
 use xw_agent::{
-    AgentError, AgentHost, AgentService, CancellationToken, GenerationEvent, GenerationFuture, GenerationRequest,
-    GenerationStream, InputSource, SourceKind, protocol::*,
+    AgentError, AgentHost, AgentService, CancellationToken, GenerationEvent, GenerationFuture,
+    GenerationRequest, GenerationStream, InputSource, SourceKind, protocol::*,
 };
-use xw_agent_types::{AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason, InputId};
+use xw_agent_types::{
+    AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason, InputId,
+};
 
 #[derive(Default)]
 struct Model {
@@ -66,7 +68,10 @@ impl AgentHost for Model {
                 end_turn: None,
             };
             if text == "hold" {
-                Ok(Box::pin(stream::once(async { Ok(partial) }).chain(stream::pending())) as GenerationStream)
+                Ok(
+                    Box::pin(stream::once(async { Ok(partial) }).chain(stream::pending()))
+                        as GenerationStream,
+                )
             } else if text == "eof" {
                 Ok(Box::pin(stream::iter(vec![Ok(partial)])) as GenerationStream)
             } else {
@@ -145,16 +150,25 @@ async fn two_callers_share_runs_final_history_config_and_idempotency() {
         .unwrap();
     let first = request(&session, "first");
     let accepted = service.start_run(first.clone(), source("a")).await.unwrap();
-    assert_eq!(service.start_run(first.clone(), source("a")).await.unwrap(), accepted);
+    assert_eq!(
+        service.start_run(first.clone(), source("a")).await.unwrap(),
+        accepted
+    );
     assert!(matches!(
-        service.start_run(request(&session, "conflicting"), source("b")).await,
+        service
+            .start_run(request(&session, "conflicting"), source("b"))
+            .await,
         Err(AgentError::Conflict(_))
     ));
     let final_run = terminal(&mut a).await;
     assert_eq!(terminal(&mut b).await, final_run);
     assert_eq!(final_run.status, i32::from(AgentRunStatus::Completed));
     assert_eq!(
-        service.start_run(first.clone(), source("b")).await.unwrap().run,
+        service
+            .start_run(first.clone(), source("b"))
+            .await
+            .unwrap()
+            .run,
         Some(final_run)
     );
     let mut conflict = first;
@@ -222,7 +236,10 @@ async fn observer_drop_does_not_stop_run_interrupt_is_exact_partial_never_enters
         .unwrap();
     loop {
         let event = observer.recv().await.unwrap().unwrap();
-        if matches!(event.payload, Some(agent_event::Payload::AgentMessageDelta(_))) {
+        if matches!(
+            event.payload,
+            Some(agent_event::Payload::AgentMessageDelta(_))
+        ) {
             break;
         }
     }
@@ -270,15 +287,24 @@ async fn observer_drop_does_not_stop_run_interrupt_is_exact_partial_never_enters
     let cancelled = terminal(&mut observer).await;
     assert_eq!(cancelled.status, i32::from(AgentRunStatus::Interrupted));
     assert_eq!(cancelled.items.len(), 2);
-    service.start_run(request(&session, "eof"), source("b")).await.unwrap();
-    assert_eq!(terminal(&mut observer).await.status, i32::from(AgentRunStatus::Failed));
+    service
+        .start_run(request(&session, "eof"), source("b"))
+        .await
+        .unwrap();
+    assert_eq!(
+        terminal(&mut observer).await.status,
+        i32::from(AgentRunStatus::Failed)
+    );
     service
         .start_run(request(&session, "success"), source("b"))
         .await
         .unwrap();
     terminal(&mut observer).await;
     assert_eq!(model.requests.lock().unwrap()[2].messages.len(), 3);
-    let running = service.start_run(request(&session, "hold"), source("a")).await.unwrap();
+    let running = service
+        .start_run(request(&session, "hold"), source("a"))
+        .await
+        .unwrap();
     assert!(running.run.is_some());
     service
         .delete_session(DeleteSessionRequest {
@@ -306,7 +332,8 @@ async fn observer_drop_does_not_stop_run_interrupt_is_exact_partial_never_enters
 }
 
 #[tokio::test]
-async fn retained_idempotency_inputs_share_the_history_budget_and_rejection_does_not_mutate_config() {
+async fn retained_idempotency_inputs_share_the_history_budget_and_rejection_does_not_mutate_config()
+{
     let model = Arc::new(Model::default());
     let service = AgentService::new(model.clone());
     let session = create(&service);

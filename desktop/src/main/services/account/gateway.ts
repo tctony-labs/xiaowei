@@ -23,7 +23,10 @@ export function registerAccount(host: GatewayHost, service: AccountService) {
   const unsubscribe = service.subscribe(() => {
     registration.publish(
       AccountChangedSchema.typeName,
-      toBinary(AccountChangedSchema, create(AccountChangedSchema, { snapshot: service.snapshot() })),
+      toBinary(
+        AccountChangedSchema,
+        create(AccountChangedSchema, { snapshot: service.snapshot() }),
+      ),
     );
   });
   let closing: Promise<void> | undefined;

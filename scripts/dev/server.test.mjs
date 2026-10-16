@@ -44,7 +44,9 @@ test("preparation delegates configuration validation to Docker startup", async (
   await prepareServer({ ...options, recreate: true });
   assert.equal(calls.length, 2);
   assert.ok(calls[1][1].includes("--force-recreate"));
-  assert.ok(calls.every(([, args]) => !args.includes("down") && !args.includes("--renew-anon-volumes")));
+  assert.ok(
+    calls.every(([, args]) => !args.includes("down") && !args.includes("--renew-anon-volumes")),
+  );
 });
 
 test("Docker startup failure is propagated without claiming dependencies are ready", async (context) => {

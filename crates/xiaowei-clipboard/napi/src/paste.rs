@@ -7,5 +7,6 @@ pub fn request_accessibility_permission() -> bool {
 
 #[napi]
 pub fn send_paste_shortcut() -> napi::Result<bool> {
-    xiaowei_clipboard::send_paste_shortcut().map_err(|error| napi::Error::from_reason(error.to_string()))
+    xiaowei_clipboard::send_paste_shortcut()
+        .map_err(|error| napi::Error::from_reason(error.to_string()))
 }

@@ -4,22 +4,36 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { EnvelopeSchema, Fixture, GenerateEventSchema, GenerateRequestSchema } from "xiaowei-contracts";
+import {
+  EnvelopeSchema,
+  Fixture,
+  GenerateEventSchema,
+  GenerateRequestSchema,
+} from "xiaowei-contracts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
 const directory = fileURLToPath(new URL("../../../target/rust-napi-tests/search", import.meta.url));
 const require = createRequire(import.meta.url);
-const addon = require(`${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`);
+const addon = require(
+  `${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`,
+);
 
 // The only envelope wrapping is in this test harness. Rust decodes GenerateRequest,
 // calls Llm.Generate with StreamMethod and encodes each typed GenerateEvent back.
 test("Rust typed LLM caller reaches built worker/Pi and preserves terminal, error and cancellation", async (t) => {
   const fixture = await llmFixture(t);
-  const endpoint = await attachRustNapi(fixture.host, "rust-llm-test", addon.createGatewayFixture());
+  const endpoint = await attachRustNapi(
+    fixture.host,
+    "rust-llm-test",
+    addon.createGatewayFixture(),
+  );
   t.after(() => endpoint.close());
-  const client = bindStreamClient(Fixture, fixture.host.client({ caller: "llm-rust-test", trusted: true }));
+  const client = bindStreamClient(
+    Fixture,
+    fixture.host.client({ caller: "llm-rust-test", trusted: true }),
+  );
   const open = (text, extra = {}) =>
     client.watch(
       create(EnvelopeSchema, {

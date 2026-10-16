@@ -83,7 +83,12 @@ export function LargeFileIcon({ path }: { path: string }) {
             strokeLinecap="round"
           />
           <circle cx="7" cy="7.5" r="1.2" stroke={color} strokeWidth="1" />
-          <path d="M4 12.5L6.5 9.5L8.5 11L10.5 8.5L14 12.5" stroke={color} strokeWidth="1.1" strokeLinejoin="round" />
+          <path
+            d="M4 12.5L6.5 9.5L8.5 11L10.5 8.5L14 12.5"
+            stroke={color}
+            strokeWidth="1.1"
+            strokeLinejoin="round"
+          />
         </svg>
       ) : (
         <svg width="22" height="22" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -92,7 +97,12 @@ export function LargeFileIcon({ path }: { path: string }) {
             stroke={color}
             strokeWidth="1.2"
           />
-          <path d="M10 3v3.5a.5.5 0 00.5.5H14" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+          <path
+            d="M10 3v3.5a.5.5 0 00.5.5H14"
+            stroke={color}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
           <path d="M6.5 11h5M6.5 13.5h3" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
         </svg>
       )}

@@ -45,8 +45,24 @@ const providersFixture: Provider[] = [
   },
 ];
 const localFixture: LocalModel[] = [
-  { id: "small", name: "Qwen3 4B", disk: 2.6, memory: 4.5, recommendation: "最平衡", state: "ready", progress: 100 },
-  { id: "medium", name: "Qwen3 8B", disk: 5.1, memory: 8.2, recommendation: "最智能", state: "missing", progress: 0 },
+  {
+    id: "small",
+    name: "Qwen3 4B",
+    disk: 2.6,
+    memory: 4.5,
+    recommendation: "最平衡",
+    state: "ready",
+    progress: 100,
+  },
+  {
+    id: "medium",
+    name: "Qwen3 8B",
+    disk: 5.1,
+    memory: 8.2,
+    recommendation: "最智能",
+    state: "missing",
+    progress: 0,
+  },
   {
     id: "large",
     name: "Qwen3 32B",
@@ -56,12 +72,26 @@ const localFixture: LocalModel[] = [
     state: "missing",
     progress: 0,
   },
-  { id: "huge", name: "Qwen3 72B", disk: 43, memory: null, recommendation: "不推荐", state: "missing", progress: 0 },
+  {
+    id: "huge",
+    name: "Qwen3 72B",
+    disk: 43,
+    memory: null,
+    recommendation: "不推荐",
+    state: "missing",
+    progress: 0,
+  },
 ];
 const sessionsFixture: ArchivedSession[] = [
   { id: "1", title: "整理本周的开发事项", workspace: "个人空间", time: "3 天前", kind: "home" },
   { id: "2", title: "搜索与剪贴板交互讨论", workspace: "XiaoWei", time: "5 天前", kind: "folder" },
-  { id: "3", title: "项目知识库：架构与模块边界", workspace: "知识库", time: "1 周前", kind: "wiki" },
+  {
+    id: "3",
+    title: "项目知识库：架构与模块边界",
+    workspace: "知识库",
+    time: "1 周前",
+    kind: "wiki",
+  },
 ];
 export interface PreviewProps {
   accountSection?: ReactNode;
@@ -97,11 +127,16 @@ export interface PreviewProps {
   highlighted?: boolean;
   highlightModelProviders?: boolean;
 }
-const delay = (milliseconds = 350) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+const delay = (milliseconds = 350) =>
+  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 export function SettingsPreview(props: PreviewProps) {
   const [tab, setTab] = useState<TabId>(props.initialTab ?? "general");
   const [toast, setToast] = useState("");
-  const [general, setGeneral] = useState<GeneralValues>({ theme: "system", autostart: false, bookmarks: true });
+  const [general, setGeneral] = useState<GeneralValues>({
+    theme: "system",
+    autostart: false,
+    bookmarks: true,
+  });
   const [account, setAccount] = useState<AccountView>({
     loggedIn: props.loggedIn ?? true,
     loggingIn: props.loginWaiting,
@@ -118,7 +153,11 @@ export function SettingsPreview(props: PreviewProps) {
   const [shortcuts, setShortcuts] = useState<Shortcuts>(
     props.noShortcuts
       ? { search: null, chat: null, clipboard: null }
-      : { search: ["Meta", "Space"], chat: ["Meta", "Shift", "KeyC"], clipboard: ["Meta", "Shift", "KeyX"] },
+      : {
+          search: ["Meta", "Space"],
+          chat: ["Meta", "Shift", "KeyC"],
+          clipboard: ["Meta", "Shift", "KeyX"],
+        },
   );
   const [clipboard, setClipboard] = useState<ClipboardValues>({
     enabled: !props.clipboardDisabled,
@@ -130,7 +169,10 @@ export function SettingsPreview(props: PreviewProps) {
   const [providers, setProviders] = useState<Provider[]>(() =>
     props.emptyModels
       ? []
-      : structuredClone(providersFixture).map((p) => ({ ...p, hasApiKey: !props.providerWithoutKey })),
+      : structuredClone(providersFixture).map((p) => ({
+          ...p,
+          hasApiKey: !props.providerWithoutKey,
+        })),
   );
   const [models, setModels] = useState<ModelValues>({
     defaultModel: props.emptyModels ? "" : "deepseek/deepseek-chat",
@@ -148,7 +190,9 @@ export function SettingsPreview(props: PreviewProps) {
       failure: "下载连接中断，请重试",
     })),
   );
-  const [highlightModelProviders, setHighlightModelProviders] = useState(props.highlightModelProviders ?? false);
+  const [highlightModelProviders, setHighlightModelProviders] = useState(
+    props.highlightModelProviders ?? false,
+  );
   const [highlight, setHighlight] = useState(props.highlighted ?? false);
   const [agent, setAgent] = useState<AgentValues>({
     maxCalls: 50,
@@ -179,7 +223,9 @@ export function SettingsPreview(props: PreviewProps) {
   }, [toast]);
   useEffect(() => {
     if (!highlightModelProviders || tab !== "llm") return;
-    document.getElementById("settings-model-providers")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document
+      .getElementById("settings-model-providers")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
     const timer = setTimeout(() => setHighlightModelProviders(false), 1600);
     return () => clearTimeout(timer);
   }, [highlightModelProviders, tab]);
@@ -217,7 +263,13 @@ export function SettingsPreview(props: PreviewProps) {
           />
         );
       case "shortcut":
-        return <ShortcutSettings values={shortcuts} onChange={setShortcuts} showQuickChat={!props.phaseOne} />;
+        return (
+          <ShortcutSettings
+            values={shortcuts}
+            onChange={setShortcuts}
+            showQuickChat={!props.phaseOne}
+          />
+        );
       case "clipboard":
         return (
           <ClipboardSettings
@@ -260,17 +312,22 @@ export function SettingsPreview(props: PreviewProps) {
               setModels({ ...models, localModel: id });
               setLocals(
                 locals.map((m) =>
-                  m.id === id && m.state !== "ready" ? { ...m, state: "downloading", progress: 0 } : m,
+                  m.id === id && m.state !== "ready"
+                    ? { ...m, state: "downloading", progress: 0 }
+                    : m,
                 ),
               );
             }}
             onFetchModels={async (provider) => {
               if (props.modelFetch === "loading") return new Promise(() => {});
               await delay();
-              if (props.modelFetch === "error") throw new Error("获取模型失败，请检查地址、协议和 API Key 后重试");
+              if (props.modelFetch === "error")
+                throw new Error("获取模型失败，请检查地址、协议和 API Key 后重试");
               if (props.modelFetch === "empty") return [];
               if (props.modelFetch === "many") {
-                return Array.from({ length: 40 }, (_, index) => ({ id: `preview-model-${index + 1}` }));
+                return Array.from({ length: 40 }, (_, index) => ({
+                  id: `preview-model-${index + 1}`,
+                }));
               }
               if (provider.preset === "deepseek") return deepseekPresetModels;
               const ids = ["demo-text", "demo-image"];
@@ -307,7 +364,8 @@ export function SettingsPreview(props: PreviewProps) {
               setProviders((current) => current.filter((p) => p.id !== id));
               const provider = providers.find((item) => item.id === id);
               if (provider) {
-                const keep = (model: string) => (model.startsWith(`${provider.name}/`) ? "" : model);
+                const keep = (model: string) =>
+                  model.startsWith(`${provider.name}/`) ? "" : model;
                 setModels((current) => ({
                   ...current,
                   defaultModel: keep(current.defaultModel),
@@ -347,7 +405,9 @@ export function SettingsPreview(props: PreviewProps) {
               setSessions(sessions.filter((s) => s.id !== id));
               setToast("已恢复对话（预览）");
             }}
-            onDelete={(targets) => setSessions(sessions.filter((s) => !targets.some((target) => target.id === s.id)))}
+            onDelete={(targets) =>
+              setSessions(sessions.filter((s) => !targets.some((target) => target.id === s.id)))
+            }
           />
         );
       case "about":
@@ -364,7 +424,10 @@ export function SettingsPreview(props: PreviewProps) {
   return (
     <div className="relative h-screen min-h-[400px] w-full">
       {/* Native window controls are decorative in the browser preview. */}
-      <div aria-hidden="true" className="pointer-events-none absolute top-2.5 left-3 z-10 flex gap-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-2.5 left-3 z-10 flex gap-2"
+      >
         <span className="size-3 rounded-full border border-black/10 bg-[#ff5f57]" />
         <span className="size-3 rounded-full border border-black/10 bg-[#febc2e]" />
         <span className="size-3 rounded-full border border-black/10 bg-[#28c840]" />

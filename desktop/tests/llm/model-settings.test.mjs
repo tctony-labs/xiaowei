@@ -135,7 +135,9 @@ test("missing environment credentials save without invalid worker updates; clear
   const third = await save(f.api, second.revision, second.providers[0], clear);
   assert.deepEqual(f.applied.at(-1), []);
   assert.ok(third.providers[0].unavailableReason);
-  await assert.rejects(save(f.api, third.revision, { ...third.providers[0], apiKeyEnv: "" }, clear));
+  await assert.rejects(
+    save(f.api, third.revision, { ...third.providers[0], apiKeyEnv: "" }, clear),
+  );
 });
 
 test("duplicate names/IDs and stale edits fail; same upstream model in different providers is valid", async (t) => {
@@ -150,7 +152,10 @@ test("duplicate names/IDs and stale edits fail; same upstream model in different
   }
   const second = await save(f.api, first.revision, provider("Other"));
   assert.notEqual(second.providers[0].models[0].id, second.providers[1].models[0].id);
-  await assert.rejects(save(f.api, first.revision, provider("Stale")), (error) => error.detail.code === "CONFLICT");
+  await assert.rejects(
+    save(f.api, first.revision, provider("Stale")),
+    (error) => error.detail.code === "CONFLICT",
+  );
   const a = save(f.api, second.revision, provider("A"));
   const b = save(f.api, second.revision, provider("B"));
   const results = await Promise.allSettled([a, b]);
@@ -171,7 +176,12 @@ test("file failure leaves old state; worker failure preserves file and reapply u
   assert.ok(first.applicationError);
   assert.equal(first.appliedRevision, 1n);
   assert.equal((await loadConfig({}, f.path)).document.providers.length, 1);
-  const second = await save(f.api, first.revision, { ...first.providers[0], name: "Latest" }, preserve);
+  const second = await save(
+    f.api,
+    first.revision,
+    { ...first.providers[0], name: "Latest" },
+    preserve,
+  );
   f.setFailure(false);
   const applied = await f.api.reapply(create(EmptySchema));
   assert.equal(applied.appliedRevision, second.revision);
@@ -186,9 +196,21 @@ test("unmatched thinking map is disabled, chosen maps survive and clear when dis
   const first = await save(f.api, 1n, p);
   assert.equal(first.providers[0].models[0].reasoning, false);
   assert.equal(first.providers[0].models[0].thinkingLevelMapJson, undefined);
-  const map = { off: "none", minimal: null, low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" };
+  const map = {
+    off: "none",
+    minimal: null,
+    low: "low",
+    medium: "medium",
+    high: "high",
+    xhigh: "xhigh",
+    max: "max",
+  };
   const next = first.providers[0];
-  next.models[0] = { ...next.models[0], reasoning: true, thinkingLevelMapJson: JSON.stringify(map) };
+  next.models[0] = {
+    ...next.models[0],
+    reasoning: true,
+    thinkingLevelMapJson: JSON.stringify(map),
+  };
   const second = await save(f.api, first.revision, next, preserve);
   assert.deepEqual(JSON.parse(second.providers[0].models[0].thinkingLevelMapJson), map);
 });
@@ -229,7 +251,11 @@ test("draft discovery goes through the built worker without saving and cancellat
   );
   const directory = await mkdtemp(join(tmpdir(), "draft-catalog-"));
   const host = new GatewayHost();
-  const worker = await attachLlm(host, [], new URL("../../out/main/llm-worker.js", import.meta.url));
+  const worker = await attachLlm(
+    host,
+    [],
+    new URL("../../out/main/llm-worker.js", import.meta.url),
+  );
   const applied = [];
   const owner = registerModelSettings(
     host,

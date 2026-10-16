@@ -59,7 +59,9 @@ test("new conversation preserves an existing empty session and its observation",
   const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
   const response = await services
     .getAgent()
-    .createSession(create(CreateSessionRequestSchema, { clientRequestId: agentIdentity(), config }));
+    .createSession(
+      create(CreateSessionRequestSchema, { clientRequestId: agentIdentity(), config }),
+    );
   const client = new AgentChatClient(services);
   const listener = vi.fn();
   const close = client.observe(listener);
@@ -81,7 +83,9 @@ test("new conversation preserves an existing empty session and its observation",
 test("setting a manual title synchronizes both observers and invalid titles leave it unchanged", async () => {
   const fixture = agentFixture();
   const services = createServices(() => fixture.host.client({ caller: "first", trusted: true }));
-  const otherServices = createServices(() => fixture.host.client({ caller: "other", trusted: true }));
+  const otherServices = createServices(() =>
+    fixture.host.client({ caller: "other", trusted: true }),
+  );
   const client = new AgentChatClient(services);
   const other = new AgentChatClient(otherServices);
   const firstClose = client.observe(() => {});
@@ -132,7 +136,9 @@ test("UUIDv7 IDs have canonical timestamps, variants and independent randomness"
   expect(new Set(identities).size).toBe(1000);
   for (const id of identities) {
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(Math.abs(Number.parseInt(id.slice(0, 13).replace("-", ""), 16) - Date.now())).toBeLessThan(1000);
+    expect(
+      Math.abs(Number.parseInt(id.slice(0, 13).replace("-", ""), 16) - Date.now()),
+    ).toBeLessThan(1000);
   }
 });
 
@@ -187,7 +193,9 @@ test("new conversation settles the run and preserves the old session for switchi
   expect(fixture.counts.deleted).toBe(0);
   fixture.finish(AgentRunStatus.INTERRUPTED);
   await reset;
-  expect(debug).toHaveBeenCalledWith(`Agent new conversation opened previous_session=${previousId}`);
+  expect(debug).toHaveBeenCalledWith(
+    `Agent new conversation opened previous_session=${previousId}`,
+  );
   expect(client.messages).toEqual([]);
   expect(fixture.counts.deleted).toBe(0);
   await client.send("new", config);

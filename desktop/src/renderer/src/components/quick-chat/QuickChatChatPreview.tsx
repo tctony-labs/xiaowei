@@ -19,7 +19,12 @@ export interface QuickChatChatPreviewProps {
 }
 
 function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): QuickChatMessage[] {
-  if (scenario === "empty" || scenario === "no-models" || scenario === "missing-default" || scenario === "loading")
+  if (
+    scenario === "empty" ||
+    scenario === "no-models" ||
+    scenario === "missing-default" ||
+    scenario === "loading"
+  )
     return [];
   return [
     { id: "user", role: "user", text: "帮我把今天的工作安排成三个步骤。" },
@@ -32,7 +37,10 @@ function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): Quick
           : scenario === "text" || scenario === "stopped"
             ? "可以先明确今天最需要完成的一件事。"
             : "1. 先明确今天最需要完成的一件事。\n2. 集中时间完成它，并验证结果。\n3. 整理剩余事项，安排下一步。",
-      thinking: scenario === "thinking" ? "先确定优先级，再把执行和验证分开，最后留出整理时间。" : undefined,
+      thinking:
+        scenario === "thinking"
+          ? "先确定优先级，再把执行和验证分开，最后留出整理时间。"
+          : undefined,
       status:
         scenario === "text" || scenario === "thinking"
           ? "generating"
@@ -47,7 +55,10 @@ function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): Quick
 }
 
 // Storybook-only adapter. Replies are simulated; no Gateway, user configuration or network access.
-export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = true }: QuickChatChatPreviewProps) {
+export function QuickChatChatPreview({
+  scenario = "empty",
+  initiallyExpanded = true,
+}: QuickChatChatPreviewProps) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -98,7 +109,9 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
   function stop() {
     setRun(null);
     setMessages((items) =>
-      items.map((message) => (message.status === "generating" ? { ...message, status: "cancelled" } : message)),
+      items.map((message) =>
+        message.status === "generating" ? { ...message, status: "cancelled" } : message,
+      ),
     );
   }
 
@@ -120,7 +133,11 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
 
   if (hidden) {
     return (
-      <button type="button" className="m-4 rounded-lg bg-elevated px-4 py-2 text-ink" onClick={() => setHidden(false)}>
+      <button
+        type="button"
+        className="m-4 rounded-lg bg-elevated px-4 py-2 text-ink"
+        onClick={() => setHidden(false)}
+      >
         重新打开搜索框
       </button>
     );
@@ -152,7 +169,11 @@ export function QuickChatChatPreview({ scenario = "empty", initiallyExpanded = t
         configured={configured}
         generating={generating}
         loading={scenario === "loading"}
-        emptyState={!configured ? <QuickChatModelEmptyState onOpenSettings={() => setSettingsOpen(true)} /> : undefined}
+        emptyState={
+          !configured ? (
+            <QuickChatModelEmptyState onOpenSettings={() => setSettingsOpen(true)} />
+          ) : undefined
+        }
         onDraftChange={setDraft}
         onSend={send}
         onStop={stop}

@@ -20,7 +20,10 @@ export interface GatewayError {
   message: string;
 }
 export type Result<T> = { ok: true; value: T } | { ok: false; error: GatewayError };
-export const failure = (code: ErrorCode, message: string): Result<never> => ({ ok: false, error: { code, message } });
+export const failure = (code: ErrorCode, message: string): Result<never> => ({
+  ok: false,
+  error: { code, message },
+});
 export const success = <T>(value: T): Result<T> => ({ ok: true, value });
 
 // Exceptions are local convenience only; transport always sends the plain Result union.
@@ -37,7 +40,11 @@ export function invalid(message: string): never {
   throw new GatewayFailure({ code: "INVALID_ARGUMENT", message });
 }
 export function validateName(name: string): void {
-  if (!name || new TextEncoder().encode(name).length > 200 || name.split(".").some((part) => !part)) {
+  if (
+    !name ||
+    new TextEncoder().encode(name).length > 200 ||
+    name.split(".").some((part) => !part)
+  ) {
     invalid("invalid gateway name");
   }
 }
@@ -54,7 +61,10 @@ export function validateRoute(route: Route): void {
   validateName(route.input);
   validateName(route.output);
   if (route.controlVersion !== CONTROL_VERSION || route.contractVersion !== CONTRACT_VERSION) {
-    throw new GatewayFailure({ code: "INCOMPATIBLE", message: "unsupported protocol or contract version" });
+    throw new GatewayFailure({
+      code: "INCOMPATIBLE",
+      message: "unsupported protocol or contract version",
+    });
   }
   if (route.kind !== "unary" && route.kind !== "serverStreaming") invalid("invalid method kind");
 }
@@ -68,7 +78,8 @@ export function accepts(actual: Route, request: Route): Result<void> {
     actual.contractVersion !== request.contractVersion
   )
     return failure("INCOMPATIBLE", "route contract mismatch");
-  if (actual.kind !== "unary") return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
+  if (actual.kind !== "unary")
+    return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
   return success(undefined);
 }
 export type Backpressure = "ordered" | "coalesce" | "drop";

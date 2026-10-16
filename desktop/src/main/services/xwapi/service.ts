@@ -1,5 +1,18 @@
-import { type DescMessage, type DescMethodUnary, fromJson, type MessageShape, toJsonString } from "@bufbuild/protobuf";
-import { Auth, BaseResponseSchema, ErrorCode, Health, type TokenPair, type XwApiOptions } from "xiaowei-contracts";
+import {
+  type DescMessage,
+  type DescMethodUnary,
+  fromJson,
+  type MessageShape,
+  toJsonString,
+} from "@bufbuild/protobuf";
+import {
+  Auth,
+  BaseResponseSchema,
+  ErrorCode,
+  Health,
+  type TokenPair,
+  type XwApiOptions,
+} from "xiaowei-contracts";
 import { normalizeServerAddress } from "../../../shared/server-address";
 import { HttpRequestError, ServerHttpClient } from "./http";
 
@@ -74,7 +87,9 @@ export class XwapiService {
       else if (session.accessExpiresAtMs <= BigInt(this.now())) reason = "access_expired";
 
       if (reason) {
-        console.warn(`Xwapi request rejected method=${method.parent.typeName}.${method.name} reason=${reason}`);
+        console.warn(
+          `Xwapi request rejected method=${method.parent.typeName}.${method.name} reason=${reason}`,
+        );
         throw new XwapiError(ErrorCode.UNAUTHENTICATED, "没有可用的登录凭据，请刷新会话或重新登录");
       }
       token = session?.accessToken;
@@ -91,11 +106,19 @@ export class XwapiService {
       return await this.http.request(
         `${server}${route.path}`,
         schema,
-        { method: route.method, logPath: route.path, signal: context.signal, timeoutMs, body, token },
+        {
+          method: route.method,
+          logPath: route.path,
+          signal: context.signal,
+          timeoutMs,
+          body,
+          token,
+        },
         (value) => {
           if (method === Health.method.check || method === Health.method.ready) {
             // Health HTTP has data.status; the Gateway result needs only code/msg.
-            if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid health response");
+            if (!value || typeof value !== "object" || Array.isArray(value))
+              throw new Error("Invalid health response");
             const data = value.data;
             if (!data || typeof data !== "object" || Array.isArray(data) || data.status !== "ok") {
               throw new Error("Invalid health status");
@@ -109,7 +132,11 @@ export class XwapiService {
         },
       );
     } catch (error) {
-      if (error instanceof HttpRequestError && error.outcome === "business_error" && error.code !== undefined) {
+      if (
+        error instanceof HttpRequestError &&
+        error.outcome === "business_error" &&
+        error.code !== undefined
+      ) {
         throw new XwapiError(error.code, error.message);
       }
       if (error instanceof HttpRequestError && error.outcome === "protocol_error") {
@@ -147,9 +174,15 @@ export class XwapiService {
   refresh(request: MessageShape<typeof Auth.method.refresh.input>, context: XwapiContext) {
     if (!request.refreshToken) throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "刷新凭据不能为空");
     const body = toJsonString(Auth.method.refresh.input, request, { useProtoFieldName: true });
-    return this.request(Auth.method.refresh, Auth.method.refresh.output, context, body, (response) => {
-      if (!validTokens(response.data)) throw new Error("Invalid refresh result");
-    });
+    return this.request(
+      Auth.method.refresh,
+      Auth.method.refresh.output,
+      context,
+      body,
+      (response) => {
+        if (!validTokens(response.data)) throw new Error("Invalid refresh result");
+      },
+    );
   }
 
   getCurrentUser(context: XwapiContext) {
@@ -159,7 +192,11 @@ export class XwapiService {
       context,
       undefined,
       (response) => {
-        if (!response.data?.user?.userId || !response.data.device?.deviceId || !response.data.sessionId) {
+        if (
+          !response.data?.user?.userId ||
+          !response.data.device?.deviceId ||
+          !response.data.sessionId
+        ) {
           throw new Error("Invalid account information");
         }
       },

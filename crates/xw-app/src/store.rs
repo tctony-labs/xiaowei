@@ -54,13 +54,18 @@ impl AppStore {
             }
         }
 
-        Self { _watchers: watchers }
+        Self {
+            _watchers: watchers,
+        }
     }
 }
 
 /// 递归监听扫描目录；debounce 窗口内的事件攒成一批，只触发一次全量重扫
 /// （应用增删频率低，无需精细 diff）。
-fn start_watcher(dir: &std::path::Path, rescan: Arc<dyn Fn() + Send + Sync>) -> Option<Debouncer<RecommendedWatcher>> {
+fn start_watcher(
+    dir: &std::path::Path,
+    rescan: Arc<dyn Fn() + Send + Sync>,
+) -> Option<Debouncer<RecommendedWatcher>> {
     let mut debouncer = new_debouncer(WATCH_DEBOUNCE, move |res: DebounceEventResult| {
         if res.is_ok() {
             rescan();
@@ -68,7 +73,11 @@ fn start_watcher(dir: &std::path::Path, rescan: Arc<dyn Fn() + Send + Sync>) -> 
     })
     .ok()?;
 
-    if debouncer.watcher().watch(dir, RecursiveMode::Recursive).is_err() {
+    if debouncer
+        .watcher()
+        .watch(dir, RecursiveMode::Recursive)
+        .is_err()
+    {
         return None;
     }
     Some(debouncer)
@@ -102,9 +111,13 @@ mod tests {
         let calls = Arc::new(AtomicUsize::new(0));
         let entries: AppEntries = Arc::new(RwLock::new(Vec::new()));
         let calls_hook = Arc::clone(&calls);
-        let _store = AppStore::open_shared_with(vec![tmp.path().to_path_buf()], Arc::clone(&entries), move || {
-            calls_hook.fetch_add(1, Ordering::SeqCst);
-        });
+        let _store = AppStore::open_shared_with(
+            vec![tmp.path().to_path_buf()],
+            Arc::clone(&entries),
+            move || {
+                calls_hook.fetch_add(1, Ordering::SeqCst);
+            },
+        );
 
         assert_eq!(entries.read().unwrap().len(), 1);
         assert!(calls.load(Ordering::SeqCst) >= 1);

@@ -7,7 +7,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, bindStreamClient, methodRoute } from "../../src/binding/index.js";
+import {
+  bindClient,
+  bindHandlers,
+  bindStreamClient,
+  methodRoute,
+} from "../../src/binding/index.js";
 import { decodeInvokeFrame, encodeInvokeFrame } from "../../src/core/invoke-frame.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";
@@ -37,13 +42,20 @@ const clipboard = require(binary("clipboard")) as typeof search;
 const echo = methodRoute(Fixture.method.echo);
 const peerEcho = methodRoute(PeerFixture.method.echo);
 const bytes = (text = "", data = new Uint8Array()) =>
-  Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { text, id: 0xffffffffffffffffn, blobs: [{ data }] })));
-const changed = (id: bigint) => Buffer.from(toBinary(ChangedSchema, create(ChangedSchema, { value: { id } })));
+  Buffer.from(
+    toBinary(
+      EnvelopeSchema,
+      create(EnvelopeSchema, { text, id: 0xffffffffffffffffn, blobs: [{ data }] }),
+    ),
+  );
+const changed = (id: bigint) =>
+  Buffer.from(toBinary(ChangedSchema, create(ChangedSchema, { value: { id } })));
 const read = (reply: Buffer | string) => {
   if (typeof reply === "string") throw new GatewayFailure(JSON.parse(reply));
   return reply;
 };
-const isCode = (code: string) => (error: unknown) => error instanceof GatewayFailure && error.detail.code === code;
+const isCode = (code: string) => (error: unknown) =>
+  error instanceof GatewayFailure && error.detail.code === code;
 async function attachPair() {
   const host = new GatewayHost();
   const a = search.createGatewayFixture();
@@ -78,7 +90,10 @@ test("two real addons: local hit, bidirectional calls, PB bytes, reentry and con
     assert.equal((await typed.echo(create(EnvelopeSchema, { id: 99n }))).id, 99n);
     const cycle = readError(await a.fixtureInvoke(JSON.stringify(echo), bytes("cycle")));
     assert.ok(["CONCURRENCY_FULL", "TIMEOUT"].includes(cycle));
-    assert.equal(readError(await a.fixtureInvoke(JSON.stringify(echo), Buffer.from([255]))), "INVALID_ARGUMENT");
+    assert.equal(
+      readError(await a.fixtureInvoke(JSON.stringify(echo), Buffer.from([255]))),
+      "INVALID_ARGUMENT",
+    );
     assert.equal(
       readError(await a.fixtureInvoke(JSON.stringify({ ...echo, name: "unknown.route" }), bytes())),
       "UNKNOWN_ROUTE",
@@ -122,7 +137,11 @@ test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and o
   let replacement: FixtureEndpoint | undefined;
   let replacementHandle: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   try {
-    read(await pair.b.fixtureSubscribe(Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { id: 2n })))));
+    read(
+      await pair.b.fixtureSubscribe(
+        Buffer.from(toBinary(EnvelopeSchema, create(EnvelopeSchema, { id: 2n }))),
+      ),
+    );
     read(await pair.a.fixturePublish(changed(1n)));
     read(await pair.a.fixturePublish(changed(2n)));
     assert.deepEqual(read(await pair.b.fixtureNext()), changed(2n));
@@ -148,7 +167,10 @@ test("manifest conflicts roll back endpoint; same-name reconnection cannot be cl
   const local = host.registerOwner("ts", bindHandlers(Fixture, { echo: (p) => p }));
   const conflict = search.createGatewayFixture();
   await assert.rejects(attachRustNapi(host, "native", conflict), isCode("CONFLICT"));
-  assert.equal(readError(await conflict.fixtureInvoke(JSON.stringify(echo), bytes())), "OWNER_UNAVAILABLE");
+  assert.equal(
+    readError(await conflict.fixtureInvoke(JSON.stringify(echo), bytes())),
+    "OWNER_UNAVAILABLE",
+  );
   local.close();
   const first = search.createGatewayFixture();
   const old = await attachRustNapi(host, "native", first);
@@ -182,7 +204,9 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
         if (mode === "reject") return Promise.reject("private message");
         if (mode === "pending") return new Promise(() => {});
         return Promise.resolve(
-          JSON.parse(control).operation === "invoke" ? Buffer.from(decodeInvokeFrame(payload).payload) : payload,
+          JSON.parse(control).operation === "invoke"
+            ? Buffer.from(decodeInvokeFrame(payload).payload)
+            : payload,
         );
       },
       JSON.stringify({ token: "test", trusted: true }),
@@ -195,7 +219,8 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
     const results = await Promise.all(calls);
     if (mode === "echo") {
       assert.ok(results.some((r) => typeof r === "string" && readError(r) === "CONCURRENCY_FULL"));
-      for (const result of results) if (typeof result !== "string") assert.deepEqual(result, bytes());
+      for (const result of results)
+        if (typeof result !== "string") assert.deepEqual(result, bytes());
     } else
       for (const result of results) {
         assert.equal(readError(result), mode === "pending" ? "OWNER_UNAVAILABLE" : "HANDLER_ERROR");
@@ -243,29 +268,41 @@ test("reservation does not publish early and failed activation preserves the run
   assert.equal(
     (
       await host.invoke(
-        (await import("../../src/core/registry.js")).createContext({ caller: "main", trusted: true }),
+        (
+          await import("../../src/core/registry.js")
+        ).createContext({ caller: "main", trusted: true }),
         echo,
         bytes(),
       )
     ).ok,
     false,
   );
-  assert.throws(() => host.registerOwner("other", bindHandlers(Fixture, { echo: (p) => p })), isCode("CONFLICT"));
-  assert.equal(readError(await endpoint.fixtureInvoke(JSON.stringify(echo), bytes())), "OWNER_UNAVAILABLE");
+  assert.throws(
+    () => host.registerOwner("other", bindHandlers(Fixture, { echo: (p) => p })),
+    isCode("CONFLICT"),
+  );
+  assert.equal(
+    readError(await endpoint.fixtureInvoke(JSON.stringify(echo), bytes())),
+    "OWNER_UNAVAILABLE",
+  );
   release();
   const handle = await attaching;
   const replacement = search.createGatewayFixture();
   const broken = new Proxy(replacement, {
     get(target, key) {
       if (key === "activate")
-        return async () => JSON.stringify({ code: "HANDLER_ERROR", message: "test activation failure" });
+        return async () =>
+          JSON.stringify({ code: "HANDLER_ERROR", message: "test activation failure" });
       const value = Reflect.get(target, key);
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
   await assert.rejects(attachRustNapi(host, "a", broken), isCode("HANDLER_ERROR"));
   read(await endpoint.fixtureInvoke(JSON.stringify(echo), bytes()));
-  assert.equal(readError(await replacement.fixtureInvoke(JSON.stringify(echo), bytes())), "OWNER_UNAVAILABLE");
+  assert.equal(
+    readError(await replacement.fixtureInvoke(JSON.stringify(echo), bytes())),
+    "OWNER_UNAVAILABLE",
+  );
   await handle.close();
 });
 
@@ -280,7 +317,8 @@ test("Rust napi subscriber can precede source registration; Ordered burst is del
     source = await attachRustNapi(host, "a", a);
     await delay(10);
     for (let id = 0; id < 256; id++) read(await a.fixturePublish(changed(BigInt(id))));
-    for (let id = 0; id < 256; id++) assert.deepEqual(read(await b.fixtureNext()), changed(BigInt(id)));
+    for (let id = 0; id < 256; id++)
+      assert.deepEqual(read(await b.fixtureNext()), changed(BigInt(id)));
   } finally {
     await source?.close();
     await subscriber.close();
@@ -313,7 +351,10 @@ test("Rust napi streams: typed bytes, empty/end/error, Rust local and A-main-B p
   const { host, a, close } = await attachPair();
   try {
     const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
-    const payload = create(EnvelopeSchema, { id: 4n, blobs: [{ data: Uint8Array.of(0, 128, 255) }] });
+    const payload = create(EnvelopeSchema, {
+      id: 4n,
+      blobs: [{ data: Uint8Array.of(0, 128, 255) }],
+    });
     const stream = await client.watch(payload);
     const ids: bigint[] = [];
     for await (const chunk of stream) {
@@ -347,7 +388,9 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
   const client = bindStreamClient(Fixture, host.client({ caller: "streams", trusted: true }));
   try {
     const abort = new AbortController();
-    const opening = client.watch(create(EnvelopeSchema, { text: "openwait", id: 1n }), { signal: abort.signal });
+    const opening = client.watch(create(EnvelopeSchema, { text: "openwait", id: 1n }), {
+      signal: abort.signal,
+    });
     await delay(5);
     abort.abort();
     await assert.rejects(opening, isCode("CANCELLED"));
@@ -369,7 +412,12 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
     endpoint.bind(async () => Buffer.alloc(0), own);
     read(await endpoint.activate());
     const control = (operation: string) =>
-      JSON.stringify({ version: 3, operation, streamId: "test-handle", route: methodRoute(Fixture.method.watch) });
+      JSON.stringify({
+        version: 3,
+        operation,
+        streamId: "test-handle",
+        route: methodRoute(Fixture.method.watch),
+      });
     read(
       await endpoint.streamControl(
         control("stream.open"),
@@ -399,7 +447,11 @@ test("Rust napi stream backpressure reaches B and nested cancel releases the act
     const client = bindStreamClient(Fixture, host.client({ caller: "consumer", trusted: true }));
     const restricted = bindStreamClient(
       Fixture,
-      host.client({ caller: "restricted", trusted: false, invoke: [methodRoute(Fixture.method.watch).name] }),
+      host.client({
+        caller: "restricted",
+        trusted: false,
+        invoke: [methodRoute(Fixture.method.watch).name],
+      }),
     );
     await assert.rejects(
       restricted.watch(create(EnvelopeSchema, { text: "relay-chunks", id: 1n })),
@@ -432,7 +484,12 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
   endpoint.bind(async () => Buffer.alloc(0), context);
   read(await endpoint.activate());
   const control = (operation: string) =>
-    JSON.stringify({ version: 3, operation, streamId: "reused", route: methodRoute(Fixture.method.watch) });
+    JSON.stringify({
+      version: 3,
+      operation,
+      streamId: "reused",
+      route: methodRoute(Fixture.method.watch),
+    });
   try {
     const pending = endpoint.streamControl(
       control("stream.open"),
@@ -448,7 +505,10 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
     );
     assert.equal(typeof (await pending), "string");
     read(await replacement);
-    assert.equal(read(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), context))[0], 1);
+    assert.equal(
+      read(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), context))[0],
+      1,
+    );
   } finally {
     read(await endpoint.close());
   }
@@ -512,10 +572,18 @@ test("unary cancellation reaches native work without releasing admission early",
     await assert.rejects(rpc, isCode("CANCELLED"));
 
     const meta = JSON.stringify({ token: "owner", trusted: true });
-    const control = (operation: string) => JSON.stringify({ version: 3, operation, rpcId: "immediate", route: echo });
-    const immediate = a.rpcControl(control("invoke"), Buffer.from(encodeInvokeFrame(bytes("wait"))), meta);
+    const control = (operation: string) =>
+      JSON.stringify({ version: 3, operation, rpcId: "immediate", route: echo });
+    const immediate = a.rpcControl(
+      control("invoke"),
+      Buffer.from(encodeInvokeFrame(bytes("wait"))),
+      meta,
+    );
     const stranger = JSON.stringify({ token: "other-caller", trusted: true });
-    assert.equal(readError(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), stranger)), "UNAUTHORIZED");
+    assert.equal(
+      readError(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), stranger)),
+      "UNAUTHORIZED",
+    );
     read(await a.rpcControl(control("invoke.cancel"), Buffer.alloc(0), meta));
     assert.equal(readError(await immediate), "CANCELLED");
     // If Tokio admitted the handler before JS cancellation, its work is still held until release.
@@ -575,7 +643,10 @@ test("service options cross napi in both directions without changing business by
       PeerFixture,
       {
         echo(request, client) {
-          return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+          return create(EnvelopeSchema, {
+            ...request,
+            id: client.options(EnvelopeSchema)?.id ?? request.id,
+          });
         },
       },
       { optionsSchema: EnvelopeSchema },
@@ -585,8 +656,14 @@ test("service options cross napi in both directions without changing business by
     optionsSchema: EnvelopeSchema,
   });
   try {
-    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options", id: 1n }), { id: 77n })).id, 77n);
-    assert.equal((await api.echo(create(EnvelopeSchema, { text: "options-relay", id: 1n }), { id: 88n })).id, 88n);
+    assert.equal(
+      (await api.echo(create(EnvelopeSchema, { text: "options", id: 1n }), { id: 77n })).id,
+      77n,
+    );
+    assert.equal(
+      (await api.echo(create(EnvelopeSchema, { text: "options-relay", id: 1n }), { id: 88n })).id,
+      88n,
+    );
   } finally {
     local.close();
     await attached.close();

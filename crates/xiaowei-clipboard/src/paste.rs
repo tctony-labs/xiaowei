@@ -1,5 +1,7 @@
 #[cfg(target_os = "macos")]
-use core_foundation::{base::TCFType, boolean::CFBoolean, dictionary::CFDictionary, string::CFString};
+use core_foundation::{
+    base::TCFType, boolean::CFBoolean, dictionary::CFDictionary, string::CFString,
+};
 #[cfg(target_os = "macos")]
 use core_graphics::{
     event::{CGEvent, CGEventFlags, CGEventTapLocation},
@@ -19,8 +21,10 @@ pub fn request_accessibility_permission() -> bool {
         if unsafe { AXIsProcessTrusted() } != 0 {
             return true;
         }
-        let options =
-            CFDictionary::from_CFType_pairs(&[(CFString::new("AXTrustedCheckOptionPrompt"), CFBoolean::true_value())]);
+        let options = CFDictionary::from_CFType_pairs(&[(
+            CFString::new("AXTrustedCheckOptionPrompt"),
+            CFBoolean::true_value(),
+        )]);
         unsafe { AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef().cast()) != 0 }
     }
     #[cfg(not(target_os = "macos"))]
@@ -37,9 +41,10 @@ pub fn send_paste_shortcut() -> crate::Result<bool> {
 
         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
             .map_err(|_| "Unable to create paste event source")?;
-        let down =
-            CGEvent::new_keyboard_event(source.clone(), 0x09, true).map_err(|_| "Unable to create paste key down")?;
-        let up = CGEvent::new_keyboard_event(source, 0x09, false).map_err(|_| "Unable to create paste key up")?;
+        let down = CGEvent::new_keyboard_event(source.clone(), 0x09, true)
+            .map_err(|_| "Unable to create paste key down")?;
+        let up = CGEvent::new_keyboard_event(source, 0x09, false)
+            .map_err(|_| "Unable to create paste key up")?;
         down.set_flags(CGEventFlags::CGEventFlagCommand);
         up.set_flags(CGEventFlags::CGEventFlagCommand);
         down.post(CGEventTapLocation::HID);

@@ -28,7 +28,11 @@ export function registerXwapi(
       try {
         if (closed) throw new XwapiError(ErrorCode.UNAVAILABLE, "服务器接口服务已关闭");
         const context = scopedContexts.get(client.context()) ?? readContext();
-        return await work({ ...context, signal: controller.signal, options: client.options(XwApiOptionsSchema) });
+        return await work({
+          ...context,
+          signal: controller.signal,
+          options: client.options(XwApiOptionsSchema),
+        });
       } catch (error) {
         if (!(error instanceof XwapiError)) throw error;
         return fromJson(schema, { code: error.code, msg: error.message });
@@ -52,16 +56,21 @@ export function registerXwapi(
         refresh: (request, client) =>
           call(Auth.method.refresh.output, client, (context) => service.refresh(request, context)),
         getCurrentUser: (_request, client) =>
-          call(Auth.method.getCurrentUser.output, client, (context) => service.getCurrentUser(context)),
-        logout: (_request, client) => call(Auth.method.logout.output, client, (context) => service.logout(context)),
+          call(Auth.method.getCurrentUser.output, client, (context) =>
+            service.getCurrentUser(context),
+          ),
+        logout: (_request, client) =>
+          call(Auth.method.logout.output, client, (context) => service.logout(context)),
       },
       { optionsSchema: XwApiOptionsSchema },
     ),
     ...bindHandlers(
       Health,
       {
-        check: (_request, client) => call(BaseResponseSchema, client, (context) => service.checkHealth(context)),
-        ready: (_request, client) => call(BaseResponseSchema, client, (context) => service.checkReady(context)),
+        check: (_request, client) =>
+          call(BaseResponseSchema, client, (context) => service.checkHealth(context)),
+        ready: (_request, client) =>
+          call(BaseResponseSchema, client, (context) => service.checkReady(context)),
       },
       { optionsSchema: XwApiOptionsSchema },
     ),

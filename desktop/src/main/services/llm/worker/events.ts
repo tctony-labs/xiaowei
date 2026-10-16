@@ -4,7 +4,8 @@ import { GenerateEventSchema } from "xiaowei-contracts";
 import { encodeAssistant, encodeBlock, encodeUsage, finishReason } from "./messages";
 
 export function mapEvent(event: AssistantMessageEvent, full: boolean) {
-  const emit = (value: Parameters<typeof create<typeof GenerateEventSchema>>[1]) => create(GenerateEventSchema, value);
+  const emit = (value: Parameters<typeof create<typeof GenerateEventSchema>>[1]) =>
+    create(GenerateEventSchema, value);
   if (event.type === "text_delta")
     return [
       emit({
@@ -50,7 +51,8 @@ export function mapEvent(event: AssistantMessageEvent, full: boolean) {
         event: {
           case: "failed",
           value: {
-            message: event.reason === "aborted" ? "model generation aborted" : "model generation failed",
+            message:
+              event.reason === "aborted" ? "model generation aborted" : "model generation failed",
             partial: encodeAssistant({ ...event.error, rawStopReason: undefined }),
           },
         },

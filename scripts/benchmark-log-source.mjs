@@ -42,7 +42,9 @@ try {
       assert.equal(transformed.code.includes("desktop/src/renderer/src/main.tsx:"), enabled);
       coldTransformMs = performance.now() - devStart;
       for (let i = 0; i < 20; i++) {
-        server.moduleGraph.invalidateModule(server.moduleGraph.getModuleById(resolve("src/renderer/src/main.tsx")));
+        server.moduleGraph.invalidateModule(
+          server.moduleGraph.getModuleById(resolve("src/renderer/src/main.tsx")),
+        );
         const updateStart = performance.now();
         await server.transformRequest("/src/main.tsx");
         updates.push(performance.now() - updateStart);
@@ -50,7 +52,12 @@ try {
     } finally {
       await server.close();
     }
-    results.push({ enabled, buildMs, coldTransformMs, updateMs: updates.reduce((a, b) => a + b) / updates.length });
+    results.push({
+      enabled,
+      buildMs,
+      coldTransformMs,
+      updateMs: updates.reduce((a, b) => a + b) / updates.length,
+    });
   }
   console.table(results);
 } finally {

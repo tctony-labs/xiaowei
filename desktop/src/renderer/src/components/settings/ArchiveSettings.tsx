@@ -63,7 +63,9 @@ export function ArchiveSettings({
   const query = remoteQuery ?? localQuery;
   const filtered = onQueryChange
     ? sessions
-    : sessions.filter((s) => `${s.title} ${s.workspace ?? ""}`.toLowerCase().includes(query.toLowerCase()));
+    : sessions.filter((s) =>
+        `${s.title} ${s.workspace ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+      );
   const [targets, setTargets] = useState<ArchivedSession[]>(() =>
     sessions.filter((session) => session.id === initialDelete),
   );
@@ -116,7 +118,9 @@ export function ArchiveSettings({
         <div className="flex flex-col gap-2 p-3">
           <input
             type="text"
-            placeholder={sessions.some((session) => session.workspace) ? "搜索标题或工作区" : "搜索标题"}
+            placeholder={
+              sessions.some((session) => session.workspace) ? "搜索标题或工作区" : "搜索标题"
+            }
             value={query}
             onChange={(e) => (onQueryChange ?? setLocalQuery)(e.target.value)}
             disabled={busy}
@@ -126,7 +130,12 @@ export function ArchiveSettings({
           {error && (
             <div role="alert" className="px-3 text-[12px] text-danger">
               {error}
-              <button type="button" onClick={onRetry} disabled={loading || busy} className="ml-2 cursor-pointer">
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={loading || busy}
+                className="ml-2 cursor-pointer"
+              >
                 重试
               </button>
             </div>
@@ -143,7 +152,10 @@ export function ArchiveSettings({
               </p>
             )}
             {filtered.map((session) => (
-              <div key={session.id} className="group flex items-center gap-2 rounded-md px-3 py-2 hover:bg-hover">
+              <div
+                key={session.id}
+                className="group flex items-center gap-2 rounded-md px-3 py-2 hover:bg-hover"
+              >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] leading-[20px]">{session.title}</p>
                   <p className="flex items-center gap-1 text-[12px] leading-[18px] text-muted">

@@ -47,9 +47,17 @@ fn changed(id: u64) -> Vec<u8> {
 async fn register_owner_is_atomic_and_unregisters_as_a_group() {
     let registry = XwInvokeRegistry::new();
     let old = registry
-        .register_owner("owner-a", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![])
+        .register_owner(
+            "owner-a",
+            vec![ECHO.handler(|p, _| async { Ok(p) })],
+            vec![],
+        )
         .unwrap();
-    let conflict = registry.register_owner("owner-b", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![]);
+    let conflict = registry.register_owner(
+        "owner-b",
+        vec![ECHO.handler(|p, _| async { Ok(p) })],
+        vec![],
+    );
     assert_eq!(conflict.err().unwrap().code, ErrorCode::Conflict);
     let duplicate = registry.register_owner(
         "owner-a",
@@ -63,7 +71,11 @@ async fn register_owner_is_atomic_and_unregisters_as_a_group() {
     assert!(!old.is_closed());
     assert_eq!(registry.snapshot_routes(), [ECHO.route()]);
     let next = registry
-        .register_owner("owner-a", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![])
+        .register_owner(
+            "owner-a",
+            vec![ECHO.handler(|p, _| async { Ok(p) })],
+            vec![],
+        )
         .unwrap();
     assert_ne!(old.instance(), next.instance());
     registry.unregister_owner(&old);
@@ -96,12 +108,18 @@ async fn typed_adapter_enforces_payload() {
         text: "测试🦀".into(),
         id: u64::MAX,
         label: Some(String::new()),
-        blobs: vec![xw_contracts::testing::envelope::Blob { data: vec![0, 255, 1] }],
+        blobs: vec![xw_contracts::testing::envelope::Blob {
+            data: vec![0, 255, 1],
+        }],
         value: Some(xw_contracts::testing::envelope::Value::NullValue(0)),
     };
     assert_eq!(ECHO.call(&client, payload.clone()).await.unwrap(), payload);
     assert_eq!(
-        client.invoke(&ECHO.route(), vec![0xff]).await.unwrap_err().code,
+        client
+            .invoke(&ECHO.route(), vec![0xff])
+            .await
+            .unwrap_err()
+            .code,
         ErrorCode::InvalidArgument
     );
     assert_eq!(binding::parse_id("18446744073709551615").unwrap(), u64::MAX);
@@ -123,22 +141,36 @@ async fn unknown_route_uses_remote_invoker() {
         calls.fetch_add(1, Ordering::SeqCst);
         let remote = remote.clone();
         let owner = owner.clone();
-        async move { remote.dispatch_local(&owner, &route, payload, context).await }
+        async move {
+            remote
+                .dispatch_local(&owner, &route, payload, context)
+                .await
+        }
     });
     assert_eq!(
-        registry.call(&ECHO.route(), bytes(42), context()).await.unwrap(),
+        registry
+            .call(&ECHO.route(), bytes(42), context())
+            .await
+            .unwrap(),
         bytes(42)
     );
     assert_eq!(count.load(Ordering::SeqCst), 1);
     registry
         .register_owner("local", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![])
         .unwrap();
-    registry.call(&ECHO.route(), bytes(43), context()).await.unwrap();
+    registry
+        .call(&ECHO.route(), bytes(43), context())
+        .await
+        .unwrap();
     assert_eq!(count.load(Ordering::SeqCst), 1);
     let mut missing = ECHO.route();
     missing.name = "testing.Missing".into();
     assert_eq!(
-        registry.call(&missing, vec![], context()).await.unwrap_err().code,
+        registry
+            .call(&missing, vec![], context())
+            .await
+            .unwrap_err()
+            .code,
         ErrorCode::UnknownRoute
     );
     assert_eq!(count.load(Ordering::SeqCst), 2);
@@ -159,7 +191,9 @@ async fn concurrency_limit_rejects_excess_calls_and_timeout_retains_admission() 
     });
     registration.max_concurrency = 1;
     registration.timeout = Duration::from_millis(10);
-    registry.register_owner("owner", vec![registration], vec![]).unwrap();
+    registry
+        .register_owner("owner", vec![registration], vec![])
+        .unwrap();
     assert_eq!(
         registry
             .call(&ECHO.route(), bytes(1), context())
@@ -181,7 +215,10 @@ async fn concurrency_limit_rejects_excess_calls_and_timeout_retains_admission() 
     release.notify_one();
     tokio::task::yield_now().await;
     release.notify_one();
-    registry.call(&ECHO.route(), bytes(1), context()).await.unwrap();
+    registry
+        .call(&ECHO.route(), bytes(1), context())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -207,12 +244,16 @@ async fn pending_owner_close_rejects_and_old_results_cannot_complete_new_instanc
         )
         .unwrap();
     let caller = registry.clone();
-    let pending = tokio::spawn(async move { caller.call(&ECHO.route(), bytes(1), context()).await });
+    let pending =
+        tokio::spawn(async move { caller.call(&ECHO.route(), bytes(1), context()).await });
     started.notified().await;
     let next = registry
         .register_owner("owner", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![])
         .unwrap();
-    assert_eq!(pending.await.unwrap().unwrap_err().code, ErrorCode::OwnerUnavailable);
+    assert_eq!(
+        pending.await.unwrap().unwrap_err().code,
+        ErrorCode::OwnerUnavailable
+    );
     release.notify_one();
     registry.unregister_owner(&old);
     assert_eq!(
@@ -277,7 +318,8 @@ async fn kind_version_panics_and_nested_permissions() {
             "owner",
             vec![
                 ECHO.handler(move |p, client| async move {
-                    let nested = Method::<Envelope, Envelope>::new("testing.Nested", MethodKind::Unary);
+                    let nested =
+                        Method::<Envelope, Envelope>::new("testing.Nested", MethodKind::Unary);
                     nested.call(&client, p).await
                 }),
                 nested.handler(|p, _| async { Ok(p) }),
@@ -294,7 +336,10 @@ async fn kind_version_panics_and_nested_permissions() {
             .code,
         ErrorCode::Unauthorized
     );
-    registry.call(&ECHO.route(), bytes(1), context()).await.unwrap();
+    registry
+        .call(&ECHO.route(), bytes(1), context())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -326,7 +371,13 @@ async fn typed_filter_is_checked_and_subscriptions_are_authorized() {
         .unwrap();
     assert!(
         registry
-            .subscribe(&context(), "testing.Changed", Some(vec![0xff]), false, |_| async {})
+            .subscribe(
+                &context(),
+                "testing.Changed",
+                Some(vec![0xff]),
+                false,
+                |_| async {}
+            )
             .is_err()
     );
     let denied = CallContext::restricted("plugin", vec![], vec![]);
@@ -337,17 +388,31 @@ async fn typed_filter_is_checked_and_subscriptions_are_authorized() {
     );
     let (tx, mut rx) = mpsc::unbounded_channel();
     let handle = registry
-        .subscribe(&context(), "testing.Changed", Some(bytes(2)), false, move |p| {
-            tx.send(p).unwrap();
-            async {}
-        })
+        .subscribe(
+            &context(),
+            "testing.Changed",
+            Some(bytes(2)),
+            false,
+            move |p| {
+                tx.send(p).unwrap();
+                async {}
+            },
+        )
         .unwrap();
-    registry.publish(&owner, "testing.Changed", changed(1)).unwrap();
-    registry.publish(&owner, "testing.Changed", changed(2)).unwrap();
+    registry
+        .publish(&owner, "testing.Changed", changed(1))
+        .unwrap();
+    registry
+        .publish(&owner, "testing.Changed", changed(2))
+        .unwrap();
     assert_eq!(rx.recv().await.unwrap(), changed(2));
     handle.close();
     handle.close();
-    assert!(registry.publish(&owner, "testing.Unexported", vec![]).is_err());
+    assert!(
+        registry
+            .publish(&owner, "testing.Unexported", vec![])
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -369,13 +434,17 @@ async fn events_can_be_published_from_a_thread_without_a_runtime() {
     std::thread::spawn(move || {
         assert!(tokio::runtime::Handle::try_current().is_err());
         for id in 0..3 {
-            registry.publish(&owner, "testing.Changed", changed(id)).unwrap();
+            registry
+                .publish(&owner, "testing.Changed", changed(id))
+                .unwrap();
         }
     })
     .join()
     .unwrap();
     for id in 0..3 {
-        let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv()).await.unwrap();
+        let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap();
         assert_eq!(payload.unwrap(), changed(id));
     }
 }
@@ -410,7 +479,9 @@ async fn remote_events_can_be_delivered_from_a_thread_without_a_runtime() {
     })
     .join()
     .unwrap();
-    let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv()).await.unwrap();
+    let payload = tokio::time::timeout(Duration::from_secs(1), rx.recv())
+        .await
+        .unwrap();
     assert_eq!(payload.unwrap(), changed(42));
 }
 
@@ -428,7 +499,9 @@ async fn ordered_delivery_preserves_bursts_larger_than_legacy_capacity() {
         })
         .unwrap();
     for id in 0..256 {
-        registry.publish(&owner, "testing.Changed", changed(id)).unwrap();
+        registry
+            .publish(&owner, "testing.Changed", changed(id))
+            .unwrap();
     }
     for id in 0..256 {
         assert_eq!(rx.recv().await.unwrap(), changed(id));
@@ -437,9 +510,14 @@ async fn ordered_delivery_preserves_bursts_larger_than_legacy_capacity() {
 
 #[tokio::test]
 async fn coalesce_keeps_last_and_drop_keeps_first_pending() {
-    for (policy, expected) in [(EventBackpressure::Coalesce, 255), (EventBackpressure::Drop, 0)] {
+    for (policy, expected) in [
+        (EventBackpressure::Coalesce, 255),
+        (EventBackpressure::Drop, 0),
+    ] {
         let registry = XwInvokeRegistry::new();
-        let owner = registry.register_owner("owner", vec![], vec![export(policy)]).unwrap();
+        let owner = registry
+            .register_owner("owner", vec![], vec![export(policy)])
+            .unwrap();
         let (tx, mut rx) = mpsc::unbounded_channel();
         let _handle = registry
             .subscribe(&context(), "testing.Changed", None, false, move |p| {
@@ -448,7 +526,9 @@ async fn coalesce_keeps_last_and_drop_keeps_first_pending() {
             })
             .unwrap();
         for id in 0..256 {
-            registry.publish(&owner, "testing.Changed", changed(id)).unwrap();
+            registry
+                .publish(&owner, "testing.Changed", changed(id))
+                .unwrap();
         }
         assert_eq!(rx.recv().await.unwrap(), changed(expected));
         assert!(rx.try_recv().is_err());
@@ -468,20 +548,29 @@ async fn backend_subscription_is_retained_while_owner_is_unavailable_and_stale_d
     let old = registry
         .register_owner("owner", vec![], vec![export(EventBackpressure::Ordered)])
         .unwrap();
-    registry.publish(&old, "testing.Changed", changed(1)).unwrap();
+    registry
+        .publish(&old, "testing.Changed", changed(1))
+        .unwrap();
     assert_eq!(rx.recv().await.unwrap(), changed(1));
     registry.unregister_owner(&old);
     let next = registry
         .register_owner("owner", vec![], vec![export(EventBackpressure::Ordered)])
         .unwrap();
     assert_eq!(
-        registry.publish(&old, "testing.Changed", changed(2)).unwrap_err().code,
+        registry
+            .publish(&old, "testing.Changed", changed(2))
+            .unwrap_err()
+            .code,
         ErrorCode::OwnerUnavailable
     );
-    registry.publish(&next, "testing.Changed", changed(3)).unwrap();
+    registry
+        .publish(&next, "testing.Changed", changed(3))
+        .unwrap();
     assert_eq!(rx.recv().await.unwrap(), changed(3));
     subscription.close();
-    registry.publish(&next, "testing.Changed", changed(4)).unwrap();
+    registry
+        .publish(&next, "testing.Changed", changed(4))
+        .unwrap();
     assert!(rx.recv().await.is_none());
 }
 
@@ -539,16 +628,25 @@ async fn backend_remote_subscription_receives_typed_delivery_and_rejects_stale_c
             })
         })
     });
-    receiver.remote_events.set_transport(Some(transport.clone())).await;
+    receiver
+        .remote_events
+        .set_transport(Some(transport.clone()))
+        .await;
     let owner = source
         .register_owner("source", vec![], vec![export(EventBackpressure::Ordered)])
         .unwrap();
-    source.publish(&owner, "testing.Changed", changed(42)).unwrap();
+    source
+        .publish(&owner, "testing.Changed", changed(42))
+        .unwrap();
     assert_eq!(rx.recv().await.unwrap(), changed(42));
     receiver.remote_events.set_transport(None).await;
-    source.publish(&owner, "testing.Changed", changed(43)).unwrap();
+    source
+        .publish(&owner, "testing.Changed", changed(43))
+        .unwrap();
     receiver.remote_events.set_transport(Some(transport)).await;
-    source.publish(&owner, "testing.Changed", changed(44)).unwrap();
+    source
+        .publish(&owner, "testing.Changed", changed(44))
+        .unwrap();
     assert_eq!(rx.recv().await.unwrap(), changed(44));
     subscription.close();
     subscription.close();
@@ -582,7 +680,11 @@ async fn unsubscribe_backend_removes_pending_remote_subscription_and_closes_late
     });
     registry.remote_events.set_transport(Some(transport)).await;
     let caller = registry.client(context());
-    let pending = tokio::spawn(async move { caller.subscribe("testing.Changed", None, true, |_| async {}).await });
+    let pending = tokio::spawn(async move {
+        caller
+            .subscribe("testing.Changed", None, true, |_| async {})
+            .await
+    });
     started.notified().await;
     registry.cleanup_caller("test");
     release.notify_one();
@@ -592,10 +694,15 @@ async fn unsubscribe_backend_removes_pending_remote_subscription_and_closes_late
 
 #[tokio::test]
 async fn shared_wire_cases_use_the_same_contract_in_both_languages() {
-    let cases: serde_json::Value = serde_json::from_str(include_str!("../../tests/wire-cases.json")).unwrap();
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/wire-cases.json")).unwrap();
     let registry = XwInvokeRegistry::new();
     registry
-        .register_owner("fixture", vec![ECHO.handler(|p, _| async { Ok(p) })], vec![])
+        .register_owner(
+            "fixture",
+            vec![ECHO.handler(|p, _| async { Ok(p) })],
+            vec![],
+        )
         .unwrap();
     for case in cases.as_array().unwrap() {
         let payload: Vec<u8> = serde_json::from_value(case["payload"].clone()).unwrap();
@@ -625,7 +732,9 @@ async fn blocking_task_keeps_its_slot_after_timeout() {
     });
     registration.max_concurrency = 1;
     registration.timeout = Duration::from_millis(10);
-    registry.register_owner("blocking", vec![registration], vec![]).unwrap();
+    registry
+        .register_owner("blocking", vec![registration], vec![])
+        .unwrap();
     assert_eq!(
         registry
             .call(&ECHO.route(), bytes(1), context())
@@ -659,7 +768,10 @@ async fn old_remote_subscribe_failure_cannot_remove_new_connection_binding() {
         Box::pin(async move {
             signal.notify_one();
             gate.notified().await;
-            Err(GatewayError::new(ErrorCode::OwnerUnavailable, "old transport closed"))
+            Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "old transport closed",
+            ))
         })
     });
     registry.remote_events.set_transport(Some(old)).await;
@@ -718,7 +830,10 @@ async fn manifest_retains_execution_defaults_and_foreign_handles_cannot_address_
             .code,
         ErrorCode::OwnerUnavailable
     );
-    registry.call(&ECHO.route(), bytes(1), context()).await.unwrap();
+    registry
+        .call(&ECHO.route(), bytes(1), context())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -745,7 +860,9 @@ async fn rpc_cancel_rejects_waiter_but_retains_actual_work_admission() {
         }
     });
     registration.max_concurrency = 1;
-    registry.register_owner("cancel", vec![registration], vec![]).unwrap();
+    registry
+        .register_owner("cancel", vec![registration], vec![])
+        .unwrap();
     let client = registry.client(context());
     let rpc = ECHO.call(&client, Envelope::default());
     let cancellation = rpc.cancel_handle();
@@ -754,7 +871,10 @@ async fn rpc_cancel_rejects_waiter_but_retains_actual_work_admission() {
     assert_eq!(rpc.await.unwrap_err().code, ErrorCode::Cancelled);
     observed.notified().await;
     assert_eq!(
-        ECHO.call(&client, Envelope::default()).await.unwrap_err().code,
+        ECHO.call(&client, Envelope::default())
+            .await
+            .unwrap_err()
+            .code,
         ErrorCode::ConcurrencyFull
     );
     released.notify_one();
@@ -881,7 +1001,14 @@ async fn service_options_have_an_independent_typed_codec_and_default_to_absent()
             .id,
         42
     );
-    assert_eq!(method.call(&client, request.clone(), None).await.unwrap().id, 1);
+    assert_eq!(
+        method
+            .call(&client, request.clone(), None)
+            .await
+            .unwrap()
+            .id,
+        1
+    );
     assert_eq!(
         client
             .invoke_with_options(&ECHO.route(), bytes(1), Some(vec![255]))
@@ -892,7 +1019,11 @@ async fn service_options_have_an_independent_typed_codec_and_default_to_absent()
     );
     registry.unregister_owner(&owner);
     registry
-        .register_owner("plain", vec![ECHO.handler(|request, _| async { Ok(request) })], vec![])
+        .register_owner(
+            "plain",
+            vec![ECHO.handler(|request, _| async { Ok(request) })],
+            vec![],
+        )
         .unwrap();
     assert_eq!(
         method

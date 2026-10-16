@@ -5,7 +5,15 @@ async fn json_presence_prefixes_and_restart() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("storage.sqlite");
     let db = Database::open(&path).await.unwrap();
-    assert_eq!(db.meta_get(KvKey { key: "missing".into() }).await.unwrap().json, None);
+    assert_eq!(
+        db.meta_get(KvKey {
+            key: "missing".into()
+        })
+        .await
+        .unwrap()
+        .json,
+        None
+    );
     for (key, json) in [
         ("setting.a", "null"),
         ("setting.A", "false"),
@@ -41,7 +49,14 @@ async fn json_presence_prefixes_and_restart() {
         })
         .await
         .is_err());
-    assert!(!db.meta_delete(KvKey { key: "missing".into() }).await.unwrap().deleted);
+    assert!(
+        !db.meta_delete(KvKey {
+            key: "missing".into()
+        })
+        .await
+        .unwrap()
+        .deleted
+    );
     db.close().await;
     let db = Database::open(&path).await.unwrap();
     assert_eq!(

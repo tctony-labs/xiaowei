@@ -54,13 +54,16 @@ impl LlmGeneration for Model {
             if opening {
                 futures_util::future::pending::<()>().await;
             }
-            let stream = stream::unfold((events.into_iter(), guard), move |(mut events, guard)| async move {
-                match events.next() {
-                    Some(event) => Some((Ok(event), (events, guard))),
-                    None if pending => futures_util::future::pending().await,
-                    None => None,
-                }
-            });
+            let stream = stream::unfold(
+                (events.into_iter(), guard),
+                move |(mut events, guard)| async move {
+                    match events.next() {
+                        Some(event) => Some((Ok(event), (events, guard))),
+                        None if pending => futures_util::future::pending().await,
+                        None => None,
+                    }
+                },
+            );
             Ok(Box::pin(stream) as GenerationStream)
         })
     }
@@ -193,7 +196,12 @@ async fn cancellation_releases_opening_stream_and_blocked_internal_send() {
         });
         let cancellation = CancellationToken::new();
         let (tx, _rx) = mpsc::channel(1);
-        let run = tokio::spawn(execute_text(request(), model.clone(), cancellation.clone(), tx));
+        let run = tokio::spawn(execute_text(
+            request(),
+            model.clone(),
+            cancellation.clone(),
+            tx,
+        ));
         tokio::task::yield_now().await;
         cancellation.cancel();
         let result = tokio::time::timeout(Duration::from_secs(1), run)
@@ -217,7 +225,11 @@ async fn cancellation_during_stream_poll_wins_over_eof_error_and_final_message()
     struct CancelDuringPoll(Option<Result<GenerationEvent, GenerationError>>);
 
     impl LlmGeneration for CancelDuringPoll {
-        fn generate(&self, _: GenerationRequest, cancellation: CancellationToken) -> GenerationFuture {
+        fn generate(
+            &self,
+            _: GenerationRequest,
+            cancellation: CancellationToken,
+        ) -> GenerationFuture {
             let mut terminal = self.0.clone();
             Box::pin(async move {
                 let partial = stream::iter([Ok(GenerationEvent::TextDelta {
@@ -252,7 +264,11 @@ async fn cancellation_during_stream_poll_wins_over_eof_error_and_final_message()
         )
         .await;
 
-        assert_eq!(result.status, RunStatus::Cancelled, "terminal: {terminal:?}");
+        assert_eq!(
+            result.status,
+            RunStatus::Cancelled,
+            "terminal: {terminal:?}"
+        );
         assert!(matches!(result.error, Some(GenerationError::Cancelled)));
         assert!(result.message.is_none());
         assert_eq!(

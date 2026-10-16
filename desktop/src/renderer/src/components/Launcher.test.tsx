@@ -27,7 +27,13 @@ import { Launcher } from "./Launcher";
 
 function preview(clipboardMode = false, noModels = false, smallTextModelRef = "") {
   const host = new GatewayHost();
-  const calls = { execute: vi.fn(), resize: vi.fn(), hide: vi.fn(), openSettings: vi.fn(), copy: vi.fn() };
+  const calls = {
+    execute: vi.fn(),
+    resize: vi.fn(),
+    hide: vi.fn(),
+    openSettings: vi.fn(),
+    copy: vi.fn(),
+  };
   host.registerOwner(
     "system",
     bindHandlers(
@@ -62,7 +68,9 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
         }),
       execute(request) {
         calls.execute(request);
-        return create(ExecuteResponseSchema, { mode: clipboardMode ? LauncherMode.CLIPBOARD : undefined });
+        return create(ExecuteResponseSchema, {
+          mode: clipboardMode ? LauncherMode.CLIPBOARD : undefined,
+        });
       },
       updateLayout(request) {
         calls.resize(request);
@@ -74,7 +82,14 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
       },
       resetPosition: () => create(EmptySchema),
     }),
-    [{ name: LauncherOpenedSchema.typeName, policy: "coalesce", validate() {}, matches: () => true }],
+    [
+      {
+        name: LauncherOpenedSchema.typeName,
+        policy: "coalesce",
+        validate() {},
+        matches: () => true,
+      },
+    ],
   );
 
   host.registerOwner(
@@ -169,7 +184,9 @@ test("keyboard selection and composition guard", async () => {
   fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
   expect(search.calls.execute).not.toHaveBeenCalled();
   await user.keyboard("{Enter}");
-  expect(search.calls.execute).toHaveBeenCalledWith(expect.objectContaining({ token: 1, id: "two" }));
+  expect(search.calls.execute).toHaveBeenCalledWith(
+    expect.objectContaining({ token: 1, id: "two" }),
+  );
   await waitFor(() => expect(input).toHaveValue(""));
 });
 
@@ -200,11 +217,16 @@ test("open clipboard after subscription is ready and return with Backspace", asy
 test("empty search opens native chat layout, sends through Agent and preserves history when collapsed", async () => {
   const app = preview();
   const canvas = render(<Launcher services={app.services} />);
-  fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown", isComposing: true });
+  fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), {
+    key: "ArrowDown",
+    isComposing: true,
+  });
   expect(canvas.queryByRole("textbox", { name: "快速对话输入" })).toBeNull();
   fireEvent.keyDown(canvas.getByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
   const input = await canvas.findByRole("textbox", { name: "快速对话输入" });
-  expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }));
+  expect(app.calls.resize).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }),
+  );
   fireEvent.click(canvas.getByRole("button", { name: "新建对话" }));
   canvas.getByRole("button", { name: "新建对话" }).focus();
   expect(input).not.toHaveFocus();
@@ -217,9 +239,13 @@ test("empty search opens native chat layout, sends through Agent and preserves h
   act(() => app.agent.finish(undefined, "Hello from Agent"));
   await canvas.findByText("Hello from Agent");
   fireEvent.keyDown(input, { key: "Escape" });
-  expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }));
+  expect(app.calls.resize).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mode: LauncherMode.QUICK_CHAT }),
+  );
   await waitFor(() =>
-    expect(app.calls.resize).toHaveBeenLastCalledWith(expect.objectContaining({ mode: LauncherMode.SEARCH })),
+    expect(app.calls.resize).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mode: LauncherMode.SEARCH }),
+    ),
   );
   fireEvent.keyDown(await canvas.findByRole("textbox", { name: "搜索" }), { key: "ArrowDown" });
   await canvas.findByText("Hello from Agent");
@@ -350,10 +376,14 @@ test("Quick Chat renames the session through Agent and updates its title and ses
   act(() => app.agent.finish());
   await user.click(canvas.getByRole("button", { name: "更多操作" }));
   await user.click(canvas.getByRole("button", { name: "重命名" }));
-  fireEvent.change(canvas.getByRole("textbox", { name: "对话标题" }), { target: { value: "  我的标题  " } });
+  fireEvent.change(canvas.getByRole("textbox", { name: "对话标题" }), {
+    target: { value: "  我的标题  " },
+  });
   await user.keyboard("{Enter}");
   expect(await canvas.findByText("我的标题")).toBeVisible();
-  expect(app.agent.setTitleRequests).toEqual([{ sessionId: app.agent.requests[0].sessionId, title: "我的标题" }]);
+  expect(app.agent.setTitleRequests).toEqual([
+    { sessionId: app.agent.requests[0].sessionId, title: "我的标题" },
+  ]);
   expect(app.agent.titleRequests).toEqual([]);
   expect(app.agent.requests).toHaveLength(1);
   await user.click(canvas.getByRole("button", { name: "选择会话" }));

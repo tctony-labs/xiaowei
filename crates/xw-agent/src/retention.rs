@@ -3,7 +3,9 @@ use std::{
     time::Duration,
 };
 
-use crate::{AgentError, AgentService, CancellationToken, protocol::*, service::now_ms, session::parse_id};
+use crate::{
+    AgentError, AgentService, CancellationToken, protocol::*, service::now_ms, session::parse_id,
+};
 
 const DAY_MS: i64 = 86_400_000;
 const CHECK_INTERVAL: Duration = Duration::from_secs(3600);
@@ -41,7 +43,9 @@ impl AgentService {
         request: SetSessionRetentionPolicyRequest,
     ) -> Result<SessionRetentionPolicy, AgentError> {
         drop(self.state()?);
-        let policy = request.policy.ok_or(AgentError::InvalidArgument("policy"))?;
+        let policy = request
+            .policy
+            .ok_or(AgentError::InvalidArgument("policy"))?;
         validate_policy(&policy)?;
         let index = self.index.as_ref().ok_or(AgentError::Index)?;
         {
@@ -73,7 +77,11 @@ impl AgentService {
             return Err(AgentError::SessionUnavailable);
         }
         let mut state = self.state()?;
-        if state.sessions.get(&id).is_some_and(|session| session.frozen) {
+        if state
+            .sessions
+            .get(&id)
+            .is_some_and(|session| session.frozen)
+        {
             return Err(AgentError::SessionUnavailable);
         }
         state.viewers.retain(|_, viewers| {
@@ -84,7 +92,11 @@ impl AgentService {
             return Err(AgentError::ResourceExhausted("session viewers"));
         }
         let lease = Arc::new(());
-        state.viewers.entry(id).or_default().push(Arc::downgrade(&lease));
+        state
+            .viewers
+            .entry(id)
+            .or_default()
+            .push(Arc::downgrade(&lease));
         Ok(SessionViewing { _lease: lease })
     }
 
@@ -109,11 +121,17 @@ impl AgentService {
         }
         let Some(previous) = task.take() else { return };
         previous.cancellation.cancel();
-        *task = Some(Self::spawn_maintenance(previous.owner, Some(previous.handle)));
+        *task = Some(Self::spawn_maintenance(
+            previous.owner,
+            Some(previous.handle),
+        ));
         log::debug!("Agent retention task restart scheduled interval_seconds=3600");
     }
 
-    fn spawn_maintenance(owner: Weak<Self>, previous: Option<tokio::task::JoinHandle<()>>) -> MaintenanceTask {
+    fn spawn_maintenance(
+        owner: Weak<Self>,
+        previous: Option<tokio::task::JoinHandle<()>>,
+    ) -> MaintenanceTask {
         let weak = owner.clone();
         let cancellation = CancellationToken::new();
         let stopped = cancellation.clone();
@@ -188,7 +206,9 @@ impl AgentService {
                     log::debug!("Agent session auto-archived session={id}");
                 }
                 Err(AgentError::Conflict(_) | AgentError::NotFound(_)) => {
-                    log::debug!("Agent auto-archive skipped session={id} reason=active_viewed_or_changed");
+                    log::debug!(
+                        "Agent auto-archive skipped session={id} reason=active_viewed_or_changed"
+                    );
                 }
                 Err(error) => log::warn!("Agent auto-archive failed session={id} error={error}"),
             }
@@ -234,7 +254,11 @@ mod tests {
         let store = xw_agent_rollout::RolloutStore::new(root);
         let id = parse_id(&session.session_id, "session_id").unwrap();
         let (journal, _) = store.open_registered(id, session.created_at_ms).unwrap();
-        assert_eq!(journal.entries().len(), 2, "aging fixture must be a blank session");
+        assert_eq!(
+            journal.entries().len(),
+            2,
+            "aging fixture must be a blank session"
+        );
         let xw_agent_types::EntryPayload::Meta(meta) = journal.entries()[1].payload.clone() else {
             panic!("missing meta");
         };
@@ -247,7 +271,11 @@ mod tests {
     struct Host;
 
     impl AgentHost for Host {
-        fn generate(&self, _: GenerationRequest, cancellation: CancellationToken) -> GenerationFuture {
+        fn generate(
+            &self,
+            _: GenerationRequest,
+            cancellation: CancellationToken,
+        ) -> GenerationFuture {
             Box::pin(async move {
                 cancellation.cancelled().await;
                 Err(crate::GenerationError::Cancelled)
@@ -299,7 +327,9 @@ mod tests {
     #[tokio::test]
     async fn exact_threshold_respects_each_viewer_and_observation_alone_does_not_protect() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         let observation = service
             .subscribe_session(SubscribeSessionRequest {
@@ -310,7 +340,10 @@ mod tests {
         let request = TrackSessionViewingRequest {
             session_id: session.session_id.clone(),
         };
-        let first = service.track_session_viewing(request.clone()).await.unwrap();
+        let first = service
+            .track_session_viewing(request.clone())
+            .await
+            .unwrap();
         let second = service.track_session_viewing(request).await.unwrap();
         let cutoff = session.updated_at_ms + 3 * DAY_MS;
         service.maintain_sessions_at(cutoff - 1).await.unwrap();
@@ -338,12 +371,19 @@ mod tests {
     #[tokio::test]
     async fn delete_off_retains_history_and_enabled_cleanup_uses_last_activity() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         let path = {
             let state = service.state().unwrap();
             let id = parse_id(&session.session_id, "session_id").unwrap();
-            state.sessions[&id].journal.as_ref().unwrap().path().to_owned()
+            state.sessions[&id]
+                .journal
+                .as_ref()
+                .unwrap()
+                .path()
+                .to_owned()
         };
         let now = session.updated_at_ms + 30 * DAY_MS;
         service.maintain_sessions_at(now).await.unwrap();
@@ -361,26 +401,36 @@ mod tests {
         assert_eq!(list(&service, true).await.len(), 1);
         service.maintain_sessions_at(now).await.unwrap();
         assert!(list(&service, true).await.is_empty());
-        assert!(!path.exists(), "automatic deletion removes the registered JSONL");
+        assert!(
+            !path.exists(),
+            "automatic deletion removes the registered JSONL"
+        );
         service.close().await.unwrap();
     }
 
     #[tokio::test]
     async fn restore_refreshes_activity_and_invalid_policy_does_not_change_defaults() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         service.close().await.unwrap();
         age_journal(root.path(), &session);
-        let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", root.path().join("sessions.sqlite").display()))
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(&format!(
+            "sqlite://{}",
+            root.path().join("sessions.sqlite").display()
+        ))
+        .await
+        .unwrap();
         sqlx::query("UPDATE session SET created_at_ms = 1, updated_at_ms = 1")
             .execute(&pool)
             .await
             .unwrap();
         pool.close().await;
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         service.maintain_sessions().await.unwrap();
         service
             .set_session_archived(SetSessionArchivedRequest {
@@ -413,7 +463,11 @@ mod tests {
             );
         }
         assert_eq!(
-            service.get_session_retention_policy().await.unwrap().archive_after_days,
+            service
+                .get_session_retention_policy()
+                .await
+                .unwrap()
+                .archive_after_days,
             3
         );
         service.close().await.unwrap();
@@ -422,7 +476,9 @@ mod tests {
     #[tokio::test]
     async fn active_run_is_never_cancelled_by_automatic_archive() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         let run = service
             .start_run(
@@ -468,19 +524,28 @@ mod tests {
     #[tokio::test]
     async fn scheduler_checks_at_start_and_stops_before_database_close() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         service.close().await.unwrap();
         age_journal(root.path(), &session);
-        let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", root.path().join("sessions.sqlite").display()))
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(&format!(
+            "sqlite://{}",
+            root.path().join("sessions.sqlite").display()
+        ))
+        .await
+        .unwrap();
         sqlx::query("UPDATE session SET created_at_ms = 1, updated_at_ms = 1")
             .execute(&pool)
             .await
             .unwrap();
         pool.close().await;
-        let service = Arc::new(AgentService::open(Arc::new(Host), root.path().into()).await.unwrap());
+        let service = Arc::new(
+            AgentService::open(Arc::new(Host), root.path().into())
+                .await
+                .unwrap(),
+        );
         service.start_maintenance();
         service.start_maintenance();
         tokio::time::timeout(Duration::from_secs(2), async {
@@ -499,13 +564,19 @@ mod tests {
     #[tokio::test]
     async fn cold_viewing_racing_auto_archive_never_acknowledges_both() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let mut sessions = Vec::new();
         for _ in 0..30 {
             sessions.push(create(&service).await);
         }
         service.close().await.unwrap();
-        let service = Arc::new(AgentService::open(Arc::new(Host), root.path().into()).await.unwrap());
+        let service = Arc::new(
+            AgentService::open(Arc::new(Host), root.path().into())
+                .await
+                .unwrap(),
+        );
         for session in sessions {
             let archive_service = service.clone();
             let archive_id = session.session_id.clone();
@@ -538,18 +609,27 @@ mod tests {
     #[tokio::test]
     async fn saving_policy_replaces_the_task_and_checks_without_waiting_an_hour() {
         let root = tempfile::tempdir().unwrap();
-        let service = AgentService::open(Arc::new(Host), root.path().into()).await.unwrap();
+        let service = AgentService::open(Arc::new(Host), root.path().into())
+            .await
+            .unwrap();
         let session = create(&service).await;
         service.close().await.unwrap();
         age_journal(root.path(), &session);
-        let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", root.path().join("sessions.sqlite").display()))
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(&format!(
+            "sqlite://{}",
+            root.path().join("sessions.sqlite").display()
+        ))
+        .await
+        .unwrap();
         sqlx::query("UPDATE session SET created_at_ms = 1, updated_at_ms = 1")
             .execute(&pool)
             .await
             .unwrap();
-        let service = Arc::new(AgentService::open(Arc::new(Host), root.path().into()).await.unwrap());
+        let service = Arc::new(
+            AgentService::open(Arc::new(Host), root.path().into())
+                .await
+                .unwrap(),
+        );
         service.start_maintenance();
         tokio::time::timeout(Duration::from_secs(2), async {
             while list(&service, true).await.is_empty() {
@@ -558,7 +638,14 @@ mod tests {
         })
         .await
         .unwrap();
-        let original = service.maintenance.lock().unwrap().as_ref().unwrap().handle.id();
+        let original = service
+            .maintenance
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .handle
+            .id();
         sqlx::query(
             "CREATE TRIGGER fail_policy BEFORE UPDATE ON meta
              WHEN NEW.key = 'retention.delete_after_days' BEGIN SELECT RAISE(ABORT, 'failure'); END",
@@ -574,7 +661,14 @@ mod tests {
         };
         assert!(service.set_session_retention_policy(request).await.is_err());
         assert_eq!(
-            service.maintenance.lock().unwrap().as_ref().unwrap().handle.id(),
+            service
+                .maintenance
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .handle
+                .id(),
             original
         );
         assert_eq!(
@@ -584,10 +678,20 @@ mod tests {
                 delete_after_days: 0,
             }
         );
-        sqlx::query("DROP TRIGGER fail_policy").execute(&pool).await.unwrap();
+        sqlx::query("DROP TRIGGER fail_policy")
+            .execute(&pool)
+            .await
+            .unwrap();
         service.set_session_retention_policy(request).await.unwrap();
         assert_ne!(
-            service.maintenance.lock().unwrap().as_ref().unwrap().handle.id(),
+            service
+                .maintenance
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .handle
+                .id(),
             original
         );
         tokio::time::timeout(Duration::from_secs(2), async {
@@ -613,7 +717,11 @@ mod tests {
     #[tokio::test]
     async fn closing_after_repeated_restarts_waits_for_the_task_chain() {
         let root = tempfile::tempdir().unwrap();
-        let service = Arc::new(AgentService::open(Arc::new(Host), root.path().into()).await.unwrap());
+        let service = Arc::new(
+            AgentService::open(Arc::new(Host), root.path().into())
+                .await
+                .unwrap(),
+        );
         create(&service).await;
         service.start_maintenance();
         for days in [1, 3, 7, 15, 3] {

@@ -69,7 +69,10 @@ export async function run(directory) {
     const evaluate = (window, expression) => window.webContents.executeJavaScript(expression);
     assert.deepEqual(await evaluate(a, "Object.keys(window.gateway)"), ["request", "listen"]);
     assert.equal(await evaluate(a, "typeof window.require"), "undefined");
-    assert.deepEqual(await evaluate(a, "api.echo()"), { id: "18446744073709551615", bytes: [0, 255] });
+    assert.deepEqual(await evaluate(a, "api.echo()"), {
+      id: "18446744073709551615",
+      bytes: [0, 255],
+    });
 
     assert.deepEqual(await evaluate(a, "api.storage()"), { json: '{"enabled":true}' });
 

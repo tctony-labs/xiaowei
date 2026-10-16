@@ -7,14 +7,24 @@ import SettingsTabLayout from "./SettingsTabLayout";
 
 const searchSources = [
   { id: "bing", name: "Bing", description: "默认搜索源，无需配置", url: "" },
-  { id: "tavily", name: "Tavily", description: "专为 LLM 优化的搜索结果", url: "https://app.tavily.com/" },
+  {
+    id: "tavily",
+    name: "Tavily",
+    description: "专为 LLM 优化的搜索结果",
+    url: "https://app.tavily.com/",
+  },
   {
     id: "brave",
     name: "Brave",
     description: "独立索引，结果质量好",
     url: "https://api-dashboard.search.brave.com/app/dashboard",
   },
-  { id: "serper", name: "Serper", description: "Google 搜索结果代理", url: "https://serper.dev/dashboard" },
+  {
+    id: "serper",
+    name: "Serper",
+    description: "Google 搜索结果代理",
+    url: "https://serper.dev/dashboard",
+  },
 ];
 export interface AgentValues {
   maxCalls: number;
@@ -77,10 +87,14 @@ export function AgentSettings({
               value={values.source}
               options={searchSources.map((s) => ({
                 value: s.id,
-                label: s.id === "bing" || values.configured.includes(s.id) ? s.name : `${s.name}（未配置 Key）`,
+                label:
+                  s.id === "bing" || values.configured.includes(s.id)
+                    ? s.name
+                    : `${s.name}（未配置 Key）`,
               }))}
               onChange={(source) => {
-                if (source !== "bing" && !values.configured.includes(source)) setMessage("请先配置该搜索源的 API Key");
+                if (source !== "bing" && !values.configured.includes(source))
+                  setMessage("请先配置该搜索源的 API Key");
                 else onChange({ ...values, source });
               }}
             />
@@ -154,7 +168,9 @@ export function AgentSettings({
               source: !key && values.source === editor ? "bing" : values.source,
             });
             setEditor("");
-            setMessage(key ? "已保存" : values.source === editor ? "已删除，已切回 Bing" : "已删除");
+            setMessage(
+              key ? "已保存" : values.source === editor ? "已删除，已切回 Bing" : "已删除",
+            );
           }}
         />
       )}
@@ -213,7 +229,11 @@ function SearchKeyEditor({
             <ModalButton onClick={onClose} disabled={busy}>
               取消
             </ModalButton>
-            <ModalButton variant="primary" disabled={!key.trim() || busy} onClick={() => void save(key.trim())}>
+            <ModalButton
+              variant="primary"
+              disabled={!key.trim() || busy}
+              onClick={() => void save(key.trim())}
+            >
               {busy ? "校验中..." : "保存"}
             </ModalButton>
           </>

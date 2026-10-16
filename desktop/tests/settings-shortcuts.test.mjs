@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { accelerator, createSettingsShortcuts, shortcutConfig } from "../src/main/services/shortcuts/shortcuts.ts";
+import {
+  accelerator,
+  createSettingsShortcuts,
+  shortcutConfig,
+} from "../src/main/services/shortcuts/shortcuts.ts";
 
 const initial = {
   main: ["Meta", "Space"],
@@ -41,7 +45,10 @@ test("failed registration restores the prior shortcuts", () => {
     /unavailable/,
   );
   assert.deepEqual([...registered.keys()], before);
-  assert.throws(() => shortcut.replace({ ...initial, quickChat: ["Meta", "Shift", "KeyC"] }), /action unavailable/);
+  assert.throws(
+    () => shortcut.replace({ ...initial, quickChat: ["Meta", "Shift", "KeyC"] }),
+    /action unavailable/,
+  );
   shortcut.close();
   assert.equal(registered.size, 0);
 });

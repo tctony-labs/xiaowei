@@ -20,7 +20,9 @@ impl GatewayEndpoint {
             .map_err(|error| napi::Error::from_reason(error.to_string()))
     }
 
-    #[napi(ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string")]
+    #[napi(
+        ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string"
+    )]
     pub fn bind(&self, callback: Arc<Callback>, context: String) -> napi::Result<()> {
         self.inner
             .bind(callback, &context)
@@ -58,7 +60,9 @@ impl GatewayEndpoint {
     ) -> napi::Result<PromiseRaw<'env, Reply>> {
         let inner = self.inner.clone();
         let payload = payload.to_vec();
-        env.spawn_future(async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) })
+        env.spawn_future(
+            async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) },
+        )
     }
 
     #[napi(ts_return_type = "Promise<Buffer | string>")]
@@ -112,7 +116,9 @@ impl GatewayEndpoint {
         let filter = filter.map(|v| v.to_vec());
         env.spawn_future(async move {
             Ok(reply(
-                inner.subscribe_local(&id, &event, filter, &context).map(|_| vec![]),
+                inner
+                    .subscribe_local(&id, &event, filter, &context)
+                    .map(|_| vec![]),
             ))
         })
     }
@@ -149,7 +155,11 @@ impl GatewayEndpoint {
 pub(crate) fn create_endpoint(agent: &Arc<Agent>, env: napi::Env) -> napi::Result<GatewayEndpoint> {
     let registry = XwInvokeRegistry::new();
     let owner = registry
-        .register_owner("agent", xiaowei_agent::gateway::registrations(agent), vec![])
+        .register_owner(
+            "agent",
+            xiaowei_agent::gateway::registrations(agent),
+            vec![],
+        )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     let inner = Endpoint::new(registry, owner);
     inner.install_cleanup(&env)?;

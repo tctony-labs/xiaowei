@@ -42,11 +42,13 @@ export function useQuickChat(services: Services, viewing = false) {
       setConfigError("");
     }
     void (async () => {
-      const handle = await services.getGateway().subscribe(ModelSettingsChangedSchema.typeName, undefined, (bytes) => {
-        events++;
-        const next = fromBinary(ModelSettingsChangedSchema, bytes).snapshot;
-        if (next) accept(next);
-      });
+      const handle = await services
+        .getGateway()
+        .subscribe(ModelSettingsChangedSchema.typeName, undefined, (bytes) => {
+          events++;
+          const next = fromBinary(ModelSettingsChangedSchema, bytes).snapshot;
+          if (next) accept(next);
+        });
       if (disposed) {
         handle.close();
         return;
@@ -65,9 +67,12 @@ export function useQuickChat(services: Services, viewing = false) {
   }, [services]);
 
   const defaultModelRef = snapshot?.defaults?.modelRef;
-  const defaultProvider = snapshot?.providers.find((item) => item.models.some((model) => model.id === defaultModelRef));
+  const defaultProvider = snapshot?.providers.find((item) =>
+    item.models.some((model) => model.id === defaultModelRef),
+  );
   const provider =
-    defaultProvider ?? snapshot?.providers.find((item) => !item.unavailableReason && item.models.length > 0);
+    defaultProvider ??
+    snapshot?.providers.find((item) => !item.unavailableReason && item.models.length > 0);
   const modelRef = defaultProvider ? defaultModelRef : provider?.models[0]?.id;
   const initialReasoning = defaultProvider ? snapshot?.defaults?.thinkingLevel : undefined;
   const selection = client.session?.config ??
@@ -85,7 +90,9 @@ export function useQuickChat(services: Services, viewing = false) {
     ) ?? [];
   const supportedReasoning = selectedModel?.reasoning
     ? thinkingLevels.filter((level) => {
-        const map = selectedModel.thinkingLevelMapJson ? JSON.parse(selectedModel.thinkingLevelMapJson) : undefined;
+        const map = selectedModel.thinkingLevelMapJson
+          ? JSON.parse(selectedModel.thinkingLevelMapJson)
+          : undefined;
         return map ? typeof map[level] === "string" : level !== "off";
       })
     : selectedModel
@@ -104,7 +111,9 @@ export function useQuickChat(services: Services, viewing = false) {
       : "");
   // Existing sessions keep their own reference even when settings / model lookup fails.
   const configured =
-    !client.initializing && !!selection.modelRef && (!!client.session || (!!snapshot && !initialError));
+    !client.initializing &&
+    !!selection.modelRef &&
+    (!!client.session || (!!snapshot && !initialError));
   const error = client.session ? client.error : initialError || client.error;
   const modelLabel = client.session?.modelName
     ? [client.session.providerName, client.session.modelName].filter(Boolean).join("/")
@@ -119,7 +128,9 @@ export function useQuickChat(services: Services, viewing = false) {
   }
 
   function changeModel(modelRef: string) {
-    const model = snapshot?.providers.flatMap((provider) => provider.models).find((model) => model.id === modelRef);
+    const model = snapshot?.providers
+      .flatMap((provider) => provider.models)
+      .find((model) => model.id === modelRef);
     if (!model) return;
     const map = model.thinkingLevelMapJson ? JSON.parse(model.thinkingLevelMapJson) : undefined;
     const reasoning =
@@ -162,15 +173,21 @@ export function useQuickChat(services: Services, viewing = false) {
         .catch(() => console.warn("Failed to open title model settings"));
     },
     onCopySessionId: async (id: string) => {
-      await services.getSystem().writeClipboardText(create(WriteClipboardTextRequestSchema, { text: id }));
+      await services
+        .getSystem()
+        .writeClipboardText(create(WriteClipboardTextRequestSchema, { text: id }));
     },
-    sessions: client.sessions.map((session) => ({ id: session.sessionId, title: client.sessionTitle(session) })),
+    sessions: client.sessions.map((session) => ({
+      id: session.sessionId,
+      title: client.sessionTitle(session),
+    })),
     sessionsLoading: client.sessionsLoading,
     sessionsHasMore: !!client.sessionsContinuation,
     onMoreSessions: () => void client.listSessions(true).catch(() => {}),
     onListSessions: () => void client.listSessions().catch(() => {}),
     onArchiveConversation: () => {
-      if (client.session) void client.archiveSession(client.session.sessionId, true).catch(() => {});
+      if (client.session)
+        void client.archiveSession(client.session.sessionId, true).catch(() => {});
     },
     onSwitchSession: (id: string) => void client.switchSession(id).catch(() => {}),
     onDeleteConversation: () => void client.deleteConversation().catch(() => {}),

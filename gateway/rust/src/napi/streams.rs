@@ -54,7 +54,10 @@ impl Endpoint {
                 return Err(argument());
             }
             if sessions.len() >= 128 {
-                return Err(GatewayError::new(ErrorCode::ResourceExhausted, "endpoint streams full"));
+                return Err(GatewayError::new(
+                    ErrorCode::ResourceExhausted,
+                    "endpoint streams full",
+                ));
             }
             sessions.insert(
                 control.stream_id,
@@ -68,7 +71,12 @@ impl Endpoint {
         }
         Ok(())
     }
-    pub async fn stream_control(self: &Arc<Self>, metadata: &str, payload: Vec<u8>, context: &str) -> WireResult {
+    pub async fn stream_control(
+        self: &Arc<Self>,
+        metadata: &str,
+        payload: Vec<u8>,
+        context: &str,
+    ) -> WireResult {
         self.ready()?;
         let control: StreamControl = parse(metadata)?;
         let context: Context = parse(context)?;
@@ -84,9 +92,16 @@ impl Endpoint {
                 return Err(unavailable());
             };
             if session.token != context.token {
-                return Err(GatewayError::new(ErrorCode::Unauthorized, "stream caller mismatch"));
+                return Err(GatewayError::new(
+                    ErrorCode::Unauthorized,
+                    "stream caller mismatch",
+                ));
             }
-            (session.cancel.clone(), session.handle.clone(), session.sequence)
+            (
+                session.cancel.clone(),
+                session.handle.clone(),
+                session.sequence,
+            )
         };
         let mut cancelled = cancel.subscribe();
         match control.operation.as_str() {
@@ -117,7 +132,13 @@ impl Endpoint {
                     .find(|registration| registration.route == route)
                     .and_then(|r| r.stream_policy)
                     .unwrap_or_default();
-                let handle = stream::start(Box::pin(source), policy, context.token, self.owner.clone(), admission);
+                let handle = stream::start(
+                    Box::pin(source),
+                    policy,
+                    context.token,
+                    self.owner.clone(),
+                    admission,
+                );
                 let terminal = handle.life.terminal.subscribe();
                 {
                     let mut sessions = self.streams.0.lock().unwrap();
@@ -155,9 +176,9 @@ impl Endpoint {
                     .get_mut(&control.stream_id)
                     .filter(|session| session.cancel.same_channel(&cancel))
                 {
-                    session.sequence = sequence
-                        .checked_add(1)
-                        .ok_or_else(|| GatewayError::new(ErrorCode::ResourceExhausted, "sequence exhausted"))?;
+                    session.sequence = sequence.checked_add(1).ok_or_else(|| {
+                        GatewayError::new(ErrorCode::ResourceExhausted, "sequence exhausted")
+                    })?;
                 }
                 Ok(stream::encode_frame(sequence, item))
             }
@@ -201,24 +222,34 @@ impl Endpoint {
             token: context.caller().into(),
         };
         let control = lease.control("stream.open", Some(route));
-        let policy = tokio::time::timeout(std::time::Duration::from_secs(10), self.outbound(control, payload))
-            .await
-            .map_err(|_| GatewayError::new(ErrorCode::Timeout, "remote stream open timed out"))??;
-        let policy: stream::StreamPolicy = serde_json::from_slice(&policy).map_err(|_| argument())?;
+        let policy = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            self.outbound(control, payload),
+        )
+        .await
+        .map_err(|_| GatewayError::new(ErrorCode::Timeout, "remote stream open timed out"))??;
+        let policy: stream::StreamPolicy =
+            serde_json::from_slice(&policy).map_err(|_| argument())?;
         policy.validate()?;
         let source = Box::pin(futures_util::stream::try_unfold(
             (lease, 0u32),
             |(lease, seq)| async move {
                 let endpoint = lease.endpoint.upgrade().ok_or_else(unavailable)?;
-                let bytes = endpoint.outbound(lease.control("stream.next", None), vec![]).await?;
+                let bytes = endpoint
+                    .outbound(lease.control("stream.next", None), vec![])
+                    .await?;
                 match stream::decode_frame(bytes, seq)? {
                     None => Ok(None),
                     Some(bytes) => Ok(Some((
                         bytes,
                         (
                             lease,
-                            seq.checked_add(1)
-                                .ok_or_else(|| GatewayError::new(ErrorCode::ResourceExhausted, "sequence exhausted"))?,
+                            seq.checked_add(1).ok_or_else(|| {
+                                GatewayError::new(
+                                    ErrorCode::ResourceExhausted,
+                                    "sequence exhausted",
+                                )
+                            })?,
                         ),
                     ))),
                 }
@@ -254,7 +285,11 @@ impl Drop for StreamLease {
         };
         let control = self.control("stream.cancel", None);
         ::napi::bindgen_prelude::spawn(async move {
-            let _ = tokio::time::timeout(std::time::Duration::from_secs(1), endpoint.outbound(control, vec![])).await;
+            let _ = tokio::time::timeout(
+                std::time::Duration::from_secs(1),
+                endpoint.outbound(control, vec![]),
+            )
+            .await;
         });
     }
 }

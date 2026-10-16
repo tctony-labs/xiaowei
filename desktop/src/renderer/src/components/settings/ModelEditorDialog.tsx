@@ -1,5 +1,9 @@
 import { useRef, useState } from "react";
-import { defaultContextWindow, defaultMaxTokens, matchThinkingMap } from "../../../../shared/llm-models";
+import {
+  defaultContextWindow,
+  defaultMaxTokens,
+  matchThinkingMap,
+} from "../../../../shared/llm-models";
 import Modal, { ModalButton } from "../Modal";
 import ContextWindowField from "./ContextWindowField";
 import { COMMON_MAX_OUTPUT_TOKENS } from "./context-window-presets";
@@ -22,9 +26,13 @@ export default function ModelEditorDialog({
   const [modelId, setModelId] = useState(originalId ?? "");
   const [name, setName] = useState(initialConfig?.name ?? "");
   const [supportsImage, setSupportsImage] = useState(initialConfig?.supportsImage ?? false);
-  const initialThinking = initialConfig?.reasoning ? matchThinkingMap(initialConfig.thinkingLevelMap) : undefined;
+  const initialThinking = initialConfig?.reasoning
+    ? matchThinkingMap(initialConfig.thinkingLevelMap)
+    : undefined;
   const [reasoning, setReasoning] = useState(Boolean(initialThinking));
-  const [thinkingLevelMap, setThinkingLevelMap] = useState<ThinkingLevelMap | undefined>(initialThinking?.map);
+  const [thinkingLevelMap, setThinkingLevelMap] = useState<ThinkingLevelMap | undefined>(
+    initialThinking?.map,
+  );
   const matchingPreset = matchThinkingMap(thinkingLevelMap);
   const thinkingPreset = matchingPreset?.id ?? "";
   const [headerRows, setHeaderRows] = useState(() =>
@@ -42,13 +50,17 @@ export default function ModelEditorDialog({
     ? Object.fromEntries(filledHeaders.map((row) => [row.key.trim(), row.value]))
     : undefined;
 
-  const [context, setContext] = useState(originalId ? provider.modelContextWindows[originalId] : undefined);
+  const [context, setContext] = useState(
+    originalId ? provider.modelContextWindows[originalId] : undefined,
+  );
   const [maxOutput, setMaxOutput] = useState(initialConfig?.maxOutput);
   const id = modelId.trim();
   const duplicate = id !== originalId && provider.models.includes(id);
   const thinkingError = reasoning && !thinkingLevelMap ? "请选择明确的思考强度方案" : "";
   const limitsError =
-    (maxOutput ?? defaultMaxTokens) > (context ?? defaultContextWindow) ? "最大输出数量不能超过上下文窗口大小" : "";
+    (maxOutput ?? defaultMaxTokens) > (context ?? defaultContextWindow)
+      ? "最大输出数量不能超过上下文窗口大小"
+      : "";
   const canSave = Boolean(id) && !duplicate && !headersError && !thinkingError && !limitsError;
 
   function addHeader() {
@@ -201,7 +213,9 @@ export default function ModelEditorDialog({
                   spellCheck={false}
                   onChange={(event) =>
                     setHeaderRows((rows) =>
-                      rows.map((item) => (item.id === row.id ? { ...item, key: event.target.value } : item)),
+                      rows.map((item) =>
+                        item.id === row.id ? { ...item, key: event.target.value } : item,
+                      ),
                     )
                   }
                   className="min-w-0 flex-1 rounded-lg border border-line bg-surface
@@ -214,7 +228,9 @@ export default function ModelEditorDialog({
                   spellCheck={false}
                   onChange={(event) =>
                     setHeaderRows((rows) =>
-                      rows.map((item) => (item.id === row.id ? { ...item, value: event.target.value } : item)),
+                      rows.map((item) =>
+                        item.id === row.id ? { ...item, value: event.target.value } : item,
+                      ),
                     )
                   }
                   className="min-w-0 flex-1 rounded-lg border border-line bg-surface
@@ -244,7 +260,11 @@ export default function ModelEditorDialog({
               </div>
             ))}
             {!headerRows.length && (
-              <button type="button" className="cursor-pointer text-[12px] text-primary-text" onClick={addHeader}>
+              <button
+                type="button"
+                className="cursor-pointer text-[12px] text-primary-text"
+                onClick={addHeader}
+              >
                 + 添加
               </button>
             )}

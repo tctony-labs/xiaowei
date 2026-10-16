@@ -28,7 +28,10 @@ async fn directory_is_an_independent_database_and_survives_reopen() {
         .await
         .unwrap();
     assert_eq!(
-        tables.iter().map(|r| r.get::<String, _>(0)).collect::<Vec<_>>(),
+        tables
+            .iter()
+            .map(|r| r.get::<String, _>(0))
+            .collect::<Vec<_>>(),
         ["meta", "session"]
     );
     let entry = record("初始标题");
@@ -39,7 +42,10 @@ async fn directory_is_an_independent_database_and_survives_reopen() {
     ));
     catalog.close().await;
     let reopened = SessionCatalog::open(&path).await.unwrap();
-    assert_eq!(reopened.get(&entry.summary.session_id).await.unwrap(), Some(entry));
+    assert_eq!(
+        reopened.get(&entry.summary.session_id).await.unwrap(),
+        Some(entry)
+    );
     reopened.close().await;
     assert!(reopened.list(ListSessionsRequest::default()).await.is_err());
 }
@@ -88,7 +94,14 @@ async fn pagination_archive_cas_and_delete_cannot_resurrect_a_row() {
         archived: true,
         expected_archive_revision: 1,
     };
-    assert_eq!(catalog.set_archived(request.clone()).await.unwrap().archive_revision, 2);
+    assert_eq!(
+        catalog
+            .set_archived(request.clone())
+            .await
+            .unwrap()
+            .archive_revision,
+        2
+    );
     assert!(matches!(
         catalog.set_archived(request).await,
         Err(AgentError::Conflict(_))
@@ -98,7 +111,10 @@ async fn pagination_archive_cas_and_delete_cannot_resurrect_a_row() {
         archived: true,
         expected_archive_revision: 2,
     };
-    assert_eq!(catalog.set_archived(same).await.unwrap().archive_revision, 2);
+    assert_eq!(
+        catalog.set_archived(same).await.unwrap().archive_revision,
+        2
+    );
     catalog.update(stored.clone()).await.unwrap();
     let archived = catalog
         .list(ListSessionsRequest {
@@ -128,7 +144,10 @@ async fn pagination_archive_cas_and_delete_cannot_resurrect_a_row() {
     ));
     catalog.remove(id.clone()).await.unwrap();
     catalog.remove(id.clone()).await.unwrap();
-    assert!(matches!(catalog.update(stored).await, Err(AgentError::Conflict(_))));
+    assert!(matches!(
+        catalog.update(stored).await,
+        Err(AgentError::Conflict(_))
+    ));
     assert!(catalog.get(id).await.unwrap().is_none());
     catalog.close().await;
 }
@@ -290,7 +309,14 @@ async fn auto_archive_rechecks_activity_in_sql_after_candidate_selection() {
         .unwrap();
     let entry = record("old");
     catalog.register(entry.clone()).await.unwrap();
-    assert_eq!(catalog.retention_candidates(false, 1000).await.unwrap().len(), 1);
+    assert_eq!(
+        catalog
+            .retention_candidates(false, 1000)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
     let mut active = entry.summary.clone();
     active.updated_at_ms = 1001;
     catalog.update(active).await.unwrap();

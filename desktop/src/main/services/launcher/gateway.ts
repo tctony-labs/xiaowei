@@ -82,7 +82,10 @@ export function registerSearch(
             label,
             score,
             ranges,
-            iconUrl: action?.action.case === "launchApp" ? actions.iconUrl(action.action.value) : undefined,
+            iconUrl:
+              action?.action.case === "launchApp"
+                ? actions.iconUrl(action.action.value)
+                : undefined,
           })),
         });
       },
@@ -94,16 +97,23 @@ export function registerSearch(
         const hit = request.token === current.token ? current.results.get(request.id) : undefined;
         if (!hit) throw new Error("Search result expired");
         const native = bindClient(Search, client);
-        const record = () => native.recordUsage(create(RecordUsageRequestSchema, { recencyKey: hit.recencyKey }));
+        const record = () =>
+          native.recordUsage(create(RecordUsageRequestSchema, { recencyKey: hit.recencyKey }));
         switch (hit.action?.action.case) {
           case "command":
             if (hit.action.action.value === SearchCommand.OPEN_CLIPBOARD) {
               await record();
               return create(ExecuteResponseSchema, { mode: WireMode.CLIPBOARD });
             }
-            if (hit.action.action.value === SearchCommand.TOGGLE_THEME && actions.platform === "darwin")
+            if (
+              hit.action.action.value === SearchCommand.TOGGLE_THEME &&
+              actions.platform === "darwin"
+            )
               await bindClient(System, client).toggleTheme(create(EmptySchema));
-            else if (hit.action.action.value === SearchCommand.RESTART_DEVELOPMENT && actions.development)
+            else if (
+              hit.action.action.value === SearchCommand.RESTART_DEVELOPMENT &&
+              actions.development
+            )
               await actions.restart();
             else throw new Error("Unsupported command");
             break;
@@ -119,10 +129,13 @@ export function registerSearch(
           case "openUrl": {
             const url = new URL(hit.action.action.value);
             const web = url.protocol === "https:" || url.protocol === "http:";
-            const settings = hit.provider === "app" && url.protocol === "x-apple.systempreferences:";
+            const settings =
+              hit.provider === "app" && url.protocol === "x-apple.systempreferences:";
             if (!web && !settings) throw new Error("Unsupported URL scheme");
             if (web) {
-              await bindClient(System, client).openUrl(create(OpenUrlRequestSchema, { url: url.href }));
+              await bindClient(System, client).openUrl(
+                create(OpenUrlRequestSchema, { url: url.href }),
+              );
             } else {
               await actions.openExternal(url.href);
             }
@@ -132,7 +145,10 @@ export function registerSearch(
             throw new Error("Unsupported search action");
         }
         if (hit.provider !== "calculator") await record();
-        if (currentPresentation === presentation && currentGeneration === actions.windowGeneration()) {
+        if (
+          currentPresentation === presentation &&
+          currentGeneration === actions.windowGeneration()
+        ) {
           const action = hit.action?.action.case;
           await actions.dismiss(windowFor(context), action !== "launchApp" && action !== "openUrl");
         }
@@ -198,12 +214,18 @@ export function registerSearch(
         LauncherOpenedSchema,
         create(LauncherOpenedSchema, {
           mode:
-            mode === "clipboard" ? WireMode.CLIPBOARD : mode === "quick-chat" ? WireMode.QUICK_CHAT : WireMode.SEARCH,
+            mode === "clipboard"
+              ? WireMode.CLIPBOARD
+              : mode === "quick-chat"
+                ? WireMode.QUICK_CHAT
+                : WireMode.SEARCH,
         }),
       );
       for (const entry of opened.values())
         if (entry.contents === window.webContents)
-          void Promise.resolve(entry.sink(bytes)).catch((error) => console.error("Launcher event failed", error));
+          void Promise.resolve(entry.sink(bytes)).catch((error) =>
+            console.error("Launcher event failed", error),
+          );
     },
   };
 }

@@ -28,7 +28,9 @@ type Story = StoryObj<typeof meta>;
 export const Empty: Story = {};
 export const WithQuery: Story = { args: { query: "会议记录" } };
 export const LongQuery: Story = {
-  args: { query: "这是一段用于检查长文本显示的搜索内容 / Projects / XiaoWei / 会议记录与个人知识库归档" },
+  args: {
+    query: "这是一段用于检查长文本显示的搜索内容 / Projects / XiaoWei / 会议记录与个人知识库归档",
+  },
 };
 export const Dark: Story = { globals: { theme: "dark" } };
 export const EscapeDismisses: Story = {

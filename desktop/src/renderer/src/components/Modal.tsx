@@ -77,7 +77,12 @@ export default function Modal({
               className="flex items-center justify-center rounded p-1 text-muted transition-colors hover:text-ink hover:bg-hover cursor-pointer"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <path
+                  d="M3.5 3.5l7 7M10.5 3.5l-7 7"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
           </div>
@@ -90,12 +95,19 @@ export default function Modal({
             className="absolute top-3 right-4 z-10 flex cursor-pointer items-center justify-center rounded p-1 text-muted transition-colors hover:bg-hover hover:text-ink"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <path
+                d="M3.5 3.5l7 7M10.5 3.5l-7 7"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         ) : null}
         <div className={contentClassName}>{children}</div>
-        {footer && <div className="flex items-center justify-end gap-2 px-5 pt-1 pb-4">{footer}</div>}
+        {footer && (
+          <div className="flex items-center justify-end gap-2 px-5 pt-1 pb-4">{footer}</div>
+        )}
       </div>
     </div>,
     document.body,
@@ -109,7 +121,12 @@ interface ModalButtonProps {
   disabled?: boolean;
 }
 
-export function ModalButton({ children, onClick, variant = "default", disabled }: ModalButtonProps) {
+export function ModalButton({
+  children,
+  onClick,
+  variant = "default",
+  disabled,
+}: ModalButtonProps) {
   const base =
     "px-4 py-1.5 rounded-lg text-[13px] leading-[18px] font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
@@ -118,7 +135,12 @@ export function ModalButton({ children, onClick, variant = "default", disabled }
     danger: "bg-danger text-white hover:bg-danger/80",
   };
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`${base} ${variants[variant]}`}
+    >
       {children}
     </button>
   );

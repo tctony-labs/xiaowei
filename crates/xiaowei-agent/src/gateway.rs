@@ -25,9 +25,10 @@ pub fn error(error: AgentError) -> GatewayError {
         AgentError::Conflict(_) => ErrorCode::Conflict,
         AgentError::ResourceExhausted(_) => ErrorCode::ResourceExhausted,
         AgentError::Closed | AgentError::ExecutionUnavailable => ErrorCode::OwnerUnavailable,
-        AgentError::Internal | AgentError::Persistence | AgentError::Index | AgentError::TitleGeneration(_) => {
-            ErrorCode::HandlerError
-        }
+        AgentError::Internal
+        | AgentError::Persistence
+        | AgentError::Index
+        | AgentError::TitleGeneration(_) => ErrorCode::HandlerError,
     };
     GatewayError::new(code, error.to_string())
 }
@@ -51,12 +52,19 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
         let agent = subscribe.clone();
         async move {
             ready(&agent)?;
-            let subscription = agent.service.subscribe_session(request).await.map_err(error)?;
+            let subscription = agent
+                .service
+                .subscribe_session(request)
+                .await
+                .map_err(error)?;
             Ok(stream::unfold(subscription, |mut subscription| async {
                 let event = subscription.recv().await?;
                 Some((
                     event.map_err(|_| {
-                        GatewayError::new(ErrorCode::ResourceExhausted, "agent subscriber lagged; resubscribe")
+                        GatewayError::new(
+                            ErrorCode::ResourceExhausted,
+                            "agent subscriber lagged; resubscribe",
+                        )
                     }),
                     subscription,
                 ))
@@ -71,15 +79,17 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
         let agent = viewing.clone();
         async move {
             ready(&agent)?;
-            let lease = agent.service.track_session_viewing(request).await.map_err(error)?;
-            let stream = stream::once(async { Ok(xw_agent::protocol::SessionViewingReady {}) }).chain(stream::unfold(
-                lease,
-                |lease| async move {
+            let lease = agent
+                .service
+                .track_session_viewing(request)
+                .await
+                .map_err(error)?;
+            let stream = stream::once(async { Ok(xw_agent::protocol::SessionViewingReady {}) })
+                .chain(stream::unfold(lease, |lease| async move {
                     // Keep protection until the transport drops the cancelled stream.
                     std::future::pending::<()>().await;
                     Some((Ok(xw_agent::protocol::SessionViewingReady {}), lease))
-                },
-            ));
+                }));
             Ok(stream)
         }
     });
@@ -120,21 +130,33 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
             let agent = set_config.clone();
             async move {
                 ready(&agent)?;
-                agent.service.set_session_config(request).await.map_err(error)
+                agent
+                    .service
+                    .set_session_config(request)
+                    .await
+                    .map_err(error)
             }
         }),
         api::SET_SESSION_TITLE.handler(move |request, _| {
             let agent = set_title.clone();
             async move {
                 ready(&agent)?;
-                agent.service.set_session_title(request).await.map_err(error)
+                agent
+                    .service
+                    .set_session_title(request)
+                    .await
+                    .map_err(error)
             }
         }),
         api::SET_SESSION_ARCHIVED.handler(move |request, _| {
             let agent = archive.clone();
             async move {
                 ready(&agent)?;
-                agent.service.set_session_archived(request).await.map_err(error)
+                agent
+                    .service
+                    .set_session_archived(request)
+                    .await
+                    .map_err(error)
             }
         }),
         api::DELETE_SESSION.handler(move |request, _| {
@@ -157,14 +179,22 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
             let agent = get_policy.clone();
             async move {
                 ready(&agent)?;
-                agent.service.get_session_retention_policy().await.map_err(error)
+                agent
+                    .service
+                    .get_session_retention_policy()
+                    .await
+                    .map_err(error)
             }
         }),
         api::SET_SESSION_RETENTION_POLICY.handler(move |request, _| {
             let agent = set_policy.clone();
             async move {
                 ready(&agent)?;
-                agent.service.set_session_retention_policy(request).await.map_err(error)
+                agent
+                    .service
+                    .set_session_retention_policy(request)
+                    .await
+                    .map_err(error)
             }
         }),
         api::START_RUN.handler(move |request, client| {

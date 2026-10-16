@@ -6,8 +6,9 @@ use xw_agent_rollout::{TestFault, WriterState};
 use xw_agent_types as domain;
 
 use crate::{
-    AgentError, AgentHost, AgentService, AuxiliaryModelRefFuture, CancellationToken, GenerationEvent, GenerationFuture,
-    GenerationRequest, GenerationStream, InputSource, ModelInfoFuture, SourceKind, protocol::*,
+    AgentError, AgentHost, AgentService, AuxiliaryModelRefFuture, CancellationToken,
+    GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream, InputSource,
+    ModelInfoFuture, SourceKind, protocol::*,
 };
 
 #[derive(Default)]
@@ -30,7 +31,9 @@ impl AgentHost for Host {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         *self.pending.lock().unwrap() = Some(tx);
         Box::pin(async move {
-            let events = stream::unfold(rx, |mut rx| async { rx.recv().await.map(|event| (Ok(event), rx)) });
+            let events = stream::unfold(rx, |mut rx| async {
+                rx.recv().await.map(|event| (Ok(event), rx))
+            });
             Ok(Box::pin(events) as GenerationStream)
         })
     }
@@ -47,7 +50,10 @@ fn request(id: &str) -> StartRunRequest {
     }
 }
 
-async fn send(service: &AgentService, request: StartRunRequest) -> Result<StartRunResponse, AgentError> {
+async fn send(
+    service: &AgentService,
+    request: StartRunRequest,
+) -> Result<StartRunResponse, AgentError> {
     service
         .start_run(
             request,
@@ -140,14 +146,22 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
         .unwrap()
         .as_ref()
         .unwrap()
-        .send(GenerationEvent::FirstSseReceived { received_at_ms: 1000 })
+        .send(GenerationEvent::FirstSseReceived {
+            received_at_ms: 1000,
+        })
         .unwrap();
     idle(&service, id).await;
     {
         let state = service.state().unwrap();
         let session = &state.sessions[&id];
-        assert_eq!(session.view.runs[0].status, i32::from(AgentRunStatus::Failed));
-        assert_eq!(session.journal.as_ref().unwrap().state(), WriterState::NeedsCheck);
+        assert_eq!(
+            session.view.runs[0].status,
+            i32::from(AgentRunStatus::Failed)
+        );
+        assert_eq!(
+            session.journal.as_ref().unwrap().state(),
+            WriterState::NeedsCheck
+        );
     }
     // If settling the old Run still cannot commit, the new query never reaches Host.
     {
@@ -183,7 +197,10 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
             _ => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(ends, [domain::RunStatus::Failed, domain::RunStatus::Aborted]);
+    assert_eq!(
+        ends,
+        [domain::RunStatus::Failed, domain::RunStatus::Aborted]
+    );
     assert!(
         std::fs::read_dir(journal.path().parent().unwrap())
             .unwrap()

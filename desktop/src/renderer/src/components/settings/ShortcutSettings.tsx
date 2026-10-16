@@ -21,7 +21,11 @@ export function ShortcutSettings({
     const next = { ...values, [key]: value };
     if (value) {
       for (const { id } of rows) {
-        if (id !== key && next[id]?.length === value.length && next[id]?.every((part) => value.includes(part))) {
+        if (
+          id !== key &&
+          next[id]?.length === value.length &&
+          next[id]?.every((part) => value.includes(part))
+        ) {
           next[id] = null;
         }
       }

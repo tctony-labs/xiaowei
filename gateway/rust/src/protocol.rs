@@ -82,7 +82,10 @@ impl Route {
     pub fn accepts(&self, requested: &Self) -> Result<(), GatewayError> {
         requested.validate()?;
         if self != requested {
-            return Err(GatewayError::new(ErrorCode::Incompatible, "route contract mismatch"));
+            return Err(GatewayError::new(
+                ErrorCode::Incompatible,
+                "route contract mismatch",
+            ));
         }
         if self.kind != MethodKind::Unary {
             return Err(GatewayError::new(
@@ -96,7 +99,10 @@ impl Route {
 
 pub fn validate_name(name: &str) -> Result<(), GatewayError> {
     if name.is_empty() || name.len() > 200 || name.split('.').any(str::is_empty) {
-        return Err(GatewayError::new(ErrorCode::InvalidArgument, "invalid gateway name"));
+        return Err(GatewayError::new(
+            ErrorCode::InvalidArgument,
+            "invalid gateway name",
+        ));
     }
     Ok(())
 }
@@ -124,7 +130,11 @@ impl CallContext {
         }))
     }
 
-    pub fn restricted(caller: impl Into<String>, invoke: Vec<String>, subscribe: Vec<String>) -> Self {
+    pub fn restricted(
+        caller: impl Into<String>,
+        invoke: Vec<String>,
+        subscribe: Vec<String>,
+    ) -> Self {
         Self(Arc::new(Permissions {
             caller: caller.into(),
             trusted: false,
@@ -138,11 +148,18 @@ impl CallContext {
     }
 
     pub fn authorize(&self, name: &str, event: bool) -> Result<(), GatewayError> {
-        let allowed = if event { &self.0.subscribe } else { &self.0.invoke };
+        let allowed = if event {
+            &self.0.subscribe
+        } else {
+            &self.0.invoke
+        };
         if self.0.trusted || allowed.contains(name) {
             return Ok(());
         }
-        Err(GatewayError::new(ErrorCode::Unauthorized, "capability not authorized"))
+        Err(GatewayError::new(
+            ErrorCode::Unauthorized,
+            "capability not authorized",
+        ))
     }
 }
 

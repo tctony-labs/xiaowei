@@ -39,13 +39,23 @@ test("owner registration is atomic across routes/events, duplicates and replacem
   const host = new GatewayHost();
   const old = host.registerOwner("a", handlers(), [exported("ordered")]);
   assert.throws(() => host.registerOwner("b", handlers()), rejectsCode("CONFLICT"));
-  assert.throws(() => host.registerOwner("a", [...handlers(), ...handlers()]), rejectsCode("CONFLICT"));
   assert.throws(
-    () =>
-      host.registerOwner("b", [{ route: { ...route, name: "new.route" }, handler: (p) => p }], [exported("ordered")]),
+    () => host.registerOwner("a", [...handlers(), ...handlers()]),
     rejectsCode("CONFLICT"),
   );
-  assert.equal(code(await host.invoke(context, { ...route, name: "new.route" }, bytes())), "UNKNOWN_ROUTE");
+  assert.throws(
+    () =>
+      host.registerOwner(
+        "b",
+        [{ route: { ...route, name: "new.route" }, handler: (p) => p }],
+        [exported("ordered")],
+      ),
+    rejectsCode("CONFLICT"),
+  );
+  assert.equal(
+    code(await host.invoke(context, { ...route, name: "new.route" }, bytes())),
+    "UNKNOWN_ROUTE",
+  );
   assert.deepEqual(await client(host).invoke(route, bytes()), bytes());
   const replacement = host.registerOwner("a", handlers());
   assert.notEqual(old.instance, replacement.instance);
@@ -70,8 +80,12 @@ test("typed PB binding preserves optional, oneof, uint64 and nested bytes; rejec
   assert.deepEqual(await bound.echo(input), input);
   assert.equal((await bound.echo(create(EnvelopeSchema))).label, undefined);
   assert.equal(code(await host.invoke(context, route, new Uint8Array([255]))), "INVALID_ARGUMENT");
-  assert.equal(code(await host.invoke(context, route, null as unknown as Uint8Array)), "INVALID_ARGUMENT");
-  for (const id of ["-1", "+1", "1.1", "18446744073709551616", ""]) assert.throws(() => parseId(id));
+  assert.equal(
+    code(await host.invoke(context, route, null as unknown as Uint8Array)),
+    "INVALID_ARGUMENT",
+  );
+  for (const id of ["-1", "+1", "1.1", "18446744073709551616", ""])
+    assert.throws(() => parseId(id));
 });
 
 test("local hit does not forward, remote miss dispatches once and preserves raw unknown fields", async () => {
@@ -88,7 +102,10 @@ test("local hit does not forward, remote miss dispatches once and preserves raw 
   host.registerOwner("local", handlers());
   await client(host).invoke(route, bytes());
   assert.equal(count, 1);
-  assert.equal(code(await host.invoke(context, { ...route, name: "missing.route" }, bytes())), "UNKNOWN_ROUTE");
+  assert.equal(
+    code(await host.invoke(context, { ...route, name: "missing.route" }, bytes())),
+    "UNKNOWN_ROUTE",
+  );
   assert.equal(count, 2);
 });
 
@@ -114,7 +131,8 @@ test("timeout retains admission until actual completion and owner close rejects 
   await started.promise;
   assert.equal(code(await host.invoke(context, route, bytes())), "CONCURRENCY_FULL");
   assert.equal(code(await pending), "TIMEOUT");
-  for (let i = 0; i < 5; i++) assert.equal(code(await host.invoke(context, route, bytes())), "CONCURRENCY_FULL");
+  for (let i = 0; i < 5; i++)
+    assert.equal(code(await host.invoke(context, route, bytes())), "CONCURRENCY_FULL");
   work.release();
   await tick();
   assert.deepEqual(await client(host).invoke(route, bytes()), bytes());
@@ -143,11 +161,16 @@ test("forwarding owner tracks lifetime but does not add execution limits", async
   const host = new GatewayHost();
   const work = gate();
   let calls = 0;
-  const owner = host.registerOwner("remote", [{ route, timeoutMs: 1, maxConcurrency: 1 }], [], async (_, p) => {
-    calls++;
-    await work.promise;
-    return { ok: true, value: p };
-  });
+  const owner = host.registerOwner(
+    "remote",
+    [{ route, timeoutMs: 1, maxConcurrency: 1 }],
+    [],
+    async (_, p) => {
+      calls++;
+      await work.promise;
+      return { ok: true, value: p };
+    },
+  );
   const first = host.invoke(context, route, bytes());
   const second = host.invoke(context, route, bytes());
   assert.equal(calls, 2);
@@ -174,8 +197,14 @@ test("trusted calls, exact authorization, forged context, nested calls and metho
   await client(host).invoke(route, bytes());
   const forged = { caller: "test", trusted: true } as unknown as CallContext;
   assert.equal(code(await host.invoke(forged, route, bytes())), "UNAUTHORIZED");
-  assert.equal(code(await host.invoke(context, { ...route, contractVersion: 2 }, bytes())), "INCOMPATIBLE");
-  assert.equal(code(await host.invoke(context, methodRoute(Fixture.method.watch), bytes())), "WRONG_METHOD_KIND");
+  assert.equal(
+    code(await host.invoke(context, { ...route, contractVersion: 2 }, bytes())),
+    "INCOMPATIBLE",
+  );
+  assert.equal(
+    code(await host.invoke(context, methodRoute(Fixture.method.watch), bytes())),
+    "WRONG_METHOD_KIND",
+  );
   host.registerOwner("a", [
     {
       route,
@@ -199,7 +228,10 @@ test("event filters, explicit exports, caller cleanup and idempotent close", asy
     rejectsCode("INVALID_ARGUMENT"),
   );
   await assert.rejects(
-    () => host.client({ caller: "plugin", trusted: false }).subscribe("testing.Changed", undefined, () => {}, true),
+    () =>
+      host
+        .client({ caller: "plugin", trusted: false })
+        .subscribe("testing.Changed", undefined, () => {}, true),
     rejectsCode("UNAUTHORIZED"),
   );
   assert.throws(() => owner.publish("unexported", bytes()), rejectsCode("UNKNOWN_ROUTE"));
@@ -240,18 +272,32 @@ test("Node event delivery progresses without depending on the native callback's 
   const local: Uint8Array[] = [];
   const remote: Uint8Array[] = [];
   const cancelled: Uint8Array[] = [];
-  const localSubscription = await client(host).subscribe("testing.Changed", undefined, (payload) => {
-    local.push(payload);
-  });
-  const remoteSubscription = await client(host).subscribe("testing.NativeChanged", undefined, (payload) => {
-    remote.push(payload);
-  });
-  const cancelledSubscription = await client(host).subscribe("testing.Changed", undefined, (payload) => {
-    cancelled.push(payload);
-  });
+  const localSubscription = await client(host).subscribe(
+    "testing.Changed",
+    undefined,
+    (payload) => {
+      local.push(payload);
+    },
+  );
+  const remoteSubscription = await client(host).subscribe(
+    "testing.NativeChanged",
+    undefined,
+    (payload) => {
+      remote.push(payload);
+    },
+  );
+  const cancelledSubscription = await client(host).subscribe(
+    "testing.Changed",
+    undefined,
+    (payload) => {
+      cancelled.push(payload);
+    },
+  );
   // Native callbacks may leave this queue pending until an unrelated Node/Chromium task runs.
   const pendingMicrotasks: VoidFunction[] = [];
-  t.mock.method(globalThis, "queueMicrotask", (callback: VoidFunction) => pendingMicrotasks.push(callback));
+  t.mock.method(globalThis, "queueMicrotask", (callback: VoidFunction) =>
+    pendingMicrotasks.push(callback),
+  );
 
   owner.publish("testing.Changed", changed(1n));
   remoteSink?.(changed(2n));
@@ -303,7 +349,11 @@ test("Ordered burst, Coalesce latest and Drop first pending preserve per-subscri
     await tick();
     assert.deepEqual(
       received,
-      policy === "ordered" ? Array.from({ length: 256 }, (_, i) => BigInt(i)) : policy === "coalesce" ? [255n] : [0n],
+      policy === "ordered"
+        ? Array.from({ length: 256 }, (_, i) => BigInt(i))
+        : policy === "coalesce"
+          ? [255n]
+          : [0n],
     );
     subscription.close();
   }
@@ -326,7 +376,10 @@ test("late owner and re-registration restore subscription intent without replay 
   old.publish("testing.Changed", changed(2n));
   old.close();
   const next = host.registerOwner("a", [], [exported("ordered")]);
-  assert.throws(() => old.publish("testing.Changed", changed(3n)), rejectsCode("OWNER_UNAVAILABLE"));
+  assert.throws(
+    () => old.publish("testing.Changed", changed(3n)),
+    rejectsCode("OWNER_UNAVAILABLE"),
+  );
   next.publish("testing.Changed", changed(4n));
   await tick();
   assert.deepEqual(received, [changed(1n), changed(4n)]);
@@ -342,8 +395,11 @@ test("remote event endpoint validates filters at owner and late binding closes s
   const registration = {
     name: "testing.Changed",
     policy: "ordered" as const,
-    attach: (ctx: CallContext, filter: Uint8Array | undefined, sink: (p: Uint8Array) => void | Promise<void>) =>
-      endpoint.subscribe(ctx, "testing.Changed", filter, sink),
+    attach: (
+      ctx: CallContext,
+      filter: Uint8Array | undefined,
+      sink: (p: Uint8Array) => void | Promise<void>,
+    ) => endpoint.subscribe(ctx, "testing.Changed", filter, sink),
   };
   const consumer = await client(host).subscribe(
     "testing.Changed",
@@ -406,14 +462,17 @@ test("remote event endpoint validates filters at owner and late binding closes s
 
 test("shared wire cases use the same contract in both languages", async () => {
   const { readFile } = await import("node:fs/promises");
-  const cases = JSON.parse(await readFile(new URL("../../tests/wire-cases.json", import.meta.url), "utf8"));
+  const cases = JSON.parse(
+    await readFile(new URL("../../tests/wire-cases.json", import.meta.url), "utf8"),
+  );
   const host = new GatewayHost();
   host.registerOwner("fixture", handlers());
   for (const fixture of cases) {
     const result = await host.invoke(context, route, Uint8Array.from(fixture.payload));
     if (fixture.valid) {
       assert.equal(result.ok, true, fixture.name);
-      if (result.ok) assert.equal(fromBinary(EnvelopeSchema, result.value).id.toString(), fixture.id);
+      if (result.ok)
+        assert.equal(fromBinary(EnvelopeSchema, result.value).id.toString(), fixture.id);
     } else assert.equal(code(result), "INVALID_ARGUMENT", fixture.name);
   }
 });
@@ -563,7 +622,9 @@ test("unary cancellation propagates through nested clients and caller teardown",
       },
     },
   ]);
-  host.registerOwner("parent", [{ route, handler: (bytes, client) => client.invoke(child, bytes) }]);
+  host.registerOwner("parent", [
+    { route, handler: (bytes, client) => client.invoke(child, bytes) },
+  ]);
   const rpc = client(host).invoke(route, bytes());
   const rejected = assert.rejects(rpc, rejectsCode("CANCELLED"));
   await entered.promise;
@@ -597,7 +658,11 @@ test("service options are independent PB, optional, and rejected by services wit
   assert.equal((await api.echo(input)).id, 1n);
   assert.equal(input.id, 1n);
   await assert.rejects(
-    client.invoke(methodRoute(Fixture.method.echo), toBinary(EnvelopeSchema, input), Uint8Array.of(255)),
+    client.invoke(
+      methodRoute(Fixture.method.echo),
+      toBinary(EnvelopeSchema, input),
+      Uint8Array.of(255),
+    ),
     (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
   );
   owner.close();

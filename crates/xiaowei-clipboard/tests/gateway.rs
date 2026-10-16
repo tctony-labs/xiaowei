@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 use xiaowei_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
-use xw_contracts::xiaowei::clipboard::{ClipboardItemRequest, ClipboardListOptions, PurgeExpiredRequest};
+use xw_contracts::xiaowei::clipboard::{
+    ClipboardItemRequest, ClipboardListOptions, PurgeExpiredRequest,
+};
 use xw_gateway::{CallContext, XwInvokeRegistry};
 
 #[allow(dead_code)]
@@ -40,7 +42,11 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
             .unwrap(),
     );
     registry
-        .register_owner("storage", xiaowei_storage::gateway::registrations(&database), vec![])
+        .register_owner(
+            "storage",
+            xiaowei_storage::gateway::registrations(&database),
+            vec![],
+        )
         .unwrap();
     registry
         .register_owner(
@@ -52,7 +58,8 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
         )
         .unwrap();
     let client = registry.client(CallContext::trusted("clipboard"));
-    let service = Arc::new(Service::open(dir.path(), dir.path(), client, Backend(backend), || {}).unwrap());
+    let service =
+        Arc::new(Service::open(dir.path(), dir.path(), client, Backend(backend), || {}).unwrap());
     service.initialize().await.unwrap();
     service.poll_once().await.unwrap();
 
@@ -72,7 +79,12 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
     assert_eq!(rows.items.len(), 1);
     assert_eq!(
         methods::READ_IMAGE
-            .call(&client, ClipboardItemRequest { id: rows.items[0].id })
+            .call(
+                &client,
+                ClipboardItemRequest {
+                    id: rows.items[0].id
+                }
+            )
             .await
             .unwrap()
             .png,
@@ -112,7 +124,9 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
 
 #[tokio::test]
 async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
-    use bindings::{xiaowei_storage_settings_service as settings, xiaowei_system_system_service as system};
+    use bindings::{
+        xiaowei_storage_settings_service as settings, xiaowei_system_system_service as system,
+    };
     use xw_contracts::xiaowei::{common::Empty, storage::SettingsSnapshot};
     let dir = tempfile::tempdir().unwrap();
     let calls = Arc::new(Mutex::new(Vec::new()));
@@ -161,7 +175,11 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     );
     service.initialize().await.unwrap();
     registry
-        .register_owner("clipboard", xiaowei_clipboard::gateway::registrations(&service), vec![])
+        .register_owner(
+            "clipboard",
+            xiaowei_clipboard::gateway::registrations(&service),
+            vec![],
+        )
         .unwrap();
     let hidden = calls.clone();
     let pause_hide = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -211,7 +229,10 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     let request = ClipboardItemRequest {
         id: item.id.parse().unwrap(),
     };
-    methods::SELECT.call(&client, request.clone()).await.unwrap();
+    methods::SELECT
+        .call(&client, request.clone())
+        .await
+        .unwrap();
     let expected = if cfg!(target_os = "macos") {
         vec!["copy", "hide", "paste"]
     } else {
@@ -220,7 +241,10 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     assert_eq!(*calls.lock().unwrap(), expected);
     auto_paste.store(false, std::sync::atomic::Ordering::SeqCst);
     calls.lock().unwrap().clear();
-    methods::SELECT.call(&client, request.clone()).await.unwrap();
+    methods::SELECT
+        .call(&client, request.clone())
+        .await
+        .unwrap();
     assert_eq!(*calls.lock().unwrap(), vec!["copy", "hide"]);
     calls.lock().unwrap().clear();
     methods::COPY.call(&client, request.clone()).await.unwrap();
@@ -236,7 +260,8 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     pause_hide.store(true, std::sync::atomic::Ordering::SeqCst);
     let pending_client = client.clone();
     let pending_request = request.clone();
-    let selection = tokio::spawn(async move { methods::SELECT.call(&pending_client, pending_request).await });
+    let selection =
+        tokio::spawn(async move { methods::SELECT.call(&pending_client, pending_request).await });
     hide_started.notified().await;
     assert_eq!(*calls.lock().unwrap(), vec!["copy", "hide"]);
     resume_hide.notify_one();

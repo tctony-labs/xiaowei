@@ -57,9 +57,15 @@ impl FocusSnapshot {
     #[napi]
     pub async fn is_frontmost(&self) -> napi::Result<bool> {
         let inner = self.inner.clone();
-        tokio::task::spawn_blocking(move || inner.lock().unwrap().as_ref().map(focus::FocusSnapshot::is_frontmost))
-            .await
-            .map_err(|error| napi::Error::from_reason(error.to_string()))?
-            .ok_or_else(|| napi::Error::from_reason("Focus snapshot released"))
+        tokio::task::spawn_blocking(move || {
+            inner
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(focus::FocusSnapshot::is_frontmost)
+        })
+        .await
+        .map_err(|error| napi::Error::from_reason(error.to_string()))?
+        .ok_or_else(|| napi::Error::from_reason("Focus snapshot released"))
     }
 }

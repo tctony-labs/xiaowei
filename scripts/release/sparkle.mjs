@@ -69,7 +69,10 @@ export function normalizePrivateKey(value) {
   const decoded = Buffer.from(padded, "base64");
   const valid = [32, 96].includes(decoded.length) && decoded.toString("base64") === padded;
   decoded.fill(0);
-  if (!valid) throw new Error("SPARKLE_ED_PRIVATE_KEY must be an official Sparkle Base64 seed or legacy export");
+  if (!valid)
+    throw new Error(
+      "SPARKLE_ED_PRIVATE_KEY must be an official Sparkle Base64 seed or legacy export",
+    );
   return padded;
 }
 
@@ -90,8 +93,11 @@ export function verifySignedAppcast({ feed, key }) {
   const block = feed.subarray(start + marker.length, end).toString();
   const signature = block.match(/^edSignature: (.+)$/m)?.[1];
   const length = block.match(/^length: (\d+)$/m)?.[1];
-  if (!signature || Number(length) !== start) throw new Error("Appcast signature metadata is invalid");
-  if (!verify(null, feed.subarray(0, start), verificationKey(key), Buffer.from(signature, "base64"))) {
+  if (!signature || Number(length) !== start)
+    throw new Error("Appcast signature metadata is invalid");
+  if (
+    !verify(null, feed.subarray(0, start), verificationKey(key), Buffer.from(signature, "base64"))
+  ) {
     throw new Error("Appcast signature does not match SPARKLE_ED_PUBLIC_KEY");
   }
 }
@@ -103,7 +109,12 @@ export function verifyUpdateArchive({ xml, archive, key, version, url }) {
   const archiveUrl = enclosure?.match(/\burl="([^"]+)"/)?.[1];
   const length = enclosure?.match(/\blength="([^"]+)"/)?.[1];
   const archiveVersion = xml.match(/<sparkle:version>([^<]+)<\/sparkle:version>/)?.[1];
-  if (!signature || archiveUrl !== url || Number(length) !== archive.length || archiveVersion !== version) {
+  if (
+    !signature ||
+    archiveUrl !== url ||
+    Number(length) !== archive.length ||
+    archiveVersion !== version
+  ) {
     throw new Error("Generated appcast does not describe the expected signed update archive");
   }
   if (!verify(null, archive, verificationKey(key), Buffer.from(signature, "base64"))) {

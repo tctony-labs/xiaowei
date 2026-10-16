@@ -52,7 +52,10 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   t.after(() => subscription.close());
   assert.deepEqual((await api.get(create(EmptySchema))).servers, ["https://xiaowei.tctony.com"]);
   assert.equal((await api.get(create(EmptySchema))).selectedServer, "https://xiaowei.tctony.com");
-  assert.equal((await api.addServer(create(AddServerRequestSchema, { serverAddress: `${server.url}/` }))).code, 0);
+  assert.equal(
+    (await api.addServer(create(AddServerRequestSchema, { serverAddress: `${server.url}/` }))).code,
+    0,
+  );
 
   const request = create(AccountLoginRequestSchema, {
     serverAddress: server.url,
@@ -74,24 +77,35 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   assert.equal(
     server.state.requests.find(
       (entry) =>
-        entry.path.endsWith("/login") && (entry.body.password as { password: string }).password === "  sample  ",
+        entry.path.endsWith("/login") &&
+        (entry.body.password as { password: string }).password === "  sample  ",
     )?.bearer,
     undefined,
   );
 
   const contents = await readFile(path, "utf8");
-  const configuration = JSON.parse((await meta.get(create(KvKeySchema, { key: "account.config" }))).json ?? "");
+  const configuration = JSON.parse(
+    (await meta.get(create(KvKeySchema, { key: "account.config" }))).json ?? "",
+  );
   assert.deepEqual(configuration.servers, ["https://xiaowei.tctony.com", server.url]);
   assert.equal(configuration.selectedServer, server.url);
   assert.equal(configuration.deviceId, server.state.deviceId);
-  assert.deepEqual(Object.keys(JSON.parse(contents)).sort(), ["authenticated", "server", "version"]);
+  assert.deepEqual(Object.keys(JSON.parse(contents)).sort(), [
+    "authenticated",
+    "server",
+    "version",
+  ]);
   assert.ok(result.snapshot);
   const savedTokens = JSON.parse(contents).authenticated.tokens;
   assert.equal(savedTokens.accessToken, server.state.tokens.accessToken);
   assert.equal(savedTokens.refreshToken, server.state.tokens.refreshToken);
   assert.ok(!contents.includes("  sample  "));
   const snapshot = toJsonString(AccountSnapshotSchema, result.snapshot);
-  for (const secret of ["  sample  ", server.state.tokens.accessToken, server.state.tokens.refreshToken]) {
+  for (const secret of [
+    "  sample  ",
+    server.state.tokens.accessToken,
+    server.state.tokens.refreshToken,
+  ]) {
     assert.ok(!snapshot.includes(secret));
   }
   assert.equal((await stat(path)).mode & 0o777, 0o600);
@@ -103,7 +117,10 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
       json: JSON.stringify({ ...configuration, servers: [server.url] }),
     }),
   );
-  const reopened = await openAccount(t, { store: new AccountStore(path, meta), deviceName: "test" });
+  const reopened = await openAccount(t, {
+    store: new AccountStore(path, meta),
+    deviceName: "test",
+  });
   t.after(() => reopened.close());
   assert.deepEqual(reopened.snapshot().servers, [server.url, "https://xiaowei.tctony.com"]);
   assert.equal(reopened.snapshot().selectedServer, server.url);
@@ -214,7 +231,10 @@ test("switching servers discards cancelled login results; stale cancellation can
     await rm(directory, { recursive: true, force: true });
   });
   const target = "https://other.example.test";
-  assert.equal((await api.addServer(create(AddServerRequestSchema, { serverAddress: target }))).code, 0);
+  assert.equal(
+    (await api.addServer(create(AddServerRequestSchema, { serverAddress: target }))).code,
+    0,
+  );
   await api.selectServer(create(SelectServerRequestSchema, { serverAddress: server.url }));
   const oldAttempt = randomUUID();
   const login = api.login(
@@ -231,7 +251,11 @@ test("switching servers discards cancelled login results; stale cancellation can
   assert.equal((await selected).code, 0);
   assert.equal(service.snapshot().selectedServer, target);
   assert.equal(service.snapshot().user, undefined);
-  assert.equal(server.state.logouts, 0, "a discarded response supplies no credentials for revocation");
+  assert.equal(
+    server.state.logouts,
+    0,
+    "a discarded response supplies no credentials for revocation",
+  );
   assert.ok(server.state.requests.every((entry) => entry.path.startsWith("/xiaowei/api/auth/")));
   await api.selectServer(create(SelectServerRequestSchema, { serverAddress: server.url }));
   const newLogin = api.login(
@@ -257,7 +281,12 @@ test("redirect never forwards credentials", async (t) => {
     http.getCurrentUser({
       server: server.url,
       signal: new AbortController().signal,
-      session: { server: server.url, sessionId: "session", accessToken: "private-token", accessExpiresAtMs: 2n ** 60n },
+      session: {
+        server: server.url,
+        sessionId: "session",
+        accessToken: "private-token",
+        accessExpiresAtMs: 2n ** 60n,
+      },
     }),
     /无法连接服务器/,
   );
@@ -325,7 +354,10 @@ test("received login credentials are revoked through Gateway when saving fails, 
   const publicAuth = bindClient(Auth, host.client({ caller: "public-auth", trusted: true }));
   const http = new XwapiService(async (url, options) => {
     if (String(url).endsWith("/logout")) {
-      assert.equal((await publicAuth.getCurrentUser(create(EmptySchema))).code, ErrorCode.UNAUTHENTICATED);
+      assert.equal(
+        (await publicAuth.getCurrentUser(create(EmptySchema))).code,
+        ErrorCode.UNAUTHENTICATED,
+      );
     }
     return fetch(url, options);
   });
@@ -355,7 +387,10 @@ test("received login credentials are revoked through Gateway when saving fails, 
   assert.equal(result.snapshot?.user, undefined);
   assert.equal(server.state.logouts, 1);
   assert.equal(server.state.requests.at(-1)?.bearer, `Bearer ${server.state.tokens.accessToken}`);
-  assert.equal((await publicAuth.getCurrentUser(create(EmptySchema))).code, ErrorCode.UNAUTHENTICATED);
+  assert.equal(
+    (await publicAuth.getCurrentUser(create(EmptySchema))).code,
+    ErrorCode.UNAUTHENTICATED,
+  );
 });
 
 test("Account nested authentication preserves the caller's Gateway permissions", async (t) => {

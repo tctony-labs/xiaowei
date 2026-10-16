@@ -19,7 +19,12 @@
 }
 
 .quick-chat-title-shimmer {
-  background-image: linear-gradient(90deg, var(--color-ink-secondary), var(--color-faint), var(--color-ink-secondary));
+  background-image: linear-gradient(
+    90deg,
+    var(--color-ink-secondary),
+    var(--color-faint),
+    var(--color-ink-secondary)
+  );
   background-size: 200% auto;
   background-clip: text;
   -webkit-background-clip: text;

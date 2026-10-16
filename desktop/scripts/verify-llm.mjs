@@ -16,7 +16,10 @@ import { attachLlm } from "../src/main/services/llm/host.ts";
 const user = (text) => ({
   message: {
     case: "user",
-    value: { timestampMs: BigInt(Date.now()), content: [{ content: { case: "text", value: { text } } }] },
+    value: {
+      timestampMs: BigInt(Date.now()),
+      content: [{ content: { case: "text", value: { text } } }],
+    },
   },
 });
 const tools = [
@@ -43,12 +46,18 @@ try {
       transport: { type: "string" },
     },
   });
-  if (values.transport && !["sse", "auto", "websocket", "websocket-cached"].includes(values.transport))
+  if (
+    values.transport &&
+    !["sse", "auto", "websocket", "websocket-cached"].includes(values.transport)
+  )
     throw new Error("invalid transport");
   const sessionId = randomUUID();
   const modes = ["complete", "cancel", "thinking", "cancel-thinking", "tools", "catalog", "image"];
-  if (!values.list && (!values.model || !modes.includes(values.mode))) throw new Error("invalid arguments");
-  const env = values.config ? { ...process.env, XIAOWEI_LLM_CONFIG: resolve(values.config) } : process.env;
+  if (!values.list && (!values.model || !modes.includes(values.mode)))
+    throw new Error("invalid arguments");
+  const env = values.config
+    ? { ...process.env, XIAOWEI_LLM_CONFIG: resolve(values.config) }
+    : process.env;
   const { document } = await loadConfig(env);
   const models = resolveModels(document, env);
   if (values.list) {
@@ -78,7 +87,11 @@ try {
           modelRef: model.id,
           maxTokens: Math.min(4096, model.maxTokens),
           ...input,
-          options: { ...input.options, sessionId, ...(values.transport ? { transport: values.transport } : {}) },
+          options: {
+            ...input.options,
+            sessionId,
+            ...(values.transport ? { transport: values.transport } : {}),
+          },
         }),
       );
       let text = "";
@@ -120,7 +133,9 @@ try {
 
     if (values.mode === "catalog") {
       const catalog = bindStreamClient(Llm, endpoint);
-      const stream = await catalog.modelCatalog(create(ListModelsRequestSchema, { modelRef: model.id }));
+      const stream = await catalog.modelCatalog(
+        create(ListModelsRequestSchema, { modelRef: model.id }),
+      );
       let count = 0;
       try {
         for await (const page of stream) count += page.models.length;
@@ -151,7 +166,9 @@ try {
       console.log("Image input: passed.");
     } else if (values.mode === "tools") {
       const messages = [
-        user('Call echo exactly once with text "verification-echo". After its result, repeat that text.'),
+        user(
+          'Call echo exactly once with text "verification-echo". After its result, repeat that text.',
+        ),
       ];
       const first = await generate({ messages, tools, options: { reasoning: "high" } });
       assert.ok(first.toolDelta);

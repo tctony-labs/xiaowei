@@ -126,7 +126,8 @@ test("test and production check failures are both reported without a restoration
         },
       },
     ),
-    (error) => error instanceof AggregateError && error.errors[0] === failure && error.errors[1] === check,
+    (error) =>
+      error instanceof AggregateError && error.errors[0] === failure && error.errors[1] === check,
   );
 
   assert.equal(checks, 2);

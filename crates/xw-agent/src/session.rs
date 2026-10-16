@@ -8,7 +8,9 @@ pub(crate) const MAX_SESSIONS: usize = 16;
 pub(crate) const MAX_CREATIONS: usize = 1024;
 
 pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T, AgentError> {
-    value.parse().map_err(|_| AgentError::InvalidArgument(field))
+    value
+        .parse()
+        .map_err(|_| AgentError::InvalidArgument(field))
 }
 
 pub(crate) struct Session {

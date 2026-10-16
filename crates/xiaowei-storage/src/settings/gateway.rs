@@ -65,7 +65,9 @@ pub fn registrations(service: &Arc<SettingsService>) -> Vec<InvokeRegistration> 
                         SettingsError::InvalidArgument(_) => {
                             GatewayError::new(ErrorCode::InvalidArgument, error.to_string())
                         }
-                        SettingsError::Operation(_) => GatewayError::new(ErrorCode::HandlerError, error.to_string()),
+                        SettingsError::Operation(_) => {
+                            GatewayError::new(ErrorCode::HandlerError, error.to_string())
+                        }
                     })
             }
         }),

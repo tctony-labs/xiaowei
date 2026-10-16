@@ -60,10 +60,14 @@ test("TS and another Rust addon share Storage, JSON null and persisted settings"
     fromBinary(EmptySchema, written);
     assert.equal((await meta.get(create(KvKeySchema, { key: "test.%_" }))).json, "null");
     assert.equal((await meta.get(create(KvKeySchema, { key: "missing" }))).json, undefined);
-    assert.equal((await meta.list(create(KvPrefixSchema, { prefix: "test.%_" }))).entries.length, 1);
+    assert.equal(
+      (await meta.list(create(KvPrefixSchema, { prefix: "test.%_" }))).entries.length,
+      1,
+    );
     await assert.rejects(
       meta.set(create(KvEntrySchema, { key: "setting.clipboardAutoPaste", json: "true" })),
-      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+      (error: unknown) =>
+        error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
     );
     assert.equal((await meta.list(create(KvPrefixSchema, { prefix: "" }))).entries.length, 2);
     await assert.rejects(meta.set(create(KvEntrySchema, { key: "invalid", json: "not json" })));
@@ -88,22 +92,41 @@ test("Rust Settings owns typed updates and publishes committed snapshots", async
   const directory = await mkdtemp(join(tmpdir(), "gateway-settings-"));
   const host = new GatewayHost();
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const settingsOwner = await attachRustNapi(host, "settings", storage.createSettingsGatewayEndpoint("darwin"));
+  const storageOwner = await attachRustNapi(
+    host,
+    "storage",
+    storage.createKeyValueGatewayEndpoint(),
+  );
+  const settingsOwner = await attachRustNapi(
+    host,
+    "settings",
+    storage.createSettingsGatewayEndpoint("darwin"),
+  );
   const client = host.client({ caller: "settings-test", trusted: true });
   const settings = bindClient(Settings, client);
   let resolveChanged!: (value: boolean) => void;
   const changed = new Promise<boolean>((resolve) => {
     resolveChanged = resolve;
   });
-  const subscription = await client.subscribe(SettingsChangedSchema.typeName, undefined, (bytes) => {
-    resolveChanged(fromBinary(SettingsChangedSchema, bytes).snapshot?.clipboardAutoPaste ?? false);
-  });
+  const subscription = await client.subscribe(
+    SettingsChangedSchema.typeName,
+    undefined,
+    (bytes) => {
+      resolveChanged(
+        fromBinary(SettingsChangedSchema, bytes).snapshot?.clipboardAutoPaste ?? false,
+      );
+    },
+  );
   try {
     assert.equal((await settings.get(create(EmptySchema))).clipboardAutoPaste, false);
     await assert.rejects(
-      settings.update(create(UpdateSettingsRequestSchema, { change: { case: "clipboardRetentionDays", value: 5 } })),
-      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
+      settings.update(
+        create(UpdateSettingsRequestSchema, {
+          change: { case: "clipboardRetentionDays", value: 5 },
+        }),
+      ),
+      (error: unknown) =>
+        error instanceof GatewayFailure && error.detail.code === "INVALID_ARGUMENT",
     );
     const next = await settings.update(
       create(UpdateSettingsRequestSchema, { change: { case: "clipboardAutoPaste", value: true } }),
@@ -125,7 +148,11 @@ test("Settings preserves permissions and rolls back failed host operations", asy
   const host = new GatewayHost();
   const database = await Storage.open(join(directory, "db.sqlite"));
   const storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
-  const owner = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint("darwin"));
+  const owner = await attachRustNapi(
+    host,
+    "settings",
+    database.createSettingsGatewayEndpoint("darwin"),
+  );
   const applied: boolean[] = [];
   const system = host.registerOwner(
     "system",

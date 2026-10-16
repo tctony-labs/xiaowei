@@ -18,7 +18,10 @@ impl ClipboardDao {
         Self { database }
     }
 
-    pub async fn capture(&self, request: pb::CaptureClipboardEntityRequest) -> Result<pb::ClipboardEntity> {
+    pub async fn capture(
+        &self,
+        request: pb::CaptureClipboardEntityRequest,
+    ) -> Result<pb::ClipboardEntity> {
         let result = self
             .database
             .transaction(storage_pb::SqlTransaction {
@@ -92,7 +95,10 @@ impl ClipboardDao {
         })
     }
 
-    pub async fn search(&self, request: pb::SearchClipboardEntitiesRequest) -> Result<pb::ClipboardEntityHits> {
+    pub async fn search(
+        &self,
+        request: pb::SearchClipboardEntitiesRequest,
+    ) -> Result<pb::ClipboardEntityHits> {
         let limit = request.limit.unwrap_or(100);
         if limit == 0 || limit > 100 || request.query.len() > 4096 {
             return Err(invalid("Invalid clipboard search options"));
@@ -127,7 +133,10 @@ impl ClipboardDao {
         Ok(pb::ClipboardEntityHits { hits })
     }
 
-    pub async fn get(&self, request: pb::ClipboardItemRequest) -> Result<pb::OptionalClipboardEntity> {
+    pub async fn get(
+        &self,
+        request: pb::ClipboardItemRequest,
+    ) -> Result<pb::OptionalClipboardEntity> {
         let rows = self
             .database
             .query(statement(
@@ -150,7 +159,10 @@ impl ClipboardDao {
         Ok(Empty {})
     }
 
-    pub async fn set_favorite(&self, request: pb::FavoriteRequest) -> Result<pb::SetFavoriteResponse> {
+    pub async fn set_favorite(
+        &self,
+        request: pb::FavoriteRequest,
+    ) -> Result<pb::SetFavoriteResponse> {
         let result = self
             .database
             .execute(statement(
@@ -212,13 +224,18 @@ impl ClipboardDao {
         })
     }
 
-    pub async fn save_category(&self, request: pb::SaveCategoryRequest) -> Result<pb::ClipboardCategory> {
+    pub async fn save_category(
+        &self,
+        request: pb::SaveCategoryRequest,
+    ) -> Result<pb::ClipboardCategory> {
         let name = request.name.trim();
         if name.is_empty()
             || name.len() > 256
             || request.color.len() != 7
             || !request.color.starts_with('#')
-            || !request.color[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !request.color[1..]
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
         {
             return Err(invalid("Invalid category name or color"));
         }
@@ -317,7 +334,10 @@ impl ClipboardDao {
                 vec![reference(1, 0)],
             ),
         ];
-        let result = self.database.transaction(storage_pb::SqlTransaction { steps }).await?;
+        let result = self
+            .database
+            .transaction(storage_pb::SqlTransaction { steps })
+            .await?;
         let source = Row(&result.results[0].rows[0]);
         let previous_attachment = Some(pb::AttachmentReference {
             kind: source.get(4)?,
@@ -333,7 +353,10 @@ impl ClipboardDao {
         })
     }
 
-    pub async fn delete(&self, request: pb::ClipboardItemRequest) -> Result<pb::DeletedClipboardEntities> {
+    pub async fn delete(
+        &self,
+        request: pb::ClipboardItemRequest,
+    ) -> Result<pb::DeletedClipboardEntities> {
         let result = self
             .database
             .transaction(storage_pb::SqlTransaction {
@@ -414,11 +437,13 @@ fn deleted(rows: &[storage_pb::SqlRow]) -> Result<pb::DeletedClipboardEntities> 
 
 fn reference(step: u32, column: u32) -> storage_pb::SqlParameter {
     storage_pb::SqlParameter {
-        source: Some(storage_pb::sql_parameter::Source::Cell(storage_pb::SqlCellReference {
-            step,
-            row: 0,
-            column,
-        })),
+        source: Some(storage_pb::sql_parameter::Source::Cell(
+            storage_pb::SqlCellReference {
+                step,
+                row: 0,
+                column,
+            },
+        )),
     }
 }
 
@@ -439,9 +464,11 @@ fn statement(sql: &str, parameters: Vec<storage_pb::SqlParameter>) -> storage_pb
 
 fn value(input: impl IntoValue) -> storage_pb::SqlParameter {
     storage_pb::SqlParameter {
-        source: Some(storage_pb::sql_parameter::Source::Literal(storage_pb::SqlValue {
-            kind: Some(input.into_value()),
-        })),
+        source: Some(storage_pb::sql_parameter::Source::Literal(
+            storage_pb::SqlValue {
+                kind: Some(input.into_value()),
+            },
+        )),
     }
 }
 

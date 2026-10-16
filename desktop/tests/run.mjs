@@ -17,7 +17,15 @@ runPnpm([
   "tests/main/*.test.ts",
 ]);
 runPnpm(["--dir", "desktop", "build"]);
-runPnpm(["--dir", "desktop", "exec", "tsx", "--conditions=source", "--test", "tests/llm/*.test.mjs"]);
+runPnpm([
+  "--dir",
+  "desktop",
+  "exec",
+  "tsx",
+  "--conditions=source",
+  "--test",
+  "tests/llm/*.test.mjs",
+]);
 runPnpm(["--dir", "desktop", "exec", "vitest", "run"]);
 if (!rustNapiPrepared) runPnpm(["--filter", "xiaowei-agent", "build:debug"]);
 assertProduction(["agent"]);

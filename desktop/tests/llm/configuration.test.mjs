@@ -50,7 +50,9 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
       ),
       /invalid LLM model configuration/,
     );
-    await assert.rejects(fixture.owner.updateModels([fixture.model, { ...fixture.model, id: "other", maxTokens: -1 }]));
+    await assert.rejects(
+      fixture.owner.updateModels([fixture.model, { ...fixture.model, id: "other", maxTokens: -1 }]),
+    );
     await collect(await fixture.client.generate(request("after-invalid")));
     assert.equal(fixture.requests[0].body.model, "text-model");
     const one = fixture.owner.updateModels([{ ...fixture.model, modelId: "one" }]);
@@ -117,7 +119,9 @@ test("Anthropic text calls disable thinking without changing the model capabilit
 for (const api of ["openai-completions", "openai-responses"]) {
   test(`${api}: raw and simple calls preserve model sampling defaults and request overrides`, async (t) => {
     const fixture = await llmFixture(t, undefined, api);
-    await fixture.owner.updateModels([{ ...fixture.model, samplingParams: { top_p: 0.25, seed: 17 } }]);
+    await fixture.owner.updateModels([
+      { ...fixture.model, samplingParams: { top_p: 0.25, seed: 17 } },
+    ]);
     for (const apiOptionsJson of [undefined, "{}", '{"toolChoice":"auto"}']) {
       for (const samplingParamsJson of [undefined, '{"top_p":0.75}']) {
         await collect(
@@ -140,7 +144,9 @@ for (const api of ["openai-completions", "openai-responses"]) {
 test("invalid nested compatibility is rejected atomically by both host and worker", async (t) => {
   const fixture = await llmFixture(t, undefined, "anthropic-messages");
   const configurations = bindClient(Llm, fixture.host.client({ caller: "test", trusted: true }));
-  const { encodeModels } = await import("../../src/main/services/llm/shared/configuration-codec.ts");
+  const { encodeModels } = await import(
+    "../../src/main/services/llm/shared/configuration-codec.ts"
+  );
   const invalidArgument = (error) => error.detail?.code === "INVALID_ARGUMENT";
   for (const compat of [
     { allowedFallbackModels: [null] },
@@ -159,9 +165,15 @@ test("invalid nested compatibility is rejected atomically by both host and worke
     const input = encodeModels([replacement, { ...fixture.model, id: "invalid" }]);
     input.models[1].compatJson = JSON.stringify(compat);
     await assert.rejects(configurations.setModels(input), invalidArgument);
-    assert.equal((await collect(await fixture.client.generate(request("正常")))).at(-1).case, "finished");
+    assert.equal(
+      (await collect(await fixture.client.generate(request("正常")))).at(-1).case,
+      "finished",
+    );
     assert.equal(fixture.requests.at(-1).body.model, fixture.model.modelId);
-    await assert.rejects(fixture.client.generate(request("正常", { modelRef: "invalid" })), /unknown model/);
+    await assert.rejects(
+      fixture.client.generate(request("正常", { modelRef: "invalid" })),
+      /unknown model/,
+    );
   }
   await fixture.owner.updateModels([fixture.model]);
 });
@@ -177,9 +189,20 @@ test("model info queries the applied worker map and exposes only the safe subset
   assert.equal(initial.maxTokens, fixture.model.maxTokens);
   assert.deepEqual(
     Object.keys(initial).sort(),
-    ["$typeName", "modelRef", "providerName", "name", "reasoning", "input", "contextWindow", "maxTokens"].sort(),
+    [
+      "$typeName",
+      "modelRef",
+      "providerName",
+      "name",
+      "reasoning",
+      "input",
+      "contextWindow",
+      "maxTokens",
+    ].sort(),
   );
-  await fixture.owner.updateModels([{ ...fixture.model, providerName: "tctony", name: "sol", contextWindow: 256000 }]);
+  await fixture.owner.updateModels([
+    { ...fixture.model, providerName: "tctony", name: "sol", contextWindow: 256000 },
+  ]);
   const changed = await api.getModelInfo(query);
   assert.equal(changed.providerName, "tctony");
   assert.equal(changed.name, "sol");

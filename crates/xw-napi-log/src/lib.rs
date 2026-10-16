@@ -43,7 +43,11 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
-pub fn initialize(module: &str, development: bool, sink: impl Fn(Entry) + Send + Sync + 'static) -> Result<(), String> {
+pub fn initialize(
+    module: &str,
+    development: bool,
+    sink: impl Fn(Entry) + Send + Sync + 'static,
+) -> Result<(), String> {
     INITIALIZED
         .get_or_init(|| log::set_logger(&Logger).map_err(|error| error.to_string()))
         .clone()?;

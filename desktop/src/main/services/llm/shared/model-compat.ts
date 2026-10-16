@@ -11,7 +11,10 @@ export type ChatTemplateKwargValue =
       omitWhenOff?: boolean;
     };
 
-export type ThinkingTokenBudgetField = "thinking_token_budget" | "thinking_budget" | "thinking_budget_tokens";
+export type ThinkingTokenBudgetField =
+  | "thinking_token_budget"
+  | "thinking_budget"
+  | "thinking_budget_tokens";
 
 export type SessionAffinityFormat = "openai" | "openai-nosession" | "openrouter";
 
@@ -204,7 +207,11 @@ export interface VercelGatewayRouting {
   order?: string[];
 }
 
-export type ModelCompat = OpenAICompletionsCompat | OpenAIResponsesCompat | AnthropicMessagesCompat | BedrockCompat;
+export type ModelCompat =
+  | OpenAICompletionsCompat
+  | OpenAIResponsesCompat
+  | AnthropicMessagesCompat
+  | BedrockCompat;
 
 export const compatibilityFields: Record<string, string | readonly string[]> = {
   supportsStore: "boolean",

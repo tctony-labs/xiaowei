@@ -36,7 +36,9 @@ impl GatewayEndpoint {
             .manifest()
             .map_err(|error| napi::Error::from_reason(error.to_string()))
     }
-    #[napi(ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string")]
+    #[napi(
+        ts_args_type = "callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string"
+    )]
     pub fn bind(&self, callback: Arc<Callback>, context: String) -> napi::Result<()> {
         self.inner
             .bind(callback, &context)
@@ -59,7 +61,9 @@ impl GatewayEndpoint {
     ) -> napi::Result<PromiseRaw<'env, Reply>> {
         let inner = self.inner.clone();
         let payload = payload.to_vec();
-        env.spawn_future(async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) })
+        env.spawn_future(
+            async move { Ok(reply(inner.dispatch_local(&route, payload, &context).await)) },
+        )
     }
     #[napi(ts_return_type = "Promise<Buffer | string>")]
     pub fn rpc_control<'env>(
@@ -110,7 +114,9 @@ impl GatewayEndpoint {
         let filter = filter.map(|v| v.to_vec());
         env.spawn_future(async move {
             Ok(reply(
-                inner.subscribe_local(&id, &event, filter, &context).map(|_| vec![]),
+                inner
+                    .subscribe_local(&id, &event, filter, &context)
+                    .map(|_| vec![]),
             ))
         })
     }
@@ -216,7 +222,10 @@ impl GatewayEndpoint {
         self.fixture.as_ref().unwrap().unsubscribe();
     }
     #[napi(ts_return_type = "Promise<Buffer | string>")]
-    pub fn fixture_next<'env>(&self, env: &'env napi::Env) -> napi::Result<PromiseRaw<'env, Reply>> {
+    pub fn fixture_next<'env>(
+        &self,
+        env: &'env napi::Env,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
         let fixture = self.fixture.as_ref().unwrap().clone();
         env.spawn_future(async move { Ok(reply(fixture.next().await)) })
     }
@@ -226,7 +235,11 @@ pub(crate) fn business_endpoint(
     env: &napi::Env,
     service: Arc<xiaowei_clipboard::Service>,
     registry: Arc<XwInvokeRegistry>,
-) -> napi::Result<(GatewayEndpoint, Arc<XwInvokeRegistry>, xw_gateway::invoke::Owner)> {
+) -> napi::Result<(
+    GatewayEndpoint,
+    Arc<XwInvokeRegistry>,
+    xw_gateway::invoke::Owner,
+)> {
     let owner = registry
         .register_owner(
             "clipboard",

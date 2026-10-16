@@ -14,7 +14,15 @@ import {
   verifyUpdateArchive,
 } from "./sparkle.mjs";
 
-export function generateAppcast({ archivePath, output, version, urlPrefix, key, privateKey, notesUrl }) {
+export function generateAppcast({
+  archivePath,
+  output,
+  version,
+  urlPrefix,
+  key,
+  privateKey,
+  notesUrl,
+}) {
   releaseVersion(version);
   if (!privateKey) throw new Error("SPARKLE_ED_PRIVATE_KEY is required to sign the appcast");
   publicKey(key);

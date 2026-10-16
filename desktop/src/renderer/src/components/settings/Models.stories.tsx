@@ -32,11 +32,16 @@ export const NoModelsReturned: Story = {
   args: { initialModelDialog: "editCustom", modelFetch: "empty" },
   play: openModelPicker,
 };
-export const ModelPicker: Story = { args: { initialModelDialog: "editCustom" }, play: openModelPicker };
+export const ModelPicker: Story = {
+  args: { initialModelDialog: "editCustom" },
+  play: openModelPicker,
+};
 export const ModelConfiguration: Story = {
   args: { initialModelDialog: "edit" },
   play: async () => {
-    await userEvent.click(within(document.body).getByRole("button", { name: "编辑 deepseek-chat" }));
+    await userEvent.click(
+      within(document.body).getByRole("button", { name: "编辑 deepseek-chat" }),
+    );
   },
 };
 
@@ -54,7 +59,10 @@ async function openModelPicker() {
 export const EnvironmentCredential: Story = {
   args: { initialModelDialog: "editCustom", providerWithoutKey: true },
   play: async () => {
-    await userEvent.type(within(document.body).getByLabelText("API Key 环境变量名（优先使用）"), "CODEX_PROXY_API_KEY");
+    await userEvent.type(
+      within(document.body).getByLabelText("API Key 环境变量名（优先使用）"),
+      "CODEX_PROXY_API_KEY",
+    );
   },
 };
 

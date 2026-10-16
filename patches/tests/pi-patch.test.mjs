@@ -25,7 +25,14 @@ function completionEvents() {
           index: 0,
           delta: {
             role: "assistant",
-            tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "write", arguments: "" } }],
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_1",
+                type: "function",
+                function: { name: "write", arguments: "" },
+              },
+            ],
           },
           finish_reason: null,
         },
@@ -53,7 +60,11 @@ function responseEvents() {
   return [
     { type: "response.created", response: { id: "resp_1" } },
     { type: "response.output_item.added", output_index: 0, item: { ...item, arguments: "" } },
-    ...fragments.map((delta) => ({ type: "response.function_call_arguments.delta", output_index: 0, delta })),
+    ...fragments.map((delta) => ({
+      type: "response.function_call_arguments.delta",
+      output_index: 0,
+      delta,
+    })),
     { type: "response.function_call_arguments.done", output_index: 0, arguments: json },
     { type: "response.output_item.done", output_index: 0, item: { ...item, arguments: json } },
     {
@@ -72,7 +83,9 @@ for (const [api, stream, events, path] of [
   ["openai-completions", completions, completionEvents, "/chat/completions"],
   ["openai-responses", responses, responseEvents, "/responses"],
 ]) {
-  test(`patched Pi ${api} preserves deltas and parses final tool arguments`, { timeout: 10_000 }, async (t) => {
+  test(`patched Pi ${api} preserves deltas and parses final tool arguments`, {
+    timeout: 10_000,
+  }, async (t) => {
     const requests = [];
     const server = createServer(async (request, response) => {
       for await (const _chunk of request) {
@@ -87,7 +100,9 @@ for (const [api, stream, events, path] of [
     });
     t.after(async () => {
       server.closeAllConnections();
-      await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+      await new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
     });
     server.listen(0, "127.0.0.1");
     await once(server, "listening");

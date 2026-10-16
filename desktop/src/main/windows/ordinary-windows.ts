@@ -5,7 +5,10 @@ type OrdinaryWindow = Pick<
   "on" | "removeListener" | "isDestroyed" | "isMinimized" | "restore" | "show" | "focus"
 >;
 
-export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVisible">, dockShown?: () => void) {
+export function createOrdinaryWindows(
+  dock?: Pick<Dock, "show" | "hide" | "isVisible">,
+  dockShown?: () => void,
+) {
   const windows = new Map<OrdinaryWindow, { shown: boolean; unregister(): void }>();
   let recent: OrdinaryWindow | undefined;
   let focused: OrdinaryWindow | undefined;
@@ -16,7 +19,9 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
   let dockRetry: ReturnType<typeof setTimeout> | undefined;
 
   function candidates() {
-    return [...windows].filter(([window, entry]) => entry.shown && !window.isDestroyed()).map(([window]) => window);
+    return [...windows]
+      .filter(([window, entry]) => entry.shown && !window.isDestroyed())
+      .map(([window]) => window);
   }
 
   function updateDock(): void {
@@ -93,7 +98,8 @@ export function createOrdinaryWindows(dock?: Pick<Dock, "show" | "hide" | "isVis
       const available = candidates();
       if (!available.length || closed) return;
       const index = focused ? available.indexOf(focused) : -1;
-      const target = index >= 0 ? available[(index + 1) % available.length] : (recent ?? available[0]);
+      const target =
+        index >= 0 ? available[(index + 1) % available.length] : (recent ?? available[0]);
       if (!target) return;
       if (target.isMinimized()) target.restore();
       target.show();

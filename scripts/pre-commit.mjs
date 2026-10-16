@@ -53,10 +53,20 @@ if (files.length > 0) {
 
 const rust = files.filter((path) => path.endsWith(".rs"));
 if (rust.length > 0) {
-  const metadata = execFileSync("cargo", ["metadata", "--no-deps", "--format-version", "1", "--locked"]);
-  const packages = JSON.parse(metadata).packages.sort((a, b) => b.manifest_path.length - a.manifest_path.length);
+  const metadata = execFileSync("cargo", [
+    "metadata",
+    "--no-deps",
+    "--format-version",
+    "1",
+    "--locked",
+  ]);
+  const packages = JSON.parse(metadata).packages.sort(
+    (a, b) => b.manifest_path.length - a.manifest_path.length,
+  );
   for (const path of rust) {
-    const pkg = packages.find((pkg) => resolve(path).startsWith(`${dirname(pkg.manifest_path)}${sep}`));
+    const pkg = packages.find((pkg) =>
+      resolve(path).startsWith(`${dirname(pkg.manifest_path)}${sep}`),
+    );
     if (!pkg) throw new Error(`Cannot determine Rust edition for ${path}`);
 
     // Formatting stdin avoids following mod declarations into unstaged files.

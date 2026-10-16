@@ -172,7 +172,11 @@ mock.module(new URL("../../src/main/services/llm/host.ts", import.meta.url).href
 const { registerXwapi } = await import("../../src/main/services/xwapi/gateway.ts");
 mock.module(new URL("../../src/main/services/xwapi/gateway.ts", import.meta.url).href, {
   exports: {
-    registerXwapi(host: GatewayHost, service: XwapiService, readContext: () => Omit<XwapiContext, "signal">) {
+    registerXwapi(
+      host: GatewayHost,
+      service: XwapiService,
+      readContext: () => Omit<XwapiContext, "signal">,
+    ) {
       calls.push("register-xwapi");
       const registration = registerXwapi(host, service, readContext);
       return {
@@ -238,7 +242,8 @@ test("desktop startup failures unwind producers and owners before Storage closes
         assert.ok(calls.indexOf("attach-storage") < calls.indexOf("register-xwapi"));
         assert.ok(calls.indexOf("register-xwapi") < calls.indexOf("attach-clipboard-dao"));
         assert.ok(calls.indexOf("attach-clipboard-dao") < calls.indexOf("initialize"));
-        if (process.platform === "darwin") assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
+        if (process.platform === "darwin")
+          assert.ok(calls.indexOf("initialize") < calls.indexOf("start"));
         await gateway.updateLlmModels([]);
         assert.ok(calls.includes("update-llm"));
         assert.equal(gateway.close(), gateway.close());

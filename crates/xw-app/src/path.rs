@@ -21,6 +21,7 @@ mod tests {
 
     #[test]
     fn includes_core_services_applications() {
-        assert!(application_dirs().contains(&PathBuf::from("/System/Library/CoreServices/Applications")));
+        assert!(application_dirs()
+            .contains(&PathBuf::from("/System/Library/CoreServices/Applications")));
     }
 }

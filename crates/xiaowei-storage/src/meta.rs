@@ -53,7 +53,10 @@ impl Database {
         Ok(pb::KvValue { json })
     }
 
-    pub(crate) async fn meta_set(&self, request: pb::KvEntry) -> Result<xw_contracts::xiaowei::common::Empty> {
+    pub(crate) async fn meta_set(
+        &self,
+        request: pb::KvEntry,
+    ) -> Result<xw_contracts::xiaowei::common::Empty> {
         key(&request.key, false)?;
         validate_json(&request.json)?;
         self.execute(sql::SqlStatement {

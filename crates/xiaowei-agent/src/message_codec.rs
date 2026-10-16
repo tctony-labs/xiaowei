@@ -23,20 +23,22 @@ pub fn decode_message(value: pb::ChatMessage) -> Result<AgentMessage, CodecError
             content: decode_blocks(message.content)?,
             timestamp_ms: message.timestamp_ms,
         })),
-        pb::chat_message::Message::Assistant(message) => Ok(AgentMessage::Assistant(AssistantMessage {
-            content: decode_blocks(message.content)?,
-            api: message.api,
-            provider: message.provider,
-            model_id: message.model_id,
-            usage: message.usage.map(decode_usage).transpose()?,
-            stop_reason: decode_reason(message.stop_reason)?,
-            timestamp_ms: message.timestamp_ms,
-            response_id: message.response_id,
-            response_model: message.response_model,
-            provider_thinking_level: message.provider_thinking_level,
-            raw_stop_reason: message.raw_stop_reason,
-            end_turn: message.end_turn,
-        })),
+        pb::chat_message::Message::Assistant(message) => {
+            Ok(AgentMessage::Assistant(AssistantMessage {
+                content: decode_blocks(message.content)?,
+                api: message.api,
+                provider: message.provider,
+                model_id: message.model_id,
+                usage: message.usage.map(decode_usage).transpose()?,
+                stop_reason: decode_reason(message.stop_reason)?,
+                timestamp_ms: message.timestamp_ms,
+                response_id: message.response_id,
+                response_model: message.response_model,
+                provider_thinking_level: message.provider_thinking_level,
+                raw_stop_reason: message.raw_stop_reason,
+                end_turn: message.end_turn,
+            }))
+        }
         pb::chat_message::Message::ToolResult(message) => {
             validate_json(message.details_json.as_deref(), "details_json", false)?;
 
@@ -60,20 +62,22 @@ pub fn encode_message(value: AgentMessage) -> Result<pb::ChatMessage, CodecError
             content: encode_blocks(message.content)?,
             timestamp_ms: message.timestamp_ms,
         }),
-        AgentMessage::Assistant(message) => pb::chat_message::Message::Assistant(pb::AssistantMessage {
-            content: encode_blocks(message.content)?,
-            api: message.api,
-            provider: message.provider,
-            model_id: message.model_id,
-            usage: message.usage.map(encode_usage).transpose()?,
-            stop_reason: encode_reason(message.stop_reason),
-            timestamp_ms: message.timestamp_ms,
-            response_id: message.response_id,
-            response_model: message.response_model,
-            provider_thinking_level: message.provider_thinking_level,
-            raw_stop_reason: message.raw_stop_reason,
-            end_turn: message.end_turn,
-        }),
+        AgentMessage::Assistant(message) => {
+            pb::chat_message::Message::Assistant(pb::AssistantMessage {
+                content: encode_blocks(message.content)?,
+                api: message.api,
+                provider: message.provider,
+                model_id: message.model_id,
+                usage: message.usage.map(encode_usage).transpose()?,
+                stop_reason: encode_reason(message.stop_reason),
+                timestamp_ms: message.timestamp_ms,
+                response_id: message.response_id,
+                response_model: message.response_model,
+                provider_thinking_level: message.provider_thinking_level,
+                raw_stop_reason: message.raw_stop_reason,
+                end_turn: message.end_turn,
+            })
+        }
         AgentMessage::ToolResult(message) => {
             validate_json(message.details_json.as_deref(), "details_json", false)?;
 
@@ -90,7 +94,9 @@ pub fn encode_message(value: AgentMessage) -> Result<pb::ChatMessage, CodecError
         }
     };
 
-    Ok(pb::ChatMessage { message: Some(message) })
+    Ok(pb::ChatMessage {
+        message: Some(message),
+    })
 }
 
 pub fn decode_block(value: pb::ContentBlock) -> Result<ContentBlock, CodecError> {
@@ -124,7 +130,9 @@ pub fn decode_block(value: pb::ContentBlock) -> Result<ContentBlock, CodecError>
 
 pub fn encode_block(value: ContentBlock) -> Result<pb::ContentBlock, CodecError> {
     let content = match value {
-        ContentBlock::Text { text, signature } => pb::content_block::Content::Text(pb::TextContent { text, signature }),
+        ContentBlock::Text { text, signature } => {
+            pb::content_block::Content::Text(pb::TextContent { text, signature })
+        }
         ContentBlock::Image { mime_type, data } => {
             pb::content_block::Content::Image(pb::ImageContent { mime_type, data })
         }
@@ -156,7 +164,9 @@ pub fn encode_block(value: ContentBlock) -> Result<pb::ContentBlock, CodecError>
         }
     };
 
-    Ok(pb::ContentBlock { content: Some(content) })
+    Ok(pb::ContentBlock {
+        content: Some(content),
+    })
 }
 
 pub fn decode_reason(value: i32) -> Result<FinishReason, CodecError> {

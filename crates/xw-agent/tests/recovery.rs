@@ -54,8 +54,16 @@ fn every_committed_prefix_can_be_inspected_and_basic_lifecycles_settle_idempoten
 }
 
 #[test]
-fn consumed_inputs_and_successful_generation_only_enter_context_and_checkpoints_respect_the_upper_bound() {
-    for name in ["text", "tools", "compaction", "continue", "interrupted", "inputs"] {
+fn consumed_inputs_and_successful_generation_only_enter_context_and_checkpoints_respect_the_upper_bound()
+ {
+    for name in [
+        "text",
+        "tools",
+        "compaction",
+        "continue",
+        "interrupted",
+        "inputs",
+    ] {
         let entries = fixture(name);
         for upper in 2..=entries.len() {
             let boundary = ContextBoundary {

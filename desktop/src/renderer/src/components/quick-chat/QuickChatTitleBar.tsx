@@ -6,7 +6,12 @@ export interface QuickChatSessionItem {
   title: string;
 }
 
-export type QuickChatUnimplementedAction = "sessions" | "rename" | "regenerateTitle" | "archive" | "copyId";
+export type QuickChatUnimplementedAction =
+  | "sessions"
+  | "rename"
+  | "regenerateTitle"
+  | "archive"
+  | "copyId";
 
 export interface QuickChatTitleBarProps {
   convId: string | null;
@@ -79,7 +84,8 @@ export default function QuickChatTitleBar({
       ? (normalizedWorkspace.match(/(?:^|\/)(quick-chat(?:\/.*)?)$/)?.[1] ?? normalizedWorkspace)
       : shortenHome(workspaceDir ?? "");
     const builtins = ["~/tmp", "/tmp"];
-    const paths = isHomeCwd || !workspaceDir ? builtins : [cwdShort, ...builtins.filter((p) => p !== cwdShort)];
+    const paths =
+      isHomeCwd || !workspaceDir ? builtins : [cwdShort, ...builtins.filter((p) => p !== cwdShort)];
     return paths.join(", ");
   })();
 
@@ -285,7 +291,9 @@ export default function QuickChatTitleBar({
     <>
       <div
         data-drag-window
-        data-quick-chat-keyboard-layer={(menuOpen && hasMessages) || sessionsOpen || editing || undefined}
+        data-quick-chat-keyboard-layer={
+          (menuOpen && hasMessages) || sessionsOpen || editing || undefined
+        }
         className={
           "quick-chat-title-bar launcher-drag relative z-20 flex h-10 shrink-0 items-center gap-2 " +
           "border-b border-subtle px-4"
@@ -331,16 +339,22 @@ export default function QuickChatTitleBar({
                 >
                   <div className="flex flex-col gap-1 text-ink-secondary">
                     {!isQuickChat && workspaceDir && (
-                      <span className="select-text text-ink">工作区：{shortenHome(workspaceDir)}</span>
+                      <span className="select-text text-ink">
+                        工作区：{shortenHome(workspaceDir)}
+                      </span>
                     )}
-                    <span className="select-text text-ink">{autoTitle ? "自动" : "不自动"}生成标题</span>
+                    <span className="select-text text-ink">
+                      {autoTitle ? "自动" : "不自动"}生成标题
+                    </span>
                     <div className="border-t border-subtle pt-1">
                       <span className="select-text text-ink">默认可写：{defaultWritable}</span>
                       {grantedPaths.length > 0 && (
                         <div className="mt-0.5">
                           <span className="select-text text-ink">
                             额外授权：
-                            {grantedPaths.map((gp) => shortenHome(gp.path) + (gp.is_directory ? "/" : "")).join(", ")}
+                            {grantedPaths
+                              .map((gp) => shortenHome(gp.path) + (gp.is_directory ? "/" : ""))
+                              .join(", ")}
                           </span>
                         </div>
                       )}
@@ -419,7 +433,13 @@ export default function QuickChatTitleBar({
                   "enabled:cursor-pointer"
                 }
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -446,7 +466,13 @@ export default function QuickChatTitleBar({
                   "enabled:cursor-pointer"
                 }
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -514,7 +540,13 @@ export default function QuickChatTitleBar({
                   "enabled:cursor-pointer"
                 }
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -541,7 +573,13 @@ export default function QuickChatTitleBar({
                   "qc-dark:disabled:hover:bg-transparent enabled:cursor-pointer"
                 }
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"

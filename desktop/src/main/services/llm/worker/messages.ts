@@ -32,7 +32,8 @@ export function json(value: string, object = false): JsonValue {
   } catch {
     invalid("invalid JSON option");
   }
-  if (object && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) invalid("expected JSON object");
+  if (object && (!parsed || typeof parsed !== "object" || Array.isArray(parsed)))
+    invalid("expected JSON object");
   return parsed;
 }
 
@@ -45,7 +46,8 @@ const reasons = {
 } as const;
 
 export function finishReason(value: string) {
-  if (!(value in reasons)) throw new GatewayFailure({ code: "HANDLER_ERROR", message: "unsupported finish reason" });
+  if (!(value in reasons))
+    throw new GatewayFailure({ code: "HANDLER_ERROR", message: "unsupported finish reason" });
   return reasons[value as keyof typeof reasons];
 }
 
@@ -81,7 +83,8 @@ function decodeUsage(usage?: TokenUsage): Usage {
     cacheWrite: usage.cost.cacheWrite,
     total: usage.cost.total,
   };
-  if (Object.values(cost).some((value) => !Number.isFinite(value) || value < 0)) invalid("invalid history cost");
+  if (Object.values(cost).some((value) => !Number.isFinite(value) || value < 0))
+    invalid("invalid history cost");
   return {
     input: token(usage.input),
     output: token(usage.output),
@@ -100,7 +103,10 @@ export function encodeBlock(block: PiBlock, starting = false) {
     return create(ContentBlockSchema, {
       content: {
         case: "text",
-        value: { text: starting ? "" : block.text, signature: starting ? undefined : block.textSignature },
+        value: {
+          text: starting ? "" : block.text,
+          signature: starting ? undefined : block.textSignature,
+        },
       },
     });
   if (block.type === "thinking")
@@ -128,7 +134,9 @@ export function encodeBlock(block: PiBlock, starting = false) {
   });
 }
 
-function decodeBlock(block: ContentBlock): PiBlock | { type: "image"; mimeType: string; data: string } {
+function decodeBlock(
+  block: ContentBlock,
+): PiBlock | { type: "image"; mimeType: string; data: string } {
   const content = block.content;
   switch (content.case) {
     case "text":
@@ -141,7 +149,8 @@ function decodeBlock(block: ContentBlock): PiBlock | { type: "image"; mimeType: 
         redacted: content.value.redacted,
       };
     case "image": {
-      if (!content.value.mimeType.startsWith("image/") || !content.value.data.length) invalid("invalid image");
+      if (!content.value.mimeType.startsWith("image/") || !content.value.data.length)
+        invalid("invalid image");
       return {
         type: "image",
         mimeType: content.value.mimeType,
@@ -189,7 +198,8 @@ function timestamp(value: bigint) {
 }
 
 function decodeAssistant(message: AssistantMessage): PiAssistant {
-  if (!message.api || !message.provider || !message.modelId) invalid("assistant source is required");
+  if (!message.api || !message.provider || !message.modelId)
+    invalid("assistant source is required");
   const content = message.content.map(decodeBlock);
   if (content.some((block) => block.type === "image")) invalid("assistant images are unsupported");
   const stopReason = Object.entries(reasons).find(([, value]) => value === message.stopReason)?.[0];
@@ -219,8 +229,12 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
     const content = message.value.content.map(decodeBlock);
     if (!content.length || content.some((block) => block.type !== "text" && block.type !== "image"))
       invalid("invalid user or tool result content");
-    if (!acceptsImages && content.some((block) => block.type === "image")) invalid("model does not accept images");
-    const input = content as ({ type: "text"; text: string } | { type: "image"; mimeType: string; data: string })[];
+    if (!acceptsImages && content.some((block) => block.type === "image"))
+      invalid("model does not accept images");
+    const input = content as (
+      | { type: "text"; text: string }
+      | { type: "image"; mimeType: string; data: string }
+    )[];
     if (message.case === "user")
       return { role: "user", content: input, timestamp: timestamp(message.value.timestampMs) };
     const result = message.value;
@@ -247,19 +261,22 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
     names.add(tool.name);
     const parameters = json(tool.parametersJson, true) as Record<string, unknown>;
     if (parameters.type !== "object") invalid("tool parameters must describe an object");
-    const constrained = tool.constrainedSamplingJson === undefined ? undefined : json(tool.constrainedSamplingJson);
+    const constrained =
+      tool.constrainedSamplingJson === undefined ? undefined : json(tool.constrainedSamplingJson);
     if (constrained !== undefined && constrained !== false) {
       if (!constrained || typeof constrained !== "object" || Array.isArray(constrained))
         invalid("invalid constrained sampling");
       const value = constrained as Record<string, unknown>;
       if (value.type === "json_schema") {
-        if (value.strict !== "prefer" && value.strict !== "require") invalid("invalid strict sampling");
+        if (value.strict !== "prefer" && value.strict !== "require")
+          invalid("invalid strict sampling");
       } else if (value.type === "grammar") {
         if (!value.variants || typeof value.variants !== "object" || Array.isArray(value.variants))
           invalid("invalid grammar variants");
         if (
           Object.entries(value.variants).some(
-            ([key, grammar]) => !["openai_lark", "openai_regex"].includes(key) || typeof grammar !== "string",
+            ([key, grammar]) =>
+              !["openai_lark", "openai_regex"].includes(key) || typeof grammar !== "string",
           )
         )
           invalid("invalid grammar variant");
@@ -272,5 +289,9 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
       constrainedSampling: constrained as Tool["constrainedSampling"],
     };
   });
-  return { systemPrompt: request.systemPrompt || undefined, messages, tools: tools.length ? tools : undefined };
+  return {
+    systemPrompt: request.systemPrompt || undefined,
+    messages,
+    tools: tools.length ? tools : undefined,
+  };
 }

@@ -95,7 +95,11 @@ export function QuickChatLauncherPreview({
                 ...session,
                 messages: [
                   ...session.messages,
-                  { id: crypto.randomUUID(), role: "assistant", text: "收到，我们可以继续讨论这件事。" },
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    text: "收到，我们可以继续讨论这件事。",
+                  },
                 ],
               }
             : session,
@@ -136,7 +140,10 @@ export function QuickChatLauncherPreview({
     setModel("默认模型");
     if (active && active.messages.length === 0) return;
     const id = `mock-${nextId.current++}`;
-    setSessions((items) => [{ id, title: "新的对话", autoTitle: true, archived: false, messages: [] }, ...items]);
+    setSessions((items) => [
+      { id, title: "新的对话", autoTitle: true, archived: false, messages: [] },
+      ...items,
+    ]);
     setActiveId(id);
     setDraft("");
   }
@@ -145,7 +152,9 @@ export function QuickChatLauncherPreview({
     const remaining = available.filter((session) => session.id !== activeId);
     setSessions((items) =>
       archive
-        ? items.map((session) => (session.id === activeId ? { ...session, archived: true } : session))
+        ? items.map((session) =>
+            session.id === activeId ? { ...session, archived: true } : session,
+          )
         : items.filter((session) => session.id !== activeId),
     );
     if (runningId === activeId) setRunningId(null);
@@ -172,7 +181,13 @@ export function QuickChatLauncherPreview({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.nativeEvent.isComposing || event.keyCode === 229 || composing.current || hasOpenModal()) return;
+    if (
+      event.nativeEvent.isComposing ||
+      event.keyCode === 229 ||
+      composing.current ||
+      hasOpenModal()
+    )
+      return;
     if (root.current?.querySelector('[data-quick-chat-keyboard-layer="true"]')) return;
     if (event.defaultPrevented) return;
     const target = event.target as HTMLElement;
@@ -184,7 +199,10 @@ export function QuickChatLauncherPreview({
       setActiveId(available[0]?.id ?? null);
       setDraft("");
       setExpanded(true);
-    } else if (expanded && (event.key === "Escape" || (event.key === "ArrowUp" && inComposer && !draft.trim()))) {
+    } else if (
+      expanded &&
+      (event.key === "Escape" || (event.key === "ArrowUp" && inComposer && !draft.trim()))
+    ) {
       event.preventDefault();
       setModelMenuOpen(false);
       setExpanded(false);
@@ -225,7 +243,10 @@ export function QuickChatLauncherPreview({
       }}
     >
       {results.map((result, index) => (
-        <div key={result} className={`px-6 py-3 text-sm ${selectedResult === index ? "bg-primary-bg" : ""}`}>
+        <div
+          key={result}
+          className={`px-6 py-3 text-sm ${selectedResult === index ? "bg-primary-bg" : ""}`}
+        >
           {result}
         </div>
       ))}
@@ -247,7 +268,11 @@ export function QuickChatLauncherPreview({
           }
         }}
       >
-        <button type="button" className="cursor-pointer px-2 py-1" onClick={() => setModelMenuOpen(!modelMenuOpen)}>
+        <button
+          type="button"
+          className="cursor-pointer px-2 py-1"
+          onClick={() => setModelMenuOpen(!modelMenuOpen)}
+        >
           {model}
         </button>
         {modelMenuOpen && (
@@ -348,7 +373,9 @@ export function QuickChatLauncherPreview({
               isGenerating={generating}
               isRegeneratingTitle={false}
               hasMessages={(active?.messages.length ?? 0) > 0}
-              hasAssistantReply={active?.messages.some((message) => message.role === "assistant") ?? false}
+              hasAssistantReply={
+                active?.messages.some((message) => message.role === "assistant") ?? false
+              }
               sessions={available}
               sessionsLoading={false}
               onListSessions={() => {}}
@@ -359,13 +386,17 @@ export function QuickChatLauncherPreview({
               }}
               onRename={(title) =>
                 setSessions((items) =>
-                  items.map((session) => (session.id === activeId ? { ...session, title, autoTitle: false } : session)),
+                  items.map((session) =>
+                    session.id === activeId ? { ...session, title, autoTitle: false } : session,
+                  ),
                 )
               }
               onRegenerateTitle={async () =>
                 setSessions((items) =>
                   items.map((session) =>
-                    session.id === activeId ? { ...session, title: "本周事项讨论", autoTitle: true } : session,
+                    session.id === activeId
+                      ? { ...session, title: "本周事项讨论", autoTitle: true }
+                      : session,
                   ),
                 )
               }
@@ -374,7 +405,9 @@ export function QuickChatLauncherPreview({
               onCopyId={async () => {}}
               onOpenTitleModelSettings={() => setNotice("已模拟打开模型设置")}
             />
-            <div className={`min-h-0 flex-1 px-4 pb-9 ${animating ? "overflow-hidden" : "overflow-y-auto"}`}>
+            <div
+              className={`min-h-0 flex-1 px-4 pb-9 ${animating ? "overflow-hidden" : "overflow-y-auto"}`}
+            >
               {!active?.messages.length ? (
                 <p className="py-6 text-center text-sm text-muted">输入问题开始对话</p>
               ) : (

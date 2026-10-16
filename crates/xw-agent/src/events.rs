@@ -49,23 +49,33 @@ impl Observer {
 
     pub fn publish(&self, event: AgentEvent) {
         let event_session = match &event.payload {
-            Some(agent_event::Payload::SessionStarted(event)) => {
-                event.session.as_ref().map(|session| session.session_id.as_str())
+            Some(agent_event::Payload::SessionStarted(event)) => event
+                .session
+                .as_ref()
+                .map(|session| session.session_id.as_str()),
+            Some(agent_event::Payload::SessionArchivedUpdated(event)) => {
+                Some(event.session_id.as_str())
             }
-            Some(agent_event::Payload::SessionArchivedUpdated(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::SessionDeleted(event)) => Some(event.session_id.as_str()),
-            Some(agent_event::Payload::SessionConfigUpdated(event)) => Some(event.session_id.as_str()),
-            Some(agent_event::Payload::SessionModelInfoWarningUpdated(event)) => Some(event.session_id.as_str()),
-            Some(agent_event::Payload::SessionTitleUpdated(event)) => Some(event.session_id.as_str()),
+            Some(agent_event::Payload::SessionConfigUpdated(event)) => {
+                Some(event.session_id.as_str())
+            }
+            Some(agent_event::Payload::SessionModelInfoWarningUpdated(event)) => {
+                Some(event.session_id.as_str())
+            }
+            Some(agent_event::Payload::SessionTitleUpdated(event)) => {
+                Some(event.session_id.as_str())
+            }
             Some(agent_event::Payload::RunStarted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::RunCompleted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ItemStarted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ItemCompleted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::AgentMessageDelta(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ReasoningDelta(event)) => Some(event.session_id.as_str()),
-            Some(agent_event::Payload::SubscriptionReady(event)) => {
-                event.session.as_ref().map(|session| session.session_id.as_str())
-            }
+            Some(agent_event::Payload::SubscriptionReady(event)) => event
+                .session
+                .as_ref()
+                .map(|session| session.session_id.as_str()),
             None => None,
         };
         if event_session != Some(self.session_id.as_str()) {
@@ -245,8 +255,12 @@ mod tests {
     async fn slow_subscriber_lags_without_blocking_another_subscriber() {
         let slow = Arc::new(Observer::new("target".into()));
         let fast = Arc::new(Observer::new("target".into()));
-        let mut slow_stream = EventSubscription { observer: slow.clone() };
-        let mut fast_stream = EventSubscription { observer: fast.clone() };
+        let mut slow_stream = EventSubscription {
+            observer: slow.clone(),
+        };
+        let mut fast_stream = EventSubscription {
+            observer: fast.clone(),
+        };
 
         for _ in 0..MAX_PENDING + 1 {
             let event = delta("next");
@@ -254,7 +268,10 @@ mod tests {
             fast.publish(event.clone());
             assert_eq!(fast_stream.recv().await, Some(Ok(event)));
         }
-        assert_eq!(slow_stream.recv().await, Some(Err(SubscriptionError::Lagged)));
+        assert_eq!(
+            slow_stream.recv().await,
+            Some(Err(SubscriptionError::Lagged))
+        );
         assert_eq!(slow_stream.recv().await, None);
         fast.publish(delta("still live"));
         assert_eq!(fast_stream.recv().await, Some(Ok(delta("still live"))));

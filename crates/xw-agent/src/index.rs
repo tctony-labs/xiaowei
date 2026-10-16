@@ -39,7 +39,8 @@ impl AgentService {
     /// Opens the session directory without enumerating JSONL histories.
     /// Both desktop and CLI hosts supply the root and model callbacks only.
     pub async fn open(host: Arc<dyn AgentHost>, root: PathBuf) -> Result<Self, AgentError> {
-        let catalog = Arc::new(crate::catalog::SessionCatalog::open(&root.join("sessions.sqlite")).await?);
+        let catalog =
+            Arc::new(crate::catalog::SessionCatalog::open(&root.join("sessions.sqlite")).await?);
         let mut service = Self::new(host);
         service.rollout = Some(xw_agent_rollout::RolloutStore::new(root));
         service.index = Some(Arc::new(IndexAccess {
@@ -81,7 +82,8 @@ impl AgentService {
         let (mut journal, repair) = store
             .open_registered(id, stored.created_at_ms)
             .map_err(crate::persistence::storage_error)?;
-        crate::settle_interrupted(&mut journal, None, now_ms()?).map_err(crate::persistence::storage_error)?;
+        crate::settle_interrupted(&mut journal, None, now_ms()?)
+            .map_err(crate::persistence::storage_error)?;
         let mut session = crate::persistence::restore(journal)?;
         session.indexed = true;
         session.view.title = stored.title.clone();
@@ -112,7 +114,10 @@ impl AgentService {
         Ok(id)
     }
 
-    pub async fn create_session(&self, request: CreateSessionRequest) -> Result<CreateSessionResponse, AgentError> {
+    pub async fn create_session(
+        &self,
+        request: CreateSessionRequest,
+    ) -> Result<CreateSessionResponse, AgentError> {
         self.create_session_with_source(
             request,
             crate::InputSource {
@@ -136,8 +141,12 @@ impl AgentService {
         if source.principal_id.trim().is_empty() {
             return Err(AgentError::InvalidArgument("source.principal_id"));
         }
-        let request_id: ClientRequestId = parse_id(&request.client_request_id, "client_request_id")?;
-        let config = request.config.as_ref().ok_or(AgentError::InvalidArgument("config"))?;
+        let request_id: ClientRequestId =
+            parse_id(&request.client_request_id, "client_request_id")?;
+        let config = request
+            .config
+            .as_ref()
+            .ok_or(AgentError::InvalidArgument("config"))?;
         crate::input::validate_config(config)?;
         let previous = self.state()?.creations.get(&request_id).cloned();
         if let Some((id, original_config)) = previous {
@@ -172,17 +181,27 @@ impl AgentService {
             {
                 let created_at_ms = session.view.created_at_ms;
                 drop(journal);
-                if let Err(cleanup) = self.rollout.as_ref().unwrap().delete_registered(id, created_at_ms) {
+                if let Err(cleanup) = self
+                    .rollout
+                    .as_ref()
+                    .unwrap()
+                    .delete_registered(id, created_at_ms)
+                {
                     log::error!("Agent failed creation cleanup session={id} error={cleanup}");
                 }
             }
-            state.creations.retain(|_, (session_id, _)| *session_id != id);
+            state
+                .creations
+                .retain(|_, (session_id, _)| *session_id != id);
             return Err(error);
         }
         Ok(response)
     }
 
-    pub async fn list_sessions(&self, request: ListSessionsRequest) -> Result<ListSessionsResponse, AgentError> {
+    pub async fn list_sessions(
+        &self,
+        request: ListSessionsRequest,
+    ) -> Result<ListSessionsResponse, AgentError> {
         drop(self.state()?);
         let Some(index) = &self.index else {
             return self.list_loaded(request);
@@ -201,7 +220,10 @@ impl AgentService {
         Ok(response)
     }
 
-    pub async fn read_session(&self, request: ReadSessionRequest) -> Result<ReadSessionResponse, AgentError> {
+    pub async fn read_session(
+        &self,
+        request: ReadSessionRequest,
+    ) -> Result<ReadSessionResponse, AgentError> {
         drop(self.state()?);
         if let Some(index) = &self.index {
             let _gate = index.gate.lock().await;
@@ -213,7 +235,10 @@ impl AgentService {
         self.read_loaded(request)
     }
 
-    pub async fn subscribe_session(&self, request: SubscribeSessionRequest) -> Result<EventSubscription, AgentError> {
+    pub async fn subscribe_session(
+        &self,
+        request: SubscribeSessionRequest,
+    ) -> Result<EventSubscription, AgentError> {
         drop(self.state()?);
         if let Some(index) = &self.index {
             let _gate = index.gate.lock().await;
@@ -300,7 +325,10 @@ impl AgentService {
         {
             let state = self.state()?;
             let session = &state.sessions[&id];
-            if session.view.title == title && !session.view.auto_title_enabled && session.current_title_task.is_none() {
+            if session.view.title == title
+                && !session.view.auto_title_enabled
+                && session.current_title_task.is_none()
+            {
                 return Ok(SetSessionTitleResponse {
                     title,
                     metadata_revision: session.view.metadata_revision,
@@ -338,7 +366,11 @@ impl AgentService {
     }
 }
 
-pub(crate) async fn flush(shared: &Arc<Mutex<State>>, index: &IndexAccess, id: SessionId) -> Result<(), AgentError> {
+pub(crate) async fn flush(
+    shared: &Arc<Mutex<State>>,
+    index: &IndexAccess,
+    id: SessionId,
+) -> Result<(), AgentError> {
     let request = {
         let mut state = shared.lock().map_err(|_| AgentError::Internal)?;
         let Some(session) = state.sessions.get_mut(&id).filter(|s| !s.deleted()) else {
@@ -347,10 +379,14 @@ pub(crate) async fn flush(shared: &Arc<Mutex<State>>, index: &IndexAccess, id: S
         session.index_dirty = true;
         summary(session)
     };
-    index.storage.update(request.clone()).await.map_err(|error| {
-        log::error!("Agent directory update failed session={id} error={error}");
-        error
-    })?;
+    index
+        .storage
+        .update(request.clone())
+        .await
+        .map_err(|error| {
+            log::error!("Agent directory update failed session={id} error={error}");
+            error
+        })?;
     let mut state = shared.lock().map_err(|_| AgentError::Internal)?;
     if let Some(session) = state.sessions.get_mut(&id) {
         session.index_dirty = false;
@@ -410,7 +446,10 @@ pub(crate) async fn persist_title(
         metadata_revision: request.metadata_revision,
     };
     let mut state = shared.lock().map_err(|_| AgentError::Internal)?;
-    let session = state.sessions.get_mut(&id).ok_or(AgentError::NotFound("session"))?;
+    let session = state
+        .sessions
+        .get_mut(&id)
+        .ok_or(AgentError::NotFound("session"))?;
     session.cancel_titles();
     session.view.title = response.title.clone();
     session.view.auto_title_enabled = auto_title_enabled;
@@ -420,14 +459,16 @@ pub(crate) async fn persist_title(
         &mut state,
         AgentEvent {
             emitted_at_ms: now_ms()?,
-            payload: Some(agent_event::Payload::SessionTitleUpdated(SessionTitleUpdated {
-                session_id: id.to_string(),
-                title: response.title.clone(),
-                auto_title_enabled,
-                metadata_revision: response.metadata_revision,
-                updated_at_ms: stored.updated_at_ms,
-                title_model_ref: String::new(),
-            })),
+            payload: Some(agent_event::Payload::SessionTitleUpdated(
+                SessionTitleUpdated {
+                    session_id: id.to_string(),
+                    title: response.title.clone(),
+                    auto_title_enabled,
+                    metadata_revision: response.metadata_revision,
+                    updated_at_ms: stored.updated_at_ms,
+                    title_model_ref: String::new(),
+                },
+            )),
         },
     );
     log::debug!(
@@ -450,7 +491,10 @@ impl AgentService {
         self.regenerate_loaded(request).await
     }
 
-    pub(crate) fn freeze(&self, id: SessionId) -> Result<Vec<crate::CancellationToken>, AgentError> {
+    pub(crate) fn freeze(
+        &self,
+        id: SessionId,
+    ) -> Result<Vec<crate::CancellationToken>, AgentError> {
         let mut state = self.state()?;
         let Some(session) = state.sessions.get_mut(&id) else {
             return Ok(Vec::new());
@@ -521,7 +565,10 @@ impl AgentService {
                         || session.view.updated_at_ms > cutoff
                 });
                 if record.summary.updated_at_ms > cutoff
-                    || state.viewers.get(&id).is_some_and(|viewers| !viewers.is_empty())
+                    || state
+                        .viewers
+                        .get(&id)
+                        .is_some_and(|viewers| !viewers.is_empty())
                     || busy
                 {
                     return Err(AgentError::Conflict("session active or viewed"));
@@ -568,7 +615,10 @@ impl AgentService {
             return Err(AgentError::Conflict("session active or viewed"));
         }
         let changed_at = now_ms()?;
-        let result = index.storage.set_archived_before(request, cutoff, changed_at).await;
+        let result = index
+            .storage
+            .set_archived_before(request, cutoff, changed_at)
+            .await;
         let response = match result {
             Ok(response) => response,
             Err(error) => {
@@ -588,17 +638,21 @@ impl AgentService {
             &mut state,
             AgentEvent {
                 emitted_at_ms: now_ms()?,
-                payload: Some(agent_event::Payload::SessionArchivedUpdated(SessionArchivedUpdated {
-                    session_id: id.to_string(),
-                    archived: response.archived,
-                    archive_revision: response.archive_revision,
-                })),
+                payload: Some(agent_event::Payload::SessionArchivedUpdated(
+                    SessionArchivedUpdated {
+                        session_id: id.to_string(),
+                        archived: response.archived,
+                        archive_revision: response.archive_revision,
+                    },
+                )),
             },
         );
         if response.archived {
             finish_observers(&mut state, &id.to_string());
             state.sessions.remove(&id);
-            state.creations.retain(|_, (session_id, _)| *session_id != id);
+            state
+                .creations
+                .retain(|_, (session_id, _)| *session_id != id);
         } else if let Some(session) = state.sessions.get_mut(&id) {
             session.frozen = false;
         }
@@ -610,7 +664,10 @@ impl AgentService {
         Ok(response)
     }
 
-    pub async fn delete_session(&self, request: DeleteSessionRequest) -> Result<DeleteSessionResponse, AgentError> {
+    pub async fn delete_session(
+        &self,
+        request: DeleteSessionRequest,
+    ) -> Result<DeleteSessionResponse, AgentError> {
         drop(self.state()?);
         if request.targets.is_empty() {
             return Err(AgentError::InvalidArgument("targets"));
@@ -716,7 +773,11 @@ impl AgentService {
                         .map_err(crate::persistence::storage_error)?,
                 )
             };
-            let done = if record.deleting { Vec::new() } else { self.freeze(id)? };
+            let done = if record.deleting {
+                Vec::new()
+            } else {
+                self.freeze(id)?
+            };
             (record, done, ownership)
         };
         for done in done {
@@ -747,10 +808,14 @@ impl AgentService {
             );
             finish_observers(&mut state, &id.to_string());
             state.sessions.remove(&id); // releases file ownership before direct cleanup
-            state.creations.retain(|_, (session_id, _)| *session_id != id);
+            state
+                .creations
+                .retain(|_, (session_id, _)| *session_id != id);
         }
         if let Some(ownership) = ownership {
-            ownership.delete().map_err(crate::persistence::storage_error)?;
+            ownership
+                .delete()
+                .map_err(crate::persistence::storage_error)?;
             index.storage.remove(id.to_string()).await?;
         } else {
             self.cleanup_record(&record).await?;
@@ -778,7 +843,9 @@ impl AgentService {
     /// Called when opening the core. Queries only deleting
     /// rows and their registered paths; ordinary histories are never scanned.
     pub(crate) async fn finish_pending_deletions(&self) -> Result<(), AgentError> {
-        let Some(index) = &self.index else { return Ok(()) };
+        let Some(index) = &self.index else {
+            return Ok(());
+        };
         let _gate = index.gate.lock().await;
         let records = index.storage.list_deleting().await?;
         for record in records {
@@ -796,7 +863,11 @@ impl AgentService {
 }
 
 fn finish_observers(state: &mut State, id: &str) {
-    for observer in state.observers.iter().filter_map(|observer| observer.upgrade()) {
+    for observer in state
+        .observers
+        .iter()
+        .filter_map(|observer| observer.upgrade())
+    {
         observer.finish_session(id);
     }
 }

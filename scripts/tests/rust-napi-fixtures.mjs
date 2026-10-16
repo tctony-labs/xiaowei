@@ -4,7 +4,8 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 export const root = fileURLToPath(new URL("../../", import.meta.url));
-export const runPnpm = (args, env = process.env) => execFileSync("pnpm", args, { cwd: root, stdio: "inherit", env });
+export const runPnpm = (args, env = process.env) =>
+  execFileSync("pnpm", args, { cwd: root, stdio: "inherit", env });
 
 // Set only for workspace test children after both sets of addons have been built successfully.
 export const rustNapiPrepared = process.env.XIAOWEI_TEST_NAPI_PREPARED === "1";
@@ -72,5 +73,6 @@ export async function withRustNapiFixtures(
   }
 
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, "napi tests or production artifact checks failed");
+  if (failures.length > 1)
+    throw new AggregateError(failures, "napi tests or production artifact checks failed");
 }

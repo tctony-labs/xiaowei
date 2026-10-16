@@ -16,7 +16,8 @@ export function createPaths(
   const xiaoweiAgentRootDir = localUpdateTest
     ? join(xiaoweiRootDir, "agent")
     : (env.XIAOWEI_AGENT_HOME ?? join(homedir(), ".xiaowei"));
-  if (!isAbsolute(xiaoweiAgentRootDir)) throw new Error("XIAOWEI_AGENT_HOME must be an absolute path");
+  if (!isAbsolute(xiaoweiAgentRootDir))
+    throw new Error("XIAOWEI_AGENT_HOME must be an absolute path");
 
   // 新增目录或文件路径时按所属根目录分组，组间留空行。
   // 各组按 rootDir 属性名字母序排列；组内 rootDir 在首行，其余属性按名字母序排列。

@@ -31,7 +31,10 @@ test("typed local streams pull only, preserve PB bytes and close simulated SSE r
     }),
   );
   const client = bindStreamClient(Fixture, host.client({ caller: "ui", trusted: true }));
-  const input = create(EnvelopeSchema, { id: 0xffffffffffffffffn, blobs: [{ data: Uint8Array.of(0, 255) }] });
+  const input = create(EnvelopeSchema, {
+    id: 0xffffffffffffffffn,
+    blobs: [{ data: Uint8Array.of(0, 255) }],
+  });
   const stream = await client.watch(input);
   assert.equal(reads, 0);
   for await (const chunk of stream) {
@@ -77,7 +80,10 @@ test("abort during open cleans late producer; cancel interrupts pending next ind
       [Symbol.asyncIterator]() {
         return this;
       },
-      next: () => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason))),
+      next: () =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(signal.reason)),
+        ),
       return: async () => ({ done: true, value: undefined }),
     }),
     streamPolicy(),
@@ -225,12 +231,20 @@ test("an already aborted signal releases execution admission without starting th
   const controller = new AbortController();
   controller.abort();
   await assert.rejects(
-    execution.stream(registration, owner, context, () => client, new Uint8Array(), { signal: controller.signal }),
+    execution.stream(registration, owner, context, () => client, new Uint8Array(), {
+      signal: controller.signal,
+    }),
     /cancelled/,
   );
   await execution.drained();
   assert.equal(started, 0);
-  const stream = await execution.stream(registration, owner, context, () => client, new Uint8Array());
+  const stream = await execution.stream(
+    registration,
+    owner,
+    context,
+    () => client,
+    new Uint8Array(),
+  );
   await stream.next();
   assert.equal(started, 1);
   await stream.cancel();

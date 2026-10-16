@@ -61,10 +61,13 @@ where
     }
 
     pub fn call(&self, client: &Client, request: Req) -> crate::Rpc<Res> {
-        client.invoke(&self.route(), request.encode_to_vec()).map(|bytes| {
-            Res::decode(bytes.as_slice())
-                .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf"))
-        })
+        client
+            .invoke(&self.route(), request.encode_to_vec())
+            .map(|bytes| {
+                Res::decode(bytes.as_slice()).map_err(|_| {
+                    GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf")
+                })
+            })
     }
 
     pub fn handler<F, Fut>(&self, handler: F) -> InvokeRegistration
@@ -76,8 +79,9 @@ where
         InvokeRegistration::unary(self.route(), move |bytes, client| {
             let handler = handler.clone();
             async move {
-                let request = Req::decode(bytes.as_slice())
-                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid request protobuf"))?;
+                let request = Req::decode(bytes.as_slice()).map_err(|_| {
+                    GatewayError::new(ErrorCode::InvalidArgument, "invalid request protobuf")
+                })?;
                 Ok(handler(request, client).await?.encode_to_vec())
             }
         })
@@ -104,8 +108,9 @@ where
                 options.map(|o| o.encode_to_vec()),
             )
             .map(|bytes| {
-                Res::decode(bytes.as_slice())
-                    .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf"))
+                Res::decode(bytes.as_slice()).map_err(|_| {
+                    GatewayError::new(ErrorCode::HandlerError, "invalid response protobuf")
+                })
             })
     }
 
@@ -153,8 +158,14 @@ where
     pub fn route(&self) -> Route {
         self.method.route()
     }
-    pub async fn stream(&self, client: &Client, request: Req) -> Result<TypedResponseStream<Chunk>, GatewayError> {
-        let raw = client.stream(&self.route(), request.encode_to_vec()).await?;
+    pub async fn stream(
+        &self,
+        client: &Client,
+        request: Req,
+    ) -> Result<TypedResponseStream<Chunk>, GatewayError> {
+        let raw = client
+            .stream(&self.route(), request.encode_to_vec())
+            .await?;
         Ok(TypedResponseStream {
             raw,
             ended: false,
@@ -172,8 +183,9 @@ where
         InvokeRegistration::streaming(self.route(), move |bytes, client| {
             let handler = handler.clone();
             async move {
-                let request = Req::decode(bytes.as_slice())
-                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid request protobuf"))?;
+                let request = Req::decode(bytes.as_slice()).map_err(|_| {
+                    GatewayError::new(ErrorCode::InvalidArgument, "invalid request protobuf")
+                })?;
                 let stream = handler(request, client).await?;
                 Ok(Box::pin(stream.map(|chunk| {
                     chunk.and_then(|value| {
@@ -222,8 +234,9 @@ impl<T: Message + Default> futures_util::Stream for TypedResponseStream<T> {
             }
             Poll::Ready(Some(bytes)) => {
                 let result = bytes.and_then(|bytes| {
-                    T::decode(bytes.as_slice())
-                        .map_err(|_| GatewayError::new(ErrorCode::HandlerError, "invalid chunk protobuf"))
+                    T::decode(bytes.as_slice()).map_err(|_| {
+                        GatewayError::new(ErrorCode::HandlerError, "invalid chunk protobuf")
+                    })
                 });
                 if result.is_err() {
                     self.ended = true;
@@ -238,7 +251,10 @@ impl<T: Message + Default> futures_util::Stream for TypedResponseStream<T> {
 /// Checked string-ID facade for existing APIs; PB remains u64 on the wire.
 pub fn parse_id(value: &str) -> Result<u64, GatewayError> {
     if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(GatewayError::new(ErrorCode::InvalidArgument, "invalid uint64 ID"));
+        return Err(GatewayError::new(
+            ErrorCode::InvalidArgument,
+            "invalid uint64 ID",
+        ));
     }
     value
         .parse()
@@ -281,8 +297,20 @@ pub fn generate_methods(
                         "client streaming is unsupported",
                     ));
                 }
-                let input = types.get(method.input_type.as_deref().unwrap_or("").trim_start_matches('.'));
-                let output_type = types.get(method.output_type.as_deref().unwrap_or("").trim_start_matches('.'));
+                let input = types.get(
+                    method
+                        .input_type
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim_start_matches('.'),
+                );
+                let output_type = types.get(
+                    method
+                        .output_type
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim_start_matches('.'),
+                );
                 let (Some(input), Some(output_type)) = (input, output_type) else {
                     return Err(GatewayError::new(
                         ErrorCode::InvalidArgument,

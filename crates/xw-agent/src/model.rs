@@ -15,7 +15,9 @@ impl AgentService {
         request: SetSessionConfigRequest,
     ) -> Result<SetSessionConfigResponse, AgentError> {
         let id: SessionId = parse_id(&request.session_id, "session_id")?;
-        let config = request.config.ok_or(AgentError::InvalidArgument("config"))?;
+        let config = request
+            .config
+            .ok_or(AgentError::InvalidArgument("config"))?;
         crate::input::validate_config(&config)?;
         if request.expected_metadata_revision == 0 {
             return Err(AgentError::InvalidArgument("expected_metadata_revision"));
@@ -77,7 +79,9 @@ impl AgentService {
         );
         Self::publish(
             &mut state,
-            event(agent_event::Payload::SessionModelInfoWarningUpdated(warning)),
+            event(agent_event::Payload::SessionModelInfoWarningUpdated(
+                warning,
+            )),
         );
         log::debug!("Agent session config updated session={id} revision={revision}");
         Ok(SetSessionConfigResponse {
@@ -94,7 +98,9 @@ impl AgentService {
             let Some(session) = state.sessions.get_mut(&id).filter(|s| !s.deleted()) else {
                 return;
             };
-            let Some(config) = &session.view.config else { return };
+            let Some(config) = &session.view.config else {
+                return;
+            };
             let model_ref = config.model_ref.clone();
             session.model_query += 1;
             (model_ref, session.model_query)
@@ -105,7 +111,12 @@ impl AgentService {
     }
 }
 
-async fn refresh(shared: Arc<Mutex<State>>, host: Arc<dyn AgentHost>, id: SessionId, query: (String, u64)) {
+async fn refresh(
+    shared: Arc<Mutex<State>>,
+    host: Arc<dyn AgentHost>,
+    id: SessionId,
+    query: (String, u64),
+) {
     let info = host.get_model_info(query.0.clone()).await;
     let mut state = shared.lock().unwrap();
     if state.closed {
@@ -114,7 +125,13 @@ async fn refresh(shared: Arc<Mutex<State>>, host: Arc<dyn AgentHost>, id: Sessio
     let Some(session) = state.sessions.get_mut(&id).filter(|s| !s.deleted()) else {
         return;
     };
-    if session.model_query != query.1 || session.view.config.as_ref().is_none_or(|c| c.model_ref != query.0) {
+    if session.model_query != query.1
+        || session
+            .view
+            .config
+            .as_ref()
+            .is_none_or(|c| c.model_ref != query.0)
+    {
         return;
     }
     apply_info(session, &query.0, info);
@@ -139,7 +156,11 @@ pub(crate) fn validate_info(model_ref: &str, info: ModelInfo) -> Result<ModelInf
     }
 }
 
-pub(crate) fn apply_info(session: &mut Session, model_ref: &str, info: Result<ModelInfo, ModelInfoError>) {
+pub(crate) fn apply_info(
+    session: &mut Session,
+    model_ref: &str,
+    info: Result<ModelInfo, ModelInfoError>,
+) {
     let info = info.and_then(|info| validate_info(model_ref, info));
     match info {
         Ok(info) => {

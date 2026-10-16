@@ -1,4 +1,12 @@
-import { act, cleanup, configure, fireEvent, getConfig, render, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  configure,
+  fireEvent,
+  getConfig,
+  render,
+  within,
+} from "@testing-library/react";
 import userEventApi from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { SettingsPreview } from "./SettingsPreview";
@@ -56,7 +64,9 @@ test("DeleteProviderRequiresConfirmation", async () => {
   await advanceTime(350);
   expect(page.queryByRole("dialog")).not.toBeInTheDocument();
   expect(page.queryByText("demo", { exact: true })).not.toBeInTheDocument();
-  expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent("deepseek/deepseek-chat");
+  expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent(
+    "deepseek/deepseek-chat",
+  );
 });
 
 test("AddAndSelectModel", async () => {
@@ -64,8 +74,12 @@ test("AddAndSelectModel", async () => {
   const page = within(document.body);
   const provider = within(page.getByRole("dialog", { name: "添加模型提供商" }));
   fireEvent.change(provider.getByLabelText("名称"), { target: { value: "example" } });
-  fireEvent.change(provider.getByLabelText("Base URL"), { target: { value: "https://models.example.test/v1" } });
-  fireEvent.change(provider.getByLabelText("API Key"), { target: { value: "storybook-placeholder" } });
+  fireEvent.change(provider.getByLabelText("Base URL"), {
+    target: { value: "https://models.example.test/v1" },
+  });
+  fireEvent.change(provider.getByLabelText("API Key"), {
+    target: { value: "storybook-placeholder" },
+  });
   expect(provider.getByRole("button", { name: "保存" })).toBeEnabled();
   await userEvent.click(provider.getByRole("button", { name: "导入模型" }));
   await addFetchedModels();
@@ -82,7 +96,9 @@ test("AddAndSelectModel", async () => {
 });
 
 test("ImageValidationFailure", async () => {
-  const { container: canvasElement } = render(<SettingsPreview initialTab="llm" operationFailure />);
+  const { container: canvasElement } = render(
+    <SettingsPreview initialTab="llm" operationFailure />,
+  );
   const canvas = within(canvasElement);
   await userEvent.click(canvas.getByRole("button", { name: "未设置" }));
   await userEvent.click(within(document.body).getByRole("button", { name: "demo/demo-image" }));
@@ -133,10 +149,14 @@ test("ConnectionChangesPreserveModels", async () => {
   const provider = within(page.getByRole("dialog", { name: "修改模型提供商" }));
   await userEvent.click(provider.getByRole("button", { name: "编辑 demo-text" }));
   const model = within(page.getByRole("dialog", { name: "编辑模型" }));
-  fireEvent.change(model.getByLabelText("模型名称（可选）"), { target: { value: "My text model" } });
+  fireEvent.change(model.getByLabelText("模型名称（可选）"), {
+    target: { value: "My text model" },
+  });
   fireEvent.change(model.getByLabelText("上下文窗口大小"), { target: { value: "128000" } });
   await userEvent.click(model.getByRole("button", { name: "保存模型" }));
-  fireEvent.change(provider.getByLabelText("Base URL"), { target: { value: "https://new.example.test/v1" } });
+  fireEvent.change(provider.getByLabelText("Base URL"), {
+    target: { value: "https://new.example.test/v1" },
+  });
   expect(provider.getByRole("switch", { name: "支持 WebSocket" })).toBeVisible();
   await userEvent.click(provider.getByRole("button", { name: "openai-responses" }));
   await userEvent.click(page.getByRole("button", { name: "openai-completions" }));
@@ -152,9 +172,13 @@ test("ConnectionChangesPreserveModels", async () => {
 });
 
 test("ModelContextFromApi", async () => {
-  render(<SettingsPreview initialTab="llm" initialModelDialog="editCustom" modelFetch="metadata" />);
+  render(
+    <SettingsPreview initialTab="llm" initialModelDialog="editCustom" modelFetch="metadata" />,
+  );
   const page = within(document.body);
-  fireEvent.change(page.getByLabelText("Base URL"), { target: { value: "https://new.example.test/v1" } });
+  fireEvent.change(page.getByLabelText("Base URL"), {
+    target: { value: "https://new.example.test/v1" },
+  });
   for (const id of ["demo-text", "demo-image"]) {
     await userEvent.click(page.getByRole("button", { name: `删除 ${id}` }));
     await userEvent.click(page.getByRole("button", { name: "确认删除" }));
@@ -163,7 +187,9 @@ test("ModelContextFromApi", async () => {
   await addFetchedModels();
   expect(page.getByText("上下文 128,000")).toBeVisible();
   expect(page.queryByText("上下文 未设置")).not.toBeInTheDocument();
-  await userEvent.click(within(page.getByRole("group", { name: "demo-text" })).getByRole("button", { name: /^编辑 / }));
+  await userEvent.click(
+    within(page.getByRole("group", { name: "demo-text" })).getByRole("button", { name: /^编辑 / }),
+  );
   await userEvent.click(page.getByRole("button", { name: "选择上下文窗口大小" }));
   await userEvent.click(page.getByRole("button", { name: "256K" }));
   await userEvent.click(page.getByRole("button", { name: "保存模型" }));
@@ -176,7 +202,9 @@ test("ModelContextFromApi", async () => {
 test("ModelPicker", async () => {
   render(<SettingsPreview initialTab="llm" initialModelDialog="editCustom" />);
   const page = within(document.body);
-  fireEvent.change(page.getByLabelText("Base URL"), { target: { value: "https://new.example.test/v1" } });
+  fireEvent.change(page.getByLabelText("Base URL"), {
+    target: { value: "https://new.example.test/v1" },
+  });
   for (const id of ["demo-text", "demo-image"]) {
     await userEvent.click(page.getByRole("button", { name: `删除 ${id}` }));
     await userEvent.click(page.getByRole("button", { name: "确认删除" }));
@@ -288,8 +316,12 @@ async function addFetchedModels() {
 test("EnvironmentKeyAndKeyRemovalPreserveModels", async () => {
   render(<SettingsPreview initialTab="llm" initialModelDialog="editCustom" />);
   const page = within(document.body);
-  fireEvent.change(page.getByLabelText("API Key 环境变量名（优先使用）"), { target: { value: "TEST_API_KEY" } });
-  fireEvent.change(page.getByLabelText("API Key", { exact: true }), { target: { value: "preview-key" } });
+  fireEvent.change(page.getByLabelText("API Key 环境变量名（优先使用）"), {
+    target: { value: "TEST_API_KEY" },
+  });
+  fireEvent.change(page.getByLabelText("API Key", { exact: true }), {
+    target: { value: "preview-key" },
+  });
   expect(page.getByRole("button", { name: "编辑 demo-text" })).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "清除已保存的 API Key" }));
   expect(page.getByRole("button", { name: "保存" })).toBeEnabled();
@@ -363,7 +395,9 @@ test("PresetDefaultsAndCustomReset", async () => {
   expect(url).toHaveAttribute("readonly");
   expect(provider.getByRole("button", { name: "openai-completions" })).toBeEnabled();
   expect(provider.getAllByRole("button", { name: /^编辑 / })).toHaveLength(2);
-  fireEvent.change(provider.getByLabelText("API Key", { exact: true }), { target: { value: "storybook-placeholder" } });
+  fireEvent.change(provider.getByLabelText("API Key", { exact: true }), {
+    target: { value: "storybook-placeholder" },
+  });
   const name = provider.getByLabelText("名称", { exact: true });
   expect(name).not.toHaveAttribute("readonly");
   fireEvent.change(name, { target: { value: "deepseek" } });
@@ -373,9 +407,9 @@ test("PresetDefaultsAndCustomReset", async () => {
   expect(provider.getByRole("button", { name: "保存" })).toBeEnabled();
   const environment = provider.getByLabelText("API Key 环境变量名（优先使用）");
   expect(environment).toHaveValue("DEEPSEEK_API_KEY");
-  expect(environment.compareDocumentPosition(provider.getByLabelText("API Key", { exact: true }))).toBe(
-    Node.DOCUMENT_POSITION_FOLLOWING,
-  );
+  expect(
+    environment.compareDocumentPosition(provider.getByLabelText("API Key", { exact: true })),
+  ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   fireEvent.change(environment, { target: { value: "MY_KEY" } });
   expect(environment).toHaveValue("MY_KEY");
   await userEvent.click(page.getByRole("button", { name: "DeepSeek" }));
@@ -467,7 +501,9 @@ test("ProviderNamesAreEditableAndUnique", async () => {
   await advanceTime(350);
   expect(page.queryByRole("dialog")).not.toBeInTheDocument();
   expect(page.getByText("我的 DeepSeek", { exact: true })).toBeVisible();
-  expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent("我的 DeepSeek/deepseek-chat");
+  expect(page.getByRole("button", { name: "默认模型" })).toHaveTextContent(
+    "我的 DeepSeek/deepseek-chat",
+  );
   expect(page.getByRole("button", { name: "我的 DeepSeek/deepseek-chat" })).toBeVisible();
 
   await userEvent.click(page.getAllByRole("button", { name: "修改" })[1]);
@@ -535,11 +571,15 @@ test("ThinkingPresetRoundTrip", async () => {
   expect(page.queryByRole("button", { name: "模型原有映射" })).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "低 / 中 / 高" }));
   await userEvent.click(page.getByRole("button", { name: "保存模型" }));
-  expect(within(page.getByRole("group", { name: "demo-text" })).getByText("深度思考")).toBeVisible();
+  expect(
+    within(page.getByRole("group", { name: "demo-text" })).getByText("深度思考"),
+  ).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "编辑 demo-text" }));
   expect(page.getByRole("button", { name: "深度思考" })).toHaveTextContent("低 / 中 / 高");
   await userEvent.click(page.getByRole("button", { name: "深度思考" }));
   await userEvent.click(page.getByRole("button", { name: "不支持推理" }));
   await userEvent.click(page.getByRole("button", { name: "保存模型" }));
-  expect(within(page.getByRole("group", { name: "demo-text" })).queryByText("深度思考")).not.toBeInTheDocument();
+  expect(
+    within(page.getByRole("group", { name: "demo-text" })).queryByText("深度思考"),
+  ).not.toBeInTheDocument();
 });

@@ -13,7 +13,9 @@ impl ClipboardBackend for SystemClipboard {
 
     fn change_count(&mut self) -> Result<i64> {
         #[cfg(target_os = "macos")]
-        return Ok(objc2::rc::autoreleasepool(|_| macos::get_clipboard_change_count()));
+        return Ok(objc2::rc::autoreleasepool(|_| {
+            macos::get_clipboard_change_count()
+        }));
         #[cfg(not(target_os = "macos"))]
         Err("Clipboard monitoring is currently supported on macOS only".into())
     }
@@ -31,7 +33,10 @@ impl ClipboardBackend for SystemClipboard {
             ClipboardData::Text(text) => macos::write_text(text),
             ClipboardData::Image { data, .. } => macos::write_image_from_png(data),
             ClipboardData::Files(paths) => {
-                if paths.iter().any(|path| !std::path::Path::new(path).exists()) {
+                if paths
+                    .iter()
+                    .any(|path| !std::path::Path::new(path).exists())
+                {
                     return Err("A clipboard file no longer exists".into());
                 }
                 macos::write_file_urls(&paths.iter().map(String::as_str).collect::<Vec<_>>())
@@ -85,7 +90,10 @@ mod macos {
         for item in pasteboard.pasteboardItems()? {
             if let Some(value) = item.stringForType(&file_type) {
                 if let Some(url) = NSURL::URLWithString_encodingInvalidCharacters(&value, false) {
-                    if let Some(path) = url.to_file_path().and_then(|path| path.to_str().map(str::to_owned)) {
+                    if let Some(path) = url
+                        .to_file_path()
+                        .and_then(|path| path.to_str().map(str::to_owned))
+                    {
                         paths.push(path);
                     }
                 }
@@ -105,7 +113,9 @@ mod macos {
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
             let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
-            writer.write_image_data(rgba).map_err(|error| error.to_string())?;
+            writer
+                .write_image_data(rgba)
+                .map_err(|error| error.to_string())?;
         }
         Ok(bytes)
     }
@@ -114,7 +124,9 @@ mod macos {
         let decoder = png::Decoder::new(std::io::Cursor::new(data));
         let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
         let mut bytes = vec![0; reader.output_buffer_size()];
-        let info = reader.next_frame(&mut bytes).map_err(|error| error.to_string())?;
+        let info = reader
+            .next_frame(&mut bytes)
+            .map_err(|error| error.to_string())?;
         // Captured images are encoded as RGBA8 above; never pass other layouts to arboard.
         if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
             return Err("Unsupported stored image pixel format".into());
@@ -159,8 +171,10 @@ mod macos {
         if items.is_empty() {
             return Err("No file paths".into());
         }
-        let refs: Vec<&ProtocolObject<dyn NSPasteboardWriting>> =
-            items.iter().map(|item| ProtocolObject::from_ref(&**item)).collect();
+        let refs: Vec<&ProtocolObject<dyn NSPasteboardWriting>> = items
+            .iter()
+            .map(|item| ProtocolObject::from_ref(&**item))
+            .collect();
         let objects = NSArray::from_slice(&refs);
         pasteboard.clearContents();
         if pasteboard.writeObjects(&objects) {

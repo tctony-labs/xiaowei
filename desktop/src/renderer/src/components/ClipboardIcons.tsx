@@ -24,9 +24,22 @@ export function ClipIcon({ size = 16 }: { size?: number }) {
 export function ImageIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <rect
+        x="1.5"
+        y="2.5"
+        width="13"
+        height="11"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
       <circle cx="5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1" />
-      <path d="M1.5 10.5l3.5-3 3 2.5 2-1.5 4.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path
+        d="M1.5 10.5l3.5-3 3 2.5 2-1.5 4.5 3"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -34,8 +47,21 @@ export function ImageIcon({ size = 16 }: { size?: number }) {
 export function FilesIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2.5 4.5V12a1.5 1.5 0 001.5 1.5h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <rect x="4.5" y="2" width="9" height="10.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M2.5 4.5V12a1.5 1.5 0 001.5 1.5h7"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <rect
+        x="4.5"
+        y="2"
+        width="9"
+        height="10.5"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
@@ -65,7 +91,12 @@ export function AddCircleIcon({ size = 16 }: { size?: number }) {
 export function EditIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M8.5 2.5l3 3M2 9l6.5-6.5 3 3L5 12H2V9z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+      <path
+        d="M8.5 2.5l3 3M2 9l6.5-6.5 3 3L5 12H2V9z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -141,7 +172,13 @@ export function ChevronIcon({ collapsed }: { collapsed: boolean }) {
       aria-hidden="true"
       className={`transition-transform ${collapsed ? "rotate-180" : ""}`}
     >
-      <path d="M4 6l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4 6l3 3 3-3"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -149,7 +186,11 @@ export function CopyIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <rect x="4.5" y="4.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.1" />
-      <path d="M9.5 4.5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v5.5a1 1 0 001 1h1.5" stroke="currentColor" strokeWidth="1.1" />
+      <path
+        d="M9.5 4.5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v5.5a1 1 0 001 1h1.5"
+        stroke="currentColor"
+        strokeWidth="1.1"
+      />
     </svg>
   );
 }
@@ -158,7 +199,13 @@ export function OpenFileMenuIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 18 18" fill="none" aria-hidden="true">
       <rect x="3" y="3" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M8 6h4v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M8 6h4v4"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path d="M12 6L7 11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
@@ -174,7 +221,12 @@ export function RevealMenuIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M2.5 7.5h13l-1.5 7H4z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path
+        d="M2.5 7.5h13l-1.5 7H4z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

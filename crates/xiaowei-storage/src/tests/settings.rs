@@ -4,8 +4,8 @@ use crate::{
 };
 use std::sync::{Arc, Mutex};
 use xw_contracts::xiaowei::storage::{
-    update_settings_request::Change, KvEntry, KvKey, ShortcutBinding, ShortcutConfiguration, ThemeMode,
-    UpdateSettingsRequest,
+    update_settings_request::Change, KvEntry, KvKey, ShortcutBinding, ShortcutConfiguration,
+    ThemeMode, UpdateSettingsRequest,
 };
 
 fn allow() -> Apply {
@@ -52,7 +52,10 @@ async fn old_per_key_values_keep_their_names_and_invalid_values_fall_back() {
     assert!(!snapshot.include_chrome_bookmarks);
     assert!(snapshot.clipboard_auto_paste);
     assert_eq!(snapshot.clipboard_retention_days, 30);
-    assert_eq!(snapshot.shortcuts.unwrap().main.unwrap().keys, ["Meta", "Space"]);
+    assert_eq!(
+        snapshot.shortcuts.unwrap().main.unwrap().keys,
+        ["Meta", "Space"]
+    );
 
     database.close().await;
     let reopened = Arc::new(Database::open(&path).await.unwrap());
@@ -64,13 +67,20 @@ async fn old_per_key_values_keep_their_names_and_invalid_values_fall_back() {
 #[tokio::test]
 async fn writes_one_validated_setting_and_rejects_failed_system_changes() {
     let directory = tempfile::tempdir().unwrap();
-    let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
+    let database = Arc::new(
+        Database::open(&directory.path().join("settings.sqlite"))
+            .await
+            .unwrap(),
+    );
     let applied = Arc::new(Mutex::new(Vec::new()));
     let calls = applied.clone();
     let apply: Apply = Arc::new(move |previous, next| {
         let calls = calls.clone();
         Box::pin(async move {
-            calls.lock().unwrap().push((previous.autostart, next.autostart));
+            calls
+                .lock()
+                .unwrap()
+                .push((previous.autostart, next.autostart));
             if next.autostart {
                 Err("login item unavailable".into())
             } else {
@@ -98,7 +108,10 @@ async fn writes_one_validated_setting_and_rejects_failed_system_changes() {
         })
         .await
         .is_err());
-    assert_eq!(applied.lock().unwrap().as_slice(), &[(false, true), (true, false)]);
+    assert_eq!(
+        applied.lock().unwrap().as_slice(),
+        &[(false, true), (true, false)]
+    );
     assert_eq!(settings.get().await.unwrap().autostart, false);
 
     let updated = settings
@@ -134,7 +147,11 @@ async fn writes_one_validated_setting_and_rejects_failed_system_changes() {
 #[tokio::test]
 async fn invalid_shortcuts_are_rejected_before_system_changes() {
     let directory = tempfile::tempdir().unwrap();
-    let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
+    let database = Arc::new(
+        Database::open(&directory.path().join("settings.sqlite"))
+            .await
+            .unwrap(),
+    );
     let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
 
     for keys in [
@@ -160,7 +177,15 @@ async fn invalid_shortcuts_are_rejected_before_system_changes() {
         ));
     }
     assert_eq!(
-        settings.get().await.unwrap().shortcuts.unwrap().main.unwrap().keys,
+        settings
+            .get()
+            .await
+            .unwrap()
+            .shortcuts
+            .unwrap()
+            .main
+            .unwrap()
+            .keys,
         ["Meta", "Space"]
     );
 
@@ -188,7 +213,10 @@ async fn quick_chat_defaults_and_saved_changes_survive_reopening() {
         let database = Arc::new(Database::open(&path).await.unwrap());
         let settings = SettingsService::with_apply(database.clone(), platform.into(), allow());
         let mut shortcuts = settings.get().await.unwrap().shortcuts.unwrap();
-        assert_eq!(shortcuts.quick_chat.as_ref().unwrap().keys, [modifier, "Shift", "KeyC"]);
+        assert_eq!(
+            shortcuts.quick_chat.as_ref().unwrap().keys,
+            [modifier, "Shift", "KeyC"]
+        );
 
         for binding in [
             Some(ShortcutBinding {
@@ -217,7 +245,11 @@ async fn quick_chat_defaults_and_saved_changes_survive_reopening() {
 #[tokio::test]
 async fn legacy_shortcuts_without_quick_chat_keep_their_bindings() {
     let directory = tempfile::tempdir().unwrap();
-    let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
+    let database = Arc::new(
+        Database::open(&directory.path().join("settings.sqlite"))
+            .await
+            .unwrap(),
+    );
     database
         .meta_set(KvEntry {
             key: "setting.shortcuts".into(),
@@ -253,7 +285,10 @@ async fn failed_save_restores_system_state_and_does_not_publish() {
     let apply: Apply = Arc::new(move |previous, next| {
         let calls = calls.clone();
         Box::pin(async move {
-            calls.lock().unwrap().push((previous.autostart, next.autostart));
+            calls
+                .lock()
+                .unwrap()
+                .push((previous.autostart, next.autostart));
             Ok(())
         })
     });
@@ -270,7 +305,10 @@ async fn failed_save_restores_system_state_and_does_not_publish() {
             .await,
         Err(SettingsError::Operation(_))
     ));
-    assert_eq!(applied.lock().unwrap().as_slice(), &[(false, true), (true, false)]);
+    assert_eq!(
+        applied.lock().unwrap().as_slice(),
+        &[(false, true), (true, false)]
+    );
     assert_eq!(*published.lock().unwrap(), 0);
     assert!(!settings.get().await.unwrap().autostart);
     assert_eq!(
@@ -290,7 +328,11 @@ async fn failed_save_restores_system_state_and_does_not_publish() {
 #[tokio::test]
 async fn concurrent_updates_keep_both_settings() {
     let directory = tempfile::tempdir().unwrap();
-    let database = Arc::new(Database::open(&directory.path().join("settings.sqlite")).await.unwrap());
+    let database = Arc::new(
+        Database::open(&directory.path().join("settings.sqlite"))
+            .await
+            .unwrap(),
+    );
     let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
     let (autostart, clipboard) = tokio::join!(
         settings.update(UpdateSettingsRequest {

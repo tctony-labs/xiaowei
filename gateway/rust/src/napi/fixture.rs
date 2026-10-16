@@ -55,8 +55,9 @@ impl Fixture {
         } else {
             &bindings::testing_peer_fixture_service::ECHO
         };
-        let configured = crate::binding::Method::<Envelope, Envelope>::new(method.name, MethodKind::Unary)
-            .with_options::<Envelope>();
+        let configured =
+            crate::binding::Method::<Envelope, Envelope>::new(method.name, MethodKind::Unary)
+                .with_options::<Envelope>();
         let mut registration = configured.handler(move |mut request, client| {
             let gate = gate.clone();
             let usage = usage.clone();
@@ -88,17 +89,22 @@ impl Fixture {
                     "options-relay" => {
                         let options = client.options::<Envelope>()?;
                         request.text = "options".into();
-                        return crate::binding::Method::<Envelope, Envelope>::new(other.name, MethodKind::Unary)
-                            .with_options::<Envelope>()
-                            .call(&client, request, options)
-                            .await;
+                        return crate::binding::Method::<Envelope, Envelope>::new(
+                            other.name,
+                            MethodKind::Unary,
+                        )
+                        .with_options::<Envelope>()
+                        .call(&client, request, options)
+                        .await;
                     }
                     "wait" => gate.notified().await,
                     "cancel-relay" => {
                         request.text = "wait".into();
                         return other.call(&client, request).await;
                     }
-                    "fail" => return Err(GatewayError::new(ErrorCode::HandlerError, "fixture failed")),
+                    "fail" => {
+                        return Err(GatewayError::new(ErrorCode::HandlerError, "fixture failed"));
+                    }
                     "relay" | "back" | "cycle" => {
                         request.text = match request.text.as_str() {
                             "relay" => "back",
@@ -126,7 +132,9 @@ impl Fixture {
         } else {
             vec![EventExportRegistration::typed::<Changed, Envelope, _>(
                 EventBackpressure::Ordered,
-                |payload, filter| filter.is_none_or(|f| payload.value.as_ref().is_some_and(|p| p.id >= f.id)),
+                |payload, filter| {
+                    filter.is_none_or(|f| payload.value.as_ref().is_some_and(|p| p.id >= f.id))
+                },
             )]
         };
         let stream_gate = release.clone();
@@ -140,13 +148,15 @@ impl Fixture {
                     // Test-only typed consumer; no production search dependency on LLM.
                     use xw_contracts::xiaowei::llm::{GenerateEvent, GenerateRequest};
                     let method =
-                        crate::binding::StreamMethod::<GenerateRequest, GenerateEvent>::new("xiaowei.llm.Llm.Generate");
-                    let payload = request
-                        .blobs
-                        .first()
-                        .ok_or_else(|| GatewayError::new(ErrorCode::InvalidArgument, "missing generation request"))?;
-                    let input = GenerateRequest::decode(payload.data.as_slice())
-                        .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid generation request"))?;
+                        crate::binding::StreamMethod::<GenerateRequest, GenerateEvent>::new(
+                            "xiaowei.llm.Llm.Generate",
+                        );
+                    let payload = request.blobs.first().ok_or_else(|| {
+                        GatewayError::new(ErrorCode::InvalidArgument, "missing generation request")
+                    })?;
+                    let input = GenerateRequest::decode(payload.data.as_slice()).map_err(|_| {
+                        GatewayError::new(ErrorCode::InvalidArgument, "invalid generation request")
+                    })?;
                     let stream = method.stream(&client, input).await?;
                     return Ok(Box::pin(stream.map(|item| {
                         item.map(|event| Changed {
@@ -159,7 +169,10 @@ impl Fixture {
                         })
                     }))
                         as std::pin::Pin<
-                            Box<dyn futures_util::Stream<Item = Result<Changed, GatewayError>> + Send>,
+                            Box<
+                                dyn futures_util::Stream<Item = Result<Changed, GatewayError>>
+                                    + Send,
+                            >,
                         >);
                 }
                 if let Some(text) = request.text.strip_prefix("relay-") {
@@ -171,7 +184,10 @@ impl Fixture {
                     };
                     return Ok(Box::pin(target.stream(&client, request).await?)
                         as std::pin::Pin<
-                            Box<dyn futures_util::Stream<Item = Result<Changed, GatewayError>> + Send>,
+                            Box<
+                                dyn futures_util::Stream<Item = Result<Changed, GatewayError>>
+                                    + Send,
+                            >,
                         >);
                 }
                 usage.active.fetch_add(1, Ordering::SeqCst);
@@ -180,7 +196,10 @@ impl Fixture {
                     gate.notified().await;
                 }
                 if request.text == "openfail" {
-                    return Err(GatewayError::new(ErrorCode::HandlerError, "fixture open failed"));
+                    return Err(GatewayError::new(
+                        ErrorCode::HandlerError,
+                        "fixture open failed",
+                    ));
                 }
                 Ok(Box::pin(futures_util::stream::try_unfold(
                     (request, 0u64, gate, guard),
@@ -193,7 +212,10 @@ impl Fixture {
                             gate.notified().await;
                         }
                         if request.text == "fail" && index == 1 {
-                            return Err(GatewayError::new(ErrorCode::HandlerError, "fixture stream failed"));
+                            return Err(GatewayError::new(
+                                ErrorCode::HandlerError,
+                                "fixture stream failed",
+                            ));
                         }
                         let mut value = request.clone();
                         value.id = index;

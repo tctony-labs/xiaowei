@@ -54,7 +54,10 @@ for (const format of ["openai", "anthropic"]) {
       server.close();
     });
     const fixture = await llmFixture(t);
-    const catalog = bindStreamClient(Llm, fixture.host.client({ caller: "catalog-test", trusted: true }));
+    const catalog = bindStreamClient(
+      Llm,
+      fixture.host.client({ caller: "catalog-test", trusted: true }),
+    );
     const open = (path) =>
       catalog.modelCatalog(
         create(ListModelsRequestSchema, {

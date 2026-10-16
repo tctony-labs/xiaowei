@@ -12,7 +12,9 @@ test("native binding returns structured results and isolates concurrent queries"
   await assert.rejects(search("a".repeat(4097)), /too long/);
 });
 
-test("icon API returns application PNG bytes", { skip: process.platform !== "darwin" }, async () => {
+test("icon API returns application PNG bytes", {
+  skip: process.platform !== "darwin",
+}, async () => {
   const finder = await readAppIcon("/System/Library/CoreServices/Finder.app");
   assert.ok(Buffer.isBuffer(finder));
   assert.deepEqual(finder.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));

@@ -51,7 +51,11 @@ export function QuickChatTransition({
           className="absolute inset-x-0 bottom-0 flex flex-col"
           style={{ top: expanded ? 0 : -chatHeight, transition: "top 300ms ease-out" }}
         >
-          <div className="shrink-0 overflow-hidden" style={{ height: chatHeight }} inert={!expanded}>
+          <div
+            className="shrink-0 overflow-hidden"
+            style={{ height: chatHeight }}
+            inert={!expanded}
+          >
             {showChat && children(animating)}
           </div>
           {showChat ? composer : search}

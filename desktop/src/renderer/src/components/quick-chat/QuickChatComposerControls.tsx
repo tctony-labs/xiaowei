@@ -27,7 +27,10 @@ export function QuickChatComposerControls(props: ComposerControlsProps) {
     label: reasoningLabels[value] ?? value,
   }));
   if (props.reasoning && !reasoningOptions.some((option) => option.value === props.reasoning)) {
-    reasoningOptions.push({ value: props.reasoning, label: reasoningLabels[props.reasoning] ?? props.reasoning });
+    reasoningOptions.push({
+      value: props.reasoning,
+      label: reasoningLabels[props.reasoning] ?? props.reasoning,
+    });
   }
   return (
     <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 px-4 py-1 text-xs text-muted">
@@ -50,13 +53,23 @@ export function QuickChatComposerControls(props: ComposerControlsProps) {
         value={props.reasoning ?? ""}
         options={reasoningOptions}
         placeholder="默认"
-        disabled={props.configSaving || props.supportedReasoning === undefined || reasoningOptions.length === 0}
+        disabled={
+          props.configSaving ||
+          props.supportedReasoning === undefined ||
+          reasoningOptions.length === 0
+        }
         onChange={(value) => props.onReasoningChange?.(value)}
         buttonClassName="quick-chat-config-chip"
         menuClassName="quick-chat-config-menu"
         showChevron={false}
         leadingIcon={
-          <svg className="size-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg
+            className="size-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

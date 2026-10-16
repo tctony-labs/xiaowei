@@ -6,7 +6,9 @@ import { SettingsPreview } from "./SettingsPreview";
 afterEach(cleanup);
 
 test("TestFailure", async () => {
-  const { container: canvasElement } = render(<SettingsPreview initialTab="agent" operationFailure />);
+  const { container: canvasElement } = render(
+    <SettingsPreview initialTab="agent" operationFailure />,
+  );
   const canvas = within(canvasElement);
   await userEvent.click(canvas.getByRole("button", { name: "测试" }));
   await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("操作失败"));
@@ -26,7 +28,9 @@ test("DeleteKey", async () => {
   render(<SettingsPreview initialTab="agent" searchConfigured initialSearchEditor="tavily" />);
   const page = within(document.body);
   await userEvent.click(page.getByRole("button", { name: "删除 Key" }));
-  await expect(page.getByRole("dialog", { name: "删除 API Key" })).toHaveTextContent("自动切回 Bing");
+  await expect(page.getByRole("dialog", { name: "删除 API Key" })).toHaveTextContent(
+    "自动切回 Bing",
+  );
 });
 
 test("DeleteAndFallback", async () => {

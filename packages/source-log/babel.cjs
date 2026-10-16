@@ -30,7 +30,10 @@ module.exports = function sourceLocationBabelPlugin({ types: t }) {
         const call = getLogCall(path);
         if (!call) return;
         path.node.callee = t.cloneNode(state.sourceHelper);
-        path.node.arguments.unshift(t.stringLiteral(call.method), t.stringLiteral(`${state.sourcePath}:${call.line}`));
+        path.node.arguments.unshift(
+          t.stringLiteral(call.method),
+          t.stringLiteral(`${state.sourcePath}:${call.line}`),
+        );
         state.hasSourceCalls = true;
       },
     },

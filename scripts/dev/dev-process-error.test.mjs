@@ -14,7 +14,8 @@ for (const state of ["?E", "Z", "S", "foreign", "mixed", "stuck", "empty", "unav
       if (state === "unavailable") throw new Error("ps unavailable");
       if (state === "empty") return "";
       if (state === "foreign") return `12346 1 ${group} ${process.getuid() + 1} ?E\n`;
-      if (state === "mixed") return `12346 1 ${group} ${process.getuid()} ?E\n12347 1 ${group} 0 S\n`;
+      if (state === "mixed")
+        return `12346 1 ${group} ${process.getuid()} ?E\n12347 1 ${group} 0 S\n`;
       return `12346 1 ${group} ${process.getuid()} ${state === "stuck" ? "?E" : state}\n`;
     });
     syncBuiltinESMExports();
@@ -31,7 +32,11 @@ for (const state of ["?E", "Z", "S", "foreign", "mixed", "stuck", "empty", "unav
       const code = probes === 1 || state === "stuck" ? "EPERM" : "ESRCH";
       throw Object.assign(new Error(`kill ${code}`), { code });
     });
-    const result = stopProcessGroup({ pid: group }, Promise.resolve(), state === "stuck" ? -5000 : 5000);
+    const result = stopProcessGroup(
+      { pid: group },
+      Promise.resolve(),
+      state === "stuck" ? -5000 : 5000,
+    );
     if (state === "stuck") {
       await assert.rejects(result, /开发应用进程组未退出/);
     } else if (["S", "foreign", "mixed", "unavailable"].includes(state)) {

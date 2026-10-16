@@ -2,7 +2,11 @@ import { generateKeyPairSync } from "node:crypto";
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { generateAppcast } from "./generate-appcast.mjs";
-import { localUpdateDirectory, localUpdateName, localUpdateOrigin } from "./local-update-config.mjs";
+import {
+  localUpdateDirectory,
+  localUpdateName,
+  localUpdateOrigin,
+} from "./local-update-config.mjs";
 import { packageMac } from "./package-mac.mjs";
 import { desktopDirectory, releaseVersion } from "./sparkle.mjs";
 
@@ -51,7 +55,9 @@ try {
   console.info(`Local test packages ready: ${oldVersion} -> ${newVersion}`);
   console.info("Start the update source: pnpm --dir desktop update:mac:serve");
   console.info(`Launch the installed test app yourself: ${installedApp}`);
-  console.info("These isolated ad-hoc packages use a temporary test key and must not be publicly distributed");
+  console.info(
+    "These isolated ad-hoc packages use a temporary test key and must not be publicly distributed",
+  );
 } finally {
   seed.fill(0);
 }

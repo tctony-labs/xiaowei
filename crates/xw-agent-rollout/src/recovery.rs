@@ -46,7 +46,12 @@ pub(crate) fn read_and_repair(
         entries.push(entry);
     }
     // Empty complete lines are corruption too, not padding to skip.
-    if bytes[..committed].iter().filter(|byte| **byte == b'\n').count() != entries.len() {
+    if bytes[..committed]
+        .iter()
+        .filter(|byte| **byte == b'\n')
+        .count()
+        != entries.len()
+    {
         return Err(RolloutError::InvalidHistory);
     }
     validate_history(&entries)?;
@@ -64,11 +69,16 @@ pub(crate) fn read_and_repair(
         } else {
             return Err(RolloutError::InvalidHistory);
         }
-    } else if serde_json::from_slice::<serde_json::Value>(tail).is_err_and(|error| !error.is_eof()) {
+    } else if serde_json::from_slice::<serde_json::Value>(tail).is_err_and(|error| !error.is_eof())
+    {
         return Err(RolloutError::InvalidHistory);
     }
-    let diagnostic_path = path.with_extension(format!("jsonl.tail-{}", xw_agent_types::EntryId::new()));
-    let mut diagnostic = OpenOptions::new().write(true).create_new(true).open(&diagnostic_path)?;
+    let diagnostic_path =
+        path.with_extension(format!("jsonl.tail-{}", xw_agent_types::EntryId::new()));
+    let mut diagnostic = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&diagnostic_path)?;
     diagnostic.write_all(tail)?;
     diagnostic.sync_all()?;
     file.set_len(committed as u64)?;

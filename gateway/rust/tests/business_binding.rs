@@ -10,6 +10,11 @@ fn business_bindings_match_descriptors() {
             .join(module.name)
             .join("src/gateway_binding.rs");
         let actual = std::fs::read_to_string(path).unwrap();
-        assert_eq!(generator::generate(module.services).unwrap(), actual, "{}", module.name);
+        assert_eq!(
+            generator::generate(module.services).unwrap(),
+            actual,
+            "{}",
+            module.name
+        );
     }
 }

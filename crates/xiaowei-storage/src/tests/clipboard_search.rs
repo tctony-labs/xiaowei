@@ -31,7 +31,11 @@ async fn search(dao: &ClipboardDao, query: &str) -> Vec<u64> {
 #[tokio::test]
 async fn phrases_prefixes_filters_and_recency_are_applied_before_pagination() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Arc::new(Database::open(&temp.path().join("db.sqlite")).await.unwrap());
+    let db = Arc::new(
+        Database::open(&temp.path().join("db.sqlite"))
+            .await
+            .unwrap(),
+    );
     let dao = ClipboardDao::new(db.clone());
     let phrase = capture(&dao, "Office使用指南 备注关键词", 0).await;
     assert_eq!(search(&dao, "备注关键词").await, vec![phrase]);
@@ -42,12 +46,21 @@ async fn phrases_prefixes_filters_and_recency_are_applied_before_pagination() {
     assert_eq!(search(&dao, "微信 alpha bet").await, vec![second, first]);
     assert_eq!(search(&dao, "ALPHA bet").await, vec![second, first]);
     assert_eq!(search(&dao, "lpha").await, Vec::<u64>::new());
-    for query in ["\"", "!!!", "' OR 1=1 --", "NEAR(alpha)", "alpha OR missing"] {
+    for query in [
+        "\"",
+        "!!!",
+        "' OR 1=1 --",
+        "NEAR(alpha)",
+        "alpha OR missing",
+    ] {
         assert!(search(&dao, query).await.is_empty(), "{query}");
     }
     let quoted = capture(&dao, "say \"hello\"", 4).await;
     assert_eq!(search(&dao, "\"hello\"").await, vec![quoted]);
-    assert_eq!(search(&dao, " \t ").await, vec![quoted, other, second, first, phrase]);
+    assert_eq!(
+        search(&dao, " \t ").await,
+        vec![quoted, other, second, first, phrase]
+    );
 
     let category = dao
         .save_category(pb::SaveCategoryRequest {
@@ -106,14 +119,21 @@ async fn phrases_prefixes_filters_and_recency_are_applied_before_pagination() {
     })
     .await
     .unwrap();
-    assert_eq!(search(&dao, "alpha bet").await, vec![first, file.id, second]);
+    assert_eq!(
+        search(&dao, "alpha bet").await,
+        vec![first, file.id, second]
+    );
     db.close().await;
 }
 
 #[tokio::test]
 async fn remarks_edits_merges_and_deletes_keep_the_index_in_sync() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Arc::new(Database::open(&temp.path().join("db.sqlite")).await.unwrap());
+    let db = Arc::new(
+        Database::open(&temp.path().join("db.sqlite"))
+            .await
+            .unwrap(),
+    );
     let dao = ClipboardDao::new(db.clone());
     let source = capture(&dao, "original", 1).await;
     let target = capture(&dao, "destination", 2).await;
@@ -153,7 +173,9 @@ async fn remarks_edits_merges_and_deletes_keep_the_index_in_sync() {
     .await
     .unwrap();
     assert!(search(&dao, "计划").await.is_empty());
-    dao.delete(pb::ClipboardItemRequest { id: target }).await.unwrap();
+    dao.delete(pb::ClipboardItemRequest { id: target })
+        .await
+        .unwrap();
     assert!(search(&dao, "destination").await.is_empty());
     capture(&dao, "temporary", 5).await;
     dao.clear_history_batch(Empty {}).await.unwrap();
@@ -205,7 +227,11 @@ async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
     use xw_gateway::{CallContext, ErrorCode, XwInvokeRegistry};
 
     let temp = tempfile::tempdir().unwrap();
-    let db = Arc::new(Database::open(&temp.path().join("db.sqlite")).await.unwrap());
+    let db = Arc::new(
+        Database::open(&temp.path().join("db.sqlite"))
+            .await
+            .unwrap(),
+    );
     let dao = Arc::new(ClipboardDao::new(db.clone()));
     let best = capture(&dao, "needle", 1).await;
     let long_text = format!("{}needle {}", "before ".repeat(70), "after ".repeat(70));
@@ -232,7 +258,10 @@ async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
         .hits;
     assert_eq!(hits.len(), 2);
     assert_eq!(hits[0].entity.as_ref().unwrap().id, best);
-    let fragment = hits.iter().find(|hit| hit.entity.as_ref().unwrap().id == long).unwrap();
+    let fragment = hits
+        .iter()
+        .find(|hit| hit.entity.as_ref().unwrap().id == long)
+        .unwrap();
     assert_eq!(
         fragment.entity.as_ref().unwrap().text.as_deref(),
         Some(long_text.as_str())
@@ -280,7 +309,11 @@ async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
         },
     ] {
         assert_eq!(
-            methods::SEARCH.call(&client, request).await.unwrap_err().code,
+            methods::SEARCH
+                .call(&client, request)
+                .await
+                .unwrap_err()
+                .code,
             ErrorCode::InvalidArgument
         );
     }

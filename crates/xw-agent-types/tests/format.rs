@@ -58,7 +58,8 @@ fn all_nested_objects_reject_unknown_fields_and_malformed_shapes_without_leaking
                     // Optional object values may legitimately become explicit null.
                     if malformed.is_null()
                         && path.last().is_some_and(|key| {
-                            ["usage", "cost", "error", "selection", "capabilities"].contains(&key.as_str())
+                            ["usage", "cost", "error", "selection", "capabilities"]
+                                .contains(&key.as_str())
                         })
                     {
                         continue;
@@ -88,13 +89,14 @@ fn only_first_record_is_session_header_and_config_has_no_ui_or_host_state() {
         }
         if value["payload"]["type"] == "meta" {
             let keys = value["payload"]["data"].as_object().unwrap();
-            assert!(
-                keys.keys()
-                    .all(|key| { ["model_ref", "reasoning", "provider_name", "model_name"].contains(&key.as_str()) })
-            );
+            assert!(keys.keys().all(|key| {
+                ["model_ref", "reasoning", "provider_name", "model_name"].contains(&key.as_str())
+            }));
         }
         assert_ne!(value["payload"]["type"], "context_defined");
-        if value["payload"]["type"] == "gen_started" && value["payload"]["data"]["purpose"]["type"] == "conversation" {
+        if value["payload"]["type"] == "gen_started"
+            && value["payload"]["data"]["purpose"]["type"] == "conversation"
+        {
             assert!(value["payload"]["data"].get("context").is_none());
         }
     }
@@ -130,7 +132,10 @@ fn header_is_immutable_and_initial_meta_must_precede_other_records() {
 
 #[test]
 fn user_body_and_tool_arguments_are_recorded_once_and_terminal_statistics_are_shared() {
-    let stored: Vec<Value> = TOOLS.lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+    let stored: Vec<Value> = TOOLS
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
     for row in stored {
         let data = &row["payload"]["data"];
         match row["payload"]["type"].as_str().unwrap() {
@@ -193,9 +198,17 @@ fn version_dispatch_is_header_only_and_redundant_later_headers_are_rejected() {
 fn duplicate_keys_unknown_tags_and_extra_unit_variant_data_are_rejected() {
     let header = TEXT.lines().next().unwrap();
     let meta = TEXT.lines().nth(1).unwrap();
-    let duplicate = header.replacen("\"schema_version\":2", "\"schema_version\":2,\"schema_version\":2", 1);
+    let duplicate = header.replacen(
+        "\"schema_version\":2",
+        "\"schema_version\":2,\"schema_version\":2",
+        1,
+    );
     assert!(decode_entry(&duplicate, &[]).is_err());
-    let duplicate = meta.replacen("\"model_ref\":", "\"model_ref\":\"secret\",\"model_ref\":", 1);
+    let duplicate = meta.replacen(
+        "\"model_ref\":",
+        "\"model_ref\":\"secret\",\"model_ref\":",
+        1,
+    );
     assert!(decode_entry(&duplicate, &decode_history(TEXT).unwrap()[..1]).is_err());
     let mut entry: Value = serde_json::from_str(meta).unwrap();
     entry["payload"]["type"] = json!("secret-unknown-kind");
@@ -262,7 +275,10 @@ fn raw_provider_json_large_integers_and_finite_float_bits_survive_replay() {
         let EntryPayload::RunStarted(run) = restored.payload else {
             unreachable!()
         };
-        assert_eq!(run.context.generation.temperature.unwrap().to_bits(), sample.to_bits());
+        assert_eq!(
+            run.context.generation.temperature.unwrap().to_bits(),
+            sample.to_bits()
+        );
     }
 }
 
@@ -291,7 +307,12 @@ fn recovery_keeps_unknown_gen_end_time_and_partial_statistics_without_guessing()
     end.reasoning_duration_ms = None;
     let encoded = encode_history(&history).unwrap();
     let stored: Value = serde_json::from_str(encoded.lines().last().unwrap()).unwrap();
-    assert!(stored["payload"]["data"].get("ended_at_ms").unwrap().is_null());
+    assert!(
+        stored["payload"]["data"]
+            .get("ended_at_ms")
+            .unwrap()
+            .is_null()
+    );
     assert_eq!(decode_history(&encoded).unwrap(), history);
 }
 
@@ -301,7 +322,10 @@ fn field_order_does_not_change_domain_values() {
         let history = decode_history(fixture).unwrap();
         for (index, line) in fixture.lines().enumerate() {
             let sorted = serde_json::from_str::<Value>(line).unwrap().to_string();
-            assert_eq!(decode_entry(&sorted, &history[..index]).unwrap(), history[index]);
+            assert_eq!(
+                decode_entry(&sorted, &history[..index]).unwrap(),
+                history[index]
+            );
         }
     }
 }

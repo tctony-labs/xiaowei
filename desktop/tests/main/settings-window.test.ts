@@ -20,7 +20,12 @@ class FakeWindow extends EventEmitter {
 
   constructor(bounds: Rectangle) {
     super();
-    this.bounds = { x: bounds.x ?? 0, y: bounds.y ?? 0, width: bounds.width, height: bounds.height };
+    this.bounds = {
+      x: bounds.x ?? 0,
+      y: bounds.y ?? 0,
+      width: bounds.width,
+      height: bounds.height,
+    };
   }
 
   static getFocusedWindow() {

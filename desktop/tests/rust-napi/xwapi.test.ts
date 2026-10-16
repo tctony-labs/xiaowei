@@ -2,8 +2,21 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { test } from "node:test";
-import { create, type DescMethodUnary, fromBinary, type MessageShape, toBinary } from "@bufbuild/protobuf";
-import { Auth, EmptySchema, ErrorCode, Health, LoginRequestSchema, RefreshRequestSchema } from "xiaowei-contracts";
+import {
+  create,
+  type DescMethodUnary,
+  fromBinary,
+  type MessageShape,
+  toBinary,
+} from "@bufbuild/protobuf";
+import {
+  Auth,
+  EmptySchema,
+  ErrorCode,
+  Health,
+  LoginRequestSchema,
+  RefreshRequestSchema,
+} from "xiaowei-contracts";
 import { methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi, type RustNapiEndpoint } from "xiaowei-gateway/rust-napi";
@@ -47,13 +60,20 @@ test("Rust napi caller reaches all xwapi methods with PB and rejects missing acc
       Auth.method.login,
       create(LoginRequestSchema, {
         deviceId: randomUUID(),
-        credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+        credential: {
+          case: "password",
+          value: { email: "user@example.test", password: "  sample  " },
+        },
       }),
     );
     assert.equal(login.code, 0);
     const count = server.state.requests.length;
     assert.equal((await call(Auth.method.getCurrentUser, empty)).code, ErrorCode.UNAUTHENTICATED);
-    assert.equal(server.state.requests.length, count, "raw Login does not commit local credentials");
+    assert.equal(
+      server.state.requests.length,
+      count,
+      "raw Login does not commit local credentials",
+    );
 
     const refreshed = await call(
       Auth.method.refresh,
@@ -63,7 +83,10 @@ test("Rust napi caller reaches all xwapi methods with PB and rejects missing acc
     assert.ok(server.state.requests.every((request) => request.bearer === undefined));
     // The caller explicitly provides its updated session to the host-side context source.
     context = { server: server.url, session: { server: server.url, ...server.state.tokens } };
-    assert.equal((await call(Auth.method.getCurrentUser, empty)).data?.sessionId, server.state.tokens.sessionId);
+    assert.equal(
+      (await call(Auth.method.getCurrentUser, empty)).data?.sessionId,
+      server.state.tokens.sessionId,
+    );
     assert.equal((await call(Auth.method.logout, empty)).code, 0);
     assert.equal(server.state.requests.at(-1)?.bearer, `Bearer ${server.state.tokens.accessToken}`);
   } finally {

@@ -50,7 +50,11 @@ async function setup(t) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   };
   const host = new GatewayHost();
-  const owner = await attachLlm(host, [model], new URL("../../out/main/llm-worker.js", import.meta.url));
+  const owner = await attachLlm(
+    host,
+    [model],
+    new URL("../../out/main/llm-worker.js", import.meta.url),
+  );
   t.after(() => owner.close());
   const client = bindStreamClient(Llm, host.client({ caller: "websocket-test", trusted: true }));
   const request = (messages, options = {}) =>
@@ -61,7 +65,8 @@ async function setup(t) {
     });
   const collect = async (messages, options) => {
     const result = [];
-    for await (const event of await client.generate(request(messages, options))) result.push(event.event);
+    for await (const event of await client.generate(request(messages, options)))
+      result.push(event.event);
     return result;
   };
   return { fixture, model, owner, client, request, collect };
@@ -73,7 +78,11 @@ test("built worker reuses Responses sockets through Gateway and configuration up
   assert.equal(first.at(-1).case, "finished");
   const assistant = first.at(-1).value.message;
   assert.equal(assistant.api, "openai-responses");
-  const second = await collect([user("one"), { message: { case: "assistant", value: assistant } }, user("two")]);
+  const second = await collect([
+    user("one"),
+    { message: { case: "assistant", value: assistant } },
+    user("two"),
+  ]);
   assert.equal(second.at(-1).case, "finished");
   assert.equal(fixture.connections, 1);
   assert.equal(fixture.frames[1].body.previous_response_id, "resp_test");

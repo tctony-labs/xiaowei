@@ -2,7 +2,11 @@ import { MessageChannel, Worker } from "node:worker_threads";
 import { GatewayHost } from "../../src/core/registry.js";
 import { attachWorker } from "../../src/main/worker.js";
 
-export async function workerFixture(options: Record<string, unknown> = {}, host = new GatewayHost(), name = "worker") {
+export async function workerFixture(
+  options: Record<string, unknown> = {},
+  host = new GatewayHost(),
+  name = "worker",
+) {
   const channel = new MessageChannel();
   const events: string[] = [];
   const waiters = new Map<string, (() => void)[]>();

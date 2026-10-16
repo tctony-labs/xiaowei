@@ -18,10 +18,14 @@ fn validate_registry(migrations: &[sql::DatabaseMigration]) -> Result<()> {
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'_')
             || !names.insert(&migration.name)
         {
-            return Err(invalid("Migration names must be unique YYYYMMDDHHmmss_description"));
+            return Err(invalid(
+                "Migration names must be unique YYYYMMDDHHmmss_description",
+            ));
         }
         if migration.up.is_empty() || migration.down.is_empty() {
-            return Err(invalid("Each migration requires explicit up and down statements"));
+            return Err(invalid(
+                "Each migration requires explicit up and down statements",
+            ));
         }
     }
     Ok(())
@@ -41,12 +45,16 @@ async fn states(
         let key = format!("{PREFIX}{}", migration.name);
         let applied = stored.iter().find(|(name, _)| name == &key);
         if missing && applied.is_some() {
-            return Err(invalid("Applied migrations are not a prefix of the supplied registry"));
+            return Err(invalid(
+                "Applied migrations are not a prefix of the supplied registry",
+            ));
         }
         missing |= applied.is_none();
         result.push(sql::DatabaseMigrationState {
             name: migration.name.clone(),
-            applied_at_seconds: applied.map(|(_, value)| serde_json::from_str(value)).transpose()?,
+            applied_at_seconds: applied
+                .map(|(_, value)| serde_json::from_str(value))
+                .transpose()?,
         });
     }
     Ok(sql::DatabaseMigrationStates { states: result })
@@ -93,7 +101,10 @@ impl Database {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn rollback(&self, request: sql::DatabaseRollback) -> Result<sql::DatabaseMigrationStates> {
+    pub(crate) async fn rollback(
+        &self,
+        request: sql::DatabaseRollback,
+    ) -> Result<sql::DatabaseMigrationStates> {
         validate_registry(&request.migrations)?;
         let mut transaction = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let current = states(&mut transaction, &request.migrations).await?;
@@ -103,7 +114,9 @@ impl Database {
             .rev()
             .find(|state| state.applied_at_seconds.is_some());
         if last.map(|state| state.name.as_str()) != Some(request.name.as_str()) {
-            return Err(invalid("Only the last applied migration can be rolled back"));
+            return Err(invalid(
+                "Only the last applied migration can be rolled back",
+            ));
         }
         let migration = request
             .migrations
@@ -123,7 +136,10 @@ impl Database {
     }
 }
 
-async fn execute_statements(connection: &mut SqliteConnection, statements: &[String]) -> Result<()> {
+async fn execute_statements(
+    connection: &mut SqliteConnection,
+    statements: &[String],
+) -> Result<()> {
     let mut budget = Budget::default();
     for sql in statements {
         let statement = sql::SqlStatement {

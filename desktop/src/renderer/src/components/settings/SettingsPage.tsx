@@ -51,13 +51,15 @@ export function SettingsPage({
     let revision = 0;
 
     void (async () => {
-      const handle = await services.getGateway().subscribe(SettingsChangedSchema.typeName, undefined, (bytes) => {
-        const next = fromBinary(SettingsChangedSchema, bytes).snapshot;
-        if (!active || !next) return;
-        revision += 1;
-        setSnapshot(next);
-        applyTheme(next.theme);
-      });
+      const handle = await services
+        .getGateway()
+        .subscribe(SettingsChangedSchema.typeName, undefined, (bytes) => {
+          const next = fromBinary(SettingsChangedSchema, bytes).snapshot;
+          if (!active || !next) return;
+          revision += 1;
+          setSnapshot(next);
+          applyTheme(next.theme);
+        });
       if (!active) {
         handle.close();
         return;
@@ -186,7 +188,11 @@ export function SettingsPage({
             accountSection={<AccountSettingsSection services={services} />}
             onChange={(values) => {
               if (values.theme !== themeValue(snapshot.theme)) {
-                const theme = { system: ThemeMode.SYSTEM, light: ThemeMode.LIGHT, dark: ThemeMode.DARK }[values.theme];
+                const theme = {
+                  system: ThemeMode.SYSTEM,
+                  light: ThemeMode.LIGHT,
+                  dark: ThemeMode.DARK,
+                }[values.theme];
                 void update({ case: "theme", value: theme });
               } else if (values.autostart !== snapshot.autostart) {
                 void update({ case: "autostart", value: values.autostart });
@@ -283,7 +289,11 @@ export function SettingsPage({
         >
           {error}
           {!snapshot && (
-            <button type="button" className="ml-3 text-primary-text" onClick={() => window.location.reload()}>
+            <button
+              type="button"
+              className="ml-3 text-primary-text"
+              onClick={() => window.location.reload()}
+            >
               重试
             </button>
           )}

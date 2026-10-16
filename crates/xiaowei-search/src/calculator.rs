@@ -9,7 +9,11 @@ const PHI: f64 = 1.618_033_988_749_895;
 /// 为兼容常见大小写写法，同时注册小写与大写两种标识符。
 fn build_context() -> HashMapContext {
     let mut ctx = HashMapContext::new();
-    for (name, value) in [("pi", std::f64::consts::PI), ("e", std::f64::consts::E), ("phi", PHI)] {
+    for (name, value) in [
+        ("pi", std::f64::consts::PI),
+        ("e", std::f64::consts::E),
+        ("phi", PHI),
+    ] {
         let _ = ctx.set_value(name.to_string(), Value::Float(value));
         let _ = ctx.set_value(name.to_uppercase(), Value::Float(value));
     }
@@ -105,7 +109,10 @@ mod tests {
 
     #[test]
     fn calculator_constants_in_expression() {
-        assert_eq!(try_evaluate("2*pi"), Some((2.0 * std::f64::consts::PI).to_string()));
+        assert_eq!(
+            try_evaluate("2*pi"),
+            Some((2.0 * std::f64::consts::PI).to_string())
+        );
     }
 
     #[test]

@@ -7,7 +7,11 @@ pub const LARGE_TEXT_THRESHOLD: usize = 9999;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardData {
     Text(String),
-    Image { data: Vec<u8>, width: u32, height: u32 },
+    Image {
+        data: Vec<u8>,
+        width: u32,
+        height: u32,
+    },
     Files(Vec<String>),
 }
 
@@ -26,7 +30,11 @@ impl ClipboardData {
         hash.update(self.kind());
         match self {
             Self::Text(text) => hash.update(text.as_bytes()),
-            Self::Image { data, width, height } => {
+            Self::Image {
+                data,
+                width,
+                height,
+            } => {
                 hash.update(width.to_le_bytes());
                 hash.update(height.to_le_bytes());
                 hash.update(data);
@@ -45,7 +53,11 @@ impl ClipboardData {
         match self {
             Self::Text(text) => text.trim().is_empty(),
             Self::Files(paths) => paths.is_empty(),
-            Self::Image { data, width, height } => data.is_empty() || *width == 0 || *height == 0,
+            Self::Image {
+                data,
+                width,
+                height,
+            } => data.is_empty() || *width == 0 || *height == 0,
         }
     }
 }

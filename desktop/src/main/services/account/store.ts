@@ -56,7 +56,9 @@ export class AccountStore {
       if (!document.servers.includes(DEFAULT_SERVER)) {
         document.servers.push(DEFAULT_SERVER);
         if (!document.selectedServer) document.selectedServer = DEFAULT_SERVER;
-        await this.meta.set(create(KvEntrySchema, { key: "account.config", json: JSON.stringify(document) }));
+        await this.meta.set(
+          create(KvEntrySchema, { key: "account.config", json: JSON.stringify(document) }),
+        );
         console.info("Default account server added to settings");
       }
       this.configuration = JSON.stringify(document);
@@ -67,7 +69,10 @@ export class AccountStore {
       if (value.version !== 1 || typeof value.server !== "string" || !value.authenticated) {
         throw new Error("Invalid auth document");
       }
-      document.session = { server: value.server, authenticated: fromJson(AuthenticatedSchema, value.authenticated) };
+      document.session = {
+        server: value.server,
+        authenticated: fromJson(AuthenticatedSchema, value.authenticated),
+      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw new AccountError(ErrorCode.INTERNAL_ERROR, "登录态无法读取，请检查本地 auth.json");
@@ -81,7 +86,9 @@ export class AccountStore {
       const value = JSON.parse(contents);
       if (
         value.version !== 1 ||
-        !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(value.deviceId) ||
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+          value.deviceId,
+        ) ||
         !Array.isArray(value.servers) ||
         typeof value.selectedServer !== "string"
       )
@@ -94,9 +101,17 @@ export class AccountStore {
       ) {
         throw new Error("Invalid server selection");
       }
-      return { version: 1, deviceId: value.deviceId, servers, selectedServer: value.selectedServer };
+      return {
+        version: 1,
+        deviceId: value.deviceId,
+        servers,
+        selectedServer: value.selectedServer,
+      };
     } catch {
-      throw new AccountError(ErrorCode.INTERNAL_ERROR, "账号配置无法读取，请检查数据库 meta 中的 account.config");
+      throw new AccountError(
+        ErrorCode.INTERNAL_ERROR,
+        "账号配置无法读取，请检查数据库 meta 中的 account.config",
+      );
     }
   }
 

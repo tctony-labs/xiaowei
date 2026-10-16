@@ -99,7 +99,12 @@ impl SearchEngine {
                 .collect();
             #[cfg(target_os = "macos")]
             items.extend(settings::catalog_items());
-            items.sort_by(|a, b| a.entry.name.cmp(&b.entry.name).then(a.entry.path.cmp(&b.entry.path)));
+            items.sort_by(|a, b| {
+                a.entry
+                    .name
+                    .cmp(&b.entry.name)
+                    .then(a.entry.path.cmp(&b.entry.path))
+            });
             let mut seen = HashSet::new();
             items.retain(|item| seen.insert(item.stable_key.clone()));
             if let Ok(mut index) = app_index.write() {
@@ -155,7 +160,12 @@ impl SearchEngine {
         self.search_with_options(query, development, true)
     }
 
-    pub fn search_with_options(&self, query: &str, development: bool, include_bookmarks: bool) -> Vec<SearchHit> {
+    pub fn search_with_options(
+        &self,
+        query: &str,
+        development: bool,
+        include_bookmarks: bool,
+    ) -> Vec<SearchHit> {
         let query = query.trim();
         if query.is_empty() || query.len() > 4096 {
             return Vec::new();
@@ -186,15 +196,24 @@ impl SearchEngine {
         if let Ok(items) = self.apps.read() {
             for item in items.iter() {
                 let entry = &item.entry;
-                let base = std::iter::once(entry.name.as_str()).chain(entry.aliases.iter().map(String::as_str));
-                if let Some(score) = scorer.best(base, item.pinyin_haystacks.iter().map(String::as_str)) {
+                let base = std::iter::once(entry.name.as_str())
+                    .chain(entry.aliases.iter().map(String::as_str));
+                if let Some(score) =
+                    scorer.best(base, item.pinyin_haystacks.iter().map(String::as_str))
+                {
                     let (label, action) = if entry.kind == AppKind::PreferencePane {
                         (
                             "系统设置",
-                            Action::OpenUrl(format!("x-apple.systempreferences:{}", entry.bundle_id)),
+                            Action::OpenUrl(format!(
+                                "x-apple.systempreferences:{}",
+                                entry.bundle_id
+                            )),
                         )
                     } else {
-                        ("应用", Action::LaunchApp(entry.path.to_string_lossy().into_owned()))
+                        (
+                            "应用",
+                            Action::LaunchApp(entry.path.to_string_lossy().into_owned()),
+                        )
                     };
                     hits.push(SearchHit {
                         id: format!("app:{}", item.stable_key),
@@ -210,7 +229,8 @@ impl SearchEngine {
             }
         }
         // Each provider selects its top 20 by base match before recency weighting.
-        let (mut bookmarks, mut apps): (Vec<_>, Vec<_>) = hits.into_iter().partition(|hit| hit.provider == "bookmark");
+        let (mut bookmarks, mut apps): (Vec<_>, Vec<_>) =
+            hits.into_iter().partition(|hit| hit.provider == "bookmark");
         for provider in [&mut bookmarks, &mut apps] {
             provider.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.title.cmp(&b.title)));
             provider.truncate(20);

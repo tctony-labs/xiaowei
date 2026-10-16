@@ -33,7 +33,10 @@ let received: unknown;
 let receivedAgentRoot: unknown;
 let modelDefaultPath: unknown;
 let modelEnv: unknown;
-const models = { path: join(directory, "models.json"), document: { version: 1, providers: [], defaults: {} } };
+const models = {
+  path: join(directory, "models.json"),
+  document: { version: 1, providers: [], defaults: {} },
+};
 let created = false;
 const noop = () => {};
 const originalConsole = { ...console };
@@ -140,7 +143,10 @@ test("bootstrap injects startup models and stops before gateway creation on conf
           : join(directory, "module-root");
         assert.equal(modelDefaultPath, join(expectedAgentRoot, "models.json"));
         assert.equal(receivedAgentRoot, fail ? undefined : expectedAgentRoot);
-        assert.equal(userData, join(directory, local ? "com.tctony.xiaowei.local-update" : "com.tctony.xiaowei"));
+        assert.equal(
+          userData,
+          join(directory, local ? "com.tctony.xiaowei.local-update" : "com.tctony.xiaowei"),
+        );
         if (local) assert.deepEqual(modelEnv, {});
         app.emit("before-quit", { preventDefault: noop });
         app.emit("will-quit");
@@ -155,10 +161,12 @@ test("bootstrap injects startup models and stops before gateway creation on conf
   } finally {
     Object.assign(console, originalConsole);
     for (const listener of process.listeners("uncaughtExceptionMonitor")) {
-      if (!beforeMonitor.includes(listener)) process.removeListener("uncaughtExceptionMonitor", listener);
+      if (!beforeMonitor.includes(listener))
+        process.removeListener("uncaughtExceptionMonitor", listener);
     }
     for (const listener of process.listeners("unhandledRejection")) {
-      if (!beforeRejection.includes(listener)) process.removeListener("unhandledRejection", listener);
+      if (!beforeRejection.includes(listener))
+        process.removeListener("unhandledRejection", listener);
     }
     await rm(directory, { recursive: true, force: true });
   }

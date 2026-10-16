@@ -31,7 +31,11 @@ export default function WorkspaceIcon({ isWiki, isHome, className }: WorkspaceIc
     return (
       <svg {...common} aria-label="home">
         <title>home</title>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 11l9-8 9 8M5 9.5V21h4v-6h6v6h4V9.5" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 11l9-8 9 8M5 9.5V21h4v-6h6v6h4V9.5"
+        />
       </svg>
     );
   }

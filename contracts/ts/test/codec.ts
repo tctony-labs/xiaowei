@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { create, fromBinary, fromJson, type JsonValue, toBinary } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture, LoginRequestSchema, LoginResponseSchema } from "xiaowei-contracts";
+import {
+  ChangedSchema,
+  EnvelopeSchema,
+  Fixture,
+  LoginRequestSchema,
+  LoginResponseSchema,
+} from "xiaowei-contracts";
 import { runCodec } from "./codec-process.ts";
 
 const [rust, go] = process.argv.slice(2);
@@ -20,7 +26,10 @@ const cases = [
   { name: "empty envelope", value: create(EnvelopeSchema) },
   {
     name: "uint64 above JS precision",
-    value: create(EnvelopeSchema, { id: 9007199254740993n, value: { case: "stringValue", value: "增量" } }),
+    value: create(EnvelopeSchema, {
+      id: 9007199254740993n,
+      value: { case: "stringValue", value: "增量" },
+    }),
   },
   {
     name: "optional empty label and null",
@@ -33,11 +42,15 @@ const cases = [
       id: 18446744073709551615n,
       label: "present",
       value: { case: "stringValue", value: "" },
-      blobs: [{ data: new Uint8Array([0, 255, 128]) }, { data: new Uint8Array(2 * 1024 * 1024).fill(197) }],
+      blobs: [
+        { data: new Uint8Array([0, 255, 128]) },
+        { data: new Uint8Array(2 * 1024 * 1024).fill(197) },
+      ],
     }),
   },
 ];
-const routeName = (path: string[]) => path.map((bin) => (bin === rust ? "Rust" : "Go")).join(" -> ");
+const routeName = (path: string[]) =>
+  path.map((bin) => (bin === rust ? "Rust" : "Go")).join(" -> ");
 
 for (const { name, value } of cases) {
   const bytes = toBinary(EnvelopeSchema, value);
@@ -82,7 +95,8 @@ for (const [name, token] of [
     [go, rust],
   ]) {
     const bytes = order.reduce(
-      (data, bin) => runCodec(bin, data, { args: ["login-request"], caseName: `${name}, ${routeName(order)}` }),
+      (data, bin) =>
+        runCodec(bin, data, { args: ["login-request"], caseName: `${name}, ${routeName(order)}` }),
       toBinary(LoginRequestSchema, request),
     );
     assert.deepEqual(fromBinary(LoginRequestSchema, bytes), request);
@@ -141,4 +155,6 @@ assert.throws(() =>
     data: { authenticated: {}, binding_required: {} },
   }),
 );
-console.log("Login codec checks passed: oneof results, password credentials, optional binding token and JSON.");
+console.log(
+  "Login codec checks passed: oneof results, password credentials, optional binding token and JSON.",
+);

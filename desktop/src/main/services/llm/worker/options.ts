@@ -11,7 +11,9 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
     invalid("temperature must be between 0 and 2");
   if (
     request.maxTokens !== undefined &&
-    (!Number.isInteger(request.maxTokens) || request.maxTokens < 1 || request.maxTokens > config.maxTokens)
+    (!Number.isInteger(request.maxTokens) ||
+      request.maxTokens < 1 ||
+      request.maxTokens > config.maxTokens)
   )
     invalid("max tokens exceeds configured limit");
   const options = request.options;
@@ -24,11 +26,13 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
   };
   if (!options) return { simple: true, options: common as SimpleStreamOptions };
   if (options.cacheRetention !== undefined) {
-    if (!["none", "short", "long"].includes(options.cacheRetention)) invalid("invalid cache retention");
+    if (!["none", "short", "long"].includes(options.cacheRetention))
+      invalid("invalid cache retention");
     common.cacheRetention = options.cacheRetention as StreamOptions["cacheRetention"];
   }
   if (options.transport !== undefined) {
-    if (!["sse", "websocket", "websocket-cached", "auto"].includes(options.transport)) invalid("invalid transport");
+    if (!["sse", "websocket", "websocket-cached", "auto"].includes(options.transport))
+      invalid("invalid transport");
     common.transport = options.transport as StreamOptions["transport"];
   }
   common.sessionId = options.sessionId;
@@ -42,7 +46,8 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
       ...common.samplingParams,
       ...(json(options.samplingParamsJson, true) as Record<string, unknown>),
     };
-  if (options.metadataJson !== undefined) common.metadata = json(options.metadataJson, true) as Record<string, unknown>;
+  if (options.metadataJson !== undefined)
+    common.metadata = json(options.metadataJson, true) as Record<string, unknown>;
   if (options.apiOptionsJson !== undefined) {
     if (
       options.reasoning !== undefined ||
@@ -54,7 +59,13 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
     const allowed: Record<ResolvedModelConfig["api"], readonly string[]> = {
       "openai-completions": ["toolChoice", "reasoningEffort", "thinkingBudgets"],
       "openai-responses": ["toolChoice", "reasoningEffort", "reasoningSummary", "serviceTier"],
-      "openai-codex-responses": ["toolChoice", "reasoningEffort", "reasoningSummary", "serviceTier", "textVerbosity"],
+      "openai-codex-responses": [
+        "toolChoice",
+        "reasoningEffort",
+        "reasoningSummary",
+        "serviceTier",
+        "textVerbosity",
+      ],
       "azure-openai-responses": [
         "toolChoice",
         "reasoningEffort",
@@ -85,16 +96,22 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
       "mistral-conversations": ["toolChoice", "promptMode", "reasoningEffort"],
       "pi-messages": ["toolChoice", "reasoning", "debug"],
     };
-    if (Object.keys(extra).some((key) => !allowed[config.api].includes(key))) invalid("unsupported API option");
+    if (Object.keys(extra).some((key) => !allowed[config.api].includes(key)))
+      invalid("unsupported API option");
     for (const [key, value] of Object.entries(extra)) {
       if (["thinkingEnabled", "interleavedThinking", "debug"].includes(key)) {
         if (typeof value !== "boolean") invalid("invalid API boolean option");
       } else if (key === "thinkingBudgetTokens") {
-        if (!Number.isSafeInteger(value) || (value as number) < 1) invalid("invalid thinking budget");
+        if (!Number.isSafeInteger(value) || (value as number) < 1)
+          invalid("invalid thinking budget");
       } else if (["thinking", "thinkingBudgets", "requestMetadata"].includes(key)) {
-        if (!value || typeof value !== "object" || Array.isArray(value)) invalid("invalid API object option");
+        if (!value || typeof value !== "object" || Array.isArray(value))
+          invalid("invalid API object option");
       } else if (key === "toolChoice") {
-        if (typeof value !== "string" && (!value || typeof value !== "object" || Array.isArray(value)))
+        if (
+          typeof value !== "string" &&
+          (!value || typeof value !== "object" || Array.isArray(value))
+        )
           invalid("invalid tool choice");
       } else if (key === "reasoningSummary" && value === null) {
       } else if (typeof value !== "string") invalid("invalid API string option");
@@ -105,16 +122,21 @@ export function toOptions(request: GenerateRequest, config: ResolvedModelConfig)
   if (options.reasoning !== undefined) {
     if (!["off", "minimal", "low", "medium", "high", "xhigh", "max"].includes(options.reasoning))
       invalid("invalid reasoning level");
-    if (options.reasoning !== "off" && !config.reasoning) invalid("model does not support reasoning");
+    if (options.reasoning !== "off" && !config.reasoning)
+      invalid("model does not support reasoning");
     simple.reasoning =
-      options.reasoning === "off" ? undefined : (options.reasoning as SimpleStreamOptions["reasoning"]);
+      options.reasoning === "off"
+        ? undefined
+        : (options.reasoning as SimpleStreamOptions["reasoning"]);
   }
   if (options.thinkingBudgetsJson !== undefined) {
     const budgets = json(options.thinkingBudgetsJson, true) as Record<string, unknown>;
     if (
       Object.entries(budgets).some(
         ([key, value]) =>
-          !["minimal", "low", "medium", "high"].includes(key) || !Number.isSafeInteger(value) || (value as number) < 1,
+          !["minimal", "low", "medium", "high"].includes(key) ||
+          !Number.isSafeInteger(value) ||
+          (value as number) < 1,
       )
     )
       invalid("invalid thinking budgets");

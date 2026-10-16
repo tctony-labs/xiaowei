@@ -73,10 +73,22 @@ async fn images_and_file_paths_persist_without_loading_image_bytes_in_lists() {
 async fn literal_search_pagination_and_clear_protect_favorites() {
     let dir = tempfile::tempdir().unwrap();
     let store = open_store(dir.path()).await.unwrap();
-    assert!(store.capture(&ClipboardData::Text(" \n".into())).await.is_err());
-    let first = store.capture(&ClipboardData::Text("100%_中文".into())).await.unwrap();
-    store.capture(&ClipboardData::Text("other".into())).await.unwrap();
-    store.set_favorite(first.id.parse().unwrap(), true).await.unwrap();
+    assert!(store
+        .capture(&ClipboardData::Text(" \n".into()))
+        .await
+        .is_err());
+    let first = store
+        .capture(&ClipboardData::Text("100%_中文".into()))
+        .await
+        .unwrap();
+    store
+        .capture(&ClipboardData::Text("other".into()))
+        .await
+        .unwrap();
+    store
+        .set_favorite(first.id.parse().unwrap(), true)
+        .await
+        .unwrap();
     let mut filter = options();
     filter.query = "%_中".into();
     assert_eq!(store.list(&filter).await.unwrap()[0].id, first.id);
@@ -88,7 +100,14 @@ async fn literal_search_pagination_and_clear_protect_favorites() {
     filter.offset = 1;
     assert_ne!(store.list(&filter).await.unwrap()[0].id, newest);
     assert_eq!(store.clear_history().await.unwrap(), 1);
-    assert!(store.get(first.id.parse().unwrap()).await.unwrap().unwrap().favorite);
+    assert!(
+        store
+            .get(first.id.parse().unwrap())
+            .await
+            .unwrap()
+            .unwrap()
+            .favorite
+    );
     filter.limit = 101;
     assert!(store.list(&filter).await.is_err());
 }
@@ -97,7 +116,10 @@ async fn literal_search_pagination_and_clear_protect_favorites() {
 async fn ordinary_purge_protects_favorites_remarks_and_categories_and_releases_attachments() {
     let dir = tempfile::tempdir().unwrap();
     let store = open_store(dir.path()).await.unwrap();
-    let ordinary = store.capture(&ClipboardData::Text("ordinary".into())).await.unwrap();
+    let ordinary = store
+        .capture(&ClipboardData::Text("ordinary".into()))
+        .await
+        .unwrap();
     let image = store
         .capture(&ClipboardData::Image {
             data: vec![1, 2, 3],
@@ -107,20 +129,42 @@ async fn ordinary_purge_protects_favorites_remarks_and_categories_and_releases_a
         .await
         .unwrap();
     let image_path = image.image_path.unwrap();
-    let favorite = store.capture(&ClipboardData::Text("favorite".into())).await.unwrap();
-    let remarked = store.capture(&ClipboardData::Text("remarked".into())).await.unwrap();
-    let categorized = store.capture(&ClipboardData::Text("categorized".into())).await.unwrap();
+    let favorite = store
+        .capture(&ClipboardData::Text("favorite".into()))
+        .await
+        .unwrap();
+    let remarked = store
+        .capture(&ClipboardData::Text("remarked".into()))
+        .await
+        .unwrap();
+    let categorized = store
+        .capture(&ClipboardData::Text("categorized".into()))
+        .await
+        .unwrap();
     let category = store.save_category(None, "work", "#112233").await.unwrap();
-    store.set_favorite(favorite.id.parse().unwrap(), true).await.unwrap();
-    store.set_remark(remarked.id.parse().unwrap(), "keep").await.unwrap();
     store
-        .set_category(categorized.id.parse().unwrap(), Some(category.id.parse().unwrap()))
+        .set_favorite(favorite.id.parse().unwrap(), true)
+        .await
+        .unwrap();
+    store
+        .set_remark(remarked.id.parse().unwrap(), "keep")
+        .await
+        .unwrap();
+    store
+        .set_category(
+            categorized.id.parse().unwrap(),
+            Some(category.id.parse().unwrap()),
+        )
         .await
         .unwrap();
 
     assert_eq!(store.purge_ordinary_before(0).await.unwrap(), 0);
     assert_eq!(store.purge_ordinary_before(i64::MAX).await.unwrap(), 2);
-    assert!(store.get(ordinary.id.parse().unwrap()).await.unwrap().is_none());
+    assert!(store
+        .get(ordinary.id.parse().unwrap())
+        .await
+        .unwrap()
+        .is_none());
     assert!(!std::path::Path::new(&image_path).exists());
     for item in [favorite, remarked, categorized] {
         assert!(store.get(item.id.parse().unwrap()).await.unwrap().is_some());
@@ -174,7 +218,9 @@ impl ClipboardBackend for Fake {
 async fn polling_deduplicates_and_copy_does_not_count_itself_twice() {
     let dir = tempfile::tempdir().unwrap();
     let clipboard = Fake::default();
-    let service = open_service(dir.path(), clipboard.clone(), || {}).await.unwrap();
+    let service = open_service(dir.path(), clipboard.clone(), || {})
+        .await
+        .unwrap();
     clipboard.set("one");
     assert!(service.poll_once().await.unwrap());
     let item = service.list(&options()).await.unwrap().remove(0);
@@ -202,7 +248,9 @@ async fn capture_retries_failures_and_inconsistent_snapshots() {
     let dir = tempfile::tempdir().unwrap();
     let clipboard = Fake::default();
     clipboard.set("retry");
-    let service = open_service(dir.path(), clipboard.clone(), || {}).await.unwrap();
+    let service = open_service(dir.path(), clipboard.clone(), || {})
+        .await
+        .unwrap();
     clipboard.0.lock().unwrap().fail_read = true;
     assert!(service.poll_once().await.is_err());
     {
@@ -256,7 +304,9 @@ async fn monitoring_is_idempotent_and_stops_cleanly() {
     service.stop().await.unwrap();
     service.stop().await.unwrap();
     clipboard.set("after-stop");
-    assert!(rx.recv_timeout(std::time::Duration::from_millis(600)).is_err());
+    assert!(rx
+        .recv_timeout(std::time::Duration::from_millis(600))
+        .is_err());
     assert_eq!(service.list(&options()).await.unwrap().len(), 1);
 }
 
@@ -278,7 +328,10 @@ async fn kind_filter_runs_before_pagination_and_composes_with_favorites() {
     assert_eq!(store.list(&filter).await.unwrap()[0].id, file.id);
     filter.favorites_only = true;
     assert!(store.list(&filter).await.unwrap().is_empty());
-    store.set_favorite(file.id.parse().unwrap(), true).await.unwrap();
+    store
+        .set_favorite(file.id.parse().unwrap(), true)
+        .await
+        .unwrap();
     assert_eq!(store.list(&filter).await.unwrap()[0].id, file.id);
     filter.query = "a.pdf".into();
     assert_eq!(store.list(&filter).await.unwrap().len(), 1);
@@ -292,8 +345,14 @@ async fn kind_filter_runs_before_pagination_and_composes_with_favorites() {
 async fn metadata_categories_editing_and_merge_persist() {
     let dir = tempfile::tempdir().unwrap();
     let store = open_store(dir.path()).await.unwrap();
-    let source = store.capture(&ClipboardData::Text("source".into())).await.unwrap();
-    let target = store.capture(&ClipboardData::Text("target".into())).await.unwrap();
+    let source = store
+        .capture(&ClipboardData::Text("source".into()))
+        .await
+        .unwrap();
+    let target = store
+        .capture(&ClipboardData::Text("target".into()))
+        .await
+        .unwrap();
     let source_id = source.id.parse().unwrap();
     let target_id = target.id.parse().unwrap();
     let category = store.save_category(None, "工作", "#F5222D").await.unwrap();
@@ -301,7 +360,10 @@ async fn metadata_categories_editing_and_merge_persist() {
     store.set_remark(source_id, "来源备注").await.unwrap();
     store.set_remark(target_id, "目标备注").await.unwrap();
     store.set_favorite(source_id, true).await.unwrap();
-    store.set_category(source_id, Some(category_id)).await.unwrap();
+    store
+        .set_category(source_id, Some(category_id))
+        .await
+        .unwrap();
     let mut filter = options();
     filter.category_id = Some(category.id.clone());
     filter.query = "来源备注".into();
@@ -324,18 +386,33 @@ async fn metadata_categories_editing_and_merge_persist() {
         store.data(target_id).await.unwrap(),
         ClipboardData::Text("target".into())
     );
-    store.save_category(Some(category_id), "项目", "#1677FF").await.unwrap();
+    store
+        .save_category(Some(category_id), "项目", "#1677FF")
+        .await
+        .unwrap();
     drop(store);
     let store = open_store(dir.path()).await.unwrap();
     assert_eq!(store.categories().await.unwrap()[0].name, "项目");
-    assert_eq!(store.get(target_id).await.unwrap().unwrap().remark, merged.remark);
+    assert_eq!(
+        store.get(target_id).await.unwrap().unwrap().remark,
+        merged.remark
+    );
     store.delete_category(category_id).await.unwrap();
     let retained = store.get(target_id).await.unwrap().unwrap();
     assert!(retained.category_id.is_none());
     assert!(retained.favorite);
-    assert!(store.set_category(target_id, Some(category_id)).await.is_err());
+    assert!(store
+        .set_category(target_id, Some(category_id))
+        .await
+        .is_err());
     store.set_remark(target_id, "").await.unwrap();
-    assert!(store.get(target_id).await.unwrap().unwrap().remark.is_none());
+    assert!(store
+        .get(target_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .remark
+        .is_none());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -379,7 +456,11 @@ async fn client(directory: &std::path::Path) -> xw_gateway::invoke::Client {
     );
     let registry = xw_gateway::XwInvokeRegistry::new();
     registry
-        .register_owner("storage", xiaowei_storage::gateway::registrations(&db), vec![])
+        .register_owner(
+            "storage",
+            xiaowei_storage::gateway::registrations(&db),
+            vec![],
+        )
         .unwrap();
     registry
         .register_owner(
@@ -404,7 +485,13 @@ async fn open_service(
     backend: impl ClipboardBackend,
     on_change: impl Fn() + Send + Sync + 'static,
 ) -> Result<Service> {
-    let service = Service::open(directory, directory, client(directory).await, backend, on_change)?;
+    let service = Service::open(
+        directory,
+        directory,
+        client(directory).await,
+        backend,
+        on_change,
+    )?;
     service.initialize().await?;
     Ok(service)
 }
@@ -414,7 +501,10 @@ async fn long_text_attachments_follow_edits_merges_and_deletion() {
     let dir = tempfile::tempdir().unwrap();
     let store = open_store(dir.path()).await.unwrap();
     let text = format!("{}tail-only-keyword", "中".repeat(4000));
-    let first = store.capture(&ClipboardData::Text(text.clone())).await.unwrap();
+    let first = store
+        .capture(&ClipboardData::Text(text.clone()))
+        .await
+        .unwrap();
     let id = first.id.parse().unwrap();
     let path = first.text_path.clone().unwrap();
     assert_eq!(std::fs::read_to_string(&path).unwrap(), text);
@@ -426,9 +516,15 @@ async fn long_text_attachments_follow_edits_merges_and_deletion() {
     assert!(!std::path::Path::new(&path).exists());
     let restored = store.edit_text(id, text.clone()).await.unwrap();
     assert_eq!(restored.kind, "largeText");
-    assert_eq!(store.data(id).await.unwrap(), ClipboardData::Text(text.clone()));
+    assert_eq!(
+        store.data(id).await.unwrap(),
+        ClipboardData::Text(text.clone())
+    );
     let second_text = "new long text".repeat(1000);
-    let second = store.capture(&ClipboardData::Text(second_text.clone())).await.unwrap();
+    let second = store
+        .capture(&ClipboardData::Text(second_text.clone()))
+        .await
+        .unwrap();
     store.set_favorite(id, true).await.unwrap();
     let merged = store.edit_text(id, second_text).await.unwrap();
     assert_eq!(merged.id, second.id);
@@ -444,13 +540,19 @@ async fn long_text_attachments_follow_edits_merges_and_deletion() {
 async fn attachment_write_failure_does_not_change_record_and_missing_file_is_explicit() {
     let dir = tempfile::tempdir().unwrap();
     let store = open_store(dir.path()).await.unwrap();
-    let initial = store.capture(&ClipboardData::Text("short".into())).await.unwrap();
+    let initial = store
+        .capture(&ClipboardData::Text("short".into()))
+        .await
+        .unwrap();
     let id = initial.id.parse().unwrap();
     let text_dir = dir.path().join("large_text");
     std::fs::remove_dir(&text_dir).unwrap();
     std::fs::write(&text_dir, b"blocks directory").unwrap();
     assert!(store.edit_text(id, "long".repeat(4000)).await.is_err());
-    assert_eq!(store.data(id).await.unwrap(), ClipboardData::Text("short".into()));
+    assert_eq!(
+        store.data(id).await.unwrap(),
+        ClipboardData::Text("short".into())
+    );
     std::fs::remove_file(&text_dir).unwrap();
     std::fs::create_dir(&text_dir).unwrap();
     let long = store.edit_text(id, "long".repeat(4000)).await.unwrap();

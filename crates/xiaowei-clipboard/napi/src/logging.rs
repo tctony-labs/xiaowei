@@ -11,7 +11,8 @@ pub struct NativeLogEntry {
     pub line: Option<u32>,
 }
 
-type LogCallback = ThreadsafeFunction<NativeLogEntry, (), NativeLogEntry, napi::Status, false, true, 1024>;
+type LogCallback =
+    ThreadsafeFunction<NativeLogEntry, (), NativeLogEntry, napi::Status, false, true, 1024>;
 
 #[napi(ts_args_type = "development: boolean, callback: (entry: NativeLogEntry) => void")]
 pub fn initialize_logging(development: bool, callback: Arc<LogCallback>) -> napi::Result<()> {

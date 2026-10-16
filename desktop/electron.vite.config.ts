@@ -14,12 +14,20 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: fileURLToPath(new URL("./src/main/index.ts", import.meta.url)),
-          "llm-worker": fileURLToPath(new URL("./src/main/services/llm/worker/index.ts", import.meta.url)),
+          "llm-worker": fileURLToPath(
+            new URL("./src/main/services/llm/worker/index.ts", import.meta.url),
+          ),
         },
         output: { format: "es", entryFileNames: "[name].js" },
       },
       externalizeDeps: {
-        include: ["xiaowei-agent", "xiaowei-search", "xiaowei-clipboard", "xiaowei-storage", "xiaowei-platform"],
+        include: [
+          "xiaowei-agent",
+          "xiaowei-search",
+          "xiaowei-clipboard",
+          "xiaowei-storage",
+          "xiaowei-platform",
+        ],
         exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],
       },
     },
@@ -43,7 +51,10 @@ export default defineConfig({
         name: "development-csp",
         apply: "serve",
         transformIndexHtml: (html) =>
-          html.replace("script-src 'self'", "script-src 'self' 'unsafe-inline'; worker-src 'self' blob:"),
+          html.replace(
+            "script-src 'self'",
+            "script-src 'self' 'unsafe-inline'; worker-src 'self' blob:",
+          ),
       },
     ],
     server: { host: "127.0.0.1", watch: { usePolling: true, interval: 100 } },

@@ -1,6 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,8 +20,10 @@ import { ensureProtocGenGo } from "./ensure-protoc-gen-go.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(root, "..");
 const check = process.argv.includes("--check");
-if (process.argv.slice(2).some((arg) => arg !== "--check")) throw new Error("Usage: generate.mjs [--check]");
-const run = (cmd, args, options = {}) => execFileSync(cmd, args, { cwd: workspace, stdio: "inherit", ...options });
+if (process.argv.slice(2).some((arg) => arg !== "--check"))
+  throw new Error("Usage: generate.mjs [--check]");
+const run = (cmd, args, options = {}) =>
+  execFileSync(cmd, args, { cwd: workspace, stdio: "inherit", ...options });
 const protoc = ensureProtoc();
 const protocGenGo = ensureProtocGenGo();
 const protocGenEs = ensureProtocGenEs();
@@ -20,7 +31,9 @@ const protocGenEs = ensureProtocGenEs();
 function files(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true })
-    .flatMap((entry) => (entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name)]))
+    .flatMap((entry) =>
+      entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name)],
+    )
     .sort();
 }
 
@@ -100,10 +113,19 @@ try {
   if (selected.ts.length) {
     run(
       protoc,
-      [...includes, `--plugin=protoc-gen-es=${protocGenEs}`, `--es_out=${ts}`, "--es_opt=target=ts", ...selected.ts],
+      [
+        ...includes,
+        `--plugin=protoc-gen-es=${protocGenEs}`,
+        `--es_out=${ts}`,
+        "--es_opt=target=ts",
+        ...selected.ts,
+      ],
       {
         // @typescript/vfs probes localStorage on import; this CLI does not use Web Storage.
-        env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --no-experimental-webstorage` },
+        env: {
+          ...process.env,
+          NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --no-experimental-webstorage`,
+        },
       },
     );
   }
@@ -115,7 +137,9 @@ try {
       `--plugin=protoc-gen-go=${protocGenGo}`,
       `--go_out=${go}`,
       "--go_opt=paths=source_relative",
-      ...selected.go.map((file) => `--go_opt=M${file}=${posix.join(goModule, "gen", dirname(file))}`),
+      ...selected.go.map(
+        (file) => `--go_opt=M${file}=${posix.join(goModule, "gen", dirname(file))}`,
+      ),
       ...selected.go,
     ]);
   }
@@ -162,7 +186,8 @@ try {
       cpSync(source, destination, { recursive: true });
     }
   }
-  if (drift.length) throw new Error(`Stale contracts; run pnpm contracts:generate:\n${drift.join("\n")}`);
+  if (drift.length)
+    throw new Error(`Stale contracts; run pnpm contracts:generate:\n${drift.join("\n")}`);
   // Do not cache a check if its inputs or outputs changed while generators were running.
   if (check && checkFingerprint() === fingerprint) {
     mkdirSync(dirname(cachePath), { recursive: true });

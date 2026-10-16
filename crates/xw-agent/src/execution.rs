@@ -4,8 +4,8 @@ use prost::Message;
 use tokio::sync::mpsc;
 use xw_agent_runtime::{GenerationRequest, RunRequest, RunStatus, execute_text};
 use xw_agent_types::{
-    AgentMessage as ModelMessage, BlockId, ContentBlock, GenId, InputId, MessageId, RunId, SessionId, TurnId,
-    UserMessage,
+    AgentMessage as ModelMessage, BlockId, ContentBlock, GenId, InputId, MessageId, RunId,
+    SessionId, TurnId, UserMessage,
 };
 
 use crate::{
@@ -93,7 +93,11 @@ impl AgentService {
         if session.requests.len() >= 1024 {
             return Err(AgentError::ResourceExhausted("run identities"));
         }
-        let retained_request_bytes = session.requests.values().map(Message::encoded_len).sum::<usize>();
+        let retained_request_bytes = session
+            .requests
+            .values()
+            .map(Message::encoded_len)
+            .sum::<usize>();
         if session.view.encoded_len()
             + request
                 .input
@@ -108,7 +112,8 @@ impl AgentService {
         {
             return Err(AgentError::ResourceExhausted("display history"));
         }
-        let handle = tokio::runtime::Handle::try_current().map_err(|_| AgentError::ExecutionUnavailable)?;
+        let handle =
+            tokio::runtime::Handle::try_current().map_err(|_| AgentError::ExecutionUnavailable)?;
         if request.config.is_none() && session.view.config.as_ref() != Some(&config) {
             return Err(AgentError::Conflict("session config changed"));
         }
@@ -149,9 +154,13 @@ impl AgentService {
         });
         let mut history = session.history.clone();
         history.push(user);
-        let history_bytes = serde_json::to_vec(&history).map_err(|_| AgentError::Internal)?.len();
+        let history_bytes = serde_json::to_vec(&history)
+            .map_err(|_| AgentError::Internal)?
+            .len();
         if history_bytes + retained_request_bytes + request.encoded_len() > MAX_HISTORY_BYTES {
-            return Err(AgentError::ResourceExhausted("model history and input identities"));
+            return Err(AgentError::ResourceExhausted(
+                "model history and input identities",
+            ));
         }
         let run = AgentRun {
             run_id: run_id.to_string(),
@@ -162,7 +171,10 @@ impl AgentService {
                 .as_ref()
                 .map(|info| info.provider_name.clone())
                 .unwrap_or_default(),
-            model_name: queried.as_ref().map(|info| info.model_name.clone()).unwrap_or_default(),
+            model_name: queried
+                .as_ref()
+                .map(|info| info.model_name.clone())
+                .unwrap_or_default(),
             started_at_ms,
             items: vec![AgentItem {
                 item_id: BlockId::new().to_string(),
@@ -208,7 +220,10 @@ impl AgentService {
             &request,
             source,
             &execution,
-            run.items[0].item_id.parse().map_err(|_| AgentError::Internal)?,
+            run.items[0]
+                .item_id
+                .parse()
+                .map_err(|_| AgentError::Internal)?,
             descriptor,
         ) {
             session.failed_run = Some(run_id);
@@ -231,7 +246,9 @@ impl AgentService {
         let title_model_ref = session.view.title_model_ref.clone();
         Self::publish(
             &mut state,
-            event(agent_event::Payload::SessionModelInfoWarningUpdated(warning)),
+            event(agent_event::Payload::SessionModelInfoWarningUpdated(
+                warning,
+            )),
         );
         Self::publish(
             &mut state,
@@ -419,8 +436,12 @@ fn event(payload: agent_event::Payload) -> AgentEvent {
 
 fn display_item(item_id: String, block: &ContentBlock) -> Option<AgentItem> {
     let content = match block {
-        ContentBlock::Text { text, .. } => agent_item::Content::AgentMessage(AgentMessage { text: text.clone() }),
-        ContentBlock::Thinking { text, .. } => agent_item::Content::Reasoning(AgentReasoning { text: text.clone() }),
+        ContentBlock::Text { text, .. } => {
+            agent_item::Content::AgentMessage(AgentMessage { text: text.clone() })
+        }
+        ContentBlock::Thinking { text, .. } => {
+            agent_item::Content::Reasoning(AgentReasoning { text: text.clone() })
+        }
         _ => return None,
     };
     Some(AgentItem {
@@ -436,10 +457,22 @@ fn project_update(
     blocks: &mut BTreeMap<u32, (String, ContentBlock)>,
 ) -> Vec<agent_event::Payload> {
     let (index, delta, thinking, replacement) = match update {
-        GenerationEvent::TextDelta { content_index, text } => (content_index, Some(text), false, None),
-        GenerationEvent::ThinkingDelta { content_index, text } => (content_index, Some(text), true, None),
-        GenerationEvent::BlockStarted { content_index, block }
-        | GenerationEvent::BlockFinished { content_index, block } => (
+        GenerationEvent::TextDelta {
+            content_index,
+            text,
+        } => (content_index, Some(text), false, None),
+        GenerationEvent::ThinkingDelta {
+            content_index,
+            text,
+        } => (content_index, Some(text), true, None),
+        GenerationEvent::BlockStarted {
+            content_index,
+            block,
+        }
+        | GenerationEvent::BlockFinished {
+            content_index,
+            block,
+        } => (
             content_index,
             None,
             matches!(block, ContentBlock::Thinking { .. }),
@@ -479,7 +512,9 @@ fn project_update(
     }
     if let Some(delta) = delta {
         match block {
-            ContentBlock::Text { text, .. } | ContentBlock::Thinking { text, .. } => text.push_str(&delta),
+            ContentBlock::Text { text, .. } | ContentBlock::Thinking { text, .. } => {
+                text.push_str(&delta)
+            }
             _ => return events,
         }
         if thinking {

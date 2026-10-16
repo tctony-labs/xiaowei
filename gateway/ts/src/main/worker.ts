@@ -58,12 +58,19 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
     exited = true;
     failed();
   };
-  const callback = async (command: Command, accept: (timeoutMs: number) => void): Promise<unknown> => {
+  const callback = async (
+    command: Command,
+    accept: (timeoutMs: number) => void,
+  ): Promise<unknown> => {
     if (!ready || closed) throw unavailable();
     if (command.op === "invoke.cancel") return rpcs.cancel(command);
-    if (command.op === "stream.next" || command.op === "stream.cancel") return streams.control(command);
+    if (command.op === "stream.next" || command.op === "stream.cancel")
+      return streams.control(command);
     if (command.op !== "invoke" && command.op !== "stream.open")
-      throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "unsupported worker callback" });
+      throw new GatewayFailure({
+        code: "WRONG_METHOD_KIND",
+        message: "unsupported worker callback",
+      });
     // Only the host owns permissions. A callback cannot authenticate itself with cloned metadata.
     const context = contexts.get(command.context.token);
     if (!context || command.context.permissions !== undefined)
@@ -72,14 +79,27 @@ export async function attachWorker(host: GatewayHost, name: string, worker: Work
       (command.op === "invoke" && command.route.kind !== "unary") ||
       (command.op === "stream.open" && command.route.kind !== "serverStreaming")
     )
-      throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "worker operation does not match route kind" });
+      throw new GatewayFailure({
+        code: "WRONG_METHOD_KIND",
+        message: "worker operation does not match route kind",
+      });
     const policy = host.executionPolicy(context, command.route);
     accept(command.op === "invoke" ? policy.timeoutMs : policy.streamPolicy.openTimeoutMs);
     if (command.op === "invoke")
       return rpcs.serve(command, async (signal) =>
-        unwrap(await host.invoke(context, command.route, command.payload, signal, command.serviceOptions)),
+        unwrap(
+          await host.invoke(
+            context,
+            command.route,
+            command.payload,
+            signal,
+            command.serviceOptions,
+          ),
+        ),
       );
-    return streams.serve(command, (signal) => host.stream(context, command.route, command.payload, { signal }));
+    return streams.serve(command, (signal) =>
+      host.stream(context, command.route, command.payload, { signal }),
+    );
   };
   const connection = new Connection(worker, randomUUID(), callback);
   const streams = new StreamLink(connection);

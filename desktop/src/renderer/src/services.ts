@@ -10,7 +10,13 @@ import {
   Settings,
   System,
 } from "xiaowei-contracts";
-import { bindClient, bindStreamClient, type Client, type ServiceClient, type StreamClient } from "xiaowei-gateway";
+import {
+  bindClient,
+  bindStreamClient,
+  type Client,
+  type ServiceClient,
+  type StreamClient,
+} from "xiaowei-gateway";
 import { createRendererClient } from "xiaowei-gateway/renderer";
 import type {} from "../../shared/gateway-api";
 
@@ -91,4 +97,12 @@ export function createServices(connect: () => Client) {
 export type Services = ReturnType<typeof createServices>;
 
 export const services = createServices(() => createRendererClient(window.gateway));
-export const { getGateway, getClipboard, getSystem, getLauncher, getApp, getKeyValue, getSettings } = services;
+export const {
+  getGateway,
+  getClipboard,
+  getSystem,
+  getLauncher,
+  getApp,
+  getKeyValue,
+  getSettings,
+} = services;

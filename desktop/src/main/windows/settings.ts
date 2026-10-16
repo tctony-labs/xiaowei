@@ -57,7 +57,11 @@ export function createSettingsWindow(options: {
       if (settingsWindow === window) settingsWindow = undefined;
     });
     restrictNavigation(window.webContents, !app.isPackaged);
-    const query = { window: "settings", version: app.getVersion(), development: String(!app.isPackaged) };
+    const query = {
+      window: "settings",
+      version: app.getVersion(),
+      development: String(!app.isPackaged),
+    };
     try {
       if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
         const url = new URL(process.env.ELECTRON_RENDERER_URL);

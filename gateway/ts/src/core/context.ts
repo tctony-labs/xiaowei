@@ -26,19 +26,24 @@ export function createContext(permissions: Permissions): CallContext {
 }
 export function authorize(context: CallContext, name: string, event = false): void {
   const permissions = contexts.get(context);
-  if (!permissions || (!permissions.trusted && !(event ? permissions.subscribe : permissions.invoke)?.includes(name))) {
+  if (
+    !permissions ||
+    (!permissions.trusted && !(event ? permissions.subscribe : permissions.invoke)?.includes(name))
+  ) {
     throw new GatewayFailure({ code: "UNAUTHORIZED", message: "capability not authorized" });
   }
 }
 export function caller(context: CallContext): string {
   const permissions = contexts.get(context);
-  if (!permissions) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
+  if (!permissions)
+    throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
   return permissions.caller;
 }
 
 /** Host-only metadata for an authenticated transport; never exposed through Client. */
 export function contextPermissions(context: CallContext): Readonly<Permissions> {
   const permissions = contexts.get(context);
-  if (!permissions) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
+  if (!permissions)
+    throw new GatewayFailure({ code: "UNAUTHORIZED", message: "invalid host context" });
   return permissions;
 }

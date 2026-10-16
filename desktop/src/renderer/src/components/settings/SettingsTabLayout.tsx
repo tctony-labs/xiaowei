@@ -27,7 +27,9 @@ export default function SettingsTabLayout({
           {leading ? <div className="relative z-20 shrink-0">{leading}</div> : null}
           <div className="min-w-0">
             <h2 className={`${titleClassName} truncate font-semibold text-ink`}>{title}</h2>
-            {description ? <p className="mt-1 truncate text-sm text-ink-secondary">{description}</p> : null}
+            {description ? (
+              <p className="mt-1 truncate text-sm text-ink-secondary">{description}</p>
+            ) : null}
           </div>
         </div>
         {actions ? <div className="relative z-20 shrink-0">{actions}</div> : null}

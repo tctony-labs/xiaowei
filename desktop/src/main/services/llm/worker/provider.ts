@@ -41,7 +41,8 @@ export function generate(
   const config = models.get(request.modelRef);
   if (!config) invalid("unknown model reference");
   const context = toContext(request, config.input.includes("image"));
-  if (Buffer.byteLength(JSON.stringify(context)) > 16 * 1024 * 1024) invalid("context exceeds 16 MiB");
+  if (Buffer.byteLength(JSON.stringify(context)) > 16 * 1024 * 1024)
+    invalid("context exceeds 16 MiB");
   if (
     !request.messages.length &&
     Buffer.byteLength(request.systemPrompt) + Buffer.byteLength(request.userText) > 256 * 1024
@@ -79,11 +80,19 @@ export function generate(
         : api.stream(model, transcript, parameters);
       let bytes = 0;
       for await (const event of events) {
-        if (signal.aborted) throw new GatewayFailure({ code: "CANCELLED", message: "generation cancelled" });
-        if (event.type === "text_delta" || event.type === "thinking_delta" || event.type === "toolcall_delta") {
+        if (signal.aborted)
+          throw new GatewayFailure({ code: "CANCELLED", message: "generation cancelled" });
+        if (
+          event.type === "text_delta" ||
+          event.type === "thinking_delta" ||
+          event.type === "toolcall_delta"
+        ) {
           bytes += Buffer.byteLength(event.delta);
           if (bytes > 1024 * 1024)
-            throw new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "generated content exceeds 1 MiB" });
+            throw new GatewayFailure({
+              code: "RESOURCE_EXHAUSTED",
+              message: "generated content exceeds 1 MiB",
+            });
         }
         if (firstSseAt !== undefined && !firstSseEmitted) {
           firstSseEmitted = true;
@@ -95,12 +104,18 @@ export function generate(
         // Signatures and final tool arguments may arrive without delta events.
         for (const chunk of mapped) {
           if (toBinary(GenerateEventSchema, chunk).byteLength > 1024 * 1024)
-            throw new GatewayFailure({ code: "RESOURCE_EXHAUSTED", message: "generation event exceeds 1 MiB" });
+            throw new GatewayFailure({
+              code: "RESOURCE_EXHAUSTED",
+              message: "generation event exceeds 1 MiB",
+            });
         }
         for (const chunk of mapped) yield chunk;
         if (event.type === "done" || event.type === "error") return;
       }
-      throw new GatewayFailure({ code: "HANDLER_ERROR", message: "generation ended without a terminal event" });
+      throw new GatewayFailure({
+        code: "HANDLER_ERROR",
+        message: "generation ended without a terminal event",
+      });
     } finally {
       controller.abort();
       if (events) await events.result();

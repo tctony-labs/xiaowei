@@ -13,14 +13,22 @@ pub struct DaoClient(pub Client);
 
 impl DaoClient {
     fn client(&self) -> Client {
-        CALLER.try_with(Clone::clone).unwrap_or_else(|_| self.0.clone())
+        CALLER
+            .try_with(Clone::clone)
+            .unwrap_or_else(|_| self.0.clone())
     }
 
-    pub async fn capture(&self, request: pb::CaptureClipboardEntityRequest) -> Result<pb::ClipboardEntity> {
+    pub async fn capture(
+        &self,
+        request: pb::CaptureClipboardEntityRequest,
+    ) -> Result<pb::ClipboardEntity> {
         Ok(methods::CAPTURE.call(&self.client(), request).await?)
     }
 
-    pub async fn list(&self, request: pb::ClipboardListOptions) -> Result<Vec<pb::ClipboardEntity>> {
+    pub async fn list(
+        &self,
+        request: pb::ClipboardListOptions,
+    ) -> Result<Vec<pb::ClipboardEntity>> {
         Ok(methods::LIST.call(&self.client(), request).await?.entities)
     }
 
@@ -33,7 +41,10 @@ impl DaoClient {
 
     pub async fn touch(&self, id: u64, used_at_ms: i64) -> Result<()> {
         methods::TOUCH
-            .call(&self.client(), pb::TouchClipboardEntityRequest { id, used_at_ms })
+            .call(
+                &self.client(),
+                pb::TouchClipboardEntityRequest { id, used_at_ms },
+            )
             .await?;
         Ok(())
     }
@@ -60,10 +71,16 @@ impl DaoClient {
     }
 
     pub async fn categories(&self) -> Result<Vec<pb::ClipboardCategory>> {
-        Ok(methods::CATEGORIES.call(&self.client(), Empty {}).await?.items)
+        Ok(methods::CATEGORIES
+            .call(&self.client(), Empty {})
+            .await?
+            .items)
     }
 
-    pub async fn save_category(&self, request: pb::SaveCategoryRequest) -> Result<pb::ClipboardCategory> {
+    pub async fn save_category(
+        &self,
+        request: pb::SaveCategoryRequest,
+    ) -> Result<pb::ClipboardCategory> {
         Ok(methods::SAVE_CATEGORY.call(&self.client(), request).await?)
     }
 
@@ -87,14 +104,22 @@ impl DaoClient {
             .await?)
     }
 
-    pub async fn purge_ordinary_batch(&self, cutoff_ms: i64) -> Result<pb::DeletedClipboardEntities> {
+    pub async fn purge_ordinary_batch(
+        &self,
+        cutoff_ms: i64,
+    ) -> Result<pb::DeletedClipboardEntities> {
         Ok(methods::PURGE_ORDINARY_BATCH
-            .call(&self.client(), pb::PurgeClipboardEntitiesRequest { cutoff_ms })
+            .call(
+                &self.client(),
+                pb::PurgeClipboardEntitiesRequest { cutoff_ms },
+            )
             .await?)
     }
 
     pub async fn clear_history_batch(&self) -> Result<pb::DeletedClipboardEntities> {
-        Ok(methods::CLEAR_HISTORY_BATCH.call(&self.client(), Empty {}).await?)
+        Ok(methods::CLEAR_HISTORY_BATCH
+            .call(&self.client(), Empty {})
+            .await?)
     }
 
     pub async fn hash_referenced(&self, hash: String) -> Result<bool> {

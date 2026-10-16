@@ -11,12 +11,17 @@ import { GatewayHost } from "../../src/core/registry.js";
 import { attachRustNapi, type RustNapiEndpoint } from "../../src/main/rust-napi.js";
 import { workerFixture } from "../fixtures/worker-client.js";
 
-const directory = fileURLToPath(new URL("../../../../target/rust-napi-tests/search", import.meta.url));
+const directory = fileURLToPath(
+  new URL("../../../../target/rust-napi-tests/search", import.meta.url),
+);
 const require = createRequire(import.meta.url);
-const addon = require(`${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`) as {
+const addon = require(
+  `${directory}/${readdirSync(directory).find((path) => path.endsWith(".node"))}`,
+) as {
   createGatewayFixture(): RustNapiEndpoint;
 };
-const code = (code: string) => (error: unknown) => error instanceof GatewayFailure && error.detail.code === code;
+const code = (code: string) => (error: unknown) =>
+  error instanceof GatewayFailure && error.detail.code === code;
 
 test("real Rust typed caller → napi → main → worker pulls PB chunks and propagates cancellation and exit", async () => {
   const host = new GatewayHost();

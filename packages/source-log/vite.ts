@@ -35,12 +35,18 @@ export function sourceLocationPlugin(enabled = process.env.XIAOWEI_LOG_SOURCE !=
           const location = `${source}:${call.line}`;
           output.overwrite(call.start, call.end, helper);
           const separator = path.node.arguments.length ? ", " : "";
-          output.appendLeft(call.position, `${JSON.stringify(call.method)}, ${JSON.stringify(location)}${separator}`);
+          output.appendLeft(
+            call.position,
+            `${JSON.stringify(call.method)}, ${JSON.stringify(location)}${separator}`,
+          );
         },
       });
       if (!output.hasChanged()) return null;
       const directiveEnd = ast.program.directives.at(-1)?.end ?? 0;
-      output.appendLeft(directiveEnd, `\nimport { sourceLog as ${helper} } from ${JSON.stringify(runtime)};\n`);
+      output.appendLeft(
+        directiveEnd,
+        `\nimport { sourceLog as ${helper} } from ${JSON.stringify(runtime)};\n`,
+      );
       return {
         code: output.toString(),
         map: output.generateMap({ hires: true, source: file, includeContent: true }).toString(),

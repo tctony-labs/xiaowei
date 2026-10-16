@@ -35,7 +35,9 @@ export function startApplication(moduleDir: string): void {
   const updates = createUpdateService({
     packaged: app.isPackaged,
     platform: process.platform,
-    frameworkPath: app.isPackaged ? join(process.resourcesPath, "../Frameworks/Sparkle.framework") : "",
+    frameworkPath: app.isPackaged
+      ? join(process.resourcesPath, "../Frameworks/Sparkle.framework")
+      : "",
     open: (path, event) => SparkleUpdater.open(path, event),
     windowVisibilityChanged: (visible) => ordinaryWindows.setNativeWindowVisible(visible),
     async prepareInstall() {
@@ -57,10 +59,13 @@ export function startApplication(moduleDir: string): void {
   const resourceDirectory = app.isPackaged
     ? join(process.resourcesPath, "logo-sizes")
     : join(app.getAppPath(), "resources/logo-sizes");
-  const ordinaryWindows = createOrdinaryWindows(process.platform === "darwin" ? app.dock : undefined, () => {
-    // Showing the Dock can restore the development host's Electron icon.
-    if (!app.isPackaged) app.dock?.setIcon(join(resourceDirectory, "icon-512.png"));
-  });
+  const ordinaryWindows = createOrdinaryWindows(
+    process.platform === "darwin" ? app.dock : undefined,
+    () => {
+      // Showing the Dock can restore the development host's Electron icon.
+      if (!app.isPackaged) app.dock?.setIcon(join(resourceDirectory, "icon-512.png"));
+    },
+  );
   const launcher = createLauncherWindow({
     moduleDir,
     focus: process.platform === "darwin" ? createSystemFocus() : undefined,
@@ -113,7 +118,10 @@ export function startApplication(moduleDir: string): void {
       localUpdateTest,
     });
     app.on("will-quit", () => console.info("Application stopping"));
-    app.on("second-instance", process.platform === "darwin" ? ordinaryWindows.activate : launcher.show);
+    app.on(
+      "second-instance",
+      process.platform === "darwin" ? ordinaryWindows.activate : launcher.show,
+    );
     app
       .whenReady()
       .then(async () => {
@@ -122,7 +130,10 @@ export function startApplication(moduleDir: string): void {
           await settingsWindow.open();
         });
         const models = await loadConfig(localUpdateTest ? {} : process.env, paths.models);
-        console.debug("Application module paths resolved", { agent: paths.xiaoweiAgentRootDir, models: models.path });
+        console.debug("Application module paths resolved", {
+          agent: paths.xiaoweiAgentRootDir,
+          models: models.path,
+        });
         gateway = await createApplicationGateway(
           paths.clipboard,
           paths.database,
@@ -156,7 +167,8 @@ export function startApplication(moduleDir: string): void {
             },
             async hideWindow(window) {
               if (!launcher.owns(window)) throw new Error("Window has no focus session");
-              if (!(await launcher.dismiss(true))) throw new Error("Unable to restore focus; clipboard remains copied");
+              if (!(await launcher.dismiss(true)))
+                throw new Error("Unable to restore focus; clipboard remains copied");
             },
             updateShortcuts(config) {
               shortcuts.replace(config);
@@ -181,11 +193,15 @@ export function startApplication(moduleDir: string): void {
           });
         }
         const searchWarmup = setTimeout(() => {
-          void initializeSearch().catch((error: unknown) => console.error("Search index initialization failed", error));
+          void initializeSearch().catch((error: unknown) =>
+            console.error("Search index initialization failed", error),
+          );
         }, 1000);
         searchWarmup.unref();
         app.once("before-quit", () => clearTimeout(searchWarmup));
-        shortcuts.registerInitial(shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts));
+        shortcuts.registerInitial(
+          shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts),
+        );
         app.on("activate", ordinaryWindows.activate);
         updates.start();
       })

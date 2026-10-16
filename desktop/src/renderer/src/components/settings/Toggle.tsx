@@ -7,7 +7,13 @@ interface ToggleProps {
 }
 
 /** iOS 风格 Toggle 开关 */
-export default function Toggle({ checked, onChange, disabled = false, size = "default", ariaLabel }: ToggleProps) {
+export default function Toggle({
+  checked,
+  onChange,
+  disabled = false,
+  size = "default",
+  ariaLabel,
+}: ToggleProps) {
   const isSmall = size === "small";
   return (
     <button

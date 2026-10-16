@@ -48,9 +48,9 @@ impl EventExportRegistration {
             name: Payload::full_name(),
             policy,
             validate: Arc::new(|filter| match filter {
-                Some(bytes) => Filter::decode(bytes)
-                    .map(|_| ())
-                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid event filter")),
+                Some(bytes) => Filter::decode(bytes).map(|_| ()).map_err(|_| {
+                    GatewayError::new(ErrorCode::InvalidArgument, "invalid event filter")
+                }),
                 None => Ok(()),
             }),
             matches: Arc::new(move |payload, filter| {
@@ -159,7 +159,11 @@ impl EventState {
         events.sort_by(|a, b| a.name.cmp(&b.name));
         events
     }
-    pub(crate) fn validate_owner(&self, name: &str, exports: &[EventExportRegistration]) -> Result<(), GatewayError> {
+    pub(crate) fn validate_owner(
+        &self,
+        name: &str,
+        exports: &[EventExportRegistration],
+    ) -> Result<(), GatewayError> {
         let mut names = HashSet::new();
         for export in exports {
             validate_name(&export.name)?;
@@ -169,17 +173,25 @@ impl EventState {
                     .get(&export.name)
                     .is_some_and(|(owner, _)| owner.name != name)
             {
-                return Err(GatewayError::new(ErrorCode::Conflict, "event already registered"));
+                return Err(GatewayError::new(
+                    ErrorCode::Conflict,
+                    "event already registered",
+                ));
             }
         }
         Ok(())
     }
     pub(crate) fn install_owner(&mut self, owner: &Owner, exports: Vec<EventExportRegistration>) {
         for export in exports {
-            for subscription in self.subscriptions.values().filter(|s| s.name == export.name) {
+            for subscription in self
+                .subscriptions
+                .values()
+                .filter(|s| s.name == export.name)
+            {
                 subscription.queue.state.lock().unwrap().policy = export.policy;
             }
-            self.entries.insert(export.name.clone(), (owner.clone(), export));
+            self.entries
+                .insert(export.name.clone(), (owner.clone(), export));
         }
     }
     pub(crate) fn remove_owner(&mut self, owner: &Owner) {
@@ -266,7 +278,10 @@ impl XwInvokeRegistry {
         } else if persistent {
             EventBackpressure::Drop
         } else {
-            return Err(GatewayError::new(ErrorCode::UnknownRoute, "event not exported"));
+            return Err(GatewayError::new(
+                ErrorCode::UnknownRoute,
+                "event not exported",
+            ));
         };
         state.events.next_id += 1;
         let id = state.events.next_id;
@@ -320,9 +335,17 @@ impl XwInvokeRegistry {
             .get(name)
             .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "event not exported"))?;
         if !current.same_instance(owner) || owner.is_closed() {
-            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "stale event source"));
+            return Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "stale event source",
+            ));
         }
-        for subscription in state.events.subscriptions.values().filter(|s| s.name == name) {
+        for subscription in state
+            .events
+            .subscriptions
+            .values()
+            .filter(|s| s.name == name)
+        {
             if (export.validate)(subscription.filter.as_deref()).is_ok()
                 && (export.matches)(&payload, subscription.filter.as_deref())
             {
@@ -347,7 +370,8 @@ impl Drop for RemoteBinding {
 
 pub type EventSink = Arc<dyn Fn(Vec<u8>) + Send + Sync>;
 type SubscribeFuture = Pin<Box<dyn Future<Output = Result<RemoteBinding, GatewayError>> + Send>>;
-pub type EventTransport = Arc<dyn Fn(CallContext, String, Option<Vec<u8>>, EventSink) -> SubscribeFuture + Send + Sync>;
+pub type EventTransport =
+    Arc<dyn Fn(CallContext, String, Option<Vec<u8>>, EventSink) -> SubscribeFuture + Send + Sync>;
 
 struct RemoteConsumer {
     context: CallContext,
@@ -428,7 +452,11 @@ impl RemoteEvents {
                     removed.push(consumer);
                 }
             }
-            (bindings, removed, state.consumers.keys().copied().collect::<Vec<_>>())
+            (
+                bindings,
+                removed,
+                state.consumers.keys().copied().collect::<Vec<_>>(),
+            )
         };
         drop(bindings);
         drop(removed);
@@ -484,7 +512,12 @@ impl RemoteEvents {
             id,
         };
         if let Err(error) = self.activate(id).await {
-            if !persistent || !matches!(error.code, ErrorCode::UnknownRoute | ErrorCode::OwnerUnavailable) {
+            if !persistent
+                || !matches!(
+                    error.code,
+                    ErrorCode::UnknownRoute | ErrorCode::OwnerUnavailable
+                )
+            {
                 handle.close();
                 return Err(error);
             }
@@ -495,10 +528,9 @@ impl RemoteEvents {
     async fn activate(&self, id: u64) -> Result<(), GatewayError> {
         let (transport, context, name, filter, generation) = {
             let mut state = self.0.lock().unwrap();
-            let transport = state
-                .transport
-                .clone()
-                .ok_or_else(|| GatewayError::new(ErrorCode::OwnerUnavailable, "event transport unavailable"))?;
+            let transport = state.transport.clone().ok_or_else(|| {
+                GatewayError::new(ErrorCode::OwnerUnavailable, "event transport unavailable")
+            })?;
             let Some(consumer) = state.consumers.get_mut(&id) else {
                 return Ok(());
             };
@@ -589,18 +621,24 @@ impl crate::invoke::Client {
         self.context().authorize(name, true)?;
         let sink = Arc::new(sink);
         let local_sink = sink.clone();
-        match self
-            .registry()
-            .subscribe(self.context(), name, filter.clone(), false, move |payload| {
-                local_sink(payload)
-            }) {
+        match self.registry().subscribe(
+            self.context(),
+            name,
+            filter.clone(),
+            false,
+            move |payload| local_sink(payload),
+        ) {
             Ok(handle) => Ok(EventSubscription::Local(handle)),
             Err(error) if error.code == ErrorCode::UnknownRoute => self
                 .registry()
                 .remote_events
-                .subscribe(self.context().clone(), name, filter, persistent, move |payload| {
-                    sink(payload)
-                })
+                .subscribe(
+                    self.context().clone(),
+                    name,
+                    filter,
+                    persistent,
+                    move |payload| sink(payload),
+                )
                 .await
                 .map(EventSubscription::Remote),
             Err(error) => Err(error),

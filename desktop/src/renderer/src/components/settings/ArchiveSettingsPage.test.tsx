@@ -97,7 +97,11 @@ test("single deletion keeps query, confirms the selected row and refreshes the f
     { sessionId: "session-0", expectedMetadataRevision: 4n, expectedArchiveRevision: 2n },
   ]);
   expect(screen.getByPlaceholderText("搜索标题")).toHaveValue("match");
-  expect(f.list.mock.lastCall?.[0]).toMatchObject({ query: "match", archived: true, continuation: "" });
+  expect(f.list.mock.lastCall?.[0]).toMatchObject({
+    query: "match",
+    archived: true,
+    continuation: "",
+  });
   expect(screen.queryByText("other")).toBeNull();
   fireEvent.change(screen.getByPlaceholderText("搜索标题"), { target: { value: "" } });
   await waitFor(() => expect(f.list.mock.lastCall?.[0].query).toBe(""));
@@ -145,7 +149,9 @@ test("failed single deletion displays the failure then reloads the actual list",
   await screen.findByText("match one");
   await userEvent.click(screen.getAllByRole("button", { name: "删除" })[0]);
   await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "删除" }));
-  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("未执行 0 条。删除失败：磁盘不可写"));
+  await waitFor(() =>
+    expect(screen.getByRole("status")).toHaveTextContent("未执行 0 条。删除失败：磁盘不可写"),
+  );
   await waitFor(() => expect(f.list).toHaveBeenCalledTimes(2));
   expect(screen.getByText("match one")).toBeVisible();
   view.unmount();
@@ -203,7 +209,10 @@ test("retention settings persist both choices, preserve old values on failure an
   await userEvent.click(archive);
   await userEvent.click(screen.getByRole("button", { name: "7 天" }));
   await waitFor(() => expect(archive).toHaveTextContent("7 天"));
-  expect(f.setPolicy.mock.lastCall?.[0].policy).toMatchObject({ archiveAfterDays: 7, deleteAfterDays: 0 });
+  expect(f.setPolicy.mock.lastCall?.[0].policy).toMatchObject({
+    archiveAfterDays: 7,
+    deleteAfterDays: 0,
+  });
   f.setPolicy.mockImplementationOnce(() => {
     throw new Error("不可写");
   });
@@ -216,7 +225,9 @@ test("retention settings persist both choices, preserve old values on failure an
   await waitFor(() => expect(deletion).toHaveTextContent("1 个月"));
   view.unmount();
   render(<ArchiveSettingsPage services={f.services} />);
-  await waitFor(() => expect(screen.getByRole("button", { name: "归档不活跃的对话" })).toHaveTextContent("7 天"));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "归档不活跃的对话" })).toHaveTextContent("7 天"),
+  );
   expect(screen.getByRole("button", { name: "清理不活跃的对话" })).toHaveTextContent("1 个月");
   f.owner.close();
 });
@@ -232,7 +243,9 @@ test("policy load failure leaves archive data usable and can be retried", async 
   expect(screen.getByRole("button", { name: "归档不活跃的对话" })).toBeDisabled();
   expect(screen.getAllByRole("button", { name: "恢复" })[0]).toBeEnabled();
   await userEvent.click(screen.getByRole("button", { name: "重试" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "归档不活跃的对话" })).toBeEnabled());
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "归档不活跃的对话" })).toBeEnabled(),
+  );
   expect(screen.queryByText(/加载自动归档设置失败/)).toBeNull();
   view.unmount();
   f.owner.close();

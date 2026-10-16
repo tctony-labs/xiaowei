@@ -86,7 +86,10 @@ fn unavailable() -> GatewayError {
     GatewayError::new(ErrorCode::OwnerUnavailable, "native endpoint unavailable")
 }
 fn argument() -> GatewayError {
-    GatewayError::new(ErrorCode::InvalidArgument, "invalid native control metadata")
+    GatewayError::new(
+        ErrorCode::InvalidArgument,
+        "invalid native control metadata",
+    )
 }
 fn parse<T: serde::de::DeserializeOwned>(value: &str) -> Result<T, GatewayError> {
     serde_json::from_str(value).map_err(|_| argument())
@@ -131,11 +134,16 @@ impl Endpoint {
         })
     }
     pub fn manifest(&self) -> Result<String, GatewayError> {
-        let mut manifest = serde_json::to_value(self.registry.manifest(&self.owner)?).map_err(|_| argument())?;
+        let mut manifest =
+            serde_json::to_value(self.registry.manifest(&self.owner)?).map_err(|_| argument())?;
         manifest["controlVersion"] = CONTROL_VERSION.into();
         serde_json::to_string(&manifest).map_err(|_| argument())
     }
-    pub fn bind(self: &Arc<Self>, callback: Arc<Callback>, origin: &str) -> Result<(), GatewayError> {
+    pub fn bind(
+        self: &Arc<Self>,
+        callback: Arc<Callback>,
+        origin: &str,
+    ) -> Result<(), GatewayError> {
         let context: Context = parse(origin)?;
         if context.token.is_empty() {
             return Err(argument());
@@ -194,7 +202,9 @@ impl Endpoint {
                 let endpoint = endpoint.clone();
                 Box::pin(async move {
                     let endpoint = endpoint.upgrade().ok_or_else(unavailable)?;
-                    endpoint.remote_subscribe(context, event, filter, sink).await
+                    endpoint
+                        .remote_subscribe(context, event, filter, sink)
+                        .await
                 })
             })))
             .await;
@@ -202,7 +212,13 @@ impl Endpoint {
     }
     async fn outbound(&self, control: Control, payload: Vec<u8>) -> WireResult {
         self.ready()?;
-        let callback = self.state.lock().unwrap().callback.clone().ok_or_else(unavailable)?;
+        let callback = self
+            .state
+            .lock()
+            .unwrap()
+            .callback
+            .clone()
+            .ok_or_else(unavailable)?;
         let metadata = serde_json::to_string(&control).map_err(|_| argument())?;
         let mut closed = self.closed.subscribe();
         tokio::select! {
@@ -215,7 +231,12 @@ impl Endpoint {
             } => result,
         }
     }
-    pub async fn dispatch_local(self: &Arc<Self>, route: &str, payload: Vec<u8>, context: &str) -> WireResult {
+    pub async fn dispatch_local(
+        self: &Arc<Self>,
+        route: &str,
+        payload: Vec<u8>,
+        context: &str,
+    ) -> WireResult {
         self.ready()?;
         let context: Context = parse(context)?;
         self.registry
@@ -225,13 +246,25 @@ impl Endpoint {
     /// Client for host-owned background work, using the identity assigned during activation.
     pub fn client(self: &Arc<Self>) -> Result<crate::invoke::Client, GatewayError> {
         self.ready()?;
-        let origin = self.state.lock().unwrap().origin.clone().ok_or_else(unavailable)?;
+        let origin = self
+            .state
+            .lock()
+            .unwrap()
+            .origin
+            .clone()
+            .ok_or_else(unavailable)?;
         Ok(self.registry.client(origin.core()))
     }
 
     pub async fn invoke(self: &Arc<Self>, route: &str, payload: Vec<u8>) -> WireResult {
         self.ready()?;
-        let origin = self.state.lock().unwrap().origin.clone().ok_or_else(unavailable)?;
+        let origin = self
+            .state
+            .lock()
+            .unwrap()
+            .origin
+            .clone()
+            .ok_or_else(unavailable)?;
         let mut closed = self.closed.subscribe();
         let route = parse(route)?;
         tokio::select! {
@@ -260,7 +293,10 @@ impl Endpoint {
             state.ready = false;
             state.origin.take();
             state.remote_sinks.clear();
-            (state.callback.take(), std::mem::take(&mut state.local_subscriptions))
+            (
+                state.callback.take(),
+                std::mem::take(&mut state.local_subscriptions),
+            )
         };
         drop(subscriptions);
         self.registry.remote_events.close();
@@ -289,7 +325,9 @@ impl Endpoint {
                 from_reply(promise.await.map_err(callback_error)?)
             })
             .await
-            .map_err(|_| GatewayError::new(ErrorCode::Timeout, "native close acknowledgement timed out"))??;
+            .map_err(|_| {
+                GatewayError::new(ErrorCode::Timeout, "native close acknowledgement timed out")
+            })??;
         }
         Ok(vec![])
     }
@@ -360,38 +398,41 @@ impl Endpoint {
         let context: Context = parse(context)?;
         let endpoint = Arc::downgrade(self);
         let subscription_id = id.to_string();
-        let handle = self
-            .registry
-            .subscribe(&context.core(), event, filter, false, move |payload| {
-                let endpoint = endpoint.clone();
-                let id = subscription_id.clone();
-                async move {
-                    if let Some(endpoint) = endpoint.upgrade() {
-                        let _ = endpoint
-                            .outbound(
-                                Control {
-                                    version: CONTROL_VERSION,
-                                    operation: "event".into(),
-                                    context_token: String::new(),
-                                    route: None,
-                                    event: None,
-                                    subscription_id: Some(id),
-                                    stream_id: None,
-                                    rpc_id: None,
-                                    filter_present: false,
-                                },
-                                payload,
-                            )
-                            .await;
+        let handle =
+            self.registry
+                .subscribe(&context.core(), event, filter, false, move |payload| {
+                    let endpoint = endpoint.clone();
+                    let id = subscription_id.clone();
+                    async move {
+                        if let Some(endpoint) = endpoint.upgrade() {
+                            let _ = endpoint
+                                .outbound(
+                                    Control {
+                                        version: CONTROL_VERSION,
+                                        operation: "event".into(),
+                                        context_token: String::new(),
+                                        route: None,
+                                        event: None,
+                                        subscription_id: Some(id),
+                                        stream_id: None,
+                                        rpc_id: None,
+                                        filter_present: false,
+                                    },
+                                    payload,
+                                )
+                                .await;
+                        }
                     }
-                }
-            })?;
+                })?;
         let mut state = self.state.lock().unwrap();
         if *self.closed.borrow() {
             return Err(unavailable());
         }
         if state.local_subscriptions.contains_key(id) {
-            return Err(GatewayError::new(ErrorCode::Conflict, "duplicate native subscription"));
+            return Err(GatewayError::new(
+                ErrorCode::Conflict,
+                "duplicate native subscription",
+            ));
         }
         state.local_subscriptions.insert(id.into(), handle);
         Ok(())
@@ -415,7 +456,14 @@ impl RemoteLease {
         let Some(endpoint) = self.endpoint.upgrade() else {
             return;
         };
-        if endpoint.state.lock().unwrap().remote_sinks.remove(&self.id).is_none() {
+        if endpoint
+            .state
+            .lock()
+            .unwrap()
+            .remote_sinks
+            .remove(&self.id)
+            .is_none()
+        {
             return;
         }
         if *endpoint.closed.borrow() {

@@ -23,7 +23,8 @@ export default function ContextWindowField({
   const anchorRef = useRef<HTMLDivElement>(null);
   const choices = [...presets];
   if (suggestedValue != null && !choices.some((option) => option.tokens === suggestedValue)) {
-    const label = suggestedValue % 1000 === 0 ? `${suggestedValue / 1000}K` : suggestedValue.toLocaleString();
+    const label =
+      suggestedValue % 1000 === 0 ? `${suggestedValue / 1000}K` : suggestedValue.toLocaleString();
     choices.push({ tokens: suggestedValue, label });
     choices.sort((a, b) => a.tokens - b.tokens);
   }

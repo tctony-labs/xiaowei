@@ -14,7 +14,12 @@ import {
   type ConfiguredModel as WireModel,
   type ConfiguredProvider as WireProvider,
 } from "xiaowei-contracts";
-import { bindHandlers, bindStreamClient, bindStreamHandlers, GatewayFailure } from "xiaowei-gateway";
+import {
+  bindHandlers,
+  bindStreamClient,
+  bindStreamHandlers,
+  GatewayFailure,
+} from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 import {
   type ConfiguredModel,
@@ -79,7 +84,11 @@ function decodeModel(model: WireModel): ConfiguredModel {
   };
 }
 
-function decodeProvider(value: WireProvider, key: ApiKeyUpdate | undefined, saved?: ConfiguredProvider) {
+function decodeProvider(
+  value: WireProvider,
+  key: ApiKeyUpdate | undefined,
+  saved?: ConfiguredProvider,
+) {
   let apiKey: string | undefined;
   switch (key?.operation.case) {
     case "preserve":
@@ -134,7 +143,11 @@ export function registerModelSettings(
         const key = resolveKey(provider, env);
         const encoded = encodeModels(
           resolveModels(
-            { version: 1, defaults: {}, providers: [{ ...provider, apiKey: "encoding", apiKeyEnv: undefined }] },
+            {
+              version: 1,
+              defaults: {},
+              providers: [{ ...provider, apiKey: "encoding", apiKeyEnv: undefined }],
+            },
             {},
           ),
         ).models;
@@ -173,19 +186,26 @@ export function registerModelSettings(
   function publish() {
     owner.publish(
       ModelSettingsChangedSchema.typeName,
-      toBinary(ModelSettingsChangedSchema, create(ModelSettingsChangedSchema, { snapshot: snapshot() })),
+      toBinary(
+        ModelSettingsChangedSchema,
+        create(ModelSettingsChangedSchema, { snapshot: snapshot() }),
+      ),
     );
   }
 
   function enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    if (closing) return Promise.reject(new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "Settings closed" }));
+    if (closing)
+      return Promise.reject(
+        new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "Settings closed" }),
+      );
     const result = queue.then(operation);
     queue = result.catch(() => {});
     return result;
   }
 
   function checkRevision(expected: bigint) {
-    if (expected !== revision) throw new GatewayFailure({ code: "CONFLICT", message: "配置已更新，请刷新后再保存" });
+    if (expected !== revision)
+      throw new GatewayFailure({ code: "CONFLICT", message: "配置已更新，请刷新后再保存" });
   }
 
   async function apply(models: ResolvedModelConfig[]) {
@@ -219,7 +239,8 @@ export function registerModelSettings(
 
   const handlers = bindHandlers(ModelSettings, {
     get: () => snapshot(),
-    getAuxiliaryModelRef: () => create(AuxiliaryModelRefSchema, { modelRef: document.defaults.smallTextModelRef }),
+    getAuxiliaryModelRef: () =>
+      create(AuxiliaryModelRefSchema, { modelRef: document.defaults.smallTextModelRef }),
     saveProvider: (request) =>
       enqueue(async () => {
         checkRevision(request.expectedRevision);
@@ -241,7 +262,8 @@ export function registerModelSettings(
     deleteProvider: (request) =>
       enqueue(async () => {
         checkRevision(request.expectedRevision);
-        if (!document.providers.some((provider) => provider.id === request.providerId)) invalidConfig();
+        if (!document.providers.some((provider) => provider.id === request.providerId))
+          invalidConfig();
         return commit({
           ...structuredClone(document),
           providers: document.providers.filter((provider) => provider.id !== request.providerId),
@@ -273,9 +295,11 @@ export function registerModelSettings(
       draft.id ||= "draft";
       // Catalog does not depend on the editor's display name or model list.
       draft.name ||= "draft";
-      const provider = normalizeConfig({ version: 1, providers: [draft], defaults: {} }).providers[0];
+      const provider = normalizeConfig({ version: 1, providers: [draft], defaults: {} })
+        .providers[0];
       const apiKey = resolveKey(provider, env);
-      if (!apiKey) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "API Key 不可用" });
+      if (!apiKey)
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "API Key 不可用" });
       const catalog = bindStreamClient(Llm, client);
       const stream = await catalog.modelCatalog(
         create(ListModelsRequestSchema, {
@@ -293,7 +317,14 @@ export function registerModelSettings(
   const owner = host.registerOwner(
     "model-settings",
     [...handlers, ...streams],
-    [{ name: ModelSettingsChangedSchema.typeName, policy: "coalesce", validate() {}, matches: () => true }],
+    [
+      {
+        name: ModelSettingsChangedSchema.typeName,
+        policy: "coalesce",
+        validate() {},
+        matches: () => true,
+      },
+    ],
   );
   return {
     close() {

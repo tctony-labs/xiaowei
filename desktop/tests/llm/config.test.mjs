@@ -3,11 +3,19 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadConfig, normalizeConfig, resolveModels as resolveDocument } from "../../src/main/services/llm/config.ts";
-import { decodeModels, encodeModels } from "../../src/main/services/llm/shared/configuration-codec.ts";
+import {
+  loadConfig,
+  normalizeConfig,
+  resolveModels as resolveDocument,
+} from "../../src/main/services/llm/config.ts";
+import {
+  decodeModels,
+  encodeModels,
+} from "../../src/main/services/llm/shared/configuration-codec.ts";
 import { configDocument } from "../fixtures/model-config.mjs";
 
-const resolveModels = (models, env) => resolveDocument(normalizeConfig(configDocument(models)), env);
+const resolveModels = (models, env) =>
+  resolveDocument(normalizeConfig(configDocument(models)), env);
 
 import { toPiModel } from "../../src/main/services/llm/worker/provider.ts";
 
@@ -30,7 +38,8 @@ const model = {
   apiKey: "inline-secret",
 };
 
-const invalid = (error) => error.detail?.code === "INVALID_ARGUMENT" && !String(error).includes("secret");
+const invalid = (error) =>
+  error.detail?.code === "INVALID_ARGUMENT" && !String(error).includes("secret");
 
 test("configuration resolves credentials and preserves independent model snapshots through protobuf and Pi", () => {
   const [entry] = resolveModels([model], { TEST_KEY: "environment-secret" });
@@ -108,7 +117,10 @@ test("model headers, sampling, cost tiers and compatibility survive configuratio
           openRouterRouting: { only: ["provider"], max_price: { prompt: 1 } },
           requiresReasoningContentOnAssistantMessages: true,
         },
-        cost: { ...model.cost, tiers: [{ inputTokensAbove: 1000, input: 2, output: 3, cacheRead: 1, cacheWrite: 2 }] },
+        cost: {
+          ...model.cost,
+          tiers: [{ inputTokensAbove: 1000, input: 2, output: 3, cacheRead: 1, cacheWrite: 2 }],
+        },
       },
     ],
     {},
@@ -135,7 +147,11 @@ test("nested compatibility rejects malformed fallback, routing and template valu
     { allowedFallbackModels: [{ provider: "p", model: "m" }] },
     { allowedFallbackModels: [{ provider: "", model: "m", cost: model.cost }] },
     { allowedFallbackModels: [{ provider: "p", model: "m", cost: { ...model.cost, output: -1 } }] },
-    { allowedFallbackModels: [{ provider: "p", model: "m", cost: { ...model.cost, tiers: [null] } }] },
+    {
+      allowedFallbackModels: [
+        { provider: "p", model: "m", cost: { ...model.cost, tiers: [null] } },
+      ],
+    },
     { chatTemplateKwargs: { thinking: [] } },
     { chatTemplateArgs: { thinking: { $var: "unknown" } } },
     { chatTemplateKwargs: { thinking: { $var: "thinking.enabled", omitWhenOff: "yes" } } },

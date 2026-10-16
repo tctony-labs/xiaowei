@@ -6,13 +6,23 @@ import { root, runPnpm, withRustNapiFixtures } from "../tests/rust-napi-fixtures
 
 export function nativeHashes(directory = root) {
   return ["agent", "platform", "search", "storage", "clipboard"].map((name) => {
-    const binary = join(directory, "crates", `xiaowei-${name}`, "napi", `xiaowei-${name}.darwin-arm64.node`);
+    const binary = join(
+      directory,
+      "crates",
+      `xiaowei-${name}`,
+      "napi",
+      `xiaowei-${name}.darwin-arm64.node`,
+    );
     return createHash("sha256").update(readFileSync(binary)).digest("hex");
   });
 }
 
 // Release CI has already built production addons. Only fixtures need a separate build.
-export async function testPrebuilt({ run = runPnpm, fixtures = withRustNapiFixtures, hashes = nativeHashes } = {}) {
+export async function testPrebuilt({
+  run = runPnpm,
+  fixtures = withRustNapiFixtures,
+  hashes = nativeHashes,
+} = {}) {
   const before = hashes();
   const failures = [];
   try {
@@ -49,7 +59,8 @@ export async function testPrebuilt({ run = runPnpm, fixtures = withRustNapiFixtu
   }
 
   if (failures.length === 1) throw failures[0];
-  if (failures.length > 1) throw new AggregateError(failures, "Release tests or addon integrity checks failed");
+  if (failures.length > 1)
+    throw new AggregateError(failures, "Release tests or addon integrity checks failed");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

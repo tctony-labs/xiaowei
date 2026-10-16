@@ -7,7 +7,9 @@ export function forwardOutput(input, output, isStopping) {
     const text = stripVTControlCharacters(line).trim();
     const stopNotice =
       /^\[?ELIFECYCLE\]?\s+Command failed\.$/.test(text) ||
-      /^\/.+\/electron\/dist\/Electron\.app\/Contents\/MacOS\/Electron exited with signal SIGTERM$/.test(text);
+      /^\/.+\/electron\/dist\/Electron\.app\/Contents\/MacOS\/Electron exited with signal SIGTERM$/.test(
+        text,
+      );
     if (isStopping() && stopNotice) return;
     output.write(`${line}\n`);
   });

@@ -36,7 +36,10 @@ test("raw options are protocol specific and cannot replace service credentials o
     ["anthropic-messages", { thinkingEnabled: true, thinkingBudgetTokens: 1024 }],
     ["google-generative-ai", { thinking: { enabled: true, budgetTokens: 1024 } }],
   ]) {
-    const result = options({ options: { apiOptionsJson: JSON.stringify(extra) } }, { ...model, api });
+    const result = options(
+      { options: { apiOptionsJson: JSON.stringify(extra) } },
+      { ...model, api },
+    );
     assert.equal(result.simple, false);
     for (const [key, value] of Object.entries(extra)) assert.deepEqual(result.options[key], value);
   }

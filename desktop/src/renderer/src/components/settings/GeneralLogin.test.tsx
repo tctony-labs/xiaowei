@@ -20,7 +20,9 @@ test("add and select a server, then lock its address while signed in", async () 
   await actions.type(add.getByLabelText("服务器地址"), "http://127.0.0.1:10001/");
   await actions.click(add.getByRole("button", { name: "保存" }));
 
-  expect(page.getByRole("button", { name: "登录服务器" })).toHaveTextContent("http://127.0.0.1:10001");
+  expect(page.getByRole("button", { name: "登录服务器" })).toHaveTextContent(
+    "http://127.0.0.1:10001",
+  );
   await actions.click(page.getByRole("button", { name: "登录" }));
   const login = within(page.getByRole("dialog", { name: "登录" }));
   expect(login.getByText("http://127.0.0.1:10001")).toBeVisible();
@@ -33,7 +35,9 @@ test("add and select a server, then lock its address while signed in", async () 
   expect(page.getByText("http://127.0.0.1:10001")).toBeVisible();
   expect(page.getByText(/UID：u_/)).toBeVisible();
   await actions.click(page.getByRole("button", { name: "退出登录" }));
-  expect(page.getByRole("button", { name: "登录服务器" })).toHaveTextContent("http://127.0.0.1:10001");
+  expect(page.getByRole("button", { name: "登录服务器" })).toHaveTextContent(
+    "http://127.0.0.1:10001",
+  );
 });
 
 test("saved server selection determines the login target and closing clears the password", async () => {
@@ -54,7 +58,9 @@ test("saved server selection determines the login target and closing clears the 
 
 test("login submits the original password and does not enforce the new-password policy", async () => {
   const submit = vi.fn();
-  render(<PasswordLoginDialog server="http://127.0.0.1:10001" onClose={() => {}} onSubmit={submit} />);
+  render(
+    <PasswordLoginDialog server="http://127.0.0.1:10001" onClose={() => {}} onSubmit={submit} />,
+  );
   const dialog = within(document.body);
   const actions = userEvent.setup();
   await actions.type(dialog.getByLabelText("邮箱"), "user@example.test");

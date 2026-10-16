@@ -37,7 +37,12 @@ const SUPPORTED_CODES = new Set([
 ]);
 
 function isCodeSupported(code: string): boolean {
-  if (code.startsWith("Key") || code.startsWith("Digit") || code.startsWith("F") || code === "Space") {
+  if (
+    code.startsWith("Key") ||
+    code.startsWith("Digit") ||
+    code.startsWith("F") ||
+    code === "Space"
+  ) {
     return true;
   }
   return SUPPORTED_CODES.has(code);
@@ -100,7 +105,11 @@ interface ShortcutInputProps {
 }
 
 /** 快捷键输入框组件 — 基于 e.code 的捕获 */
-export default function ShortcutInput({ value, onChange, placeholder = "录制快捷键" }: ShortcutInputProps) {
+export default function ShortcutInput({
+  value,
+  onChange,
+  placeholder = "录制快捷键",
+}: ShortcutInputProps) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedKeys, setCapturedKeys] = useState<string[]>([]);
   const inputRef = useRef<HTMLDivElement>(null);
@@ -197,7 +206,9 @@ export default function ShortcutInput({ value, onChange, placeholder = "录制�
       onBlur={handleBlur}
       className={`inline-flex h-[34px] w-[220px] items-center justify-between rounded-lg border px-3
           text-[13px] leading-[18px] transition-colors cursor-pointer select-none ${
-            isCapturing ? "border-primary bg-primary/10" : "border-line bg-surface hover:border-muted"
+            isCapturing
+              ? "border-primary bg-primary/10"
+              : "border-line bg-surface hover:border-muted"
           }`}
     >
       <div className="flex flex-1 items-center justify-center gap-1">
@@ -207,7 +218,9 @@ export default function ShortcutInput({ value, onChange, placeholder = "录制�
               <kbd
                 key={code}
                 className={`rounded settings-fill px-1.5 py-0.5 leading-[16px] text-ink ${
-                  code === "Shift" || code === "Meta" ? "settings-shortcut-modifier text-[10px]" : "text-[12px]"
+                  code === "Shift" || code === "Meta"
+                    ? "settings-shortcut-modifier text-[10px]"
+                    : "text-[12px]"
                 }`}
               >
                 {displayCode(code)}
@@ -232,7 +245,12 @@ export default function ShortcutInput({ value, onChange, placeholder = "录制�
           title="清除"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path
+              d="M3 3l6 6M9 3l-6 6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
           </svg>
         </button>
       )}

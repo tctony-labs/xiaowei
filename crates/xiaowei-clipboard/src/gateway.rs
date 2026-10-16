@@ -53,7 +53,11 @@ fn category(value: crate::ClipboardCategory) -> crate::Result<pb::ClipboardCateg
     })
 }
 
-fn handler<Req, Res, F, Fut>(service: &Arc<Service>, method: &Method<Req, Res>, work: F) -> InvokeRegistration
+fn handler<Req, Res, F, Fut>(
+    service: &Arc<Service>,
+    method: &Method<Req, Res>,
+    work: F,
+) -> InvokeRegistration
 where
     Req: Message + Default + Name + 'static,
     Res: Message + Default + Name + 'static,
@@ -78,7 +82,10 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             let client = crate::dao::CALLER.with(Clone::clone);
             s.copy(id(request.id)?).await?;
             let auto_paste = if cfg!(target_os = "macos") {
-                settings::GET.call(&client, c::Empty {}).await?.clipboard_auto_paste
+                settings::GET
+                    .call(&client, c::Empty {})
+                    .await?
+                    .clipboard_auto_paste
             } else {
                 false
             };
@@ -105,7 +112,10 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
                     Some(pb::ClipboardKind::File) => Some("file".into()),
                     _ => return Err("Unsupported clipboard kind filter".into()),
                 },
-                category_id: r.category_id.map(|v| id(v).map(|v| v.to_string())).transpose()?,
+                category_id: r
+                    .category_id
+                    .map(|v| id(v).map(|v| v.to_string()))
+                    .transpose()?,
                 limit: r.limit.unwrap_or(50),
                 offset: r.offset.unwrap_or(0),
             };
@@ -147,7 +157,12 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             }
             let client = crate::dao::CALLER.with(Clone::clone);
             system::OPEN_PATH
-                .call(&client, sys::LocalPathRequest { path: paths[0].clone() })
+                .call(
+                    &client,
+                    sys::LocalPathRequest {
+                        path: paths[0].clone(),
+                    },
+                )
                 .await?;
             Ok(c::Empty {})
         }),
@@ -206,7 +221,10 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             })
         }),
         handler(service, &methods::SAVE_CATEGORY, |s, r| async move {
-            category(s.save_category(r.id.map(id).transpose()?, &r.name, &r.color).await?)
+            category(
+                s.save_category(r.id.map(id).transpose()?, &r.name, &r.color)
+                    .await?,
+            )
         }),
         handler(service, &methods::DELETE_CATEGORY, |s, r| async move {
             s.delete_category(id(r.id)?).await?;
@@ -220,15 +238,17 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             item(s.edit_text(id(r.id)?, r.text).await?)
         }),
         handler(service, &methods::SET_CATEGORY, |s, r| async move {
-            s.set_category(id(r.id)?, r.category_id.map(id).transpose()?).await?;
+            s.set_category(id(r.id)?, r.category_id.map(id).transpose()?)
+                .await?;
             Ok(c::Empty {})
         }),
     ]
 }
 
 pub fn events() -> Vec<EventExportRegistration> {
-    vec![EventExportRegistration::typed::<pb::ClipboardChanged, c::Empty, _>(
-        EventBackpressure::Coalesce,
-        |_, _| true,
-    )]
+    vec![EventExportRegistration::typed::<
+        pb::ClipboardChanged,
+        c::Empty,
+        _,
+    >(EventBackpressure::Coalesce, |_, _| true)]
 }

@@ -41,10 +41,12 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     let disposed = false;
     let subscription: Subscription | undefined;
     void (async () => {
-      const handle = await services.getGateway().subscribe(AccountChangedSchema.typeName, undefined, (bytes) => {
-        const next = fromBinary(AccountChangedSchema, bytes).snapshot;
-        if (!disposed && next) accept(next);
-      });
+      const handle = await services
+        .getGateway()
+        .subscribe(AccountChangedSchema.typeName, undefined, (bytes) => {
+          const next = fromBinary(AccountChangedSchema, bytes).snapshot;
+          if (!disposed && next) accept(next);
+        });
       if (disposed) {
         handle.close();
         return;
@@ -62,7 +64,10 @@ export function AccountSettingsSection({ services }: { services: Services }) {
       subscription?.close();
       const id = attempt.current;
       attempt.current = undefined;
-      if (id) void api.cancelLogin(create(CancelAccountLoginRequestSchema, { attemptId: id })).catch(() => {});
+      if (id)
+        void api
+          .cancelLogin(create(CancelAccountLoginRequestSchema, { attemptId: id }))
+          .catch(() => {});
     };
   }, [api, services, accept]);
 
@@ -79,13 +84,19 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     setError("");
   }
 
-  async function run(work: () => Promise<AccountOperationResponse>, close = false, minimumPendingMs = 0) {
+  async function run(
+    work: () => Promise<AccountOperationResponse>,
+    close = false,
+    minimumPendingMs = 0,
+  ) {
     const id = ++operationId.current;
     setBusy(true);
     setError("");
     setNotice("");
     const minimumPending =
-      minimumPendingMs > 0 ? new Promise<void>((resolve) => setTimeout(resolve, minimumPendingMs)) : undefined;
+      minimumPendingMs > 0
+        ? new Promise<void>((resolve) => setTimeout(resolve, minimumPendingMs))
+        : undefined;
     try {
       const result = await work();
       await minimumPending;
@@ -112,7 +123,9 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     );
 
   const accountBusy =
-    busy || snapshot.status === AccountStatus.RESTORING || snapshot.status === AccountStatus.SIGNING_IN;
+    busy ||
+    snapshot.status === AccountStatus.RESTORING ||
+    snapshot.status === AccountStatus.SIGNING_IN;
   // 登录事件可能先于最短 loading 时间到达，卡片与浮层结束时一起切换。
   const cardUser = dialog === "login" && busy ? undefined : snapshot.user;
 

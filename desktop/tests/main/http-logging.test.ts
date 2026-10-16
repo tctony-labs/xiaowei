@@ -5,7 +5,13 @@ import { ErrorCode, LogoutResponseSchema } from "xiaowei-contracts";
 import { HttpRequestError, ServerHttpClient } from "../../src/main/services/xwapi/http";
 import { XwapiError, XwapiService } from "../../src/main/services/xwapi/service";
 
-const secrets = ["secret-password", "secret-access", "secret-refresh", "private@example.com", "secret-message"];
+const secrets = [
+  "secret-password",
+  "secret-access",
+  "secret-refresh",
+  "private@example.com",
+  "secret-message",
+];
 const success = JSON.stringify({ code: 0, msg: secrets[4], data: {} });
 
 test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets out at every level", async (t) => {
@@ -33,10 +39,21 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
       code: ErrorCode.INTERNAL_ERROR,
     },
     { name: "http400", body: secrets.join(" "), status: 400, level: "warn", outcome: "http_error" },
-    { name: "http500", body: secrets.join(" "), status: 500, level: "error", outcome: "http_error" },
+    {
+      name: "http500",
+      body: secrets.join(" "),
+      status: 500,
+      level: "error",
+      outcome: "http_error",
+    },
     { name: "json", body: secrets.join(" "), level: "error", outcome: "protocol_error" },
     { name: "null", body: "null", level: "error", outcome: "protocol_error" },
-    { name: "envelope", body: JSON.stringify({ foo: secrets }), level: "error", outcome: "protocol_error" },
+    {
+      name: "envelope",
+      body: JSON.stringify({ foo: secrets }),
+      level: "error",
+      outcome: "protocol_error",
+    },
     {
       name: "missing data",
       body: JSON.stringify({ code: 0, msg: secrets[4] }),
@@ -51,7 +68,12 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
       outcome: "protocol_error",
       code: 0,
     },
-    { name: "large", body: success + " ".repeat(65_537), level: "error", outcome: "response_too_large" },
+    {
+      name: "large",
+      body: success + " ".repeat(65_537),
+      level: "error",
+      outcome: "response_too_large",
+    },
     { name: "network", network: true, level: "error", outcome: "network_error" },
     { name: "cancelled", cancelled: true, level: "debug", outcome: "cancelled" },
   ];
@@ -72,7 +94,10 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
         assert.equal(new Headers(options?.headers).get("Authorization"), `Bearer ${secrets[1]}`);
         if (tc.cancelled) options?.signal?.throwIfAborted();
         if (tc.network) throw new Error(secrets.join(" "), { cause: secrets });
-        return new Response(tc.body, { status: tc.status ?? 200, headers: { "Set-Cookie": secrets[2] } });
+        return new Response(tc.body, {
+          status: tc.status ?? 200,
+          headers: { "Set-Cookie": secrets[2] },
+        });
       });
       const request = client.request(
         "https://secret-user:secret-url-password@example.test:10001/secret-base/" +
@@ -114,7 +139,10 @@ test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets o
       assert.equal(typeof metadata.duration_ms, "number");
       assert.ok(Number(metadata.duration_ms) >= 0);
       assert.equal(metadata.code, tc.code);
-      assert.equal(metadata.http_status, tc.network || tc.cancelled ? undefined : (tc.status ?? 200));
+      assert.equal(
+        metadata.http_status,
+        tc.network || tc.cancelled ? undefined : (tc.status ?? 200),
+      );
       if (tc.code === undefined) assert.ok(!Object.hasOwn(metadata, "code"));
       const serialized = JSON.stringify(calls);
       for (const secret of [
@@ -171,11 +199,17 @@ test("authentication wrappers preserve business messages and transport error map
   const cases = [
     { response: '{"code":10100,"msg":"邮箱或密码错误"}', code: 10100, msg: "邮箱或密码错误" },
     { response: "null", code: ErrorCode.UNAVAILABLE, msg: "服务器返回了无效的响应" },
-    { response: " ".repeat(65_537), code: ErrorCode.UNAVAILABLE, msg: "无法连接服务器，请稍后重试" },
+    {
+      response: " ".repeat(65_537),
+      code: ErrorCode.UNAVAILABLE,
+      msg: "无法连接服务器，请稍后重试",
+    },
     { response: "", status: 502, code: ErrorCode.UNAVAILABLE, msg: "无法连接服务器，请稍后重试" },
   ];
   for (const tc of cases) {
-    const client = new XwapiService(async () => new Response(tc.response, { status: tc.status ?? 200 }));
+    const client = new XwapiService(
+      async () => new Response(tc.response, { status: tc.status ?? 200 }),
+    );
     await assert.rejects(
       client.getCurrentUser({
         server: "https://example.test",
@@ -187,7 +221,8 @@ test("authentication wrappers preserve business messages and transport error map
           accessExpiresAtMs: 2n ** 60n,
         },
       }),
-      (error: unknown) => error instanceof XwapiError && error.code === tc.code && error.message === tc.msg,
+      (error: unknown) =>
+        error instanceof XwapiError && error.code === tc.code && error.message === tc.msg,
     );
   }
 });
@@ -200,7 +235,11 @@ function logFields(args: unknown[]): Record<string, string | number> {
   const fields: Record<string, string | number> = {};
   for (const match of (text as string).matchAll(/([a-z_]+)=("(?:\\.|[^"])*"|\S+)/gu)) {
     const value = match[2];
-    fields[match[1]] = value.startsWith('"') ? JSON.parse(value) : /^\d+$/u.test(value) ? Number(value) : value;
+    fields[match[1]] = value.startsWith('"')
+      ? JSON.parse(value)
+      : /^\d+$/u.test(value)
+        ? Number(value)
+        : value;
   }
   return fields;
 }

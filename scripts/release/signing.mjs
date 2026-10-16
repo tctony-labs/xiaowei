@@ -15,7 +15,8 @@ export function signingConfiguration(env = process.env) {
   ]) {
     if (!env[name]) throw new Error(`${name} is required for signed macOS packaging`);
   }
-  if (!/^[A-Z0-9]{10}$/.test(env.APPLE_TEAM_ID)) throw new Error("APPLE_TEAM_ID must be a 10-character Team ID");
+  if (!/^[A-Z0-9]{10}$/.test(env.APPLE_TEAM_ID))
+    throw new Error("APPLE_TEAM_ID must be a 10-character Team ID");
   const prefix = "Developer ID Application: ";
   if (!env.CSC_NAME.startsWith(prefix) || !env.CSC_NAME.endsWith(`(${env.APPLE_TEAM_ID})`)) {
     throw new Error("CSC_NAME must be a Developer ID Application identity matching APPLE_TEAM_ID");
@@ -29,7 +30,9 @@ export function verifySigningDetails(details, team, hardenedRuntime = true) {
   const authority = details.match(/^Authority=(Developer ID Application: .+)$/m)?.[1];
   const flags = details.match(/^CodeDirectory .*?flags=0x([0-9a-f]+)\b/im)?.[1];
   if (signedTeam !== team || !authority?.endsWith(`(${team})`)) {
-    throw new Error("Code signature does not match the expected Developer ID Application and Team ID");
+    throw new Error(
+      "Code signature does not match the expected Developer ID Application and Team ID",
+    );
   }
   if (hardenedRuntime && (!flags || (Number.parseInt(flags, 16) & 0x10000) === 0)) {
     throw new Error("Code signature does not enable hardened runtime");
@@ -53,7 +56,8 @@ export function runStapler(action, path) {
     const result = spawnSync("xcrun", ["stapler", action, path], { stdio: "inherit" });
     if (result.error) throw result.error;
     if (result.status === 0) {
-      if (attempt > 0) console.info(`stapler ${action} recovered on attempt ${attempt + 1}: ${path}`);
+      if (attempt > 0)
+        console.info(`stapler ${action} recovered on attempt ${attempt + 1}: ${path}`);
       return;
     }
 
@@ -62,7 +66,9 @@ export function runStapler(action, path) {
     if (result.status !== 68 || delay === undefined) {
       throw new Error(`stapler ${action} failed with status ${result.status}: ${path}`);
     }
-    console.warn(`stapler ${action} failed with status 68; retry ${attempt + 1}/3 in ${delay / 1000}s: ${path}`);
+    console.warn(
+      `stapler ${action} failed with status 68; retry ${attempt + 1}/3 in ${delay / 1000}s: ${path}`,
+    );
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
   }
 }
@@ -90,7 +96,9 @@ function submitNotarization(path, label, env) {
   if (result.status !== 0) throw new Error(`${label} notarization command failed`);
   const submission = JSON.parse(result.stdout);
   if (submission.status !== "Accepted") {
-    throw new Error(`${label} notarization failed: ${submission.status}; submission=${submission.id}`);
+    throw new Error(
+      `${label} notarization failed: ${submission.status}; submission=${submission.id}`,
+    );
   }
   console.info(`${label} notarization accepted: submission=${submission.id}`);
 }
@@ -113,7 +121,15 @@ export function notarizeDmg(path, app, env = process.env) {
   submitNotarization(path, "DMG", env);
   runStapler("staple", path);
   runStapler("validate", path);
-  run("spctl", ["--assess", "--type", "open", "--context", "context:primary-signature", "--verbose=2", path]);
+  run("spctl", [
+    "--assess",
+    "--type",
+    "open",
+    "--context",
+    "context:primary-signature",
+    "--verbose=2",
+    path,
+  ]);
   // Apple also issued a ticket for the identical signed app contained in the DMG.
   runStapler("staple", app);
   runStapler("validate", app);

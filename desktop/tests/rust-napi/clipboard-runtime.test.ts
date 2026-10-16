@@ -22,7 +22,8 @@ import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/in
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
 const require = createRequire(import.meta.url);
-const { ClipboardHistory } = require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
+const { ClipboardHistory } =
+  require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
 const { Storage } = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
 
 test("Rust runtime cleans on retention changes, protects permanent records and stops on close", async () => {
@@ -31,7 +32,10 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
   const db = await Storage.open(join(directory, "db.sqlite"));
   const daoOwner = await attachRustNapi(host, "dao", db.createClipboardDaoGatewayEndpoint());
   const storageOwner = await attachRustNapi(host, "storage", db.createKeyValueGatewayEndpoint());
-  let snapshot = create(SettingsSnapshotSchema, { clipboardEnabled: false, clipboardRetentionDays: -1 });
+  let snapshot = create(SettingsSnapshotSchema, {
+    clipboardEnabled: false,
+    clipboardRetentionDays: -1,
+  });
   const settings = host.registerOwner(
     "settings",
     bindHandlers(
@@ -70,7 +74,9 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
     const favorite = await capture("favorite");
     await dao.setFavorite(create(FavoriteRequestSchema, { id: favorite.id, favorite: true }));
     update(1);
-    await waitFor(async () => !(await dao.get(create(ClipboardItemRequestSchema, { id: old.id }))).entity);
+    await waitFor(
+      async () => !(await dao.get(create(ClipboardItemRequestSchema, { id: old.id }))).entity,
+    );
     assert.ok((await dao.get(create(ClipboardItemRequestSchema, { id: favorite.id }))).entity);
     update(-1);
     const permanent = await capture("permanent");

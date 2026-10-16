@@ -4,7 +4,12 @@ import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import type { IpcMain, IpcMainInvokeEvent, IpcRenderer, WebContents } from "electron";
 import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, bindStreamClient, bindStreamHandlers } from "../src/binding/index.js";
+import {
+  bindClient,
+  bindHandlers,
+  bindStreamClient,
+  bindStreamHandlers,
+} from "../src/binding/index.js";
 import { type ElectronRequest, GATEWAY_CHANNEL } from "../src/core/electron-protocol.js";
 import { GatewayHost } from "../src/core/registry.js";
 import { attachElectron } from "../src/main/electron.js";
@@ -36,12 +41,17 @@ function fixture() {
       },
     });
     adapter.register(contents as unknown as WebContents, { caller: "unused", trusted });
-    const event = { sender: contents, senderFrame: contents.mainFrame } as unknown as IpcMainInvokeEvent;
+    const event = {
+      sender: contents,
+      senderFrame: contents.mainFrame,
+    } as unknown as IpcMainInvokeEvent;
     const ipcRenderer = Object.assign(renderer, {
       invoke(channel: string, message: unknown) {
         assert.equal(channel, GATEWAY_CHANNEL);
         requests.push(structuredClone(message) as ElectronRequest);
-        return Promise.resolve(handler(event, structuredClone(message))).then((result) => structuredClone(result));
+        return Promise.resolve(handler(event, structuredClone(message))).then((result) =>
+          structuredClone(result),
+        );
       },
     });
     const bridge = createPreloadBridge(ipcRenderer as unknown as IpcRenderer);
@@ -65,7 +75,10 @@ test("Electron sessions: bytes, trusted access, restricted access and cross-fram
   const a = frame();
   const b = frame();
   const denied = frame(false);
-  const input = create(EnvelopeSchema, { id: 0xffffffffffffffffn, blobs: [{ data: Uint8Array.of(0, 255) }] });
+  const input = create(EnvelopeSchema, {
+    id: 0xffffffffffffffffn,
+    blobs: [{ data: Uint8Array.of(0, 255) }],
+  });
   assert.deepEqual(await bindClient(Fixture, a.client).echo(input), input);
   await assert.rejects(bindClient(Fixture, denied.client).echo(input), /authorized/);
   const deliveries: string[] = [];
@@ -231,7 +244,11 @@ test("Electron pending subscription cancellation retains bounded admission until
     await tick();
     await a.bridge.request({ operation: "unsubscribe", id });
   }
-  const full = await a.bridge.request({ operation: "subscribe", event: "test.Pending", id: "overflow" });
+  const full = await a.bridge.request({
+    operation: "subscribe",
+    event: "test.Pending",
+    id: "overflow",
+  });
   assert.equal(full.ok, false);
   if (!full.ok) assert.equal(full.error.code, "RESOURCE_EXHAUSTED");
   for (const release of releases) release();
@@ -242,14 +259,18 @@ test("Electron pending subscription cancellation retains bounded admission until
 
 test("cancelled navigation keeps the document session; committed reload replaces it", async () => {
   const { host, frame, adapter } = fixture();
-  const owner = host.registerOwner("fixture", bindHandlers(Fixture, { echo: (request) => request }), [
-    {
-      name: "test.Changed",
-      policy: "coalesce",
-      validate() {},
-      matches: () => true,
-    },
-  ]);
+  const owner = host.registerOwner(
+    "fixture",
+    bindHandlers(Fixture, { echo: (request) => request }),
+    [
+      {
+        name: "test.Changed",
+        policy: "coalesce",
+        validate() {},
+        matches: () => true,
+      },
+    ],
+  );
   const a = frame();
   const input = create(EnvelopeSchema, { text: "still connected" });
   let deliveries = 0;
@@ -347,9 +368,13 @@ test("recreated renderer clients keep streams and cancellation independent", asy
     }),
   );
   const a = frame();
-  const oldStream = await bindStreamClient(Fixture, a.client).watch(create(EnvelopeSchema, { text: "old" }));
+  const oldStream = await bindStreamClient(Fixture, a.client).watch(
+    create(EnvelopeSchema, { text: "old" }),
+  );
   const replacement = createRendererClient(a.bridge);
-  const newStream = await bindStreamClient(Fixture, replacement).watch(create(EnvelopeSchema, { text: "new" }));
+  const newStream = await bindStreamClient(Fixture, replacement).watch(
+    create(EnvelopeSchema, { text: "new" }),
+  );
 
   assert.equal((await oldStream.next()).value?.value?.text, "old");
   assert.equal((await newStream.next()).value?.value?.text, "new");
@@ -385,7 +410,9 @@ test("Electron unary result/cancel race is decided at the caller, not main", asy
   const rejected = assert.rejects(
     rpc,
     (error: unknown) =>
-      error instanceof Error && "detail" in error && (error.detail as { code: string }).code === "CANCELLED",
+      error instanceof Error &&
+      "detail" in error &&
+      (error.detail as { code: string }).code === "CANCELLED",
   );
   await ready;
   rpc.cancel();
@@ -449,7 +476,10 @@ test("Electron transfers service options separately from business bytes", async 
       Fixture,
       {
         echo(request, client) {
-          return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+          return create(EnvelopeSchema, {
+            ...request,
+            id: client.options(EnvelopeSchema)?.id ?? request.id,
+          });
         },
       },
       { optionsSchema: EnvelopeSchema },

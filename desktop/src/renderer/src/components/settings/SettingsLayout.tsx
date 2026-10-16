@@ -61,7 +61,10 @@ function SparklesIcon({ active }: { active: boolean }) {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M9.5 1.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5z" fill={color} />
       <path d="M4 8l0.7 1.8L6.5 10.5l-1.8 0.7L4 13l-0.7-1.8L1.5 10.5l1.8-0.7L4 8z" fill={color} />
-      <path d="M11.5 10l0.5 1.3L13.3 11.8l-1.3 0.5L11.5 13.6l-0.5-1.3L9.7 11.8l1.3-0.5L11.5 10z" fill={color} />
+      <path
+        d="M11.5 10l0.5 1.3L13.3 11.8l-1.3 0.5L11.5 13.6l-0.5-1.3L9.7 11.8l1.3-0.5L11.5 10z"
+        fill={color}
+      />
     </svg>
   );
 }
@@ -86,7 +89,11 @@ function ArchiveIcon({ active }: { active: boolean }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <rect x="1.5" y="3" width="13" height="3" rx="0.8" stroke={color} strokeWidth="1.2" />
-      <path d="M2.5 6v6a1.5 1.5 0 0 0 1.5 1.5h8A1.5 1.5 0 0 0 13.5 12V6" stroke={color} strokeWidth="1.2" />
+      <path
+        d="M2.5 6v6a1.5 1.5 0 0 0 1.5 1.5h8A1.5 1.5 0 0 0 13.5 12V6"
+        stroke={color}
+        strokeWidth="1.2"
+      />
       <path d="M6.5 9h3" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
@@ -140,12 +147,19 @@ export default function SettingsLayout({
   return (
     <div className="settings-layout flex h-full w-full text-ink">
       {loading ? (
-        <div className="flex flex-1 items-center justify-center" role="status" aria-label="正在加载设置">
+        <div
+          className="flex flex-1 items-center justify-center"
+          role="status"
+          aria-label="正在加载设置"
+        >
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-transparent" />
         </div>
       ) : (
         <>
-          <nav aria-label="设置导航" className="settings-fill flex w-[207px] shrink-0 flex-col pt-8">
+          <nav
+            aria-label="设置导航"
+            className="settings-fill flex w-[207px] shrink-0 flex-col pt-8"
+          >
             <div className="flex flex-col gap-1.5 px-2">
               {TABS.filter((tab) => !availableTabs || availableTabs.includes(tab.id)).map((tab) => (
                 <button
@@ -155,7 +169,9 @@ export default function SettingsLayout({
                   aria-current={activeTab === tab.id ? "page" : undefined}
                   className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-[13px]
               leading-[22px] transition-colors ${
-                activeTab === tab.id ? "bg-primary font-medium text-white" : "text-muted hover:bg-hover"
+                activeTab === tab.id
+                  ? "bg-primary font-medium text-white"
+                  : "text-muted hover:bg-hover"
               }`}
                 >
                   <span className="flex h-4 w-4 shrink-0 items-center justify-center">

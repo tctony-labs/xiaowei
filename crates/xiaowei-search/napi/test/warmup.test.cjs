@@ -15,11 +15,22 @@ test("startup warmup and early searches share one index initialization", async (
   try {
     assert.deepEqual(await search("  "), []);
     assert.ok(!entries.some((message) => message.startsWith("Search index init")));
-    const [, , results] = await Promise.all([initializeSearch(), initializeSearch(), search("1+2"), initialized]);
+    const [, , results] = await Promise.all([
+      initializeSearch(),
+      initializeSearch(),
+      search("1+2"),
+      initialized,
+    ]);
     assert.equal(results[0].actionValue, "3");
     await initializeSearch();
-    assert.equal(entries.filter((message) => message === "Search index initialization started").length, 1);
-    assert.equal(entries.filter((message) => message.startsWith("Search index initialized in ")).length, 1);
+    assert.equal(
+      entries.filter((message) => message === "Search index initialization started").length,
+      1,
+    );
+    assert.equal(
+      entries.filter((message) => message.startsWith("Search index initialized in ")).length,
+      1,
+    );
   } finally {
     clearTimeout(timeout);
   }

@@ -15,7 +15,8 @@ import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 function webUrl(value: unknown): string {
   if (typeof value !== "string" || value.length > 16384) throw new Error("Invalid URL");
   const url = new URL(value);
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Unsupported URL scheme");
+  if (url.protocol !== "http:" && url.protocol !== "https:")
+    throw new Error("Unsupported URL scheme");
   return url.href;
 }
 
@@ -39,9 +40,14 @@ export function registerSystem(
     pending.set(window, anchor);
     const sinks = listeners.get(window);
     if (!sinks?.size) return;
-    const bytes = toBinary(SettingsNavigationRequestedSchema, create(SettingsNavigationRequestedSchema));
+    const bytes = toBinary(
+      SettingsNavigationRequestedSchema,
+      create(SettingsNavigationRequestedSchema),
+    );
     for (const sink of sinks) {
-      void Promise.resolve(sink(bytes)).catch((error) => console.error("Settings navigation failed", error));
+      void Promise.resolve(sink(bytes)).catch((error) =>
+        console.error("Settings navigation failed", error),
+      );
     }
   }
 
@@ -58,7 +64,8 @@ export function registerSystem(
         async openSettings(request, client) {
           const context = client.context();
           windowFor(context);
-          if (request.anchor !== SettingsAnchor.MODEL_PROVIDERS) throw new Error("Invalid settings anchor");
+          if (request.anchor !== SettingsAnchor.MODEL_PROVIDERS)
+            throw new Error("Invalid settings anchor");
           if (!openSettings) throw new Error("Settings window unavailable");
           const window = await openSettings();
           deliver(window, request.anchor);

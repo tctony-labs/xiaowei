@@ -11,7 +11,10 @@ fn lock_child() {
     let Ok(root) = std::env::var("XW_ROLLOUT_LOCK_TEST_ROOT") else {
         return;
     };
-    let id = std::env::var("XW_ROLLOUT_LOCK_TEST_ID").unwrap().parse().unwrap();
+    let id = std::env::var("XW_ROLLOUT_LOCK_TEST_ID")
+        .unwrap()
+        .parse()
+        .unwrap();
     let store = RolloutStore::new(&root);
     if std::env::var("XW_ROLLOUT_LOCK_TEST_MODE").unwrap() == "busy" {
         assert!(matches!(store.open(id), Err(RolloutError::Busy)));
@@ -35,7 +38,9 @@ fn separate_process_conflicts_then_releases_after_normal_or_abnormal_exit() {
         panic!()
     };
     let store = RolloutStore::new(directory.path());
-    let journal = store.create(entry.session_id, entry.timestamp_ms, meta).unwrap();
+    let journal = store
+        .create(entry.session_id, entry.timestamp_ms, meta)
+        .unwrap();
     let child = |mode: &str| {
         Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "lock_child", "--nocapture"])
@@ -56,7 +61,10 @@ fn separate_process_conflicts_then_releases_after_normal_or_abnormal_exit() {
         assert!(Instant::now() < deadline);
         std::thread::sleep(Duration::from_millis(10));
     }
-    assert!(matches!(store.open(entry.session_id), Err(RolloutError::Busy)));
+    assert!(matches!(
+        store.open(entry.session_id),
+        Err(RolloutError::Busy)
+    ));
     holder.kill().unwrap();
     holder.wait().unwrap();
     assert!(store.open(entry.session_id).is_ok());

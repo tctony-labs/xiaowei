@@ -17,10 +17,13 @@ async fn receive(subscription: &mut EventSubscription) -> AgentEvent {
 }
 
 async fn snapshot(subscription: &mut EventSubscription) -> AgentSession {
-    let Some(agent_event::Payload::SubscriptionReady(ready)) = receive(subscription).await.payload else {
+    let Some(agent_event::Payload::SubscriptionReady(ready)) = receive(subscription).await.payload
+    else {
         panic!("first frame must be the initial snapshot");
     };
-    ready.session.expect("ready must contain the requested session")
+    ready
+        .session
+        .expect("ready must contain the requested session")
 }
 
 #[tokio::test]

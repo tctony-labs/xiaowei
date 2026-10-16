@@ -93,7 +93,13 @@ export async function createApplicationGateway(
     agent = await Agent.open(agentDirectory);
     agentEndpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
-    system = registerSystem(host, windowFor, actions.openSettings, actions.hideWindow, actions.checkForUpdates);
+    system = registerSystem(
+      host,
+      windowFor,
+      actions.openSettings,
+      actions.hideWindow,
+      actions.checkForUpdates,
+    );
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
@@ -103,13 +109,24 @@ export async function createApplicationGateway(
     accountService = await AccountService.open({
       client: host.client({ caller: "account-main", trusted: true }),
       withServerContext: xwapi.withContext,
-      store: new AccountStore(authPath, bindClient(KeyValue, host.client({ caller: "account-main", trusted: true }))),
+      store: new AccountStore(
+        authPath,
+        bindClient(KeyValue, host.client({ caller: "account-main", trusted: true })),
+      ),
       deviceName: hostname().slice(0, 64),
     });
     account = registerAccount(host, accountService);
     void accountService.restore().catch(() => console.warn("Initial account restore failed"));
-    clipboardDao = await attachRustNapi(host, "clipboard-dao", database.createClipboardDaoGatewayEndpoint());
-    settings = await attachRustNapi(host, "settings", database.createSettingsGatewayEndpoint(actions.platform));
+    clipboardDao = await attachRustNapi(
+      host,
+      "clipboard-dao",
+      database.createClipboardDaoGatewayEndpoint(),
+    );
+    settings = await attachRustNapi(
+      host,
+      "settings",
+      database.createSettingsGatewayEndpoint(actions.platform),
+    );
     search = await attachRustNapi(host, "search", createSearchGatewayEndpoint(actions.development));
     history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
     clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
@@ -121,7 +138,8 @@ export async function createApplicationGateway(
     launcher = registerSearch(host, windowFor, {
       ...actions,
       iconUrl: icons.url,
-      includeChromeBookmarks: async () => (await settingsApi.get(create(EmptySchema))).includeChromeBookmarks,
+      includeChromeBookmarks: async () =>
+        (await settingsApi.get(create(EmptySchema))).includeChromeBookmarks,
     });
   } catch (error) {
     electron.close();

@@ -8,7 +8,8 @@ const {
 const { releaseVersion } = require("../scripts/release/sparkle.mjs");
 const version = releaseVersion(process.env.XIAOWEI_LOCAL_UPDATE_VERSION);
 
-if (process.env.XIAOWEI_MAC_SIGNED !== "0") throw new Error("Local update tests require ad-hoc signing");
+if (process.env.XIAOWEI_MAC_SIGNED !== "0")
+  throw new Error("Local update tests require ad-hoc signing");
 
 module.exports = {
   ...base,

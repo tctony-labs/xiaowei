@@ -10,7 +10,8 @@ const meta = {
     layout: "fullscreen",
     docs: {
       description: {
-        component: "快捷窗口交互预览。会话、回复和模型选择均为内存 mock；输入编辑器和消息渲染尚未完整迁移。",
+        component:
+          "快捷窗口交互预览。会话、回复和模型选择均为内存 mock；输入编辑器和消息渲染尚未完整迁移。",
       },
     },
     viewport: {
@@ -31,8 +32,12 @@ type Story = StoryObj<typeof meta>;
 export const Search: Story = {};
 export const FirstUse: Story = { args: { initialState: "first-use" } };
 export const ExistingConversations: Story = { args: { initiallyExpanded: true } };
-export const LastConversation: Story = { args: { initialState: "last-session", initiallyExpanded: true } };
-export const AllArchived: Story = { args: { initialState: "all-archived", initiallyExpanded: true } };
+export const LastConversation: Story = {
+  args: { initialState: "last-session", initiallyExpanded: true },
+};
+export const AllArchived: Story = {
+  args: { initialState: "all-archived", initiallyExpanded: true },
+};
 export const AllDeleted: Story = { args: { initialState: "all-deleted", initiallyExpanded: true } };
 export const SearchResults: Story = { args: { initialQuery: "搜索" } };
 export const SessionMenu: Story = {

@@ -11,7 +11,9 @@ fn migration(name: &str, up: &[&str], down: &[&str]) -> DatabaseMigration {
 #[tokio::test]
 async fn migration_and_marker_commit_together_and_down_is_ordered() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Database::open(&temp.path().join("db.sqlite")).await.unwrap();
+    let db = Database::open(&temp.path().join("db.sqlite"))
+        .await
+        .unwrap();
     let first = migration(
         "20260920000001_base",
         &["CREATE TABLE example(id INTEGER)"],
@@ -72,11 +74,12 @@ async fn reopening_existing_clipboard_database_preserves_data_and_marker() {
     .fetch_one(&db.pool)
     .await
     .unwrap();
-    let schema: Vec<(String, String)> =
-        sqlx::query_as("SELECT name,sql FROM sqlite_master WHERE name LIKE 'clipboard_%' ORDER BY name")
-            .fetch_all(&db.pool)
-            .await
-            .unwrap();
+    let schema: Vec<(String, String)> = sqlx::query_as(
+        "SELECT name,sql FROM sqlite_master WHERE name LIKE 'clipboard_%' ORDER BY name",
+    )
+    .fetch_all(&db.pool)
+    .await
+    .unwrap();
     db.close().await;
 
     let reopened = Database::open(&path).await.unwrap();
@@ -88,11 +91,12 @@ async fn reopening_existing_clipboard_database_preserves_data_and_marker() {
     .await
     .unwrap();
     assert_eq!(preserved, ("keep".into(), marker));
-    let reopened_schema: Vec<(String, String)> =
-        sqlx::query_as("SELECT name,sql FROM sqlite_master WHERE name LIKE 'clipboard_%' ORDER BY name")
-            .fetch_all(&reopened.pool)
-            .await
-            .unwrap();
+    let reopened_schema: Vec<(String, String)> = sqlx::query_as(
+        "SELECT name,sql FROM sqlite_master WHERE name LIKE 'clipboard_%' ORDER BY name",
+    )
+    .fetch_all(&reopened.pool)
+    .await
+    .unwrap();
     assert_eq!(reopened_schema, schema);
     reopened.close().await;
 }
@@ -124,7 +128,10 @@ async fn initialization_ignores_unknown_migrations_and_applies_known_pending_mig
     let expected_count = current_registry.migrations.len();
     let states = reopened.apply_migrations(current_registry).await.unwrap();
     assert_eq!(states.states.len(), expected_count);
-    assert!(states.states.iter().all(|state| state.applied_at_seconds.is_some()));
+    assert!(states
+        .states
+        .iter()
+        .all(|state| state.applied_at_seconds.is_some()));
 
     let preserved: (String, String) = sqlx::query_as(
         "SELECT value,(SELECT value FROM meta WHERE key='migration_v2.20260924000000_future') FROM future_data",
@@ -160,7 +167,9 @@ async fn initialization_reports_actual_migration_sql_failure() {
         .err()
         .expect("conflicting schema must fail initialization");
     assert!(
-        error.to_string().contains("clipboard_categories already exists"),
+        error
+            .to_string()
+            .contains("clipboard_categories already exists"),
         "{error}"
     );
 }

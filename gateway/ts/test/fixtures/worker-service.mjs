@@ -1,7 +1,12 @@
 import { parentPort, threadId, workerData } from "node:worker_threads";
 import { create } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, bindStreamClient, bindStreamHandlers } from "../../src/binding/index.ts";
+import {
+  bindClient,
+  bindHandlers,
+  bindStreamClient,
+  bindStreamHandlers,
+} from "../../src/binding/index.ts";
 import { GatewayFailure } from "../../src/core/protocol.ts";
 import { exposeWorkerEndpoint } from "../../src/worker/endpoint.ts";
 
@@ -40,7 +45,10 @@ const handlers = bindHandlers(
       signal.addEventListener("abort", () => note("unary-aborted"), { once: true });
       if (request.text === "wait") await gate("unary");
       if (request.text === "options") {
-        return create(EnvelopeSchema, { ...request, id: client.options(EnvelopeSchema)?.id ?? request.id });
+        return create(EnvelopeSchema, {
+          ...request,
+          id: client.options(EnvelopeSchema)?.id ?? request.id,
+        });
       }
       if (request.text === "thread") return create(EnvelopeSchema, { id: BigInt(threadId) });
       if (request.text === "block") {
@@ -57,18 +65,24 @@ const handlers = bindHandlers(
         return item.value?.value ?? request;
       }
       if (request.text === "child-close") await child.cancel();
-      if (request.text === "subscribe") await client.subscribe("testing.Event", undefined, () => {});
+      if (request.text === "subscribe")
+        await client.subscribe("testing.Event", undefined, () => {});
       return request;
     },
   },
   { optionsSchema: EnvelopeSchema },
-).map((r) => ({ ...r, timeoutMs: workerData?.timeoutMs ?? 100, maxConcurrency: workerData?.concurrency ?? 2 }));
+).map((r) => ({
+  ...r,
+  timeoutMs: workerData?.timeoutMs ?? 100,
+  maxConcurrency: workerData?.concurrency ?? 2,
+}));
 const streams = bindStreamHandlers(service, {
   async watch(request, client) {
     const signal = client.cancellation();
     if (request.text === "relay") return bindStreamClient(peer, client).watch(request, { signal });
     if (request.text === "openwait") await gate("opening");
-    if (request.text === "openfail") throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "open failed" });
+    if (request.text === "openfail")
+      throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "open failed" });
     note("opened");
     let index = 0;
     signal.addEventListener("abort", () => note("aborted"), { once: true });
@@ -90,7 +104,10 @@ const streams = bindStreamHandlers(service, {
         if (request.text === "fail" && index === 1)
           throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "stream failed" });
         if (index >= Number(request.id)) return { done: true };
-        return { done: false, value: create(ChangedSchema, { value: { ...request, id: BigInt(index++) } }) };
+        return {
+          done: false,
+          value: create(ChangedSchema, { value: { ...request, id: BigInt(index++) } }),
+        };
       },
       async return() {
         if (request.text === "returnwait") await gate("returning");

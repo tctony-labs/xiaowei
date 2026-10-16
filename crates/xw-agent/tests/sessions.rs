@@ -29,7 +29,10 @@ fn concurrent_create_is_idempotent_and_deleted_creation_never_resurrects() {
                 })
             })
             .collect();
-        tasks.into_iter().map(|task| task.join().unwrap()).collect::<Vec<_>>()
+        tasks
+            .into_iter()
+            .map(|task| task.join().unwrap())
+            .collect::<Vec<_>>()
     });
     assert!(results.iter().all(|result| *result == results[0]));
     let session = results[0].session.as_ref().unwrap();
@@ -296,12 +299,14 @@ async fn list_sessions_orders_live_metadata_and_excludes_deleted_sessions() {
         .unwrap()
         .sessions;
     assert_eq!(listed.len(), 2);
+    assert!(listed.windows(2).all(|pair| {
+        (pair[0].created_at_ms, &pair[0].session_id) >= (pair[1].created_at_ms, &pair[1].session_id)
+    }));
     assert!(
-        listed.windows(2).all(|pair| {
-            (pair[0].created_at_ms, &pair[0].session_id) >= (pair[1].created_at_ms, &pair[1].session_id)
-        })
+        listed
+            .iter()
+            .any(|session| session.session_id == first.session_id)
     );
-    assert!(listed.iter().any(|session| session.session_id == first.session_id));
     service
         .delete_session(DeleteSessionRequest {
             targets: vec![DeleteSessionTarget {

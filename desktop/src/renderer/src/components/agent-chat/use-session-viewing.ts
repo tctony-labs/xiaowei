@@ -5,7 +5,11 @@ import type { Services } from "../../services";
 
 // Electron changes document visibility when its window hides or minimizes.
 // Observation stays connected; only this viewing lease follows the visible page.
-export function useSessionViewing(services: Services, sessionId: string | undefined, viewing: boolean) {
+export function useSessionViewing(
+  services: Services,
+  sessionId: string | undefined,
+  viewing: boolean,
+) {
   const [visible, setVisible] = useState(() => document.visibilityState === "visible");
   useEffect(() => {
     const update = () => setVisible(document.visibilityState === "visible");
@@ -16,7 +20,9 @@ export function useSessionViewing(services: Services, sessionId: string | undefi
   useEffect(() => {
     if (!sessionId || !viewing || !visible) return;
     let disposed = false;
-    let stream: Awaited<ReturnType<ReturnType<Services["getAgentStream"]>["trackSessionViewing"]>> | undefined;
+    let stream:
+      | Awaited<ReturnType<ReturnType<Services["getAgentStream"]>["trackSessionViewing"]>>
+      | undefined;
     void (async () => {
       try {
         const opened = await services

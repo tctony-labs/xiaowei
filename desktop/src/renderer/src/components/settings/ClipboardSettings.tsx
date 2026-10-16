@@ -75,14 +75,21 @@ export function ClipboardSettings({
           <Select
             value={values.retention}
             onChange={(retention) => onChange({ ...values, retention })}
-            options={[1, 7, 15, 30, -1].map((value) => ({ value, label: value === -1 ? "永久" : `${value} 天` }))}
+            options={[1, 7, 15, 30, -1].map((value) => ({
+              value,
+              label: value === -1 ? "永久" : `${value} 天`,
+            }))}
             menuClassName="w-[100px]"
           />
         </SettingRow>
         <SettingRow title="已用存储空间">
           <div className="flex items-center gap-2 text-[13px] text-ink-secondary">
             <span>
-              {refreshing ? "计算中..." : storageBytes === undefined ? "计算失败" : `${size.toFixed(2)} ${units[unit]}`}
+              {refreshing
+                ? "计算中..."
+                : storageBytes === undefined
+                  ? "计算失败"
+                  : `${size.toFixed(2)} ${units[unit]}`}
             </span>
             <button
               type="button"

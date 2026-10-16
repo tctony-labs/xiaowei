@@ -68,7 +68,10 @@ test("product settings loads saved values and sends changes and cleanup to servi
           });
         }
         if (request.change.case === "shortcuts") {
-          snapshot = create(SettingsSnapshotSchema, { ...snapshot, shortcuts: request.change.value });
+          snapshot = create(SettingsSnapshotSchema, {
+            ...snapshot,
+            shortcuts: request.change.value,
+          });
         }
         return snapshot;
       },
@@ -89,12 +92,16 @@ test("product settings loads saved values and sends changes and cleanup to servi
       { partial: true },
     ),
   );
-  const services = createServices(() => host.client({ caller: "settings-page-test", trusted: true }));
+  const services = createServices(() =>
+    host.client({ caller: "settings-page-test", trusted: true }),
+  );
   render(<SettingsPage version="0.1.0" development={true} services={services} />);
 
   const bookmarks = await screen.findByRole("switch", { name: "全局搜索包含Chrome书签" });
   await userEvent.click(bookmarks);
-  await waitFor(() => expect(updates).toHaveBeenCalledWith({ case: "includeChromeBookmarks", value: false }));
+  await waitFor(() =>
+    expect(updates).toHaveBeenCalledWith({ case: "includeChromeBookmarks", value: false }),
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "快捷键" }));
   const chat = screen.getByRole("textbox", { name: "录制快速对话快捷键" });
@@ -105,7 +112,9 @@ test("product settings loads saved values and sends changes and cleanup to servi
   await waitFor(() => expect(snapshot.shortcuts?.quickChat?.keys).toEqual(["Meta", "Space"]));
   expect(snapshot.shortcuts?.main).toBeUndefined();
   expect(snapshot.shortcuts?.clipboard?.keys).toEqual(["Meta", "Shift", "KeyX"]);
-  expect(screen.getByRole("textbox", { name: "录制全局搜索快捷键" })).toHaveTextContent("录制全局搜索快捷键");
+  expect(screen.getByRole("textbox", { name: "录制全局搜索快捷键" })).toHaveTextContent(
+    "录制全局搜索快捷键",
+  );
 
   const recorder = chat.parentElement;
   if (!recorder) throw new Error("Shortcut recorder container is missing");
@@ -146,7 +155,9 @@ test("packaged About checks for updates through System and displays host failure
     bindHandlers(Settings, { get: () => create(SettingsSnapshotSchema) }, { partial: true }),
     [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
   );
-  const services = createServices(() => host.client({ caller: "settings-update-test", trusted: true }));
+  const services = createServices(() =>
+    host.client({ caller: "settings-update-test", trusted: true }),
+  );
   render(<SettingsPage version="0.1.0" development={false} services={services} />);
   await screen.findByRole("switch", { name: "全局搜索包含Chrome书签" });
   await userEvent.click(screen.getByRole("button", { name: "关于" }));

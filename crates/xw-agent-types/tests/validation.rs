@@ -201,7 +201,9 @@ fn tool_extraction_has_an_owner_and_must_finish_before_the_tool() {
             if let EntryPayload::GenStarted(generation) = &mut row.payload
                 && matches!(generation.purpose, GenPurpose::ToolExtraction { .. })
             {
-                generation.purpose = GenPurpose::ToolExtraction { tool_id: ToolId::new() };
+                generation.purpose = GenPurpose::ToolExtraction {
+                    tool_id: ToolId::new(),
+                };
                 break;
             }
         }
@@ -278,7 +280,9 @@ fn preemption_causality_is_preserved_in_a_prefix_and_must_match_terminal_facts()
         let send = rows
             .iter()
             .find_map(|row| match &row.payload {
-                EntryPayload::InputAccepted(input) if input.mode == InputMode::Send => Some(input.input_id),
+                EntryPayload::InputAccepted(input) if input.mode == InputMode::Send => {
+                    Some(input.input_id)
+                }
                 _ => None,
             })
             .unwrap();
@@ -482,7 +486,9 @@ fn capabilities_and_messages() -> (ModelCapabilities, Vec<AgentMessage>) {
     for row in &entries {
         match &row.payload {
             EntryPayload::InputAccepted(input) => messages.push(input.message.message.clone()),
-            EntryPayload::Message(message) if message.turn_id.is_some() => messages.push(message.message.clone()),
+            EntryPayload::Message(message) if message.turn_id.is_some() => {
+                messages.push(message.message.clone())
+            }
             EntryPayload::ToolOutcome(outcome) => messages.push(outcome.result.message.clone()),
             _ => {}
         }
@@ -497,7 +503,9 @@ fn model_context_accepts_repeated_provider_ids_in_distinct_assistant_batches() {
     let mut invalid = messages.clone();
     invalid.remove(2);
     assert_eq!(
-        validate_model_context(&invalid, &capabilities).unwrap_err().code,
+        validate_model_context(&invalid, &capabilities)
+            .unwrap_err()
+            .code,
         ValidationCode::UnpairedToolCall
     );
 }
@@ -505,7 +513,9 @@ fn model_context_accepts_repeated_provider_ids_in_distinct_assistant_batches() {
 #[test]
 fn model_context_checks_actual_worker_roles_images_usage_and_final_parameters() {
     let (capabilities, messages) = capabilities_and_messages();
-    let reject = |messages: &[AgentMessage]| assert!(validate_model_context(messages, &capabilities).is_err());
+    let reject = |messages: &[AgentMessage]| {
+        assert!(validate_model_context(messages, &capabilities).is_err())
+    };
     let mut invalid = messages.clone();
     let AgentMessage::Assistant(assistant) = &mut invalid[1] else {
         unreachable!()
@@ -619,22 +629,45 @@ fn model_capabilities_enforce_budgets_and_reasoning_support() {
         rejects("text", |rows| {
             let context = run_context(rows);
             context.model.capabilities.as_mut().unwrap().context_window = limits.0;
-            context.model.capabilities.as_mut().unwrap().max_output_tokens = limits.1;
+            context
+                .model
+                .capabilities
+                .as_mut()
+                .unwrap()
+                .max_output_tokens = limits.1;
         });
     }
     for modalities in [vec![], vec![InputModality::Text, InputModality::Text]] {
         rejects("text", |rows| {
             let context = run_context(rows);
-            context.model.capabilities.as_mut().unwrap().input_modalities = modalities;
+            context
+                .model
+                .capabilities
+                .as_mut()
+                .unwrap()
+                .input_modalities = modalities;
         });
     }
     rejects("text", |rows| {
         let context = run_context(rows);
-        context.generation.max_tokens = Some(context.model.capabilities.as_mut().unwrap().max_output_tokens as u32 + 1);
+        context.generation.max_tokens = Some(
+            context
+                .model
+                .capabilities
+                .as_mut()
+                .unwrap()
+                .max_output_tokens as u32
+                + 1,
+        );
     });
     rejects("text", |rows| {
         let context = run_context(rows);
-        context.model.capabilities.as_mut().unwrap().supports_reasoning = false;
+        context
+            .model
+            .capabilities
+            .as_mut()
+            .unwrap()
+            .supports_reasoning = false;
         context.generation.reasoning = Some("adaptive".into());
     });
 
@@ -654,12 +687,16 @@ fn provider_specific_options_are_preserved_without_interpreting_provider_rules()
     context.generation.transport = Some("host-stream".into());
     context.generation.thinking_budgets_json = Some(" {\"adaptive\":512} ".into());
     context.generation.tool_choice_json = Some(" {\"type\":\"tool\",\"name\":\"Read\"} ".into());
-    context.generation.api_options_json = Some(" {\"customMode\":{\"budget\":9007199254740993}} ".into());
+    context.generation.api_options_json =
+        Some(" {\"customMode\":{\"budget\":9007199254740993}} ".into());
     context.tools[0].constrained_sampling_json =
         Some(" {\"type\":\"grammar\",\"variants\":{\"host_engine\":\"start: text\"}} ".into());
 
     validate_history(&rows).unwrap();
-    assert_eq!(decode_history(&encode_history(&rows).unwrap()).unwrap(), rows);
+    assert_eq!(
+        decode_history(&encode_history(&rows).unwrap()).unwrap(),
+        rows
+    );
 }
 
 #[test]

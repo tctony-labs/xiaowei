@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
-import { defaultContextWindow, defaultMaxTokens, matchThinkingMap } from "../../../shared/llm-models";
+import {
+  defaultContextWindow,
+  defaultMaxTokens,
+  matchThinkingMap,
+} from "../../../shared/llm-models";
 import {
   configureModels,
   invalidConfig,
@@ -85,7 +89,11 @@ export function resolveKey(
   return environment?.trim() ? environment : provider.apiKey?.trim() ? provider.apiKey : undefined;
 }
 
-function runtimeModel(provider: ConfiguredProvider, model: ConfiguredModel, apiKey: string): ResolvedModelConfig {
+function runtimeModel(
+  provider: ConfiguredProvider,
+  model: ConfiguredModel,
+  apiKey: string,
+): ResolvedModelConfig {
   return {
     ...model,
     contextWindow: model.contextWindow === undefined ? defaultContextWindow : model.contextWindow,
@@ -125,8 +133,10 @@ export function normalizeConfig(value: unknown): ModelConfigDocument {
     if (ids.has(id) || names.has(name) || !Array.isArray(item.models)) invalidConfig();
     ids.add(id);
     names.add(name);
-    if (item.supportsWebSocket !== undefined && typeof item.supportsWebSocket !== "boolean") invalidConfig();
-    if (item.transport !== undefined && item.transport !== "http" && item.transport !== "auto") invalidConfig();
+    if (item.supportsWebSocket !== undefined && typeof item.supportsWebSocket !== "boolean")
+      invalidConfig();
+    if (item.transport !== undefined && item.transport !== "http" && item.transport !== "auto")
+      invalidConfig();
     const provider: ConfiguredProvider = {
       id,
       name,
@@ -240,11 +250,17 @@ export function cleanDefaults(document: ModelConfigDocument) {
     if (!models.some((model) => model.id === document.defaults[key])) delete document.defaults[key];
   }
   const model = models.find((model) => model.id === document.defaults.modelRef);
-  const level = document.defaults.thinkingLevel as keyof NonNullable<ModelConfig["thinkingLevelMap"]>;
-  if (!model?.reasoning || typeof model.thinkingLevelMap?.[level] !== "string") delete document.defaults.thinkingLevel;
+  const level = document.defaults.thinkingLevel as keyof NonNullable<
+    ModelConfig["thinkingLevelMap"]
+  >;
+  if (!model?.reasoning || typeof model.thinkingLevelMap?.[level] !== "string")
+    delete document.defaults.thinkingLevel;
 }
 
-export function resolveModels(document: ModelConfigDocument, env: Readonly<Record<string, string | undefined>>) {
+export function resolveModels(
+  document: ModelConfigDocument,
+  env: Readonly<Record<string, string | undefined>>,
+) {
   const entries = document.providers.flatMap((provider) => {
     const key = resolveKey(provider, env);
     return key ? provider.models.map((model) => runtimeModel(provider, model, key)) : [];
@@ -252,7 +268,10 @@ export function resolveModels(document: ModelConfigDocument, env: Readonly<Recor
   return [...configureModels(entries).values()];
 }
 
-export async function loadConfig(env: Readonly<Record<string, string | undefined>>, defaultPath?: string) {
+export async function loadConfig(
+  env: Readonly<Record<string, string | undefined>>,
+  defaultPath?: string,
+) {
   const path = env.XIAOWEI_LLM_CONFIG ?? defaultPath;
   if (!path || !isAbsolute(path)) invalidConfig();
   let data: string;
@@ -277,7 +296,10 @@ export async function writeConfig(path: string, document: ModelConfigDocument) {
   await mkdir(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
-    await writeFile(temporary, `${JSON.stringify(normalized, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+    await writeFile(temporary, `${JSON.stringify(normalized, null, 2)}\n`, {
+      flag: "wx",
+      mode: 0o600,
+    });
     await rename(temporary, path);
   } finally {
     await rm(temporary, { force: true });

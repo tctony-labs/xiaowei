@@ -74,7 +74,11 @@ impl Store {
                 };
                 (Some(stored), vec![], None, None)
             }
-            ClipboardData::Image { data, width, height } => {
+            ClipboardData::Image {
+                data,
+                width,
+                height,
+            } => {
                 write_file(&self.image_dir.join(format!("{hash}.png")), data)?;
                 (None, vec![], Some(*width), Some(*height))
             }
@@ -113,11 +117,18 @@ impl Store {
                 offset: Some(options.offset),
             })
             .await?;
-        Ok(entities.into_iter().map(|record| self.map(record)).collect())
+        Ok(entities
+            .into_iter()
+            .map(|record| self.map(record))
+            .collect())
     }
 
     pub async fn get(&self, id: i64) -> Result<Option<ClipboardItem>> {
-        Ok(self.dao.get(record_id(id)?).await?.map(|record| self.map(record)))
+        Ok(self
+            .dao
+            .get(record_id(id)?)
+            .await?
+            .map(|record| self.map(record)))
     }
 
     pub async fn data(&self, id: i64) -> Result<ClipboardData> {
@@ -156,10 +167,21 @@ impl Store {
     }
 
     pub async fn categories(&self) -> Result<Vec<ClipboardCategory>> {
-        Ok(self.dao.categories().await?.into_iter().map(category).collect())
+        Ok(self
+            .dao
+            .categories()
+            .await?
+            .into_iter()
+            .map(category)
+            .collect())
     }
 
-    pub async fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
+    pub async fn save_category(
+        &self,
+        id: Option<i64>,
+        name: &str,
+        color: &str,
+    ) -> Result<ClipboardCategory> {
         let request = pb::SaveCategoryRequest {
             id: id.map(record_id).transpose()?,
             name: name.into(),

@@ -34,7 +34,9 @@ extern "C" fn tokenize_impl(
     flags: c_int,
     p_text: *const c_char,
     n_text: c_int,
-    token_callback: Option<unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int, c_int, c_int) -> c_int>,
+    token_callback: Option<
+        unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int, c_int, c_int) -> c_int,
+    >,
 ) -> c_int {
     let is_query = (flags & libsqlite3_sys::FTS5_TOKENIZE_QUERY as c_int) != 0;
     let mut tokenizer = match (unsafe { (*tokenizer).tp }, is_query) {
@@ -44,8 +46,13 @@ extern "C" fn tokenize_impl(
         _ => return libsqlite3_sys::SQLITE_ERROR as c_int,
     };
 
-    let text =
-        unsafe { std::str::from_utf8(std::slice::from_raw_parts(p_text as *const u8, n_text as usize)).unwrap_or("") };
+    let text = unsafe {
+        std::str::from_utf8(std::slice::from_raw_parts(
+            p_text as *const u8,
+            n_text as usize,
+        ))
+        .unwrap_or("")
+    };
     let mut stream = tokenizer.token_stream(text);
     let mut tokens = Vec::new();
     while let Some(token) = stream.next() {
@@ -54,7 +61,11 @@ extern "C" fn tokenize_impl(
     if !is_query {
         // Jieba emits overlapping search subwords before their original word.
         // Emit the covering word first so its subwords share one FTS5 position.
-        tokens.sort_by(|a, b| a.offset_from.cmp(&b.offset_from).then(b.offset_to.cmp(&a.offset_to)));
+        tokens.sort_by(|a, b| {
+            a.offset_from
+                .cmp(&b.offset_from)
+                .then(b.offset_to.cmp(&a.offset_to))
+        });
     }
 
     let mut position_end = 0;

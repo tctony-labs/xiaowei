@@ -17,9 +17,20 @@ import {
   validateName,
   validateRoute,
 } from "./protocol.js";
-import { type ByteSource, type ResponseStream, type StreamOptions, type StreamPolicy, streamPolicy } from "./stream.js";
+import {
+  type ByteSource,
+  type ResponseStream,
+  type StreamOptions,
+  type StreamPolicy,
+  streamPolicy,
+} from "./stream.js";
 
-export { type CallContext, contextPermissions, createContext, type Permissions } from "./context.js";
+export {
+  type CallContext,
+  contextPermissions,
+  createContext,
+  type Permissions,
+} from "./context.js";
 export type { EventExport } from "./event.js";
 export interface Registration {
   route: Route;
@@ -84,7 +95,10 @@ export class GatewayHost {
   private owners = new Map<string, Owner>();
   private events = new Events();
   private nextInstance = 0;
-  private reservations = new Map<object, { name: string; routes: Set<string>; events: Set<string> }>();
+  private reservations = new Map<
+    object,
+    { name: string; routes: Set<string>; events: Set<string> }
+  >();
   constructor(private remote?: Dispatcher) {}
 
   client(permissions: Permissions): Client {
@@ -95,10 +109,18 @@ export class GatewayHost {
     return Object.freeze({
       stream: (route: Route, payload: Uint8Array, options?: StreamOptions) =>
         this.stream(context, route, payload, options),
-      invoke: (route: Route, payload: Uint8Array, signal?: AbortSignal, serviceOptions?: Uint8Array) =>
-        this.invoke(context, route, payload, signal, serviceOptions),
-      subscribe: (event: string, filter: Uint8Array | undefined, sink: EventSink, persistent = false) =>
-        this.subscribe(context, event, filter, sink, persistent),
+      invoke: (
+        route: Route,
+        payload: Uint8Array,
+        signal?: AbortSignal,
+        serviceOptions?: Uint8Array,
+      ) => this.invoke(context, route, payload, signal, serviceOptions),
+      subscribe: (
+        event: string,
+        filter: Uint8Array | undefined,
+        sink: EventSink,
+        persistent = false,
+      ) => this.subscribe(context, event, filter, sink, persistent),
     });
   }
 
@@ -121,7 +143,8 @@ export class GatewayHost {
       closedListeners: new Set(),
     };
     this.owners.set(name, owner);
-    for (const registration of snapshot) this.entries.set(registration.route.name, { registration, owner });
+    for (const registration of snapshot)
+      this.entries.set(registration.route.name, { registration, owner });
     this.events.install(owner, name, events);
     const manifest: Manifest = Object.freeze({
       routes: Object.freeze(
@@ -146,7 +169,8 @@ export class GatewayHost {
         else owner.closedListeners.add(listener);
       },
       publish: (event: string, payload: Uint8Array) => {
-        if (owner.closed) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner instance closed" });
+        if (owner.closed)
+          throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "owner instance closed" });
         this.events.publish(owner, event, payload);
       },
       dispatchLocal: (
@@ -170,12 +194,15 @@ export class GatewayHost {
     const snapshot = registrations.map((registration) => ({
       ...registration,
       route: Object.freeze({ ...registration.route }),
-      streamPolicy: registration.streamPolicy ? Object.freeze(streamPolicy(registration.streamPolicy)) : undefined,
+      streamPolicy: registration.streamPolicy
+        ? Object.freeze(streamPolicy(registration.streamPolicy))
+        : undefined,
     }));
     for (const registration of snapshot) {
       const { route } = registration;
       if (registration.streamPolicy) streamPolicy(registration.streamPolicy);
-      if (registration.streamHandler && route.kind !== "serverStreaming") invalid("invalid stream handler kind");
+      if (registration.streamHandler && route.kind !== "serverStreaming")
+        invalid("invalid stream handler kind");
       validateRoute(route);
       const existing = this.entries.get(route.name);
       if (names.has(route.name) || (existing && existing.owner.name !== name)) {
@@ -193,7 +220,8 @@ export class GatewayHost {
       for (const value of [registration.timeoutMs ?? 30_000, registration.maxConcurrency ?? 32]) {
         if (!Number.isSafeInteger(value) || value <= 0) invalid("invalid execution policy");
       }
-      if ((registration.timeoutMs ?? 30_000) > 2_147_483_647) invalid("timeout exceeds timer range");
+      if ((registration.timeoutMs ?? 30_000) > 2_147_483_647)
+        invalid("timeout exceeds timer range");
     }
     this.events.validateOwner(name, events);
     for (const reserved of this.reservations.values()) {
@@ -248,8 +276,10 @@ export class GatewayHost {
       call.controller.abort();
     }
     this.execution.close(owner, reason);
-    for (const stream of this.streams) if (stream.owner === owner) stream.controller.abort(new GatewayFailure(reason));
-    for (const [route, entry] of this.entries) if (entry.owner === owner) this.entries.delete(route);
+    for (const stream of this.streams)
+      if (stream.owner === owner) stream.controller.abort(new GatewayFailure(reason));
+    for (const [route, entry] of this.entries)
+      if (entry.owner === owner) this.entries.delete(route);
     if (this.owners.get(owner.name) === owner) this.owners.delete(owner.name);
     this.events.remove(owner);
     for (const listener of owner.closedListeners) {
@@ -267,7 +297,8 @@ export class GatewayHost {
     authorize(context, route.name);
     validateRoute(route);
     const entry = this.entries.get(route.name);
-    if (!entry) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "route not registered" });
+    if (!entry)
+      throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "route not registered" });
     const actual = entry.registration.route;
     const compatible =
       actual.kind === "serverStreaming" && route.kind === "serverStreaming"
@@ -290,7 +321,8 @@ export class GatewayHost {
     try {
       authorize(context, route.name);
       validateRoute(route);
-      if (route.kind !== "unary") return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
+      if (route.kind !== "unary")
+        return failure("WRONG_METHOD_KIND", "stream execution requires stream API");
       if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
       if (
         serviceOptions !== undefined &&
@@ -301,7 +333,11 @@ export class GatewayHost {
       if (entry) return this.execute(entry, context, route, payload, signal, serviceOptions);
       if (this.remote) {
         const remote = this.remote;
-        return this.forward(context, (signal) => remote(route, payload, context, signal, serviceOptions), signal);
+        return this.forward(
+          context,
+          (signal) => remote(route, payload, context, signal, serviceOptions),
+          signal,
+        );
       }
       return failure("UNKNOWN_ROUTE", "route not registered");
     } catch (error) {
@@ -342,7 +378,8 @@ export class GatewayHost {
     if (!compatible.ok) return Promise.resolve(compatible);
     const { owner, registration } = entry;
     if (serviceOptions !== undefined) {
-      if (!registration.optionsSchema) return Promise.resolve(failure("INVALID_ARGUMENT", "service has no options"));
+      if (!registration.optionsSchema)
+        return Promise.resolve(failure("INVALID_ARGUMENT", "service has no options"));
       if (!(serviceOptions instanceof Uint8Array) || serviceOptions.byteLength > 65_536)
         return Promise.resolve(failure("INVALID_ARGUMENT", "invalid service options bytes"));
     }
@@ -395,15 +432,24 @@ export class GatewayHost {
     });
   }
 
-  async stream(context: CallContext, route: Route, payload: Uint8Array, options: StreamOptions = {}) {
+  async stream(
+    context: CallContext,
+    route: Route,
+    payload: Uint8Array,
+    options: StreamOptions = {},
+  ) {
     authorize(context, route.name);
     validateRoute(route);
     if (route.kind !== "serverStreaming") invalid("stream API requires streaming route");
     if (!(payload instanceof Uint8Array)) invalid("payload must be PB bytes");
     const entry = this.entries.get(route.name);
-    if (!entry) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "stream route not registered" });
+    if (!entry)
+      throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "stream route not registered" });
     const { registration, owner } = entry;
-    const compatible = accepts({ ...registration.route, kind: "unary" }, { ...route, kind: "unary" });
+    const compatible = accepts(
+      { ...registration.route, kind: "unary" },
+      { ...route, kind: "unary" },
+    );
     if (!compatible.ok) throw new GatewayFailure(compatible.error);
     if (!owner.streamDispatcher) {
       return this.execution.stream(
@@ -426,7 +472,9 @@ export class GatewayHost {
     options.signal?.addEventListener("abort", abort, { once: true });
     if (options.signal?.aborted) abort();
     try {
-      const stream = await owner.streamDispatcher(route, payload, context, { signal: controller.signal });
+      const stream = await owner.streamDispatcher(route, payload, context, {
+        signal: controller.signal,
+      });
       void stream.closed.then(release);
       return stream;
     } catch (error) {

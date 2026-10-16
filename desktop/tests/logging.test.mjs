@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -20,7 +28,12 @@ test("worker logs use the common file sink with original source and production l
       sourceLog("warn", "packages/example/worker.ts:12", "worker-warning %o", { count: 2 });
       sourceLog("debug", "packages/example/worker.ts:13", "hidden-debug");
     `;
-    const worker = createLoggedWorker("test", new URL(`data:text/javascript,${encodeURIComponent(code)}`), {}, main);
+    const worker = createLoggedWorker(
+      "test",
+      new URL(`data:text/javascript,${encodeURIComponent(code)}`),
+      {},
+      main,
+    );
     assert.deepEqual(await once(worker, "exit"), [0]);
     const text = readdirSync(directory)
       .map((name) => readFileSync(join(directory, name), "utf8"))
@@ -134,7 +147,9 @@ test("main and renderer share one file and console output, with rotation", (cont
       const coloredText = output[index].data.join(" ");
       assert.ok(coloredText.startsWith(`${ansiEscape}[${color}m`));
       assert.ok(coloredText.endsWith(`${ansiEscape}[0m`));
-      assert.ok(!coloredText.slice(`${ansiEscape}[${color}m`.length, -4).includes(`${ansiEscape}[0m`));
+      assert.ok(
+        !coloredText.slice(`${ansiEscape}[${color}m`.length, -4).includes(`${ansiEscape}[0m`),
+      );
     }
     assert.match(output[0].data[0], /main-marker.*count: 3/);
     assert.match(output[2].data[0], /Error: preload-marker\n\s+at /);
@@ -146,13 +161,28 @@ test("main and renderer share one file and console output, with rotation", (cont
     main.transports.file.maxSize = 1;
     renderer.transports.file.maxSize = 1;
     renderer.info("after-rotation");
-    assert.match(readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123.log"), "utf8"), /main-marker/);
-    assert.doesNotMatch(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /main-marker/);
+    assert.match(
+      readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123.log"), "utf8"),
+      /main-marker/,
+    );
+    assert.doesNotMatch(
+      readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"),
+      /main-marker/,
+    );
     assert.match(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /after-rotation/);
     main.info("second-rotation");
-    assert.match(readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123-1.log"), "utf8"), /after-rotation/);
-    assert.match(readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123.log"), "utf8"), /main-marker/);
-    assert.match(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /second-rotation/);
+    assert.match(
+      readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123-1.log"), "utf8"),
+      /after-rotation/,
+    );
+    assert.match(
+      readFileSync(join(directory, "2026-09-17-xiaowei-10-30-45-123.log"), "utf8"),
+      /main-marker/,
+    );
+    assert.match(
+      readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"),
+      /second-rotation/,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -167,7 +197,10 @@ test("production omits debug from files and terminal", (context) => {
     main.transports.console.writeFn = ({ message }) => output.push(message);
     main.debug("hidden-marker");
     main.info("visible-marker");
-    assert.doesNotMatch(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /hidden-marker/);
+    assert.doesNotMatch(
+      readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"),
+      /hidden-marker/,
+    );
     assert.equal(output.length, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -197,8 +230,14 @@ test("daily files retain 15 local calendar days and clean up on startup and the 
     context.mock.timers.setTime(new Date(2026, 8, 18, 0, 0, 1).getTime());
     renderer.info("after-midnight");
     assert.ok(!readdirSync(directory).some((name) => name.startsWith("2026-09-03-xiaowei")));
-    assert.match(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /before-midnight/);
-    assert.doesNotMatch(readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"), /after-midnight/);
+    assert.match(
+      readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"),
+      /before-midnight/,
+    );
+    assert.doesNotMatch(
+      readFileSync(join(directory, "2026-09-17-xiaowei.log"), "utf8"),
+      /after-midnight/,
+    );
     assert.match(readFileSync(join(directory, "2026-09-18-xiaowei.log"), "utf8"), /after-midnight/);
     assert.ok(existsSync(join(directory, "2026-09-02-unrelated.log")));
     assert.ok(existsSync(join(directory, "2026-09-01-xiaowei.log")));
@@ -267,7 +306,10 @@ for (const forceColor of [undefined, "0", "1"]) {
         assert.equal(output.includes("\x1b["), forceColor === "1", output);
       }
       if (forceColor === "1") {
-        const lines = [...result.stdout.trimEnd().split("\n"), ...result.stderr.trimEnd().split("\n")];
+        const lines = [
+          ...result.stdout.trimEnd().split("\n"),
+          ...result.stderr.trimEnd().split("\n"),
+        ];
         for (const [index, color] of [0, 90, 90, 90, 33].entries()) {
           assert.ok(lines[index].startsWith(`\x1b[${color}m`));
           assert.ok(lines[index].endsWith("\x1b[0m"));

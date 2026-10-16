@@ -176,6 +176,8 @@ test("session loading and empty results are controlled by the adapter", async ()
   const { props, rerender } = setup({ sessionsLoading: true });
   await click("选择会话");
   expect(screen.getByText("加载中...")).toBeVisible();
-  await act(async () => rerender(<QuickChatTitleBar {...props} sessionsLoading={false} sessions={[]} />));
+  await act(async () =>
+    rerender(<QuickChatTitleBar {...props} sessionsLoading={false} sessions={[]} />),
+  );
   expect(screen.getByText("暂无对话")).toBeVisible();
 });

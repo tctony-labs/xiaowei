@@ -34,7 +34,10 @@ fn valid_start_without_an_executor_does_not_mutate_config_or_create_a_run() {
     };
     for _ in 0..2 {
         assert_eq!(
-            service.start_run(request.clone(), source()).now_or_never().unwrap(),
+            service
+                .start_run(request.clone(), source())
+                .now_or_never()
+                .unwrap(),
             Err(AgentError::ExecutionUnavailable)
         );
     }
@@ -71,7 +74,10 @@ fn input_validates_presence_total_utf8_bytes_config_source_and_session() {
         config: None,
     };
     assert_eq!(
-        service.start_run(request.clone(), source()).now_or_never().unwrap(),
+        service
+            .start_run(request.clone(), source())
+            .now_or_never()
+            .unwrap(),
         Err(AgentError::ExecutionUnavailable)
     );
     for input in [

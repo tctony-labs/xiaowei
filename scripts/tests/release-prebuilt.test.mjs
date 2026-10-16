@@ -78,7 +78,8 @@ test("test failure and overwritten production addon are both reported", async ()
       },
       fixtures: () => assert.fail("checks failed before fixtures"),
     }),
-    (error) => error instanceof AggregateError && error.errors[0] === failure && error.errors.length === 2,
+    (error) =>
+      error instanceof AggregateError && error.errors[0] === failure && error.errors.length === 2,
   );
 });
 

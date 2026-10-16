@@ -19,9 +19,13 @@ async fn inactive_errors_not_found_and_shared_snapshots_use_registered_handlers(
         "xiaowei.agent.Agent.CreateSession",
         MethodKind::Unary,
     );
-    let subscribe = StreamMethod::<SubscribeSessionRequest, AgentEvent>::new("xiaowei.agent.Agent.SubscribeSession");
-    let list =
-        Method::<ListSessionsRequest, ListSessionsResponse>::new("xiaowei.agent.Agent.ListSessions", MethodKind::Unary);
+    let subscribe = StreamMethod::<SubscribeSessionRequest, AgentEvent>::new(
+        "xiaowei.agent.Agent.SubscribeSession",
+    );
+    let list = Method::<ListSessionsRequest, ListSessionsResponse>::new(
+        "xiaowei.agent.Agent.ListSessions",
+        MethodKind::Unary,
+    );
     let request = CreateSessionRequest {
         title_model_ref: String::new(),
         client_request_id: ClientRequestId::new().to_string(),
@@ -47,9 +51,16 @@ async fn inactive_errors_not_found_and_shared_snapshots_use_registered_handlers(
         created.session.as_ref().unwrap().config
     );
     assert_eq!(retried.session.as_ref().unwrap().metadata_revision, 1);
-    let listed = list.call(&b, ListSessionsRequest::default()).await.unwrap().sessions;
+    let listed = list
+        .call(&b, ListSessionsRequest::default())
+        .await
+        .unwrap()
+        .sessions;
     assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].session_id, created.session.as_ref().unwrap().session_id);
+    assert_eq!(
+        listed[0].session_id,
+        created.session.as_ref().unwrap().session_id
+    );
     let invalid = subscribe
         .stream(
             &b,
@@ -77,7 +88,11 @@ async fn inactive_errors_not_found_and_shared_snapshots_use_registered_handlers(
     agent.close().await.unwrap();
     assert!(!agent.ready());
     assert_eq!(
-        create.call(&a, CreateSessionRequest::default()).await.unwrap_err().code,
+        create
+            .call(&a, CreateSessionRequest::default())
+            .await
+            .unwrap_err()
+            .code,
         ErrorCode::OwnerUnavailable
     );
     registry.unregister_owner(&owner);

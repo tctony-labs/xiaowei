@@ -15,8 +15,11 @@ use crate::stream::{self, Admission, ByteStream, RemoteStream, StreamHandler, St
 
 type InvokeFuture = Pin<Box<dyn Future<Output = WireResult> + Send>>;
 pub type InvokeHandler = Arc<dyn Fn(Vec<u8>, Client) -> InvokeFuture + Send + Sync>;
-type RemoteInvoker =
-    Arc<dyn Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> InvokeFuture + Send + Sync>;
+type RemoteInvoker = Arc<
+    dyn Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> InvokeFuture
+        + Send
+        + Sync,
+>;
 
 pub struct InvokeRegistration {
     pub route: Route,
@@ -41,7 +44,9 @@ impl InvokeRegistration {
             options_schema: None,
             timeout: Duration::from_secs(30),
             max_concurrency: 32,
-            handler: Some(Arc::new(move |payload, client| Box::pin(handler(payload, client)))),
+            handler: Some(Arc::new(move |payload, client| {
+                Box::pin(handler(payload, client))
+            })),
         }
     }
 
@@ -62,7 +67,9 @@ impl InvokeRegistration {
         Fut: Future<Output = Result<ByteStream, GatewayError>> + Send + 'static,
     {
         let mut registration = Self::stream(route);
-        registration.stream_handler = Some(Arc::new(move |payload, client| Box::pin(handler(payload, client))));
+        registration.stream_handler = Some(Arc::new(move |payload, client| {
+            Box::pin(handler(payload, client))
+        }));
         registration
     }
 }
@@ -138,8 +145,12 @@ impl Client {
         self.service_options
             .as_deref()
             .map(|bytes| {
-                M::decode(bytes)
-                    .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid service options protobuf"))
+                M::decode(bytes).map_err(|_| {
+                    GatewayError::new(
+                        ErrorCode::InvalidArgument,
+                        "invalid service options protobuf",
+                    )
+                })
             })
             .transpose()
     }
@@ -167,7 +178,11 @@ impl Client {
     pub fn cancellation(&self) -> CancelHandle {
         self.cancellation.clone().unwrap_or_default()
     }
-    pub async fn stream(&self, route: &Route, payload: Vec<u8>) -> Result<stream::ResponseStream, GatewayError> {
+    pub async fn stream(
+        &self,
+        route: &Route,
+        payload: Vec<u8>,
+    ) -> Result<stream::ResponseStream, GatewayError> {
         self.registry
             .open_stream(route, payload, self.context.clone(), None)
             .await
@@ -210,7 +225,9 @@ impl XwInvokeRegistry {
                 validate_name(schema)?;
             }
             registration.stream_policy.validate()?;
-            if registration.stream_handler.is_some() && registration.route.kind != MethodKind::ServerStreaming {
+            if registration.stream_handler.is_some()
+                && registration.route.kind != MethodKind::ServerStreaming
+            {
                 return Err(GatewayError::new(
                     ErrorCode::WrongMethodKind,
                     "invalid stream handler kind",
@@ -222,7 +239,10 @@ impl XwInvokeRegistry {
                     .get(&registration.route.name)
                     .is_some_and(|entry| entry.owner.name != name)
             {
-                return Err(GatewayError::new(ErrorCode::Conflict, "route already registered"));
+                return Err(GatewayError::new(
+                    ErrorCode::Conflict,
+                    "route already registered",
+                ));
             }
             if registration.max_concurrency == 0
                 || registration.max_concurrency > Semaphore::MAX_PERMITS
@@ -279,7 +299,9 @@ impl XwInvokeRegistry {
         }
         owner.closed.send_replace(true);
         state.owners.remove(&owner.name);
-        state.entries.retain(|_, entry| !entry.owner.same_instance(owner));
+        state
+            .entries
+            .retain(|_, entry| !entry.owner.same_instance(owner));
         state.events.remove_owner(owner);
     }
 
@@ -290,7 +312,10 @@ impl XwInvokeRegistry {
             .get(&owner.name)
             .is_some_and(|current| current.same_instance(owner))
         {
-            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
+            return Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "owner instance closed",
+            ));
         }
         let mut routes: Vec<_> = state
             .entries
@@ -301,7 +326,8 @@ impl XwInvokeRegistry {
                 options_schema: entry.options_schema.clone(),
                 timeout_ms: entry.timeout.as_millis().min(u64::MAX as u128) as u64,
                 max_concurrency: entry.max_concurrency,
-                stream_policy: (entry.route.kind == MethodKind::ServerStreaming).then(|| entry.stream_policy.clone()),
+                stream_policy: (entry.route.kind == MethodKind::ServerStreaming)
+                    .then(|| entry.stream_policy.clone()),
             })
             .collect();
         routes.sort_by(|a, b| a.route.name.cmp(&b.route.name));
@@ -329,28 +355,35 @@ impl XwInvokeRegistry {
         F: Fn(Route, Vec<u8>, CallContext) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = WireResult> + Send + 'static,
     {
-        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, _, options| -> InvokeFuture {
-            if options.is_some() {
-                Box::pin(async {
-                    Err(GatewayError::new(
-                        ErrorCode::InvalidArgument,
-                        "remote invoker has no options support",
-                    ))
-                })
-            } else {
-                Box::pin(invoker(route, payload, context))
-            }
-        }));
+        *self.remote.write().unwrap() = Some(Arc::new(
+            move |route, payload, context, _, options| -> InvokeFuture {
+                if options.is_some() {
+                    Box::pin(async {
+                        Err(GatewayError::new(
+                            ErrorCode::InvalidArgument,
+                            "remote invoker has no options support",
+                        ))
+                    })
+                } else {
+                    Box::pin(invoker(route, payload, context))
+                }
+            },
+        ));
     }
 
     pub fn set_remote_invoker_cancellable<F, Fut>(&self, invoker: F)
     where
-        F: Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> Fut + Send + Sync + 'static,
+        F: Fn(Route, Vec<u8>, CallContext, CancelHandle, Option<Vec<u8>>) -> Fut
+            + Send
+            + Sync
+            + 'static,
         Fut: Future<Output = WireResult> + Send + 'static,
     {
-        *self.remote.write().unwrap() = Some(Arc::new(move |route, payload, context, cancellation, options| {
-            Box::pin(invoker(route, payload, context, cancellation, options))
-        }));
+        *self.remote.write().unwrap() = Some(Arc::new(
+            move |route, payload, context, cancellation, options| {
+                Box::pin(invoker(route, payload, context, cancellation, options))
+            },
+        ));
     }
 
     pub fn set_remote_stream(&self, remote: RemoteStream) {
@@ -364,7 +397,13 @@ impl XwInvokeRegistry {
                 }
             }
         }
-        for admission in self.admissions.lock().unwrap().iter().filter_map(|weak| weak.upgrade()) {
+        for admission in self
+            .admissions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|weak| weak.upgrade())
+        {
             if admission.caller == caller {
                 admission.cancel.send_replace(true);
             }
@@ -391,19 +430,22 @@ impl XwInvokeRegistry {
         context.authorize(&route.name, false)?;
         route.validate()?;
         if route.kind != MethodKind::ServerStreaming {
-            return Err(GatewayError::new(ErrorCode::WrongMethodKind, "stream route required"));
+            return Err(GatewayError::new(
+                ErrorCode::WrongMethodKind,
+                "stream route required",
+            ));
         }
         let entry = self.state.lock().unwrap().entries.get(&route.name).cloned();
         let Some(entry) = entry else {
             if local.is_some() {
-                return Err(GatewayError::new(ErrorCode::UnknownRoute, "local stream missing"));
+                return Err(GatewayError::new(
+                    ErrorCode::UnknownRoute,
+                    "local stream missing",
+                ));
             }
-            let remote = self
-                .remote_stream
-                .read()
-                .unwrap()
-                .clone()
-                .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "stream route missing"))?;
+            let remote = self.remote_stream.read().unwrap().clone().ok_or_else(|| {
+                GatewayError::new(ErrorCode::UnknownRoute, "stream route missing")
+            })?;
             let policy = StreamPolicy::default();
             let admission = self.admit_stream(&policy, context.caller(), 0)?;
             let mut cancelled = admission.cancel.subscribe();
@@ -419,19 +461,32 @@ impl XwInvokeRegistry {
                 closed: watch::channel(false).0,
             };
             source.policy.validate()?;
-            let handle = stream::start(source.source, source.policy, context.caller().into(), owner, admission);
+            let handle = stream::start(
+                source.source,
+                source.policy,
+                context.caller().into(),
+                owner,
+                admission,
+            );
             self.track_stream(&handle);
             return Ok(stream::ResponseStream::new(handle));
         };
         if &entry.route != route {
-            return Err(GatewayError::new(ErrorCode::Incompatible, "stream contract mismatch"));
+            return Err(GatewayError::new(
+                ErrorCode::Incompatible,
+                "stream contract mismatch",
+            ));
         }
-        if entry.owner.is_closed() || local.is_some_and(|owner| !owner.same_instance(&entry.owner)) {
-            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner closed"));
+        if entry.owner.is_closed() || local.is_some_and(|owner| !owner.same_instance(&entry.owner))
+        {
+            return Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "owner closed",
+            ));
         }
-        let handler = entry
-            .stream_handler
-            .ok_or_else(|| GatewayError::new(ErrorCode::WrongMethodKind, "stream handler missing"))?;
+        let handler = entry.stream_handler.ok_or_else(|| {
+            GatewayError::new(ErrorCode::WrongMethodKind, "stream handler missing")
+        })?;
         let policy = entry.stream_policy;
         let admission = self.admit_stream(&policy, context.caller(), entry.owner.id)?;
         let mut cancelled = admission.cancel.subscribe();
@@ -445,7 +500,13 @@ impl XwInvokeRegistry {
                 handler(payload, self.client(context.clone()))) =>
                 source.map_err(|_| GatewayError::new(ErrorCode::Timeout, "stream open timed out"))??,
         };
-        let handle = stream::start(source, policy, context.caller().into(), entry.owner, admission);
+        let handle = stream::start(
+            source,
+            policy,
+            context.caller().into(),
+            entry.owner,
+            admission,
+        );
         self.track_stream(&handle);
         Ok(stream::ResponseStream::new(handle))
     }
@@ -454,14 +515,25 @@ impl XwInvokeRegistry {
         streams.retain(|weak| weak.strong_count() > 0);
         streams.push(Arc::downgrade(&handle.life));
     }
-    fn admit_stream(&self, policy: &StreamPolicy, caller: &str, owner: u64) -> Result<Arc<Admission>, GatewayError> {
+    fn admit_stream(
+        &self,
+        policy: &StreamPolicy,
+        caller: &str,
+        owner: u64,
+    ) -> Result<Arc<Admission>, GatewayError> {
         let mut admissions = self.admissions.lock().unwrap();
         admissions.retain(|weak| weak.strong_count() > 0);
-        let active: Vec<_> = admissions.iter().filter_map(|weak| weak.upgrade()).collect();
+        let active: Vec<_> = admissions
+            .iter()
+            .filter_map(|weak| weak.upgrade())
+            .collect();
         if active.iter().filter(|a| a.owner == owner).count() >= policy.max_owner_streams
             || active.iter().filter(|a| a.caller == caller).count() >= policy.max_caller_streams
         {
-            return Err(GatewayError::new(ErrorCode::ResourceExhausted, "stream admission full"));
+            return Err(GatewayError::new(
+                ErrorCode::ResourceExhausted,
+                "stream admission full",
+            ));
         }
         let admission = Arc::new(Admission {
             caller: caller.into(),
@@ -472,7 +544,12 @@ impl XwInvokeRegistry {
         Ok(admission)
     }
 
-    pub async fn call(self: &Arc<Self>, route: &Route, payload: Vec<u8>, context: CallContext) -> WireResult {
+    pub async fn call(
+        self: &Arc<Self>,
+        route: &Route,
+        payload: Vec<u8>,
+        context: CallContext,
+    ) -> WireResult {
         self.call_cancellable(route, payload, context, CancelHandle::new(), None)
             .await
     }
@@ -490,7 +567,10 @@ impl XwInvokeRegistry {
         }
         context.authorize(&route.name, false)?;
         route.validate()?;
-        if service_options.as_ref().is_some_and(|bytes| bytes.len() > 65_536) {
+        if service_options
+            .as_ref()
+            .is_some_and(|bytes| bytes.len() > 65_536)
+        {
             return Err(GatewayError::new(
                 ErrorCode::InvalidArgument,
                 "service options too large",
@@ -499,16 +579,28 @@ impl XwInvokeRegistry {
         let entry = self.state.lock().unwrap().entries.get(&route.name).cloned();
         if let Some(entry) = entry {
             return self
-                .execute(entry, route, payload, context, cancellation, service_options)
+                .execute(
+                    entry,
+                    route,
+                    payload,
+                    context,
+                    cancellation,
+                    service_options,
+                )
                 .await;
         }
-        let remote = self
-            .remote
-            .read()
-            .unwrap()
-            .clone()
-            .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "route not registered"))?;
-        remote(route.clone(), payload, context, cancellation, service_options).await
+        let remote =
+            self.remote.read().unwrap().clone().ok_or_else(|| {
+                GatewayError::new(ErrorCode::UnknownRoute, "route not registered")
+            })?;
+        remote(
+            route.clone(),
+            payload,
+            context,
+            cancellation,
+            service_options,
+        )
+        .await
     }
 
     /// Inbound transport dispatch never falls back, preventing forwarding loops.
@@ -545,10 +637,20 @@ impl XwInvokeRegistry {
             .cloned()
             .ok_or_else(|| GatewayError::new(ErrorCode::UnknownRoute, "route not registered"))?;
         if !entry.owner.same_instance(owner) || owner.is_closed() {
-            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
+            return Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "owner instance closed",
+            ));
         }
-        self.execute(entry, route, payload, context, cancellation, service_options)
-            .await
+        self.execute(
+            entry,
+            route,
+            payload,
+            context,
+            cancellation,
+            service_options,
+        )
+        .await
     }
 
     async fn execute(
@@ -570,13 +672,15 @@ impl XwInvokeRegistry {
             }
         }
         if entry.owner.is_closed() {
-            return Err(GatewayError::new(ErrorCode::OwnerUnavailable, "owner instance closed"));
+            return Err(GatewayError::new(
+                ErrorCode::OwnerUnavailable,
+                "owner instance closed",
+            ));
         }
-        let permit = entry
-            .semaphore
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| GatewayError::new(ErrorCode::ConcurrencyFull, "route concurrency full"))?;
+        let permit =
+            entry.semaphore.clone().try_acquire_owned().map_err(|_| {
+                GatewayError::new(ErrorCode::ConcurrencyFull, "route concurrency full")
+            })?;
         let handler = entry.handler.unwrap();
         let execution_cancel = CancelHandle::new();
         {

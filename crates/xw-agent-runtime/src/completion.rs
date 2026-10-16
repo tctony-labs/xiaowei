@@ -3,7 +3,9 @@ use std::{sync::Arc, time::Instant};
 use futures_util::StreamExt;
 use xw_agent_types::{AssistantMessage, ContentBlock, GenId};
 
-use crate::{CancellationToken, GenerationError, GenerationEvent, GenerationRequest, LlmGeneration};
+use crate::{
+    CancellationToken, GenerationError, GenerationEvent, GenerationRequest, LlmGeneration,
+};
 
 /// Consume the same streaming interface for auxiliary text tasks. Only a valid
 /// successful final message is returned; deltas never stand in for completion.
@@ -37,10 +39,16 @@ pub async fn complete_text(
                     return Ok(message);
                 }
                 GenerationEvent::Failed { error, .. } => return Err(error),
-                GenerationEvent::BlockStarted { block, .. } | GenerationEvent::BlockFinished { block, .. }
-                    if !matches!(block, ContentBlock::Text { .. } | ContentBlock::Thinking { .. }) =>
+                GenerationEvent::BlockStarted { block, .. }
+                | GenerationEvent::BlockFinished { block, .. }
+                    if !matches!(
+                        block,
+                        ContentBlock::Text { .. } | ContentBlock::Thinking { .. }
+                    ) =>
                 {
-                    return Err(GenerationError::Failed("unsupported auxiliary output".into()));
+                    return Err(GenerationError::Failed(
+                        "unsupported auxiliary output".into(),
+                    ));
                 }
                 _ => {}
             }

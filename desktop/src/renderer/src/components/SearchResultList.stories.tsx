@@ -8,7 +8,14 @@ import { SearchResultList } from "./SearchResultList";
 
 const hits = [
   { id: "calc", title: "1+2 = 3", provider: "calculator", label: "计算器", score: 0, ranges: [] },
-  { id: "app", title: "微信", provider: "app", label: "应用", score: 100, ranges: [{ start: 0, end: 2 }] },
+  {
+    id: "app",
+    title: "微信",
+    provider: "app",
+    label: "应用",
+    score: 100,
+    ranges: [{ start: 0, end: 2 }],
+  },
   { id: "settings", title: "显示器", provider: "app", label: "系统设置", score: 90, ranges: [] },
   { id: "bookmark", title: "周报", provider: "bookmark", label: "网页", score: 80, ranges: [] },
 ];
@@ -39,7 +46,11 @@ export const Mixed: Story = {};
 export const Dark: Story = { globals: { theme: "dark" } };
 export const Scroll: Story = {
   args: {
-    hits: Array.from({ length: 15 }, (_, i) => ({ ...hits[3], id: `bookmark-${i}`, title: `收藏网页 ${i + 1}` })),
+    hits: Array.from({ length: 15 }, (_, i) => ({
+      ...hits[3],
+      id: `bookmark-${i}`,
+      title: `收藏网页 ${i + 1}`,
+    })),
   },
 };
 export const ScrollInLauncher: Story = {
@@ -85,7 +96,9 @@ export const ScrollInLauncher: Story = {
                 if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
                 event.preventDefault();
                 const delta = event.key === "ArrowDown" ? 1 : -1;
-                updateArgs({ selected: Math.max(0, Math.min(args.hits.length - 1, args.selected + delta)) });
+                updateArgs({
+                  selected: Math.max(0, Math.min(args.hits.length - 1, args.selected + delta)),
+                });
               }}
             >
               <SearchResultList {...args} onSelect={(selected) => updateArgs({ selected })} />

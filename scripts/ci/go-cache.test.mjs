@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -83,7 +91,12 @@ test("cache paths and prefixes reflect the actual Go environment and runner", (c
 test("both modules' dependency changes rotate module and build snapshots", (context) => {
   const { workspace, run } = fixture(context);
   const first = run("key");
-  for (const path of ["server/go.mod", "server/go.sum", "contracts/go/go.mod", "contracts/go/go.sum"]) {
+  for (const path of [
+    "server/go.mod",
+    "server/go.sum",
+    "contracts/go/go.mod",
+    "contracts/go/go.sum",
+  ]) {
     const absolute = join(workspace, path);
     const original = readFileSync(absolute, "utf8");
     writeFileSync(absolute, `${original}\n// changed\n`);
@@ -136,12 +149,20 @@ test("timestamps, renderer and untracked files retain keys, while added tracked 
 
 test("invalid commands and missing Go versions fail with a clear error", (context) => {
   const { workspace, env } = fixture(context);
-  const invalid = spawnSync(process.execPath, [script, "unknown"], { cwd: workspace, env, encoding: "utf8" });
+  const invalid = spawnSync(process.execPath, [script, "unknown"], {
+    cwd: workspace,
+    env,
+    encoding: "utf8",
+  });
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /Usage: go-cache.mjs version\|key/);
 
   writeFileSync(join(workspace, "server/go.mod"), "module example/server\n");
-  const missing = spawnSync(process.execPath, [script, "version"], { cwd: workspace, env, encoding: "utf8" });
+  const missing = spawnSync(process.execPath, [script, "version"], {
+    cwd: workspace,
+    env,
+    encoding: "utf8",
+  });
   assert.equal(missing.status, 1);
   assert.match(missing.stderr, /No Go version in server\/go.mod/);
 });

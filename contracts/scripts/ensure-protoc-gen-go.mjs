@@ -38,7 +38,9 @@ export function ensureProtocGenGo() {
 }
 
 function goProtobufVersion(file) {
-  const version = readFileSync(file, "utf8").match(/^\s*(?:require\s+)?google\.golang\.org\/protobuf\s+(v\S+)/m)?.[1];
+  const version = readFileSync(file, "utf8").match(
+    /^\s*(?:require\s+)?google\.golang\.org\/protobuf\s+(v\S+)/m,
+  )?.[1];
   if (!version) throw new Error(`Missing google.golang.org/protobuf requirement in ${file}`);
   return version;
 }

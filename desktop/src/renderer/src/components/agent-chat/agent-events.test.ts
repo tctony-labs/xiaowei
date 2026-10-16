@@ -1,6 +1,11 @@
 import { create } from "@bufbuild/protobuf";
 import { expect, test } from "vitest";
-import { AgentEventSchema, AgentRunStatus, type AgentSession, AgentSessionSchema } from "xiaowei-contracts";
+import {
+  AgentEventSchema,
+  AgentRunStatus,
+  type AgentSession,
+  AgentSessionSchema,
+} from "xiaowei-contracts";
 import { applyAgentEvent, chatMessages } from "./agent-events";
 
 test("title updates advance activity time and delayed run settlement cannot move it backwards", () => {
@@ -52,7 +57,9 @@ test("snapshot replaces display; direct events preserve order and terminal wins 
                 runId: "r",
                 inputId: "i",
                 status: AgentRunStatus.IN_PROGRESS,
-                items: [{ itemId: "item", content: { case: "agentMessage", value: { text: "before" } } }],
+                items: [
+                  { itemId: "item", content: { case: "agentMessage", value: { text: "before" } } },
+                ],
               },
             ],
           },
@@ -88,7 +95,9 @@ test("snapshot replaces display; direct events preserve order and terminal wins 
             runId: "r",
             inputId: "i",
             status: AgentRunStatus.COMPLETED,
-            items: [{ itemId: "item", content: { case: "agentMessage", value: { text: "final" } } }],
+            items: [
+              { itemId: "item", content: { case: "agentMessage", value: { text: "final" } } },
+            ],
           },
         },
       },

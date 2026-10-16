@@ -40,8 +40,16 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
   const { Storage } =
     require("../../../crates/xiaowei-storage/napi") as typeof import("../../../crates/xiaowei-storage/napi/index.js");
   const storage = await Storage.open(join(directory, "storage.sqlite"));
-  const storageOwner = await attachRustNapi(host, "storage", storage.createKeyValueGatewayEndpoint());
-  const daoOwner = await attachRustNapi(host, "clipboard-dao", storage.createClipboardDaoGatewayEndpoint());
+  const storageOwner = await attachRustNapi(
+    host,
+    "storage",
+    storage.createKeyValueGatewayEndpoint(),
+  );
+  const daoOwner = await attachRustNapi(
+    host,
+    "clipboard-dao",
+    storage.createClipboardDaoGatewayEndpoint(),
+  );
   const owner = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
   await history.initialize();
   const client = host.client({ caller: "test", trusted: true });
@@ -67,11 +75,20 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     );
     await assert.rejects(restricted.get(item(key)), /Unauthorized/);
     assert.equal((await api.readText(item(key))).text, added.text);
-    assert.equal((await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: true }))).updated, true);
-    assert.equal((await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: false }))).updated, true);
+    assert.equal(
+      (await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: true }))).updated,
+      true,
+    );
+    assert.equal(
+      (await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: false }))).updated,
+      true,
+    );
     assert.equal((await api.get(item(key))).item?.favorite, false);
     await api.setFavorite(create(FavoriteRequestSchema, { id: key, favorite: true }));
-    assert.equal((await api.setFavorite(create(FavoriteRequestSchema, { id: 9223372036854775807n }))).updated, false);
+    assert.equal(
+      (await api.setFavorite(create(FavoriteRequestSchema, { id: 9223372036854775807n }))).updated,
+      false,
+    );
     const longText = "long text ".repeat(10000);
     const long = await history.addText(longText);
     const summary = (await api.get(item(BigInt(long.id)))).item;
@@ -82,19 +99,30 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     assert.ok(summary.createdAtMs > 1_000_000_000_000n);
     assert.equal((await api.readText(item(BigInt(long.id)))).text, longText);
     await api.delete(item(BigInt(long.id)));
-    await assert.rejects(api.list(create(ClipboardListOptionsSchema, { kind: 999 as ClipboardKind })));
+    await assert.rejects(
+      api.list(create(ClipboardListOptionsSchema, { kind: 999 as ClipboardKind })),
+    );
     await api.setRemark(create(SetRemarkRequestSchema, { id: key, remark: "note" }));
-    const category = await api.saveCategory(create(SaveCategoryRequestSchema, { name: "Work", color: "#123456" }));
+    const category = await api.saveCategory(
+      create(SaveCategoryRequestSchema, { name: "Work", color: "#123456" }),
+    );
     await api.setCategory(create(SetCategoryRequestSchema, { id: key, categoryId: category.id }));
     assert.equal(
-      (await api.list(create(ClipboardListOptionsSchema, { categoryId: category.id }))).items[0].remark,
+      (await api.list(create(ClipboardListOptionsSchema, { categoryId: category.id }))).items[0]
+        .remark,
       "note",
     );
-    const recalled = await dao.search(create(SearchClipboardEntitiesRequestSchema, { query: "note", limit: 1 }));
+    const recalled = await dao.search(
+      create(SearchClipboardEntitiesRequestSchema, { query: "note", limit: 1 }),
+    );
     assert.equal(recalled.hits[0].entity?.id, key);
     assert.ok(recalled.hits[0].snippet.includes("note"));
     assert.equal(
-      (await api.list(create(ClipboardListOptionsSchema, { query: "验证 no", categoryId: category.id }))).items[0].id,
+      (
+        await api.list(
+          create(ClipboardListOptionsSchema, { query: "验证 no", categoryId: category.id }),
+        )
+      ).items[0].id,
       key,
     );
     const edited = await api.editText(create(EditTextRequestSchema, { id: key, text: "updated" }));
@@ -106,11 +134,16 @@ test("production clipboard Gateway shares Service, data lifecycle, validation an
     assert.equal((await api.clearHistory(create(EmptySchema))).deletedCount, 0); // Favorite survives.
     assert.equal((await api.delete(item(edited.id))).deleted, true);
     assert.equal((await api.get(item(edited.id))).item, undefined);
-    assert.deepEqual((await dao.search(create(SearchClipboardEntitiesRequestSchema, { query: "note" }))).hits, []);
+    assert.deepEqual(
+      (await dao.search(create(SearchClipboardEntitiesRequestSchema, { query: "note" }))).hits,
+      [],
+    );
     await assert.rejects(api.readImage(item(edited.id)));
     await assert.rejects(api.list(create(ClipboardListOptionsSchema, { limit: 101 })));
     await assert.rejects(api.get(item(9223372036854775808n)));
-    await assert.rejects(api.saveCategory(create(SaveCategoryRequestSchema, { name: "", color: "invalid" })));
+    await assert.rejects(
+      api.saveCategory(create(SaveCategoryRequestSchema, { name: "", color: "invalid" })),
+    );
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.ok(changed > 0);
   } finally {
@@ -129,7 +162,10 @@ test("production search endpoint uses generated contract and rejects invalid que
   try {
     const client = bindClient(Search, host.client({ caller: "test", trusted: true }));
     assert.deepEqual((await client.query(create(SearchRequestSchema))).hits, []);
-    await assert.rejects(client.query(create(SearchRequestSchema, { query: "x".repeat(4097) })), /too long/);
+    await assert.rejects(
+      client.query(create(SearchRequestSchema, { query: "x".repeat(4097) })),
+      /too long/,
+    );
   } finally {
     await owner.close();
   }

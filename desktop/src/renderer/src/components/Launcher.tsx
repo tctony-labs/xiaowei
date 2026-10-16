@@ -57,7 +57,8 @@ export function Launcher({
   // Keep the subscription connected across mode changes while reading the latest UI state.
   const onOpened = useEffectEvent((bytes: Uint8Array) => {
     const { mode } = fromBinary(LauncherOpenedSchema, bytes);
-    if (![LauncherMode.SEARCH, LauncherMode.CLIPBOARD, LauncherMode.QUICK_CHAT].includes(mode)) return;
+    if (![LauncherMode.SEARCH, LauncherMode.CLIPBOARD, LauncherMode.QUICK_CHAT].includes(mode))
+      return;
     setChatOpen(mode === LauncherMode.QUICK_CHAT);
     if (mode !== LauncherMode.QUICK_CHAT) {
       setChatExpanded(false);
@@ -120,9 +121,17 @@ export function Launcher({
   }, [query, api, refreshToken]);
   useEffect(() => {
     let disposed = false;
-    const mode = clipboardOpen ? LauncherMode.CLIPBOARD : chatOpen ? LauncherMode.QUICK_CHAT : LauncherMode.SEARCH;
-    const shrinking = lastLayoutMode.current === LauncherMode.QUICK_CHAT && mode === LauncherMode.SEARCH;
-    const request = create(UpdateLayoutRequestSchema, { resultCount: error ? 1 : response.hits.length, mode });
+    const mode = clipboardOpen
+      ? LauncherMode.CLIPBOARD
+      : chatOpen
+        ? LauncherMode.QUICK_CHAT
+        : LauncherMode.SEARCH;
+    const shrinking =
+      lastLayoutMode.current === LauncherMode.QUICK_CHAT && mode === LauncherMode.SEARCH;
+    const request = create(UpdateLayoutRequestSchema, {
+      resultCount: error ? 1 : response.hits.length,
+      mode,
+    });
     const apply = () => {
       resizing.current = resizing.current
         .then(async () => {
@@ -149,11 +158,15 @@ export function Launcher({
   }, [response.hits.length, error, api, clipboardOpen, chatOpen]);
 
   function hide() {
-    void api.hide(create(EmptySchema)).catch((error) => console.error("Launcher hide failed", error));
+    void api
+      .hide(create(EmptySchema))
+      .catch((error) => console.error("Launcher hide failed", error));
   }
 
   function resetPosition() {
-    void api.resetPosition(create(EmptySchema)).catch((error) => console.error("Launcher position failed", error));
+    void api
+      .resetPosition(create(EmptySchema))
+      .catch((error) => console.error("Launcher position failed", error));
   }
 
   async function execute(index: number) {
@@ -173,7 +186,13 @@ export function Launcher({
     }
   }
   if (clipboardOpen)
-    return <ClipboardPage onResetPosition={resetPosition} services={services} onBack={() => setClipboardOpen(false)} />;
+    return (
+      <ClipboardPage
+        onResetPosition={resetPosition}
+        services={services}
+        onBack={() => setClipboardOpen(false)}
+      />
+    );
   const search = (
     <LauncherSearchBar
       embedded
@@ -200,7 +219,12 @@ export function Launcher({
           {error}
         </div>
       ) : (
-        <SearchResultList hits={response.hits} selected={selected} onSelect={setSelected} onConfirm={execute} />
+        <SearchResultList
+          hits={response.hits}
+          selected={selected}
+          onSelect={setSelected}
+          onConfirm={execute}
+        />
       )}
     </LauncherSearchBar>
   );

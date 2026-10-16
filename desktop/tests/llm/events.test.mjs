@@ -81,6 +81,8 @@ test("provider failure preserves partial content without raw diagnostic fields",
   assert.equal(failed.event.case, "failed");
   assert.equal(failed.event.value.partial.content.length, 3);
   assert.ok(
-    !JSON.stringify(failed, (_, value) => (typeof value === "bigint" ? String(value) : value)).includes("secret"),
+    !JSON.stringify(failed, (_, value) =>
+      typeof value === "bigint" ? String(value) : value,
+    ).includes("secret"),
   );
 });

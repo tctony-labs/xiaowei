@@ -4,9 +4,12 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, utimesSync, writeFileSy
 import { join } from "node:path";
 
 const mode = process.argv[2];
-if (!["key", "save", "restore"].includes(mode)) throw new Error("Usage: cargo-cache.mjs key|save|restore");
+if (!["key", "save", "restore"].includes(mode))
+  throw new Error("Usage: cargo-cache.mjs key|save|restore");
 
-const workspace = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+const workspace = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+  encoding: "utf8",
+}).trim();
 const snapshotPath = join(workspace, "target", "ci-input-timestamps.json");
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: workspace, encoding: "utf8" })
   .split("\0")
@@ -27,7 +30,9 @@ function fingerprint(path) {
 
 if (mode === "key") {
   const compiler = execFileSync("rustc", ["-Vv"], { encoding: "utf8" });
-  const environment = hash(JSON.stringify([compiler, process.env.RUSTFLAGS, process.env.CARGO_ENCODED_RUSTFLAGS]));
+  const environment = hash(
+    JSON.stringify([compiler, process.env.RUSTFLAGS, process.env.CARGO_ENCODED_RUSTFLAGS]),
+  );
   const inputs = files.filter(
     (path) =>
       /^(crates|contracts\/(rust|tools)|gateway\/rust|\.cargo)\//.test(path) ||

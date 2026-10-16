@@ -33,7 +33,10 @@ impl AgentService {
             .get_mut(&id)
             .filter(|session| !session.deleted())
             .ok_or(AgentError::NotFound("session"))?;
-        if session.view.title == title && !session.view.auto_title_enabled && session.current_title_task.is_none() {
+        if session.view.title == title
+            && !session.view.auto_title_enabled
+            && session.current_title_task.is_none()
+        {
             return Ok(SetSessionTitleResponse {
                 title: session.view.title.clone(),
                 metadata_revision: session.view.metadata_revision,
@@ -133,7 +136,8 @@ pub(crate) fn schedule_title(
     if session.title_tasks.len() >= 16 {
         return Err(AgentError::ResourceExhausted("title tasks"));
     }
-    let handle = tokio::runtime::Handle::try_current().map_err(|_| AgentError::ExecutionUnavailable)?;
+    let handle =
+        tokio::runtime::Handle::try_current().map_err(|_| AgentError::ExecutionUnavailable)?;
     session.cancel_titles();
     let task_id = GenId::new();
     let revision = session.view.metadata_revision;
@@ -155,7 +159,9 @@ pub(crate) fn schedule_title(
                 .get_auxiliary_model_ref()
                 .await
                 .map_err(|_| AgentError::TitleGeneration("辅助模型配置获取失败"))?
-                .ok_or(AgentError::TitleGeneration("尚未配置小文本任务模型，请先在设置中选择"))?;
+                .ok_or(AgentError::TitleGeneration(
+                    "尚未配置小文本任务模型，请先在设置中选择",
+                ))?;
             if model_ref.trim().is_empty() || model_ref.len() > 1024 {
                 return Err(AgentError::TitleGeneration("辅助模型引用无效"));
             }
@@ -283,19 +289,23 @@ pub(crate) fn schedule_title(
                     &mut state,
                     AgentEvent {
                         emitted_at_ms: now_ms().unwrap_or_default(),
-                        payload: Some(agent_event::Payload::SessionTitleUpdated(SessionTitleUpdated {
-                            session_id: id.to_string(),
-                            title: response.title.clone(),
-                            metadata_revision: response.metadata_revision,
-                            title_model_ref: String::new(),
-                            auto_title_enabled: true,
-                            updated_at_ms,
-                        })),
+                        payload: Some(agent_event::Payload::SessionTitleUpdated(
+                            SessionTitleUpdated {
+                                session_id: id.to_string(),
+                                title: response.title.clone(),
+                                metadata_revision: response.metadata_revision,
+                                title_model_ref: String::new(),
+                                auto_title_enabled: true,
+                                updated_at_ms,
+                            },
+                        )),
                     },
                 );
                 log::debug!("Agent title updated session={id} task={task_id}");
             }
-            Err(error) => log::debug!("Agent title not updated session={id} task={task_id} reason={error}"),
+            Err(error) => {
+                log::debug!("Agent title not updated session={id} task={task_id} reason={error}")
+            }
         }
         let _ = tx.send(result);
     });
@@ -356,7 +366,10 @@ fn build_prompt(runs: &[AgentRun]) -> String {
     for (index, (user, assistant)) in rounds.iter().rev().enumerate() {
         let user = user.trim().chars().take(600).collect::<String>();
         let assistant = assistant.trim().chars().take(600).collect::<String>();
-        prompt.push_str(&format!("\n[第{}轮]\n用户: {user}\n助手: {assistant}\n", index + 1));
+        prompt.push_str(&format!(
+            "\n[第{}轮]\n用户: {user}\n助手: {assistant}\n",
+            index + 1
+        ));
     }
     prompt.push_str("\n请输出标题:");
     prompt
@@ -418,6 +431,11 @@ mod tests {
         assert!(prompt.find("q2").unwrap() < prompt.find("q4").unwrap());
         assert!(!prompt.contains("private reasoning"));
         assert_eq!(prompt.matches('答').count(), 1800);
-        assert_eq!(clean_title(&format!("**{}。**", "题".repeat(80))).chars().count(), 50);
+        assert_eq!(
+            clean_title(&format!("**{}。**", "题".repeat(80)))
+                .chars()
+                .count(),
+            50
+        );
     }
 }

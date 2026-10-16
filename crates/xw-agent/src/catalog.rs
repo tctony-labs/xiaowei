@@ -74,7 +74,9 @@ fn decode(row: &SqliteRow) -> Result<AgentIndexRecord> {
             updated_at_ms: row.try_get("updated_at_ms").map_err(db_error)?,
             metadata_revision: 1,
             archived: row.try_get("archived").map_err(db_error)?,
-            archive_revision: row.try_get::<i64, _>("archive_revision").map_err(db_error)? as u64,
+            archive_revision: row
+                .try_get::<i64, _>("archive_revision")
+                .map_err(db_error)? as u64,
         },
         deleting: row.try_get("deleting").map_err(db_error)?,
     })
@@ -161,7 +163,11 @@ impl SessionCatalog {
         Ok(())
     }
 
-    pub async fn retention_candidates(&self, archived: bool, cutoff: i64) -> Result<Vec<AgentSessionSummary>> {
+    pub async fn retention_candidates(
+        &self,
+        archived: bool,
+        cutoff: i64,
+    ) -> Result<Vec<AgentSessionSummary>> {
         let rows = sqlx::query(
             "SELECT * FROM session WHERE archived = ? AND deleting = 0 AND updated_at_ms <= ?
              ORDER BY updated_at_ms, session_id",
@@ -206,7 +212,11 @@ impl SessionCatalog {
     }
 
     pub async fn list(&self, request: ListSessionsRequest) -> Result<ListSessionsResponse> {
-        let size = if request.page_size == 0 { 50 } else { request.page_size };
+        let size = if request.page_size == 0 {
+            50
+        } else {
+            request.page_size
+        };
         if size > 100 {
             return Err(invalid("Page size exceeds 100"));
         }
@@ -218,7 +228,8 @@ impl SessionCatalog {
             None
         } else {
             let (archived, filter, time, session): (bool, String, i64, String) =
-                serde_json::from_str(&request.continuation).map_err(|_| invalid("Invalid continuation"))?;
+                serde_json::from_str(&request.continuation)
+                    .map_err(|_| invalid("Invalid continuation"))?;
             if archived != request.archived || filter != query || time < 0 {
                 return Err(invalid("Invalid continuation/filter"));
             }
@@ -227,7 +238,10 @@ impl SessionCatalog {
         };
         let pattern = format!(
             "%{}%",
-            query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+            query
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
         );
         let (time, session) = boundary.clone().unwrap_or_default();
         let rows = sqlx::query(
@@ -254,17 +268,29 @@ impl SessionCatalog {
         sessions.truncate(size as usize);
         let continuation = if more {
             let last = sessions.last().unwrap();
-            serde_json::to_string(&(request.archived, query, last.updated_at_ms, &last.session_id))
-                .map_err(|_| AgentError::Internal)?
+            serde_json::to_string(&(
+                request.archived,
+                query,
+                last.updated_at_ms,
+                &last.session_id,
+            ))
+            .map_err(|_| AgentError::Internal)?
         } else {
             String::new()
         };
-        Ok(ListSessionsResponse { sessions, continuation })
+        Ok(ListSessionsResponse {
+            sessions,
+            continuation,
+        })
     }
 
     pub async fn update(&self, summary: AgentSessionSummary) -> Result<AgentIndexRecord> {
         validate_summary(&summary)?;
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await.map_err(db_error)?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(db_error)?;
         let result = sqlx::query(
             "UPDATE session SET title = ?, auto_title_enabled = ?,
                 updated_at_ms = max(updated_at_ms, ?) WHERE session_id = ? AND deleting = 0
@@ -292,8 +318,12 @@ impl SessionCatalog {
     }
 
     #[cfg(test)]
-    pub async fn set_archived(&self, request: SetSessionArchivedRequest) -> Result<SetSessionArchivedResponse> {
-        self.set_archived_before(request, None, crate::service::now_ms()?).await
+    pub async fn set_archived(
+        &self,
+        request: SetSessionArchivedRequest,
+    ) -> Result<SetSessionArchivedResponse> {
+        self.set_archived_before(request, None, crate::service::now_ms()?)
+            .await
     }
 
     pub async fn set_archived_before(
@@ -307,7 +337,11 @@ impl SessionCatalog {
         if revision == 0 || revision == i64::MAX {
             return Err(invalid("Invalid archive revision"));
         }
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await.map_err(db_error)?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(db_error)?;
         let result = sqlx::query(
             "UPDATE session SET
                 updated_at_ms = CASE WHEN archived = 1 AND ? = 0 THEN max(updated_at_ms, ?) ELSE updated_at_ms END,
@@ -348,7 +382,11 @@ impl SessionCatalog {
         expected_archive_revision: Option<u64>,
     ) -> Result<Option<AgentIndexRecord>> {
         id(session_id)?;
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await.map_err(db_error)?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(db_error)?;
         let row = sqlx::query("SELECT * FROM session WHERE session_id = ?")
             .bind(session_id)
             .fetch_optional(&mut *tx)
@@ -382,7 +420,11 @@ impl SessionCatalog {
 
     pub async fn remove(&self, session_id: String) -> Result<()> {
         id(&session_id)?;
-        let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await.map_err(db_error)?;
+        let mut tx = self
+            .pool
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(db_error)?;
         let row = sqlx::query("SELECT deleting FROM session WHERE session_id = ?")
             .bind(&session_id)
             .fetch_optional(&mut *tx)

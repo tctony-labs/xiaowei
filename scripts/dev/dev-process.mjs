@@ -22,7 +22,9 @@ export async function stopProcessGroup(child, closed, graceMs = 5000) {
           encoding: "utf8",
           timeout: 1000,
         });
-        members = snapshot.split("\n").filter((line) => Number(line.trim().split(/\s+/)[2]) === child.pid);
+        members = snapshot
+          .split("\n")
+          .filter((line) => Number(line.trim().split(/\s+/)[2]) === child.pid);
         snapshotAvailable = true;
       } catch (diagnosticError) {
         members = [`ps failed: ${diagnosticError.message}`];
@@ -31,18 +33,27 @@ export async function stopProcessGroup(child, closed, graceMs = 5000) {
       error.message += ` (pgid=${child.pid}, signal=${signal}, node=${process.version}, platform=${process.platform})`;
       error.message += `\nProcess group snapshot (PID PPID PGID UID STAT):\n${members.join("\n") || "<empty>"}`;
 
-      if (error.code === "EPERM" && signal === 0 && process.platform === "darwin" && snapshotAvailable) {
+      if (
+        error.code === "EPERM" &&
+        signal === 0 &&
+        process.platform === "darwin" &&
+        snapshotAvailable
+      ) {
         if (members.length === 0) return false;
 
         const allExiting = members.every((line) => {
           const fields = line.trim().split(/\s+/);
-          return Number(fields[3]) === process.getuid() && (fields[4].includes("E") || fields[4].startsWith("Z"));
+          return (
+            Number(fields[3]) === process.getuid() &&
+            (fields[4].includes("E") || fields[4].startsWith("Z"))
+          );
         });
 
         if (allExiting) {
           // Darwin can deny the probe while the last group members are exiting.
           // Keep waiting for ESRCH; an exiting process is not yet a reaped process.
-          if (!reportedExitRace) console.warn(`等待 macOS 回收退出中的开发进程组：${error.message}`);
+          if (!reportedExitRace)
+            console.warn(`等待 macOS 回收退出中的开发进程组：${error.message}`);
           reportedExitRace = true;
           return true;
         }

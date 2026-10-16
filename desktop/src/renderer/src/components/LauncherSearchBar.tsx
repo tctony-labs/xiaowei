@@ -66,8 +66,18 @@ export function LauncherSearchBar({
             className="min-w-0 flex-1 bg-transparent text-base leading-6 text-ink outline-none placeholder:text-muted"
           />
         </div>
-        <button type="button" onDoubleClick={onResetPosition} title="双击恢复窗口位置" className="size-8 shrink-0">
-          <img src={logo} alt="XiaoWei" draggable={false} className="size-8 select-none rounded-md" />
+        <button
+          type="button"
+          onDoubleClick={onResetPosition}
+          title="双击恢复窗口位置"
+          className="size-8 shrink-0"
+        >
+          <img
+            src={logo}
+            alt="XiaoWei"
+            draggable={false}
+            className="size-8 select-none rounded-md"
+          />
         </button>
       </div>
       {children}

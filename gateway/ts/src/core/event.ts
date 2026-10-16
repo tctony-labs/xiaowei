@@ -13,7 +13,11 @@ export interface LocalEventExport extends EventDescriptor {
   matches(payload: Uint8Array, filter: Uint8Array | undefined): boolean;
 }
 export interface RemoteEventExport extends EventDescriptor {
-  attach(context: CallContext, filter: Uint8Array | undefined, sink: EventSink): Promise<Subscription>;
+  attach(
+    context: CallContext,
+    filter: Uint8Array | undefined,
+    sink: EventSink,
+  ): Promise<Subscription>;
 }
 export type EventExport = LocalEventExport | RemoteEventExport;
 export class DeliveryQueue implements Subscription {
@@ -32,7 +36,8 @@ export class DeliveryQueue implements Subscription {
     this.draining = true;
     // Native Node callbacks may return without a microtask checkpoint (e.g. Electron hotkeys).
     // Schedule a Node turn to start delivery; browser hosts retain microtask scheduling.
-    const schedule = typeof globalThis.setImmediate === "function" ? globalThis.setImmediate : queueMicrotask;
+    const schedule =
+      typeof globalThis.setImmediate === "function" ? globalThis.setImmediate : queueMicrotask;
     schedule(() => {
       void this.drain();
     });
@@ -128,7 +133,8 @@ export class Events {
     authorize(context, event, true);
     validateName(event);
     const entry = this.entries.get(event);
-    if (!entry && !persistent) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "event not exported" });
+    if (!entry && !persistent)
+      throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "event not exported" });
     if (entry && "validate" in entry.export) entry.export.validate(filter);
     const consumer: Consumer = {
       context,
@@ -183,15 +189,28 @@ export class Events {
     let binding: Subscription;
     try {
       binding = await entry.export.attach(consumer.context, consumer.filter, (payload) => {
-        if (consumer.active && consumer.generation === generation && this.entries.get(consumer.event) === entry) {
+        if (
+          consumer.active &&
+          consumer.generation === generation &&
+          this.entries.get(consumer.event) === entry
+        ) {
           consumer.queue.enqueue(payload);
         }
       });
     } catch (error) {
-      if (!consumer.active || consumer.generation !== generation || this.entries.get(consumer.event) !== entry) return;
+      if (
+        !consumer.active ||
+        consumer.generation !== generation ||
+        this.entries.get(consumer.event) !== entry
+      )
+        return;
       throw error;
     }
-    if (!consumer.active || consumer.generation !== generation || this.entries.get(consumer.event) !== entry) {
+    if (
+      !consumer.active ||
+      consumer.generation !== generation ||
+      this.entries.get(consumer.event) !== entry
+    ) {
       this.closeBinding(binding);
       return;
     }
@@ -200,9 +219,13 @@ export class Events {
   publish(owner: object, event: string, payload: Uint8Array): void {
     const entry = this.entries.get(event);
     if (!entry) throw new GatewayFailure({ code: "UNKNOWN_ROUTE", message: "event not exported" });
-    if (entry.owner !== owner) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "stale event source" });
+    if (entry.owner !== owner)
+      throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "stale event source" });
     if (!("matches" in entry.export)) {
-      throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "remote events use subscription delivery" });
+      throw new GatewayFailure({
+        code: "INVALID_ARGUMENT",
+        message: "remote events use subscription delivery",
+      });
     }
     for (const consumer of this.consumers) {
       if (consumer.event !== event) continue;

@@ -33,7 +33,9 @@ export function createRendererClient(bridge: GatewayBridge) {
       const id = `event:${clientId}:${++nextId}`;
       const unlisten = bridge.listen((received, payload) => {
         if (received === id)
-          void Promise.resolve(sink(payload)).catch((error) => console.error("Gateway event failed", error));
+          void Promise.resolve(sink(payload)).catch((error) =>
+            console.error("Gateway event failed", error),
+          );
       });
       try {
         unwrap(await bridge.request({ operation: "subscribe", id, event, filter, persistent }));

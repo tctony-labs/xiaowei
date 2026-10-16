@@ -14,7 +14,10 @@ export function selectProtoFiles(descriptorBytes, config, localFiles) {
   return Object.fromEntries(
     languages.map((language) => {
       const patterns = config[language];
-      if (!Array.isArray(patterns) || patterns.some((pattern) => typeof pattern !== "string" || !pattern)) {
+      if (
+        !Array.isArray(patterns) ||
+        patterns.some((pattern) => typeof pattern !== "string" || !pattern)
+      ) {
         throw new Error(`Expected an array of proto patterns for ${language}`);
       }
       const selected = new Set();
@@ -26,7 +29,8 @@ export function selectProtoFiles(descriptorBytes, config, localFiles) {
       }
       for (const pattern of patterns) {
         const matches = localFiles.filter((name) => matchesGlob(name, pattern));
-        if (!matches.length) throw new Error(`No proto files match ${language} pattern: ${pattern}`);
+        if (!matches.length)
+          throw new Error(`No proto files match ${language} pattern: ${pattern}`);
         for (const name of matches) visit(name);
       }
       return [language, [...selected].sort()];

@@ -10,8 +10,13 @@ module.exports = {
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.
   artifactName: "${productName}-${version}-${arch}.${ext}",
   forceCodeSigning: signed,
-  extraResources: [...base.extraResources, { from: `${sparkleDirectory}/LICENSE`, to: "Sparkle-LICENSE" }],
-  extraFiles: [{ from: `${sparkleDirectory}/Sparkle.framework`, to: "Frameworks/Sparkle.framework" }],
+  extraResources: [
+    ...base.extraResources,
+    { from: `${sparkleDirectory}/LICENSE`, to: "Sparkle-LICENSE" },
+  ],
+  extraFiles: [
+    { from: `${sparkleDirectory}/Sparkle.framework`, to: "Frameworks/Sparkle.framework" },
+  ],
   dmg: { writeUpdateInfo: false, sign: signed },
   mac: {
     ...base.mac,

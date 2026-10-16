@@ -63,7 +63,10 @@ export interface ClipboardPanelProps extends ClipboardEditing {
 function Highlight({ text, query }: { text: string; query: string }) {
   const terms = query.trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return text;
-  const pattern = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+  const pattern = new RegExp(
+    `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "gi",
+  );
   return text.split(pattern).map((part, index) => (
     // biome-ignore lint/suspicious/noArrayIndexKey: immutable text segments
     <span key={index} className={index % 2 ? "text-primary-text" : undefined}>
@@ -74,7 +77,14 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 function EmptyIcon({ preview = false }: { preview?: boolean }) {
   return (
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true" className="text-faint">
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+      className="text-faint"
+    >
       {preview ? (
         <>
           <rect x="6" y="8" width="28" height="32" rx="3" stroke="currentColor" strokeWidth="1.5" />
@@ -85,7 +95,12 @@ function EmptyIcon({ preview = false }: { preview?: boolean }) {
             strokeLinecap="round"
           />
           <circle cx="36" cy="14" r="6" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M36 11v6M33 14h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path
+            d="M36 11v6M33 14h6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </>
       ) : (
         <>
@@ -104,7 +119,11 @@ function EmptyIcon({ preview = false }: { preview?: boolean }) {
 
 function Thumbnail({ item, image }: { item: ClipboardItem; image?: string }) {
   if (item.kind === "image")
-    return image ? <img src={image} alt="" className="size-5 shrink-0 rounded-[5px] object-cover" /> : <ImageIcon />;
+    return image ? (
+      <img src={image} alt="" className="size-5 shrink-0 rounded-[5px] object-cover" />
+    ) : (
+      <ImageIcon />
+    );
   if (item.kind !== "file") return <TextIcon />;
   const type = getFileIconType(item.paths[0] ?? "");
   return type === "image" ? <ImageIcon /> : <FileIcon color={FILE_ICON_COLORS[type]} />;
@@ -129,7 +148,10 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
   const [dialog, setDialog] = useState<ClipboardDialog>();
   const [fileMenu, setFileMenu] = useState<{ x: number; y: number; id: string; index: number }>();
   const [categoryMenu, setCategoryMenu] = useState<{ x: number; y: number; id: string }>();
-  const allViews = [...views.map((view) => view.id as string), ...props.categories.map((category) => category.id)];
+  const allViews = [
+    ...views.map((view) => view.id as string),
+    ...props.categories.map((category) => category.id),
+  ];
   const [collapsed, setCollapsed] = useState(true);
   const [deleteId, setDeleteId] = useState<string>();
   const [menu, setMenu] = useState<{ x: number; y: number; item: ClipboardItem }>();
@@ -142,7 +164,8 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
       const bounds = container.getBoundingClientRect();
       const item = row.getBoundingClientRect();
       if (item.top < bounds.top + 8) container.scrollTop -= bounds.top + 8 - item.top;
-      else if (item.bottom > bounds.bottom - 8) container.scrollTop += item.bottom - (bounds.bottom - 8);
+      else if (item.bottom > bounds.bottom - 8)
+        container.scrollTop += item.bottom - (bounds.bottom - 8);
     };
     scroll();
     window.addEventListener("focus", scroll);
@@ -166,12 +189,17 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const index = props.items.findIndex((item) => item.id === props.selectedId);
-      const next = Math.max(0, Math.min(props.items.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
+      const next = Math.max(
+        0,
+        Math.min(props.items.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)),
+      );
       if (props.items[next]) props.onSelect(props.items[next].id);
     } else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !props.query) {
       event.preventDefault();
       const index = allViews.indexOf(props.view);
-      props.onViewChange(allViews[(index + (event.key === "ArrowLeft" ? allViews.length - 1 : 1)) % allViews.length]);
+      props.onViewChange(
+        allViews[(index + (event.key === "ArrowLeft" ? allViews.length - 1 : 1)) % allViews.length],
+      );
     } else if (event.key === "Enter" && selected && !props.busy) {
       event.preventDefault();
       props.onActivate(selected.id);
@@ -196,7 +224,14 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
     return [
       { key: "divider-resource", label: "" },
       ...(single
-        ? [{ key: "open", label: "打开", icon: <OpenFileMenuIcon />, onClick: () => props.onResource(item.id, "open") }]
+        ? [
+            {
+              key: "open",
+              label: "打开",
+              icon: <OpenFileMenuIcon />,
+              onClick: () => props.onResource(item.id, "open"),
+            },
+          ]
         : []),
       {
         key: "reveal",
@@ -228,7 +263,13 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
           ]
         : []),
       ...(common
-        ? [{ key: "copy-dir", label: "文件夹路径", onClick: () => props.onResource(item.id, "copyDirectory") }]
+        ? [
+            {
+              key: "copy-dir",
+              label: "文件夹路径",
+              onClick: () => props.onResource(item.id, "copyDirectory"),
+            },
+          ]
         : []),
     ];
   }
@@ -281,9 +322,12 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
         },
       ]
     : [];
-  const directories = selected?.paths.map((path) => path.slice(0, path.lastIndexOf("/")) || "/") ?? [];
+  const directories =
+    selected?.paths.map((path) => path.slice(0, path.lastIndexOf("/")) || "/") ?? [];
   const commonDirectory =
-    directories.length && directories.every((dir) => dir === directories[0]) ? directories[0] : undefined;
+    directories.length && directories.every((dir) => dir === directories[0])
+      ? directories[0]
+      : undefined;
   const text = props.previewText ?? selected?.text ?? "";
   let formattedJson: string | undefined;
   if (selected?.kind === "text") {
@@ -387,7 +431,11 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                 role="status"
                 aria-label={props.loading ? "加载中" : "暂无记录"}
               >
-                {props.loading ? <span className="text-sm text-muted">加载中...</span> : <EmptyIcon />}
+                {props.loading ? (
+                  <span className="text-sm text-muted">加载中...</span>
+                ) : (
+                  <EmptyIcon />
+                )}
               </div>
             )}
             {props.items.map((item) => (
@@ -418,7 +466,9 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   <span className="absolute right-0.5 top-0.5">
                     <TagIcon
                       size={10}
-                      color={props.categories.find((category) => category.id === item.categoryId)?.color}
+                      color={
+                        props.categories.find((category) => category.id === item.categoryId)?.color
+                      }
                     />
                   </span>
                 )}
@@ -497,17 +547,31 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                           type="button"
                           className="flex cursor-pointer items-center gap-3 rounded-lg bg-hover px-3 py-2.5 text-left"
                           onClick={(event) =>
-                            setFileMenu({ x: event.clientX, y: event.clientY, id: selected.id, index })
+                            setFileMenu({
+                              x: event.clientX,
+                              y: event.clientY,
+                              id: selected.id,
+                              index,
+                            })
                           }
                           onContextMenu={(event) => {
                             event.preventDefault();
-                            setFileMenu({ x: event.clientX, y: event.clientY, id: selected.id, index });
+                            setFileMenu({
+                              x: event.clientX,
+                              y: event.clientY,
+                              id: selected.id,
+                              index,
+                            });
                           }}
                         >
                           <LargeFileIcon path={path} />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-medium leading-5">{path.split("/").pop()}</p>
-                            {!commonDirectory && <p className="break-all text-[11px] leading-4 text-muted">{path}</p>}
+                            <p className="truncate text-[13px] font-medium leading-5">
+                              {path.split("/").pop()}
+                            </p>
+                            {!commonDirectory && (
+                              <p className="break-all text-[11px] leading-4 text-muted">{path}</p>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -561,7 +625,9 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                             <Highlight text={paragraph} query={props.query} />
                           </p>
                         ))}
-                      {selected.previewTruncated && <p className="text-[13px] text-muted">...还有{text.length}字</p>}
+                      {selected.previewTruncated && (
+                        <p className="text-[13px] text-muted">...还有{text.length}字</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -573,7 +639,11 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                         className="cursor-pointer text-sm leading-[22px] text-primary-text"
                         onClick={() => setRenderedId(showRendered ? undefined : selected.id)}
                       >
-                        {showRendered ? "查看原始文本" : formattedJson ? "查看JSON" : "查看MARKDOWN"}
+                        {showRendered
+                          ? "查看原始文本"
+                          : formattedJson
+                            ? "查看JSON"
+                            : "查看MARKDOWN"}
                       </button>
                       <div className="h-[18px] w-px bg-subtle" />
                     </>
@@ -663,20 +733,33 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                         <MetaRow
                           label="分类"
                           value={
-                            props.categories.find((category) => category.id === selected.categoryId)?.name ?? "未知"
+                            props.categories.find((category) => category.id === selected.categoryId)
+                              ?.name ?? "未知"
                           }
                         />
                       )}
-                      <MetaRow label="上次使用" value={new Date(selected.lastUsedAt).toLocaleString("sv-SE")} />
+                      <MetaRow
+                        label="上次使用"
+                        value={new Date(selected.lastUsedAt).toLocaleString("sv-SE")}
+                      />
                       <MetaRow label="使用次数" value={String(selected.useCount)} />
-                      {selected.kind === "text" && <MetaRow label="文本长度" value={`${text.length} 字符`} />}
+                      {selected.kind === "text" && (
+                        <MetaRow label="文本长度" value={`${text.length} 字符`} />
+                      )}
                       {selected.kind === "image" && (
-                        <MetaRow label="图片尺寸" value={`${selected.width} × ${selected.height}`} />
+                        <MetaRow
+                          label="图片尺寸"
+                          value={`${selected.width} × ${selected.height}`}
+                        />
                       )}
                       {selected.kind === "file" && (
                         <MetaRow
                           label={selected.paths.length === 1 ? "文件路径" : "文件数量"}
-                          value={selected.paths.length === 1 ? selected.paths[0] : `${selected.paths.length} 个文件`}
+                          value={
+                            selected.paths.length === 1
+                              ? selected.paths[0]
+                              : `${selected.paths.length} 个文件`
+                          }
                         />
                       )}
                     </div>
@@ -684,7 +767,11 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                 </div>
               </>
             ) : (
-              <div className="flex flex-1 items-center justify-center" role="status" aria-label="无预览">
+              <div
+                className="flex flex-1 items-center justify-center"
+                role="status"
+                aria-label="无预览"
+              >
                 <EmptyIcon preview />
               </div>
             )}
@@ -715,7 +802,11 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
           y={fileMenu.y}
           onClose={() => setFileMenu(undefined)}
           items={[
-            { key: "open", label: "打开", onClick: () => props.onResource(fileMenu.id, "open", fileMenu.index) },
+            {
+              key: "open",
+              label: "打开",
+              onClick: () => props.onResource(fileMenu.id, "open", fileMenu.index),
+            },
             {
               key: "reveal",
               icon: <RevealMenuIcon />,
@@ -763,7 +854,14 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
           ]}
         />
       )}
-      {menu && <ContextMenu x={menu.x} y={menu.y} items={contextItems} onClose={() => setMenu(undefined)} />}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={contextItems}
+          onClose={() => setMenu(undefined)}
+        />
+      )}
       <Modal
         open={Boolean(deleteId)}
         title="确认删除"
@@ -792,7 +890,9 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
           </>
         }
       >
-        <p className="text-[13px] leading-5 text-ink-secondary">确定要删除这条记录吗？此操作不可撤销。</p>
+        <p className="text-[13px] leading-5 text-ink-secondary">
+          确定要删除这条记录吗？此操作不可撤销。
+        </p>
       </Modal>
     </div>
   );

@@ -11,8 +11,8 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Mutex as AsyncMutex;
 use xw_contracts::xiaowei::storage::{
-    update_settings_request::Change, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot, ShortcutBinding,
-    ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
+    update_settings_request::Change, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot,
+    ShortcutBinding, ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
 };
 
 const PREFIX: &str = "setting.";
@@ -75,7 +75,9 @@ impl SettingsService {
     async fn load(&self) -> Result<SettingsSnapshot, String> {
         let entries = self
             .database
-            .meta_list(KvPrefix { prefix: PREFIX.into() })
+            .meta_list(KvPrefix {
+                prefix: PREFIX.into(),
+            })
             .await
             .map_err(|error| error.to_string())?;
         let mut snapshot = defaults(&self.platform);
@@ -91,10 +93,14 @@ impl SettingsService {
         Ok(snapshot)
     }
 
-    pub async fn update(&self, request: UpdateSettingsRequest) -> Result<SettingsSnapshot, SettingsError> {
+    pub async fn update(
+        &self,
+        request: UpdateSettingsRequest,
+    ) -> Result<SettingsSnapshot, SettingsError> {
         let _guard = self.updates.lock().await;
         let previous = self.load().await.map_err(SettingsError::Operation)?;
-        let (next, key, value) = changed(&previous, request).map_err(SettingsError::InvalidArgument)?;
+        let (next, key, value) =
+            changed(&previous, request).map_err(SettingsError::InvalidArgument)?;
 
         if let Err(error) = (self.apply)(previous.clone(), next.clone()).await {
             (self.apply)(next, previous).await.map_err(|rollback| {
@@ -135,8 +141,24 @@ fn defaults(platform: &str) -> SettingsSnapshot {
     } else {
         vec!["Control", "Alt", "Space"]
     };
-    let clipboard = vec![if platform == "darwin" { "Meta" } else { "Control" }, "Shift", "KeyX"];
-    let quick_chat = vec![if platform == "darwin" { "Meta" } else { "Control" }, "Shift", "KeyC"];
+    let clipboard = vec![
+        if platform == "darwin" {
+            "Meta"
+        } else {
+            "Control"
+        },
+        "Shift",
+        "KeyX",
+    ];
+    let quick_chat = vec![
+        if platform == "darwin" {
+            "Meta"
+        } else {
+            "Control"
+        },
+        "Shift",
+        "KeyC",
+    ];
 
     SettingsSnapshot {
         theme: ThemeMode::System as i32,
@@ -171,10 +193,16 @@ fn binding(value: &Value) -> Option<Option<ShortcutBinding>> {
     Some(Some(ShortcutBinding { keys }))
 }
 
-fn shortcuts_from_json(value: &Value, fallback: &ShortcutConfiguration) -> Option<ShortcutConfiguration> {
+fn shortcuts_from_json(
+    value: &Value,
+    fallback: &ShortcutConfiguration,
+) -> Option<ShortcutConfiguration> {
     let object = value.as_object()?;
     let config = ShortcutConfiguration {
-        main: object.get("main").map(binding).unwrap_or(Some(fallback.main.clone()))?,
+        main: object
+            .get("main")
+            .map(binding)
+            .unwrap_or(Some(fallback.main.clone()))?,
         clipboard: object
             .get("clipboard")
             .map(binding)
@@ -256,7 +284,8 @@ fn valid_shortcuts(config: &ShortcutConfiguration) -> bool {
 }
 
 fn shortcuts_json(config: &ShortcutConfiguration) -> Value {
-    let keys = |binding: &Option<ShortcutBinding>| binding.as_ref().map(|binding| binding.keys.clone());
+    let keys =
+        |binding: &Option<ShortcutBinding>| binding.as_ref().map(|binding| binding.keys.clone());
     json!({
         "main": keys(&config.main),
         "clipboard": keys(&config.clipboard),
@@ -300,7 +329,10 @@ fn apply_stored(snapshot: &mut SettingsSnapshot, name: &str, value: Value) {
             }
         }
         "clipboardRetentionDays" => {
-            if let Some(value) = value.as_i64().filter(|value| matches!(value, 1 | 7 | 15 | 30 | -1)) {
+            if let Some(value) = value
+                .as_i64()
+                .filter(|value| matches!(value, 1 | 7 | 15 | 30 | -1))
+            {
                 snapshot.clipboard_retention_days = value as i32;
             }
         }

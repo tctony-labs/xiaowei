@@ -2,7 +2,14 @@ import type { ClipboardCategory as Category, ClipboardItem as Item } from "xiaow
 // UI view model; protocol IDs/timestamps are converted once at the page boundary.
 export type ClipboardItem = Omit<
   Item,
-  "$typeName" | "id" | "categoryId" | "kind" | "previewText" | "createdAtMs" | "lastUsedAtMs" | "previewTruncated"
+  | "$typeName"
+  | "id"
+  | "categoryId"
+  | "kind"
+  | "previewText"
+  | "createdAtMs"
+  | "lastUsedAtMs"
+  | "previewTruncated"
 > & {
   id: string;
   categoryId?: string;

@@ -29,7 +29,9 @@ test("Launcher host uses a fixed chat height and restores search height", async 
   });
   const api = bindClient(Launcher, host.client({ caller: "test", trusted: true }));
   try {
-    await api.updateLayout(create(UpdateLayoutRequestSchema, { mode: LauncherMode.QUICK_CHAT, resultCount: 2 }));
+    await api.updateLayout(
+      create(UpdateLayoutRequestSchema, { mode: LauncherMode.QUICK_CHAT, resultCount: 2 }),
+    );
     await api.updateLayout(create(UpdateLayoutRequestSchema, { mode: LauncherMode.SEARCH }));
     assert.deepEqual(sizes, [
       [800, 580],

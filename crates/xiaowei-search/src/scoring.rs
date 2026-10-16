@@ -110,10 +110,11 @@ impl FuzzyScorer {
 
         // 候选 1：title 原文，命中下标即 title 字符下标（恒等映射）。
         idx_buf.clear();
-        if let Some(score) = self
-            .pattern
-            .indices(Utf32Str::new(title, &mut self.buf), &mut self.matcher, &mut idx_buf)
-        {
+        if let Some(score) = self.pattern.indices(
+            Utf32Str::new(title, &mut self.buf),
+            &mut self.matcher,
+            &mut idx_buf,
+        ) {
             best_score = Some(score);
             best_positions = idx_buf.clone();
         }
@@ -122,10 +123,11 @@ impl FuzzyScorer {
         if self.want_pinyin {
             for hay in pinyin::haystacks_with_owners(title) {
                 idx_buf.clear();
-                if let Some(score) =
-                    self.pattern
-                        .indices(Utf32Str::new(&hay.text, &mut self.buf), &mut self.matcher, &mut idx_buf)
-                {
+                if let Some(score) = self.pattern.indices(
+                    Utf32Str::new(&hay.text, &mut self.buf),
+                    &mut self.matcher,
+                    &mut idx_buf,
+                ) {
                     // 严格大于：同分保留 title 原文候选（更直观）。
                     if best_score.is_none_or(|b| score > b) {
                         best_score = Some(score);
@@ -194,7 +196,10 @@ mod tests {
         let mut s = FuzzyScorer::new("微信");
         assert!(s.best(["微信"], ["weixin"]).is_some(), "原文命中");
         let mut s2 = FuzzyScorer::new("微信");
-        assert!(s2.best(["别的"], ["weixin"]).is_none(), "中文 query 不走拼音 haystack");
+        assert!(
+            s2.best(["别的"], ["weixin"]).is_none(),
+            "中文 query 不走拼音 haystack"
+        );
         // ASCII 字母 query 吃拼音 haystack。
         let mut s3 = FuzzyScorer::new("weixin");
         assert!(s3.best(["微信"], ["weixin"]).is_some());
@@ -256,7 +261,10 @@ mod tests {
     fn matching_is_case_insensitive_even_with_uppercase_query() {
         // 含大写的 query 也应命中全小写 haystack（拼音 haystack 恒为小写）。
         let mut s = FuzzyScorer::new("weixiN");
-        assert!(s.best(std::iter::empty(), ["weixin"]).is_some(), "weixiN 应匹配 weixin");
+        assert!(
+            s.best(std::iter::empty(), ["weixin"]).is_some(),
+            "weixiN 应匹配 weixin"
+        );
     }
 
     #[test]

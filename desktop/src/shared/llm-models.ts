@@ -2,7 +2,15 @@
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type ThinkingLevelMap = Partial<Record<ThinkingLevel, string | null>>;
 
-export const thinkingLevels: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+export const thinkingLevels: ThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
 
 export const deepseekFlashThinkingLevelMap: ThinkingLevelMap = {
   off: "none",
@@ -23,7 +31,15 @@ export const thinkingLevelPresets: Array<{ id: string; label: string; map: Think
   {
     id: "off-low-to-max",
     label: "关闭 / 低 / 中 / 高 / 更高 / 最高",
-    map: { off: "none", minimal: null, low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" },
+    map: {
+      off: "none",
+      minimal: null,
+      low: "low",
+      medium: "medium",
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
   },
   {
     id: "deepseek-low-high-max",
@@ -38,17 +54,41 @@ export const thinkingLevelPresets: Array<{ id: string; label: string; map: Think
   {
     id: "minimal-to-high",
     label: "最低 / 低 / 中 / 高",
-    map: { off: null, minimal: "minimal", low: "low", medium: "medium", high: "high", xhigh: null, max: null },
+    map: {
+      off: null,
+      minimal: "minimal",
+      low: "low",
+      medium: "medium",
+      high: "high",
+      xhigh: null,
+      max: null,
+    },
   },
   {
     id: "low-medium-high",
     label: "低 / 中 / 高",
-    map: { off: null, minimal: null, low: "low", medium: "medium", high: "high", xhigh: null, max: null },
+    map: {
+      off: null,
+      minimal: null,
+      low: "low",
+      medium: "medium",
+      high: "high",
+      xhigh: null,
+      max: null,
+    },
   },
   {
     id: "low-high-max",
     label: "低 / 高 / 最高",
-    map: { off: null, minimal: null, low: "low", medium: null, high: "high", xhigh: null, max: "max" },
+    map: {
+      off: null,
+      minimal: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: null,
+      max: "max",
+    },
   },
 ];
 
@@ -56,5 +96,7 @@ export const defaultContextWindow = 256_000;
 export const defaultMaxTokens = 32_768;
 
 export function matchThinkingMap(map: ThinkingLevelMap | undefined) {
-  return thinkingLevelPresets.find((preset) => thinkingLevels.every((level) => preset.map[level] === map?.[level]));
+  return thinkingLevelPresets.find((preset) =>
+    thinkingLevels.every((level) => preset.map[level] === map?.[level]),
+  );
 }

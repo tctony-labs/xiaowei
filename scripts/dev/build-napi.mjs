@@ -10,9 +10,13 @@ const flags =
     ? (process.env.RUSTFLAGS ?? "").split(/\s+/).filter(Boolean)
     : existing.split("\x1f").filter(Boolean);
 flags.push(`--remap-path-prefix=${workspace}=.`);
-const result = spawnSync("pnpm", ["exec", "napi", "build", "--platform", ...process.argv.slice(2)], {
-  stdio: "inherit",
-  env: { ...process.env, CARGO_ENCODED_RUSTFLAGS: flags.join("\x1f") },
-});
+const result = spawnSync(
+  "pnpm",
+  ["exec", "napi", "build", "--platform", ...process.argv.slice(2)],
+  {
+    stdio: "inherit",
+    env: { ...process.env, CARGO_ENCODED_RUSTFLAGS: flags.join("\x1f") },
+  },
+);
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);

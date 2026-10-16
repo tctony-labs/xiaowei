@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,7 +26,10 @@ for (const stubborn of [false, true]) {
   }, async () => {
     const directory = mkdtempSync(join(tmpdir(), "xiaowei-dev-group-"));
     const pidFile = join(directory, "application.pid");
-    writeFileSync(join(directory, "package.json"), JSON.stringify({ scripts: { "dev:main": "node app.cjs" } }));
+    writeFileSync(
+      join(directory, "package.json"),
+      JSON.stringify({ scripts: { "dev:main": "node app.cjs" } }),
+    );
     writeFileSync(
       join(directory, "app.cjs"),
       `
@@ -73,7 +84,10 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-dev-restart-"));
   const pidFile = join(directory, "app.pid");
   const groupFile = join(directory, "group.pid");
-  writeFileSync(join(directory, "package.json"), JSON.stringify({ scripts: { "dev:main": "node app.cjs" } }));
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ scripts: { "dev:main": "node app.cjs" } }),
+  );
   writeFileSync(
     join(directory, "app.cjs"),
     `
@@ -132,7 +146,8 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
   context.after(() => {
     // A test timeout does not interrupt an await or enter its finally block.
     killTestProcesses();
-    if (context.signal.aborted) context.diagnostic(`${phase}\n${output.join("\n")}\n${sessionOutput}`);
+    if (context.signal.aborted)
+      context.diagnostic(`${phase}\n${output.join("\n")}\n${sessionOutput}`);
     input.destroy();
     rmSync(directory, { recursive: true, force: true });
   });
@@ -165,7 +180,9 @@ test("two R commands and Ctrl+C stop real Vite/nodemon/pnpm without orphaning ap
       }
       await delay(25);
     }
-    assert.fail(`test application did not start during ${phase}\n${output.join("\n")}\n${sessionOutput}`);
+    assert.fail(
+      `test application did not start during ${phase}\n${output.join("\n")}\n${sessionOutput}`,
+    );
   }
   try {
     let pid = await application();

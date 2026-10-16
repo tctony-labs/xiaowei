@@ -12,7 +12,10 @@ async fn main() {
     let registry = XwInvokeRegistry::new();
     if std::env::args().any(|arg| arg == "--client") {
         registry.set_remote_invoker(|route, payload, _| async move {
-            println!("{}", serde_json::json!({ "route": route, "payload": payload }));
+            println!(
+                "{}",
+                serde_json::json!({ "route": route, "payload": payload })
+            );
             io::stdout().flush().unwrap();
             let mut response = String::new();
             io::stdin().read_line(&mut response).unwrap();
@@ -30,9 +33,12 @@ async fn main() {
             ..Default::default()
         };
         assert_eq!(
-            ECHO.call(&registry.client(CallContext::trusted("rust")), request.clone())
-                .await
-                .unwrap(),
+            ECHO.call(
+                &registry.client(CallContext::trusted("rust")),
+                request.clone()
+            )
+            .await
+            .unwrap(),
             request
         );
         return;
@@ -56,7 +62,10 @@ async fn main() {
         let frame: serde_json::Value = serde_json::from_str(&line.unwrap()).unwrap();
         let route: Route = serde_json::from_value(frame["route"].clone()).unwrap();
         let payload: Vec<u8> = serde_json::from_value(frame["payload"].clone()).unwrap();
-        let response = match registry.call(&route, payload, CallContext::trusted("ts")).await {
+        let response = match registry
+            .call(&route, payload, CallContext::trusted("ts"))
+            .await
+        {
             Ok(value) => serde_json::json!({ "ok": true, "value": value }),
             Err(error) => serde_json::json!({ "ok": false, "error": error }),
         };

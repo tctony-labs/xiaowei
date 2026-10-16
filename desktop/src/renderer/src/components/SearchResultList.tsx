@@ -19,7 +19,11 @@ function Highlight({ hit }: { hit: LauncherHit }) {
       // Character offsets are the stable positions supplied by the Rust matcher.
       // biome-ignore lint/suspicious/noArrayIndexKey: title characters have no independent identity
       key={index}
-      className={hit.ranges.some(({ start, end }) => index >= start && index < end) ? "text-primary-text" : undefined}
+      className={
+        hit.ranges.some(({ start, end }) => index >= start && index < end)
+          ? "text-primary-text"
+          : undefined
+      }
     >
       {char}
     </span>
@@ -40,7 +44,10 @@ export function SearchResultList({ hits, selected, onSelect, onConfirm }: Search
   }, [selected]);
   if (!hits.length) return null;
   return (
-    <div ref={container} className="min-h-0 flex-1 overflow-y-auto border-t border-line px-3.5 py-2">
+    <div
+      ref={container}
+      className="min-h-0 flex-1 overflow-y-auto border-t border-line px-3.5 py-2"
+    >
       <div className="flex flex-col gap-1" role="listbox" aria-label="搜索结果">
         {hits.map((hit, index) => {
           const icon =
@@ -92,7 +99,9 @@ export function SearchResultList({ hits, selected, onSelect, onConfirm }: Search
                   src={icon}
                   alt=""
                   onError={(event) => {
-                    if (event.currentTarget.src !== new URL(genericApp, window.location.href).href) {
+                    if (
+                      event.currentTarget.src !== new URL(genericApp, window.location.href).href
+                    ) {
                       event.currentTarget.src = genericApp;
                     }
                   }}
@@ -102,7 +111,9 @@ export function SearchResultList({ hits, selected, onSelect, onConfirm }: Search
               <span className="min-w-0 flex-1 truncate text-sm leading-5">
                 <Highlight hit={hit} />
               </span>
-              <span className="shrink-0 rounded px-1.5 py-0.5 text-xs leading-[18px] text-muted">{hit.label}</span>
+              <span className="shrink-0 rounded px-1.5 py-0.5 text-xs leading-[18px] text-muted">
+                {hit.label}
+              </span>
             </button>
           );
         })}

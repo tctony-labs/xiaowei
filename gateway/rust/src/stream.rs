@@ -21,7 +21,8 @@ pub struct RemoteOpen {
     pub policy: StreamPolicy,
 }
 pub type RemoteOpenFuture = Pin<Box<dyn Future<Output = Result<RemoteOpen, GatewayError>> + Send>>;
-pub type RemoteStream = Arc<dyn Fn(crate::Route, Vec<u8>, crate::CallContext) -> RemoteOpenFuture + Send + Sync>;
+pub type RemoteStream =
+    Arc<dyn Fn(crate::Route, Vec<u8>, crate::CallContext) -> RemoteOpenFuture + Send + Sync>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -119,7 +120,10 @@ impl StreamHandle {
             return result.map(|_| None);
         }
         if self.life.busy.swap(true, Ordering::AcqRel) {
-            return Err(error(ErrorCode::ConcurrencyFull, "one pending next per stream"));
+            return Err(error(
+                ErrorCode::ConcurrencyFull,
+                "one pending next per stream",
+            ));
         }
         struct Pending<'a>(&'a AtomicBool, &'a watch::Sender<bool>, bool);
         impl Drop for Pending<'_> {
@@ -185,10 +189,13 @@ pub(crate) fn start(
         let mut pending: Option<Request> = None;
         loop {
             let work = async {
-                let request = tokio::time::timeout(Duration::from_millis(policy.consumer_idle_ms), receiver.recv())
-                    .await
-                    .map_err(|_| error(ErrorCode::Timeout, "consumer idle timed out"))?
-                    .ok_or_else(|| error(ErrorCode::Cancelled, "stream dropped"))?;
+                let request = tokio::time::timeout(
+                    Duration::from_millis(policy.consumer_idle_ms),
+                    receiver.recv(),
+                )
+                .await
+                .map_err(|_| error(ErrorCode::Timeout, "consumer idle timed out"))?
+                .ok_or_else(|| error(ErrorCode::Cancelled, "stream dropped"))?;
                 pending = Some(request);
                 let item = tokio::time::timeout(
                     Duration::from_millis(policy.producer_idle_ms),
@@ -306,7 +313,10 @@ pub fn decode_frame(bytes: Vec<u8>, seq: u32) -> Item {
         return Ok(None);
     }
     if bytes.len() < 5 || bytes[0] != 1 || bytes[1..5] != seq.to_be_bytes() {
-        return Err(error(ErrorCode::Incompatible, "invalid stream sequence or frame"));
+        return Err(error(
+            ErrorCode::Incompatible,
+            "invalid stream sequence or frame",
+        ));
     }
     Ok(Some(bytes[5..].to_vec()))
 }
@@ -339,24 +349,28 @@ impl ByteSender {
 }
 pub fn bounded_byte_queue(policy: &StreamPolicy) -> Result<(ByteSender, ByteStream), GatewayError> {
     policy.validate()?;
-    let (sender, receiver) = mpsc::channel::<(Vec<u8>, tokio::sync::OwnedSemaphorePermit)>(policy.queue_items);
+    let (sender, receiver) =
+        mpsc::channel::<(Vec<u8>, tokio::sync::OwnedSemaphorePermit)>(policy.queue_items);
     let bytes = Arc::new(tokio::sync::Semaphore::new(policy.queue_bytes));
     let (failed, failure) = watch::channel(None);
-    let stream = futures_util::stream::try_unfold((receiver, failure), |(mut receiver, mut failure)| async move {
-        let result = tokio::select! {
-            biased;
-            _ = async { if failure.borrow().is_none() { let _ = failure.changed().await; } } => {
-                let error = failure.borrow().clone();
-                if let Some(error) = error { return Err(error); }
-                receiver.recv().await
-            }
-            item = receiver.recv() => item,
-        };
-        Ok(result.map(|(bytes, permit)| {
-            drop(permit);
-            (bytes, (receiver, failure))
-        }))
-    });
+    let stream = futures_util::stream::try_unfold(
+        (receiver, failure),
+        |(mut receiver, mut failure)| async move {
+            let result = tokio::select! {
+                biased;
+                _ = async { if failure.borrow().is_none() { let _ = failure.changed().await; } } => {
+                    let error = failure.borrow().clone();
+                    if let Some(error) = error { return Err(error); }
+                    receiver.recv().await
+                }
+                item = receiver.recv() => item,
+            };
+            Ok(result.map(|(bytes, permit)| {
+                drop(permit);
+                (bytes, (receiver, failure))
+            }))
+        },
+    );
     Ok((
         ByteSender {
             sender,

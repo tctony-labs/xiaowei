@@ -12,7 +12,10 @@ pub struct SparkleUpdater {
 
 #[napi]
 impl SparkleUpdater {
-    #[napi(factory, ts_args_type = "frameworkPath: string, callback: (event: string) => void")]
+    #[napi(
+        factory,
+        ts_args_type = "frameworkPath: string, callback: (event: string) => void"
+    )]
     pub fn open(framework_path: String, callback: Arc<EventCallback>) -> napi::Result<Self> {
         let inner = sparkle::SparkleUpdater::open(&framework_path, move |event| {
             let status = callback.call(event, ThreadsafeFunctionCallMode::NonBlocking);

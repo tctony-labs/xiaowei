@@ -25,13 +25,16 @@ export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
     ...bindHandlers(Llm, {
       getModelInfo(request) {
         const model = models.get(request.modelRef);
-        if (!model) throw new GatewayFailure({ code: "NOT_FOUND", message: "unknown model reference" });
+        if (!model)
+          throw new GatewayFailure({ code: "NOT_FOUND", message: "unknown model reference" });
         return create(ModelInfoSchema, {
           modelRef: model.id,
           providerName: model.providerName,
           name: model.name,
           reasoning: model.reasoning,
-          input: model.input.map((input) => (input === "text" ? ModelInput.TEXT : ModelInput.IMAGE)),
+          input: model.input.map((input) =>
+            input === "text" ? ModelInput.TEXT : ModelInput.IMAGE,
+          ),
           contextWindow: model.contextWindow,
           maxTokens: model.maxTokens,
         });
@@ -40,7 +43,11 @@ export function llmRegistrations(configs: readonly ResolvedModelConfig[]) {
         const next = decodeModels(request.models);
         models = next;
         const providerCount = new Set([...models.values()].map((model) => model.provider)).size;
-        console.info("LLM models updated: loaded %d models from %d providers", models.size, providerCount);
+        console.info(
+          "LLM models updated: loaded %d models from %d providers",
+          models.size,
+          providerCount,
+        );
         return create(EmptySchema);
       },
     }),

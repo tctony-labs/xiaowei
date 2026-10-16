@@ -36,7 +36,10 @@ function preview() {
     throw new Error("Unused preview route");
   };
   const changed = () =>
-    owner.publish(ClipboardChangedSchema.typeName, toBinary(ClipboardChangedSchema, create(ClipboardChangedSchema)));
+    owner.publish(
+      ClipboardChangedSchema.typeName,
+      toBinary(ClipboardChangedSchema, create(ClipboardChangedSchema)),
+    );
   const copy = (id: bigint) => {
     const item = rows.find((row) => row.id === id);
     if (!item) throw new Error("Missing preview item");
@@ -52,11 +55,15 @@ function preview() {
       list: ({ query, favoritesOnly, offset, limit }) =>
         create(ClipboardItemsSchema, {
           items: rows
-            .filter((item) => (!query || item.previewText?.includes(query)) && (!favoritesOnly || item.favorite))
+            .filter(
+              (item) =>
+                (!query || item.previewText?.includes(query)) && (!favoritesOnly || item.favorite),
+            )
             .slice(offset ?? 0, (offset ?? 0) + (limit ?? 50)),
         }),
       categories: () => create(ClipboardCategoriesSchema),
-      readText: ({ id }) => create(ReadTextResponseSchema, { text: rows.find((item) => item.id === id)?.previewText }),
+      readText: ({ id }) =>
+        create(ReadTextResponseSchema, { text: rows.find((item) => item.id === id)?.previewText }),
       copy: ({ id }) => copy(id),
       select: ({ id }) => {
         const response = copy(id);
@@ -86,7 +93,14 @@ function preview() {
       revealResource: unused,
       copyResourcePath: unused,
     }),
-    [{ name: ClipboardChangedSchema.typeName, policy: "coalesce", validate() {}, matches: () => true }],
+    [
+      {
+        name: ClipboardChangedSchema.typeName,
+        policy: "coalesce",
+        validate() {},
+        matches: () => true,
+      },
+    ],
   );
 
   return {
@@ -116,7 +130,11 @@ const meta = {
     const [fixture] = useState(preview);
     return (
       <div>
-        <button type="button" className="m-2 rounded border px-3 py-1" onClick={() => fixture.capture()}>
+        <button
+          type="button"
+          className="m-2 rounded border px-3 py-1"
+          onClick={() => fixture.capture()}
+        >
           模拟复制新内容
         </button>
         <div className="[&>div]:h-full" style={{ width: 800, height: 580 }}>
@@ -137,12 +155,18 @@ export const NewItemSelection: Story = {
     const input = canvas.getByRole("textbox", { name: "搜索" });
     const assertSelected = async (text: string, first = false) => {
       await waitFor(() => {
-        const row = canvas.getByRole("option", { name: (_name, element) => element.textContent === text });
+        const row = canvas.getByRole("option", {
+          name: (_name, element) => element.textContent === text,
+        });
         expect(row).toHaveAttribute("aria-selected", "true");
         if (first) expect(within(list).getAllByRole("option")[0]).toBe(row);
         expect(canvas.getByRole("region", { name: "内容预览" })).toHaveTextContent(text);
-        expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(list.getBoundingClientRect().top + 7);
-        expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(list.getBoundingClientRect().bottom - 7);
+        expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+          list.getBoundingClientRect().top + 7,
+        );
+        expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+          list.getBoundingClientRect().bottom - 7,
+        );
       });
     };
 
@@ -165,7 +189,9 @@ export const NewItemSelection: Story = {
     // Metadata-only refreshes preserve the manually selected row.
     await userEvent.click(canvas.getByRole("option", { name: "历史记录 30" }));
     await userEvent.click(
-      within(canvas.getByRole("region", { name: "内容预览" })).getByRole("button", { name: "收藏" }),
+      within(canvas.getByRole("region", { name: "内容预览" })).getByRole("button", {
+        name: "收藏",
+      }),
     );
     await canvas.findByText("已收藏");
     await assertSelected("历史记录 30");
@@ -176,17 +202,26 @@ export const NewItemSelection: Story = {
     await userEvent.type(input, "历史记录");
     await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(30));
     await userEvent.click(
-      await canvas.findByRole("option", { name: (_name, element) => element.textContent === "历史记录 3" }),
+      await canvas.findByRole("option", {
+        name: (_name, element) => element.textContent === "历史记录 3",
+      }),
     );
     await userEvent.click(canvas.getByRole("button", { name: "模拟复制新内容" }));
     await waitFor(() => expect(list).toHaveAttribute("aria-busy", "false"));
     await assertSelected("新复制的内容 34", true);
     await expect(input).toHaveValue("");
 
-    await userEvent.click(within(canvas.getByRole("navigation")).getByRole("button", { name: "收藏" }));
-    await canvas.findByRole("option", { name: (_name, element) => element.textContent === "历史记录 30" });
+    await userEvent.click(
+      within(canvas.getByRole("navigation")).getByRole("button", { name: "收藏" }),
+    );
+    await canvas.findByRole("option", {
+      name: (_name, element) => element.textContent === "历史记录 30",
+    });
     await userEvent.click(canvas.getByRole("button", { name: "模拟复制新内容" }));
     await assertSelected("新复制的内容 35", true);
-    await expect(canvas.getByRole("button", { name: "剪贴板" })).toHaveAttribute("aria-pressed", "true");
+    await expect(canvas.getByRole("button", { name: "剪贴板" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   },
 };

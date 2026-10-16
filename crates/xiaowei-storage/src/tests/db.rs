@@ -10,14 +10,18 @@ fn statement(sql: &str) -> SqlStatement {
 
 fn literal(kind: sql_value::Kind) -> SqlParameter {
     SqlParameter {
-        source: Some(sql_parameter::Source::Literal(SqlValue { kind: Some(kind) })),
+        source: Some(sql_parameter::Source::Literal(SqlValue {
+            kind: Some(kind),
+        })),
     }
 }
 
 #[tokio::test]
 async fn values_columns_and_sql_boundaries() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Database::open(&temp.path().join("db.sqlite")).await.unwrap();
+    let db = Database::open(&temp.path().join("db.sqlite"))
+        .await
+        .unwrap();
     let values = vec![
         sql_value::Kind::Null(Default::default()),
         sql_value::Kind::Integer(i64::MAX),
@@ -48,11 +52,19 @@ async fn values_columns_and_sql_boundaries() {
     }
 
     // Internal maintenance SQL is trusted; PRAGMA needs no authorization exception.
-    db.execute(statement("PRAGMA user_version=7")).await.unwrap();
+    db.execute(statement("PRAGMA user_version=7"))
+        .await
+        .unwrap();
     let version = db.query(statement("PRAGMA user_version")).await.unwrap();
-    assert_eq!(version.rows[0].cells[0].kind, Some(sql_value::Kind::Integer(7)));
+    assert_eq!(
+        version.rows[0].cells[0].kind,
+        Some(sql_value::Kind::Integer(7))
+    );
 
-    assert!(db.query(statement("CREATE TABLE forbidden(id INTEGER)")).await.is_err());
+    assert!(db
+        .query(statement("CREATE TABLE forbidden(id INTEGER)"))
+        .await
+        .is_err());
     let too_large = db.query(statement("SELECT zeroblob(5000000)")).await;
     assert!(too_large.is_err());
     db.close().await;
@@ -61,7 +73,11 @@ async fn values_columns_and_sql_boundaries() {
 #[tokio::test]
 async fn references_assertions_rollback_and_concurrent_writes() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Arc::new(Database::open(&temp.path().join("db.sqlite")).await.unwrap());
+    let db = Arc::new(
+        Database::open(&temp.path().join("db.sqlite"))
+            .await
+            .unwrap(),
+    );
     db.execute(statement(
         "CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT NOT NULL UNIQUE)",
     ))
@@ -98,11 +114,20 @@ async fn references_assertions_rollback_and_concurrent_writes() {
         })
         .await
         .is_err());
-    assert_eq!(db.query(statement("SELECT id FROM items")).await.unwrap().rows.len(), 1);
+    assert_eq!(
+        db.query(statement("SELECT id FROM items"))
+            .await
+            .unwrap()
+            .rows
+            .len(),
+        1
+    );
     db.execute(statement("CREATE TABLE counter(n INTEGER NOT NULL)"))
         .await
         .unwrap();
-    db.execute(statement("INSERT INTO counter VALUES(0)")).await.unwrap();
+    db.execute(statement("INSERT INTO counter VALUES(0)"))
+        .await
+        .unwrap();
     let mut jobs = Vec::new();
     for _ in 0..20 {
         let db = db.clone();
@@ -131,7 +156,12 @@ async fn references_assertions_rollback_and_concurrent_writes() {
         job.await.unwrap();
     }
     assert_eq!(
-        db.query(statement("SELECT n FROM counter")).await.unwrap().rows[0].cells[0].kind,
+        db.query(statement("SELECT n FROM counter"))
+            .await
+            .unwrap()
+            .rows[0]
+            .cells[0]
+            .kind,
         Some(sql_value::Kind::Integer(20))
     );
     db.close().await;
@@ -140,8 +170,14 @@ async fn references_assertions_rollback_and_concurrent_writes() {
 #[tokio::test]
 async fn cancelling_running_sql_rolls_back_and_releases_connections() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Arc::new(Database::open(&temp.path().join("db.sqlite")).await.unwrap());
-    db.execute(statement("CREATE TABLE items(n INTEGER)")).await.unwrap();
+    let db = Arc::new(
+        Database::open(&temp.path().join("db.sqlite"))
+            .await
+            .unwrap(),
+    );
+    db.execute(statement("CREATE TABLE items(n INTEGER)"))
+        .await
+        .unwrap();
     for _ in 0..6 {
         let work = db.clone();
         let job = tokio::spawn(async move {
@@ -176,7 +212,9 @@ async fn cancelling_running_sql_rolls_back_and_releases_connections() {
 #[tokio::test]
 async fn conditional_merge_preserves_metadata_and_rolls_back_as_one_unit() {
     let temp = tempfile::tempdir().unwrap();
-    let db = Database::open(&temp.path().join("db.sqlite")).await.unwrap();
+    let db = Database::open(&temp.path().join("db.sqlite"))
+        .await
+        .unwrap();
     db.execute(statement(
         "CREATE TABLE entries(id INTEGER PRIMARY KEY, hash TEXT UNIQUE,
             favorite INTEGER, remark TEXT, category INTEGER)",
@@ -215,10 +253,16 @@ async fn conditional_merge_preserves_metadata_and_rolls_back_as_one_unit() {
         ],
     };
     let mut failing = merge.clone();
-    failing.steps.push(statement("INSERT INTO missing_table VALUES(1)"));
+    failing
+        .steps
+        .push(statement("INSERT INTO missing_table VALUES(1)"));
     assert!(db.transaction(failing).await.is_err());
     assert_eq!(
-        db.query(statement("SELECT id FROM entries")).await.unwrap().rows.len(),
+        db.query(statement("SELECT id FROM entries"))
+            .await
+            .unwrap()
+            .rows
+            .len(),
         2
     );
     db.transaction(merge).await.unwrap();
@@ -227,9 +271,18 @@ async fn conditional_merge_preserves_metadata_and_rolls_back_as_one_unit() {
         .await
         .unwrap();
     assert_eq!(result.rows.len(), 1);
-    assert_eq!(result.rows[0].cells[0].kind, Some(sql_value::Kind::Integer(1)));
-    assert_eq!(result.rows[0].cells[1].kind, Some(sql_value::Kind::Text("a;b".into())));
-    assert_eq!(result.rows[0].cells[2].kind, Some(sql_value::Kind::Integer(7)));
+    assert_eq!(
+        result.rows[0].cells[0].kind,
+        Some(sql_value::Kind::Integer(1))
+    );
+    assert_eq!(
+        result.rows[0].cells[1].kind,
+        Some(sql_value::Kind::Text("a;b".into()))
+    );
+    assert_eq!(
+        result.rows[0].cells[2].kind,
+        Some(sql_value::Kind::Integer(7))
+    );
     db.close().await;
 }
 
@@ -257,12 +310,14 @@ async fn tokenizer_is_registered_on_every_connection_and_after_reopen() {
         connections.push(db.pool.acquire().await.unwrap());
     }
     for connection in &mut connections {
-        for (query, expected) in [("微信", 1_i64), ("report", 1), ("doc*", 1), ("使用指南", 2)] {
-            let ids: Vec<i64> = sqlx::query_scalar("SELECT rowid FROM search_test WHERE search_test MATCH ?")
-                .bind(query)
-                .fetch_all(&mut **connection)
-                .await
-                .unwrap();
+        for (query, expected) in [("微信", 1_i64), ("report", 1), ("doc*", 1), ("使用指南", 2)]
+        {
+            let ids: Vec<i64> =
+                sqlx::query_scalar("SELECT rowid FROM search_test WHERE search_test MATCH ?")
+                    .bind(query)
+                    .fetch_all(&mut **connection)
+                    .await
+                    .unwrap();
             assert_eq!(ids, vec![expected], "query: {query}");
         }
     }

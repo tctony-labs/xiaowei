@@ -202,13 +202,16 @@ test("copy uses the real session ID; deletion requires confirmation and never in
   expect(props.onNewConversation).not.toHaveBeenCalled();
 });
 
-test.each([null, "empty-session"])("blank chat (%s) hides more actions even with a draft", (sessionId) => {
-  menuPanel({ sessionId, messages: [], draft: "unsent draft" });
-  expect(screen.queryByRole("button", { name: "更多操作" })).toBeNull();
-  expect(screen.getByRole("button", { name: "新建对话" })).toBeVisible();
-  expect(screen.getByRole("button", { name: "选择会话" })).toBeVisible();
-  expect(input()).toHaveValue("unsent draft");
-});
+test.each([null, "empty-session"])(
+  "blank chat (%s) hides more actions even with a draft",
+  (sessionId) => {
+    menuPanel({ sessionId, messages: [], draft: "unsent draft" });
+    expect(screen.queryByRole("button", { name: "更多操作" })).toBeNull();
+    expect(screen.getByRole("button", { name: "新建对话" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "选择会话" })).toBeVisible();
+    expect(input()).toHaveValue("unsent draft");
+  },
+);
 
 test("the session menu lists actual sessions and sends the selected ID to the adapter", () => {
   const props = menuPanel({

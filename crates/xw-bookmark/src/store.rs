@@ -53,7 +53,11 @@ impl BookmarkStore {
     /// 同 [`open_shared`](Self::open_shared)，并在**每次成功加载后**（初次 + 文件变更）调用
     /// `on_change`。使用方可在钩子里从共享列表重建自己的派生索引（如拼音 haystack），
     /// 使派生数据随文件变更自动保持最新。
-    pub fn open_shared_with<F>(path: impl Into<PathBuf>, entries: BookmarkEntries, on_change: F) -> Self
+    pub fn open_shared_with<F>(
+        path: impl Into<PathBuf>,
+        entries: BookmarkEntries,
+        on_change: F,
+    ) -> Self
     where
         F: Fn() + Send + Sync + 'static,
     {
@@ -123,7 +127,11 @@ fn load_into(path: &Path, entries: &BookmarkEntries) -> bool {
         };
         loaded_paths.push(source);
         for entry in parsed {
-            let key = (entry.name.clone(), entry.url.clone(), entry.folder_path.clone());
+            let key = (
+                entry.name.clone(),
+                entry.url.clone(),
+                entry.folder_path.clone(),
+            );
             if seen.insert(key) {
                 merged.push(entry);
             }
@@ -131,7 +139,9 @@ fn load_into(path: &Path, entries: &BookmarkEntries) -> bool {
     }
 
     let count = merged.len();
-    let Ok(mut guard) = entries.write() else { return false };
+    let Ok(mut guard) = entries.write() else {
+        return false;
+    };
     *guard = merged;
     log::info!("书签列表重建完成 count={count} paths={loaded_paths:?}");
     true
@@ -139,13 +149,19 @@ fn load_into(path: &Path, entries: &BookmarkEntries) -> bool {
 
 /// 监听书签文件所在目录（Chrome 常以 rename 原子写入，监听父目录更稳）。debounce 窗口内的
 /// 事件攒成一批，只在涉及目标文件时重新加载 / 重建一次。
-fn start_watcher<F>(path: &Path, entries: BookmarkEntries, on_change: F) -> Option<Debouncer<RecommendedWatcher>>
+fn start_watcher<F>(
+    path: &Path,
+    entries: BookmarkEntries,
+    on_change: F,
+) -> Option<Debouncer<RecommendedWatcher>>
 where
     F: Fn() + Send + Sync + 'static,
 {
     let watch_dir = path.parent()?;
     // macOS 文件事件使用真实路径（例如 /var 的目标 /private/var）。
-    let watch_dir = watch_dir.canonicalize().unwrap_or_else(|_| watch_dir.to_path_buf());
+    let watch_dir = watch_dir
+        .canonicalize()
+        .unwrap_or_else(|_| watch_dir.to_path_buf());
     let primary = watch_dir.join(path.file_name()?);
     let targets = bookmark_paths(&primary);
 
@@ -163,7 +179,10 @@ where
         }
     };
 
-    if let Err(err) = debouncer.watcher().watch(&watch_dir, RecursiveMode::NonRecursive) {
+    if let Err(err) = debouncer
+        .watcher()
+        .watch(&watch_dir, RecursiveMode::NonRecursive)
+    {
         log::warn!("监听书签目录失败 dir={} err={err}", watch_dir.display());
         return None;
     }

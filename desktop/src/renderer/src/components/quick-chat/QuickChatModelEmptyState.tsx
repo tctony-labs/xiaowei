@@ -1,7 +1,20 @@
-export function QuickChatModelEmptyState({ onOpenSettings, error }: { onOpenSettings: () => void; error?: string }) {
+export function QuickChatModelEmptyState({
+  onOpenSettings,
+  error,
+}: {
+  onOpenSettings: () => void;
+  error?: string;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 text-center text-muted">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
         <path
           d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
           strokeWidth="1.5"

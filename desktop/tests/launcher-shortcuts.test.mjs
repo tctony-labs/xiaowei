@@ -182,7 +182,8 @@ test("macOS configures all-Space visibility once before repeated launcher activa
   const window = {
     isDestroyed: () => false,
     getBounds: () => ({ x: 320, y: 156, width: 800, height: 71 }),
-    setVisibleOnAllWorkspaces: (visible, options) => calls.push(["all-workspaces", visible, options]),
+    setVisibleOnAllWorkspaces: (visible, options) =>
+      calls.push(["all-workspaces", visible, options]),
     show: () => calls.push(["show"]),
     focus: () => calls.push(["focus"]),
   };
@@ -212,11 +213,17 @@ test("main shortcut toggles every mode without changing its presentation", () =>
   for (const mode of ["search", "clipboard", "quick-chat"]) {
     for (const state of [{ visible: false }, { focused: false }]) {
       const next = fixture(state);
-      assert.equal(activateLauncherShortcut(next.window, mode, "toggle", next.show, next.opened), mode);
+      assert.equal(
+        activateLauncherShortcut(next.window, mode, "toggle", next.show, next.opened),
+        mode,
+      );
       assert.deepEqual(next.calls, [["opened", mode], ["show"]]);
     }
     const visible = fixture();
-    assert.equal(activateLauncherShortcut(visible.window, mode, "toggle", visible.show, visible.opened), mode);
+    assert.equal(
+      activateLauncherShortcut(visible.window, mode, "toggle", visible.show, visible.opened),
+      mode,
+    );
     assert.deepEqual(visible.calls, [["hide"]]);
   }
 });

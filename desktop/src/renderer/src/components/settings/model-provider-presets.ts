@@ -1,8 +1,15 @@
-import { deepseekFlashThinkingLevelMap, deepseekProThinkingLevelMap } from "./thinking-level-presets";
+import {
+  deepseekFlashThinkingLevelMap,
+  deepseekProThinkingLevelMap,
+} from "./thinking-level-presets";
 
 // Preview catalog checked against Pi 0.85.1 bundled provider data. No SDK import in renderer.
 // Custom connections currently expose API-key authentication only.
-export const modelProtocols = ["openai-completions", "openai-responses", "anthropic-messages"] as const;
+export const modelProtocols = [
+  "openai-completions",
+  "openai-responses",
+  "anthropic-messages",
+] as const;
 
 // DSH llm-deepseek/src/models.ts and defaults.ts: output is its default budget, not a published limit.
 export const deepseekPresetModels = [

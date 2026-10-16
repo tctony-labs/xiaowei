@@ -46,7 +46,10 @@ process.exit(result.status ?? 1);
     ["legacy", "2021"],
     ["modern", "2024"],
   ]) {
-    write(`${name}/Cargo.toml`, `[package]\nname = "${name}"\nversion = "0.1.0"\nedition = "${edition}"\n`);
+    write(
+      `${name}/Cargo.toml`,
+      `[package]\nname = "${name}"\nversion = "0.1.0"\nedition = "${edition}"\n`,
+    );
     write(`${name}/src/lib.rs`, "pub fn example() {}\n");
   }
   for (const name of ["server", "contracts/go"]) {
@@ -177,10 +180,14 @@ test("the repository just format entry formats files across the workspace withou
   write("server/main.go", "package example\nfunc Example( ) { }\n");
   write("contracts/go/main.go", "package example\nfunc Example( ) { }\n");
   const index = git("write-tree");
-  const result = spawnSync("just", ["--justfile", join(root, "justfile"), "--working-directory", directory, "format"], {
-    env,
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "just",
+    ["--justfile", join(root, "justfile"), "--working-directory", directory, "format"],
+    {
+      env,
+      encoding: "utf8",
+    },
+  );
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(read("other.js"), 'console.log("unstaged");\n');

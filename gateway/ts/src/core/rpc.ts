@@ -9,7 +9,10 @@ export function cancelled(): GatewayFailure {
   return new GatewayFailure({ code: "CANCELLED", message: "RPC cancelled" });
 }
 
-export function createRpc<T>(work: (signal: AbortSignal) => Promise<T>, parent?: AbortSignal): Rpc<T> {
+export function createRpc<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+  parent?: AbortSignal,
+): Rpc<T> {
   const controller = new AbortController();
   let done = false;
   let rejectResult!: (error: unknown) => void;

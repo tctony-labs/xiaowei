@@ -248,8 +248,12 @@ impl Service {
                     }
                     Err(error) => {
                         let (level, message, source) = match error {
-                            PollError::Read(source) => (log::Level::Warn, "Clipboard read failed", source),
-                            PollError::Save(source) => (log::Level::Error, "Clipboard history save failed", source),
+                            PollError::Read(source) => {
+                                (log::Level::Warn, "Clipboard read failed", source)
+                            }
+                            PollError::Save(source) => {
+                                (log::Level::Error, "Clipboard history save failed", source)
+                            }
                         };
                         if failed != Some(level) {
                             log::log!(level, "{message}: {source}");
@@ -285,12 +289,19 @@ impl Service {
 
     pub async fn attachment_usage(&self) -> Result<u64> {
         let directory = self.directory.clone();
-        Ok(tokio::task::spawn_blocking(move || crate::usage::attachment_size(&directory)).await??)
+        Ok(
+            tokio::task::spawn_blocking(move || crate::usage::attachment_size(&directory))
+                .await??,
+        )
     }
 
     pub async fn resource_paths(&self, id: i64, index: Option<u32>) -> Result<Vec<String>> {
         let state = self.state.lock().await;
-        let item = state.store.get(id).await?.ok_or("Clipboard item no longer exists")?;
+        let item = state
+            .store
+            .get(id)
+            .await?
+            .ok_or("Clipboard item no longer exists")?;
         state.resources.resolve(item, index)
     }
 
@@ -337,7 +348,13 @@ impl Service {
     }
 
     pub async fn set_favorite(&self, id: i64, favorite: bool) -> Result<bool> {
-        let changed = self.state.lock().await.store.set_favorite(id, favorite).await?;
+        let changed = self
+            .state
+            .lock()
+            .await
+            .store
+            .set_favorite(id, favorite)
+            .await?;
         if changed {
             (self.on_change)();
         }
@@ -348,8 +365,19 @@ impl Service {
         self.state.lock().await.store.categories().await
     }
 
-    pub async fn save_category(&self, id: Option<i64>, name: &str, color: &str) -> Result<ClipboardCategory> {
-        let category = self.state.lock().await.store.save_category(id, name, color).await?;
+    pub async fn save_category(
+        &self,
+        id: Option<i64>,
+        name: &str,
+        color: &str,
+    ) -> Result<ClipboardCategory> {
+        let category = self
+            .state
+            .lock()
+            .await
+            .store
+            .save_category(id, name, color)
+            .await?;
         (self.on_change)();
         Ok(category)
     }
@@ -367,7 +395,12 @@ impl Service {
     }
 
     pub async fn set_category(&self, id: i64, category: Option<i64>) -> Result<()> {
-        self.state.lock().await.store.set_category(id, category).await?;
+        self.state
+            .lock()
+            .await
+            .store
+            .set_category(id, category)
+            .await?;
         (self.on_change)();
         Ok(())
     }
@@ -399,14 +432,16 @@ impl Service {
     }
 
     pub async fn purge_ordinary(&self) -> Result<usize> {
-        self.purge_ordinary_before(crate::store::current_time_ms()?).await
+        self.purge_ordinary_before(crate::store::current_time_ms()?)
+            .await
     }
 
     pub async fn purge_expired(&self, retention_days: i32) -> Result<usize> {
         if !matches!(retention_days, 1 | 7 | 15 | 30) {
             return Err("Invalid retention period".into());
         }
-        let cutoff = crate::store::current_time_ms()? - i64::from(retention_days) * 24 * 60 * 60 * 1000;
+        let cutoff =
+            crate::store::current_time_ms()? - i64::from(retention_days) * 24 * 60 * 60 * 1000;
         self.purge_ordinary_before(cutoff).await
     }
 
@@ -481,7 +516,11 @@ async fn poll(state: &Mutex<State>) -> std::result::Result<bool, PollError> {
         return Ok(false);
     };
 
-    let item = state.store.capture(&change.data).await.map_err(PollError::Save)?;
+    let item = state
+        .store
+        .capture(&change.data)
+        .await
+        .map_err(PollError::Save)?;
     state.last_count = Some(change.count);
     state.last_hash = Some(change.hash);
     log::debug!("Clipboard history saved id={} kind={}", item.id, item.kind);
@@ -548,8 +587,16 @@ mod tests {
             )
             .unwrap();
         let client = registry.client(CallContext::trusted("lifecycle"));
-        let service =
-            Arc::new(Service::open(directory.path(), directory.path(), client.clone(), Backend, || {}).unwrap());
+        let service = Arc::new(
+            Service::open(
+                directory.path(),
+                directory.path(),
+                client.clone(),
+                Backend,
+                || {},
+            )
+            .unwrap(),
+        );
         service.start_services(client.clone()).await.unwrap();
         service.start_services(client.clone()).await.unwrap();
         tokio::task::yield_now().await;

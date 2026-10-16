@@ -67,7 +67,8 @@ pub fn rebuild_context(
                 messages.insert(message.message_id, (entry.entry_id, &message.message));
             }
             EntryPayload::GenEnded(end)
-                if end.status == GenStatus::Completed && generations[&end.gen_id] == GenPurpose::Conversation =>
+                if end.status == GenStatus::Completed
+                    && generations[&end.gen_id] == GenPurpose::Conversation =>
             {
                 let (id, message) = messages[&end.assistant_message_id.expect("validated")];
                 effective.push((id, message.clone()));
@@ -82,8 +83,10 @@ pub fn rebuild_context(
                 interactions.insert(opened.interaction_id, &opened.request);
             }
             EntryPayload::InteractionResolved(resolved) => {
-                if let (InteractionRequest::Permission { target, .. }, InteractionAnswer::Permission { allow: true }) =
-                    (interactions[&resolved.interaction_id], &resolved.answer)
+                if let (
+                    InteractionRequest::Permission { target, .. },
+                    InteractionAnswer::Permission { allow: true },
+                ) = (interactions[&resolved.interaction_id], &resolved.answer)
                     && granted.insert((target.path.clone(), target.is_directory))
                 {
                     granted_paths.push(target.clone());

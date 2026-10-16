@@ -49,7 +49,12 @@ pub enum InteractionExpireReason {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum InteractionRequest {
     Question {
         question: String,
@@ -66,7 +71,12 @@ pub enum InteractionRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum InteractionAnswer {
     Question {
         selected_indices: Vec<u32>,

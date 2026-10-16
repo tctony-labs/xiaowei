@@ -45,7 +45,9 @@ async fn typed_local_pull_drop_owner_and_errors() {
             }
         }
     });
-    let owner = registry.register_owner("owner", vec![registration], vec![]).unwrap();
+    let owner = registry
+        .register_owner("owner", vec![registration], vec![])
+        .unwrap();
     let remote = Arc::new(AtomicUsize::new(0));
     registry.set_remote_stream(Arc::new({
         let remote = remote.clone();
@@ -80,15 +82,20 @@ async fn typed_local_pull_drop_owner_and_errors() {
 #[tokio::test(start_paused = true)]
 async fn separate_deadlines_admission_and_pending_cancel() {
     let registry = XwInvokeRegistry::new();
-    let mut registration = WATCH
-        .handler(|_, _| async { Ok(futures_util::stream::pending::<Result<Changed, xw_gateway::GatewayError>>()) });
+    let mut registration = WATCH.handler(|_, _| async {
+        Ok(futures_util::stream::pending::<
+            Result<Changed, xw_gateway::GatewayError>,
+        >())
+    });
     registration.stream_policy = StreamPolicy {
         max_caller_streams: 1,
         producer_idle_ms: 20,
         consumer_idle_ms: 100,
         ..Default::default()
     };
-    let owner = registry.register_owner("owner", vec![registration], vec![]).unwrap();
+    let owner = registry
+        .register_owner("owner", vec![registration], vec![])
+        .unwrap();
     let client = registry.client(CallContext::trusted("test"));
     let mut stream = WATCH.stream(&client, Envelope::default()).await.unwrap();
     assert!(WATCH.stream(&client, Envelope::default()).await.is_err());
@@ -97,17 +104,26 @@ async fn separate_deadlines_admission_and_pending_cancel() {
     let pending = tokio::spawn(async move { stream.next().await });
     tokio::task::yield_now().await;
     tokio::time::advance(std::time::Duration::from_millis(20)).await;
-    assert_eq!(pending.await.unwrap().unwrap().unwrap_err().code, ErrorCode::Timeout);
+    assert_eq!(
+        pending.await.unwrap().unwrap().unwrap_err().code,
+        ErrorCode::Timeout
+    );
     let mut stream = WATCH.stream(&client, Envelope::default()).await.unwrap();
     let pending = tokio::spawn(async move { stream.next().await });
     tokio::task::yield_now().await;
     registry.cleanup_stream_caller("test");
-    assert_eq!(pending.await.unwrap().unwrap().unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        pending.await.unwrap().unwrap().unwrap_err().code,
+        ErrorCode::Cancelled
+    );
     let mut stream = WATCH.stream(&client, Envelope::default()).await.unwrap();
     tokio::task::yield_now().await;
     tokio::time::advance(std::time::Duration::from_millis(100)).await;
     tokio::task::yield_now().await;
-    assert_eq!(stream.next().await.unwrap().unwrap_err().code, ErrorCode::Timeout);
+    assert_eq!(
+        stream.next().await.unwrap().unwrap_err().code,
+        ErrorCode::Timeout
+    );
     registry.unregister_owner(&owner);
 }
 
@@ -142,18 +158,29 @@ async fn bounded_active_queue_waits_and_oversize_cancels() {
 #[tokio::test]
 async fn explicit_cancel_interrupts_next_and_releases_admission() {
     let registry = XwInvokeRegistry::new();
-    let mut registration = WATCH
-        .handler(|_, _| async { Ok(futures_util::stream::pending::<Result<Changed, xw_gateway::GatewayError>>()) });
+    let mut registration = WATCH.handler(|_, _| async {
+        Ok(futures_util::stream::pending::<
+            Result<Changed, xw_gateway::GatewayError>,
+        >())
+    });
     registration.stream_policy.max_caller_streams = 1;
-    registry.register_owner("owner", vec![registration], vec![]).unwrap();
+    registry
+        .register_owner("owner", vec![registration], vec![])
+        .unwrap();
     let client = registry.client(CallContext::trusted("test"));
     let mut stream = WATCH.stream(&client, Envelope::default()).await.unwrap();
     let handle = stream.cancel_handle();
     let pending = tokio::spawn(async move { stream.next().await });
     tokio::task::yield_now().await;
-    assert_eq!(handle.next().await.unwrap_err().code, ErrorCode::ConcurrencyFull);
+    assert_eq!(
+        handle.next().await.unwrap_err().code,
+        ErrorCode::ConcurrencyFull
+    );
     handle.cancel().await.unwrap();
-    assert_eq!(pending.await.unwrap().unwrap().unwrap_err().code, ErrorCode::Cancelled);
+    assert_eq!(
+        pending.await.unwrap().unwrap().unwrap_err().code,
+        ErrorCode::Cancelled
+    );
     handle.cancel().await.unwrap();
     let next = WATCH.stream(&client, Envelope::default()).await.unwrap();
     next.cancel().await.unwrap();
@@ -164,21 +191,36 @@ async fn pending_open_caller_cleanup_and_deadline_drop_factory() {
     let registry = XwInvokeRegistry::new();
     let mut registration = WATCH.handler(|_, _| async {
         std::future::pending::<()>().await;
-        Ok(futures_util::stream::empty::<Result<Changed, xw_gateway::GatewayError>>())
+        Ok(futures_util::stream::empty::<
+            Result<Changed, xw_gateway::GatewayError>,
+        >())
     });
     registration.stream_policy.open_timeout_ms = 100;
     registration.stream_policy.max_caller_streams = 1;
-    registry.register_owner("owner", vec![registration], vec![]).unwrap();
+    registry
+        .register_owner("owner", vec![registration], vec![])
+        .unwrap();
     let client = registry.client(CallContext::trusted("test"));
     let opening = tokio::spawn({
         let client = client.clone();
-        async move { WATCH.stream(&client, Envelope::default()).await.err().unwrap() }
+        async move {
+            WATCH
+                .stream(&client, Envelope::default())
+                .await
+                .err()
+                .unwrap()
+        }
     });
     tokio::task::yield_now().await;
     registry.cleanup_stream_caller("test");
     assert_eq!(opening.await.unwrap().code, ErrorCode::Cancelled);
     assert_eq!(
-        WATCH.stream(&client, Envelope::default()).await.err().unwrap().code,
+        WATCH
+            .stream(&client, Envelope::default())
+            .await
+            .err()
+            .unwrap()
+            .code,
         ErrorCode::Timeout
     );
 }

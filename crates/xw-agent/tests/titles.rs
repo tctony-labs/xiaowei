@@ -7,10 +7,12 @@ use std::{
 use futures_util::stream;
 use tokio::sync::mpsc;
 use xw_agent::{
-    AgentError, AgentHost, AgentService, CancellationToken, GenerationEvent, GenerationFuture, GenerationRequest,
-    GenerationStream, InputSource, SourceKind, protocol::*,
+    AgentError, AgentHost, AgentService, CancellationToken, GenerationEvent, GenerationFuture,
+    GenerationRequest, GenerationStream, InputSource, SourceKind, protocol::*,
 };
-use xw_agent_types::{AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason, InputId};
+use xw_agent_types::{
+    AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason, InputId,
+};
 
 #[derive(Default)]
 struct Model {
@@ -62,7 +64,11 @@ impl AgentHost for Model {
         Box::pin(async move { Ok(reference) })
     }
 
-    fn generate(&self, request: GenerationRequest, cancellation: CancellationToken) -> GenerationFuture {
+    fn generate(
+        &self,
+        request: GenerationRequest,
+        cancellation: CancellationToken,
+    ) -> GenerationFuture {
         let auxiliary = !request.system_prompt.is_empty();
         let partial = matches!(request.messages.last(), Some(History::User(user))
             if matches!(&user.content[0], ContentBlock::Text { text, .. } if text == "partial"));
@@ -212,7 +218,10 @@ async fn automatic_title_is_after_run_completion_and_shared_by_observers_and_rec
     let updated = title_event(&mut a).await;
     assert_eq!(updated.title, "自动标题");
     assert_eq!(updated.updated_at_ms, activity_before_title);
-    assert_eq!(read(&service, &session).updated_at_ms, activity_before_title);
+    assert_eq!(
+        read(&service, &session).updated_at_ms,
+        activity_before_title
+    );
     assert_eq!(title_event(&mut b).await, updated);
     let mut reconnect = service
         .subscribe_session(SubscribeSessionRequest {
@@ -221,7 +230,9 @@ async fn automatic_title_is_after_run_completion_and_shared_by_observers_and_rec
         .now_or_never()
         .expect("memory operation completes immediately")
         .unwrap();
-    let Some(agent_event::Payload::SubscriptionReady(ready)) = reconnect.recv().await.unwrap().unwrap().payload else {
+    let Some(agent_event::Payload::SubscriptionReady(ready)) =
+        reconnect.recv().await.unwrap().unwrap().payload
+    else {
         panic!()
     };
     assert_eq!(ready.session.unwrap().title, "自动标题");
@@ -245,7 +256,11 @@ async fn manual_title_uses_latest_auxiliary_model_and_eof_keeps_previous_title()
     while read(&service, &session).status != i32::from(AgentSessionStatus::Idle) {
         tokio::task::yield_now().await;
     }
-    assert_eq!(model.requests.lock().unwrap().len(), 1, "no fallback auxiliary call");
+    assert_eq!(
+        model.requests.lock().unwrap().len(),
+        1,
+        "no fallback auxiliary call"
+    );
     *model.auxiliary.lock().unwrap() = Some("new-small".into());
     let request = RegenerateTitleRequest {
         session_id: session.session_id.clone(),
@@ -277,7 +292,10 @@ async fn manual_title_uses_latest_auxiliary_model_and_eof_keeps_previous_title()
         }))
         .unwrap();
     model.titles.lock().unwrap().pop();
-    assert!(matches!(task.await.unwrap(), Err(AgentError::TitleGeneration(_))));
+    assert!(matches!(
+        task.await.unwrap(),
+        Err(AgentError::TitleGeneration(_))
+    ));
     assert_eq!(read(&service, &session).title, "手动标题");
     assert!(read(&service, &session).title_model_ref.is_empty());
     service.close().await.unwrap();
@@ -293,9 +311,13 @@ async fn new_run_delete_and_close_cancel_pending_titles_without_late_updates() {
     send(&service, &session).await;
     wait_for(&model, 4).await;
     assert!(model.cancellations.lock().unwrap()[0].is_cancelled());
-    let _ = model.titles.lock().unwrap()[0].try_send(Ok(GenerationEvent::Finished(message("过期标题"))));
+    let _ = model.titles.lock().unwrap()[0]
+        .try_send(Ok(GenerationEvent::Finished(message("过期标题"))));
     let view = read(&service, &session);
-    assert!(view.title.is_empty(), "cancelled title must not be committed");
+    assert!(
+        view.title.is_empty(),
+        "cancelled title must not be committed"
+    );
     service
         .delete_session(DeleteSessionRequest {
             targets: vec![DeleteSessionTarget {
@@ -401,10 +423,13 @@ async fn setting_title_cancels_stale_generation_and_protects_future_runs_until_r
     let update = title_event(&mut a).await;
     assert!(!update.auto_title_enabled);
     assert_eq!(title_event(&mut b).await, update);
-    let _ = model.titles.lock().unwrap()[0].try_send(Ok(GenerationEvent::Finished(message("过期自动标题"))));
+    let _ = model.titles.lock().unwrap()[0]
+        .try_send(Ok(GenerationEvent::Finished(message("过期自动标题"))));
     send(&service, &session).await;
     tokio::time::timeout(Duration::from_secs(1), async {
-        while read(&service, &session).runs.last().unwrap().status == i32::from(AgentRunStatus::InProgress) {
+        while read(&service, &session).runs.last().unwrap().status
+            == i32::from(AgentRunStatus::InProgress)
+        {
             tokio::task::yield_now().await;
         }
     })
@@ -463,7 +488,10 @@ async fn setting_title_cancels_stale_generation_and_protects_future_runs_until_r
     assert!(read(&service, &session).auto_title_enabled);
     send(&service, &session).await;
     wait_for(&model, 7).await;
-    assert_eq!(model.requests.lock().unwrap().last().unwrap().max_tokens, Some(64));
+    assert_eq!(
+        model.requests.lock().unwrap().last().unwrap().max_tokens,
+        Some(64)
+    );
     service.close().await.unwrap();
 }
 

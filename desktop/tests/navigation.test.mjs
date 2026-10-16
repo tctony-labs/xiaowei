@@ -14,7 +14,12 @@ test("development permits only exact page reloads; production still blocks navig
       },
     });
     restrictNavigation(contents, development);
-    for (const target of [url, "https://example.com/", `${url}&other=1`, "http://127.0.0.1:5173/elsewhere"]) {
+    for (const target of [
+      url,
+      "https://example.com/",
+      `${url}&other=1`,
+      "http://127.0.0.1:5173/elsewhere",
+    ]) {
       let prevented = false;
       contents.emit("will-navigate", {
         url: target,

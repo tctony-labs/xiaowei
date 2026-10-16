@@ -32,7 +32,10 @@ export function positionLauncher(window: BrowserWindow, workArea: Rectangle): vo
   );
 }
 
-export function configureLauncherWorkspaces(window: BrowserWindow, platform = process.platform): void {
+export function configureLauncherWorkspaces(
+  window: BrowserWindow,
+  platform = process.platform,
+): void {
   // Ordinary windows own Dock visibility; Electron otherwise calls dock.show() here.
   if (platform === "darwin") {
     window.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: true });

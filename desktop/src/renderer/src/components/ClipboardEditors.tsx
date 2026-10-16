@@ -43,7 +43,9 @@ export function ClipboardEditors({
         ? (dialog.category?.name ?? "")
         : "",
   );
-  const [color, setColor] = useState(dialog.type === "category" ? (dialog.category?.color ?? colors[0]) : colors[0]);
+  const [color, setColor] = useState(
+    dialog.type === "category" ? (dialog.category?.color ?? colors[0]) : colors[0],
+  );
   const [loading, setLoading] = useState(dialog.type === "text");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -88,9 +90,12 @@ export function ClipboardEditors({
   }
   function save() {
     if (dialog.type === "text") return perform(() => api.onEditText(dialog.item.id, value));
-    if (dialog.type === "remark") return perform(() => api.onSetRemark(dialog.item.id, value.trim()));
-    if (dialog.type === "category") return perform(() => api.onSaveCategory(value.trim(), color, dialog.category?.id));
-    if (dialog.type === "deleteCategory") return perform(() => api.onDeleteCategory(dialog.category.id));
+    if (dialog.type === "remark")
+      return perform(() => api.onSetRemark(dialog.item.id, value.trim()));
+    if (dialog.type === "category")
+      return perform(() => api.onSaveCategory(value.trim(), color, dialog.category?.id));
+    if (dialog.type === "deleteCategory")
+      return perform(() => api.onDeleteCategory(dialog.category.id));
   }
   const title =
     dialog.type === "text"
@@ -104,7 +109,8 @@ export function ClipboardEditors({
             : dialog.type === "category" && dialog.category
               ? "编辑分类"
               : "新建分类";
-  const disabled = busy || loading || ((dialog.type === "text" || dialog.type === "category") && !value.trim());
+  const disabled =
+    busy || loading || ((dialog.type === "text" || dialog.type === "category") && !value.trim());
   const fieldClass =
     "w-full rounded-lg border border-line bg-surface px-3 py-2 text-[13px] leading-5 " +
     "text-ink placeholder:text-faint outline-none focus:border-primary";
@@ -207,18 +213,27 @@ export function ClipboardEditors({
               key={category.id}
               type="button"
               disabled={busy}
-              onClick={() => void perform(() => api.onSetCategory(dialog.item.id, category.id || undefined))}
+              onClick={() =>
+                void perform(() => api.onSetCategory(dialog.item.id, category.id || undefined))
+              }
               className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] leading-5 ${
-                (dialog.item.categoryId ?? "") === category.id ? "bg-primary/10 text-primary-text" : "hover:bg-hover"
+                (dialog.item.categoryId ?? "") === category.id
+                  ? "bg-primary/10 text-primary-text"
+                  : "hover:bg-hover"
               }`}
             >
               {category.id && (
-                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: category.color }}
+                />
               )}
               {category.name}
             </button>
           ))}
-          {!api.categories.length && <p className="py-2 text-center text-[13px] text-muted">暂无自定义分类</p>}
+          {!api.categories.length && (
+            <p className="py-2 text-center text-[13px] text-muted">暂无自定义分类</p>
+          )}
         </div>
       )}
       {loading && !error && (

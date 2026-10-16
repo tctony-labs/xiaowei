@@ -26,8 +26,14 @@ fn invalid_initial_meta_removes_the_partial_header_and_allows_creation_retry() {
     assert!(store.session_ids().unwrap().is_empty());
 
     let journal = store.create(id, created_at_ms, meta.clone()).unwrap();
-    assert!(matches!(journal.entries()[0].payload, EntryPayload::SessionHeader));
-    assert_eq!(journal.entries()[1].payload, EntryPayload::Meta(meta.clone()));
+    assert!(matches!(
+        journal.entries()[0].payload,
+        EntryPayload::SessionHeader
+    ));
+    assert_eq!(
+        journal.entries()[1].payload,
+        EntryPayload::Meta(meta.clone())
+    );
 }
 
 #[test]
@@ -42,7 +48,10 @@ fn registered_files_use_creation_month_in_utc_without_scanning() {
     // This date differs from the UUID's timestamp and falls on a UTC month boundary.
     let created_at_ms = 1_735_689_600_000;
     let journal = store.create(id, created_at_ms, meta.clone()).unwrap();
-    let path = directory.path().join("sessions/2025/01").join(format!("{id}.jsonl"));
+    let path = directory
+        .path()
+        .join("sessions/2025/01")
+        .join(format!("{id}.jsonl"));
     assert_eq!(journal.path(), path);
     drop(journal);
 
@@ -95,7 +104,10 @@ fn append_reopen_lock_and_valid_uncommitted_tail() {
     let mut journal = store
         .create(fixture[0].session_id, fixture[0].timestamp_ms, meta.clone())
         .unwrap();
-    assert!(matches!(store.open(fixture[0].session_id), Err(RolloutError::Busy)));
+    assert!(matches!(
+        store.open(fixture[0].session_id),
+        Err(RolloutError::Busy)
+    ));
     for entry in &fixture[2..] {
         journal.append_entry(entry.clone()).unwrap();
     }
@@ -108,7 +120,8 @@ fn append_reopen_lock_and_valid_uncommitted_tail() {
     assert_eq!(repair.discarded_bytes, 0);
     drop(journal);
     let mut file = OpenOptions::new().append(true).open(&path).unwrap();
-    file.write_all(b"{\"schema_version\":1,\"session_id\":").unwrap();
+    file.write_all(b"{\"schema_version\":1,\"session_id\":")
+        .unwrap();
     file.sync_all().unwrap();
     let (journal, repair) = store.open(fixture[0].session_id).unwrap();
     assert!(repair.discarded_bytes > 0);
@@ -190,7 +203,9 @@ fn config_updates_omit_session_envelope_and_ui_metadata() {
         .unwrap();
     let mut updated = meta.clone();
     updated.reasoning = Some("high".into());
-    journal.append(EntryPayload::Meta(updated.clone()), 1001).unwrap();
+    journal
+        .append(EntryPayload::Meta(updated.clone()), 1001)
+        .unwrap();
     let text = fs::read_to_string(journal.path()).unwrap();
     let row: serde_json::Value = serde_json::from_str(text.lines().last().unwrap()).unwrap();
     assert!(row.get("session_id").is_none());

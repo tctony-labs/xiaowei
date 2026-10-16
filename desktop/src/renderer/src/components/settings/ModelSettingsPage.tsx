@@ -46,7 +46,9 @@ function toProvider(provider: ConfiguredProvider, revision: bigint): Provider {
           name: model.name || undefined,
           supportsImage: model.input.includes(ModelInput.IMAGE),
           reasoning: model.reasoning,
-          thinkingLevelMap: model.thinkingLevelMapJson ? JSON.parse(model.thinkingLevelMapJson) : undefined,
+          thinkingLevelMap: model.thinkingLevelMapJson
+            ? JSON.parse(model.thinkingLevelMapJson)
+            : undefined,
           headers: model.headers,
           maxOutput: model.maxTokens,
         },
@@ -81,7 +83,9 @@ function draft(provider: Provider) {
         input: model?.supportsImage ? [ModelInput.TEXT, ModelInput.IMAGE] : [ModelInput.TEXT],
         reasoning: model?.reasoning ?? false,
         thinkingLevelMapJson:
-          model?.reasoning && model.thinkingLevelMap ? JSON.stringify(model.thinkingLevelMap) : undefined,
+          model?.reasoning && model.thinkingLevelMap
+            ? JSON.stringify(model.thinkingLevelMap)
+            : undefined,
         headers: model?.headers ?? {},
       };
     }),
@@ -91,11 +95,19 @@ function draft(provider: Provider) {
 function keyUpdate(provider: Provider, key: string) {
   if (key.trim()) return { operation: { case: "replace" as const, value: key } };
   return {
-    operation: provider.hasApiKey ? { case: "preserve" as const, value: {} } : { case: "clear" as const, value: {} },
+    operation: provider.hasApiKey
+      ? { case: "preserve" as const, value: {} }
+      : { case: "clear" as const, value: {} },
   };
 }
 
-export function ModelSettingsPage({ services, navigation = 0 }: { services: Services; navigation?: number }) {
+export function ModelSettingsPage({
+  services,
+  navigation = 0,
+}: {
+  services: Services;
+  navigation?: number;
+}) {
   const api = services.getModelSettings();
   const [snapshot, setSnapshot] = useState<ModelSettingsSnapshot>();
   const [highlightModelProviders, setHighlightModelProviders] = useState(false);
@@ -115,11 +127,13 @@ export function ModelSettingsPage({ services, navigation = 0 }: { services: Serv
     let subscription: Subscription | undefined;
     let events = 0;
     void (async () => {
-      const handle = await services.getGateway().subscribe(ModelSettingsChangedSchema.typeName, undefined, (bytes) => {
-        events++;
-        const next = fromBinary(ModelSettingsChangedSchema, bytes).snapshot;
-        if (!disposed && next) accept(next);
-      });
+      const handle = await services
+        .getGateway()
+        .subscribe(ModelSettingsChangedSchema.typeName, undefined, (bytes) => {
+          events++;
+          const next = fromBinary(ModelSettingsChangedSchema, bytes).snapshot;
+          if (!disposed && next) accept(next);
+        });
       if (disposed) {
         handle.close();
         return;
@@ -145,7 +159,9 @@ export function ModelSettingsPage({ services, navigation = 0 }: { services: Serv
       return;
     }
     setHighlightModelProviders(true);
-    document.getElementById("settings-model-providers")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document
+      .getElementById("settings-model-providers")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
     const timer = setTimeout(() => setHighlightModelProviders(false), 1600);
     return () => clearTimeout(timer);
   }, [loaded, navigation]);
@@ -180,7 +196,8 @@ export function ModelSettingsPage({ services, navigation = 0 }: { services: Serv
             defaults: {
               modelRef: next.defaultModel,
               smallTextModelRef: next.smallModel,
-              thinkingLevel: model?.reasoning && typeof map[next.reasoning] === "string" ? next.reasoning : "",
+              thinkingLevel:
+                model?.reasoning && typeof map[next.reasoning] === "string" ? next.reasoning : "",
             },
           }),
         ),
@@ -263,7 +280,9 @@ export function ModelSettingsPage({ services, navigation = 0 }: { services: Serv
                   maxOutput: model.maxTokens,
                   supportsImage: model.input.includes(ModelInput.IMAGE),
                   reasoning: model.reasoning,
-                  thinkingLevelMap: model.thinkingLevelMapJson ? JSON.parse(model.thinkingLevelMapJson) : undefined,
+                  thinkingLevelMap: model.thinkingLevelMapJson
+                    ? JSON.parse(model.thinkingLevelMapJson)
+                    : undefined,
                 })),
               );
             }

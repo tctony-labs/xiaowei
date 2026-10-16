@@ -3,8 +3,9 @@ use std::sync::{Arc, Mutex};
 
 use futures_util::{StreamExt, stream};
 use xw_agent::{
-    AgentHost, AgentService, AuxiliaryModelRefFuture, CancellationToken, GenerationEvent, GenerationFuture,
-    GenerationRequest, GenerationStream, ModelInfo, ModelInfoError, ModelInfoFuture, protocol::*,
+    AgentHost, AgentService, AuxiliaryModelRefFuture, CancellationToken, GenerationEvent,
+    GenerationFuture, GenerationRequest, GenerationStream, ModelInfo, ModelInfoError,
+    ModelInfoFuture, protocol::*,
 };
 use xw_agent_types::*;
 
@@ -40,15 +41,20 @@ impl AgentHost for Host {
     }
 
     fn generate(&self, request: GenerationRequest, _: CancellationToken) -> GenerationFuture {
-        let hold = request.messages.last().is_some_and(|message| match message {
-            xw_agent_types::AgentMessage::User(user) => {
-                matches!(&user.content[0], ContentBlock::Text { text, .. } if text == "hold")
-            }
-            _ => false,
-        });
+        let hold = request
+            .messages
+            .last()
+            .is_some_and(|message| match message {
+                xw_agent_types::AgentMessage::User(user) => {
+                    matches!(&user.content[0], ContentBlock::Text { text, .. } if text == "hold")
+                }
+                _ => false,
+            });
         self.requests.lock().unwrap().push(request);
         Box::pin(async move {
-            let sse = GenerationEvent::FirstSseReceived { received_at_ms: 1001 };
+            let sse = GenerationEvent::FirstSseReceived {
+                received_at_ms: 1001,
+            };
             let finished = GenerationEvent::Finished(AssistantMessage {
                 content: vec![ContentBlock::Text {
                     text: "answer".into(),
@@ -171,14 +177,20 @@ async fn creation_persists_header_then_resolved_meta_and_lookup_failure_keeps_th
         let store = xw_agent_rollout::RolloutStore::new(directory.path());
         let (journal, repair) = store.open(session.session_id.parse().unwrap()).unwrap();
         assert_eq!(repair.discarded_bytes, 0);
-        assert!(matches!(journal.entries()[0].payload, EntryPayload::SessionHeader));
+        assert!(matches!(
+            journal.entries()[0].payload,
+            EntryPayload::SessionHeader
+        ));
         assert_eq!(journal.entries()[0].timestamp_ms, session.created_at_ms);
         let EntryPayload::Meta(meta) = &journal.entries()[1].payload else {
             panic!("initial Meta must follow the header");
         };
         assert_eq!(meta.model_ref.as_deref(), Some("sol"));
         assert_eq!(meta.reasoning.as_deref(), Some("high"));
-        assert_eq!(meta.provider_name.as_deref(), (!fail_info).then_some("tctony"));
+        assert_eq!(
+            meta.provider_name.as_deref(),
+            (!fail_info).then_some("tctony")
+        );
         assert_eq!(meta.model_name.as_deref(), (!fail_info).then_some("sol"));
         assert_eq!(
             journal
@@ -229,11 +241,16 @@ async fn lookup_failure_is_observed_and_original_selection_still_generates() {
         i32::from(ModelInfoWarningCode::NotFound)
     );
     assert_eq!(host.requests.lock().unwrap()[0].model_ref, "sol");
-    assert_eq!(host.requests.lock().unwrap()[0].reasoning.as_deref(), Some("high"));
+    assert_eq!(
+        host.requests.lock().unwrap()[0].reasoning.as_deref(),
+        Some("high")
+    );
     for observer in [&mut first, &mut second] {
         loop {
             let event = observer.recv().await.unwrap().unwrap();
-            if let Some(agent_event::Payload::SessionModelInfoWarningUpdated(update)) = event.payload {
+            if let Some(agent_event::Payload::SessionModelInfoWarningUpdated(update)) =
+                event.payload
+            {
                 assert!(update.warning.is_some());
                 break;
             }
@@ -242,7 +259,11 @@ async fn lookup_failure_is_observed_and_original_selection_still_generates() {
     *host.fail_info.lock().unwrap() = false;
     send(&service, &session.session_id, "retry-info").await;
     idle(&service, &session.session_id).await;
-    assert!(read(&service, &session.session_id).model_info_warning.is_none());
+    assert!(
+        read(&service, &session.session_id)
+            .model_info_warning
+            .is_none()
+    );
     service.close().await.unwrap();
 }
 
@@ -340,8 +361,10 @@ async fn committed_composer_selection_survives_reopen_and_running_snapshot_is_im
 }
 
 struct DeferredInfoHost {
-    queries:
-        tokio::sync::mpsc::UnboundedSender<(String, tokio::sync::oneshot::Sender<Result<ModelInfo, ModelInfoError>>)>,
+    queries: tokio::sync::mpsc::UnboundedSender<(
+        String,
+        tokio::sync::oneshot::Sender<Result<ModelInfo, ModelInfoError>>,
+    )>,
 }
 
 impl AgentHost for DeferredInfoHost {
@@ -363,7 +386,9 @@ impl AgentHost for DeferredInfoHost {
 #[tokio::test]
 async fn delayed_old_lookup_cannot_overwrite_the_committed_selection_or_its_warning() {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let service = Arc::new(AgentService::new(Arc::new(DeferredInfoHost { queries: tx })));
+    let service = Arc::new(AgentService::new(Arc::new(DeferredInfoHost {
+        queries: tx,
+    })));
     let creating_service = service.clone();
     let creating = tokio::spawn(async move {
         creating_service

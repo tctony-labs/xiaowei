@@ -153,7 +153,10 @@ export class AccountService {
     }
   }
 
-  private async request<T extends { code: number; msg: string }>(rpc: Rpc<T>, signal: AbortSignal): Promise<T> {
+  private async request<T extends { code: number; msg: string }>(
+    rpc: Rpc<T>,
+    signal: AbortSignal,
+  ): Promise<T> {
     const abort = () => rpc.cancel();
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) abort();
@@ -167,7 +170,8 @@ export class AccountService {
   }
 
   private signedOutOnly() {
-    if (this.session) throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请先退出登录，再选择服务器");
+    if (this.session)
+      throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请先退出登录，再选择服务器");
   }
 
   private async save(document: AccountDocument) {
@@ -327,7 +331,11 @@ export class AccountService {
     this.changed();
   }
 
-  private async freshAccess(signal: AbortSignal, force = false, client = this.client): Promise<void> {
+  private async freshAccess(
+    signal: AbortSignal,
+    force = false,
+    client = this.client,
+  ): Promise<void> {
     const session = this.session;
     const tokens = session?.authenticated.tokens;
     if (!session || !tokens || Number(tokens.refreshExpiresAtMs) <= this.now()) {
@@ -362,11 +370,13 @@ export class AccountService {
       await this.freshAccess(controller.signal);
       let current: GetCurrentUserData | undefined;
       try {
-        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal)).data;
+        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal))
+          .data;
       } catch (error) {
         if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
         await this.freshAccess(controller.signal, true);
-        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal)).data;
+        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal))
+          .data;
       }
       controller.signal.throwIfAborted();
       if (

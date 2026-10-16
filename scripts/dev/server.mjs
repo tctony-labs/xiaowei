@@ -70,7 +70,9 @@ export async function prepareServer({
     throw new Error("配置文件尚未准备好，未启动 Docker 依赖。");
   }
 
-  print(recreate ? "重建 Docker 依赖容器（保留数据卷），等待就绪……" : "启动 Docker 依赖，等待就绪……");
+  print(
+    recreate ? "重建 Docker 依赖容器（保留数据卷），等待就绪……" : "启动 Docker 依赖，等待就绪……",
+  );
   const args = [...compose, "up", "-d", "--wait", "--wait-timeout", "60"];
   if (recreate) args.push("--force-recreate");
   await run("docker", args, { cwd: root, signal });
@@ -138,9 +140,11 @@ export function runServerDevelopment({
   function showHelp() {
     const entries = commands.map(({ key, description }) => `  ${key}  ${description}`);
     print(
-      ["\n服务端开发命令（直接按键，无需回车）：", ...entries, "  Ctrl+C  退出并停止 Docker 依赖，保留数据\n"].join(
-        "\n",
-      ),
+      [
+        "\n服务端开发命令（直接按键，无需回车）：",
+        ...entries,
+        "  Ctrl+C  退出并停止 Docker 依赖，保留数据\n",
+      ].join("\n"),
     );
   }
 

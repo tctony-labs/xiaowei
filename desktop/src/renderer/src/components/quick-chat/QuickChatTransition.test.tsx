@@ -123,21 +123,24 @@ test.each(["first-use", "all-archived", "all-deleted"] as const)(
   },
 );
 
-test.each(["归档", "删除会话"])("removing the last session through %s reaches the empty state", async (action) => {
-  render(<QuickChatLauncherPreview initialState="last-session" initiallyExpanded />);
-  await click("更多操作");
-  await click(action);
-  if (action === "删除会话") await click("删除");
-  expect(screen.getByText("输入问题开始对话")).toBeVisible();
-  await click("选择会话");
-  expect(screen.getByText("暂无对话")).toBeVisible();
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  fireEvent.keyDown(chatInput(), { key: "Escape" });
-  fireEvent.keyDown(chatInput(), { key: "Escape" });
-  await expectCollapsed();
-  await expand();
-  expect(screen.getByText("输入问题开始对话")).toBeVisible();
-});
+test.each(["归档", "删除会话"])(
+  "removing the last session through %s reaches the empty state",
+  async (action) => {
+    render(<QuickChatLauncherPreview initialState="last-session" initiallyExpanded />);
+    await click("更多操作");
+    await click(action);
+    if (action === "删除会话") await click("删除");
+    expect(screen.getByText("输入问题开始对话")).toBeVisible();
+    await click("选择会话");
+    expect(screen.getByText("暂无对话")).toBeVisible();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    fireEvent.keyDown(chatInput(), { key: "Escape" });
+    fireEvent.keyDown(chatInput(), { key: "Escape" });
+    await expectCollapsed();
+    await expand();
+    expect(screen.getByText("输入问题开始对话")).toBeVisible();
+  },
+);
 
 test("create and switch sessions preserve their mock messages", async () => {
   render(<QuickChatLauncherPreview initiallyExpanded />);

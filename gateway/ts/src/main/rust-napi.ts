@@ -25,12 +25,20 @@ import { decodeFrame, encodeFrame, type ResponseStream } from "../core/stream.js
 /** Structurally implemented by each addon's generated GatewayEndpoint class. */
 export interface RustNapiEndpoint {
   manifest(): string;
-  bind(callback: (control: string, payload: Buffer) => Promise<Buffer | string>, context: string): void;
+  bind(
+    callback: (control: string, payload: Buffer) => Promise<Buffer | string>,
+    context: string,
+  ): void;
   activate(): Promise<Buffer | string>;
   rpcControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>;
   streamControl(control: string, payload: Buffer, context: string): Promise<Buffer | string>;
   dispatchLocal(route: string, payload: Buffer, context: string): Promise<Buffer | string>;
-  subscribeLocal(id: string, event: string, filter: Buffer | null, context: string): Promise<Buffer | string>;
+  subscribeLocal(
+    id: string,
+    event: string,
+    filter: Buffer | null,
+    context: string,
+  ): Promise<Buffer | string>;
   unsubscribeLocal(id: string): void;
   deliver(id: string, payload: Buffer): Promise<Buffer | string>;
   close(): Promise<Buffer | string>;
@@ -66,7 +74,8 @@ function decode(reply: Buffer | string): Result<Uint8Array> {
 function encode(result: Result<Uint8Array>): Buffer | string {
   return result.ok ? Buffer.from(result.value) : JSON.stringify(result.error);
 }
-const unavailable = () => new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "Rust napi endpoint unavailable" });
+const unavailable = () =>
+  new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "Rust napi endpoint unavailable" });
 
 /** No business addon imports. The application supplies a freshly created endpoint. */
 export async function attachRustNapi(
@@ -79,7 +88,10 @@ export async function attachRustNapi(
   try {
     manifest = JSON.parse(endpoint.manifest());
     if (manifest.controlVersion !== CONTROL_VERSION)
-      throw new GatewayFailure({ code: "INCOMPATIBLE", message: "Rust napi control version mismatch" });
+      throw new GatewayFailure({
+        code: "INCOMPATIBLE",
+        message: "Rust napi control version mismatch",
+      });
   } catch (error) {
     await endpoint.close();
     throw error;
@@ -142,7 +154,11 @@ export async function attachRustNapi(
   };
   const events = manifest.events.map((event) => ({
     ...event,
-    attach: async (context: CallContext, filter: Uint8Array | undefined, sink: EventSink): Promise<Subscription> => {
+    attach: async (
+      context: CallContext,
+      filter: Uint8Array | undefined,
+      sink: EventSink,
+    ): Promise<Subscription> => {
       if (!ready || closed) throw unavailable();
       const id = `event:${++nextId}`;
       eventSinks.set(id, sink);
@@ -223,7 +239,11 @@ export async function attachRustNapi(
                 };
                 signal.addEventListener("abort", abortStream, { once: true });
                 // Open is registered synchronously in the addon before cancellation can overtake it.
-                const opening = endpoint.streamControl(control("stream.open"), Buffer.from(payload), metadata);
+                const opening = endpoint.streamControl(
+                  control("stream.open"),
+                  Buffer.from(payload),
+                  metadata,
+                );
                 if (signal.aborted) cancel();
                 try {
                   unwrap(decode(await opening));
@@ -242,7 +262,13 @@ export async function attachRustNapi(
                   async next() {
                     try {
                       const bytes = unwrap(
-                        decode(await endpoint.streamControl(control("stream.next"), Buffer.alloc(0), metadata)),
+                        decode(
+                          await endpoint.streamControl(
+                            control("stream.next"),
+                            Buffer.alloc(0),
+                            metadata,
+                          ),
+                        ),
                       );
                       const item = decodeFrame(bytes, seq++);
                       if (item.done) cancel();
@@ -327,21 +353,29 @@ export async function attachRustNapi(
             slot?.controller.abort();
             return Buffer.alloc(0);
           }
-          const cancelling = control.operation === "stream.cancel" ? streams.get(control.streamId ?? "") : undefined;
+          const cancelling =
+            control.operation === "stream.cancel" ? streams.get(control.streamId ?? "") : undefined;
           const context =
             contexts.get(control.contextToken) ??
             (cancelling?.token === control.contextToken ? cancelling.context : undefined);
-          if (!context) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "unknown Rust napi caller token" });
+          if (!context)
+            throw new GatewayFailure({
+              code: "UNAUTHORIZED",
+              message: "unknown Rust napi caller token",
+            });
           switch (control.operation) {
             case "invoke": {
-              if (!control.route) throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing route" });
+              if (!control.route)
+                throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "missing route" });
               // A fallback to an advertised route of the same endpoint is stale, not another dispatch hop.
               if (manifest.routes.some((route) => route.name === control.route?.name)) {
                 return encode(failure("UNKNOWN_ROUTE", "Rust napi local route missing"));
               }
               const id = control.rpcId;
-              if (!id || id.length > 200 || rpcs.has(id)) return encode(failure("INVALID_ARGUMENT", "invalid RPC ID"));
-              if (rpcs.size >= 256) return encode(failure("RESOURCE_EXHAUSTED", "endpoint RPCs full"));
+              if (!id || id.length > 200 || rpcs.has(id))
+                return encode(failure("INVALID_ARGUMENT", "invalid RPC ID"));
+              if (rpcs.size >= 256)
+                return encode(failure("RESOURCE_EXHAUSTED", "endpoint RPCs full"));
               const slot = { token: control.contextToken, controller: new AbortController() };
               rpcs.set(id, slot);
               try {
@@ -364,7 +398,8 @@ export async function attachRustNapi(
               if (!id || streams.has(id) || !control.route) throw unavailable();
               if (manifest.routes.some((route) => route.name === control.route?.name))
                 return encode(failure("UNKNOWN_ROUTE", "Rust napi local stream missing"));
-              if (streams.size >= 128) return encode(failure("RESOURCE_EXHAUSTED", "endpoint streams full"));
+              if (streams.size >= 128)
+                return encode(failure("RESOURCE_EXHAUSTED", "endpoint streams full"));
               const session = {
                 context,
                 token: control.contextToken,
@@ -399,7 +434,8 @@ export async function attachRustNapi(
                 if (control.operation === "stream.cancel") return Buffer.alloc(0);
                 throw unavailable();
               }
-              if (session.context !== context) return encode(failure("UNAUTHORIZED", "stream caller mismatch"));
+              if (session.context !== context)
+                return encode(failure("UNAUTHORIZED", "stream caller mismatch"));
               if (control.operation === "stream.cancel") {
                 streams.delete(id);
                 session.controller.abort();
@@ -413,14 +449,18 @@ export async function attachRustNapi(
                 if (item.done) streams.delete(id);
                 return Buffer.from(frame);
               } catch (error) {
-                if (!(error instanceof GatewayFailure && error.detail.code === "CONCURRENCY_FULL")) streams.delete(id);
+                if (!(error instanceof GatewayFailure && error.detail.code === "CONCURRENCY_FULL"))
+                  streams.delete(id);
                 throw error;
               }
             }
             case "subscribe": {
               const id = control.subscriptionId;
               if (!id || !control.event || subscriptions.has(id) || openingSubscriptions.has(id)) {
-                throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid Rust napi subscription" });
+                throw new GatewayFailure({
+                  code: "INVALID_ARGUMENT",
+                  message: "invalid Rust napi subscription",
+                });
               }
               openingSubscriptions.add(id);
               const subscription = await host.subscribe(
@@ -442,7 +482,9 @@ export async function attachRustNapi(
               return Buffer.from(JSON.stringify("ordered"));
             }
             default:
-              return encode(failure("WRONG_METHOD_KIND", "unsupported Rust napi control operation"));
+              return encode(
+                failure("WRONG_METHOD_KIND", "unsupported Rust napi control operation"),
+              );
           }
         } catch (error) {
           return encode(

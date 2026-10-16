@@ -30,10 +30,16 @@ fn merges_calculator_bookmarks_and_apps_with_pinyin_and_highlight() {
     assert_eq!(report.title, "周报");
     assert_eq!(report.ranges, vec![[0, 2]]);
     assert_eq!(hits.iter().filter(|h| h.id == report.id).count(), 1);
-    let duplicates: Vec<_> = hits.iter().filter(|h| h.recency_key == report.recency_key).collect();
+    let duplicates: Vec<_> = hits
+        .iter()
+        .filter(|h| h.recency_key == report.recency_key)
+        .collect();
     assert_eq!(duplicates.len(), 2);
     assert_ne!(duplicates[0].id, duplicates[1].id);
-    assert!(engine.search("wx").iter().any(|h| h.id == "app:test.wechat"));
+    assert!(engine
+        .search("wx")
+        .iter()
+        .any(|h| h.id == "app:test.wechat"));
     let hits = engine.search("1+2");
     assert_eq!(hits[0].provider, "calculator");
     assert_eq!(hits[0].action, Action::CopyText("3".into()));
@@ -46,9 +52,17 @@ fn merges_calculator_bookmarks_and_apps_with_pinyin_and_highlight() {
         .search_with_options("1+2", false, false)
         .iter()
         .any(|h| h.provider == "calculator"));
-    assert!(!engine.search("42").iter().any(|h| h.provider == "calculator"));
+    assert!(!engine
+        .search("42")
+        .iter()
+        .any(|h| h.provider == "calculator"));
     let url_match = engine.search("example.test/report");
-    assert!(url_match.iter().find(|h| h.id == report.id).unwrap().ranges.is_empty());
+    assert!(url_match
+        .iter()
+        .find(|h| h.id == report.id)
+        .unwrap()
+        .ranges
+        .is_empty());
 }
 
 #[cfg(target_os = "macos")]
@@ -57,7 +71,9 @@ fn system_settings_match_alias_and_open_with_scheme() {
     let engine = SearchEngine::open(Vec::new(), None);
     let hits = engine.search("pingmu");
     let display = hits.iter().find(|h| h.title == "显示器").unwrap();
-    assert!(matches!(&display.action, Action::OpenUrl(url) if url.starts_with("x-apple.systempreferences:")));
+    assert!(
+        matches!(&display.action, Action::OpenUrl(url) if url.starts_with("x-apple.systempreferences:"))
+    );
 }
 
 #[test]
@@ -65,7 +81,9 @@ fn provider_cutoff_precedes_recency_and_base_scores_are_preserved() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("Bookmarks");
     let rows: Vec<_> = (0..25)
-        .map(|i| format!(r#"{{"type":"url","name":"match {i:02}","url":"https://example.test/{i:02}"}}"#))
+        .map(|i| {
+            format!(r#"{{"type":"url","name":"match {i:02}","url":"https://example.test/{i:02}"}}"#)
+        })
         .collect();
     fs::write(
         &file,
@@ -102,5 +120,8 @@ fn account_bookmarks_are_searchable_without_local_bookmarks() {
     let hits = engine.search("账号书签");
     let bookmark = hits.iter().find(|hit| hit.provider == "bookmark").unwrap();
     assert_eq!(bookmark.title, "账号书签");
-    assert_eq!(bookmark.action, Action::OpenUrl("https://example.test/account".into()));
+    assert_eq!(
+        bookmark.action,
+        Action::OpenUrl("https://example.test/account".into())
+    );
 }

@@ -2,7 +2,12 @@ use crate::{pinyin, scoring::FuzzyScorer, Action, SearchHit};
 
 pub fn search(query: &str, development: bool) -> Vec<SearchHit> {
     let entries = [
-        ("clipboard", "剪贴板", &["clipboard", "粘贴板", "剪贴板历史"][..], true),
+        (
+            "clipboard",
+            "剪贴板",
+            &["clipboard", "粘贴板", "剪贴板历史"][..],
+            true,
+        ),
         (
             "toggle-system-theme",
             "切换系统主题",
@@ -54,14 +59,18 @@ mod tests {
     #[test]
     fn clipboard_matches_aliases() {
         for query in ["剪贴板", "clipboard", "jiantieban", "jtb"] {
-            assert!(search(query, false).iter().any(|hit| hit.id == "command:clipboard"));
+            assert!(search(query, false)
+                .iter()
+                .any(|hit| hit.id == "command:clipboard"));
         }
     }
 
     #[test]
     fn rs_requires_development_host() {
         for query in ["rs", "reload", "rebuild"] {
-            assert!(!search(query, false).iter().any(|hit| hit.id == "command:rs"));
+            assert!(!search(query, false)
+                .iter()
+                .any(|hit| hit.id == "command:rs"));
             assert!(search(query, true).iter().any(|hit| hit.id == "command:rs"));
         }
     }
@@ -69,7 +78,14 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn theme_matches_chinese_english_and_pinyin() {
-        for query in ["主题", "深色", "dark", "theme", "qiehuanxitongzhuti", "qhxtzt"] {
+        for query in [
+            "主题",
+            "深色",
+            "dark",
+            "theme",
+            "qiehuanxitongzhuti",
+            "qhxtzt",
+        ] {
             assert!(search(query, false)
                 .iter()
                 .any(|hit| hit.id == "command:toggle-system-theme"));

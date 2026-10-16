@@ -1,6 +1,11 @@
 import { create } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, bindStreamClient, bindStreamHandlers } from "../src/binding/index.js";
+import {
+  bindClient,
+  bindHandlers,
+  bindStreamClient,
+  bindStreamHandlers,
+} from "../src/binding/index.js";
 import type { Client } from "../src/core/client.js";
 
 // Checked by tsgo, never executed. Every directive must correspond to a real error.

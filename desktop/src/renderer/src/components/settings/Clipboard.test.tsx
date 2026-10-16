@@ -48,7 +48,10 @@ test("RetentionControl", async () => {
 
 test("JumpToLocalModel", async () => {
   const scrollIntoView = vi.fn();
-  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scrollIntoView,
+  });
   const { container: canvasElement } = render(<SettingsPreview initialTab="clipboard" />);
   const canvas = within(canvasElement);
   await userEvent.click(canvas.getByRole("button", { name: "去启用" }));

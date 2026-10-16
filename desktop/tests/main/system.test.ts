@@ -122,7 +122,13 @@ test("System validates local paths, opens files and directories, and propagates 
       ["reveal", file],
     ]);
 
-    for (const path of ["", "relative.txt", "file:///tmp/a", `${file}\0`, join(directory, "missing")]) {
+    for (const path of [
+      "",
+      "relative.txt",
+      "file:///tmp/a",
+      `${file}\0`,
+      join(directory, "missing"),
+    ]) {
       await assert.rejects(api.openPath(create(LocalPathRequestSchema, { path })));
       await assert.rejects(api.revealPath(create(LocalPathRequestSchema, { path })));
     }
@@ -145,7 +151,9 @@ test("System writes plain clipboard text including empty text", async () => {
   const owner = registerSystem(host, () => ({ hide() {} }));
   const api = bindClient(System, host.client({ caller: "clipboard-resources", trusted: true }));
   try {
-    await api.writeClipboardText(create(WriteClipboardTextRequestSchema, { text: "/tmp/中文 file.txt" }));
+    await api.writeClipboardText(
+      create(WriteClipboardTextRequestSchema, { text: "/tmp/中文 file.txt" }),
+    );
     await api.writeClipboardText(create(WriteClipboardTextRequestSchema));
     assert.deepEqual(clipboardTexts, ["/tmp/中文 file.txt", ""]);
   } finally {
@@ -213,23 +221,44 @@ test("settings navigation reaches only the destination and survives opening befo
   const api = bindClient(System, source);
   const events: number[] = [];
   const wrongEvents: number[] = [];
-  const other = await source.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {
-    wrongEvents.push(1);
-  });
+  const other = await source.subscribe(
+    SettingsNavigationRequestedSchema.typeName,
+    undefined,
+    () => {
+      wrongEvents.push(1);
+    },
+  );
   const request = create(OpenSettingsRequestSchema, { anchor: SettingsAnchor.MODEL_PROVIDERS });
   await api.openSettings(request);
-  const abandoned = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {});
+  const abandoned = await destination.subscribe(
+    SettingsNavigationRequestedSchema.typeName,
+    undefined,
+    () => {},
+  );
   abandoned.close();
-  const subscription = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, (bytes) => {
-    assert.equal(bytes.length, 0);
-    events.push(1);
-  });
+  const subscription = await destination.subscribe(
+    SettingsNavigationRequestedSchema.typeName,
+    undefined,
+    (bytes) => {
+      assert.equal(bytes.length, 0);
+      events.push(1);
+    },
+  );
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(events, [1]);
-  assert.equal((await api.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.UNSPECIFIED);
+  assert.equal(
+    (await api.takeSettingsNavigation(create(EmptySchema))).anchor,
+    SettingsAnchor.UNSPECIFIED,
+  );
   const settingsApi = bindClient(System, destination);
-  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.MODEL_PROVIDERS);
-  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.UNSPECIFIED);
+  assert.equal(
+    (await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor,
+    SettingsAnchor.MODEL_PROVIDERS,
+  );
+  assert.equal(
+    (await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor,
+    SettingsAnchor.UNSPECIFIED,
+  );
   await api.openSettings(request);
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(events, [1, 1]);
@@ -237,12 +266,19 @@ test("settings navigation reaches only the destination and survives opening befo
   await assert.rejects(api.openSettings(create(OpenSettingsRequestSchema)));
   failOpen = true;
   await assert.rejects(api.openSettings(request));
-  assert.equal((await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor, SettingsAnchor.MODEL_PROVIDERS);
+  assert.equal(
+    (await settingsApi.takeSettingsNavigation(create(EmptySchema))).anchor,
+    SettingsAnchor.MODEL_PROVIDERS,
+  );
   subscription.close();
   other.close();
-  const reopened = await destination.subscribe(SettingsNavigationRequestedSchema.typeName, undefined, () => {
-    events.push(1);
-  });
+  const reopened = await destination.subscribe(
+    SettingsNavigationRequestedSchema.typeName,
+    undefined,
+    () => {
+      events.push(1);
+    },
+  );
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(events.length, 2);
   reopened.close();

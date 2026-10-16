@@ -52,9 +52,13 @@ export function GeneralSettings({
           {account.loggedIn ? (
             <div className="flex min-h-[42px] items-center justify-between px-5 py-2.5">
               <div className="mr-4 flex min-w-0 flex-1 items-center gap-2.5">
-                {account.avatar && <img src={account.avatar} alt="" className="size-7 rounded-full object-cover" />}
+                {account.avatar && (
+                  <img src={account.avatar} alt="" className="size-7 rounded-full object-cover" />
+                )}
                 <div className="min-w-0">
-                  <div className="truncate text-[13px] leading-[18px]">{account.nickname || "微信用户"}</div>
+                  <div className="truncate text-[13px] leading-[18px]">
+                    {account.nickname || "微信用户"}
+                  </div>
                   <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
                     {account.uin}
                     <button

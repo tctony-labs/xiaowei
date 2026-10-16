@@ -48,14 +48,18 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
     assert.equal(events.filter((event) => event.case === "firstSseReceived").length, 1);
     const done = events.at(-1).value;
     assert.equal(done.reason, FinishReason.TOOL_USE);
-    assert.ok(events.some((event) => event.case === "blockDelta" && event.value.kind === "thinking"));
+    assert.ok(
+      events.some((event) => event.case === "blockDelta" && event.value.kind === "thinking"),
+    );
     const toolStart = events.find(
       (event) => event.case === "blockStarted" && event.value.block.content.case === "toolCall",
     );
     assert.equal(toolStart.value.block.content.value.argumentsJson, undefined);
-    const call = done.message.content.find((block) => block.content.case === "toolCall").content.value;
+    const call = done.message.content.find((block) => block.content.case === "toolCall").content
+      .value;
     assert.deepEqual(JSON.parse(call.argumentsJson), { text: "中文参数" });
-    const thinking = done.message.content.find((block) => block.content.case === "thinking").content.value;
+    const thinking = done.message.content.find((block) => block.content.case === "thinking").content
+      .value;
     if (api !== "openai-completions") assert.ok(thinking.signature.includes("signed-thinking"));
     const replay = request("", {
       messages: [
@@ -79,17 +83,23 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
     const next = await collect(await fixture.client.generate(replay));
     assert.equal(next.at(-1).case, "finished");
     assert.ok(JSON.stringify(fixture.requests[1].body).includes("中文参数"));
-    if (api !== "openai-completions") assert.ok(JSON.stringify(fixture.requests[1].body).includes("signed-thinking"));
+    if (api !== "openai-completions")
+      assert.ok(JSON.stringify(fixture.requests[1].body).includes("signed-thinking"));
   });
 }
 
 test("image input and role validation preserve bytes and reject incompatible history", () => {
-  const image = { content: { case: "image", value: { mimeType: "image/png", data: new Uint8Array([1, 2, 3]) } } };
+  const image = {
+    content: { case: "image", value: { mimeType: "image/png", data: new Uint8Array([1, 2, 3]) } },
+  };
   const message = { message: { case: "user", value: { content: [image], timestampMs: 1n } } };
   const input = create(GenerateRequestSchema, { messages: [message] });
   assert.equal(toContext(input, true).messages[0].content[0].data, "AQID");
   assert.throws(() => toContext(input, false), /does not accept images/);
-  assert.throws(() => toContext(create(GenerateRequestSchema, { ...input, userText: "ambiguous" }), true), /exclusive/);
+  assert.throws(
+    () => toContext(create(GenerateRequestSchema, { ...input, userText: "ambiguous" }), true),
+    /exclusive/,
+  );
   assert.throws(
     () =>
       toContext(
@@ -109,7 +119,10 @@ for (const api of ["openai-completions", "openai-responses", "anthropic-messages
       const prompt = `features-cancel-${kind}`;
       const stream = await fixture.client.generate(request("", { messages: [user(prompt)] }));
       for await (const chunk of stream) {
-        if (chunk.event.case === "blockDelta" && chunk.event.value.kind === (kind === "tool" ? "toolcall" : kind)) {
+        if (
+          chunk.event.case === "blockDelta" &&
+          chunk.event.value.kind === (kind === "tool" ? "toolcall" : kind)
+        ) {
           await stream.cancel();
           break;
         }

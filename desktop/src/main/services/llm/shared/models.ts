@@ -36,7 +36,9 @@ export interface ModelConfig {
   maxTokens: number;
   cost: ModelCost;
   compat?: ModelCompat;
-  thinkingLevelMap?: Partial<Record<"off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max", string | null>>;
+  thinkingLevelMap?: Partial<
+    Record<"off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max", string | null>
+  >;
   headers?: Record<string, string>;
   samplingParams?: Record<string, unknown>;
   defaultTransport?: "sse" | "auto";
@@ -47,7 +49,10 @@ export interface ModelConfig {
 export type ResolvedModelConfig = Omit<ModelConfig, "apiKey" | "apiKeyEnv"> & { apiKey: string };
 
 export function invalidConfig(): never {
-  throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid LLM model configuration" });
+  throw new GatewayFailure({
+    code: "INVALID_ARGUMENT",
+    message: "invalid LLM model configuration",
+  });
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -65,9 +70,22 @@ function text(value: unknown): value is string {
 
 function cost(value: unknown, tier = false) {
   const item = object(value);
-  keys(item, ["input", "output", "cacheRead", "cacheWrite", ...(tier ? ["inputTokensAbove"] : ["tiers"])]);
-  for (const key of ["input", "output", "cacheRead", "cacheWrite", ...(tier ? ["inputTokensAbove"] : [])]) {
-    if (typeof item[key] !== "number" || !Number.isFinite(item[key]) || item[key] < 0) invalidConfig();
+  keys(item, [
+    "input",
+    "output",
+    "cacheRead",
+    "cacheWrite",
+    ...(tier ? ["inputTokensAbove"] : ["tiers"]),
+  ]);
+  for (const key of [
+    "input",
+    "output",
+    "cacheRead",
+    "cacheWrite",
+    ...(tier ? ["inputTokensAbove"] : []),
+  ]) {
+    if (typeof item[key] !== "number" || !Number.isFinite(item[key]) || item[key] < 0)
+      invalidConfig();
   }
   if (item.tiers !== undefined) {
     if (!Array.isArray(item.tiers)) invalidConfig();
@@ -102,9 +120,14 @@ function nestedCompatibility(compat: Record<string, unknown>) {
       if (value === null || ["string", "number", "boolean"].includes(typeof value)) continue;
       const variable = object(value);
       keys(variable, ["$var", "omitWhenOff"]);
-      if (!["thinking.enabled", "thinking.effort", "thinking.budget"].includes(variable.$var as string))
+      if (
+        !["thinking.enabled", "thinking.effort", "thinking.budget"].includes(
+          variable.$var as string,
+        )
+      )
         invalidConfig();
-      if (variable.omitWhenOff !== undefined && typeof variable.omitWhenOff !== "boolean") invalidConfig();
+      if (variable.omitWhenOff !== undefined && typeof variable.omitWhenOff !== "boolean")
+        invalidConfig();
     }
   }
 
@@ -130,25 +153,43 @@ function nestedCompatibility(compat: Record<string, unknown>) {
       ]);
     for (const name of ["only", "order", "ignore", "quantizations"]) {
       const value = routing[name];
-      if (value !== undefined && (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")))
+      if (
+        value !== undefined &&
+        (!Array.isArray(value) || value.some((entry) => typeof entry !== "string"))
+      )
         invalidConfig();
     }
-    for (const name of ["allow_fallbacks", "require_parameters", "zdr", "enforce_distillable_text"]) {
+    for (const name of [
+      "allow_fallbacks",
+      "require_parameters",
+      "zdr",
+      "enforce_distillable_text",
+    ]) {
       if (routing[name] !== undefined && typeof routing[name] !== "boolean") invalidConfig();
     }
-    if (routing.data_collection !== undefined && !["deny", "allow"].includes(routing.data_collection as string))
+    if (
+      routing.data_collection !== undefined &&
+      !["deny", "allow"].includes(routing.data_collection as string)
+    )
       invalidConfig();
     if (routing.sort !== undefined && typeof routing.sort !== "string") {
       const sort = object(routing.sort);
       keys(sort, ["by", "partition"]);
       if (sort.by !== undefined && typeof sort.by !== "string") invalidConfig();
-      if (sort.partition !== undefined && sort.partition !== null && typeof sort.partition !== "string")
+      if (
+        sort.partition !== undefined &&
+        sort.partition !== null &&
+        typeof sort.partition !== "string"
+      )
         invalidConfig();
     }
     if (routing.max_price !== undefined) {
       const price = object(routing.max_price);
       keys(price, ["prompt", "completion", "image", "audio", "request"]);
-      if (Object.values(price).some((value) => typeof value !== "number" && typeof value !== "string")) invalidConfig();
+      if (
+        Object.values(price).some((value) => typeof value !== "number" && typeof value !== "string")
+      )
+        invalidConfig();
     }
     for (const name of ["preferred_min_throughput", "preferred_max_latency"]) {
       const value = routing[name];
@@ -193,12 +234,21 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
   } catch {
     invalidConfig();
   }
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash)
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
     invalidConfig();
   for (const key of ["contextWindow", "maxTokens"]) {
     if (!Number.isSafeInteger(item[key]) || (item[key] as number) < 1) invalidConfig();
   }
-  if ((item.contextWindow as number) < (item.maxTokens as number) || typeof item.reasoning !== "boolean")
+  if (
+    (item.contextWindow as number) < (item.maxTokens as number) ||
+    typeof item.reasoning !== "boolean"
+  )
     invalidConfig();
   if (
     !Array.isArray(item.input) ||
@@ -206,7 +256,10 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
     item.input.some((entry) => entry !== "text" && entry !== "image")
   )
     invalidConfig();
-  if (item.defaultTransport !== undefined && !["sse", "auto"].includes(item.defaultTransport as string))
+  if (
+    item.defaultTransport !== undefined &&
+    !["sse", "auto"].includes(item.defaultTransport as string)
+  )
     invalidConfig();
   cost(item.cost);
   for (const key of ["apiKey", "apiKeyEnv"]) {
@@ -224,7 +277,8 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
       } else if (kind === "array") {
         if (!Array.isArray(value)) invalidConfig();
       } else if (kind === "object") object(value);
-      else if (typeof value !== kind || (kind === "number" && !Number.isFinite(value))) invalidConfig();
+      else if (typeof value !== kind || (kind === "number" && !Number.isFinite(value)))
+        invalidConfig();
     }
   }
   for (const field of ["headers", "samplingParams"]) {
@@ -233,7 +287,11 @@ export function validateModel(value: unknown): asserts value is ModelConfig {
       jsonData(item[field]);
     }
   }
-  if (item.headers && Object.values(object(item.headers)).some((value) => typeof value !== "string")) invalidConfig();
+  if (
+    item.headers &&
+    Object.values(object(item.headers)).some((value) => typeof value !== "string")
+  )
+    invalidConfig();
   if (item.thinkingLevelMap !== undefined) {
     const levels = object(item.thinkingLevelMap);
     keys(levels, ["off", "minimal", "low", "medium", "high", "xhigh", "max"]);

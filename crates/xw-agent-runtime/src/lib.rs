@@ -5,7 +5,8 @@ mod generation;
 pub use completion::complete_text;
 
 pub use generation::{
-    GenerationError, GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream, LlmGeneration,
+    GenerationError, GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream,
+    LlmGeneration,
 };
 pub use tokio_util::sync::CancellationToken;
 mod text;

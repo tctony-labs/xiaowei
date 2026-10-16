@@ -23,7 +23,8 @@ import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/in
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
 const require = createRequire(import.meta.url);
-const { ClipboardHistory } = require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
+const { ClipboardHistory } =
+  require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
 const { Storage } = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
 
 test("Rust clipboard owns resource resolution, exports, permissions and close cleanup", async () => {
@@ -64,7 +65,8 @@ test("Rust clipboard owns resource resolution, exports, permissions and close cl
   const client = host.client({ caller: "resource-test", trusted: true });
   const api = bindClient(ClipboardBiz, client);
   const dao = bindClient(ClipboardDao, client);
-  const resource = (id: bigint, index?: number) => create(ClipboardResourceRequestSchema, { id, index });
+  const resource = (id: bigint, index?: number) =>
+    create(ClipboardResourceRequestSchema, { id, index });
   let exportDirectory = "";
   try {
     const text = await history.addText("original 中文");
@@ -128,7 +130,9 @@ test("Rust clipboard owns resource resolution, exports, permissions and close cl
     assert.equal(paths.at(-1), "/tmp/中文.txt");
     await api.revealResource(resource(files.id));
     assert.deepEqual(paths.slice(-3), ["/tmp/a,b.txt", "/tmp/中文.txt", "/other/c.txt"]);
-    await api.copyResourcePath(create(CopyResourcePathRequestSchema, { id: files.id, directory: true }));
+    await api.copyResourcePath(
+      create(CopyResourcePathRequestSchema, { id: files.id, directory: true }),
+    );
     assert.equal(texts.at(-1), "/tmp\n/other");
     await api.copyResourcePath(create(CopyResourcePathRequestSchema, { id: files.id, index: 0 }));
     assert.equal(texts.at(-1), "/tmp/a,b.txt");
@@ -140,7 +144,10 @@ test("Rust clipboard owns resource resolution, exports, permissions and close cl
       host.client({
         caller: "restricted",
         trusted: false,
-        invoke: [methodRoute(ClipboardBiz.method.openResource).name, methodRoute(ClipboardDao.method.get).name],
+        invoke: [
+          methodRoute(ClipboardBiz.method.openResource).name,
+          methodRoute(ClipboardDao.method.get).name,
+        ],
       }),
     );
     const count = paths.length;
@@ -168,7 +175,10 @@ test("clipboard initialization can be abandoned without retaining its export dir
   const root = await mkdtemp(join(tmpdir(), "clipboard-resource-close-"));
   try {
     const history = await ClipboardHistory.open(join(root, "history"), () => {}, root);
-    assert.equal((await readdir(root)).filter((name) => name.startsWith("xiaowei-clipboard-")).length, 1);
+    assert.equal(
+      (await readdir(root)).filter((name) => name.startsWith("xiaowei-clipboard-")).length,
+      1,
+    );
     await history.close();
     await history.close();
     assert.deepEqual(await readdir(root), ["history"]);

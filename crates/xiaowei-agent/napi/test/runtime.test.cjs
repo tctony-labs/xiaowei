@@ -74,28 +74,31 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const host = new GatewayHost();
-  const worker = new Worker(pathToFileURL(resolve(__dirname, "../../../../desktop/out/main/llm-worker.js")), {
-    workerData: {
-      models: [
-        {
-          id: "test",
-          modelId: "upstream",
-          name: "Test",
-          api: "openai-completions",
-          provider: "openai",
-          providerName: "Test provider",
-          reasoning: true,
-          input: ["text"],
-          maxTokens: 4096,
-          contextWindow: 8192,
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          apiKey: "fixture",
-          baseUrl: `http://127.0.0.1:${server.address().port}`,
-          compat: { maxTokensField: "max_tokens" },
-        },
-      ],
+  const worker = new Worker(
+    pathToFileURL(resolve(__dirname, "../../../../desktop/out/main/llm-worker.js")),
+    {
+      workerData: {
+        models: [
+          {
+            id: "test",
+            modelId: "upstream",
+            name: "Test",
+            api: "openai-completions",
+            provider: "openai",
+            providerName: "Test provider",
+            reasoning: true,
+            input: ["text"],
+            maxTokens: 4096,
+            contextWindow: 8192,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            apiKey: "fixture",
+            baseUrl: `http://127.0.0.1:${server.address().port}`,
+            compat: { maxTokensField: "max_tokens" },
+          },
+        ],
+      },
     },
-  });
+  );
   let llm;
   let endpoint;
   const root = await mkdtemp(join(tmpdir(), "agent-rollout-runtime-"));
@@ -109,7 +112,10 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     const caller = host.client({ caller: "first-device", trusted: true });
     const api = bindClient(pb.Agent, caller);
     const streamApi = bindStreamClient(pb.Agent, caller);
-    const other = bindStreamClient(pb.Agent, host.client({ caller: "second-device", trusted: true }));
+    const other = bindStreamClient(
+      pb.Agent,
+      host.client({ caller: "second-device", trusted: true }),
+    );
     const config = { modelRef: "test" };
     const session = (
       await api.createSession(
@@ -122,7 +128,9 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(session.config.modelRef, "test");
     const observers = await Promise.all(
       [streamApi, other].map((client) =>
-        client.subscribeSession(create(pb.SubscribeSessionRequestSchema, { sessionId: session.sessionId })),
+        client.subscribeSession(
+          create(pb.SubscribeSessionRequestSchema, { sessionId: session.sessionId }),
+        ),
       ),
     );
     for (const observer of observers) {
@@ -136,7 +144,8 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
         const { done, value: event } = await observer.next();
         if (done) throw new Error("missing run terminal");
         events.push(event);
-        if (event.payload.case === "runCompleted" && event.payload.value.run.runId === runId) return events;
+        if (event.payload.case === "runCompleted" && event.payload.value.run.runId === runId)
+          return events;
       }
     };
     const send = async (text, override, titleModelRef) => {
@@ -193,7 +202,10 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(cancelled.final.status, pb.AgentRunStatus.INTERRUPTED, cancelled.final.error);
     await until(() => disconnected.has("cancel"));
     await send("after-cancel");
-    assert.equal(requests.at(-1).messages.filter((message) => message.role === "assistant").length, 3);
+    assert.equal(
+      requests.at(-1).messages.filter((message) => message.role === "assistant").length,
+      3,
+    );
     const snapshot = await api.readSession(
       create(pb.ReadSessionRequestSchema, {
         sessionId: session.sessionId,
@@ -305,11 +317,13 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     );
     auxiliaryAvailable = false;
     await assert.rejects(
-      api.regenerateTitle(create(pb.RegenerateTitleRequestSchema, { sessionId: session.sessionId })),
+      api.regenerateTitle(
+        create(pb.RegenerateTitleRequestSchema, { sessionId: session.sessionId }),
+      ),
     );
     assert.equal(
-      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId }))).session
-        .autoTitleEnabled,
+      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId })))
+        .session.autoTitleEnabled,
       false,
     );
     assert.equal(
@@ -367,8 +381,14 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(listed.sessions[0].sessionId, secondSession.sessionId);
     assert.ok(listed.sessions.every((session) => !("runs" in session)));
     assert.equal(listed.sessions[0].title, "independent-ses");
-    assert.equal(listed.sessions.find((item) => item.sessionId === session.sessionId).title, "手写标题");
-    assert.equal(listed.sessions.find((item) => item.sessionId === session.sessionId).autoTitleEnabled, false);
+    assert.equal(
+      listed.sessions.find((item) => item.sessionId === session.sessionId).title,
+      "手写标题",
+    );
+    assert.equal(
+      listed.sessions.find((item) => item.sessionId === session.sessionId).autoTitleEnabled,
+      false,
+    );
     const reopened = await streamApi.subscribeSession(
       create(pb.SubscribeSessionRequestSchema, {
         sessionId: session.sessionId,
@@ -379,11 +399,13 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(retained.title, "手写标题");
     assert.equal(retained.autoTitleEnabled, false);
     auxiliaryAvailable = true;
-    await api.regenerateTitle(create(pb.RegenerateTitleRequestSchema, { sessionId: session.sessionId }));
+    await api.regenerateTitle(
+      create(pb.RegenerateTitleRequestSchema, { sessionId: session.sessionId }),
+    );
     assert.equal((await waitTitle(reopened)).autoTitleEnabled, true);
     assert.equal(
-      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId }))).session
-        .autoTitleEnabled,
+      (await api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId })))
+        .session.autoTitleEnabled,
       true,
     );
     auxiliaryAvailable = false;
@@ -400,7 +422,9 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
       }),
     );
     assert.deepEqual(
-      (await api.listSessions(create(pb.ListSessionsRequestSchema))).sessions.map((item) => item.sessionId),
+      (await api.listSessions(create(pb.ListSessionsRequestSchema))).sessions.map(
+        (item) => item.sessionId,
+      ),
       [session.sessionId],
     );
     const closingRun = await api.startRun(
@@ -434,14 +458,24 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(running.status, pb.AgentSessionStatus.RUNNING);
     assert.equal(running.runs.at(-1).runId, closingRun.run.runId);
     assert.equal(running.runs.at(-1).status, pb.AgentRunStatus.IN_PROGRESS);
-    assert.equal(disconnected.has("close"), false, "setting title must not cancel the active generation");
+    assert.equal(
+      disconnected.has("close"),
+      false,
+      "setting title must not cancel the active generation",
+    );
     await Promise.all([agent.close(), agent.close()]);
     await until(() => disconnected.has("close"));
-    await assert.rejects(api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId })));
+    await assert.rejects(
+      api.readSession(create(pb.ReadSessionRequestSchema, { sessionId: session.sessionId })),
+    );
     await endpoint.close();
     endpoint = undefined;
     restored = await Agent.open(root);
-    restoredEndpoint = await attachRustNapi(host, "restored-agent", restored.createGatewayEndpoint());
+    restoredEndpoint = await attachRustNapi(
+      host,
+      "restored-agent",
+      restored.createGatewayEndpoint(),
+    );
     const restoredSession = (
       await api.readSession(
         create(pb.ReadSessionRequestSchema, {
@@ -460,7 +494,12 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     // Real worker packet time traverses PB, the native Host adapter and the journal unchanged.
     const years = await readdir(join(root, "sessions"));
     const months = await readdir(join(root, "sessions", years[0]));
-    const records = (await readFile(join(root, "sessions", years[0], months[0], `${session.sessionId}.jsonl`), "utf8"))
+    const records = (
+      await readFile(
+        join(root, "sessions", years[0], months[0], `${session.sessionId}.jsonl`),
+        "utf8",
+      )
+    )
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));

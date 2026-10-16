@@ -46,17 +46,27 @@ function fixture(
     ),
     [bindEvent(ModelSettingsChangedSchema, EmptySchema, "coalesce", () => true)],
   );
-  const services = createServices(() => agent.host.client({ caller: "quick-chat-test", trusted: true }));
+  const services = createServices(() =>
+    agent.host.client({ caller: "quick-chat-test", trusted: true }),
+  );
   return {
     ...agent,
     agent,
     services,
     snapshot: () => snapshot,
-    update(modelRef: string, providers = snapshot.providers, smallTextModelRef = snapshot.defaults?.smallTextModelRef) {
+    update(
+      modelRef: string,
+      providers = snapshot.providers,
+      smallTextModelRef = snapshot.defaults?.smallTextModelRef,
+    ) {
       snapshot = create(ModelSettingsSnapshotSchema, {
         ...snapshot,
         revision: snapshot.revision + 1n,
-        defaults: create(ModelDefaultsSchema, { modelRef, thinkingLevel: "low", smallTextModelRef }),
+        defaults: create(ModelDefaultsSchema, {
+          modelRef,
+          thinkingLevel: "low",
+          smallTextModelRef,
+        }),
         providers,
       });
       owner.publish(
@@ -144,7 +154,11 @@ test("default model drives Agent input; history comes from the session projectio
   expect(app.requests[0].input).toHaveLength(1);
   act(() => app.finish());
   await waitFor(() => expect(result.current.generating).toBe(false));
-  expect(result.current.messages[1]).toMatchObject({ text: "answer", thinking: "reason", status: "complete" });
+  expect(result.current.messages[1]).toMatchObject({
+    text: "answer",
+    thinking: "reason",
+    status: "complete",
+  });
   act(() => app.update("other"));
   await waitFor(() => expect(app.snapshot().defaults?.modelRef).toBe("other"));
   prompt(result, "what did I say?");
@@ -294,7 +308,12 @@ test("composer saves selection during a Run and preserves reasoning only when su
           id: "provider",
           name: "tctony",
           models: [
-            { id: "model", name: "sol", reasoning: true, thinkingLevelMapJson: '{"high":"high","low":"low"}' },
+            {
+              id: "model",
+              name: "sol",
+              reasoning: true,
+              thinkingLevelMapJson: '{"high":"high","low":"low"}',
+            },
             { id: "other", name: "luna", reasoning: true, thinkingLevelMapJson: '{"high":"high"}' },
             { id: "plain", name: "text", reasoning: false },
           ],
@@ -345,7 +364,9 @@ test("model warning persists through sending and clears only after a lookup succ
       }),
     ),
   );
-  await waitFor(() => expect(result.current.modelHint).toBe("tctony/sol 模型配置获取失败，部分功能可能出现异常"));
+  await waitFor(() =>
+    expect(result.current.modelHint).toBe("tctony/sol 模型配置获取失败，部分功能可能出现异常"),
+  );
   expect(result.current.error).toBe("");
   act(() => app.finish());
   await waitFor(() => expect(result.current.generating).toBe(false));

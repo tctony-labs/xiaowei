@@ -45,7 +45,11 @@ fn public_key(key: &str) -> Result<()> {
     Ok(())
 }
 
-fn handler<Req, Res, F, Fut>(database: &Arc<Database>, method: &Method<Req, Res>, work: F) -> InvokeRegistration
+fn handler<Req, Res, F, Fut>(
+    database: &Arc<Database>,
+    method: &Method<Req, Res>,
+    work: F,
+) -> InvokeRegistration
 where
     Req: Message + Default + Name + 'static,
     Res: Message + Default + Name + 'static,

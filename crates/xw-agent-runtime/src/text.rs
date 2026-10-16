@@ -7,10 +7,13 @@ use std::{
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use xw_agent_types::{
-    AssistantMessage, ContentBlock, FinishReason, GenId, InputId, MessageId, RunId, SessionId, TurnId,
+    AssistantMessage, ContentBlock, FinishReason, GenId, InputId, MessageId, RunId, SessionId,
+    TurnId,
 };
 
-use crate::{CancellationToken, GenerationError, GenerationEvent, GenerationRequest, LlmGeneration};
+use crate::{
+    CancellationToken, GenerationError, GenerationEvent, GenerationRequest, LlmGeneration,
+};
 
 #[derive(Debug, Clone)]
 pub struct RunRequest {
@@ -179,7 +182,9 @@ pub async fn execute_text(
     let elapsed_ms = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
     let (status, message, error) = match result {
         Ok(message) => (RunStatus::Completed, Some(message), None),
-        Err(GenerationError::Cancelled) => (RunStatus::Cancelled, None, Some(GenerationError::Cancelled)),
+        Err(GenerationError::Cancelled) => {
+            (RunStatus::Cancelled, None, Some(GenerationError::Cancelled))
+        }
         Err(error) => (RunStatus::Failed, None, Some(error)),
     };
     log::debug!(
@@ -207,18 +212,24 @@ fn block_bytes(block: &ContentBlock) -> usize {
 }
 
 pub(crate) fn validate_final(message: &AssistantMessage) -> Result<(), GenerationError> {
-    if !matches!(message.stop_reason, FinishReason::Stop | FinishReason::Length)
-        || message.content.is_empty()
-        || message
-            .content
-            .iter()
-            .any(|block| !matches!(block, ContentBlock::Text { .. } | ContentBlock::Thinking { .. }))
+    if !matches!(
+        message.stop_reason,
+        FinishReason::Stop | FinishReason::Length
+    ) || message.content.is_empty()
+        || message.content.iter().any(|block| {
+            !matches!(
+                block,
+                ContentBlock::Text { .. } | ContentBlock::Thinking { .. }
+            )
+        })
         || message.content.iter().map(block_bytes).sum::<usize>() > 1024 * 1024
         || message.api.is_empty()
         || message.provider.is_empty()
         || message.model_id.is_empty()
     {
-        return Err(GenerationError::Failed("unsupported or invalid final message".into()));
+        return Err(GenerationError::Failed(
+            "unsupported or invalid final message".into(),
+        ));
     }
     Ok(())
 }

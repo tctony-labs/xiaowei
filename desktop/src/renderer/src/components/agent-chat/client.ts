@@ -45,7 +45,10 @@ export class AgentChatClient {
   private changing?: Promise<void>;
   private listing?: Promise<void>;
   private drafts = new Map<string, string>();
-  private feedback = new Map<string, { pending?: { inputId: string; text: string }; error: string }>();
+  private feedback = new Map<
+    string,
+    { pending?: { inputId: string; text: string }; error: string }
+  >();
   sessions: AgentSessionSummary[] = [];
   sessionsLoading = false;
   sessionsContinuation = "";
@@ -90,14 +93,22 @@ export class AgentChatClient {
     const messages = chatMessages(this.session);
     if (this.pending && !this.session?.runs.some((run) => run.inputId === this.pending?.inputId)) {
       messages.push({ id: this.pending.inputId, role: "user", text: this.pending.text });
-      messages.push({ id: `pending-${this.pending.inputId}`, role: "assistant", text: "", status: "generating" });
+      messages.push({
+        id: `pending-${this.pending.inputId}`,
+        role: "assistant",
+        text: "",
+        status: "generating",
+      });
     }
     return messages;
   }
 
   get busy() {
     return (
-      !!this.pending || !!this.sending || !!this.changing || this.session?.runs.some((run) => run.status === 1) === true
+      !!this.pending ||
+      !!this.sending ||
+      !!this.changing ||
+      this.session?.runs.some((run) => run.status === 1) === true
     );
   }
 
@@ -202,7 +213,11 @@ export class AgentChatClient {
       this.stream = stream;
       const first = await stream.next();
       if (generation !== this.generation) throw new Error("Observation replaced");
-      if (first.done || first.value.payload.case !== "subscriptionReady" || !first.value.payload.value.session) {
+      if (
+        first.done ||
+        first.value.payload.case !== "subscriptionReady" ||
+        !first.value.payload.value.session
+      ) {
         throw new Error("Missing initial session snapshot");
       }
       if (this.session?.sessionId !== sessionId) {
@@ -210,7 +225,8 @@ export class AgentChatClient {
         this.error = this.feedback.get(sessionId)?.error ?? "";
       }
       this.session = first.value.payload.value.session;
-      if (!this.pending || this.session.runs.some((run) => run.inputId === this.pending?.inputId)) this.error = "";
+      if (!this.pending || this.session.runs.some((run) => run.inputId === this.pending?.inputId))
+        this.error = "";
       this.notify();
       void (async () => {
         try {
@@ -283,7 +299,9 @@ export class AgentChatClient {
       if (!this.session) {
         const created = await this.services
           .getAgent()
-          .createSession(create(CreateSessionRequestSchema, { clientRequestId: this.creationId, config }));
+          .createSession(
+            create(CreateSessionRequestSchema, { clientRequestId: this.creationId, config }),
+          );
         if (!created.session) throw new Error("Missing created session");
         this.session = created.session;
         this.drafts.set(created.session.sessionId, this.drafts.get("") ?? "");
@@ -309,9 +327,13 @@ export class AgentChatClient {
       } catch (error) {
         if (
           error instanceof GatewayFailure &&
-          ["INVALID_ARGUMENT", "CONFLICT", "RESOURCE_EXHAUSTED", "NOT_FOUND", "HANDLER_ERROR"].includes(
-            error.detail.code,
-          )
+          [
+            "INVALID_ARGUMENT",
+            "CONFLICT",
+            "RESOURCE_EXHAUSTED",
+            "NOT_FOUND",
+            "HANDLER_ERROR",
+          ].includes(error.detail.code)
         ) {
           uncertain = false;
           throw error;
@@ -365,14 +387,20 @@ export class AgentChatClient {
         }),
       );
       // Do not enable sending until the committed selection reaches the live projection.
-      if (this.session?.sessionId === sessionId && this.session.metadataRevision < response.metadataRevision) {
+      if (
+        this.session?.sessionId === sessionId &&
+        this.session.metadataRevision < response.metadataRevision
+      ) {
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
             this.terminalWaiters.delete(check);
             reject(new Error("Configuration observation timed out"));
           }, 5_000);
           const check = () => {
-            if (this.session?.sessionId !== sessionId || this.session.metadataRevision >= response.metadataRevision) {
+            if (
+              this.session?.sessionId !== sessionId ||
+              this.session.metadataRevision >= response.metadataRevision
+            ) {
               clearTimeout(timer);
               this.terminalWaiters.delete(check);
               resolve();
@@ -404,7 +432,9 @@ export class AgentChatClient {
       if (this.changing) throw new Error("会话操作进行中，请稍后重试。");
       this.error = "";
       await this.connect();
-      await this.services.getAgent().setSessionTitle(create(SetSessionTitleRequestSchema, { sessionId, title }));
+      await this.services
+        .getAgent()
+        .setSessionTitle(create(SetSessionTitleRequestSchema, { sessionId, title }));
       // The command acknowledgement must not replace newer title events.
     } catch (error) {
       const message =
@@ -430,10 +460,15 @@ export class AgentChatClient {
     this.notify();
     try {
       await this.connect();
-      await this.services.getAgent().regenerateTitle(create(RegenerateTitleRequestSchema, { sessionId }));
+      await this.services
+        .getAgent()
+        .regenerateTitle(create(RegenerateTitleRequestSchema, { sessionId }));
       // Like run responses, this acknowledgement must not replace newer events.
     } catch (error) {
-      if (error instanceof GatewayFailure && error.detail.message.includes("尚未配置小文本任务模型")) {
+      if (
+        error instanceof GatewayFailure &&
+        error.detail.message.includes("尚未配置小文本任务模型")
+      ) {
         throw new Error("尚未配置小文本任务模型，请先在设置中选择");
       }
       throw new Error("标题生成失败，请检查小文本任务模型配置后重试");
@@ -449,7 +484,10 @@ export class AgentChatClient {
       if (this.session && !this.stream) await this.connect();
       const run = this.session?.runs.find((run) => run.status === 1);
       const runId =
-        run?.runId ?? (this.acceptedRun?.sessionId === this.session?.sessionId ? this.acceptedRun?.runId : undefined);
+        run?.runId ??
+        (this.acceptedRun?.sessionId === this.session?.sessionId
+          ? this.acceptedRun?.runId
+          : undefined);
       if (!runId || !this.session) return;
       await this.services.getAgent().interruptRun(
         create(InterruptRunRequestSchema, {
@@ -481,7 +519,9 @@ export class AgentChatClient {
       this.sessions = more
         ? [
             ...this.sessions,
-            ...response.sessions.filter((next) => !this.sessions.some((s) => s.sessionId === next.sessionId)),
+            ...response.sessions.filter(
+              (next) => !this.sessions.some((s) => s.sessionId === next.sessionId),
+            ),
           ]
         : response.sessions;
       this.sessionsContinuation = response.continuation;
@@ -619,7 +659,9 @@ export class AgentChatClient {
     if (this.session?.sessionId === sessionId && this.stream) return Promise.resolve();
     return this.changeConversation(async () => {
       await this.sending?.catch(() => {});
-      const response = await this.services.getAgent().readSession(create(ReadSessionRequestSchema, { sessionId }));
+      const response = await this.services
+        .getAgent()
+        .readSession(create(ReadSessionRequestSchema, { sessionId }));
       if (!response.found || !response.session) {
         this.forgetSession(sessionId);
         throw new Error("会话已不存在，请重新选择。");

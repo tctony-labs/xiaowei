@@ -8,7 +8,11 @@ const preview: Preview = {
     layout: "centered",
     viewport: {
       options: {
-        settings: { name: "Settings (800 × 600)", styles: { width: "800px", height: "600px" }, type: "desktop" },
+        settings: {
+          name: "Settings (800 × 600)",
+          styles: { width: "800px", height: "600px" },
+          type: "desktop",
+        },
       },
     },
   },

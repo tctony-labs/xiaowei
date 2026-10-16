@@ -44,9 +44,24 @@ test("Gateway checks access locally, and explicitly public methods never attach 
 
   for (const session of [
     undefined,
-    { server: server.url, sessionId: "session", accessToken: "", accessExpiresAtMs: BigInt(now + 1) },
-    { server: server.url, sessionId: "", accessToken: "private-access", accessExpiresAtMs: BigInt(now + 1) },
-    { server: server.url, sessionId: "session", accessToken: "private-access", accessExpiresAtMs: BigInt(now) },
+    {
+      server: server.url,
+      sessionId: "session",
+      accessToken: "",
+      accessExpiresAtMs: BigInt(now + 1),
+    },
+    {
+      server: server.url,
+      sessionId: "",
+      accessToken: "private-access",
+      accessExpiresAtMs: BigInt(now + 1),
+    },
+    {
+      server: server.url,
+      sessionId: "session",
+      accessToken: "private-access",
+      accessExpiresAtMs: BigInt(now),
+    },
     {
       server: "https://other.example.test",
       sessionId: "session",
@@ -70,13 +85,18 @@ test("Gateway checks access locally, and explicitly public methods never attach 
   const login = await auth.login(
     create(LoginRequestSchema, {
       deviceId: randomUUID(),
-      credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+      credential: {
+        case: "password",
+        value: { email: "user@example.test", password: "  sample  " },
+      },
     }),
   );
   assert.equal(login.code, 0);
   assert.equal(login.data?.result.case, "authenticated");
   const oldAccess = server.state.tokens.accessToken;
-  const refresh = await auth.refresh(create(RefreshRequestSchema, { refreshToken: server.state.tokens.refreshToken }));
+  const refresh = await auth.refresh(
+    create(RefreshRequestSchema, { refreshToken: server.state.tokens.refreshToken }),
+  );
   assert.equal(refresh.code, 0);
   assert.notEqual(refresh.data?.accessToken, oldAccess);
   assert.ok(server.state.requests.every((request) => request.bearer === undefined));
@@ -127,7 +147,10 @@ test("raw authentication responses leave Account state and persisted credentials
   const login = await auth.login(
     create(LoginRequestSchema, {
       deviceId: randomUUID(),
-      credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+      credential: {
+        case: "password",
+        value: { email: "user@example.test", password: "  sample  " },
+      },
     }),
   );
   assert.equal(login.code, 0);
@@ -151,7 +174,10 @@ test("raw authentication responses leave Account state and persisted credentials
     create(RefreshRequestSchema, { refreshToken: server.state.tokens.refreshToken }),
   );
   assert.equal(refreshed.code, 0);
-  assert.notEqual(refreshed.data?.refreshToken, JSON.parse(contents).authenticated.tokens.refreshToken);
+  assert.notEqual(
+    refreshed.data?.refreshToken,
+    JSON.parse(contents).authenticated.tokens.refreshToken,
+  );
   assert.deepEqual(account.snapshot(), signedIn);
   assert.equal(await readFile(path, "utf8"), contents);
   assert.equal((await auth.logout(empty)).code, 0);
@@ -159,7 +185,11 @@ test("raw authentication responses leave Account state and persisted credentials
   assert.equal(changes, before);
   assert.equal(await readFile(path, "utf8"), contents);
   assert.equal(account.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal((await auth.getCurrentUser(empty)).code, ErrorCode.UNAUTHENTICATED, "server still verifies revocation");
+  assert.equal(
+    (await auth.getCurrentUser(empty)).code,
+    ErrorCode.UNAUTHENTICATED,
+    "server still verifies revocation",
+  );
 });
 
 test("health validates JSON business results; HTTP 200 alone does not mean ready", async (t) => {
@@ -226,7 +256,10 @@ test("login forwards credential fields and preserves binding results without est
     create(LoginRequestSchema, {
       deviceId: "device",
       thirdpartyBindToken: "binding-proof",
-      credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+      credential: {
+        case: "password",
+        value: { email: "user@example.test", password: "  sample  " },
+      },
     }),
   );
   assert.equal(response.data?.result.case, "bindingRequired");
@@ -253,7 +286,8 @@ test("owner close aborts and drains a real request, is idempotent, and removes r
   const pending = auth.login(create(LoginRequestSchema, { deviceId: randomUUID() }));
   const failed = assert.rejects(
     pending,
-    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "OWNER_UNAVAILABLE",
+    (error: unknown) =>
+      error instanceof GatewayFailure && error.detail.code === "OWNER_UNAVAILABLE",
   );
   try {
     await requestStarted;
@@ -291,7 +325,10 @@ test("xwapi applies a small timeout from independent Gateway options", async (t)
     const result = await auth.login(
       create(LoginRequestSchema, {
         deviceId: randomUUID(),
-        credential: { case: "password", value: { email: "user@example.test", password: "  sample  " } },
+        credential: {
+          case: "password",
+          value: { email: "user@example.test", password: "  sample  " },
+        },
       }),
       { timeoutMs: 50 },
     );
@@ -318,7 +355,9 @@ test("xwapi defaults to 15000 and zero omits the HTTP timeout signal", async (t)
   const host = new GatewayHost();
   const owner = registerXwapi(
     host,
-    new XwapiService(async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: { status: "ok" } }))),
+    new XwapiService(
+      async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: { status: "ok" } })),
+    ),
     () => ({ server: "https://example.test" }),
   );
   const health = bindClient(Health, host.client({ caller: "default-timeout", trusted: true }), {
@@ -329,7 +368,10 @@ test("xwapi defaults to 15000 and zero omits the HTTP timeout signal", async (t)
     assert.deepEqual(durations, [15_000]);
     assert.equal((await health.check(empty, { timeoutMs: 0 })).code, 0);
     assert.deepEqual(durations, [15_000]);
-    assert.equal((await health.check(empty, { timeoutMs: 2_147_483_648 })).code, ErrorCode.INVALID_ARGUMENT);
+    assert.equal(
+      (await health.check(empty, { timeoutMs: 2_147_483_648 })).code,
+      ErrorCode.INVALID_ARGUMENT,
+    );
   } finally {
     await owner.close();
   }

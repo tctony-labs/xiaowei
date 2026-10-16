@@ -27,10 +27,14 @@ function fixture(context) {
   };
   const read = (path) => readFileSync(join(directory, path), "utf8");
   const run = (check = true) =>
-    spawnSync(process.execPath, [join(directory, "contracts/scripts/generate.mjs"), ...(check ? ["--check"] : [])], {
-      cwd: directory,
-      encoding: "utf8",
-    });
+    spawnSync(
+      process.execPath,
+      [join(directory, "contracts/scripts/generate.mjs"), ...(check ? ["--check"] : [])],
+      {
+        cwd: directory,
+        encoding: "utf8",
+      },
+    );
   const success = (cached) => {
     const result = run();
     assert.equal(result.status, 0, result.stderr);
@@ -56,10 +60,20 @@ function fixture(context) {
     mkdirSync(dirname(join(directory, path)), { recursive: true });
     cpSync(join(root, path), join(directory, path), { recursive: true });
   }
-  write("contracts/proto/example.proto", 'syntax = "proto3";\npackage example;\nmessage Value { string text = 1; }\n');
-  write("contracts/generate.config.json", JSON.stringify({ ts: ["*.proto"], rust: [], go: ["*.proto"] }));
+  write(
+    "contracts/proto/example.proto",
+    'syntax = "proto3";\npackage example;\nmessage Value { string text = 1; }\n',
+  );
+  write(
+    "contracts/generate.config.json",
+    JSON.stringify({ ts: ["*.proto"], rust: [], go: ["*.proto"] }),
+  );
   // The real TS and Go generators exercise caching without rebuilding Rust in each fixture.
-  symlinkSync(join(root, "contracts/ts/node_modules"), join(directory, "contracts/ts/node_modules"), "dir");
+  symlinkSync(
+    join(root, "contracts/ts/node_modules"),
+    join(directory, "contracts/ts/node_modules"),
+    "dir",
+  );
   const generated = run(false);
   assert.equal(generated.status, 0, generated.stderr);
   assert.equal(existsSync(join(directory, "target/contracts-check.sha256")), false);

@@ -33,7 +33,11 @@ export function AccountCard({
         {user ? (
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             {user.avatar ? (
-              <img src={user.avatar} alt="用户头像" className="size-7 shrink-0 rounded-full object-cover" />
+              <img
+                src={user.avatar}
+                alt="用户头像"
+                className="size-7 shrink-0 rounded-full object-cover"
+              />
             ) : (
               <span
                 role="img"

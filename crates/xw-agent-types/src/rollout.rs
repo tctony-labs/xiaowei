@@ -362,7 +362,12 @@ pub enum GenPurpose {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum EntryPayload {
     /// Immutable first record. Identity, version and creation time are in the envelope.
     SessionHeader,
@@ -404,7 +409,8 @@ impl<'de> Deserialize<'de> for GenPurpose {
 
         impl<'de> Deserialize<'de> for Data {
             fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-                Option::<ToolData>::deserialize(deserializer).map(|tool| tool.map_or(Self::Null, Self::Tool))
+                Option::<ToolData>::deserialize(deserializer)
+                    .map(|tool| tool.map_or(Self::Null, Self::Tool))
             }
         }
 
@@ -422,7 +428,9 @@ impl<'de> Deserialize<'de> for GenPurpose {
             let Data::Tool(tool) = wire.data else {
                 return Err(serde::de::Error::custom("invalid purpose data"));
             };
-            return Ok(Self::ToolExtraction { tool_id: tool.tool_id });
+            return Ok(Self::ToolExtraction {
+                tool_id: tool.tool_id,
+            });
         }
         if !matches!(wire.data, Data::Missing) {
             return Err(serde::de::Error::custom("unexpected purpose data"));

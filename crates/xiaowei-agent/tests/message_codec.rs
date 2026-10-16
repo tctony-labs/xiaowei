@@ -3,7 +3,9 @@ use xw_agent_types::{AgentMessage, ContentBlock, UsageCost};
 use xw_contracts::xiaowei::llm as pb;
 
 fn block(content: pb::content_block::Content) -> pb::ContentBlock {
-    pb::ContentBlock { content: Some(content) }
+    pb::ContentBlock {
+        content: Some(content),
+    }
 }
 
 fn usage() -> pb::TokenUsage {
@@ -120,7 +122,9 @@ fn complete_history_preserves_every_known_message_field() {
     ];
 
     for message in messages {
-        roundtrip(pb::ChatMessage { message: Some(message) });
+        roundtrip(pb::ChatMessage {
+            message: Some(message),
+        });
     }
 }
 
@@ -143,11 +147,13 @@ fn absent_and_present_empty_metadata_remain_distinct() {
             message: Some(pb::chat_message::Message::Assistant(message)),
         });
         roundtrip(pb::ChatMessage {
-            message: Some(pb::chat_message::Message::ToolResult(pb::ToolResultMessage {
-                details_json: present.then(|| "null".into()),
-                usage: present.then_some(pb::TokenUsage::default()),
-                ..Default::default()
-            })),
+            message: Some(pb::chat_message::Message::ToolResult(
+                pb::ToolResultMessage {
+                    details_json: present.then(|| "null".into()),
+                    usage: present.then_some(pb::TokenUsage::default()),
+                    ..Default::default()
+                },
+            )),
         });
     }
 }
@@ -235,10 +241,12 @@ fn invalid_nested_json_is_rejected_in_both_directions_without_echoing_it() {
     }
 
     let invalid = pb::ChatMessage {
-        message: Some(pb::chat_message::Message::ToolResult(pb::ToolResultMessage {
-            details_json: Some("secret-invalid".into()),
-            ..Default::default()
-        })),
+        message: Some(pb::chat_message::Message::ToolResult(
+            pb::ToolResultMessage {
+                details_json: Some("secret-invalid".into()),
+                ..Default::default()
+            },
+        )),
     };
     let error = decode_message(invalid).unwrap_err();
     assert_eq!(error, CodecError::InvalidJson("details_json"));
@@ -266,21 +274,30 @@ fn invalid_costs_cannot_become_null_or_valid_pb_values() {
         );
     }
     assert!(
-        serde_json::from_str::<UsageCost>(r#"{"input":-1,"output":0,"cache_read":0,"cache_write":0,"total":0}"#)
-            .is_err()
+        serde_json::from_str::<UsageCost>(
+            r#"{"input":-1,"output":0,"cache_read":0,"cache_write":0,"total":0}"#
+        )
+        .is_err()
     );
 }
 
 #[test]
 fn json_rejects_unknown_structure_and_integer_overflow() {
-    assert!(serde_json::from_str::<AgentMessage>(r#"{"type":"unknown","content":[],"timestamp_ms":0}"#).is_err());
     assert!(
-        serde_json::from_str::<AgentMessage>(r#"{"type":"user","content":[],"timestamp_ms":0,"unknown":true}"#)
+        serde_json::from_str::<AgentMessage>(r#"{"type":"unknown","content":[],"timestamp_ms":0}"#)
             .is_err()
     );
     assert!(
-        serde_json::from_str::<AgentMessage>(r#"{"type":"user","content":[],"timestamp_ms":9223372036854775808}"#)
-            .is_err()
+        serde_json::from_str::<AgentMessage>(
+            r#"{"type":"user","content":[],"timestamp_ms":0,"unknown":true}"#
+        )
+        .is_err()
+    );
+    assert!(
+        serde_json::from_str::<AgentMessage>(
+            r#"{"type":"user","content":[],"timestamp_ms":9223372036854775808}"#
+        )
+        .is_err()
     );
     assert!(
         serde_json::from_str::<xw_agent_types::TokenUsage>(

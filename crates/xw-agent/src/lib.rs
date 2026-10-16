@@ -21,8 +21,8 @@ pub use error::AgentError;
 pub use events::{EventSubscription, SubscriptionError};
 pub use service::AgentService;
 pub use xw_agent_runtime::{
-    CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream,
-    LlmGeneration,
+    CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest,
+    GenerationStream, LlmGeneration,
 };
 pub use xw_agent_types::{InputSource, SourceKind};
 pub use xw_contracts::xiaowei::agent as protocol;

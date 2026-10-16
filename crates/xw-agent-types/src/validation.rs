@@ -62,7 +62,11 @@ fn reference<T: Copy>(item: Option<T>, path: &str) -> Result<T, ValidationError>
     })
 }
 
-fn unique<T: Eq + std::hash::Hash>(set: &mut HashSet<T>, id: T, path: &str) -> Result<(), ValidationError> {
+fn unique<T: Eq + std::hash::Hash>(
+    set: &mut HashSet<T>,
+    id: T,
+    path: &str,
+) -> Result<(), ValidationError> {
     require(set.insert(id), ValidationCode::DuplicateIdentity, path)
 }
 
@@ -90,7 +94,10 @@ fn json_raw<'a>(json: &'a str, object: bool, path: &str) -> Result<&'a RawValue,
     Ok(parsed)
 }
 
-fn json_object<'a>(json: &'a str, path: &str) -> Result<HashMap<String, &'a RawValue>, ValidationError> {
+fn json_object<'a>(
+    json: &'a str,
+    path: &str,
+) -> Result<HashMap<String, &'a RawValue>, ValidationError> {
     json_raw(json, true, path)?;
     serde_json::from_str(json).map_err(|_| ValidationError {
         code: ValidationCode::InvalidValue,
@@ -110,21 +117,35 @@ fn usage(usage: &TokenUsage, replay: bool) -> Result<(), ValidationError> {
     ] {
         value(tokens <= MAX_SAFE_INTEGER, "usage.tokens")?;
     }
-    for tokens in [usage.reasoning, usage.cache_write_1h].into_iter().flatten() {
+    for tokens in [usage.reasoning, usage.cache_write_1h]
+        .into_iter()
+        .flatten()
+    {
         value(tokens <= MAX_SAFE_INTEGER, "usage.tokens")?;
     }
     if replay {
         value(usage.cost.is_some(), "usage.cost")?;
     }
     if let Some(cost) = &usage.cost {
-        for cost in [cost.input, cost.output, cost.cache_read, cost.cache_write, cost.total] {
+        for cost in [
+            cost.input,
+            cost.output,
+            cost.cache_read,
+            cost.cache_write,
+            cost.total,
+        ] {
             value(cost.is_finite() && cost >= 0.0, "usage.cost")?;
         }
     }
     Ok(())
 }
 
-fn message(message: &AgentMessage, complete: bool, replay: bool, images: bool) -> Result<(), ValidationError> {
+fn message(
+    message: &AgentMessage,
+    complete: bool,
+    replay: bool,
+    images: bool,
+) -> Result<(), ValidationError> {
     let (blocks, time, assistant) = match message {
         AgentMessage::User(message) => (&message.content, message.timestamp_ms, false),
         AgentMessage::Assistant(message) => {
@@ -196,7 +217,10 @@ fn message(message: &AgentMessage, complete: bool, replay: bool, images: bool) -
                     let AgentMessage::Assistant(assistant) = message else {
                         unreachable!()
                     };
-                    value(assistant.stop_reason == FinishReason::ToolUse, "message.stop_reason")?;
+                    value(
+                        assistant.stop_reason == FinishReason::ToolUse,
+                        "message.stop_reason",
+                    )?;
                 }
             }
         }
@@ -276,7 +300,10 @@ fn context(context: &RunContext) -> Result<(), ValidationError> {
     }
 
     let p = &context.generation;
-    value(p.temperature.is_none_or(|n| n.is_finite()), "generation.temperature")?;
+    value(
+        p.temperature.is_none_or(|n| n.is_finite()),
+        "generation.temperature",
+    )?;
     value(
         p.max_tokens
             .is_none_or(|n| n > 0 && n as u64 <= model.budget.max_output_tokens),
@@ -289,7 +316,11 @@ fn context(context: &RunContext) -> Result<(), ValidationError> {
     if let Some(reasoning) = &p.reasoning {
         value(
             !reasoning.is_empty()
-                && (reasoning == "off" || model.capabilities.as_ref().is_none_or(|c| c.supports_reasoning)),
+                && (reasoning == "off"
+                    || model
+                        .capabilities
+                        .as_ref()
+                        .is_none_or(|c| c.supports_reasoning)),
             "generation.reasoning",
         )?;
     }
@@ -342,9 +373,9 @@ fn context(context: &RunContext) -> Result<(), ValidationError> {
         unique(&mut names, &tool.name, "tools.name")?;
         let schema = json_object(&tool.parameters_json, "tools.parameters_json")?;
         value(
-            schema
-                .get("type")
-                .is_some_and(|raw| serde_json::from_str::<String>(raw.get()).is_ok_and(|s| s == "object")),
+            schema.get("type").is_some_and(|raw| {
+                serde_json::from_str::<String>(raw.get()).is_ok_and(|s| s == "object")
+            }),
             "tools.parameters_json",
         )?;
         if let Some(json) = &tool.constrained_sampling_json {
@@ -390,16 +421,16 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
                     "selection.model_ref",
                 )?;
                 value(
-                    selection
-                        .reasoning
-                        .as_ref()
-                        .is_none_or(|reasoning| !reasoning.trim().is_empty() && reasoning.len() <= 128),
+                    selection.reasoning.as_ref().is_none_or(|reasoning| {
+                        !reasoning.trim().is_empty() && reasoning.len() <= 128
+                    }),
                     "selection.reasoning",
                 )?;
             }
             source(&input.source)?;
             value(
-                matches!(input.mode, InputMode::Steering | InputMode::Preempt) == input.expected_run_id.is_some(),
+                matches!(input.mode, InputMode::Steering | InputMode::Preempt)
+                    == input.expected_run_id.is_some(),
                 "expected_run_id",
             )?;
             recorded(&input.message)?;
@@ -426,14 +457,19 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
         EntryPayload::RunStarted(run) => {
             context(&run.context)?;
             match &run.cause {
-                RunCause::FollowUp { input_ids } => value(!input_ids.is_empty(), "cause.input_ids")?,
+                RunCause::FollowUp { input_ids } => {
+                    value(!input_ids.is_empty(), "cause.input_ids")?
+                }
                 RunCause::Continue { source: origin, .. } => source(origin)?,
                 _ => {}
             }
         }
         EntryPayload::TurnStarted(turn) => value(turn.ordinal > 0, "ordinal")?,
         EntryPayload::TurnEnded(turn) => {
-            preempt_field(turn.status == TurnStatus::Preempted, turn.preempting_input_id)?;
+            preempt_field(
+                turn.status == TurnStatus::Preempted,
+                turn.preempting_input_id,
+            )?;
             value(
                 turn.status != TurnStatus::Completed || turn.final_gen_id.is_some(),
                 "final_gen_id",
@@ -450,21 +486,32 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
             )?;
             match generation.purpose {
                 GenPurpose::Conversation => value(
-                    generation.run_id.is_some() && generation.turn_id.is_some() && generation.attempt > 0,
+                    generation.run_id.is_some()
+                        && generation.turn_id.is_some()
+                        && generation.attempt > 0,
                     "purpose",
                 )?,
                 GenPurpose::Title => value(
-                    generation.run_id.is_none() && generation.turn_id.is_none() && generation.attempt == 1,
+                    generation.run_id.is_none()
+                        && generation.turn_id.is_none()
+                        && generation.attempt == 1,
                     "purpose",
                 )?,
                 GenPurpose::ToolExtraction { .. } => value(
-                    generation.run_id.is_some() && generation.turn_id.is_none() && generation.attempt == 1,
+                    generation.run_id.is_some()
+                        && generation.turn_id.is_none()
+                        && generation.attempt == 1,
                     "purpose",
                 )?,
-                GenPurpose::Compaction => value(generation.turn_id.is_none() && generation.attempt == 1, "purpose")?,
+                GenPurpose::Compaction => value(
+                    generation.turn_id.is_none() && generation.attempt == 1,
+                    "purpose",
+                )?,
             }
         }
-        EntryPayload::GenFirstSseReceived(first) => timestamp(first.received_at_ms, "received_at_ms")?,
+        EntryPayload::GenFirstSseReceived(first) => {
+            timestamp(first.received_at_ms, "received_at_ms")?
+        }
         EntryPayload::GenEnded(generation) => {
             preempt_field(
                 generation.status == GenStatus::Preempted,
@@ -481,14 +528,18 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
                 usage(tokens, false)?;
             }
             value(
-                generation.context_tokens.is_none_or(|n| n <= MAX_SAFE_INTEGER),
+                generation
+                    .context_tokens
+                    .is_none_or(|n| n <= MAX_SAFE_INTEGER),
                 "context_tokens",
             )?;
         }
         EntryPayload::Message(msg) => {
             recorded(msg)?;
             ownership(
-                matches!(msg.message, AgentMessage::Assistant(_)) && msg.gen_id.is_some() && msg.input_id.is_none(),
+                matches!(msg.message, AgentMessage::Assistant(_))
+                    && msg.gen_id.is_some()
+                    && msg.input_id.is_none(),
                 "message",
             )?;
         }
@@ -506,7 +557,8 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
                 "result.message",
             )?;
             value(
-                tool.result.completeness == MessageCompleteness::Complete && tool.result.input_id.is_none(),
+                tool.result.completeness == MessageCompleteness::Complete
+                    && tool.result.input_id.is_none(),
                 "result.completeness",
             )?;
             if let Some(json) = &tool.metadata_json {
@@ -516,8 +568,13 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
         EntryPayload::InteractionOpened(interaction) => {
             value(interaction.revision == 1, "revision")?;
             match &interaction.request {
-                InteractionRequest::Question { question, options, .. } => {
-                    value(!question.trim().is_empty() && options.len() <= 12, "request.question")?;
+                InteractionRequest::Question {
+                    question, options, ..
+                } => {
+                    value(
+                        !question.trim().is_empty() && options.len() <= 12,
+                        "request.question",
+                    )?;
                 }
                 InteractionRequest::Permission { target, .. } => {
                     value(Path::new(&target.path).is_absolute(), "request.target.path")?;
@@ -546,8 +603,12 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
                 "context_window",
             )?;
             value(
-                compacted.tokens_before.is_none_or(|n| n <= MAX_SAFE_INTEGER)
-                    && compacted.estimated_tokens_before.is_none_or(|n| n <= MAX_SAFE_INTEGER),
+                compacted
+                    .tokens_before
+                    .is_none_or(|n| n <= MAX_SAFE_INTEGER)
+                    && compacted
+                        .estimated_tokens_before
+                        .is_none_or(|n| n <= MAX_SAFE_INTEGER),
                 "tokens_before",
             )?;
         }
@@ -574,7 +635,9 @@ pub(crate) fn validate_deletion_marker(marker: &DeletionMarker) -> Result<(), Va
             && components[1].len() == 4
             && components[1].bytes().all(|byte| byte.is_ascii_digit())
             && components[2].len() == 2
-            && components[2].parse::<u8>().is_ok_and(|month| (1..=12).contains(&month))
+            && components[2]
+                .parse::<u8>()
+                .is_ok_and(|month| (1..=12).contains(&month))
             && components[3] == format!("{}.jsonl", marker.session_id),
         "journal_relpath",
     )?;
@@ -597,11 +660,17 @@ pub fn validate_model_context(
                 msg,
                 true,
                 true,
-                capabilities.input_modalities.contains(&InputModality::Image),
+                capabilities
+                    .input_modalities
+                    .contains(&InputModality::Image),
             )?;
             match msg {
                 AgentMessage::Assistant(assistant) => {
-                    require(pending.is_empty(), ValidationCode::UnpairedToolCall, "content")?;
+                    require(
+                        pending.is_empty(),
+                        ValidationCode::UnpairedToolCall,
+                        "content",
+                    )?;
                     for block in &assistant.content {
                         if let ContentBlock::ToolCall { id, name, .. } = block {
                             pending.insert(id, name);
@@ -615,7 +684,11 @@ pub fn validate_model_context(
                         "tool_call_id",
                     )?;
                 }
-                AgentMessage::User(_) => require(pending.is_empty(), ValidationCode::UnpairedToolCall, "content")?,
+                AgentMessage::User(_) => require(
+                    pending.is_empty(),
+                    ValidationCode::UnpairedToolCall,
+                    "content",
+                )?,
             }
             Ok(())
         })();
@@ -624,7 +697,11 @@ pub fn validate_model_context(
             return Err(error);
         }
     }
-    require(pending.is_empty(), ValidationCode::UnpairedToolCall, "messages")
+    require(
+        pending.is_empty(),
+        ValidationCode::UnpairedToolCall,
+        "messages",
+    )
 }
 
 #[derive(Default)]
@@ -658,7 +735,10 @@ struct History<'a> {
 
 impl<'a> History<'a> {
     fn origin(&self, mut run: &'a RunStarted) -> &'a RunCause {
-        while let RunCause::Continue { previous_run_id, .. } = run.cause {
+        while let RunCause::Continue {
+            previous_run_id, ..
+        } = run.cause
+        {
             run = self.runs[&previous_run_id].0;
         }
         &run.cause
@@ -703,7 +783,9 @@ impl<'a> History<'a> {
                 .and_then(|id| self.entries.get(id))
                 .copied();
             value(
-                upper.zip(end_position).is_some_and(|(upper, end)| end <= upper),
+                upper
+                    .zip(end_position)
+                    .is_some_and(|(upper, end)| end <= upper),
                 "boundary.after_turn_id",
             )?;
             self.closed_tools(turn.turn_id)?;
@@ -712,7 +794,8 @@ impl<'a> History<'a> {
     }
 
     fn preempt(&self, input_id: InputId, run_id: RunId) -> Result<(), ValidationError> {
-        let (input, finished) = reference(self.inputs.get(&input_id).copied(), "preempting_input_id")?;
+        let (input, finished) =
+            reference(self.inputs.get(&input_id).copied(), "preempting_input_id")?;
         ownership(
             input.mode == InputMode::Preempt && input.expected_run_id == Some(run_id),
             "preempting_input_id",
@@ -762,7 +845,8 @@ impl<'a> History<'a> {
                 continue;
             }
             let msg = reference(
-                end.assistant_message_id.and_then(|id| self.messages.get(&id).copied()),
+                end.assistant_message_id
+                    .and_then(|id| self.messages.get(&id).copied()),
                 "assistant_message_id",
             )?;
             let AgentMessage::Assistant(assistant) = &msg.message else {
@@ -773,9 +857,15 @@ impl<'a> History<'a> {
                     let outcome = self
                         .tools
                         .values()
-                        .find(|(tool, _)| tool.key.gen_id == generation.gen_id && tool.key.provider_call_id == *id)
+                        .find(|(tool, _)| {
+                            tool.key.gen_id == generation.gen_id && tool.key.provider_call_id == *id
+                        })
                         .and_then(|(_, outcome)| *outcome);
-                    require(outcome.is_some(), ValidationCode::UnpairedToolCall, "tool_outcome")?;
+                    require(
+                        outcome.is_some(),
+                        ValidationCode::UnpairedToolCall,
+                        "tool_outcome",
+                    )?;
                 }
             }
         }
@@ -800,7 +890,8 @@ impl<'a> History<'a> {
                 }
                 self.message(&input.message)?;
                 self.inputs.insert(input.input_id, (input, false));
-                self.input_positions.insert(input.input_id, entry.sequence.0 as usize);
+                self.input_positions
+                    .insert(input.input_id, entry.sequence.0 as usize);
             }
             EntryPayload::InputConsumed(input) => {
                 let turn = self.turn(input.turn_id)?;
@@ -816,7 +907,8 @@ impl<'a> History<'a> {
                 let run = self.run(input.run_id)?;
                 let mut previous_sequence = 0;
                 for id in &input.input_ids {
-                    let (accepted, finished) = reference(self.inputs.get(id).copied(), "input_ids")?;
+                    let (accepted, finished) =
+                        reference(self.inputs.get(id).copied(), "input_ids")?;
                     transition(!finished, "input_ids")?;
                     let position = self.input_positions[id];
                     transition(position > previous_sequence, "input_ids")?;
@@ -831,7 +923,10 @@ impl<'a> History<'a> {
                             let RunCause::FollowUp { input_ids } = self.origin(run) else {
                                 return ownership(false, "input_ids");
                             };
-                            ownership(input_ids == &input.input_ids && turn.ordinal == 1, "input_ids")?;
+                            ownership(
+                                input_ids == &input.input_ids && turn.ordinal == 1,
+                                "input_ids",
+                            )?;
                             let earlier = self.inputs.iter().any(|(candidate, (input, done))| {
                                 !done
                                     && input.mode == InputMode::FollowUp
@@ -851,13 +946,17 @@ impl<'a> History<'a> {
                 }
                 for id in &input.input_ids {
                     let accepted = self.inputs[id].0;
-                    self.effective
-                        .push((entry.entry_id, entry.sequence.0 as usize, &accepted.message.message));
+                    self.effective.push((
+                        entry.entry_id,
+                        entry.sequence.0 as usize,
+                        &accepted.message.message,
+                    ));
                     self.inputs.get_mut(id).expect("checked").1 = true;
                     self.consumed_inputs.insert(*id);
                 }
                 self.consumed_turns.insert(input.turn_id);
-                self.consumed_positions.insert(input.turn_id, entry.sequence.0 as usize);
+                self.consumed_positions
+                    .insert(input.turn_id, entry.sequence.0 as usize);
             }
             EntryPayload::InputCancelled(input) => {
                 let (_, done) = reference(self.inputs.get(&input.input_id).copied(), "input_id")?;
@@ -874,7 +973,8 @@ impl<'a> History<'a> {
                 self.boundary(&run.base_context)?;
                 match &run.cause {
                     RunCause::Send { input_id } => {
-                        let (input, done) = reference(self.inputs.get(input_id).copied(), "cause.input_id")?;
+                        let (input, done) =
+                            reference(self.inputs.get(input_id).copied(), "cause.input_id")?;
                         transition(!done && input.mode == InputMode::Send, "cause.input_id")?;
                         let duplicate = self.runs.values().any(|(old, _)| match old.cause {
                             RunCause::Send { input_id: old_id } => old_id == *input_id,
@@ -884,16 +984,20 @@ impl<'a> History<'a> {
                     }
                     RunCause::FollowUp { input_ids } => {
                         transition(
-                            self.last_run_end.is_some_and(|end| end.status == RunStatus::Completed),
+                            self.last_run_end
+                                .is_some_and(|end| end.status == RunStatus::Completed),
                             "cause",
                         )?;
                         let mut seen = HashSet::new();
                         let mut last = 0;
                         for id in input_ids {
                             unique(&mut seen, id, "cause.input_ids")?;
-                            let (input, done) = reference(self.inputs.get(id).copied(), "cause.input_ids")?;
+                            let (input, done) =
+                                reference(self.inputs.get(id).copied(), "cause.input_ids")?;
                             transition(
-                                !done && input.mode == InputMode::FollowUp && self.input_positions[id] > last,
+                                !done
+                                    && input.mode == InputMode::FollowUp
+                                    && self.input_positions[id] > last,
                                 "cause.input_ids",
                             )?;
                             last = self.input_positions[id];
@@ -904,7 +1008,10 @@ impl<'a> History<'a> {
                         client_request_id,
                         source,
                     } => {
-                        let (_, end) = reference(self.runs.get(previous_run_id).copied(), "cause.previous_run_id")?;
+                        let (_, end) = reference(
+                            self.runs.get(previous_run_id).copied(),
+                            "cause.previous_run_id",
+                        )?;
                         let end = reference(end, "cause.previous_run_id")?;
                         transition(
                             end.status != RunStatus::Completed && self.last_run_end == Some(end),
@@ -922,8 +1029,15 @@ impl<'a> History<'a> {
             }
             EntryPayload::TurnStarted(turn) => {
                 let run = self.run(turn.run_id)?;
-                if let RunCause::Continue { previous_run_id, .. } = run.cause {
-                    for (old, _) in self.turns.values().filter(|(old, _)| old.run_id == previous_run_id) {
+                if let RunCause::Continue {
+                    previous_run_id, ..
+                } = run.cause
+                {
+                    for (old, _) in self
+                        .turns
+                        .values()
+                        .filter(|(old, _)| old.run_id == previous_run_id)
+                    {
                         self.closed_tools(old.turn_id)?;
                     }
                 }
@@ -938,12 +1052,14 @@ impl<'a> History<'a> {
                     .filter(|(turn, _)| turn.run_id == run.run_id)
                     .collect();
                 transition(
-                    previous.iter().all(|(_, end)| end.is_some()) && turn.ordinal as usize == previous.len() + 1,
+                    previous.iter().all(|(_, end)| end.is_some())
+                        && turn.ordinal as usize == previous.len() + 1,
                     "ordinal",
                 )?;
                 self.boundary(&turn.boundary)?;
                 self.turns.insert(turn.turn_id, (turn, None));
-                self.turn_positions.insert(turn.turn_id, entry.sequence.0 as usize);
+                self.turn_positions
+                    .insert(turn.turn_id, entry.sequence.0 as usize);
             }
             EntryPayload::GenStarted(generation) => {
                 require(
@@ -969,13 +1085,24 @@ impl<'a> History<'a> {
                             transition(
                                 end.status == GenStatus::Failed
                                     && generation.attempt == old.attempt + 1
-                                    && !self.tools.values().any(|(tool, _)| tool.key.gen_id == old.gen_id),
+                                    && !self
+                                        .tools
+                                        .values()
+                                        .any(|(tool, _)| tool.key.gen_id == old.gen_id),
                                 "attempt",
                             )?;
                         } else {
                             transition(generation.attempt == 1, "attempt")?;
-                            if turn.ordinal == 1 && !matches!(self.run(turn.run_id)?.cause, RunCause::Continue { .. }) {
-                                transition(self.consumed_turns.contains(&turn.turn_id), "input_consumed")?;
+                            if turn.ordinal == 1
+                                && !matches!(
+                                    self.run(turn.run_id)?.cause,
+                                    RunCause::Continue { .. }
+                                )
+                            {
+                                transition(
+                                    self.consumed_turns.contains(&turn.turn_id),
+                                    "input_consumed",
+                                )?;
                             }
                             let run = self.run(turn.run_id)?;
                             let origin_inputs = match self.origin(run) {
@@ -984,7 +1111,9 @@ impl<'a> History<'a> {
                                 RunCause::Continue { .. } => unreachable!(),
                             };
                             transition(
-                                origin_inputs.iter().all(|id| self.consumed_inputs.contains(id)),
+                                origin_inputs
+                                    .iter()
+                                    .all(|id| self.consumed_inputs.contains(id)),
                                 "input_consumed",
                             )?;
                         }
@@ -1003,16 +1132,26 @@ impl<'a> History<'a> {
                         let count = self
                             .gens
                             .values()
-                            .filter(|(g, _)| g.run_id == generation.run_id && g.purpose == GenPurpose::Conversation)
+                            .filter(|(g, _)| {
+                                g.run_id == generation.run_id
+                                    && g.purpose == GenPurpose::Conversation
+                            })
                             .count();
                         transition(
-                            context.limits.max_gens.is_none_or(|limit| count < limit as usize),
+                            context
+                                .limits
+                                .max_gens
+                                .is_none_or(|limit| count < limit as usize),
                             "limits.max_gens",
                         )?;
                     }
                     GenPurpose::ToolExtraction { tool_id } => {
-                        let (tool, outcome) = reference(self.tools.get(&tool_id).copied(), "purpose.tool_id")?;
-                        ownership(generation.run_id == Some(tool.key.run_id), "purpose.tool_id")?;
+                        let (tool, outcome) =
+                            reference(self.tools.get(&tool_id).copied(), "purpose.tool_id")?;
+                        ownership(
+                            generation.run_id == Some(tool.key.run_id),
+                            "purpose.tool_id",
+                        )?;
                         transition(outcome.is_none(), "purpose.tool_id")?;
                         self.turn(tool.key.turn_id)?;
                         transition(
@@ -1025,10 +1164,9 @@ impl<'a> History<'a> {
                     }
                     GenPurpose::Compaction => {
                         transition(
-                            !self
-                                .turns
-                                .values()
-                                .any(|(turn, end)| Some(turn.run_id) == generation.run_id && end.is_none()),
+                            !self.turns.values().any(|(turn, end)| {
+                                Some(turn.run_id) == generation.run_id && end.is_none()
+                            }),
                             "purpose",
                         )?;
                     }
@@ -1060,7 +1198,10 @@ impl<'a> History<'a> {
                 }
                 if let Some(id) = end.assistant_message_id {
                     let msg = reference(self.messages.get(&id).copied(), "assistant_message_id")?;
-                    ownership(msg.gen_id == Some(generation.gen_id), "assistant_message_id")?;
+                    ownership(
+                        msg.gen_id == Some(generation.gen_id),
+                        "assistant_message_id",
+                    )?;
                     let AgentMessage::Assistant(assistant) = &msg.message else {
                         unreachable!()
                     };
@@ -1071,17 +1212,24 @@ impl<'a> History<'a> {
                         )?;
                         message(&msg.message, true, true, false)?;
                         if generation.purpose != GenPurpose::Conversation {
-                            value(assistant.stop_reason != FinishReason::ToolUse, "stop_reason")?;
+                            value(
+                                assistant.stop_reason != FinishReason::ToolUse,
+                                "stop_reason",
+                            )?;
                         }
                     }
                     // A complete response may have committed just before its GenEnded write failed.
                     // Non-completed Gen status still excludes it from replay regardless of completeness.
                     ownership(
-                        end.stop_reason.is_none_or(|reason| reason == assistant.stop_reason),
+                        end.stop_reason
+                            .is_none_or(|reason| reason == assistant.stop_reason),
                         "stop_reason",
                     )?;
                     if end.status == GenStatus::Completed {
-                        ownership(end.stop_reason == Some(assistant.stop_reason), "stop_reason")?;
+                        ownership(
+                            end.stop_reason == Some(assistant.stop_reason),
+                            "stop_reason",
+                        )?;
                     }
                     if assistant.usage.is_some() {
                         ownership(end.usage == assistant.usage, "usage")?;
@@ -1089,11 +1237,16 @@ impl<'a> History<'a> {
                 } else {
                     transition(
                         end.status != GenStatus::Completed
-                            && !self.messages.values().any(|msg| msg.gen_id == Some(generation.gen_id)),
+                            && !self
+                                .messages
+                                .values()
+                                .any(|msg| msg.gen_id == Some(generation.gen_id)),
                         "assistant_message_id",
                     )?;
                 }
-                if generation.purpose == GenPurpose::Conversation && end.status == GenStatus::Completed {
+                if generation.purpose == GenPurpose::Conversation
+                    && end.status == GenStatus::Completed
+                {
                     let id = end.assistant_message_id.expect("checked");
                     self.effective.push((
                         self.message_entries[&id],
@@ -1104,7 +1257,8 @@ impl<'a> History<'a> {
                 self.gens.get_mut(&end.gen_id).expect("checked").1 = Some(end);
             }
             EntryPayload::ToolIntent(tool) => {
-                let (_, ended) = reference(self.turns.get(&tool.key.turn_id).copied(), "key.turn_id")?;
+                let (_, ended) =
+                    reference(self.turns.get(&tool.key.turn_id).copied(), "key.turn_id")?;
                 if let Some(ended) = ended {
                     let active = reference(self.active_run, "settled_by_run_id")?;
                     let run = self.run(active)?;
@@ -1124,7 +1278,10 @@ impl<'a> History<'a> {
                     "assistant_message_id",
                 )?;
                 let msg = self.messages[&tool.assistant_message_id];
-                let block_index = reference(msg.block_ids.iter().position(|id| *id == tool.block_id), "block_id")?;
+                let block_index = reference(
+                    msg.block_ids.iter().position(|id| *id == tool.block_id),
+                    "block_id",
+                )?;
                 let AgentMessage::Assistant(assistant) = &msg.message else {
                     unreachable!()
                 };
@@ -1154,11 +1311,15 @@ impl<'a> History<'a> {
                 let (turn, turn_end) = self.turns[&tool.key.turn_id];
                 if let Some(turn_end) = turn_end {
                     transition(
-                        turn_end.status == TurnStatus::Interrupted && outcome.settled_by_run_id.is_some(),
+                        turn_end.status == TurnStatus::Interrupted
+                            && outcome.settled_by_run_id.is_some(),
                         "tool_id",
                     )?;
                     let run = self.run(outcome.settled_by_run_id.expect("checked"))?;
-                    let RunCause::Continue { previous_run_id, .. } = run.cause else {
+                    let RunCause::Continue {
+                        previous_run_id, ..
+                    } = run.cause
+                    else {
                         return ownership(false, "settled_by_run_id");
                     };
                     ownership(previous_run_id == turn.run_id, "settled_by_run_id")?;
@@ -1177,7 +1338,11 @@ impl<'a> History<'a> {
                 }
                 transition(
                     !self.gens.values().any(|(generation, end)| {
-                        generation.purpose == GenPurpose::ToolExtraction { tool_id: tool.tool_id } && end.is_none()
+                        generation.purpose
+                            == GenPurpose::ToolExtraction {
+                                tool_id: tool.tool_id,
+                            }
+                            && end.is_none()
                     }),
                     "tool_id",
                 )?;
@@ -1199,7 +1364,8 @@ impl<'a> History<'a> {
                     unreachable!()
                 };
                 ownership(
-                    result_msg.tool_call_id == tool.key.provider_call_id && result_msg.tool_name == tool.tool_name,
+                    result_msg.tool_call_id == tool.key.provider_call_id
+                        && result_msg.tool_name == tool.tool_name,
                     "result.message",
                 )?;
                 value(
@@ -1225,14 +1391,19 @@ impl<'a> History<'a> {
                 )?;
                 if matches!(opened.request, InteractionRequest::ToolExecution { .. }) {
                     let run = self.run(opened.run_id)?;
-                    let RunCause::Continue { previous_run_id, .. } = run.cause else {
+                    let RunCause::Continue {
+                        previous_run_id, ..
+                    } = run.cause
+                    else {
                         return transition(false, "request");
                     };
                     transition(
                         self.tools.values().any(|(old, outcome)| {
                             old.key.run_id == previous_run_id
                                 && old.tool_name == tool.tool_name
-                                && outcome.is_some_and(|outcome| outcome.status == ToolStatus::ResultUnknown)
+                                && outcome.is_some_and(|outcome| {
+                                    outcome.status == ToolStatus::ResultUnknown
+                                })
                         }),
                         "request",
                     )?;
@@ -1242,7 +1413,8 @@ impl<'a> History<'a> {
                     ValidationCode::DuplicateIdentity,
                     "interaction_id",
                 )?;
-                self.interactions.insert(opened.interaction_id, (opened, false));
+                self.interactions
+                    .insert(opened.interaction_id, (opened, false));
             }
             EntryPayload::InteractionResolved(resolved) => {
                 let (opened, done) = reference(
@@ -1251,7 +1423,10 @@ impl<'a> History<'a> {
                 )?;
                 transition(!done, "interaction_id")?;
                 answer(&opened.request, &resolved.answer)?;
-                self.interactions.get_mut(&resolved.interaction_id).expect("checked").1 = true;
+                self.interactions
+                    .get_mut(&resolved.interaction_id)
+                    .expect("checked")
+                    .1 = true;
             }
             EntryPayload::InteractionExpired(expired) => {
                 let (opened, done) = reference(
@@ -1264,7 +1439,10 @@ impl<'a> History<'a> {
                     self.interaction_preempts
                         .insert(self.tools[&opened.tool_id].0.key.turn_id, input);
                 }
-                self.interactions.get_mut(&expired.interaction_id).expect("checked").1 = true;
+                self.interactions
+                    .get_mut(&expired.interaction_id)
+                    .expect("checked")
+                    .1 = true;
             }
             EntryPayload::TurnEnded(end) => {
                 let turn = self.turn(end.turn_id)?;
@@ -1282,7 +1460,10 @@ impl<'a> History<'a> {
                     if let Some(trigger) = gen_end.preempting_input_id
                         && end.status == TurnStatus::Preempted
                     {
-                        ownership(end.preempting_input_id == Some(trigger), "preempting_input_id")?;
+                        ownership(
+                            end.preempting_input_id == Some(trigger),
+                            "preempting_input_id",
+                        )?;
                     }
                 } else {
                     transition(
@@ -1300,10 +1481,9 @@ impl<'a> History<'a> {
                     self.closed_tools(turn.turn_id)?;
                 }
                 transition(
-                    !self
-                        .interactions
-                        .values()
-                        .any(|(opened, done)| self.tools[&opened.tool_id].0.key.turn_id == turn.turn_id && !done),
+                    !self.interactions.values().any(|(opened, done)| {
+                        self.tools[&opened.tool_id].0.key.turn_id == turn.turn_id && !done
+                    }),
                     "interaction_id",
                 )?;
                 self.turns.get_mut(&turn.turn_id).expect("checked").1 = Some(end);
@@ -1318,13 +1498,16 @@ impl<'a> History<'a> {
                     "run_id",
                 )?;
                 transition(
-                    self.gens
-                        .values()
-                        .all(|(generation, end)| generation.run_id != Some(run.run_id) || end.is_some()),
+                    self.gens.values().all(|(generation, end)| {
+                        generation.run_id != Some(run.run_id) || end.is_some()
+                    }),
                     "run_id",
                 )?;
                 let limits = &run.context.limits;
-                value(end.tool_calls_used <= limits.max_tool_calls, "tool_calls_used")?;
+                value(
+                    end.tool_calls_used <= limits.max_tool_calls,
+                    "tool_calls_used",
+                )?;
                 if end.status == RunStatus::Completed {
                     let last_turn = self
                         .turns
@@ -1332,14 +1515,15 @@ impl<'a> History<'a> {
                         .filter(|(turn, _)| turn.run_id == run.run_id)
                         .max_by_key(|(turn, _)| turn.ordinal);
                     transition(
-                        last_turn.is_some_and(|(_, end)| end.is_some_and(|end| end.status == TurnStatus::Completed)),
+                        last_turn.is_some_and(|(_, end)| {
+                            end.is_some_and(|end| end.status == TurnStatus::Completed)
+                        }),
                         "status",
                     )?;
                     transition(
-                        !self
-                            .inputs
-                            .values()
-                            .any(|(input, done)| !done && input.expected_run_id == Some(run.run_id)),
+                        !self.inputs.values().any(|(input, done)| {
+                            !done && input.expected_run_id == Some(run.run_id)
+                        }),
                         "input_ids",
                     )?;
                 }
@@ -1357,11 +1541,19 @@ fn answer(request: &InteractionRequest, answer: &InteractionAnswer) -> Result<()
     match (request, answer) {
         (
             InteractionRequest::Question {
-                options, multi_select, ..
+                options,
+                multi_select,
+                ..
             },
-            InteractionAnswer::Question { selected_indices, text },
+            InteractionAnswer::Question {
+                selected_indices,
+                text,
+            },
         ) => {
-            value(*multi_select || selected_indices.len() <= 1, "answer.selected_indices")?;
+            value(
+                *multi_select || selected_indices.len() <= 1,
+                "answer.selected_indices",
+            )?;
             value(
                 !selected_indices.is_empty() || text.as_ref().is_some_and(|s| !s.trim().is_empty()),
                 "answer",
@@ -1427,13 +1619,21 @@ impl<'a> History<'a> {
         )?;
         transition(end.status == GenStatus::Completed, "gen_id")?;
         transition(
-            !self.checkpoints.values().any(|old| old.gen_id == generation.gen_id),
+            !self
+                .checkpoints
+                .values()
+                .any(|old| old.gen_id == generation.gen_id),
             "gen_id",
         )?;
-        let upper_id = reference(compacted.boundary.through_entry_id, "boundary.through_entry_id")?;
+        let upper_id = reference(
+            compacted.boundary.through_entry_id,
+            "boundary.through_entry_id",
+        )?;
         let upper = self.entries[&upper_id];
         let replaced = reference(
-            self.entries.get(&compacted.replaced_through_entry_id).copied(),
+            self.entries
+                .get(&compacted.replaced_through_entry_id)
+                .copied(),
             "replaced_through_entry_id",
         )?;
         value(replaced <= upper, "replaced_through_entry_id")?;
@@ -1443,7 +1643,10 @@ impl<'a> History<'a> {
             .filter(|(id, _)| self.entries[id] <= upper)
             .max_by_key(|(id, _)| self.entries[id])
             .map(|(id, _)| *id);
-        ownership(latest == compacted.previous_checkpoint_id, "previous_checkpoint_id")?;
+        ownership(
+            latest == compacted.previous_checkpoint_id,
+            "previous_checkpoint_id",
+        )?;
         let input = self.effective_at(upper);
         let split = reference(
             input
@@ -1476,7 +1679,10 @@ impl<'a> History<'a> {
         };
         let capabilities = model.capabilities.as_ref().unwrap_or(&unknown);
         validate_model_context(&original, capabilities)?;
-        let prefix: Vec<_> = input[..=split].iter().map(|(_, msg)| (*msg).clone()).collect();
+        let prefix: Vec<_> = input[..=split]
+            .iter()
+            .map(|(_, msg)| (*msg).clone())
+            .collect();
         validate_model_context(&prefix, capabilities)?;
         validate_model_context(&compacted.replacement_history, capabilities)?;
         if let Some(run) = compacted.run_id {
@@ -1512,9 +1718,15 @@ pub fn validate_history(entries: &[JournalEntry]) -> Result<(), ValidationError>
                 "entry_id",
             )?;
             if index == 0 {
-                value(matches!(entry.payload, EntryPayload::SessionHeader), "payload")?;
+                value(
+                    matches!(entry.payload, EntryPayload::SessionHeader),
+                    "payload",
+                )?;
             } else {
-                value(!matches!(entry.payload, EntryPayload::SessionHeader), "payload")?;
+                value(
+                    !matches!(entry.payload, EntryPayload::SessionHeader),
+                    "payload",
+                )?;
                 if index == 1 {
                     value(matches!(entry.payload, EntryPayload::Meta(_)), "payload")?;
                 }
@@ -1546,10 +1758,14 @@ impl ContextBudgetSnapshot {
         let mut model_preferences = None;
         for entry in entries {
             match &entry.payload {
-                EntryPayload::GenStarted(generation) if generation.purpose == GenPurpose::Conversation => {
+                EntryPayload::GenStarted(generation)
+                    if generation.purpose == GenPurpose::Conversation =>
+                {
                     conversation_gens.insert(generation.gen_id);
                 }
-                EntryPayload::GenEnded(generation) if conversation_gens.contains(&generation.gen_id) => {
+                EntryPayload::GenEnded(generation)
+                    if conversation_gens.contains(&generation.gen_id) =>
+                {
                     snapshot.context_tokens = generation.context_tokens;
                     snapshot.latest_gen_end_id = Some(entry.entry_id);
                     snapshot.stale = generation.context_tokens.is_none();
@@ -1558,7 +1774,9 @@ impl ContextBudgetSnapshot {
                     snapshot.latest_compaction_id = Some(entry.entry_id);
                     snapshot.stale = true;
                 }
-                EntryPayload::InputConsumed(_) | EntryPayload::ToolOutcome(_) => snapshot.stale = true,
+                EntryPayload::InputConsumed(_) | EntryPayload::ToolOutcome(_) => {
+                    snapshot.stale = true
+                }
                 EntryPayload::Meta(meta) => {
                     let preferences = (&meta.model_ref, &meta.reasoning);
                     if model_preferences.is_some_and(|old| old != preferences) {

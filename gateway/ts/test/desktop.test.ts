@@ -130,18 +130,27 @@ test("launcher tokens and execution are preserved; search does not read icons", 
   assert.equal("action" in current.hits[0], false);
   const url = current.hits[0].iconUrl;
   assert.ok(url);
-  const [a, b] = await Promise.all([icons.respond(new Request(url)), icons.respond(new Request(url))]);
+  const [a, b] = await Promise.all([
+    icons.respond(new Request(url)),
+    icons.respond(new Request(url)),
+  ]);
   assert.deepEqual([...new Uint8Array(await a.arrayBuffer())], [1, 255]);
   assert.equal(b.status, 200);
   assert.equal(reads, 1);
-  await assert.rejects(api.execute(create(ResultRequestSchema, { token: current.token - 1, id: "slow" })));
+  await assert.rejects(
+    api.execute(create(ResultRequestSchema, { token: current.token - 1, id: "slow" })),
+  );
   failOpen = true;
-  await assert.rejects(api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" })));
+  await assert.rejects(
+    api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" })),
+  );
   assert.deepEqual(actions, []);
   failOpen = false;
   await api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" }));
   assert.deepEqual(actions.slice(0, 3), ["/Applications/Test.app", ["usage", "app:test"], "hide"]);
-  await api.updateLayout(create(UpdateLayoutRequestSchema, { resultCount: 2, mode: LauncherMode.SEARCH }));
+  await api.updateLayout(
+    create(UpdateLayoutRequestSchema, { resultCount: 2, mode: LauncherMode.SEARCH }),
+  );
   await api.updateLayout(create(UpdateLayoutRequestSchema, { mode: LauncherMode.CLIPBOARD }));
   assert.deepEqual(actions.slice(-4), ["search", [800, 188], "clipboard", [800, 580]]);
   await assert.rejects(
@@ -166,7 +175,10 @@ test("service getters are lazy and cache bindings; one service can span owners",
   assert.equal(services.getSystem(), services.getSystem());
   assert.equal(services.getKeyValue(), services.getKeyValue());
   assert.equal(connections, 1);
-  host.registerOwner("native", bindHandlers(ClipboardBiz, { copy: () => create(EmptySchema) }, { partial: true }));
+  host.registerOwner(
+    "native",
+    bindHandlers(ClipboardBiz, { copy: () => create(EmptySchema) }, { partial: true }),
+  );
   host.registerOwner(
     "main",
     bindHandlers(ClipboardBiz, { openResource: () => create(EmptySchema) }, { partial: true }),

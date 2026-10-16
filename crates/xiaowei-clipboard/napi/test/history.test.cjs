@@ -96,7 +96,10 @@ test("native editing, notes and categories round trip through napi", async () =>
     const category = await history.saveCategory("工作", "#F5222D");
     await history.setRemark(first.id, "备注关键词");
     await history.setCategory(first.id, category.id);
-    assert.equal((await history.list({ categoryId: category.id, query: "备注关键词" }))[0].id, first.id);
+    assert.equal(
+      (await history.list({ categoryId: category.id, query: "备注关键词" }))[0].id,
+      first.id,
+    );
     const edited = await history.editText(first.id, "changed");
     assert.equal(edited.id, first.id);
     assert.equal(await history.readText(first.id), "changed");

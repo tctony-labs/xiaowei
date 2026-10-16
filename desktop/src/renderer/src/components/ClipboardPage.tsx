@@ -50,7 +50,9 @@ export function ClipboardPage({
   const [preview, setPreview] = useState<{ id?: string; text?: string; image?: string }>({});
   const version = useRef(0);
   const operation = useRef(false);
-  const latestItem = useRef<{ id: bigint; lastUsedAtMs: bigint; useCount: number } | null | undefined>(undefined);
+  const latestItem = useRef<
+    { id: bigint; lastUsedAtMs: bigint; useCount: number } | null | undefined
+  >(undefined);
   const refresh = useCallback(async () => {
     if (!subscriptionReady.current) return;
     const request = ++version.current;
@@ -105,17 +107,38 @@ export function ClipboardPage({
             create(ClipboardListOptionsSchema, {
               query: searchQuery,
               favoritesOnly: view === "favorites",
-              kind: view === "image" ? ClipboardKind.IMAGE : view === "file" ? ClipboardKind.FILE : undefined,
-              categoryId: !["all", "favorites", "image", "file"].includes(view) ? BigInt(view) : undefined,
+              kind:
+                view === "image"
+                  ? ClipboardKind.IMAGE
+                  : view === "file"
+                    ? ClipboardKind.FILE
+                    : undefined,
+              categoryId: !["all", "favorites", "image", "file"].includes(view)
+                ? BigInt(view)
+                : undefined,
               limit: 50,
               offset,
             }),
           )
         ).items.map(
-          ({ $typeName: _, id, categoryId, kind, previewText, createdAtMs, lastUsedAtMs, ...item }): ClipboardItem => ({
+          ({
+            $typeName: _,
+            id,
+            categoryId,
+            kind,
+            previewText,
+            createdAtMs,
+            lastUsedAtMs,
+            ...item
+          }): ClipboardItem => ({
             ...item,
             id: String(id),
-            kind: kind === ClipboardKind.IMAGE ? "image" : kind === ClipboardKind.FILE ? "file" : "text",
+            kind:
+              kind === ClipboardKind.IMAGE
+                ? "image"
+                : kind === ClipboardKind.FILE
+                  ? "file"
+                  : "text",
             text: previewText,
             createdAt: Number(createdAtMs),
             lastUsedAt: Number(lastUsedAtMs),
@@ -221,7 +244,9 @@ export function ClipboardPage({
     void (async () => {
       for (const id of imageIds.split(",").filter(Boolean)) {
         try {
-          const bytes = (await api.readImage(create(ClipboardItemRequestSchema, { id: BigInt(id) }))).png;
+          const bytes = (
+            await api.readImage(create(ClipboardItemRequestSchema, { id: BigInt(id) }))
+          ).png;
           if (!active) return;
           const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "image/png" }));
           urls.push(url);
@@ -247,7 +272,9 @@ export function ClipboardPage({
       const load = async () => {
         try {
           if (selectedKind === "image") {
-            const bytes = (await api.readImage(create(ClipboardItemRequestSchema, { id: BigInt(id) }))).png;
+            const bytes = (
+              await api.readImage(create(ClipboardItemRequestSchema, { id: BigInt(id) }))
+            ).png;
             if (!active) return;
             url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "image/png" }));
             setPreview({ id, image: url });
@@ -309,9 +336,13 @@ export function ClipboardPage({
             action === "copyPath" || action === "copyDirectory" ? "路径已复制" : "",
           )
         }
-        onOpenUrl={(url) => void act(() => system.openUrl(create(OpenUrlRequestSchema, { url })), "")}
+        onOpenUrl={(url) =>
+          void act(() => system.openUrl(create(OpenUrlRequestSchema, { url })), "")
+        }
         categories={categories}
-        onReadText={async (id) => (await api.readText(create(ClipboardItemRequestSchema, { id: BigInt(id) }))).text}
+        onReadText={async (id) =>
+          (await api.readText(create(ClipboardItemRequestSchema, { id: BigInt(id) }))).text
+        }
         onEditText={async (id, text) => {
           const item = await api.editText(create(EditTextRequestSchema, { id: BigInt(id), text }));
           await refresh();
@@ -332,7 +363,11 @@ export function ClipboardPage({
         }}
         onSaveCategory={async (name, color, id) => {
           await api.saveCategory(
-            create(SaveCategoryRequestSchema, { name, color, id: id === undefined ? undefined : BigInt(id) }),
+            create(SaveCategoryRequestSchema, {
+              name,
+              color,
+              id: id === undefined ? undefined : BigInt(id),
+            }),
           );
           await refresh();
         }}
@@ -372,14 +407,21 @@ export function ClipboardPage({
             false,
           )
         }
-        onCopy={(id) => void act(() => api.copy(create(ClipboardItemRequestSchema, { id: BigInt(id) })), "已复制")}
+        onCopy={(id) =>
+          void act(() => api.copy(create(ClipboardItemRequestSchema, { id: BigInt(id) })), "已复制")
+        }
         onFavorite={(id, favorite) =>
           void act(
             () => api.setFavorite(create(FavoriteRequestSchema, { id: BigInt(id), favorite })),
             favorite ? "已收藏" : "已取消收藏",
           )
         }
-        onDelete={(id) => void act(() => api.delete(create(ClipboardItemRequestSchema, { id: BigInt(id) })), "已删除")}
+        onDelete={(id) =>
+          void act(
+            () => api.delete(create(ClipboardItemRequestSchema, { id: BigInt(id) })),
+            "已删除",
+          )
+        }
       />
     </div>
   );

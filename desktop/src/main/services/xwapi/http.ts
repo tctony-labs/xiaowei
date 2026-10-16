@@ -77,10 +77,15 @@ export class ServerHttpClient {
         httpStatus = response.status;
         if (httpStatus !== 200) throw new HttpRequestError("http_error", "", httpStatus);
         contents = await response.text();
-        if (Buffer.byteLength(contents) > 65_536) throw new HttpRequestError("response_too_large", "", httpStatus);
+        if (Buffer.byteLength(contents) > 65_536)
+          throw new HttpRequestError("response_too_large", "", httpStatus);
       } catch (error) {
         if (error instanceof HttpRequestError) throw error;
-        const category = options.signal.aborted ? "cancelled" : timeout?.aborted ? "timeout" : "network_error";
+        const category = options.signal.aborted
+          ? "cancelled"
+          : timeout?.aborted
+            ? "timeout"
+            : "network_error";
         throw new HttpRequestError(category, "", httpStatus);
       }
 
@@ -96,7 +101,12 @@ export class ServerHttpClient {
         }
         code = envelope.code;
         if (code !== 0) {
-          throw new HttpRequestError("business_error", envelope.msg || "服务器拒绝了此操作", httpStatus, code);
+          throw new HttpRequestError(
+            "business_error",
+            envelope.msg || "服务器拒绝了此操作",
+            httpStatus,
+            code,
+          );
         }
         if (!envelope.data) throw new Error("Missing data");
         return decode(envelope);
@@ -105,7 +115,8 @@ export class ServerHttpClient {
         throw new HttpRequestError("protocol_error", "", httpStatus, code);
       }
     } catch (error) {
-      const failure = error instanceof HttpRequestError ? error : new HttpRequestError("network_error");
+      const failure =
+        error instanceof HttpRequestError ? error : new HttpRequestError("network_error");
       outcome = failure.outcome;
       throw failure;
     } finally {
@@ -118,9 +129,18 @@ export class ServerHttpClient {
       };
       if (outcome === "success" || outcome === "cancelled") {
         console.debug(formatRequestLog("HTTP request completed", metadata));
-      } else if (outcome === "business_error" && code !== ErrorCode.INTERNAL_ERROR && code !== ErrorCode.UNAVAILABLE) {
+      } else if (
+        outcome === "business_error" &&
+        code !== ErrorCode.INTERNAL_ERROR &&
+        code !== ErrorCode.UNAVAILABLE
+      ) {
         console.warn(formatRequestLog("HTTP request completed", metadata));
-      } else if (outcome === "http_error" && httpStatus !== undefined && httpStatus >= 400 && httpStatus < 500) {
+      } else if (
+        outcome === "http_error" &&
+        httpStatus !== undefined &&
+        httpStatus >= 400 &&
+        httpStatus < 500
+      ) {
         console.warn(formatRequestLog("HTTP request completed", metadata));
       } else {
         console.error(formatRequestLog("HTTP request completed", metadata));
@@ -131,7 +151,8 @@ export class ServerHttpClient {
 
 function formatRequestLog(message: string, metadata: Record<string, string | number>) {
   const fields = Object.entries(metadata).map(([key, value]) => {
-    const text = typeof value === "string" && /[\s"=\\]/u.test(value) ? JSON.stringify(value) : String(value);
+    const text =
+      typeof value === "string" && /[\s"=\\]/u.test(value) ? JSON.stringify(value) : String(value);
     return `${key}=${text}`;
   });
   return `${message} ${fields.join(" ")}`;

@@ -30,7 +30,10 @@ pub struct PinyinHaystack {
 ///
 /// 例：`银行` → `[yh, yinhang, yinxing, yx]`、`Q3周报` → `[q3zb, q3zhoubao]`。
 pub fn haystacks(text: &str) -> Vec<String> {
-    haystacks_with_owners(text).into_iter().map(|h| h.text).collect()
+    haystacks_with_owners(text)
+        .into_iter()
+        .map(|h| h.text)
+        .collect()
 }
 
 /// 同 [`haystacks`]，但每条附带**字符归属映射** `owners`（见 [`PinyinHaystack`]），供精确高亮。
@@ -156,7 +159,11 @@ mod tests {
     #[test]
     fn bounded_for_many_heteronyms() {
         let hs = haystacks("重重重重重重重重重重");
-        assert!(hs.len() <= MAX_PINYIN_VARIANTS * 2, "变体数超限: {}", hs.len());
+        assert!(
+            hs.len() <= MAX_PINYIN_VARIANTS * 2,
+            "变体数超限: {}",
+            hs.len()
+        );
     }
 
     fn find<'a>(hs: &'a [PinyinHaystack], text: &str) -> &'a PinyinHaystack {
@@ -171,7 +178,11 @@ mod tests {
         let hs = haystacks_with_owners("微信");
         let full = find(&hs, "weixin");
         assert_eq!(full.owners, vec![0, 0, 0, 1, 1, 1]);
-        assert_eq!(full.text.chars().count(), full.owners.len(), "owners 与 text 等长");
+        assert_eq!(
+            full.text.chars().count(),
+            full.owners.len(),
+            "owners 与 text 等长"
+        );
     }
 
     #[test]
@@ -193,7 +204,10 @@ mod tests {
     fn haystacks_matches_owner_variant_texts() {
         // haystacks() 应与 haystacks_with_owners() 的 text 集合一致（委托关系）。
         let plain = haystacks("银行");
-        let owned: Vec<String> = haystacks_with_owners("银行").into_iter().map(|h| h.text).collect();
+        let owned: Vec<String> = haystacks_with_owners("银行")
+            .into_iter()
+            .map(|h| h.text)
+            .collect();
         assert_eq!(plain, owned);
     }
 }

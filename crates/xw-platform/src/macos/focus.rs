@@ -11,7 +11,11 @@ extern "C" {
     fn AXIsProcessTrusted() -> bool;
     fn AXUIElementCreateApplication(pid: i32) -> AxElement;
     fn AXUIElementSetMessagingTimeout(element: AxElement, timeout: f32) -> i32;
-    fn AXUIElementCopyAttributeValue(element: AxElement, name: *const c_void, value: *mut AxElement) -> i32;
+    fn AXUIElementCopyAttributeValue(
+        element: AxElement,
+        name: *const c_void,
+        value: *mut AxElement,
+    ) -> i32;
     fn AXUIElementPerformAction(element: AxElement, action: *const c_void) -> i32;
 }
 
@@ -45,8 +49,13 @@ fn focused_window(pid: i32) -> Option<OwnedElement> {
     unsafe { AXUIElementSetMessagingTimeout(application.0, 0.1) };
     let attribute = CFString::new("AXFocusedWindow");
     let mut window = ptr::null();
-    let result =
-        unsafe { AXUIElementCopyAttributeValue(application.0, attribute.as_concrete_TypeRef().cast(), &mut window) };
+    let result = unsafe {
+        AXUIElementCopyAttributeValue(
+            application.0,
+            attribute.as_concrete_TypeRef().cast(),
+            &mut window,
+        )
+    };
     if result != 0 || window.is_null() {
         return None;
     }
@@ -72,7 +81,10 @@ impl FocusSnapshot {
         autoreleasepool(|_| {
             let application = NSWorkspace::sharedWorkspace().frontmostApplication()?;
             let window = focused_window(application.processIdentifier());
-            Some(Self { application, window })
+            Some(Self {
+                application,
+                window,
+            })
         })
     }
 
@@ -98,7 +110,9 @@ impl FocusSnapshot {
             if let Some(window) = &self.window {
                 let action = CFString::new("AXRaise");
                 // An invalid or inaccessible window falls back to application activation.
-                let result = unsafe { AXUIElementPerformAction(window.0, action.as_concrete_TypeRef().cast()) };
+                let result = unsafe {
+                    AXUIElementPerformAction(window.0, action.as_concrete_TypeRef().cast())
+                };
                 if result != 0 {
                     self.window = None;
                 }
@@ -112,7 +126,10 @@ impl FocusSnapshot {
             if self.application.isTerminated() || frontmost_process() != Some(self.process_id()) {
                 return false;
             }
-            match (&self.window, focused_window(self.application.processIdentifier())) {
+            match (
+                &self.window,
+                focused_window(self.application.processIdentifier()),
+            ) {
                 (Some(expected), Some(actual)) => unsafe { CFEqual(expected.0, actual.0) },
                 _ => true,
             }

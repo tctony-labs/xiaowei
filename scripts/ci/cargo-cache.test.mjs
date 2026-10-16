@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -13,14 +22,26 @@ function fixture(context) {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-cargo-cache-"));
   const workspace = join(directory, "workspace");
   mkdirSync(join(workspace, "src"), { recursive: true });
-  writeFileSync(join(workspace, "Cargo.toml"), '[package]\nname = "cargo-cache-fixture"\nversion = "0.1.0"\n');
+  writeFileSync(
+    join(workspace, "Cargo.toml"),
+    '[package]\nname = "cargo-cache-fixture"\nversion = "0.1.0"\n',
+  );
   writeFileSync(join(workspace, "src/main.rs"), 'fn main() { println!("first"); }\n');
   execFileSync("git", ["init", "-q"], { cwd: workspace });
   execFileSync("git", ["add", "Cargo.toml", "src/main.rs"], { cwd: workspace });
   context.after(() => rmSync(directory, { recursive: true, force: true }));
-  const env = { ...process.env, CARGO_INCREMENTAL: "0", RUSTFLAGS: "", CARGO_ENCODED_RUSTFLAGS: "" };
+  const env = {
+    ...process.env,
+    CARGO_INCREMENTAL: "0",
+    RUSTFLAGS: "",
+    CARGO_ENCODED_RUSTFLAGS: "",
+  };
   const run = (mode, overrides = {}) =>
-    execFileSync(process.execPath, [script, mode], { cwd: workspace, env: { ...env, ...overrides }, encoding: "utf8" });
+    execFileSync(process.execPath, [script, mode], {
+      cwd: workspace,
+      env: { ...env, ...overrides },
+      encoding: "utf8",
+    });
   return { directory, workspace, env, run };
 }
 
@@ -116,7 +137,11 @@ test("unsupported timestamp snapshots fail instead of changing source timestamps
   const snapshot = join(workspace, "target/ci-input-timestamps.json");
   const entries = JSON.parse(readFileSync(snapshot, "utf8"));
   writeFileSync(snapshot, JSON.stringify({ ...entries, version: 0 }));
-  const result = spawnSync(process.execPath, [script, "restore"], { cwd: workspace, env, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [script, "restore"], {
+    cwd: workspace,
+    env,
+    encoding: "utf8",
+  });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Unsupported Cargo input timestamp snapshot/);
 });

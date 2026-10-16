@@ -26,7 +26,9 @@ export async function attachLlm(
   return {
     updateModels(entries: readonly ResolvedModelConfig[]) {
       if (closing)
-        return Promise.reject(new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "LLM service closed" }));
+        return Promise.reject(
+          new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "LLM service closed" }),
+        );
       let request: ReturnType<typeof encodeModels>;
       try {
         request = encodeModels(entries);
@@ -34,7 +36,8 @@ export async function attachLlm(
         return Promise.reject(error);
       }
       const update = queue.then(async () => {
-        if (closing) throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "LLM service closed" });
+        if (closing)
+          throw new GatewayFailure({ code: "OWNER_UNAVAILABLE", message: "LLM service closed" });
         await client.setModels(request);
       });
       queue = update.catch(() => {});

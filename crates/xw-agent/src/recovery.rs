@@ -13,7 +13,9 @@ pub struct RecoveryState {
     pub interactions: Vec<InteractionId>,
 }
 
-pub fn inspect_recovery(entries: &[JournalEntry]) -> std::result::Result<RecoveryState, ValidationError> {
+pub fn inspect_recovery(
+    entries: &[JournalEntry],
+) -> std::result::Result<RecoveryState, ValidationError> {
     validate_history(entries)?;
     let mut inputs = BTreeSet::new();
     let mut runs = BTreeSet::new();
@@ -87,7 +89,8 @@ pub fn settle_interrupted(
     known_failed_run: Option<RunId>,
     recovered_at_ms: i64,
 ) -> Result<RecoveryState> {
-    let state = inspect_recovery(journal.entries()).map_err(|_| xw_agent_rollout::RolloutError::InvalidHistory)?;
+    let state = inspect_recovery(journal.entries())
+        .map_err(|_| xw_agent_rollout::RolloutError::InvalidHistory)?;
     let entries = journal.entries().to_vec();
     let gens: BTreeMap<_, _> = entries
         .iter()
@@ -100,7 +103,9 @@ pub fn settle_interrupted(
         let revision = entries
             .iter()
             .find_map(|entry| match &entry.payload {
-                EntryPayload::InteractionOpened(opened) if opened.interaction_id == *id => Some(opened.revision),
+                EntryPayload::InteractionOpened(opened) if opened.interaction_id == *id => {
+                    Some(opened.revision)
+                }
                 _ => None,
             })
             .expect("validated");
@@ -144,10 +149,16 @@ pub fn settle_interrupted(
         )?;
     }
     for id in &state.turns {
-        let final_gen_id = journal.entries().iter().rev().find_map(|entry| match &entry.payload {
-            EntryPayload::GenStarted(generation) if generation.turn_id == Some(*id) => Some(generation.gen_id),
-            _ => None,
-        });
+        let final_gen_id = journal
+            .entries()
+            .iter()
+            .rev()
+            .find_map(|entry| match &entry.payload {
+                EntryPayload::GenStarted(generation) if generation.turn_id == Some(*id) => {
+                    Some(generation.gen_id)
+                }
+                _ => None,
+            });
         // Interrupted permits unresolved tool results, unlike a normal failed terminal.
         journal.append(
             EntryPayload::TurnEnded(TurnEnded {

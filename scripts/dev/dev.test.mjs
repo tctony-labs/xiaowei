@@ -154,7 +154,12 @@ test("start cleanup stops a respawning supervisor without leaving its replacemen
     const start = justfile.indexOf("    kill_tree() {");
     const end = justfile.indexOf("\n    }", start) + "\n    }".length;
     const cleanup = justfile.slice(start, end);
-    const cleanupProcess = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1"`, "cleanup", String(supervisor.pid)]);
+    const cleanupProcess = spawn("bash", [
+      "-c",
+      `${cleanup}\nkill_tree "$1"`,
+      "cleanup",
+      String(supervisor.pid),
+    ]);
     let errors = "";
     cleanupProcess.stderr.on("data", (chunk) => {
       errors += chunk;
@@ -237,9 +242,13 @@ test("start cleanup preserves default TERM grace periods and allows shorter test
     ["", 30],
     ["2", 2],
   ]) {
-    const output = execFileSync("bash", ["-c", `${signals}\n${cleanup}\nkill_tree 12345 ${argument}`], {
-      encoding: "utf8",
-    });
+    const output = execFileSync(
+      "bash",
+      ["-c", `${signals}\n${cleanup}\nkill_tree 12345 ${argument}`],
+      {
+        encoding: "utf8",
+      },
+    );
     assert.deepEqual(output.trim().split("\n"), [
       "-TERM:0",
       `-STOP:${polls}`,
@@ -298,7 +307,12 @@ for (const stubborn of [false, true]) {
       const end = justfile.indexOf("\n    }", start) + "\n    }".length;
       const cleanup = justfile.slice(start, end);
       // Two 200ms polls retain a real TERM grace period without waiting six seconds per phase.
-      const cleaner = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1" 2`, "cleanup", String(supervisor.pid)]);
+      const cleaner = spawn("bash", [
+        "-c",
+        `${cleanup}\nkill_tree "$1" 2`,
+        "cleanup",
+        String(supervisor.pid),
+      ]);
       let errors = "";
       cleaner.stderr.on("data", (chunk) => {
         errors += chunk;
@@ -361,7 +375,12 @@ test("start cleanup lets dev.mjs finish its IPC shutdown before signalling desce
     const start = justfile.indexOf("    kill_tree() {");
     const end = justfile.indexOf("\n    }", start) + "\n    }".length;
     const cleanup = justfile.slice(start, end);
-    const cleaner = spawn("bash", ["-c", `${cleanup}\nkill_tree "$1"`, "cleanup", String(controller.pid)]);
+    const cleaner = spawn("bash", [
+      "-c",
+      `${cleanup}\nkill_tree "$1"`,
+      "cleanup",
+      String(controller.pid),
+    ]);
     const [code] = await once(cleaner, "close");
     assert.equal(code, 0);
     assert.deepEqual(await closed, [0, null]);

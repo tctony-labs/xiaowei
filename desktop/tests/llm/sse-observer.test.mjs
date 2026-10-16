@@ -21,7 +21,9 @@ test("SSE observation handles split bytes, heartbeat, CR/LF and forwards origina
           }),
           { headers: { "content-type": "text/event-stream; charset=utf-8" } },
         );
-      const response = await observeSseFetch((time) => timestamps.push(time))("http://fixture.test");
+      const response = await observeSseFetch((time) => timestamps.push(time))(
+        "http://fixture.test",
+      );
       assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
       assert.equal(timestamps.length, 1);
       assert.ok(timestamps[0] > 0);
@@ -65,7 +67,9 @@ test("cancel and stream failure reach the original response body", async () => {
         }),
         { headers: { "content-type": "text/event-stream" } },
       );
-    const response = await observeSseFetch(() => assert.fail("no data received"))("http://fixture.test");
+    const response = await observeSseFetch(() => assert.fail("no data received"))(
+      "http://fixture.test",
+    );
     await response.body.cancel();
     assert.equal(cancelled, true);
     globalThis.fetch = async () =>
@@ -77,7 +81,9 @@ test("cancel and stream failure reach the original response body", async () => {
         }),
         { headers: { "content-type": "text/event-stream" } },
       );
-    const failed = await observeSseFetch(() => assert.fail("no data received"))("http://fixture.test");
+    const failed = await observeSseFetch(() => assert.fail("no data received"))(
+      "http://fixture.test",
+    );
     await assert.rejects(failed.text(), /upstream failure/);
   } finally {
     globalThis.fetch = originalFetch;

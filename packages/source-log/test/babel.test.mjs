@@ -18,7 +18,8 @@ function transform(code, options = {}, file = filename) {
 }
 
 test("Babel adapter injects original RN TSX locations while preserving directives and nested calls", () => {
-  const code = '"use strict";\nconst screen: unknown = <View />;\nconsole.info("outer", console.warn("inner"));';
+  const code =
+    '"use strict";\nconst screen: unknown = <View />;\nconsole.info("outer", console.warn("inner"));';
   const result = transform(code);
   assert.ok(result.code.startsWith('"use strict";'));
   assert.equal(result.code.match(/mobile\/src\/App.tsx:3/g).length, 2);

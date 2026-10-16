@@ -46,7 +46,8 @@ export interface StreamOptions {
   signal?: AbortSignal;
 }
 export type ByteSource = AsyncIterable<Uint8Array>;
-export const streamError = (code: GatewayError["code"], message: string) => new GatewayFailure({ code, message });
+export const streamError = (code: GatewayError["code"], message: string) =>
+  new GatewayFailure({ code, message });
 
 /** Registers cancellation before opening; no source.next() until the consumer requests it. */
 export async function openStream(
@@ -88,7 +89,10 @@ export async function openStream(
     settled();
     const completed = activeWork.catch(() => {}).then(() => actualCleanup);
     cleanup = new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(streamError("TIMEOUT", "producer cleanup timed out")), 1000);
+      const timeout = setTimeout(
+        () => reject(streamError("TIMEOUT", "producer cleanup timed out")),
+        1000,
+      );
       completed.then(
         () => {
           clearTimeout(timeout);
@@ -141,7 +145,10 @@ export async function openStream(
   rejectPending = undefined;
   deadline(policy.consumerIdleMs, "consumer idle");
   if (policy.totalMs)
-    total = setTimeout(() => finish(streamError("TIMEOUT", "stream total timed out")), policy.totalMs);
+    total = setTimeout(
+      () => finish(streamError("TIMEOUT", "stream total timed out")),
+      policy.totalMs,
+    );
   const stream: ResponseStream<Uint8Array> = {
     policy: Object.freeze({ ...policy }),
     closed,
@@ -166,8 +173,10 @@ export async function openStream(
           finish("end");
           return { done: true, value: undefined };
         }
-        if (!(item.value instanceof Uint8Array)) throw streamError("HANDLER_ERROR", "chunk must be PB bytes");
-        if (item.value.byteLength > policy.maxChunkBytes) throw streamError("RESOURCE_EXHAUSTED", "chunk too large");
+        if (!(item.value instanceof Uint8Array))
+          throw streamError("HANDLER_ERROR", "chunk must be PB bytes");
+        if (item.value.byteLength > policy.maxChunkBytes)
+          throw streamError("RESOURCE_EXHAUSTED", "chunk too large");
         deadline(policy.consumerIdleMs, "consumer idle");
         return { done: false, value: item.value };
       } catch (error) {
@@ -253,7 +262,10 @@ export function boundedByteQueue(policy: StreamPolicy, signal: AbortSignal) {
       }
       sending = true;
       try {
-        while (!ended && (queue.length >= policy.queueItems || bytes + value.byteLength > policy.queueBytes))
+        while (
+          !ended &&
+          (queue.length >= policy.queueItems || bytes + value.byteLength > policy.queueBytes)
+        )
           await new Promise<void>((resolve) => {
             room = resolve;
           });

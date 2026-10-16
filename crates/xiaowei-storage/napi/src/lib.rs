@@ -23,17 +23,27 @@ impl Storage {
     }
 
     #[napi]
-    pub fn create_key_value_gateway_endpoint(&self, env: napi::Env) -> napi::Result<GatewayEndpoint> {
+    pub fn create_key_value_gateway_endpoint(
+        &self,
+        env: napi::Env,
+    ) -> napi::Result<GatewayEndpoint> {
         gateway::create_key_value_endpoint(&self.database, env)
     }
 
     #[napi]
-    pub fn create_clipboard_dao_gateway_endpoint(&self, env: napi::Env) -> napi::Result<GatewayEndpoint> {
+    pub fn create_clipboard_dao_gateway_endpoint(
+        &self,
+        env: napi::Env,
+    ) -> napi::Result<GatewayEndpoint> {
         gateway::create_clipboard_dao_endpoint(&self.database, env)
     }
 
     #[napi]
-    pub fn create_settings_gateway_endpoint(&self, env: napi::Env, platform: String) -> napi::Result<GatewayEndpoint> {
+    pub fn create_settings_gateway_endpoint(
+        &self,
+        env: napi::Env,
+        platform: String,
+    ) -> napi::Result<GatewayEndpoint> {
         gateway::create_settings_endpoint(&self.database, env, platform)
     }
 }

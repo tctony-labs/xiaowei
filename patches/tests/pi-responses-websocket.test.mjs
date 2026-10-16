@@ -22,10 +22,19 @@ const model = (baseUrl) => ({
   cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 0 },
 });
 const user = (text) => ({ role: "user", content: text, timestamp: 0 });
-const base = { apiKey: "fixture-key", sessionId: "session", transport: "auto", maxRetries: 0, timeoutMs: 1000 };
+const base = {
+  apiKey: "fixture-key",
+  sessionId: "session",
+  transport: "auto",
+  maxRetries: 0,
+  timeoutMs: 1000,
+};
 
 async function run(fixture, messages, options = {}, extra = {}) {
-  const events = stream(model(fixture.baseUrl), normalizeContext({ messages, ...extra }), { ...base, ...options });
+  const events = stream(model(fixture.baseUrl), normalizeContext({ messages, ...extra }), {
+    ...base,
+    ...options,
+  });
   const received = [];
   for await (const event of events) received.push(structuredClone(event));
   return { output: await events.result(), events: received };
@@ -39,7 +48,12 @@ test("Responses reuses API Key connections and sends exact deltas without changi
   const fixture = await websocketFixture(t, { message: ({ send }) => textEvents().forEach(send) });
   cleanup(t);
   const extra = { systemPrompt: "system" };
-  const options = { cacheRetention: "none", temperature: 0.4, maxTokens: 128, samplingParams: { top_p: 0.8 } };
+  const options = {
+    cacheRetention: "none",
+    temperature: 0.4,
+    maxTokens: 128,
+    samplingParams: { top_p: 0.8 },
+  };
   const first = await run(fixture, [user("first")], options, extra);
   assert.equal(first.output.stopReason, "stop");
   assert.equal(first.output.api, "openai-responses");
@@ -61,7 +75,12 @@ test("Responses reuses API Key connections and sends exact deltas without changi
   assert.equal(fixture.requests[0].headers.authorization, "Bearer fixture-key");
   assert.equal(fixture.requests[0].headers["chatgpt-account-id"], undefined);
   await run(fixture, [user("edited")], options, extra);
-  await run(fixture, [user("first"), first.output, user("next")], { ...options, temperature: 0.7 }, extra);
+  await run(
+    fixture,
+    [user("first"), first.output, user("next")],
+    { ...options, temperature: 0.7 },
+    extra,
+  );
   assert.equal(fixture.frames[2].body.previous_response_id, undefined);
   assert.equal(fixture.frames[3].body.previous_response_id, undefined);
 });
@@ -102,10 +121,16 @@ test("auto falls back only before sending; explicit WebSocket and cancellation d
   });
   cleanup(t);
   assert.equal((await run(fixture, [user("auto")])).output.stopReason, "stop");
-  assert.equal((await run(fixture, [user("strict")], { transport: "websocket" })).output.stopReason, "error");
+  assert.equal(
+    (await run(fixture, [user("strict")], { transport: "websocket" })).output.stopReason,
+    "error",
+  );
   const controller = new AbortController();
   controller.abort();
-  assert.equal((await run(fixture, [user("abort")], { signal: controller.signal })).output.stopReason, "aborted");
+  assert.equal(
+    (await run(fixture, [user("abort")], { signal: controller.signal })).output.stopReason,
+    "aborted",
+  );
   assert.equal(fixture.requests.filter((request) => request.method === "POST").length, 1);
 });
 
@@ -150,7 +175,8 @@ test("continuation error after response.created fails without retry; cancellatio
   const fixture = await websocketFixture(t, {
     message: ({ send, body }) => {
       send(textEvents()[0]);
-      if (body.input[0].content[0].text === "error") send({ type: "error", code: "previous_response_not_found" });
+      if (body.input[0].content[0].text === "error")
+        send({ type: "error", code: "previous_response_not_found" });
     },
   });
   cleanup(t);
@@ -168,10 +194,14 @@ test("simple options preserve WebSocket selection and successful per-request abo
   const fixture = await websocketFixture(t, { message: ({ send }) => textEvents().forEach(send) });
   cleanup(t);
   const controller = new AbortController();
-  const events = streamSimple(model(fixture.baseUrl), normalizeContext({ messages: [user("one")] }), {
-    ...base,
-    signal: controller.signal,
-  });
+  const events = streamSimple(
+    model(fixture.baseUrl),
+    normalizeContext({ messages: [user("one")] }),
+    {
+      ...base,
+      signal: controller.signal,
+    },
+  );
   const first = await events.result();
   controller.abort();
   await run(fixture, [user("one"), first, user("two")], { maxTokens: 1024 });
@@ -200,7 +230,11 @@ test("thinking, tool arguments and signatures survive a WebSocket tool-result co
         return;
       }
       send({ type: "response.created", response: { id: "first" } });
-      send({ type: "response.output_item.added", output_index: 0, item: { type: "reasoning", id: "r", summary: [] } });
+      send({
+        type: "response.output_item.added",
+        output_index: 0,
+        item: { type: "reasoning", id: "r", summary: [] },
+      });
       send({ type: "response.reasoning_summary_text.delta", output_index: 0, delta: "分析" });
       send({
         type: "response.output_item.done",
@@ -212,11 +246,21 @@ test("thinking, tool arguments and signatures survive a WebSocket tool-result co
           summary: [{ type: "summary_text", text: "分析" }],
         },
       });
-      const tool = { type: "function_call", id: "fc_1", call_id: "call_1", name: "echo", arguments: "" };
+      const tool = {
+        type: "function_call",
+        id: "fc_1",
+        call_id: "call_1",
+        name: "echo",
+        arguments: "",
+      };
       send({ type: "response.output_item.added", output_index: 1, item: tool });
       for (const delta of [args.slice(0, 8), args.slice(8)])
         send({ type: "response.function_call_arguments.delta", output_index: 1, delta });
-      send({ type: "response.output_item.done", output_index: 1, item: { ...tool, arguments: args } });
+      send({
+        type: "response.output_item.done",
+        output_index: 1,
+        item: { ...tool, arguments: args },
+      });
       send({
         type: "response.completed",
         response: {

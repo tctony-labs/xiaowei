@@ -23,7 +23,9 @@ export function GeneralLoginPreview({
   const initialServer = longAddress
     ? "https://development.example.test/xiaowei/very-long-reverse-proxy-path/another-path-segment"
     : "http://127.0.0.1:10001";
-  const [servers, setServers] = useState(emptyServers ? [] : [initialServer, "https://team.example.test/xiaowei"]);
+  const [servers, setServers] = useState(
+    emptyServers ? [] : [initialServer, "https://team.example.test/xiaowei"],
+  );
   const [server, setServer] = useState(emptyServers ? "" : initialServer);
   const [user, setUser] = useState<AccountCardProps["user"]>(
     signedIn ? { uid: "u_7mK2qR9xW4nT8bYpC6dHfA" } : undefined,

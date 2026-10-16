@@ -5,14 +5,21 @@ import { setImmediate } from "node:timers/promises";
 import { Worker } from "node:worker_threads";
 import { create } from "@bufbuild/protobuf";
 import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
-import { bindClient, bindHandlers, bindStreamClient, bindStreamHandlers, methodRoute } from "../src/binding/index.js";
+import {
+  bindClient,
+  bindHandlers,
+  bindStreamClient,
+  bindStreamHandlers,
+  methodRoute,
+} from "../src/binding/index.js";
 import { GatewayFailure } from "../src/core/protocol.js";
 import { GatewayHost } from "../src/core/registry.js";
 import { attachWorker } from "../src/main/worker.js";
 import { Connection } from "../src/worker/protocol.js";
 import { workerFixture } from "./fixtures/worker-client.js";
 
-const code = (code: string) => (e: unknown) => e instanceof GatewayFailure && e.detail.code === code;
+const code = (code: string) => (e: unknown) =>
+  e instanceof GatewayFailure && e.detail.code === code;
 const request = (text = "", id = 3n) =>
   create(EnvelopeSchema, { text, id, blobs: [{ data: Uint8Array.of(0, 128, 255) }] });
 const clients = (host: GatewayHost) => {
@@ -70,7 +77,10 @@ test("worker unary timeout retains execution admission until the handler actuall
     await assert.rejects(unary.echo(request()), code("CONCURRENCY_FULL"));
     fixture.release("unary");
     // Control messages and requests use separate ports; release is not a cleanup acknowledgement.
-    assert.deepEqual(await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"), request());
+    assert.deepEqual(
+      await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"),
+      request(),
+    );
   } finally {
     await fixture.close();
   }
@@ -91,7 +101,10 @@ test("pending open and next cancel independently while uncooperative work retain
       if (text === "openwait") pending = assert.rejects(opening, code("CANCELLED"));
       else {
         const source = await opening;
-        pending = text === "nextwait" ? assert.rejects(source.next(), code("CANCELLED")) : Promise.resolve();
+        pending =
+          text === "nextwait"
+            ? assert.rejects(source.next(), code("CANCELLED"))
+            : Promise.resolve();
       }
       if (text !== "returnwait") await fixture.wait(event);
       controller.abort();
@@ -101,7 +114,10 @@ test("pending open and next cancel independently while uncooperative work retain
       fixture.release(event);
       await fixture.wait("returned");
       // The iterator's return notification precedes the framework's admission cleanup.
-      const replacement = await afterAdmissionReleased(() => stream.watch(request()), "RESOURCE_EXHAUSTED");
+      const replacement = await afterAdmissionReleased(
+        () => stream.watch(request()),
+        "RESOURCE_EXHAUSTED",
+      );
       await replacement.cancel();
     } finally {
       await fixture.close();
@@ -130,8 +146,14 @@ test("worker nested calls preserve permissions and a child stream outlives paren
       trusted: false,
       invoke: [methodRoute(Fixture.method.echo).name, methodRoute(Fixture.method.watch).name],
     });
-    await assert.rejects(bindClient(Fixture, restricted).echo(request("relay")), code("UNAUTHORIZED"));
-    await assert.rejects(bindStreamClient(Fixture, restricted).watch(request("relay")), code("UNAUTHORIZED"));
+    await assert.rejects(
+      bindClient(Fixture, restricted).echo(request("relay")),
+      code("UNAUTHORIZED"),
+    );
+    await assert.rejects(
+      bindStreamClient(Fixture, restricted).watch(request("relay")),
+      code("UNAUTHORIZED"),
+    );
     await unary.echo(request("child-open"));
     assert.equal((await unary.echo(request("child-next"))).text, "child-open");
     await unary.echo(request("child-close"));
@@ -300,7 +322,9 @@ test("worker context tokens expire and cannot be reused on another connection", 
   const host = new GatewayHost();
   const first = await attachWorker(host, "wire", wireWorker("token"));
   const caller = host.client({ caller: "main", trusted: true });
-  const token = new TextDecoder().decode(await caller.invoke(methodRoute(Fixture.method.echo), new Uint8Array()));
+  const token = new TextDecoder().decode(
+    await caller.invoke(methodRoute(Fixture.method.echo), new Uint8Array()),
+  );
   await first.close();
   const expired = await attachWorker(host, "wire", wireWorker("expired"));
   await caller.invoke(methodRoute(Fixture.method.echo), new Uint8Array());
@@ -369,18 +393,33 @@ test("worker endpoint validates route kind and authenticated control metadata", 
     );
     await assert.rejects(
       connection.request(
-        { op: "invoke", rpc: "test-rpc", route: methodRoute(Fixture.method.watch), payload: new Uint8Array(), context },
+        {
+          op: "invoke",
+          rpc: "test-rpc",
+          route: methodRoute(Fixture.method.watch),
+          payload: new Uint8Array(),
+          context,
+        },
         1000,
       ),
       code("WRONG_METHOD_KIND"),
     );
     await assert.rejects(
-      connection.request({ op: "stream.open", stream: "wrong-kind", route, payload: new Uint8Array(), context }, 1000),
+      connection.request(
+        { op: "stream.open", stream: "wrong-kind", route, payload: new Uint8Array(), context },
+        1000,
+      ),
       code("WRONG_METHOD_KIND"),
     );
     await assert.rejects(
       connection.request(
-        { op: "invoke", rpc: "test-rpc", route, payload: new Uint8Array(), context: { token: "missing" } },
+        {
+          op: "invoke",
+          rpc: "test-rpc",
+          route,
+          payload: new Uint8Array(),
+          context: { token: "missing" },
+        },
         1000,
       ),
       code("UNAUTHORIZED"),
@@ -481,7 +520,10 @@ test("worker unary cancel propagates while uncooperative work keeps admission", 
     await fixture.wait("unary-aborted");
     await assert.rejects(unary.echo(request()), code("CONCURRENCY_FULL"));
     fixture.release("unary");
-    assert.deepEqual(await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"), request());
+    assert.deepEqual(
+      await afterAdmissionReleased(() => unary.echo(request()), "CONCURRENCY_FULL"),
+      request(),
+    );
     await assert.rejects(rpc, code("CANCELLED"));
     const immediate = unary.echo(request("wait"));
     const immediateRejected = assert.rejects(immediate, code("CANCELLED"));

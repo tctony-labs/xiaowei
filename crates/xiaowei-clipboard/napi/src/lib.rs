@@ -84,8 +84,11 @@ pub struct ClipboardHistory {
     gateways: Arc<Mutex<Vec<(Weak<XwInvokeRegistry>, Owner)>>>,
 }
 
-async fn run<T>(work: impl std::future::Future<Output = xiaowei_clipboard::Result<T>>) -> napi::Result<T> {
-    work.await.map_err(|error| napi::Error::from_reason(error.to_string()))
+async fn run<T>(
+    work: impl std::future::Future<Output = xiaowei_clipboard::Result<T>>,
+) -> napi::Result<T> {
+    work.await
+        .map_err(|error| napi::Error::from_reason(error.to_string()))
 }
 
 fn parse_id(id: &str) -> napi::Result<i64> {
@@ -151,10 +154,16 @@ impl ClipboardHistory {
     }
 
     #[napi]
-    pub fn create_gateway_endpoint(&self, env: napi::Env) -> napi::Result<gateway::GatewayEndpoint> {
+    pub fn create_gateway_endpoint(
+        &self,
+        env: napi::Env,
+    ) -> napi::Result<gateway::GatewayEndpoint> {
         let (endpoint, registry, owner) =
             gateway::business_endpoint(&env, self.service.clone(), self.registry.clone())?;
-        self.gateways.lock().unwrap().push((Arc::downgrade(&registry), owner));
+        self.gateways
+            .lock()
+            .unwrap()
+            .push((Arc::downgrade(&registry), owner));
         *self.endpoint.lock().unwrap() = Some(Arc::downgrade(&endpoint.inner));
         Ok(endpoint)
     }
@@ -168,7 +177,11 @@ impl ClipboardHistory {
             .unwrap()
             .as_ref()
             .and_then(Weak::upgrade)
-            .ok_or_else(|| napi::Error::from_reason("Create and attach the Gateway endpoint before initializing"))?;
+            .ok_or_else(|| {
+                napi::Error::from_reason(
+                    "Create and attach the Gateway endpoint before initializing",
+                )
+            })?;
         let client = endpoint
             .client()
             .map_err(|error| napi::Error::from_reason(error.to_string()))?;
@@ -198,7 +211,9 @@ impl ClipboardHistory {
     #[napi]
     pub async fn start_monitoring(&self) -> napi::Result<()> {
         if !cfg!(target_os = "macos") {
-            return Err(napi::Error::from_reason("Clipboard monitoring requires macOS"));
+            return Err(napi::Error::from_reason(
+                "Clipboard monitoring requires macOS",
+            ));
         }
         self.service
             .start()
@@ -320,7 +335,13 @@ impl ClipboardHistory {
     ) -> napi::Result<ClipboardCategory> {
         let id = id.map(|id| parse_id(&id)).transpose()?;
         let service = Arc::clone(&self.service);
-        run(async move { service.save_category(id, &name, &color).await.map(Into::into) }).await
+        run(async move {
+            service
+                .save_category(id, &name, &color)
+                .await
+                .map(Into::into)
+        })
+        .await
     }
     #[napi]
     pub async fn delete_category(&self, id: String) -> napi::Result<()> {

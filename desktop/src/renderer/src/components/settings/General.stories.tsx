@@ -13,4 +13,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 export const SignedIn: Story = {};
 export const SignedOut: Story = { args: { loggedIn: false } };
-export const LoginFailed: Story = { args: { loggedIn: false, loginError: true, operationFailure: true } };
+export const LoginFailed: Story = {
+  args: { loggedIn: false, loginError: true, operationFailure: true },
+};

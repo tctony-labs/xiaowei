@@ -2,7 +2,12 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
-import { EmptySchema, ModelSettings, ModelSettingsChangedSchema, ModelSettingsSnapshotSchema } from "xiaowei-contracts";
+import {
+  EmptySchema,
+  ModelSettings,
+  ModelSettingsChangedSchema,
+  ModelSettingsSnapshotSchema,
+} from "xiaowei-contracts";
 import { bindEvent, bindHandlers, bindStreamHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../../services";
@@ -71,10 +76,18 @@ test("product model editor preserves stable IDs and hidden fields and saves only
   expect(screen.getByPlaceholderText("已配置 API Key，留空保留当前值")).toHaveValue("");
   await userEvent.click(screen.getByRole("button", { name: "编辑 upstream" }));
   expect(screen.getByRole("textbox", { name: "上下文窗口大小" })).toHaveValue("");
-  expect(screen.getByRole("textbox", { name: "上下文窗口大小" })).toHaveAttribute("placeholder", "256000");
+  expect(screen.getByRole("textbox", { name: "上下文窗口大小" })).toHaveAttribute(
+    "placeholder",
+    "256000",
+  );
   expect(screen.getByRole("textbox", { name: "最大输出 token" })).toHaveValue("");
-  expect(screen.getByRole("textbox", { name: "最大输出 token" })).toHaveAttribute("placeholder", "32768");
-  fireEvent.change(screen.getByRole("textbox", { name: "模型 ID" }), { target: { value: "renamed-upstream" } });
+  expect(screen.getByRole("textbox", { name: "最大输出 token" })).toHaveAttribute(
+    "placeholder",
+    "32768",
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "模型 ID" }), {
+    target: { value: "renamed-upstream" },
+  });
   await userEvent.click(screen.getByRole("button", { name: "保存模型" }));
   expect(save).not.toHaveBeenCalled();
   // A newer event must not silently rebase the already-open editor onto a newer revision.
@@ -143,7 +156,9 @@ test("closing the import dialog cancels the Gateway stream", async () => {
   expect(screen.getByText("请输入提供方名称")).toBeVisible();
   fireEvent.change(nameInput, { target: { value: "Draft" } });
   expect(screen.queryByText("请输入提供方名称")).toBeNull();
-  fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), { target: { value: "https://example.com/v1" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Base URL" }), {
+    target: { value: "https://example.com/v1" },
+  });
   fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "test" } });
   await userEvent.click(screen.getByRole("button", { name: "导入模型" }));
   await screen.findByRole("status", { name: "加载模型" });
@@ -183,7 +198,10 @@ test("default thinking strength requires a selected model and offers only its su
       {
         get: () => snapshot,
         updateDefaults: (request) => {
-          snapshot = create(ModelSettingsSnapshotSchema, { ...snapshot, defaults: request.defaults });
+          snapshot = create(ModelSettingsSnapshotSchema, {
+            ...snapshot,
+            defaults: request.defaults,
+          });
           return snapshot;
         },
       },
@@ -199,8 +217,12 @@ test("default thinking strength requires a selected model and offers only its su
   expect(thinking).toHaveTextContent("请先选择默认模型");
   const defaultModel = screen.getByRole("button", { name: "默认模型" });
   const smallModel = screen.getByText("小文本任务模型");
-  expect(defaultModel.compareDocumentPosition(thinking) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(thinking.compareDocumentPosition(smallModel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(
+    defaultModel.compareDocumentPosition(thinking) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    thinking.compareDocumentPosition(smallModel) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 
   await userEvent.click(defaultModel);
   await userEvent.click(screen.getByRole("button", { name: "Custom/reasoner" }));

@@ -30,17 +30,28 @@ export default function ModelCatalog({
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <span className="min-w-0">
-                  <span className="block break-all text-[13px]">{modelDisplayName(config.name, model)}</span>
-                  {(config.supportsImage || config.reasoning || context != null || config.maxOutput != null) && (
+                  <span className="block break-all text-[13px]">
+                    {modelDisplayName(config.name, model)}
+                  </span>
+                  {(config.supportsImage ||
+                    config.reasoning ||
+                    context != null ||
+                    config.maxOutput != null) && (
                     <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted">
                       {config.supportsImage && (
-                        <span className="rounded bg-primary-bg px-1.5 py-0.5 text-primary-text">多模态</span>
+                        <span className="rounded bg-primary-bg px-1.5 py-0.5 text-primary-text">
+                          多模态
+                        </span>
                       )}
                       {config.reasoning && (
-                        <span className="rounded bg-primary-bg px-1.5 py-0.5 text-primary-text">深度思考</span>
+                        <span className="rounded bg-primary-bg px-1.5 py-0.5 text-primary-text">
+                          深度思考
+                        </span>
                       )}
                       {context != null && <span>上下文 {context.toLocaleString()}</span>}
-                      {config.maxOutput != null && <span>输出 {config.maxOutput.toLocaleString()}</span>}
+                      {config.maxOutput != null && (
+                        <span>输出 {config.maxOutput.toLocaleString()}</span>
+                      )}
                     </span>
                   )}
                 </span>
@@ -140,7 +151,8 @@ export default function ModelCatalog({
         }
       >
         <p className="text-[13px] text-ink-secondary">
-          确定删除模型“{deleting && modelDisplayName(provider.modelConfigs?.[deleting]?.name, deleting)}”？
+          确定删除模型“
+          {deleting && modelDisplayName(provider.modelConfigs?.[deleting]?.name, deleting)}”？
         </p>
       </Modal>
     </div>

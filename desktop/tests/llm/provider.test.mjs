@@ -37,7 +37,9 @@ test("built LLM worker maps requests, text, usage and unique terminal", async (t
     assert.equal(events[2].value.total, 10n);
     assert.equal(events[3].value.reason, reason);
   }
-  const defaults = await fixture.client.generate(request("defaults", { temperature: undefined, maxTokens: undefined }));
+  const defaults = await fixture.client.generate(
+    request("defaults", { temperature: undefined, maxTokens: undefined }),
+  );
   for await (const _chunk of defaults) {
     // Complete the request before inspecting the captured provider body.
   }
@@ -100,7 +102,8 @@ test("LLM cancellation and owner close abort HTTP, including a paused consumer",
     const stream = await fixture.client.generate(request(text));
     assert.equal((await stream.next()).value.event.case, "firstSseReceived");
     assert.equal((await stream.next()).value.event.value.text, "你");
-    const pending = text === "cancel" ? assert.rejects(stream.next(), code("CANCELLED")) : undefined;
+    const pending =
+      text === "cancel" ? assert.rejects(stream.next(), code("CANCELLED")) : undefined;
     await stream.cancel();
     await pending;
     await waitFor(() => fixture.disconnected.has(text));

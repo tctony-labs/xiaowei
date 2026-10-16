@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ClipboardBiz, ClipboardResourceRequestSchema, EmptySchema, Storage, System } from "xiaowei-contracts";
+import {
+  ClipboardBiz,
+  ClipboardResourceRequestSchema,
+  EmptySchema,
+  Storage,
+  System,
+} from "xiaowei-contracts";
 import { bindClient, bindHandlers, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
@@ -13,7 +19,8 @@ import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/in
 import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
 
 const require = createRequire(import.meta.url);
-const { ClipboardHistory } = require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
+const { ClipboardHistory } =
+  require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
 const nativeStorage = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
 
 test("clipboard usage combines Storage file sizes with attachments and preserves caller permissions", async () => {

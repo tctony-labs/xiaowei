@@ -5,7 +5,8 @@ export function observeSseFetch(onFirstEvent: (receivedAtMs: number) => void): t
     const response = await fetch(input, init);
     if (
       !response.body ||
-      response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "text/event-stream"
+      response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+        "text/event-stream"
     ) {
       return response;
     }
@@ -52,7 +53,11 @@ export function observeSseFetch(onFirstEvent: (receivedAtMs: number) => void): t
         },
       }),
     );
-    return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   };
 }
 

@@ -4,7 +4,10 @@ export function configDocument(models) {
     version: 1,
     defaults: {},
     providers: models.map(
-      ({ provider, providerName: _providerName, api, baseUrl, apiKey, apiKeyEnv, ...model }, index) => ({
+      (
+        { provider, providerName: _providerName, api, baseUrl, apiKey, apiKeyEnv, ...model },
+        index,
+      ) => ({
         id: `provider-${index}`,
         name: `Provider ${index}`,
         provider,

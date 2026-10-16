@@ -97,7 +97,11 @@ pub trait TokenStream {
     fn token_mut(&mut self) -> &mut Token;
 
     fn next(&mut self) -> Option<&Token> {
-        if self.advance() { Some(self.token()) } else { None }
+        if self.advance() {
+            Some(self.token())
+        } else {
+            None
+        }
     }
 
     fn process(&mut self, sink: &mut dyn FnMut(&Token)) {

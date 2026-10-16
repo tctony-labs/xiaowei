@@ -21,25 +21,53 @@ use crate::IndexedApp;
 
 /// (中文名, 英文名, 设置扩展 bundle id)。
 const SETTINGS_PANES: &[(&str, &str, &str)] = &[
-    ("显示器", "Displays", "com.apple.Displays-Settings.extension"),
+    (
+        "显示器",
+        "Displays",
+        "com.apple.Displays-Settings.extension",
+    ),
     ("声音", "Sound", "com.apple.Sound-Settings.extension"),
     ("蓝牙", "Bluetooth", "com.apple.BluetoothSettings"),
     ("网络", "Network", "com.apple.Network-Settings.extension"),
     ("Wi-Fi", "Wi-Fi", "com.apple.wifi-settings-extension"),
     ("电池", "Battery", "com.apple.Battery-Settings.extension"),
-    ("通知", "Notifications", "com.apple.Notifications-Settings.extension"),
-    ("聚焦", "Spotlight", "com.apple.Spotlight-Settings.extension"),
+    (
+        "通知",
+        "Notifications",
+        "com.apple.Notifications-Settings.extension",
+    ),
+    (
+        "聚焦",
+        "Spotlight",
+        "com.apple.Spotlight-Settings.extension",
+    ),
     ("键盘", "Keyboard", "com.apple.Keyboard-Settings.extension"),
-    ("触控板", "Trackpad", "com.apple.Trackpad-Settings.extension"),
+    (
+        "触控板",
+        "Trackpad",
+        "com.apple.Trackpad-Settings.extension",
+    ),
     ("鼠标", "Mouse", "com.apple.Mouse-Settings.extension"),
     (
         "打印机与扫描仪",
         "Printers & Scanners",
         "com.apple.Print-Scan-Settings.extension",
     ),
-    ("墙纸", "Wallpaper", "com.apple.Wallpaper-Settings.extension"),
-    ("桌面与程序坞", "Desktop & Dock", "com.apple.Desktop-Settings.extension"),
-    ("外观", "Appearance", "com.apple.Appearance-Settings.extension"),
+    (
+        "墙纸",
+        "Wallpaper",
+        "com.apple.Wallpaper-Settings.extension",
+    ),
+    (
+        "桌面与程序坞",
+        "Desktop & Dock",
+        "com.apple.Desktop-Settings.extension",
+    ),
+    (
+        "外观",
+        "Appearance",
+        "com.apple.Appearance-Settings.extension",
+    ),
     (
         "屏幕保护程序",
         "Screen Saver",
@@ -65,7 +93,11 @@ const SETTINGS_PANES: &[(&str, &str, &str)] = &[
         "Touch ID & Password",
         "com.apple.Touch-ID-Settings.extension",
     ),
-    ("锁定屏幕", "Lock Screen", "com.apple.Lock-Screen-Settings.extension"),
+    (
+        "锁定屏幕",
+        "Lock Screen",
+        "com.apple.Lock-Screen-Settings.extension",
+    ),
     (
         "用户与群组",
         "Users & Groups",
@@ -76,7 +108,11 @@ const SETTINGS_PANES: &[(&str, &str, &str)] = &[
         "Screen Time",
         "com.apple.Screen-Time-Settings.extension",
     ),
-    ("关于本机", "About", "com.apple.SystemProfiler.AboutExtension"),
+    (
+        "关于本机",
+        "About",
+        "com.apple.SystemProfiler.AboutExtension",
+    ),
     (
         "软件更新",
         "Software Update",
@@ -88,10 +124,22 @@ const SETTINGS_PANES: &[(&str, &str, &str)] = &[
         "Language & Region",
         "com.apple.Localization-Settings.extension",
     ),
-    ("日期与时间", "Date & Time", "com.apple.Date-Time-Settings.extension"),
+    (
+        "日期与时间",
+        "Date & Time",
+        "com.apple.Date-Time-Settings.extension",
+    ),
     ("共享", "Sharing", "com.apple.Sharing-Settings.extension"),
-    ("时间机器", "Time Machine", "com.apple.Time-Machine-Settings.extension"),
-    ("启动磁盘", "Startup Disk", "com.apple.Startup-Disk-Settings.extension"),
+    (
+        "时间机器",
+        "Time Machine",
+        "com.apple.Time-Machine-Settings.extension",
+    ),
+    (
+        "启动磁盘",
+        "Startup Disk",
+        "com.apple.Startup-Disk-Settings.extension",
+    ),
     (
         "互联网账户",
         "Internet Accounts",
@@ -109,8 +157,16 @@ const SETTINGS_PANES: &[(&str, &str, &str)] = &[
         "com.apple.systempreferences.AppleIDSettings",
     ),
     ("家人", "Family", "com.apple.Family-Settings.extension"),
-    ("游戏中心", "Game Center", "com.apple.Game-Center-Settings.extension"),
-    ("登录项", "Login Items", "com.apple.LoginItems-Settings.extension"),
+    (
+        "游戏中心",
+        "Game Center",
+        "com.apple.Game-Center-Settings.extension",
+    ),
+    (
+        "登录项",
+        "Login Items",
+        "com.apple.LoginItems-Settings.extension",
+    ),
     (
         "VPN",
         "VPN",
@@ -206,22 +262,55 @@ mod tests {
     #[test]
     fn displays_has_pinyin_and_english_alias() {
         let items = catalog_items();
-        let displays = items.iter().find(|i| i.entry.name == "显示器").expect("应含显示器");
-        assert!(displays.pinyin_haystacks.iter().any(|h| h == "xianshiqi"), "缺全拼");
-        assert!(displays.pinyin_haystacks.iter().any(|h| h == "xsq"), "缺首字母");
-        assert!(displays.pinyin_haystacks.iter().any(|h| h == "displays"), "缺英文别名");
-        assert!(displays.entry.aliases.iter().any(|alias| alias == "屏幕"), "缺中文别名");
-        assert!(displays.pinyin_haystacks.iter().any(|h| h == "pingmu"), "缺别名全拼");
-        assert!(displays.pinyin_haystacks.iter().any(|h| h == "pm"), "缺别名首字母");
+        let displays = items
+            .iter()
+            .find(|i| i.entry.name == "显示器")
+            .expect("应含显示器");
+        assert!(
+            displays.pinyin_haystacks.iter().any(|h| h == "xianshiqi"),
+            "缺全拼"
+        );
+        assert!(
+            displays.pinyin_haystacks.iter().any(|h| h == "xsq"),
+            "缺首字母"
+        );
+        assert!(
+            displays.pinyin_haystacks.iter().any(|h| h == "displays"),
+            "缺英文别名"
+        );
+        assert!(
+            displays.entry.aliases.iter().any(|alias| alias == "屏幕"),
+            "缺中文别名"
+        );
+        assert!(
+            displays.pinyin_haystacks.iter().any(|h| h == "pingmu"),
+            "缺别名全拼"
+        );
+        assert!(
+            displays.pinyin_haystacks.iter().any(|h| h == "pm"),
+            "缺别名首字母"
+        );
         assert_eq!(displays.entry.kind, AppKind::PreferencePane);
     }
 
     #[test]
     fn battery_has_power_alias_and_pinyin() {
         let items = catalog_items();
-        let battery = items.iter().find(|i| i.entry.name == "电池").expect("应含电池");
-        assert!(battery.entry.aliases.iter().any(|alias| alias == "电源"), "缺中文别名");
-        assert!(battery.pinyin_haystacks.iter().any(|h| h == "dianyuan"), "缺别名全拼");
-        assert!(battery.pinyin_haystacks.iter().any(|h| h == "dy"), "缺别名首字母");
+        let battery = items
+            .iter()
+            .find(|i| i.entry.name == "电池")
+            .expect("应含电池");
+        assert!(
+            battery.entry.aliases.iter().any(|alias| alias == "电源"),
+            "缺中文别名"
+        );
+        assert!(
+            battery.pinyin_haystacks.iter().any(|h| h == "dianyuan"),
+            "缺别名全拼"
+        );
+        assert!(
+            battery.pinyin_haystacks.iter().any(|h| h == "dy"),
+            "缺别名首字母"
+        );
     }
 }

@@ -13,7 +13,11 @@ export function createClient(
   const signal = options.signal ?? new AbortController().signal;
   return Object.freeze({
     context(): CallContext {
-      if (!context) throw new GatewayFailure({ code: "UNAUTHORIZED", message: "client has no local handler context" });
+      if (!context)
+        throw new GatewayFailure({
+          code: "UNAUTHORIZED",
+          message: "client has no local handler context",
+        });
       return context;
     },
     options<S extends DescMessage>(schema: S): MessageShape<S> | undefined {
@@ -21,14 +25,18 @@ export function createClient(
       try {
         return fromBinary(schema, options.serviceOptions);
       } catch {
-        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "invalid service options protobuf" });
+        throw new GatewayFailure({
+          code: "INVALID_ARGUMENT",
+          message: "invalid service options protobuf",
+        });
       }
     },
     cancellation(): AbortSignal {
       return signal;
     },
     stream(route: Route, payload: Uint8Array, options?: StreamOptions) {
-      if (!transport.stream) throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "stream unsupported" });
+      if (!transport.stream)
+        throw new GatewayFailure({ code: "WRONG_METHOD_KIND", message: "stream unsupported" });
       return transport.stream(route, payload, { ...options, signal: options?.signal ?? signal });
     },
     invoke(route: Route, payload: Uint8Array, serviceOptions?: Uint8Array) {

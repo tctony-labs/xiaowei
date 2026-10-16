@@ -57,11 +57,13 @@ export function createSettingsShortcuts(
   let registered: { shortcut: string; action: Action }[] = [];
 
   function replace(config: ShortcutConfig): void {
-    const desired = (Object.entries(config) as [Action, ShortcutValue][]).flatMap(([action, keys]) => {
-      if (keys && !actions[action]) throw new Error(`Shortcut action unavailable: ${action}`);
-      const shortcut = accelerator(keys, platform);
-      return shortcut ? [{ shortcut, action }] : [];
-    });
+    const desired = (Object.entries(config) as [Action, ShortcutValue][]).flatMap(
+      ([action, keys]) => {
+        if (keys && !actions[action]) throw new Error(`Shortcut action unavailable: ${action}`);
+        const shortcut = accelerator(keys, platform);
+        return shortcut ? [{ shortcut, action }] : [];
+      },
+    );
     if (new Set(desired.map(({ shortcut }) => shortcut)).size !== desired.length) {
       throw new Error("Duplicate shortcuts");
     }

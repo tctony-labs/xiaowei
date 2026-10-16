@@ -36,7 +36,11 @@ test("invalid home overrides fail instead of writing relative to the working dir
 
 test("local update packages isolate Electron, business and Agent data from production overrides", () => {
   const appData = join(tmpdir(), "system-app-data");
-  const paths = createPaths(appData, { XIAOWEI_AGENT_HOME: join(tmpdir(), "production-agent") }, true);
+  const paths = createPaths(
+    appData,
+    { XIAOWEI_AGENT_HOME: join(tmpdir(), "production-agent") },
+    true,
+  );
   const root = join(appData, "com.tctony.xiaowei.local-update");
   assert.equal(paths.electronRootDir, root);
   assert.equal(paths.database, join(root, "xiaowei/storage.sqlite"));

@@ -12,7 +12,11 @@ type LogSink = Pick<Console, Level>;
 // JSON keeps multiline messages together and preserves the original console level.
 export function initializeWorkerLogging(): void {
   if (isMainThread) throw new Error("Worker logging must be initialized inside a worker");
-  const output = new Console({ stdout: process.stdout, stderr: process.stderr, ignoreErrors: true });
+  const output = new Console({
+    stdout: process.stdout,
+    stderr: process.stderr,
+    ignoreErrors: true,
+  });
   for (const method of ["log", "info", "warn", "error", "debug", "trace"] as const) {
     console[method] = (...args: unknown[]) => {
       const level = method === "log" ? "info" : method === "trace" ? "debug" : method;
