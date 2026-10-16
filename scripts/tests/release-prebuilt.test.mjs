@@ -27,6 +27,8 @@ test("release tests set prepared only after fixture preparation and never build 
       "node",
       "--test",
       "scripts/dev/build-napi.test.mjs",
+      "scripts/dev/desktop-source-resolution.test.mjs",
+      "scripts/tests/package-content.test.mjs",
       "scripts/tests/macos-release.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",

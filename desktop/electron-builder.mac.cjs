@@ -6,37 +6,23 @@ const signing = signed ? signingConfiguration() : undefined;
 
 module.exports = {
   ...base,
+  // Builder collects dependency directories separately and ignores their npm files lists.
+  // Reset that collector's default **/* before declaring the runtime files to copy.
   files: [
-    ...base.files,
-    "!**/*.map",
-    "!**/node_modules/**/*.d.{ts,mts,cts}",
-
-    // These SDKs export compiled JS; their original TypeScript is not loaded at runtime.
-    "!**/node_modules/openai/src/**",
-    "!**/node_modules/@anthropic-ai/sdk/src/**",
-
-    // Node exports select dist/node; retain its ESM/CJS entries and tokenizer support.
-    "!**/node_modules/@google/genai/dist/web/**",
-    "!**/node_modules/@google/genai/dist/index.{mjs,cjs}",
-
-    // Keep the package's Node main and fetch-blob's explicit ES2018 ponyfill import.
-    "!**/node_modules/web-streams-polyfill/dist/*.{mjs,min.js}",
-    "!**/node_modules/web-streams-polyfill/dist/{polyfill.es6.js,polyfill.es2018.js,ponyfill.js,ponyfill.es6.js}",
-
-    // Node protobuf entrypoints load src; dist contains standalone browser bundles.
-    "!**/node_modules/protobufjs/dist/**",
-
-    // AWS/Smithy main and node exports select dist-cjs, including for ESM callers.
-    "!**/node_modules/@aws-sdk/*/dist-es/**",
-    "!**/node_modules/@smithy/*/dist-es/**",
-    "!**/node_modules/@smithy/core/dist-cjs/**/*.{browser,native}.js",
-    "!**/node_modules/@anthropic-ai/sdk/**/*.browser.{js,mjs}",
-
-    // These browser-only entrypoints/tests are not selected by the Node worker.
-    "!**/node_modules/gaxios/build/{cjs,esm}/browser-test/**",
-    "!**/node_modules/ws/browser.js",
-    "!**/node_modules/debug/src/browser.js",
-    "!**/node_modules/bowser/bundled.js",
+    {
+      from: ".",
+      filter: [
+        "!**/*",
+        ...base.files,
+        ...[
+          "xiaowei-agent",
+          "xiaowei-search",
+          "xiaowei-clipboard",
+          "xiaowei-storage",
+          "xiaowei-platform",
+        ].map((name) => `node_modules/${name}/{index.js,package.json,${name}.darwin-arm64.node}`),
+      ],
+    },
   ],
   buildVersion: require("./package.json").version,
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.

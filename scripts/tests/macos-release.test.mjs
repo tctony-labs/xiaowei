@@ -653,3 +653,24 @@ test("local HTTP source serves exact signed bytes, failure scenarios and no unre
     }
   }
 });
+
+test(
+  "content verification runs before signing checks and blocks distribution on failure",
+  macOnly,
+  (t) => {
+    const { calls } = mockPackaging(t);
+    const previous = childProcess.spawnSync;
+    t.mock.method(childProcess, "spawnSync", (command, args, ...options) => {
+      if (String(args[0]).endsWith("/verify-package-content.mjs")) {
+        calls.push([command, ...args]);
+        return { status: 1 };
+      }
+      return previous(command, args, ...options);
+    });
+    syncBuiltinESMExports();
+    assert.throws(() => packageMac({ build: false }), /failed with status 1/);
+    assert.ok(calls.some((call) => String(call[1]).endsWith("/verify-package-content.mjs")));
+    assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
+    assert.ok(!calls.some((call) => call[0] === "codesign" || call[0] === "ditto"));
+  },
+);

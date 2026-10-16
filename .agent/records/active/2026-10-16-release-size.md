@@ -17,7 +17,7 @@
 
 后续用户授权继续裁剪依赖中不需要的其他环境代码。范围为 Google GenAI 的 Web／通用构建、polyfill／protobuf 浏览器构建以及 AWS／Smithy 等 Node 未选中的环境分支；按独立优化点验证并提交。该阶段不包含类型／TS 源码、原生模块合并或 LTO。
 
-用户随后同意继续清理类型声明与 SDK 原始 TypeScript 源码，分别验证并提交；已 bundled 的内部包独立副本仅解释其含义，未获本轮实施授权，保持现状。
+用户随后同意继续清理类型声明与 SDK 原始 TypeScript 源码，分别验证并提交；该阶段尚未修改已 bundled 的内部包独立副本。
 
 用户现要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。当前已进入实施阶段，实施细节见 [构建与分发边界 Plan](../../plans/2026-10-16-release-size/01-runtime-package-boundary.md)。
 
@@ -27,19 +27,16 @@
 
 实施前测量：220 份 Electron `locale.pak` 合计 48.0 MiB，仅保留 `zh_CN` 和 `en` 可减少约 46.9 MiB；依赖 source map 合计 17.6 MiB；React／React DOM／React Markdown／remark-gfm／zustand／scheduler 的重复副本约 8.0 MiB；临时副本 `strip -x` 合计减少约 9.1 MiB。收益基于 0.1.1，当前源码重新构建后的最终结果另行测量，不能视为同源码对照。
 
-语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在 main／preload／renderer 构建目标显式设置 `sourcemap: false`，验证构建与分发产物均无 map，下一切片移除旧文件过滤。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
+语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在 main／preload／renderer 构建目标显式设置 `sourcemap: false`，验证构建与分发产物均无 map，旧的 source map 文件过滤也已移除。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
 
 原方案考虑在 `afterPack` 处理打包副本，但核实 ASAR 会记录 unpacked 原生文件的大小与哈希，而 hook 发生在元数据生成后。改为 release 构建后立即裁剪，使 CI 的功能测试和 SHA-256 保护、ASAR 元数据及最终签名均基于相同产物。签名仍由既有 electron-builder 流程负责。
 
 ## Current work
 
-- 已创建 `br/chore_release_size`；语言裁剪已完成：实际 ad-hoc 目录包仅有 `zh_CN.lproj` 与 `en.lproj` 的 `locale.pak`，五个 addon 加载与包签名校验通过；相同 Electron 版本对应语言资源减少约 46.9 MiB。发布相关 27 项回归通过，提交 hook 的 `just check` 作为每次提交的必需检查。
-- source map 排除已完成：同一份 release 构建重新打包后，ASAR 中 `.map` 数量从 2,684 降至 0；五个 addon 加载、签名及发布元数据校验通过。语言裁剪后的目录包为 361,504,097 bytes，source map 排除后的体积将在最终对照表汇总。
-- 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
-- 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
-- 其他环境代码裁剪四组实现及实际包隔离验证已完成，结果见下表。目录包现在为 300.020 MiB；未冷启动，仍待用户进行 Electron GUI 与正式发布链路验收。
-- 类型声明与 OpenAI／Anthropic SDK 原始 TypeScript 源码均已裁剪并通过实际包隔离验证。目录包更新为 291.937 MiB；内部包副本未修改，仍待用户进行 Electron GUI 与正式发布链路验收。
-- 新方案第一切片已实施：main／preload 关闭自动外置，只显式外置五个 native 包；Bedrock 用公开 lazyApi 加字面量动态 import 生成独立 chunk；各目标显式关闭 source map。构建及输出依赖边界检查通过，工作区外无 node_modules 的隔离 worker 完成十种 provider chunk 加载、三种 HTTP/SSE provider 请求与失败／取消／关闭，以及 WebSocket 复用与取消。下一步收紧 production dependencies、移除旧规则并验收实际目录包。
+- 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
+- 实际 ad-hoc 目录包为 294,287,179 bytes（280.654 MiB），ASAR 仅 74 个文件；相对上一轮减少 11.283 MiB。五个签名后二进制的大小和 SHA-256 与上一轮完全一致。
+- 73 项 LLM 测试、59 项 main 测试与 48 项构建／发布回归通过。真实包的隔离目录验收另通过 7 项 provider／worker 测试及五个 native 包加载器；详细范围见 Outcome。
+- 剩余实施工作为发布说明和 Plan 收尾。真实 Electron GUI、语言回退及正式签名／公证／Sparkle 更新验收仍由用户启动后完成；未发布、未覆盖安装，record 保留 active。
 
 ## Outcome
 
@@ -69,13 +66,29 @@
 
 尚未验证：真实 Electron GUI、非中文／英文系统语言回退、Developer ID／公证与正式更新链路。需由用户启动新目录包并按发布文档完成交互验收；ad-hoc、Node 加载和 worker 检查不替代这些项目。
 
-### 构建边界调整（实施中）
+### 构建与分发边界调整
 
 默认 bundle 切片已替代 main／worker 的纯 JS 运行时外置方式；第三方源码本身未改动。构建边界回归在旧配置上先因 `electron-log/node` 外置失败，再通过新配置；显式 Bedrock 动态入口生成独立 chunk。隔离测试只复制 main 构建产物及 `type: module` 元数据，不复制工作区或 SDK node_modules，plain Node 创建的 worker 可加载十种 provider 的实现；本地 HTTP/SSE 验证 OpenAI Completions／Responses 与 Anthropic Messages 的生成、错误、取消和关闭，WebSocket 验证连接复用与取消。provider chunk 引用 worker 入口的共用代码，因此加载验收保持 worker 上下文，不在主线程强行导入。
 
 此切片 desktop 构建、构建源码／外部依赖／source map 回归、71 项 LLM 测试和 59 项 main 测试均通过。
 
 未安装的可选 Kerberos peer 在构建中保留为仅在调用时失败的 stub，沿用现有依赖能力；隔离加载验收针对十种实际 provider 入口，不强行执行所有可选功能 chunk。真实云端认证、Kerberos 代理和 Electron GUI 不在此次自动验证结果中。
+
+第二切片将 pi-ai、electron-log、Gateway、contracts 和 protobuf 移到 desktop 的 devDependencies，生产依赖只保留五个 native 包；pnpm 生成锁文件，依赖版本未升级。macOS 打包输入改为 out 与明确的 native 加载器／package.json／darwin-arm64 二进制清单，不再按 SDK 删除文件。electron-builder 会独立遍历生产包、忽略其 npm files，因此在其 FileSet 过滤器中先重置默认全选，再显式声明允许文件；实际 ASAR 验证确认该规则也阻止 native Rust／Cargo 源码进入。
+
+新增最终 ASAR 与 unpacked 内容验证，拒绝多余运行包、工作区源码、声明、map 或 inline map 引用，以及缺失加载器／二进制。验证接入全部发布阶段的 app 检查，失败会阻止 DMG／ZIP 后续制作。原生二进制在签名后可能比 ASAR 头记录更长，内容边界验证不据头部字节数判定损坏；原生有效性仍经架构、签名与实际加载检查。
+
+| 项目 | 边界调整前 | 调整后 | 减少 |
+| --- | ---: | ---: | ---: |
+| 整个目录包 | 306,118,222 bytes（291.937 MiB） | 294,287,179 bytes（280.654 MiB） | 11.283 MiB |
+| app.asar | 17,606,606 bytes（16.791 MiB） | 5,842,916 bytes（5.572 MiB） | 11.219 MiB |
+| app.asar.unpacked | 33,084,341 bytes（31.552 MiB） | 33,024,718 bytes（31.495 MiB） | 0.057 MiB |
+
+五个签名后 native 二进制大小及逐文件 SHA-256 与调整前一致；unpacked 的差异来自移除额外 Rust／Cargo 文件，应用整体差额还包含代码签名元数据变化。最终 ASAR 只有 out、应用 package.json，以及五个 native 包各自三个文件；共 74 个文件，没有独立纯 JS 运行包、原始源码／声明和 source map。Electron locale.pak 仍只有 en 与 zh_CN。
+
+通过既有打包入口生成真实 ad-hoc 目录包后，签名、版本、Sparkle 元数据、arm64 与五个二进制加载均通过。再将实际 ASAR 解包到工作区外，通过其五个生成加载器加载 native；只复制该包 main 输出到另一无 node_modules 的目录，plain Node worker 加载十种 provider chunk，7 项隔离测试通过。新增 Google 本地 SSE 生成／鉴权头／请求正文检查，以及 Bedrock 本地 HTTP/1 请求与 403 错误响应检查；Bedrock 使用 SDK 的 dummy-credential 模式，验证 AWS4 签名头格式和请求正文，不涉及真实云端认证或独立签名复算。临时目录全部清理。
+
+调整后 73 项 LLM 测试及 48 项构建／发布回归通过，包含真实 ASAR 成功与失败边界、发布内容失败后阻断后续制作。构建源码与产物内容检查已加入 release CI prebuilt 入口；isolated worker 测试由既有 desktop 测试通配入口覆盖。
 
 ### 其他环境代码裁剪
 
@@ -125,8 +138,8 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 
 - 压缩与代码混淆暂不实施。当前 electron-vite 5 的 main（含 LLM worker）／preload 默认 `minify: false`，renderer 生产构建默认压缩，项目未配置专门混淆。后续独立评估 main／worker／preload 开启压缩后的体积、启动和 provider 行为，并确认函数名／错误栈对日志排障的影响；专门混淆另行评估体积、运行性能和排障成本，压缩或关闭 source map 不视为防止 JS 被分析的保护措施。
 
-- 如继续评估 OpenAI／Anthropic 等 SDK 在 Node 内的 ESM／CJS 双格式重复，需要单独追踪交叉引用；本轮保留必要的两种格式，不按扩展名统一删除。
-- 已 bundled 的内部 Gateway／contracts／protobuf 独立包副本仅完成说明，本轮未处理。若用户后续授权，需先确认所有 main／worker／preload 入口均不再依赖其独立运行文件，再裁剪重复副本。
+- 五个 `.node` 仍分别链接了部分共用 Rust 实现；本次没有调整原生模块边界。后续若继续优化，先量化重复机器码及体积收益，再评估合并 addon 或共享动态库对模块职责、加载、签名和发布的影响。
+- 纯 JS 的 ESM／CJS、其他环境构建与内部包副本已由 bundler 的实际依赖图取代，不再维护按 SDK 目录删除的后续工作；新增运行时文件资源必须有明确用途和路径。
 - Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
 - 如继续评估 SwiftShader（约 15.9 MiB），先明确 GPU 不可用时的软件图形回退与兼容性要求。
 - 新正式版本仍需 Developer ID 签名／公证、安装及 Sparkle 更新验收；本地 ad-hoc 目录包不能替代。

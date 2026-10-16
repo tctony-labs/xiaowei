@@ -140,6 +140,10 @@ export function packageMac({
 }
 
 function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }) {
+  run(process.execPath, [
+    fileURLToPath(new URL("./verify-package-content.mjs", import.meta.url)),
+    app,
+  ]);
   run("codesign", ["--verify", "--deep", "--strict", app]);
   const expectedInfo = {
     CFBundleIdentifier: localTest ? localUpdateAppId : "com.tctony.xiaowei",

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { once } from "node:events";
 import { cp, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -166,3 +168,93 @@ test("isolated worker loads WebSocket dependencies, reuses connections and cance
   await paused.cancel();
   await until(() => fixture.closed === 1);
 });
+
+for (const api of ["google-generative-ai", "bedrock-converse-stream"]) {
+  test(`${api}: isolated worker constructs a real SDK request to the local fixture`, async (t) => {
+    const requests = [];
+    const server = createServer(async (incoming, outgoing) => {
+      const chunks = [];
+      for await (const chunk of incoming) chunks.push(chunk);
+      requests.push({
+        method: incoming.method,
+        path: incoming.url,
+        headers: incoming.headers,
+        body: JSON.parse(Buffer.concat(chunks)),
+      });
+      if (api === "bedrock-converse-stream") {
+        outgoing.writeHead(403, { "content-type": "application/json" });
+        outgoing.end(JSON.stringify({ message: "fixture access denied" }));
+      } else {
+        outgoing.writeHead(200, { "content-type": "text/event-stream" });
+        outgoing.end(
+          `data: ${JSON.stringify({
+            candidates: [
+              { content: { role: "model", parts: [{ text: "你好" }] }, finishReason: "STOP" },
+            ],
+            usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2, totalTokenCount: 7 },
+          })}\n\n`,
+        );
+      }
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    t.after(async () => {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    });
+    const host = new GatewayHost();
+    // Bedrock normally uses TLS bearer auth and HTTP/2. The local HTTP/1 fixture
+    // uses the SDK's dummy-credential mode; these flags are copied into the worker.
+    const flags = { AWS_BEDROCK_SKIP_AUTH: "1", AWS_BEDROCK_FORCE_HTTP1: "1" };
+    const previous = Object.fromEntries(Object.keys(flags).map((key) => [key, process.env[key]]));
+    let owner;
+    try {
+      if (api === "bedrock-converse-stream") Object.assign(process.env, flags);
+      owner = await attachLlm(
+        host,
+        [
+          {
+            id: "test",
+            modelId: "text-model",
+            name: "Test",
+            provider: "test",
+            providerName: "Test",
+            api,
+            apiKey: "fixture-key",
+            baseUrl: `http://127.0.0.1:${server.address().port}`,
+            reasoning: false,
+            input: ["text"],
+            contextWindow: 16384,
+            maxTokens: 1024,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          },
+        ],
+        workerUrl,
+      );
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+    t.after(() => owner.close());
+    const client = bindStreamClient(Llm, host.client({ caller: "bundled-test", trusted: true }));
+    const events = [];
+    for await (const chunk of await client.generate(request("正常"))) events.push(chunk.event);
+    assert.equal(requests.length, 1, events.at(-1)?.value.message);
+    const sent = requests[0];
+    assert.equal(sent.method, "POST");
+    if (api === "bedrock-converse-stream") {
+      assert.equal(sent.path, "/model/text-model/converse-stream");
+      assert.match(sent.headers.authorization, /^AWS4-HMAC-SHA256 Credential=dummy-access-key\//);
+      assert.equal(sent.body.messages[0].content[0].text, "正常");
+      assert.equal(events.at(-1).case, "failed");
+    } else {
+      assert.ok(sent.path.includes("models/text-model:streamGenerateContent"));
+      assert.equal(sent.headers["x-goog-api-key"], "fixture-key");
+      assert.equal(sent.body.contents[0].parts[0].text, "正常");
+      assert.equal(events.at(-1).case, "finished");
+      assert.equal(events.find((event) => event.case === "textDelta").value.text, "你好");
+    }
+  });
+}
