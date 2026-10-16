@@ -108,7 +108,8 @@ export default function Select<T extends string | number>({
         return;
       }
       const items = buttons();
-      const index = items.findIndex((item) => item === document.activeElement);
+      const activeElement = document.activeElement;
+      const index = activeElement instanceof HTMLButtonElement ? items.indexOf(activeElement) : -1;
       if (e.key === "Enter") {
         if (index >= 0) items[index].click();
         buttonRef.current?.focus();
