@@ -11,7 +11,16 @@ export default defineConfig({
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
+      sourcemap: false,
+      externalizeDeps: false,
       rollupOptions: {
+        external: [
+          "xiaowei-agent",
+          "xiaowei-search",
+          "xiaowei-clipboard",
+          "xiaowei-storage",
+          "xiaowei-platform",
+        ],
         input: {
           index: fileURLToPath(new URL("./src/main/index.ts", import.meta.url)),
           "llm-worker": fileURLToPath(
@@ -20,16 +29,6 @@ export default defineConfig({
         },
         output: { format: "es", entryFileNames: "[name].js" },
       },
-      externalizeDeps: {
-        include: [
-          "xiaowei-agent",
-          "xiaowei-search",
-          "xiaowei-clipboard",
-          "xiaowei-storage",
-          "xiaowei-platform",
-        ],
-        exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"],
-      },
     },
   },
   preload: {
@@ -37,11 +36,13 @@ export default defineConfig({
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
-      externalizeDeps: { exclude: ["xiaowei-gateway", "xiaowei-contracts", "@bufbuild/protobuf"] },
+      sourcemap: false,
+      externalizeDeps: false,
       rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } },
     },
   },
   renderer: {
+    build: { sourcemap: false },
     resolve: { conditions: ["source", ...defaultClientConditions] },
     plugins: [
       sourceLocationPlugin(),

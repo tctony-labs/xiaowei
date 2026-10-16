@@ -6,7 +6,7 @@
 
 应用静态资源、Sparkle 等非 JS 资源沿用现有明确的 `extraResources`／`extraFiles` 入口；若发现依赖必须运行时读取文件，单独确认具体资源路径和用途，再声明资源，不恢复整个依赖目录复制。
 
-保留语言筛选、source map 排除和 release `strip -x`。移除被新边界覆盖的逐 SDK／环境／源码／声明文件排除规则。保留既有业务、worker 隔离、Gateway 和 provider 行为，不合并 Rust 模块，不启用 LTO，不升级依赖，不修改根 docs 或 README。
+保留语言筛选和 release `strip -x`。Source map 与依赖边界独立：各构建目标显式不生成，并验证最终产物；删除旧的 `.map` 文件过滤。移除被新边界覆盖的逐 SDK／环境／源码／声明文件排除规则。保留既有业务、worker 隔离、Gateway 和 provider 行为，不合并 Rust 模块，不启用 LTO，不升级依赖，不修改根 docs 或 README。
 
 ## 已核实的实现条件
 
@@ -26,7 +26,7 @@
 | `desktop/tests/llm/bundled-worker.test.mjs` | 新增 | 在工作区外的临时目录中只复制构建输出与 type 元数据，验证没有纯 JS node_modules 时 provider chunk 加载、worker 启动、Gateway 调用、流式生成、失败、取消、关闭及 WebSocket 路径。 |
 | `desktop/package.json` | 修改 | `dependencies` 只保留五个 native 包；pi-ai、electron-log、Gateway、contracts、protobuf 等构建输入移到 devDependencies，保留 workspace 源码消费。 |
 | `pnpm-lock.yaml` | 修改（pnpm 生成） | 同步依赖分类，不升级已解析版本，不手改锁文件。 |
-| `desktop/electron-builder.mac.cjs` | 修改 | 删除逐依赖裁剪名单，只保留通用 source map 排除、语言、签名及 Sparkle 配置；不删除或重写历史提交。 |
+| `desktop/electron-builder.mac.cjs` | 修改 | 删除逐依赖裁剪名单，保留语言、签名及 Sparkle 配置，source map 由构建和产物断言保证；不删除或重写历史提交。 |
 | `scripts/release/package-mac.mjs` | 修改 | 在既有包校验入口接入内容边界验证，未知运行包／源码目录／声明或 source map 混入时阻止发布；保留签名与 native 加载检查。 |
 | `scripts/release/verify-package-content.mjs` | 新增 | 读取实际 ASAR 文件列表，确认只含 out、应用元数据及 native 允许文件；提供内容错误的具体相对路径；如隔离解包用于验收，确保临时目录清理。 |
 | `scripts/tests/macos-release.test.mjs` 等发布回归 | 修改 | 补充合法分发内容与意外 JS 包／工作区源码等失败场景，保留原有签名、公证与分阶段发布断言。 |

@@ -1,7 +1,6 @@
-import type { ProviderStreams } from "@earendil-works/pi-ai";
+import { lazyApi, type ProviderStreams } from "@earendil-works/pi-ai";
 import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import { azureOpenAIResponsesApi } from "@earendil-works/pi-ai/api/azure-openai-responses.lazy";
-import { bedrockConverseStreamApi } from "@earendil-works/pi-ai/api/bedrock-converse-stream.lazy";
 import { googleGenerativeAIApi } from "@earendil-works/pi-ai/api/google-generative-ai.lazy";
 import { googleVertexApi } from "@earendil-works/pi-ai/api/google-vertex.lazy";
 import { mistralConversationsApi } from "@earendil-works/pi-ai/api/mistral-conversations.lazy";
@@ -17,7 +16,8 @@ export const apis: Record<ModelConfig["api"], () => ProviderStreams> = {
   "openai-codex-responses": openAICodexResponsesApi,
   "azure-openai-responses": azureOpenAIResponsesApi,
   "anthropic-messages": anthropicMessagesApi,
-  "bedrock-converse-stream": bedrockConverseStreamApi,
+  "bedrock-converse-stream": () =>
+    lazyApi(() => import("@earendil-works/pi-ai/api/bedrock-converse-stream")),
   "google-generative-ai": googleGenerativeAIApi,
   "google-vertex": googleVertexApi,
   "mistral-conversations": mistralConversationsApi,

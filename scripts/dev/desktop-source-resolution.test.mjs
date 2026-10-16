@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { builtinModules } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolveConfig } from "electron-vite";
@@ -27,6 +28,32 @@ test("desktop bundles Gateway source in all targets; Node source condition resol
       build: { ...config[target].build, write: false },
     });
     const outputs = (Array.isArray(result) ? result : [result]).flatMap((item) => item.output);
+    const chunks = outputs.filter((entry) => entry.type === "chunk");
+    const allowedExternal = new Set([
+      "electron",
+      ...builtinModules.flatMap((name) => [name, `node:${name}`]),
+      "xiaowei-agent",
+      "xiaowei-search",
+      "xiaowei-clipboard",
+      "xiaowei-storage",
+      "xiaowei-platform",
+    ]);
+    const emitted = new Set(outputs.map((entry) => entry.fileName));
+    for (const chunk of chunks) {
+      assert.equal(chunk.map, null, `${target}: unexpected source map`);
+      assert.ok(
+        !/sourceMappingURL=/.test(chunk.code),
+        `${target}: unexpected source map reference`,
+      );
+      for (const dependency of [...chunk.imports, ...chunk.dynamicImports]) {
+        assert.ok(
+          emitted.has(dependency) || allowedExternal.has(dependency),
+          `${target}: unexpected external dependency ${dependency}`,
+        );
+      }
+    }
+
+    assert.ok(!outputs.some((entry) => entry.fileName.endsWith(".map")));
     const modules = outputs
       .filter((entry) => entry.type === "chunk")
       .flatMap((entry) => Object.keys(entry.modules));
@@ -38,6 +65,17 @@ test("desktop bundles Gateway source in all targets; Node source condition resol
       !modules.some((id) => id.includes("/gateway/ts/dist/")),
       `${target} must not consume Gateway dist`,
     );
+
+    if (target === "main") {
+      assert.ok(
+        chunks.some(
+          (chunk) =>
+            chunk.isDynamicEntry &&
+            Object.keys(chunk.modules).some((id) => id.endsWith("/api/bedrock-converse-stream.js")),
+        ),
+        "Bedrock implementation must be included in a lazy chunk",
+      );
+    }
 
     if (target === "renderer") {
       for (const dependency of ["react", "react-dom", "react-markdown", "remark-gfm"]) {

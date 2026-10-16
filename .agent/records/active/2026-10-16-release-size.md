@@ -19,7 +19,7 @@
 
 用户随后同意继续清理类型声明与 SDK 原始 TypeScript 源码，分别验证并提交；已 bundled 的内部包独立副本仅解释其含义，未获本轮实施授权，保持现状。
 
-用户现要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。当前处于方案对齐阶段，实施细节见 [构建与分发边界 Plan](../../plans/2026-10-16-release-size/01-runtime-package-boundary.md)。
+用户现要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。当前已进入实施阶段，实施细节见 [构建与分发边界 Plan](../../plans/2026-10-16-release-size/01-runtime-package-boundary.md)。
 
 验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布；用户已授权每个优化点单独提交。
 
@@ -27,7 +27,7 @@
 
 实施前测量：220 份 Electron `locale.pak` 合计 48.0 MiB，仅保留 `zh_CN` 和 `en` 可减少约 46.9 MiB；依赖 source map 合计 17.6 MiB；React／React DOM／React Markdown／remark-gfm／zustand／scheduler 的重复副本约 8.0 MiB；临时副本 `strip -x` 合计减少约 9.1 MiB。收益基于 0.1.1，当前源码重新构建后的最终结果另行测量，不能视为同源码对照。
 
-语言和 source map 复用 electron-builder 的语言筛选与文件过滤，不改变应用业务边界。source map 只从分发产物排除。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
+语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在 main／preload／renderer 构建目标显式设置 `sourcemap: false`，验证构建与分发产物均无 map，下一切片移除旧文件过滤。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
 
 原方案考虑在 `afterPack` 处理打包副本，但核实 ASAR 会记录 unpacked 原生文件的大小与哈希，而 hook 发生在元数据生成后。改为 release 构建后立即裁剪，使 CI 的功能测试和 SHA-256 保护、ASAR 元数据及最终签名均基于相同产物。签名仍由既有 electron-builder 流程负责。
 
@@ -39,7 +39,7 @@
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
 - 其他环境代码裁剪四组实现及实际包隔离验证已完成，结果见下表。目录包现在为 300.020 MiB；未冷启动，仍待用户进行 Electron GUI 与正式发布链路验收。
 - 类型声明与 OpenAI／Anthropic SDK 原始 TypeScript 源码均已裁剪并通过实际包隔离验证。目录包更新为 291.937 MiB；内部包副本未修改，仍待用户进行 Electron GUI 与正式发布链路验收。
-- 新方案已对齐：在不写入产物／不改源码的内存构建试验中，纯 JS bundled 和 Bedrock 显式懒加载目标可构建为 51 个 chunk，合计 4,123,781 bytes。尚未实施生产配置或回退文件规则；后续按 Plan 分切片验证和提交。该原型不能替代运行及实际目录包验收。
+- 新方案第一切片已实施：main／preload 关闭自动外置，只显式外置五个 native 包；Bedrock 用公开 lazyApi 加字面量动态 import 生成独立 chunk；各目标显式关闭 source map。构建及输出依赖边界检查通过，工作区外无 node_modules 的隔离 worker 完成十种 provider chunk 加载、三种 HTTP/SSE provider 请求与失败／取消／关闭，以及 WebSocket 复用与取消。下一步收紧 production dependencies、移除旧规则并验收实际目录包。
 
 ## Outcome
 
@@ -68,6 +68,14 @@
 - 五个 `build:debug` 入口重新构建通过，未触发裁剪；工作区恢复 debug 产物，已打包的 release 副本保留裁剪结果。各提交由既有 pre-commit hook 执行 `just check`。
 
 尚未验证：真实 Electron GUI、非中文／英文系统语言回退、Developer ID／公证与正式更新链路。需由用户启动新目录包并按发布文档完成交互验收；ad-hoc、Node 加载和 worker 检查不替代这些项目。
+
+### 构建边界调整（实施中）
+
+默认 bundle 切片已替代 main／worker 的纯 JS 运行时外置方式；第三方源码本身未改动。构建边界回归在旧配置上先因 `electron-log/node` 外置失败，再通过新配置；显式 Bedrock 动态入口生成独立 chunk。隔离测试只复制 main 构建产物及 `type: module` 元数据，不复制工作区或 SDK node_modules，plain Node 创建的 worker 可加载十种 provider 的实现；本地 HTTP/SSE 验证 OpenAI Completions／Responses 与 Anthropic Messages 的生成、错误、取消和关闭，WebSocket 验证连接复用与取消。provider chunk 引用 worker 入口的共用代码，因此加载验收保持 worker 上下文，不在主线程强行导入。
+
+此切片 desktop 构建、构建源码／外部依赖／source map 回归、71 项 LLM 测试和 59 项 main 测试均通过。
+
+未安装的可选 Kerberos peer 在构建中保留为仅在调用时失败的 stub，沿用现有依赖能力；隔离加载验收针对十种实际 provider 入口，不强行执行所有可选功能 chunk。真实云端认证、Kerberos 代理和 Electron GUI 不在此次自动验证结果中。
 
 ### 其他环境代码裁剪
 
@@ -114,6 +122,8 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 本阶段累计减少 8.083 MiB（含 ASAR 元数据），实际目录包为 306,118,222 bytes（291.937 MiB）。类型声明和 SDK 源码各自单独提交，提交 hook 执行 `just check`。只修改分发过滤和相关文档，开发依赖源码保留；工作区原生包恢复 debug 构建，release 目录包通过签名、版本、arm64 和五个 addon 加载检查。临时验证目录及哈希快照已清理。
 
 ## 后续工作
+
+- 压缩与代码混淆暂不实施。当前 electron-vite 5 的 main（含 LLM worker）／preload 默认 `minify: false`，renderer 生产构建默认压缩，项目未配置专门混淆。后续独立评估 main／worker／preload 开启压缩后的体积、启动和 provider 行为，并确认函数名／错误栈对日志排障的影响；专门混淆另行评估体积、运行性能和排障成本，压缩或关闭 source map 不视为防止 JS 被分析的保护措施。
 
 - 如继续评估 OpenAI／Anthropic 等 SDK 在 Node 内的 ESM／CJS 双格式重复，需要单独追踪交叉引用；本轮保留必要的两种格式，不按扩展名统一删除。
 - 已 bundled 的内部 Gateway／contracts／protobuf 独立包副本仅完成说明，本轮未处理。若用户后续授权，需先确认所有 main／worker／preload 入口均不再依赖其独立运行文件，再裁剪重复副本。
