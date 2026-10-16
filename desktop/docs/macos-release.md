@@ -12,6 +12,10 @@ LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口
 
 `protobufjs/dist` 的独立浏览器 bundles 不进入分发包；Node 使用的根入口、`src` 与 `minimal.js` 保留。验证覆盖 Google tokenizer 导入和 Node protobuf 的消息编解码。
 
+AWS／Smithy 在 Node 的 ESM 和 CJS 调用中均通过 `main`／`node` exports 选择 `dist-cjs`，因此发布包排除它们的 `dist-es` 及 Smithy CJS 的 browser／React Native 分支，并排除 Anthropic SDK 的 `.browser.js`／`.browser.mjs`。依赖升级时需复核公共子入口解析，并验证 Bedrock 的请求签名和响应解析；不对所有依赖统一删除 ESM 或 CJS。
+
+同时排除 gaxios 的浏览器测试、ws／debug 的浏览器入口和 Bowser 的浏览器独立 bundle，保留各自 Node 入口。不要按 `browser` 名称统一删除文件：Google Auth 在 Node 中仍会导入 WebCrypto 实现，OpenAI 的全局 WebSocket 适配和 Bowser 的浏览器 UA 解析也不能按名称裁剪。
+
 仅在 renderer 使用、由 Vite bundled 的 React、React DOM、React Markdown、remark-gfm 和 zustand 声明为 `devDependencies`，打包时不再携带独立的生产依赖副本。main／LLM worker 的外部依赖和五个原生包继续作为生产依赖保留；构建回归检查 renderer 确实包含所需 React 与 Markdown 实现。
 
 ## 本地打包

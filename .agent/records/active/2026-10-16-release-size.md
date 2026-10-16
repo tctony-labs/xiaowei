@@ -33,7 +33,7 @@
 - source map 排除已完成：同一份 release 构建重新打包后，ASAR 中 `.map` 数量从 2,684 降至 0；五个 addon 加载、签名及发布元数据校验通过。语言裁剪后的目录包为 361,504,097 bytes，source map 排除后的体积将在最终对照表汇总。
 - 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
-- 其他环境代码裁剪：Google GenAI、stream polyfill、protobuf 已完成并验证，下一步处理 AWS／Smithy 等 SDK 的非 Node 分支。每组对实际目录包做隔离验证和体积对照。
+- 其他环境代码裁剪四组实现及实际包隔离验证已完成，结果见下表。目录包现在为 300.020 MiB；未冷启动，仍待用户进行 Electron GUI 与正式发布链路验收。
 
 ## Outcome
 
@@ -73,6 +73,7 @@
 | Google GenAI Web／通用构建 | 319,481,137 | 2.971 MiB |
 | stream polyfill 脚本变体 | 317,195,900 | 2.179 MiB |
 | protobuf 独立浏览器 bundles | 316,369,690 | 0.788 MiB |
+| SDK／支撑依赖非 Node 分支 | 314,594,133 | 1.693 MiB |
 
 Google GenAI 的 Node 条件入口指向 `dist/node`；排除 `dist/web` 与顶层通用 `index.mjs`／`index.cjs`，保留 Node ESM／CJS、tokenizer、Vertex 支撑代码。从实际 ASAR 解包到隔离临时目录后，十种 provider 实现、Google Node ESM／CJS 与 tokenizer 均成功加载；用本地 fetch 替身验证 Google 内容生成请求及响应解析，同时验证 stream ponyfill、fetch-blob、protobuf 编解码和包内 LLM worker 启动。未访问远程模型，临时目录已删除；打包入口的签名、元数据及五个原生模块加载校验通过。
 
@@ -80,9 +81,15 @@ stream polyfill 排除未使用的模块／目标版本和浏览器压缩构建�
 
 protobuf Node 根入口和 `minimal.js` 都引用 `src`，排除只面向浏览器独立加载的 `dist` 后，再次通过上述验证；实际 Node protobuf 消息编码／解码和 Google tokenizer 导入正常。同步核实 AWS／Smithy 共 96 次 Node import／require 公共入口解析，全部指向保留的 Node 文件；用本地 request handler 验证 Bedrock 请求签名及响应解析，未访问云端。31 项发布／原生构建回归通过。
 
+SDK／支撑依赖裁剪 AWS／Smithy 未被 Node 选择的 `dist-es`、Smithy 的 browser／React Native CJS 分支、Anthropic 浏览器入口、gaxios 浏览器测试、ws／debug 浏览器入口及 Bowser 独立 bundle。最终实际 ASAR 中这些目标均不存在，96 次 AWS／Smithy 公共入口解析、Bedrock 本地请求签名／响应解析及前述 Google／protobuf／stream／provider／worker 验证全部通过；新增 Node debug、Bowser UA 解析与本地 WebSocket 消息往返验证通过。
+
+不能根据名称统一删除 browser／native 文件：Google Auth 的 Node 入口仍无条件导入 `crypto/browser/crypto.js`；OpenAI 的 `ws-adapter-browser` 支撑全局 WebSocket；Bowser 的 `parser-browsers` 和 TypeBox 的 `guard/native.mjs` 也不是可按名称剔除的其他环境代码。已在最终 ASAR 确认所需实现保留。
+
+本轮在同源码目录包中累计减少 7.632 MiB，最终为 314,594,133 bytes（300.020 MiB）。相对最初已安装 0.1.1 基线减少约 91.554 MiB（23.38%，基线源码存在差异）；版本、业务实现、依赖版本、原生接口未改变。每组修改与记录分别提交，提交 hook 执行 `just check`；五个原生包最后恢复 debug 构建，最终目录包仍保留 release 裁剪副本。目录包签名、原生加载、语言筛选、无 source map／重复前端依赖的检查继续通过。临时解包验证目录已清理，未访问远程模型，未发布或覆盖已安装应用。
+
 ## 后续工作
 
-- 评估 SDK 的 ESM／CJS／Web／Node 多份构建与 polyfill 变体裁剪；按实际导入路径验证，不能整包删除生产 AI SDK。
+- 如继续评估 OpenAI／Anthropic 等 SDK 在 Node 内的 ESM／CJS 双格式重复，需要单独追踪交叉引用；本轮保留必要的两种格式，不按扩展名统一删除。
 - 核实类型声明和 TypeScript 源码的运行时入口后按需裁剪；原基线中分别约 3.75 MiB 与 4.30 MiB，与依赖移除可能重叠。
 - Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
 - 如继续评估 SwiftShader（约 15.9 MiB），先明确 GPU 不可用时的软件图形回退与兼容性要求。
