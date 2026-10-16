@@ -20,6 +20,7 @@ module.exports = {
   dmg: { writeUpdateInfo: false, sign: signed },
   mac: {
     ...base.mac,
+    electronLanguages: ["zh_CN", "en"],
     type: "distribution",
     target: [
       { target: "dmg", arch: ["arm64"] },

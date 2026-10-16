@@ -2,6 +2,8 @@
 
 桌面使用 electron-builder 打包，Sparkle 2.10.0 提供原生检查、下载、安装与重启界面。首期仅支持 Apple Silicon 和稳定的 `x.y.z` 版本，通过公开仓库 `tctony-labs/xiaowei` 的 GitHub Releases 分发。版本来源是 `desktop/package.json`，Release tag 必须为 `v<version>`；发布下一版本前递增该版本，保持 Sparkle 的升级比较单调递增。
 
+发布包通过 `mac.electronLanguages` 仅保留简体中文（`zh_CN`）和英文（`en`）的 Electron 语言资源；本地更新测试包继承相同设置。`CFBundleLocalizations` 声明应用支持的语言，不承担资源裁剪。
+
 ## 本地打包
 
 准备工作区依赖、固定的 Node／pnpm／Rust 工具链和 Xcode Command Line Tools，在 Apple Silicon Mac 上执行：
