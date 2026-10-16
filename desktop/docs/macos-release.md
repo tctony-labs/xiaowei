@@ -10,6 +10,8 @@ LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口
 
 `web-streams-polyfill` 保留 Node 主入口 `dist/polyfill.js` 和 fetch-blob 显式引用的 `dist/ponyfill.es2018.js`，排除其余脚本变体。验证时除包加载外，还需检查保留的 ponyfill 可读流及 fetch-blob 的 Blob 读取。
 
+`protobufjs/dist` 的独立浏览器 bundles 不进入分发包；Node 使用的根入口、`src` 与 `minimal.js` 保留。验证覆盖 Google tokenizer 导入和 Node protobuf 的消息编解码。
+
 仅在 renderer 使用、由 Vite bundled 的 React、React DOM、React Markdown、remark-gfm 和 zustand 声明为 `devDependencies`，打包时不再携带独立的生产依赖副本。main／LLM worker 的外部依赖和五个原生包继续作为生产依赖保留；构建回归检查 renderer 确实包含所需 React 与 Markdown 实现。
 
 ## 本地打包
