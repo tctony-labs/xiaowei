@@ -15,7 +15,9 @@
 
 本轮保留简体中文和英文 Electron 语言资源，排除 release 中所有 `.map` 文件，剔除已经 bundled 的前端运行库副本，并在 macOS 包签名前对五个生产 `.node` 执行 `strip -x`。保留必要的原生导出与加载入口，保持开发构建、LLM provider、更新签名与公证流程正常。
 
-后续用户授权继续裁剪依赖中不需要的其他环境代码。范围为 Google GenAI 的 Web／通用构建、polyfill／protobuf 浏览器构建以及 AWS／Smithy 等 Node 未选中的环境分支；按独立优化点验证并提交。不在本轮清理类型／TS 源码、合并原生模块或启用 LTO。
+后续用户授权继续裁剪依赖中不需要的其他环境代码。范围为 Google GenAI 的 Web／通用构建、polyfill／protobuf 浏览器构建以及 AWS／Smithy 等 Node 未选中的环境分支；按独立优化点验证并提交。该阶段不包含类型／TS 源码、原生模块合并或 LTO。
+
+用户随后同意继续清理类型声明与 SDK 原始 TypeScript 源码，分别验证并提交；已 bundled 的内部包独立副本仅解释其含义，未获本轮实施授权，保持现状。
 
 验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布；用户已授权每个优化点单独提交。
 
@@ -34,6 +36,7 @@
 - 重复前端依赖已剔除：五个仅用于 renderer 的包移入 `devDependencies`，由 pnpm 同步锁文件；真实 ASAR 不再包含这些包和 scheduler。构建输出的 renderer JS 文件名和体积保持一致；源码消费／renderer 打包检查与 138 项 renderer 测试通过，五个打包 addon 加载和签名校验通过。
 - 四项实现及自动验收均已完成，结果见 Outcome。待用户启动新目录包验收中文／英文与其他系统语言的回退、窗口显示、剪贴板／搜索／Agent 和更新界面；Agent 未冷启动应用，保留 active。
 - 其他环境代码裁剪四组实现及实际包隔离验证已完成，结果见下表。目录包现在为 300.020 MiB；未冷启动，仍待用户进行 Electron GUI 与正式发布链路验收。
+- 类型声明裁剪已完成，实际 ASAR 中声明文件数量为 0；下一步只处理 OpenAI／Anthropic SDK 原始 TypeScript 源码。内部包副本不在本轮修改范围。
 
 ## Outcome
 
@@ -88,6 +91,21 @@ SDK／支撑依赖裁剪 AWS／Smithy 未被 Node 选择的 `dist-es`、Smithy �
 本轮在同源码目录包中累计减少 7.632 MiB，最终为 314,594,133 bytes（300.020 MiB）。相对最初已安装 0.1.1 基线减少约 91.554 MiB（23.38%，基线源码存在差异）；版本、业务实现、依赖版本、原生接口未改变。每组修改与记录分别提交，提交 hook 执行 `just check`；五个原生包最后恢复 debug 构建，最终目录包仍保留 release 裁剪副本。目录包签名、原生加载、语言筛选、无 source map／重复前端依赖的检查继续通过。临时解包验证目录已清理，未访问远程模型，未发布或覆盖已安装应用。
 
 ## 后续工作
+
+### 类型声明与 SDK 原始源码
+
+用户同意分别清理声明和 SDK 源码，保持 Gateway／contracts 等内部包独立副本不变。沿用上一轮目录包及相同 release 原生产物，只增加发布过滤。
+
+| 阶段 | 逻辑字节数 | 本步减少 |
+| --- | ---: | ---: |
+| 其他环境清理完成 | 314,594,133 | — |
+| 类型声明裁剪 | 310,377,318 | 4.021 MiB |
+
+声明基线为 3,917,343 bytes，主要来自 OpenAI、Anthropic 与 TypeBox 的 `.d.mts`。新增发布排除 `.d.ts`／`.d.mts`／`.d.cts` 后，实际 ASAR 的声明文件为 0；包含 ASAR 元数据后减少 4.021 MiB，Node JS 入口保留。
+
+实际包解包隔离验证通过：十种 provider、Google Node ESM／CJS／tokenizer、96 次 AWS／Smithy 公共入口解析、stream／Blob／protobuf、Node helper 与本地 WebSocket、包内 worker 启动；额外覆盖 TypeBox 正确／错误数据的 schema 校验。Google fetch 替身校验 URL、POST、API key header 与请求内容，再验证响应文本；Bedrock handler 校验 POST 与签名头格式，再解码模拟响应。未独立复算 Bedrock 签名、未测试真实云端鉴权和网络。此前记录中的“请求签名验证”准确含义为经过 SDK 签名流程，不能视为签名内容的独立校验。
+
+### 剩余事项
 
 - 如继续评估 OpenAI／Anthropic 等 SDK 在 Node 内的 ESM／CJS 双格式重复，需要单独追踪交叉引用；本轮保留必要的两种格式，不按扩展名统一删除。
 - 核实类型声明和 TypeScript 源码的运行时入口后按需裁剪；原基线中分别约 3.75 MiB 与 4.30 MiB，与依赖移除可能重叠。

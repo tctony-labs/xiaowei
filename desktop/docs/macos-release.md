@@ -6,6 +6,8 @@
 
 发布文件过滤器排除所有 `*.map`，包括生产依赖自带的 source map；本地更新测试包沿用此规则。构建目录中的调试资料不因此删除，但不进入分发 ASAR。
 
+生产依赖中的 `.d.ts`／`.d.mts`／`.d.cts` 类型声明不进入发布包，仅在开发和类型检查时使用；运行入口及其 JavaScript 实现保留。
+
 LLM worker 运行在 Node 环境，发布过滤器按依赖的实际 Node 入口裁剪其他环境构建。Google GenAI 仅删除 `dist/web` 及通用 `dist/index.mjs`／`dist/index.cjs`，保留 Node 的 ESM／CJS、tokenizer 和 Vertex 支撑代码。依赖升级后需重新核对 exports 与实际导入路径，并从分发包验证 provider 加载及相关功能。
 
 `web-streams-polyfill` 保留 Node 主入口 `dist/polyfill.js` 和 fetch-blob 显式引用的 `dist/ponyfill.es2018.js`，排除其余脚本变体。验证时除包加载外，还需检查保留的 ponyfill 可读流及 fetch-blob 的 Blob 读取。

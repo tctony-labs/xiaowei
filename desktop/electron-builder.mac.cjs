@@ -9,6 +9,7 @@ module.exports = {
   files: [
     ...base.files,
     "!**/*.map",
+    "!**/node_modules/**/*.d.{ts,mts,cts}",
 
     // Node exports select dist/node; retain its ESM/CJS entries and tokenizer support.
     "!**/node_modules/@google/genai/dist/web/**",
