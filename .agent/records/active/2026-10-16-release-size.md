@@ -33,6 +33,7 @@
 
 ## Current work
 
+- 用户授权发布 `0.1.2`，本次准备应用版本与 `v0.1.2` tag；正式构建完成后，对照 GitHub Release `v0.1.1`／`v0.1.2` 的 DMG 和包内 app 实测大小及主要组成，回填本记录。CI 结果和正式包体积尚待确认，已有 ad-hoc 数字不作为正式产物结果。
 - 两个 addon 已实施并完成自动验收：npm `xiaowei-rust`／Cargo `xiaowei-rust-napi` 汇集常规业务，`xiaowei-agent`／`xiaowei-agent-napi` 保持独立；内部核心使用 `xw-*`，移除 Platform 转发壳。当前架构和命名见 [工作区详情](../../../docs/workspace.md#rust-模块)。
 - 最新 ad-hoc 目录包为 287,605,574 bytes（274.282 MiB），相对合并前减少 4.206 MiB；生产包仅含两个 native 包。实施 Plan 已删除，工作区恢复两份 debug 产物。待用户启动本次两个 addon 的目录包做 GUI 验收；此前粗测针对五个 addon 版本，不能代替此次验收。正式签名、公证和 Sparkle 更新仍待发布时验证，record 保留 active。
 
