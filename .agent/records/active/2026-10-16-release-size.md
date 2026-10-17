@@ -36,7 +36,7 @@
 - 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
 - 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，最新 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
 - minify 后重新通过构建压缩／依赖边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归；实际新包另通过 7 项 provider／worker 隔离测试及五个 native 包加载器。此前原生裁剪相关检查结果保留在 Outcome。
-- 代码与发布说明已完成，实施 Plan 已删除。真实 Electron GUI、语言回退及正式签名／公证／Sparkle 更新验收仍由用户启动后完成；未发布、未覆盖安装，record 保留 active。
+- 代码与发布说明已完成，实施 Plan 已删除。用户反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
 
 ## Outcome
 
@@ -64,7 +64,7 @@
 - 将最终 ASAR 解包到临时隔离目录后，十种 Pi provider 的实际实现均成功导入，包内 LLM worker 使用包内依赖启动成功；未调用远程模型。临时目录已删除。
 - 五个 `build:debug` 入口重新构建通过，未触发裁剪；工作区恢复 debug 产物，已打包的 release 副本保留裁剪结果。各提交由既有 pre-commit hook 执行 `just check`。
 
-尚未验证：真实 Electron GUI、非中文／英文系统语言回退、Developer ID／公证与正式更新链路。需由用户启动新目录包并按发布文档完成交互验收；ad-hoc、Node 加载和 worker 检查不替代这些项目。
+首轮自动验收未覆盖真实 Electron GUI、非中文／英文系统语言回退、Developer ID／公证与正式更新链路；ad-hoc、Node 加载和 worker 检查不替代这些项目。后续用户对最新 minify 目录包的粗略测试结果见下文。
 
 ### 构建与分发边界调整
 
@@ -110,7 +110,7 @@
 
 验证：desktop 构建、构建压缩／边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归通过。通过既有入口生成真实 ad-hoc 包后，ASAR 内容、签名、版本／更新元数据、arm64 与五个 addon 加载检查均通过。解包到工作区外，用该包 main 输出重跑 7 项隔离测试并通过五个 native 生成加载器；涵盖十种 provider chunk 加载、HTTP/SSE、WebSocket、Google 生成与 Bedrock 本地错误响应、失败、取消和关闭。日志仍显示注入的原始源码位置，临时解包目录已清理。
 
-五个工作区 native 包已恢复 debug 构建；目录包保留 release 裁剪产物。未冷启动 Electron、未覆盖已安装应用、未正式发布，GUI 与正式发布链路验收继续待用户执行。当前构建约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
+五个工作区 native 包已恢复 debug 构建；目录包保留 release 裁剪产物。实施期间 Agent 未冷启动 Electron、未覆盖已安装应用、未正式发布。用户随后在确认使用打包模式后反馈“粗略测试下来正常”，作为最新目录包的人工粗测结果；未据此认定所有交互、语言回退或正式发布链路均已验收。正式签名、公证及 Sparkle 更新留待发布时验证。当前构建约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
 
 ### 其他环境代码裁剪
 
