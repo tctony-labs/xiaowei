@@ -14,7 +14,7 @@ test("release tests set prepared only after fixture preparation and never build 
       if (args.includes("test")) assert.equal(env.XIAOWEI_TEST_NAPI_PREPARED, "1");
     },
     async fixtures(packages, tests, options) {
-      assert.deepEqual(packages, ["search"]);
+      assert.deepEqual(packages, ["rust", "agent"]);
       assert.deepEqual(options, { prepared: false, productionPrepared: true });
       calls.push("fixture prepared");
       await tests();
@@ -26,12 +26,16 @@ test("release tests set prepared only after fixture preparation and never build 
       "exec",
       "node",
       "--test",
+      "scripts/dev/build-napi.test.mjs",
+      "scripts/dev/desktop-source-resolution.test.mjs",
+      "scripts/tests/package-content.test.mjs",
       "scripts/tests/macos-release.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",
     ],
     "fixture prepared",
-    ["--filter", "xiaowei-platform", "test"],
+    ["gateway:test"],
+    ["--filter", "xiaowei-rust", "test"],
     ["--dir", "desktop", "test"],
   ]);
 });
@@ -83,10 +87,10 @@ test("test failure and overwritten production addon are both reported", async ()
   );
 });
 
-test("hashes cover all five package binaries and missing binaries fail before tests", (context) => {
+test("hashes cover both package binaries and missing binaries fail before tests", (context) => {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-release-hashes-"));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
-  const binaries = ["agent", "platform", "search", "storage", "clipboard"].map((name) => {
+  const binaries = ["agent", "rust"].map((name) => {
     const output = join(directory, "crates", `xiaowei-${name}`, "napi");
     mkdirSync(output, { recursive: true });
     const binary = join(output, `xiaowei-${name}.darwin-arm64.node`);
@@ -94,11 +98,11 @@ test("hashes cover all five package binaries and missing binaries fail before te
     return binary;
   });
   const before = nativeHashes(directory);
-  assert.equal(before.length, 5);
+  assert.equal(before.length, 2);
   for (const [index, binary] of binaries.entries()) {
     writeFileSync(binary, "changed");
     assert.notEqual(nativeHashes(directory)[index], before[index]);
   }
-  rmSync(binaries[4]);
+  rmSync(binaries[1]);
   assert.throws(() => nativeHashes(directory), /ENOENT/);
 });

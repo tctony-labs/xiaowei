@@ -18,23 +18,15 @@
     "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "0.87.1",
-    "electron-log": "5.4.4",
+    "xiaowei-agent": "workspace:*",
+    "xiaowei-rust": "workspace:*"
+  },
+  "devDependencies": {
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "xiaowei-clipboard": "workspace:*",
-    "xiaowei-search": "workspace:*",
     "zustand": "5.0.8",
-    "xiaowei-gateway": "workspace:*",
-    "xiaowei-contracts": "workspace:*",
-    "@bufbuild/protobuf": "catalog:",
-    "xiaowei-storage": "workspace:*",
-    "xiaowei-platform": "workspace:*",
-    "xiaowei-agent": "workspace:*"
-  },
-  "devDependencies": {
     "tsx": "4.23.13",
     "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
@@ -53,7 +45,12 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "jsdom": "^30.1.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "electron-log": "5.4.4",
+    "xiaowei-gateway": "workspace:*",
+    "xiaowei-contracts": "workspace:*",
+    "@bufbuild/protobuf": "catalog:"
   },
   "description": "XiaoWei desktop client"
 }

@@ -84,7 +84,7 @@ services/<service>/
 
 ## Gateway 装配与生命周期
 
-平台原语的直接 napi 调用边界见 [xiaowei-platform](../../../crates/xiaowei-platform/README.md#模块边界)。窗口策略与唤起会话由 `windows/` 管理；System.HideWindow 等宿主业务入口仍由 TS Gateway owner 提供，不在平台包注册服务。
+平台原语的直接 napi 调用边界见 [xiaowei-rust 平台绑定](../../../crates/xiaowei-rust/docs/platform.md#模块边界)。窗口策略与唤起会话由 `windows/` 管理；System.HideWindow 等宿主业务入口仍由 TS Gateway owner 提供，不在平台包注册服务。
 
 `services/shortcuts/registry.ts` 统一持有全局快捷键注册及其回调，负责菜单期间的注销与恢复；设置快捷键 owner 通过该注册表管理绑定。Tray 只将注册表快照映射为原生菜单快捷键，不枚举快捷键业务；可见菜单动作与这份快照独立。配置、更新与原生交接见 [桌面快捷键](../../../docs/shortcuts.md)。
 

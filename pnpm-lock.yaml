@@ -184,6 +184,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.13
         version: 2.5.13
+      '@electron/asar':
+        specifier: 3.4.1
+        version: 3.4.1
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260707.2
         version: 7.0.0-dev.20260707.2
@@ -240,90 +243,42 @@ importers:
         specifier: workspace:*
         version: link:../../../gateway/ts
 
-  crates/xiaowei-clipboard/napi:
+  crates/xiaowei-rust/napi:
     devDependencies:
+      '@bufbuild/protobuf':
+        specifier: 'catalog:'
+        version: 2.15.0
       '@napi-rs/cli':
         specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
+        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
       tsx:
         specifier: 4.23.13
         version: 4.23.13
+      xiaowei-agent:
+        specifier: workspace:*
+        version: link:../../xiaowei-agent/napi
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../../../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../../../gateway/ts
-      xiaowei-search:
-        specifier: workspace:*
-        version: link:../../xiaowei-search/napi
-      xiaowei-storage:
-        specifier: workspace:*
-        version: link:../../xiaowei-storage/napi
-
-  crates/xiaowei-platform/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
-
-  crates/xiaowei-search/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
-
-  crates/xiaowei-storage/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
 
   desktop:
     dependencies:
+      xiaowei-agent:
+        specifier: workspace:*
+        version: link:../crates/xiaowei-agent/napi
+      xiaowei-rust:
+        specifier: workspace:*
+        version: link:../crates/xiaowei-rust/napi
+    devDependencies:
       '@bufbuild/protobuf':
         specifier: 'catalog:'
         version: 2.15.0
       '@earendil-works/pi-ai':
         specifier: 0.87.1
         version: 0.87.1(patch_hash=5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf)(supports-color@5.5.0)(ws@8.21.3)
-      electron-log:
-        specifier: 5.4.4
-        version: 5.4.4
-      react:
-        specifier: 19.3.0
-        version: 19.3.0
-      react-dom:
-        specifier: 19.3.0
-        version: 19.3.0(react@19.3.0)
-      react-markdown:
-        specifier: 10.1.0
-        version: 10.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@5.5.0)
-      remark-gfm:
-        specifier: 4.0.1
-        version: 4.0.1(supports-color@5.5.0)
-      xiaowei-agent:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-agent/napi
-      xiaowei-clipboard:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-clipboard/napi
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../contracts/ts
-      xiaowei-gateway:
-        specifier: workspace:*
-        version: link:../gateway/ts
-      xiaowei-platform:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-platform/napi
-      xiaowei-search:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-search/napi
-      xiaowei-storage:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-storage/napi
-      zustand:
-        specifier: 5.0.8
-        version: 5.0.8(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
-    devDependencies:
       '@storybook/react-vite':
         specifier: 10.6.0
         version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.63.2)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@5.5.0)(typescript@5.9.3)(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
@@ -360,12 +315,27 @@ importers:
       electron-builder:
         specifier: 26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@5.5.0)
+      electron-log:
+        specifier: 5.4.4
+        version: 5.4.4
       electron-vite:
         specifier: 5.0.0
         version: 5.0.0(supports-color@5.5.0)(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
       jsdom:
         specifier: ^30.1.0
         version: 30.1.0(@noble/hashes@2.4.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      react-markdown:
+        specifier: 10.1.0
+        version: 10.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@5.5.0)
+      remark-gfm:
+        specifier: 4.0.1
+        version: 4.0.1(supports-color@5.5.0)
       storybook:
         specifier: 10.6.0
         version: 10.6.0(@types/react@19.3.0)(react@19.3.0)
@@ -381,6 +351,15 @@ importers:
       vitest:
         specifier: 5.0.1
         version: 5.0.1(@types/node@26.5.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../contracts/ts
+      xiaowei-gateway:
+        specifier: workspace:*
+        version: link:../gateway/ts
+      zustand:
+        specifier: 5.0.8
+        version: 5.0.8(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
 
   gateway/tests:
     devDependencies:
@@ -399,9 +378,9 @@ importers:
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../ts
-      xiaowei-storage:
+      xiaowei-rust:
         specifier: workspace:*
-        version: link:../../crates/xiaowei-storage/napi
+        version: link:../../crates/xiaowei-rust/napi
 
   gateway/ts:
     dependencies:

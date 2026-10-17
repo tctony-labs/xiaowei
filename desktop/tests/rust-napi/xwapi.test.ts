@@ -25,7 +25,7 @@ import { type XwapiContext, XwapiService } from "../../src/main/services/xwapi/s
 import { authServer } from "../main/account-fixture";
 
 const require = createRequire(import.meta.url);
-const peer = require("../../../target/rust-napi-tests/search") as {
+const peer = require("../../../target/rust-napi-tests/rust") as {
   createGatewayFixture(): RustNapiEndpoint & {
     fixtureInvoke(route: string, payload: Buffer): Promise<Buffer | string>;
   };

@@ -4,12 +4,10 @@ members = [
     "contracts/rust",
     "contracts/tools",
     "gateway/rust",
-    "crates/*",
-    "crates/xiaowei-search/napi",
+    "crates/xw-*",
+    "crates/xiaowei-agent",
     "crates/xiaowei-agent/napi",
-    "crates/xiaowei-clipboard/napi",
-    "crates/xiaowei-storage/napi",
-    "crates/xiaowei-platform/napi",
+    "crates/xiaowei-rust/napi",
 ]
 
 # prost-build 生成的代码要求同一版本的 prost 运行库，统一在此声明，各 crate 写 `{ workspace = true }`。

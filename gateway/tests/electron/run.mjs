@@ -13,10 +13,10 @@ import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 
 const require = createRequire(import.meta.url);
-const { Storage } = require("xiaowei-storage");
+const { Storage } = require("xiaowei-rust");
 export async function run(directory) {
   const root = fileURLToPath(new URL("../../../", import.meta.url));
-  const rustAddonDirectory = `${root}target/rust-napi-tests/search`;
+  const rustAddonDirectory = `${root}target/rust-napi-tests/rust`;
   const filename = (await readdir(rustAddonDirectory)).find((name) => name.endsWith(".node"));
   const native = require(`${rustAddonDirectory}/${filename}`).createGatewayFixture();
   const host = new GatewayHost();

@@ -10,7 +10,7 @@
 
 ## How
 
-`crates/xiaowei-clipboard` 是纯 Rust 业务入口，`napi/` 提供 npm 包；Electron 仅负责生命周期、日志与 IPC。旧版参考：`xiaowei-next/crates/xw-domain/src/clipboard/` 的数据类型、toolkit、hash、storage，以及 `src-tauri/src/biz/clipboard/monitor.rs`。系统 I/O 复用 arboard、macOS changeCount 和文件 URL 的方式，业务规则保留空白过滤、内容去重、重复使用更新时间和次数、复制后的自身事件抑制。
+`crates/xw-clipboard` 是纯 Rust 业务核心，由 `crates/xiaowei-rust/napi/` 提供 npm 接入；Electron 仅负责生命周期、日志与 IPC。旧版参考：`xiaowei-next/crates/xw-domain/src/clipboard/` 的数据类型、toolkit、hash、storage，以及 `src-tauri/src/biz/clipboard/monitor.rs`。系统 I/O 复用 arboard、macOS changeCount 和文件 URL 的方式，业务规则保留空白过滤、内容去重、重复使用更新时间和次数、复制后的自身事件抑制。
 
 SQLite 数据库统一位于 `userData/xiaowei/storage.sqlite`，由 Storage 持有连接池；剪贴板通过 Gateway 调用 typed ClipboardDao，SQL 由 Storage 内部维护，不再自行打开数据库。图片按旧版 `storage.rs` 在采集时由 Rust 写入 `userData/xiaowei/clipboard/images/<hash>.png`，数据库只保存哈希、尺寸等元数据，返回的 `imagePath` 由目录和哈希推导。图片读取、复制回系统剪贴板均读取原文件；打开、定位和复制路径也直接使用原文件，退出应用不删除。相同哈希复用文件，删除记录时尽力删除附件；清空普通历史保留收藏及其图片。文件历史只保存路径，不复制用户原文件。
 
@@ -22,7 +22,7 @@ main 就绪后打开数据库并启动监听，退出时停止线程；初次轮
 
 renderer 通过 `getClipboard()` 的 typed Gateway client 调用 `list`、`get`、`readText`、`readImage`、`copy`、`setFavorite`、`delete`、`clearHistory`。`clearHistory` 保留收藏；`copy` 仅复制，不向前台应用模拟粘贴。`onChanged` 返回取消订阅函数，通知只表示数据已变化，可能合并，调用方应重新查询。IPC 限制当前窗口主 frame，校验 ID 和查询参数；列表每页最多 100 条，查询最多 4096 字节。超过 9999 字节的文本标记为 `largeText`，列表／元信息保留最多 500 字符预览，完整内容用 `readText` 获取。
 
-存储和系统 I/O 由 Rust 串行处理，napi 异步任务不在 JS 主线程执行数据库操作。搜索和剪贴板原生模块复用内部 `xw-napi-log` 日志接收器，各自注册回调后汇入现有 main 日志。修改后执行 `pnpm --filter xiaowei-clipboard build:debug` 生成原生产物，再按运行实例规则重启。
+存储和系统 I/O 由 Rust 串行处理，napi 异步任务不在 JS 主线程执行数据库操作。搜索和剪贴板由同一常规 addon 使用内部 `xw-napi-log` 日志接收器，统一注册回调后汇入现有 main 日志。修改后执行 `pnpm --filter xiaowei-rust build:debug` 生成原生产物，再按运行实例规则重启。
 
 UI 以旧版源码为准：`xiaowei/src/pages/launcher/{LauncherPage.tsx,modes.tsx,components/LauncherSearchBar.tsx}` 和 `pages/clipboard/{ClipboardBody.tsx,components/CategoryNav.tsx,components/ItemList.tsx,components/Preview.tsx}`。产品和 Storybook 共用 `ClipboardPanel`，`ClipboardPage` 负责 IPC、变更订阅及预览／缩略图 Blob URL 回收。原版 FileTypeIcon、ContextMenu、Modal 和剪贴板 SVG 图标按需迁入，颜色映射到当前主题变量。
 
@@ -49,7 +49,7 @@ npm 依赖使用可从公网获取的包，禁止引入 `@tencent` 下无法从�
 
 ### 剪贴板全文索引与召回
 
-底层分词和连接注册见 [Storage 数据库实现](../../../crates/xiaowei-storage/docs/database.md#fts5-与分词器注册)。本业务新增 `20260924000000_clipboard_fts` migration，保留原 baseline；建立 `clipboard_fts(content)`，rowid 对应 `clipboard_items.id`。content 拼接正文／摘要、备注和 JSON 文件路径，不引入尚未存在的 OCR／caption 字段，不读取长文本全文文件。
+底层分词和连接注册见 [Storage 数据库实现](../../../crates/xw-storage/docs/database.md#fts5-与分词器注册)。本业务新增 `20260924000000_clipboard_fts` migration，保留原 baseline；建立 `clipboard_fts(content)`，rowid 对应 `clipboard_items.id`。content 拼接正文／摘要、备注和 JSON 文件路径，不引入尚未存在的 OCR／caption 字段，不读取长文本全文文件。
 
 INSERT、UPDATE OF text／remark／paths、DELETE 触发器在业务事务内维护索引；更新先删旧索引再插新内容。采集、备注编辑、正文编辑、合并、删除及清理均经过主表触发器；使用次数、分类、收藏变化不重建文本索引。migration 在同一事务中创建索引、触发器、回填历史记录及写入迁移标记；回滚先删除触发器再删除 FTS 表。
 

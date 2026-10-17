@@ -4,10 +4,10 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| [xiaowei-search](xiaowei-search/README.md) | 全局搜索核心与 napi 入口 |
-| [xiaowei-clipboard](xiaowei-clipboard/) | 本地剪贴板业务与 napi 入口 |
-| [xiaowei-storage](xiaowei-storage/README.md) | 存储、设置与 napi 入口 |
-| [xiaowei-platform](xiaowei-platform/README.md) | 平台能力的 napi 包裹层 |
+| [xw-search](xw-search/README.md) | 全局搜索核心 |
+| [xw-clipboard](xw-clipboard/) | 本地剪贴板业务核心 |
+| [xw-storage](xw-storage/README.md) | 存储、设置核心 |
+| [xiaowei-rust](xiaowei-rust/README.md) | Storage／Clipboard／Search／Platform 聚合 napi 入口 |
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
 | [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |
 | [xw-agent](xw-agent/README.md) | 传输无关的 Agent App Server、SQLite 会话目录、投影与业务恢复 |
@@ -31,52 +31,60 @@
 
 ## 命名与依赖方向
 
-- `xiaowei-*`：主 App 直接使用的功能入口，例如 npm 包 `xiaowei-search` 及其同名 Rust 核心。对应 napi 绑定 crate 使用 `xiaowei-search-napi`，属于同一个功能入口的适配层。
+- `xiaowei-*`：主 App 直接使用的功能入口，例如 npm 包 `xiaowei-agent` 及其同名 Rust 集成入口。对应 napi 绑定 crate 使用 `xiaowei-agent-napi`，属于同一个功能入口的适配层。
 - `xw-*`：供其他 Rust 包使用的业务实现、支撑模块或通用能力，不由主 App 直接依赖，例如 `xw-app`、`xw-bookmark`、`xw-platform`。
 
-目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，业务实现与支撑模块不反向依赖 App 或功能入口。`xw-platform` 是通用平台能力，任意有需要的 Rust 模块均可直接依赖。
+内部 crate 的目录与 Cargo 包名一致；`napi/` 目录中的 Cargo 包使用所属入口名加 `-napi`。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，业务实现与支撑模块不反向依赖 App 或功能入口。`xw-platform` 是通用平台能力，任意有需要的 Rust 模块均可直接依赖。
 
 ## 目录与职责
 
-以下以 `xiaowei-search` 为例说明目录布局：
+当前 npm 入口保留在所属模块的 `napi/` 下。常规业务聚合包没有额外的空转发 crate，直接依赖内部业务核心：
 
 ```text
 crates/
-  xiaowei-search/
-    Cargo.toml                 # 纯 Rust 核心：xiaowei-search
-    src/
+  xiaowei-rust/
+    README.md
     napi/
-      Cargo.toml               # 绑定 crate：xiaowei-search-napi，依赖上层核心
-      build.rs
-      src/                     # napi 导出、类型转换与异步边界
-      package.json             # npm 入口包：xiaowei-search
-      index.js                 # napi-rs 生成的平台加载器
-      index.d.ts               # napi-rs 生成的 TypeScript 声明
-      *.node                   # 本机构建产物
-      npm/                     # 按需建立，用于多平台发布
-        darwin-arm64/
-          package.json         # 平台包的 os、cpu 与二进制入口
-          *.node
-Cargo.toml                     # Rust workspace
-pnpm-workspace.yaml            # npm workspace
+      Cargo.toml          # xiaowei-rust-napi，cdylib
+      package.json        # npm：xiaowei-rust
+      src/
+        search/
+        clipboard/
+        storage/
+        platform/
+        gateway.rs        # 共用 napi endpoint，保留各业务资源生命周期
+        logging.rs        # 当前 addon 的单一日志接收器
+      index.js            # napi-rs 生成的加载器
+      index.d.ts          # napi-rs 生成的声明
+      *.node
+  xiaowei-agent/
+    Cargo.toml            # Agent 集成入口
+    src/
+    napi/                 # xiaowei-agent-napi；npm：xiaowei-agent
+  xw-search/
+  xw-clipboard/
+  xw-storage/
+  xw-platform/
 ```
 
-纯 Rust 核心承载业务，不依赖 Electron 或 napi；`napi/` 将核心能力导出为 Node API，同时作为 npm 包入口。根目录 `packages/` 保留给独立 npm 包，不为同一个 Rust 模块另建一份包装目录。
+内部 `xw-*` crate 承载业务实现和通用能力，不依赖 Electron 或 napi。`xiaowei-rust-napi` 只负责公开接入、类型转换、异步调度和资源所有权适配，不把业务算法搬进绑定层。Agent 保持独立 `.node`；两个 addon 共享的 Rust 依赖仍分别参与链接。
+
+同一常规 addon 内只有一个 `GatewayEndpoint` 导出类型，各 endpoint 的 registry、owner 与服务实例仍独立。Storage 的数据库关闭职责、Clipboard 的停止／资源清理顺序保留；业务间继续通过既有 Gateway 调用。常规业务共享一次日志初始化，Agent 日志独立。根目录 `packages/` 保留给独立共享 npm 包。
 
 Electron 主进程依赖 npm 入口包，由 preload 向 renderer 暴露受限 API。耗时业务通过异步绑定执行，避免阻塞 Electron 主线程。Renderer 不直接加载 `.node`。
 
 ## 两套 workspace
 
-Cargo workspace 纳入核心 crate 和其 `napi` 子 crate；新增模块时在根 `Cargo.toml` 中登记相应路径。pnpm workspace 通过 `crates/*/napi` 纳入含有 `package.json` 的 napi 入口目录，统一管理依赖和锁文件。
+Cargo workspace 通过 `crates/xw-*` 纳入内部核心，显式登记 Agent 集成入口和两个 `napi` 子 crate；新增模块时在根 `Cargo.toml` 中登记相应路径。pnpm workspace 通过 `crates/*/napi` 纳入含有 `package.json` 的 napi 入口目录，统一管理依赖和锁文件。
 
-Electron 通过 `workspace:*` 引用本地 npm 入口包，例如 `"xiaowei-search": "workspace:*"`。pnpm workspace 不递归纳入 `napi/npm/*` 平台包，也不在安装时自动编译 Rust。具体工作区成员以根目录配置为准。
+Electron 通过 `workspace:*` 引用本地 npm 入口包，当前为 `"xiaowei-rust": "workspace:*"` 与 `"xiaowei-agent": "workspace:*"`。pnpm workspace 不递归纳入 `napi/npm/*` 平台包，也不在安装时自动编译 Rust。具体工作区成员以根目录配置为准。
 
 ## 构建与开发
 
 正常构建流程由各 napi 包的 `package.json` 和 `scripts/dev/` 下的对应构建脚本维护；具体命令、参数和执行顺序以脚本为准，本文不重复维护。
 
 - 修改 Rust 源码（包括内部依赖 crate）、napi 接口或相关依赖与构建配置后，Agent 必须主动构建实际受影响的 napi 包，生成最新 `.node`、JS 加载入口和类型声明。构建入口以对应 napi 包的 `package.json` 中的 `build:debug` 脚本为准。
-- 共享 crate 变更时，根据各 napi 包实际使用的 API、类型及实现路径确定重建范围，并考虑共享初始化、ABI、编译配置和链接行为的变化。仅依赖同一 crate，或 Cargo 会重新编译该 crate，不构成重建所有依赖包的理由。例如，修改 Sparkle 更新实现时，只使用该 crate 图标或外观能力的 Search 无需重建，除非改动也影响这些能力或共同的构建与运行行为。
+- 共享 crate 变更时，根据各 napi 包实际使用的 API、类型及实现路径确定重建范围，并考虑共享初始化、ABI、编译配置和链接行为的变化。仅依赖同一 crate，或 Cargo 会重新编译该 crate，不构成重建所有依赖包的理由。例如，修改 Sparkle 更新实现时需重建 `xiaowei-rust`；若改动未涉及 Agent 的依赖或运行行为，则无需重建 `xiaowei-agent`。
 - 对实际受影响的 napi 包，`cargo check`、Rust 单测和 TypeScript 检查不能代替原生模块构建。构建失败时先修复，不使用旧产物继续验证新接口。
 - 有运行实例时，按 [AGENTS.md 的运行实例规则](../AGENTS.md#运行实例) 确认归属后可直接执行 `just rs`，由共用构建入口完成 napi 增量构建并重启；必须确认构建成功且 Electron 加载新模块。已加载的 `.node` 不会随文件更新或前端 HMR 自动替换。
 - 没有当前工作区实例时，仍须完成原生模块构建，再告知用户启动后待验证的内容。`just rs` 通过已有 nodemon 流程触发 napi 构建，不新增 Rust 源码自动监听或自动重启机制。

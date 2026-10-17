@@ -1,6 +1,6 @@
 # 搜索实现
 
-本文描述当前代码中的搜索行为。全局搜索由 `xiaowei-search` 提供，采用内存候选遍历、nucleo 模糊匹配、拼音匹配和使用记录加权；不使用 SQLite、FTS5 或倒排索引。迁移背景与验收结果见 [搜索迁移 record](../.agent/records/archived/2026-09-16-migrate-search.md)。
+本文描述当前代码中的搜索行为。全局搜索由 `xw-search` 提供，采用内存候选遍历、nucleo 模糊匹配、拼音匹配和使用记录加权；不使用 SQLite、FTS5 或倒排索引。迁移背景与验收结果见 [搜索迁移 record](../.agent/records/archived/2026-09-16-migrate-search.md)。
 
 ## Launcher 搜索入口
 
@@ -29,9 +29,9 @@ Renderer → Launcher Gateway（Electron main）
 ```
 
 - [desktop/src/main/services/launcher/gateway.ts](../desktop/src/main/services/launcher/gateway.ts)：读取书签搜索开关，调用 Search，保存动作并执行结果。
-- [gateway.rs](../crates/xiaowei-search/src/gateway.rs)：注册 Rust Search handler，通过 `spawn_blocking` 执行查询，转换契约结果。
-- [lib.rs](../crates/xiaowei-search/src/lib.rs)：持有数据源、生成内存候选、调用评分、截取和合并结果。
-- [搜索引擎](../crates/xiaowei-search/docs/search-engine.md)：包内匹配、拼音、高亮、截取与使用加权。
+- [gateway.rs](../crates/xw-search/src/gateway.rs)：注册 Rust Search handler，通过 `spawn_blocking` 执行查询，转换契约结果。
+- [lib.rs](../crates/xw-search/src/lib.rs)：持有数据源、生成内存候选、调用评分、截取和合并结果。
+- [搜索引擎](../crates/xw-search/docs/search-engine.md)：包内匹配、拼音、高亮、截取与使用加权。
 
 核心逻辑不依赖 Electron；napi 负责原生模块接入，构建与平台约定见 [Rust 模块通过 napi 接入 Electron](../crates/README.md)。
 
@@ -51,13 +51,13 @@ Renderer → Launcher Gateway（Electron main）
 
 书签合并时按原始名称、URL、文件夹路径去除完全重复项，标题为空时使用 URL；同 URL 的不同书签条目保留不同结果 ID，但共享使用记录。`Bookmarks` 或 `AccountBookmarks` 缺失视为该来源为空，两者均缺失时清空候选；任一文件发生其他读取或解析错误时，保留上次完整快照，初次加载失败则为空。目录监听覆盖 Chrome 原子替换文件的保存方式，并将符号链接目录解析为真实路径后匹配文件事件。
 
-桌面窗口加载后延迟 1 秒调用 `initializeSearch()`，在后台初始化数据源并保留文件监听。预热和首次非空查询共用同一次初始化；退出时取消未触发的预热定时器。内部初始化与串行查询规则见 [搜索引擎](../crates/xiaowei-search/docs/search-engine.md#引擎与入口)。
+桌面窗口加载后延迟 1 秒调用 `initializeSearch()`，在后台初始化数据源并保留文件监听。预热和首次非空查询共用同一次初始化；退出时取消未触发的预热定时器。内部初始化与串行查询规则见 [搜索引擎](../crates/xw-search/docs/search-engine.md#引擎与入口)。
 
 查询先去除首尾空白。空查询返回空结果，不触发初始化；Gateway 拒绝超过 4096 字节的查询，核心入口对超限查询返回空结果。
 
 ## 包内搜索算法
 
-查询采用 nucleo 模糊评分与拼音匹配，按来源截取候选后应用最近使用加权，再合并为展示结果。具体公式、高亮区间、候选上限、命令与计算器行为统一维护在 [搜索引擎](../crates/xiaowei-search/docs/search-engine.md)，不在此重复定义。
+查询采用 nucleo 模糊评分与拼音匹配，按来源截取候选后应用最近使用加权，再合并为展示结果。具体公式、高亮区间、候选上限、命令与计算器行为统一维护在 [搜索引擎](../crates/xw-search/docs/search-engine.md)，不在此重复定义。
 
 ## 桌面执行边界
 
@@ -75,10 +75,10 @@ Electron main 按调用上下文保存最新一轮 token 和结果 ID → 完整
 
 ## 与剪贴板搜索的边界
 
-当前全局搜索只提供“打开剪贴板”的命令，不召回剪贴板历史内容。剪贴板面板通过 Storage 的 [ClipboardDao::list](../crates/xiaowei-storage/src/clipboard_dao.rs) 对数据库文本／摘要、备注和文件路径进行 FTS5 查询；多词 AND、末词前缀匹配，收藏、类型和分类过滤发生在分页前，按最近使用时间、ID 降序返回。
+当前全局搜索只提供“打开剪贴板”的命令，不召回剪贴板历史内容。剪贴板面板通过 Storage 的 [ClipboardDao::list](../crates/xw-storage/src/clipboard_dao.rs) 对数据库文本／摘要、备注和文件路径进行 FTS5 查询；多词 AND、末词前缀匹配，收藏、类型和分类过滤发生在分页前，按最近使用时间、ID 降序返回。
 
-Storage 另提供 `ClipboardDao.Search`，默认最多 100 条（允许指定 1–100），按 FTS5 相关性返回 entity 和最多 32 个 FTS token 的无高亮标记片段。此接口已可供内部调用，但全局 Search 尚未调用，也没有 nucleo 重排。长文本仅索引数据库摘要，不扫描完整文件。业务索引、触发器和回填见 [剪贴板全文索引与召回](../.agent/records/active/2026-09-17-migrate-local-clipboard.md#剪贴板全文索引与召回)，底层注册见 [Storage 数据库实现](../crates/xiaowei-storage/docs/database.md#fts5-与分词器注册)，模块分工见 [共享存储接入](storage.md)。
+Storage 另提供 `ClipboardDao.Search`，默认最多 100 条（允许指定 1–100），按 FTS5 相关性返回 entity 和最多 32 个 FTS token 的无高亮标记片段。此接口已可供内部调用，但全局 Search 尚未调用，也没有 nucleo 重排。长文本仅索引数据库摘要，不扫描完整文件。业务索引、触发器和回填见 [剪贴板全文索引与召回](../.agent/records/active/2026-09-17-migrate-local-clipboard.md#剪贴板全文索引与召回)，底层注册见 [Storage 数据库实现](../crates/xw-storage/docs/database.md#fts5-与分词器注册)，模块分工见 [共享存储接入](storage.md)。
 
 ## 验证入口
 
-搜索核心与 napi 验证入口见 [Search README](../crates/xiaowei-search/README.md#验证)；Launcher、图标缓存、桌面装配及跨 addon 联调见 [桌面测试](../desktop/tests/README.md)。修改 Rust 实现后的原生构建与运行实例验证遵循仓库 AGENTS.md。
+搜索核心与 napi 验证入口见 [Search README](../crates/xw-search/README.md#验证)；Launcher、图标缓存、桌面装配及跨 addon 联调见 [桌面测试](../desktop/tests/README.md)。修改 Rust 实现后的原生构建与运行实例验证遵循仓库 AGENTS.md。

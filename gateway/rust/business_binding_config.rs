@@ -14,7 +14,7 @@ pub const MODULES: &[BindingModule] = &[
         ],
     },
     BindingModule {
-        name: "xiaowei-search",
+        name: "xw-search",
         services: &[
             "xiaowei.search.Search",
             "xiaowei.app.App",
@@ -22,7 +22,7 @@ pub const MODULES: &[BindingModule] = &[
         ],
     },
     BindingModule {
-        name: "xiaowei-clipboard",
+        name: "xw-clipboard",
         services: &[
             "xiaowei.storage.Settings",
             "xiaowei.storage.Storage",
@@ -32,7 +32,7 @@ pub const MODULES: &[BindingModule] = &[
         ],
     },
     BindingModule {
-        name: "xiaowei-storage",
+        name: "xw-storage",
         services: &[
             "xiaowei.system.System",
             "xiaowei.shortcuts.Shortcuts",

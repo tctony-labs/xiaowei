@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { root, runPnpm, withRustNapiFixtures } from "../tests/rust-napi-fixtures.mjs";
 
 export function nativeHashes(directory = root) {
-  return ["agent", "platform", "search", "storage", "clipboard"].map((name) => {
+  return ["agent", "rust"].map((name) => {
     const binary = join(
       directory,
       "crates",
@@ -31,15 +31,19 @@ export async function testPrebuilt({
       "exec",
       "node",
       "--test",
+      "scripts/dev/build-napi.test.mjs",
+      "scripts/dev/desktop-source-resolution.test.mjs",
+      "scripts/tests/package-content.test.mjs",
       "scripts/tests/macos-release.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",
     ]);
     await fixtures(
-      ["search"],
+      ["rust", "agent"],
       () => {
         const env = { ...process.env, XIAOWEI_TEST_NAPI_PREPARED: "1" };
-        run(["--filter", "xiaowei-platform", "test"], env);
+        run(["gateway:test"], env);
+        run(["--filter", "xiaowei-rust", "test"], env);
         run(["--dir", "desktop", "test"], env);
       },
       { prepared: false, productionPrepared: true },
@@ -53,7 +57,7 @@ export async function testPrebuilt({
     if (before.some((hash, index) => hash !== after[index])) {
       throw new Error("Production release addons changed during tests; refusing to package");
     }
-    console.info("Five production release addon SHA-256 hashes unchanged after tests");
+    console.info("Two production release addon SHA-256 hashes unchanged after tests");
   } catch (error) {
     failures.push(error);
   }

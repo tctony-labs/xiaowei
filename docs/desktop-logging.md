@@ -79,9 +79,9 @@ renderer／preload 消息已有源码位置前缀时，main 不再追加产物 U
 
 ## Rust 原生模块接入
 
-Rust 业务使用 `log::debug!/info!/warn!/error!`，共享接收器 [xw-napi-log](../crates/xw-napi-log/src/lib.rs) 仅转发 `xw_`、`xiaowei_` 开头的 target。main 在业务初始化前分别调用 search、agent、clipboard napi 包的 `initializeLogging`，初始化日志包含模块名。
+Rust 业务使用 `log::debug!/info!/warn!/error!`，共享接收器 [xw-napi-log](../crates/xw-napi-log/src/lib.rs) 仅转发 `xw_`、`xiaowei_` 开头的 target。main 在业务初始化前分别调用 `xiaowei-rust` 与 `xiaowei-agent` 的 `initializeLogging`，初始化日志包含模块名。
 
-每个独立 `.node` 动态库分别安装接收器，不能假设跨动态库共享 Rust 全局 logger。napi 适配通过有界、非阻塞、弱引用的线程安全回调转发，不阻止进程退出；队列满或退出时可能丢失尚未传递的日志，main 已收到的日志同步写文件。
+每个独立 `.node` 动态库分别安装接收器。Storage、Clipboard、Search、Platform 同在 `xiaowei-rust`，共享一次日志初始化，通过原始 target 和源码位置保留来源；Agent 的 logger 与 sink 保持独立。不能再按常规业务模块重复安装 sink，也不能假设跨动态库共享 Rust 全局 logger。napi 适配通过有界、非阻塞、弱引用的线程安全回调转发，不阻止进程退出；队列满或退出时可能丢失尚未传递的日志，main 已收到的日志同步写文件。
 
 接收器透传可选 file／line，去掉路径开头的 `./` 并统一分隔符。既有 [napi 构建入口](../scripts/dev/build-napi.mjs) 为 debug／release 追加 `--remap-path-prefix=<工作区>=.`，保留已有编译参数；工作区外路径保留原值，绕过该入口的 Cargo 构建不应用该映射。首次改变编译参数会触发重编译。
 

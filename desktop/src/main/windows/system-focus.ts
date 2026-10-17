@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron";
-import { captureFocus, frontmostProcess } from "xiaowei-platform";
+import { captureFocus, frontmostProcess } from "xiaowei-rust";
 import { createFocusSession, type FocusTarget } from "./focus-session";
 
 export function createSystemFocus() {

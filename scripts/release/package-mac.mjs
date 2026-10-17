@@ -140,6 +140,10 @@ export function packageMac({
 }
 
 function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }) {
+  run(process.execPath, [
+    fileURLToPath(new URL("./verify-package-content.mjs", import.meta.url)),
+    app,
+  ]);
   run("codesign", ["--verify", "--deep", "--strict", app]);
   const expectedInfo = {
     CFBundleIdentifier: localTest ? localUpdateAppId : "com.tctony.xiaowei",
@@ -162,13 +166,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
       throw new Error(`Packaged ${key} mismatch`);
   }
   const require = createRequire(import.meta.url);
-  for (const name of [
-    "xiaowei-agent",
-    "xiaowei-search",
-    "xiaowei-clipboard",
-    "xiaowei-storage",
-    "xiaowei-platform",
-  ]) {
+  for (const name of ["xiaowei-agent", "xiaowei-rust"]) {
     const binary = join(
       app,
       "Contents/Resources/app.asar.unpacked/node_modules",
@@ -193,7 +191,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
       }
     }
     const addon = require(binary);
-    if (name === "xiaowei-platform" && typeof addon.SparkleUpdater !== "function") {
+    if (name === "xiaowei-rust" && typeof addon.SparkleUpdater !== "function") {
       throw new Error("Packaged platform addon does not export SparkleUpdater");
     }
     console.info(`Packaged native module loaded: ${name}`);

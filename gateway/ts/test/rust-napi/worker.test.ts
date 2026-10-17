@@ -12,7 +12,7 @@ import { attachRustNapi, type RustNapiEndpoint } from "../../src/main/rust-napi.
 import { workerFixture } from "../fixtures/worker-client.js";
 
 const directory = fileURLToPath(
-  new URL("../../../../target/rust-napi-tests/search", import.meta.url),
+  new URL("../../../../target/rust-napi-tests/rust", import.meta.url),
 );
 const require = createRequire(import.meta.url);
 const addon = require(

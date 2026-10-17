@@ -16,7 +16,12 @@ export const request = (userText = "正常", extra = {}) =>
     ...extra,
   });
 
-export async function llmFixture(t, host = new GatewayHost(), api = "openai-completions") {
+export async function llmFixture(
+  t,
+  host = new GatewayHost(),
+  api = "openai-completions",
+  workerUrl = new URL("../../out/main/llm-worker.js", import.meta.url),
+) {
   const requests = [];
   const disconnected = new Set();
   const resume = new Map();
@@ -304,11 +309,7 @@ export async function llmFixture(t, host = new GatewayHost(), api = "openai-comp
     maxTokens: 4096,
     contextWindow: 8192,
   };
-  const owner = await attachLlm(
-    host,
-    [model],
-    new URL("../../out/main/llm-worker.js", import.meta.url),
-  );
+  const owner = await attachLlm(host, [model], workerUrl);
   t.after(() => owner.close());
   const client = bindStreamClient(Llm, host.client({ caller: "llm-test", trusted: true }));
   return { host, client, owner, model, requests, disconnected, resume };

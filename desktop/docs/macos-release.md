@@ -2,6 +2,24 @@
 
 桌面使用 electron-builder 打包，Sparkle 2.10.0 提供原生检查、下载、安装与重启界面。首期仅支持 Apple Silicon 和稳定的 `x.y.z` 版本，通过公开仓库 `tctony-labs/xiaowei` 的 GitHub Releases 分发。版本来源是 `desktop/package.json`，Release tag 必须为 `v<version>`；发布下一版本前递增该版本，保持 Sparkle 的升级比较单调递增。
 
+发布包通过 `mac.electronLanguages` 仅保留简体中文（`zh_CN`）和英文（`en`）的 Electron 语言资源；本地更新测试包继承相同设置。`CFBundleLocalizations` 声明应用支持的语言，不承担资源裁剪。
+
+main、LLM worker、preload 和 renderer 的纯 JS／TS（含工作区包与第三方 SDK）由 electron-vite 构建到 `out/`。main／preload 关闭依赖自动外置，工作区仍通过 `source` 条件消费源码；Electron 和 Node 内置模块由宿主提供，不复制到应用。
+
+生产依赖只保留 `xiaowei-agent` 和 `xiaowei-rust` 两个 native 包；pi-ai、electron-log、Gateway、contracts、protobuf 和前端依赖均为构建输入，放在 `devDependencies`。`xiaowei-rust` 聚合 Storage／Clipboard／Search／Platform 的绑定，内部 Rust 核心保持 `xw-*`，Agent 独立链接。macOS 打包明确收集 `out/`、应用元数据，以及每个 native 包的 `index.js`、`package.json` 和 `darwin-arm64.node`。electron-builder 不遵循依赖包的 npm `files` 清单，因此发布 FileSet 先重置其默认全选，再声明这些输入；不再维护逐 SDK／其他环境／声明或源码删除规则。
+
+懒加载通过构建生成的相邻 chunk 保留。动态 import 的目标须可被 bundler 静态分析；Bedrock 使用 pi-ai 的公开 `lazyApi` 和字面量 `import("@earendil-works/pi-ai/api/bedrock-converse-stream")`，保持首次调用再加载 AWS 实现。不要将整个 SDK 外置以绕过动态路径，也不要直接修改第三方源码。
+
+非 JS 资源须明确声明文件和用途。应用图标沿用 `extraResources`，Sparkle framework 和 LICENSE 沿用 `extraFiles`／`extraResources`；后续依赖若需运行时读取资源，应单独接入具体文件，不能恢复整个依赖目录复制。
+
+`build` 命令对 main（含 LLM worker）和 preload 显式启用 `minify: "esbuild"`，renderer 沿用 Vite 的生产压缩默认值；`serve` 开发构建不压缩 main／preload。使用常规空白、标识符和表达式压缩，不接入混淆或字节码工具。既有日志源码位置注入保留，异常栈按压缩产物显示。
+
+main／preload／renderer 显式设置 `build.sourcemap: false`。构建回归检查无 map 输出或引用，最终分发检查同时拒绝 `.map` 和 inline map 引用，不依赖打包后删除。native 类型声明及 Rust／Cargo 源码不在输入清单中；生成的 JS 加载器保留。
+
+每次 macOS 打包及独立发布阶段都会执行 `scripts/release/verify-package-content.mjs`，检查实际 ASAR、应用依赖声明、必需入口及 `app.asar.unpacked`。多余运行包、原始源码、声明、source map、其他架构二进制或缺失必需文件会阻止后续发布；签名、元数据、arm64 与两个 addon 的加载检查继续由既有打包入口执行。
+
+依赖升级或新增后须通过 `scripts/dev/desktop-source-resolution.test.mjs` 的构建图检查，以及 `desktop/tests/llm/bundled-worker.test.mjs` 的工作区外隔离运行检查。前者只允许宿主和两个 native 外部入口；后者不复制 SDK node_modules，覆盖十种 provider chunk 加载、HTTP/SSE、WebSocket、失败、取消和关闭。实际包验收时，将 ASAR 解包到工作区之外，验证 native 生成加载器，并通过 `XIAOWEI_TEST_BUNDLED_MAIN_DIR=<解包目录>/out/main` 对包内 worker 重跑隔离测试。该环境变量只用于测试，不改变应用运行入口。
+
 ## 本地打包
 
 准备工作区依赖、固定的 Node／pnpm／Rust 工具链和 Xcode Command Line Tools，在 Apple Silicon Mac 上执行：
@@ -12,11 +30,13 @@ pnpm --dir desktop package:mac
 
 环境中必须提供 `SPARKLE_ED_PUBLIC_KEY`，值为正式更新密钥的 32 字节 Ed25519 公钥的 Base64。公钥进入主应用 `Info.plist`；它不是私钥。不要用临时测试公钥分发正式应用，否则后续正式密钥签名的更新无法安装。
 
-此入口先下载 SHA-256 固定的官方 Sparkle 归档至忽略的 `desktop/.sparkle/`，再顺序构建五个正式 Rust napi 的 release 产物、desktop main／preload／renderer，最后生成：
+此入口先下载 SHA-256 固定的官方 Sparkle 归档至忽略的 `desktop/.sparkle/`，再顺序构建两个正式 Rust napi 的 release 产物、desktop main／preload／renderer，最后生成：
 
 - `desktop/dist/mac-arm64/XiaoWei.app`
 - `desktop/dist/XiaoWei-<version>-arm64.dmg`
 - `desktop/dist/XiaoWei-<version>-arm64.zip`
+
+macOS 的原生 `build --release` 在 napi 构建成功后执行 `xcrun strip -x`，移除本地符号并记录前后字节数；裁剪失败会阻止后续发布。裁剪发生在原生测试、ASAR 完整性元数据生成和代码签名前，CI 与本地打包共用此入口；`build:debug` 保留符号。`packageMac({ build: false })` 复用已经完成裁剪并经过测试的 release 产物，不重复处理。
 
 默认采用 ad-hoc 签名，不自动选用本机 Developer ID；不公证、不上传，也不启动应用。Sparkle 支持 ad-hoc 应用通过 Ed25519 验证更新，但这不等于应用已获得 Gatekeeper 的对外分发认可。`--dir` 仅生成应用目录，仍执行相同的原生 release 构建和签名流程：
 
@@ -32,7 +52,7 @@ pnpm --dir desktop package:mac --signed
 
 正式完整打包只向 Apple 提交最终 DMG 公证一次。顺序为：打包并签名 app → 从同一份 app 制作并签名 DMG → 提交 DMG 公证 → 分别给 DMG 和工作目录中的 app 附加票据并验证 → 用已附加票据的 app 制作 ZIP。Apple 会处理 DMG 内的签名代码并生成对应票据；工作目录中的 app 与 DMG 内的 app 签名身份相同，因此可以取得其票据。electron-builder 自动公证已关闭，DMG 公证后不再重新打包或签名，ZIP 使用 ditto 在票据附加之后生成。依据见 [Apple 公证工作流](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
 
-核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和五个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。stapler 返回 CloudKit 错误 68 时，按 5、10、20 秒间隔最多重试三次；其他错误或重试耗尽仍阻止发布，不重复提交公证。单独执行 ZIP 阶段也必须通过 app 票据与 Gatekeeper 校验。`--signed --dir` 不生成 DMG，因此只通过临时 ZIP 提交 app 公证一次并附加票据，临时 ZIP 随后删除。
+核对主 app、Electron／Sparkle framework、Sparkle helper／XPC 和两个 napi 的 Team ID、Developer ID 与 hardened runtime，同时检查 app／DMG 的票据和 Gatekeeper。stapler 返回 CloudKit 错误 68 时，按 5、10、20 秒间隔最多重试三次；其他错误或重试耗尽仍阻止发布，不重复提交公证。单独执行 ZIP 阶段也必须通过 app 票据与 Gatekeeper 校验。`--signed --dir` 不生成 DMG，因此只通过临时 ZIP 提交 app 公证一次并附加票据，临时 ZIP 随后删除。
 
 DMG 内的 app 在制包时尚未单独附加票据，DMG 分发携带外层票据；更新 ZIP 中的 app 携带自身票据。正式验收需分别覆盖 DMG 离线安装运行与 ZIP／Sparkle 更新，不能只凭本地 ad-hoc 打包或在线 stapler 校验认定离线体验已通过。
 
@@ -47,7 +67,7 @@ pnpm --dir desktop package:mac:test
 pnpm --dir desktop update:mac:serve
 ```
 
-不需要 Developer ID、公证或手工配置更新密钥。密钥仅驻留构建进程，经 stdin 交给官方签名工具，不写入文件或个人 Keychain；构建结束后不保留私钥。当前 package 版本作为旧版，patch 加一作为新版，不修改仓库 package.json。五个 addon 与 desktop 源码只构建一次，两个包复用同一份 release 产物，只有打包版本不同。
+不需要 Developer ID、公证或手工配置更新密钥。密钥仅驻留构建进程，经 stdin 交给官方签名工具，不写入文件或个人 Keychain；构建结束后不保留私钥。当前 package 版本作为旧版，patch 加一作为新版，不修改仓库 package.json。两个 addon 与 desktop 源码只构建一次，两个包复用同一份 release 产物，只有打包版本不同。
 
 测试包名为 `XiaoWei Local Update`，appId 为 `com.tctony.xiaowei.local-update`，feed 固定为 `http://127.0.0.1:18765/appcast.xml`。数据、日志、Agent 和模型配置位于 `~/Library/Application Support/com.tctony.xiaowei.local-update/`；忽略正式 Agent／模型路径环境覆盖，不读取现有正式数据。HTTP 的 ATS 本地网络配置只进入测试包。测试包的全局快捷键仍可能与开发实例冲突，测试前由用户正常退出开发实例。
 
@@ -97,7 +117,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 ## GitHub Release 准备
 
-[macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，顺序构建一次五个生产 napi release addon，再通过 `scripts/release/test-prebuilt.mjs` 执行工作区检查、tooling、平台和 desktop 测试。desktop 测试生成的 main／preload／renderer 与这些生产 addon 一起供打包复用；发布脚本以 `packageMac({signed:true, build:false, stage})` 按以下四个独立 Actions step 执行，不重复编译：
+[macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送稳定 `v*` tag 或手动输入已有 tag。它核对版本、tag 指向、公私钥配对和显式签名配置，安装 locked 依赖，顺序构建一次两个生产 napi release addon，再通过 `scripts/release/test-prebuilt.mjs` 执行工作区检查、tooling、Gateway、原生包和 desktop 测试。desktop 测试生成的 main／preload／renderer 与这些生产 addon 一起供打包复用；发布脚本以 `packageMac({signed:true, build:false, stage})` 按以下四个独立 Actions step 执行，不重复编译：
 
 1. `app`：生成目录包、签名并验证 app。
 2. `dmg`：通过 electron-builder 的 `--prepackaged` 复用 app，仅制作并签名 DMG。
@@ -106,7 +126,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 每个 step 独立显示耗时，前一步失败会阻止后续发布。随后生成验证 appcast，上传 Actions artifact，并直接发布稳定 GitHub Release、设为 latest；公开更新源随之生效。本地一键入口不指定 stage 时按相同顺序执行；ad-hoc 模式跳过公证。
 
-发布测试先在独立 `target/rust-napi-tests/search` 目录构建启用 gateway-fixtures 的 Search 测试模块，成功后才向平台／desktop 测试子进程设置已有的 `XIAOWEI_TEST_NAPI_PREPARED=1`。消费测试跳过生产 debug 重建，仍执行原有测试列表和生产接口检查。发布入口在测试前后核对五个生产 `.node` 的 SHA-256；构建 fixture 或测试失败、生产文件缺失或发生变化均阻止打包。测试 fixture 使用 debug profile，不进入应用。普通 `test.yml → just test` 保持原有 debug 构建及 fixture 准备流程，本地 `package:mac` 默认仍自行构建 release。
+发布测试先在独立 `target/rust-napi-tests/rust` 和 `target/rust-napi-tests/agent` 目录构建启用 gateway-fixtures 的两个测试模块，成功后才向 Gateway／原生包／desktop 测试子进程设置已有的 `XIAOWEI_TEST_NAPI_PREPARED=1`。消费测试跳过生产 debug 重建，仍执行原有测试列表和生产接口检查。发布入口在测试前后核对两个生产 `.node` 的 SHA-256；构建 fixture 或测试失败、生产文件缺失或发生变化均阻止打包。测试 fixture 使用 debug profile，不进入应用。普通 `test.yml → just test` 保持原有 debug 构建及 fixture 准备流程，本地 `package:mac` 默认仍自行构建 release。
 
 各版本发布构建串行执行。参考本机 `~/Develop/Projects/cmux/.github/workflows/build-tctony.yml`，复用 tctony-labs org 的个人 Developer ID 和 Apple ID 公证配置，Sparkle 更新私钥单独配置在 xiaowei 仓库，不需要新增 App Store Connect API key。证书由 electron-builder 导入构建用临时 Keychain；Apple ID 密码只注入签名／公证步骤，Sparkle 私钥只在预检查／appcast 步骤注入，经 stdin 交给官方工具。流水线不自动创建或替换长期更新密钥。
 

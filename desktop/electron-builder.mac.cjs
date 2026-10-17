@@ -6,6 +6,20 @@ const signing = signed ? signingConfiguration() : undefined;
 
 module.exports = {
   ...base,
+  // Builder collects dependency directories separately and ignores their npm files lists.
+  // Reset that collector's default **/* before declaring the runtime files to copy.
+  files: [
+    {
+      from: ".",
+      filter: [
+        "!**/*",
+        ...base.files,
+        ...["xiaowei-agent", "xiaowei-rust"].map(
+          (name) => `node_modules/${name}/{index.js,package.json,${name}.darwin-arm64.node}`,
+        ),
+      ],
+    },
+  ],
   buildVersion: require("./package.json").version,
   // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder expands these artifact macros.
   artifactName: "${productName}-${version}-${arch}.${ext}",
@@ -20,6 +34,7 @@ module.exports = {
   dmg: { writeUpdateInfo: false, sign: signed },
   mac: {
     ...base.mac,
+    electronLanguages: ["zh_CN", "en"],
     type: "distribution",
     target: [
       { target: "dmg", arch: ["arm64"] },
