@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 log = "0.4"
 xw-napi-log = { path = "../../xw-napi-log" }
-xiaowei-storage = { path = ".." }
+xw-storage = { path = "../../xw-storage" }
 xw-contracts = { path = "../../../contracts/rust" }
 prost = { workspace = true }
 napi = { version = "3", features = ["napi8", "async"] }

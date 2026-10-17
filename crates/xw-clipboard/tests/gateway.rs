@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use xiaowei_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
+use xw_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
 use xw_contracts::xiaowei::clipboard::{
     ClipboardItemRequest, ClipboardListOptions, PurgeExpiredRequest,
 };
@@ -37,22 +37,22 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
     })));
     let registry = XwInvokeRegistry::new();
     let database = Arc::new(
-        xiaowei_storage::Database::open(&dir.path().join("storage.sqlite"))
+        xw_storage::Database::open(&dir.path().join("storage.sqlite"))
             .await
             .unwrap(),
     );
     registry
         .register_owner(
             "storage",
-            xiaowei_storage::gateway::registrations(&database),
+            xw_storage::gateway::registrations(&database),
             vec![],
         )
         .unwrap();
     registry
         .register_owner(
             "clipboard-dao",
-            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
-                xiaowei_storage::clipboard_dao::ClipboardDao::new(database.clone()),
+            xw_storage::clipboard_dao::gateway::registrations(&Arc::new(
+                xw_storage::clipboard_dao::ClipboardDao::new(database.clone()),
             )),
             vec![],
         )
@@ -66,8 +66,8 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
     let owner = registry
         .register_owner(
             "clipboard",
-            xiaowei_clipboard::gateway::registrations(&service),
-            xiaowei_clipboard::gateway::events(),
+            xw_clipboard::gateway::registrations(&service),
+            xw_clipboard::gateway::events(),
         )
         .unwrap();
     let client = registry.client(CallContext::trusted("test"));
@@ -149,15 +149,15 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     }
     let registry = XwInvokeRegistry::new();
     let database = Arc::new(
-        xiaowei_storage::Database::open(&dir.path().join("db.sqlite"))
+        xw_storage::Database::open(&dir.path().join("db.sqlite"))
             .await
             .unwrap(),
     );
     registry
         .register_owner(
             "dao",
-            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
-                xiaowei_storage::clipboard_dao::ClipboardDao::new(database),
+            xw_storage::clipboard_dao::gateway::registrations(&Arc::new(
+                xw_storage::clipboard_dao::ClipboardDao::new(database),
             )),
             vec![],
         )
@@ -177,7 +177,7 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     registry
         .register_owner(
             "clipboard",
-            xiaowei_clipboard::gateway::registrations(&service),
+            xw_clipboard::gateway::registrations(&service),
             vec![],
         )
         .unwrap();

@@ -1,7 +1,7 @@
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
 use std::sync::{Arc, Mutex, Weak};
-use xiaowei_clipboard::{ClipboardData, Service, SystemClipboard};
+use xw_clipboard::{ClipboardData, Service, SystemClipboard};
 use xw_gateway::{invoke::Owner, XwInvokeRegistry};
 
 pub mod gateway;
@@ -29,8 +29,8 @@ pub struct ClipboardItem {
     pub category_id: Option<String>,
 }
 
-impl From<xiaowei_clipboard::ClipboardItem> for ClipboardItem {
-    fn from(item: xiaowei_clipboard::ClipboardItem) -> Self {
+impl From<xw_clipboard::ClipboardItem> for ClipboardItem {
+    fn from(item: xw_clipboard::ClipboardItem) -> Self {
         Self {
             id: item.id,
             kind: item.kind,
@@ -66,8 +66,8 @@ pub struct ClipboardCategory {
     pub name: String,
     pub color: String,
 }
-impl From<xiaowei_clipboard::ClipboardCategory> for ClipboardCategory {
-    fn from(value: xiaowei_clipboard::ClipboardCategory) -> Self {
+impl From<xw_clipboard::ClipboardCategory> for ClipboardCategory {
+    fn from(value: xw_clipboard::ClipboardCategory) -> Self {
         Self {
             id: value.id,
             name: value.name,
@@ -85,7 +85,7 @@ pub struct ClipboardHistory {
 }
 
 async fn run<T>(
-    work: impl std::future::Future<Output = xiaowei_clipboard::Result<T>>,
+    work: impl std::future::Future<Output = xw_clipboard::Result<T>>,
 ) -> napi::Result<T> {
     work.await
         .map_err(|error| napi::Error::from_reason(error.to_string()))
@@ -245,7 +245,7 @@ impl ClipboardHistory {
         let service = Arc::clone(&self.service);
         run(async move {
             service
-                .list(&xiaowei_clipboard::ListOptions {
+                .list(&xw_clipboard::ListOptions {
                     query: options.query.unwrap_or_default(),
                     favorites_only: options.favorites_only.unwrap_or(false),
                     kind: options.kind,

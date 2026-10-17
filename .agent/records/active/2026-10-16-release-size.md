@@ -33,10 +33,13 @@
 
 ## Current work
 
+- 用户已授权继续实施两个 addon：常规桌面能力通过 npm `xiaowei-rust`／Cargo `xiaowei-rust-napi` 汇入同一 `.node`，Agent 保持 `xiaowei-agent`／`xiaowei-agent-napi`。Search／Clipboard／Storage 核心改名为 `xw-*`，删除 Platform 转发壳，直接使用 `xw-platform`；proto 与 Gateway 路由保持原名。新增 npm／绑定包放在 `crates/xiaowei-rust/napi/`，根目录只承载说明，不创建空的转发 crate。
+- 核心改名切片已完成；后续按 [两个 addon Plan](../../plans/2026-10-16-release-size/03-two-native-addons.md) 实施、验证并分切片提交；同步更新当前架构与发布文档。已有 278.488 MiB 目录包作为本轮前置基线。
+
 - 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
 - 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，最新 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
 - minify 后重新通过构建压缩／依赖边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归；实际新包另通过 7 项 provider／worker 隔离测试及五个 native 包加载器。此前原生裁剪相关检查结果保留在 Outcome。
-- 代码与发布说明已完成，实施 Plan 已删除。用户反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
+- 前序 JS／分发优化代码与发布说明已完成，其实施 Plan 已删除；当前继续实施 native 合并。用户对前序目录包反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
 
 ## Outcome
 
@@ -91,6 +94,12 @@
 最终配置再次生成目录包并通过同样的 7 项实际包隔离测试与五个 native 加载器；应用总字节数保持 294,287,179。五个工作区 native 包已重新构建为 debug，未触发 strip；目录包保留 release 裁剪副本。
 
 调整后 73 项 LLM 测试及 48 项构建／发布回归通过，包含真实 ASAR 成功与失败边界、发布内容失败后阻断后续制作。构建源码与产物内容检查已加入 release CI prebuilt 入口；isolated worker 测试由既有 desktop 测试通配入口覆盖。
+
+### 内部 Rust 核心改名
+
+已将 Search／Clipboard／Storage 核心迁移为 `xw-search`／`xw-clipboard`／`xw-storage`，同步目录、Cargo 依赖、Rust 引用、service binding 输出位置与当前文档链接。原有 napi npm 包暂留旧位置，作为可独立验证的第一切片；proto 包名、完整路由、临时资源前缀和数据布局均未修改。
+
+三个核心共 90 项 Rust 测试通过，三个受影响 napi 包构建及 9 项绑定测试通过，契约／Gateway 生成一致性检查通过。Cargo 锁文件只保留工作区包改名；核对第三方包的 name／version／source 集合与切片前完全相同。最初完整重新解析引入的无关派生宏版本变化已撤销，使用原锁文件由 Cargo 增量同步。
 
 ### Release JS minify
 

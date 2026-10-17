@@ -1,5 +1,5 @@
 use std::fs;
-use xiaowei_search::{Action, SearchEngine};
+use xw_search::{Action, SearchEngine};
 
 #[test]
 fn merges_calculator_bookmarks_and_apps_with_pinyin_and_highlight() {

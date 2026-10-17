@@ -1,5 +1,5 @@
 [package]
-name = "xiaowei-clipboard"
+name = "xw-clipboard"
 version = "0.1.0"
 edition = "2021"
 
@@ -25,4 +25,4 @@ objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSArray"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
-xiaowei-storage = { path = "../xiaowei-storage" }
+xw-storage = { path = "../xw-storage" }

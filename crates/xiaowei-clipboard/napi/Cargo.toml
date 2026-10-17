@@ -13,7 +13,7 @@ gateway-fixtures = ["xw-gateway/test-fixtures"]
 prost = { workspace = true }
 xw-contracts = { path = "../../../contracts/rust" }
 xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
-xiaowei-clipboard = { path = ".." }
+xw-clipboard = { path = "../../xw-clipboard" }
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
 xw-napi-log = { path = "../../xw-napi-log" }

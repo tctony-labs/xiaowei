@@ -221,7 +221,7 @@ pub fn create_search_gateway_endpoint(
     let owner = registry
         .register_owner(
             "search",
-            xiaowei_search::gateway::registrations(crate::service(), development.unwrap_or(false)),
+            xw_search::gateway::registrations(crate::service(), development.unwrap_or(false)),
             vec![],
         )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;

@@ -4,9 +4,9 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| [xiaowei-search](xiaowei-search/README.md) | 全局搜索核心与 napi 入口 |
-| [xiaowei-clipboard](xiaowei-clipboard/) | 本地剪贴板业务与 napi 入口 |
-| [xiaowei-storage](xiaowei-storage/README.md) | 存储、设置与 napi 入口 |
+| [xw-search](xw-search/README.md) | 全局搜索核心 |
+| [xw-clipboard](xw-clipboard/) | 本地剪贴板业务核心 |
+| [xw-storage](xw-storage/README.md) | 存储、设置核心 |
 | [xiaowei-platform](xiaowei-platform/README.md) | 平台能力的 napi 包裹层 |
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
 | [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |
@@ -31,25 +31,25 @@
 
 ## 命名与依赖方向
 
-- `xiaowei-*`：主 App 直接使用的功能入口，例如 npm 包 `xiaowei-search` 及其同名 Rust 核心。对应 napi 绑定 crate 使用 `xiaowei-search-napi`，属于同一个功能入口的适配层。
+- `xiaowei-*`：主 App 直接使用的功能入口，例如 npm 包 `xiaowei-agent` 及其同名 Rust 集成入口。对应 napi 绑定 crate 使用 `xiaowei-agent-napi`，属于同一个功能入口的适配层。
 - `xw-*`：供其他 Rust 包使用的业务实现、支撑模块或通用能力，不由主 App 直接依赖，例如 `xw-app`、`xw-bookmark`、`xw-platform`。
 
 目录与 Cargo 包名一致。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，业务实现与支撑模块不反向依赖 App 或功能入口。`xw-platform` 是通用平台能力，任意有需要的 Rust 模块均可直接依赖。
 
 ## 目录与职责
 
-以下以 `xiaowei-search` 为例说明目录布局：
+以下以 `xiaowei-agent` 为例说明目录布局：
 
 ```text
 crates/
-  xiaowei-search/
-    Cargo.toml                 # 纯 Rust 核心：xiaowei-search
+  xiaowei-agent/
+    Cargo.toml                 # 纯 Rust 核心：xiaowei-agent
     src/
     napi/
-      Cargo.toml               # 绑定 crate：xiaowei-search-napi，依赖上层核心
+      Cargo.toml               # 绑定 crate：xiaowei-agent-napi，依赖上层核心
       build.rs
       src/                     # napi 导出、类型转换与异步边界
-      package.json             # npm 入口包：xiaowei-search
+      package.json             # npm 入口包：xiaowei-agent
       index.js                 # napi-rs 生成的平台加载器
       index.d.ts               # napi-rs 生成的 TypeScript 声明
       *.node                   # 本机构建产物
@@ -61,7 +61,7 @@ Cargo.toml                     # Rust workspace
 pnpm-workspace.yaml            # npm workspace
 ```
 
-纯 Rust 核心承载业务，不依赖 Electron 或 napi；`napi/` 将核心能力导出为 Node API，同时作为 npm 包入口。根目录 `packages/` 保留给独立 npm 包，不为同一个 Rust 模块另建一份包装目录。
+内部 `xw-*` crate 承载业务，不依赖 Electron 或 napi；`napi/` 将 Rust 能力导出为 Node API，同时作为 npm 包入口。根目录 `packages/` 保留给独立 npm 包，不为同一个 Rust 模块另建一份包装目录。
 
 Electron 主进程依赖 npm 入口包，由 preload 向 renderer 暴露受限 API。耗时业务通过异步绑定执行，避免阻塞 Electron 主线程。Renderer 不直接加载 `.node`。
 

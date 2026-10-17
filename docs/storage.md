@@ -1,6 +1,6 @@
 # 共享存储接入
 
-本文描述桌面、Gateway 与 Rust 业务包如何共用 `xiaowei-storage`。连接、事务、迁移、meta 和 FTS5 注册的内部规则见 [Storage 数据库实现](../crates/xiaowei-storage/docs/database.md)；建设背景与验收结果见 [Storage record](../.agent/records/archived/2026-09-18-implement-storage.md)和 [FTS5 record](../.agent/records/archived/2026-09-24-fts5-search.md)。
+本文描述桌面、Gateway 与 Rust 业务包如何共用 `xiaowei-storage`。连接、事务、迁移、meta 和 FTS5 注册的内部规则见 [Storage 数据库实现](../crates/xw-storage/docs/database.md)；建设背景与验收结果见 [Storage record](../.agent/records/archived/2026-09-18-implement-storage.md)和 [FTS5 record](../.agent/records/archived/2026-09-24-fts5-search.md)。
 
 ## 所有权与调用边界
 
@@ -65,4 +65,4 @@ Storage 接收 main 传入的数据库路径；剪贴板接收附件目录，数
 
 ## 验证入口
 
-包内数据库验证见 [Storage README](../crates/xiaowei-storage/README.md#验证)，跨 addon 调用和启动／关闭故障注入见 [桌面测试](../desktop/tests/README.md)。自动验证使用临时数据，不依赖或修改用户数据库；真实实例检查与重启遵循仓库 AGENTS.md。
+包内数据库验证见 [Storage README](../crates/xw-storage/README.md#验证)，跨 addon 调用和启动／关闭故障注入见 [桌面测试](../desktop/tests/README.md)。自动验证使用临时数据，不依赖或修改用户数据库；真实实例检查与重启遵循仓库 AGENTS.md。

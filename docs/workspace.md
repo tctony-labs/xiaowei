@@ -43,9 +43,9 @@ flowchart TB
     end
 
     subgraph FeatureLayer["Rust 功能入口"]
-        Search["xiaowei-search"]
-        Clipboard["xiaowei-clipboard"]
-        Storage["xiaowei-storage"]
+        Search["xw-search"]
+        Clipboard["xw-clipboard"]
+        Storage["xw-storage"]
         Agent["xiaowei-agent"]
         Platform["xiaowei-platform"]
     end
@@ -101,9 +101,9 @@ flowchart TB
 
 | 包 | 职责 |
 | --- | --- |
-| `xiaowei-search` | 全局搜索、排序与使用记录 |
-| `xiaowei-clipboard` | 剪贴板采集、历史、资源与粘贴 |
-| `xiaowei-storage` | SQLite 存储、迁移、设置与数据访问 |
+| `xw-search` | 全局搜索、排序与使用记录 |
+| `xw-clipboard` | 剪贴板采集、历史、资源与粘贴 |
+| `xw-storage` | SQLite 存储、迁移、设置与数据访问 |
 | `xiaowei-agent` | Agent 核心与 Gateway／LLM 的集成入口 |
 | `xiaowei-platform` | 原生平台能力的 Node 适配 |
 | `xw-agent` | 会话、运行调度、持久化目录与业务恢复 |

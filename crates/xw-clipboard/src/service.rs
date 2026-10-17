@@ -571,7 +571,7 @@ mod tests {
                         ..Default::default()
                     })
                 })],
-                xiaowei_storage::settings::gateway::events(),
+                xw_storage::settings::gateway::events(),
             )
             .unwrap();
         let cycles = Arc::new(AtomicUsize::new(0));

@@ -67,9 +67,9 @@ renderer 的 LauncherOpened 订阅跨模式保持，通过 React effect event �
 
 ## 实现与验证入口
 
-- [Rust Settings](../crates/xiaowei-storage/src/settings/mod.rs)：默认值、校验、持久化与更新协调。
+- [Rust Settings](../crates/xw-storage/src/settings/mod.rs)：默认值、校验、持久化与更新协调。
 - [快捷键设置](../desktop/src/renderer/src/components/settings/ShortcutSettings.tsx)：录制、清除与重复绑定转移。
 - [宿主快捷键](../desktop/src/main/services/shortcuts/shortcuts.ts) 与 [注册表](../desktop/src/main/services/shortcuts/registry.ts)：转换、注册、回滚与菜单交接。
 - [Launcher 唤起](../desktop/src/main/windows/launcher-shortcuts.ts) 与 [Tray](../desktop/src/main/app/tray.ts)：模式、定位及原生菜单。
 
-验证入口见 [desktop tests](../desktop/tests/README.md) 与 [Storage 测试](../crates/xiaowei-storage/README.md)。模拟窗口与合成按键只能验证控制逻辑；真实组合键、跨 Space／多屏、系统菜单和焦点需要原生验证，历史证据与尚未逐项实测的边界保留于相关 record。
+验证入口见 [desktop tests](../desktop/tests/README.md) 与 [Storage 测试](../crates/xw-storage/README.md)。模拟窗口与合成按键只能验证控制逻辑；真实组合键、跨 Space／多屏、系统菜单和焦点需要原生验证，历史证据与尚未逐项实测的边界保留于相关 record。

@@ -1,19 +1,19 @@
 use napi_derive::napi;
 use std::sync::{Arc, Mutex, OnceLock};
-use xiaowei_search::{Action, SearchEngine};
+use xw_search::{Action, SearchEngine};
 
 pub mod gateway;
 pub mod logging;
 
-static SERVICE: OnceLock<Arc<xiaowei_search::gateway::SearchService>> = OnceLock::new();
-fn service() -> Arc<xiaowei_search::gateway::SearchService> {
+static SERVICE: OnceLock<Arc<xw_search::gateway::SearchService>> = OnceLock::new();
+fn service() -> Arc<xw_search::gateway::SearchService> {
     SERVICE
-        .get_or_init(|| Arc::new(xiaowei_search::gateway::SearchService::default()))
+        .get_or_init(|| Arc::new(xw_search::gateway::SearchService::default()))
         .clone()
 }
 fn engine() -> &'static Mutex<SearchEngine> {
     SERVICE
-        .get_or_init(|| Arc::new(xiaowei_search::gateway::SearchService::default()))
+        .get_or_init(|| Arc::new(xw_search::gateway::SearchService::default()))
         .engine()
 }
 
@@ -99,7 +99,7 @@ pub fn record_usage(id: String) -> napi::Result<()> {
 #[napi]
 pub async fn read_app_icon(path: String) -> napi::Result<Option<napi::bindgen_prelude::Buffer>> {
     napi::tokio::task::spawn_blocking(move || {
-        xiaowei_search::read_app_icon(std::path::Path::new(&path)).map(Into::into)
+        xw_search::read_app_icon(std::path::Path::new(&path)).map(Into::into)
     })
     .await
     .map_err(|error| napi::Error::from_reason(error.to_string()))
@@ -107,7 +107,7 @@ pub async fn read_app_icon(path: String) -> napi::Result<Option<napi::bindgen_pr
 
 #[napi]
 pub async fn toggle_system_theme() -> napi::Result<bool> {
-    napi::tokio::task::spawn_blocking(xiaowei_search::toggle_dark_mode)
+    napi::tokio::task::spawn_blocking(xw_search::toggle_dark_mode)
         .await
         .map_err(|error| napi::Error::from_reason(error.to_string()))?
         .map_err(napi::Error::from_reason)

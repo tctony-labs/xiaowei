@@ -13,7 +13,7 @@ gateway-fixtures = ["xw-gateway/test-fixtures"]
 xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
 log = "0.4"
 xw-napi-log = { path = "../../xw-napi-log" }
-xiaowei-search = { path = ".." }
+xw-search = { path = "../../xw-search" }
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
 

@@ -2646,29 +2646,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xiaowei-clipboard"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "core-foundation",
- "core-graphics",
- "log",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "png 0.17.16",
- "prost",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "xiaowei-storage",
- "xw-contracts",
- "xw-gateway",
-]
-
-[[package]]
 name = "xiaowei-clipboard-napi"
 version = "0.1.0"
 dependencies = [
@@ -2676,7 +2653,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "prost",
- "xiaowei-clipboard",
+ "xw-clipboard",
  "xw-contracts",
  "xw-gateway",
  "xw-napi-log",
@@ -2701,24 +2678,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xiaowei-search"
-version = "0.1.0"
-dependencies = [
- "evalexpr",
- "log",
- "nucleo-matcher",
- "pinyin",
- "prost",
- "tempfile",
- "tokio",
- "xw-app",
- "xw-bookmark",
- "xw-contracts",
- "xw-gateway",
- "xw-platform",
-]
-
-[[package]]
 name = "xiaowei-search-napi"
 version = "0.1.0"
 dependencies = [
@@ -2726,26 +2685,9 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "xiaowei-search",
  "xw-gateway",
  "xw-napi-log",
-]
-
-[[package]]
-name = "xiaowei-storage"
-version = "0.1.0"
-dependencies = [
- "futures-util",
- "libsqlite3-sys",
- "prost",
- "serde_json",
- "sqlx",
- "tempfile",
- "thiserror",
- "tokio",
- "xw-contracts",
- "xw-gateway",
- "xw-tokenizer",
+ "xw-search",
 ]
 
 [[package]]
@@ -2757,10 +2699,10 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "prost",
- "xiaowei-storage",
  "xw-contracts",
  "xw-gateway",
  "xw-napi-log",
+ "xw-storage",
 ]
 
 [[package]]
@@ -2841,6 +2783,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "xw-clipboard"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "core-foundation",
+ "core-graphics",
+ "log",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "png 0.17.16",
+ "prost",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "xw-contracts",
+ "xw-gateway",
+ "xw-storage",
+]
+
+[[package]]
 name = "xw-contracts"
 version = "0.1.0"
 dependencies = [
@@ -2886,6 +2851,41 @@ dependencies = [
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+]
+
+[[package]]
+name = "xw-search"
+version = "0.1.0"
+dependencies = [
+ "evalexpr",
+ "log",
+ "nucleo-matcher",
+ "pinyin",
+ "prost",
+ "tempfile",
+ "tokio",
+ "xw-app",
+ "xw-bookmark",
+ "xw-contracts",
+ "xw-gateway",
+ "xw-platform",
+]
+
+[[package]]
+name = "xw-storage"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "libsqlite3-sys",
+ "prost",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "xw-contracts",
+ "xw-gateway",
+ "xw-tokenizer",
 ]
 
 [[package]]

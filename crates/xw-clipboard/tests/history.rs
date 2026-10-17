@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use xiaowei_clipboard::{ClipboardBackend, ClipboardData, ListOptions, Result, Service, Store};
+use xw_clipboard::{ClipboardBackend, ClipboardData, ListOptions, Result, Service, Store};
 
 fn options() -> ListOptions {
     ListOptions {
@@ -450,23 +450,19 @@ async fn image_files_survive_reopen_and_follow_record_deletion() {
 
 async fn client(directory: &std::path::Path) -> xw_gateway::invoke::Client {
     let db = Arc::new(
-        xiaowei_storage::Database::open(&directory.join("storage.sqlite"))
+        xw_storage::Database::open(&directory.join("storage.sqlite"))
             .await
             .unwrap(),
     );
     let registry = xw_gateway::XwInvokeRegistry::new();
     registry
-        .register_owner(
-            "storage",
-            xiaowei_storage::gateway::registrations(&db),
-            vec![],
-        )
+        .register_owner("storage", xw_storage::gateway::registrations(&db), vec![])
         .unwrap();
     registry
         .register_owner(
             "clipboard-dao",
-            xiaowei_storage::clipboard_dao::gateway::registrations(&Arc::new(
-                xiaowei_storage::clipboard_dao::ClipboardDao::new(db.clone()),
+            xw_storage::clipboard_dao::gateway::registrations(&Arc::new(
+                xw_storage::clipboard_dao::ClipboardDao::new(db.clone()),
             )),
             vec![],
         )

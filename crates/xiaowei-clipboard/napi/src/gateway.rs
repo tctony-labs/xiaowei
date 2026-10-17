@@ -7,7 +7,7 @@ use xw_gateway::XwInvokeRegistry;
 #[napi]
 pub struct GatewayEndpoint {
     pub(crate) inner: Arc<Endpoint>,
-    service: Option<Arc<xiaowei_clipboard::Service>>,
+    service: Option<Arc<xw_clipboard::Service>>,
     #[cfg(feature = "gateway-fixtures")]
     fixture: Option<Arc<xw_gateway::napi::fixture::Fixture>>,
 }
@@ -233,7 +233,7 @@ impl GatewayEndpoint {
 
 pub(crate) fn business_endpoint(
     env: &napi::Env,
-    service: Arc<xiaowei_clipboard::Service>,
+    service: Arc<xw_clipboard::Service>,
     registry: Arc<XwInvokeRegistry>,
 ) -> napi::Result<(
     GatewayEndpoint,
@@ -243,8 +243,8 @@ pub(crate) fn business_endpoint(
     let owner = registry
         .register_owner(
             "clipboard",
-            xiaowei_clipboard::gateway::registrations(&service),
-            xiaowei_clipboard::gateway::events(),
+            xw_clipboard::gateway::registrations(&service),
+            xw_clipboard::gateway::events(),
         )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     let inner = Endpoint::new(registry.clone(), owner.clone());

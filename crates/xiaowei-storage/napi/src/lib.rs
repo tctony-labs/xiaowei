@@ -1,6 +1,6 @@
 use napi_derive::napi;
 use std::sync::Arc;
-use xiaowei_storage::Database;
+use xw_storage::Database;
 
 mod gateway;
 use gateway::GatewayEndpoint;

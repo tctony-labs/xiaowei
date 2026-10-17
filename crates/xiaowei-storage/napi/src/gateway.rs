@@ -2,9 +2,9 @@ use napi::bindgen_prelude::{Buffer, PromiseRaw};
 use napi_derive::napi;
 use prost::{Message, Name};
 use std::sync::Arc;
-use xiaowei_storage::{clipboard_dao::ClipboardDao, settings::SettingsService, Database};
 use xw_gateway::napi::{reply, Callback, Endpoint, Reply};
 use xw_gateway::XwInvokeRegistry;
+use xw_storage::{clipboard_dao::ClipboardDao, settings::SettingsService, Database};
 
 #[napi]
 pub struct GatewayEndpoint {
@@ -152,7 +152,7 @@ pub(crate) fn create_key_value_endpoint(
     let owner = registry
         .register_owner(
             "key-value",
-            xiaowei_storage::gateway::registrations(database),
+            xw_storage::gateway::registrations(database),
             vec![],
         )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
@@ -174,7 +174,7 @@ pub(crate) fn create_clipboard_dao_endpoint(
     let owner = registry
         .register_owner(
             "clipboard-dao",
-            xiaowei_storage::clipboard_dao::gateway::registrations(&dao),
+            xw_storage::clipboard_dao::gateway::registrations(&dao),
             vec![],
         )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
@@ -197,8 +197,8 @@ pub(crate) fn create_settings_endpoint(
     let owner = registry
         .register_owner(
             "settings",
-            xiaowei_storage::settings::gateway::registrations(&service),
-            xiaowei_storage::settings::gateway::events(),
+            xw_storage::settings::gateway::registrations(&service),
+            xw_storage::settings::gateway::events(),
         )
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     let publisher = Arc::downgrade(&registry);
