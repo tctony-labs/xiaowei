@@ -13,7 +13,7 @@
 
 ## What
 
-本轮保留简体中文和英文 Electron 语言资源，排除 release 中所有 `.map` 文件，剔除已经 bundled 的前端运行库副本，并在 macOS 包签名前对五个生产 `.node` 执行 `strip -x`。保留必要的原生导出与加载入口，保持开发构建、LLM provider、更新签名与公证流程正常。
+初始范围为保留简体中文和英文 Electron 语言资源，排除 release 中所有 `.map` 文件，剔除已经 bundled 的前端运行库副本，并在 macOS 包签名前对当时五个生产 `.node` 执行 `strip -x`。保留必要的原生导出与加载入口，保持开发构建、LLM provider、更新签名与公证流程正常。
 
 后续用户授权继续裁剪依赖中不需要的其他环境代码。范围为 Google GenAI 的 Web／通用构建、polyfill／protobuf 浏览器构建以及 AWS／Smithy 等 Node 未选中的环境分支；按独立优化点验证并提交。该阶段不包含类型／TS 源码、原生模块合并或 LTO。
 
@@ -21,27 +21,31 @@
 
 用户随后要求重新从构建和依赖声明源头控制分发：纯 JS／TS 默认 bundled，只有 native 包与必要资源显式外置；此前被替代的逐包文件删除规则可以回退。构建与分发边界现已实施并通过自动验收，结果见 Outcome，当前约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
 
-验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包，不发布；用户已授权每个优化点单独提交。
+验收包括打包配置／失败路径回归、实际目录包的语言和 ASAR 内容检查、原生导出与加载验证、体积测量。构建和 Node 加载不替代真实 Electron 交互验收；Agent 不冷启动应用，不覆盖已安装正式包；初始阶段不发布，后续按用户明确授权正式发布 `v0.1.2`。用户已授权每个优化点单独提交。
 
 ## How
 
-实施前测量：220 份 Electron `locale.pak` 合计 48.0 MiB，仅保留 `zh_CN` 和 `en` 可减少约 46.9 MiB；依赖 source map 合计 17.6 MiB；React／React DOM／React Markdown／remark-gfm／zustand／scheduler 的重复副本约 8.0 MiB；临时副本 `strip -x` 合计减少约 9.1 MiB。收益基于 0.1.1，当前源码重新构建后的最终结果另行测量，不能视为同源码对照。
+最终采用从构建入口与生产依赖声明控制分发：纯 JS／TS bundled，只外置两个 native 包与明确资源，替代中途的逐 SDK 文件裁剪规则。常规绑定聚合到 `xiaowei-rust`，Agent 保持独立，内部业务核心使用 `xw-*`。
 
-语言复用 electron-builder 的语言筛选。Source map 与依赖打包边界独立：原先使用文件过滤排除；新方案在构建阶段关闭生成，并验证构建与分发产物，旧的 source map 文件过滤已移除。当前打包边界与维护入口统一见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。原生裁剪接入既有 `scripts/dev/build-napi.mjs` 的 macOS `--release` 路径，仅处理本次生成的 release `.node`，debug 不裁剪；输出前后字节数，构建或裁剪失败立即退出。
+原生本地符号在 release 构建完成后、测试、ASAR 元数据与签名前裁剪。最初考虑的 `afterPack` 裁剪被放弃，因为该 hook 发生在 ASAR 已记录 unpacked 文件长度与哈希之后；最终所有验证与签名使用同一份生产二进制。
 
-原方案考虑在 `afterPack` 处理打包副本，但核实 ASAR 会记录 unpacked 原生文件的大小与哈希，而 hook 发生在元数据生成后。改为 release 构建后立即裁剪，使 CI 的功能测试和 SHA-256 保护、ASAR 元数据及最终签名均基于相同产物。签名仍由既有 electron-builder 流程负责。
-
-## Current work
-
-- 优化代码已合并到 `develop`，版本提交 `85b1022` 已通过 annotated tag `v0.1.2` 正式发布。[Release](https://github.com/tctony-labs/xiaowei/releases/tag/v0.1.2) 与 [CI](https://github.com/tctony-labs/xiaowei/actions/runs/39044930330) 已核对，公开 Sparkle latest feed 已指向新版。
-- 正式 DMG 与包内 app 的新旧对比、内容边界、签名与票据验证均已完成，详见下文“正式 v0.1.1 与 v0.1.2 对比”。本轮停止继续优化；保留两个 addon，不提取共享动态库，LTO 与 SwiftShader 维持原决定。
-- 仍待用户从已安装旧版通过 Sparkle 更新，验收原生 UI、安装与重启、业务关闭及数据保留；本次未冷启动 Electron、未覆盖本机安装。此前“粗略测试正常”针对五个 addon 的 ad-hoc 包，不能替代新版正式包的交互验收。record 保留 active，未归档。
+当前构建、分发、压缩、测试与发布约定统一见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。模块边界与接入见 [Rust 原生模块开发](../../../crates/README.md) 和 [工作区架构](../../../docs/workspace.md#rust-模块)。后续版本以正式 `v0.1.2` 实测结果为 baseline，比较方法见 [体积维护与优化边界](../../../desktop/docs/macos-release.md#体积维护与优化边界)。
 
 ## Outcome
 
 本轮实现与发布约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。每个优化点单独提交，同时回填本记录；优化期间不覆盖本机安装，后续按用户授权发布 `v0.1.2`，正式结果见下文。
 
-使用当前源码构建五个 release addon 和 desktop，逐项复用相同构建产物打 ad-hoc 目录包，测得：
+### 收尾与归档
+
+用户要求复核剩余优化空间，并在没有值得继续实施的项目时收尾归档；同时要求保留 baseline，供后续版本体积发生明显变化时分析。复核结论为：本轮没有尚待实施的确定、低风险优化。正式 `v0.1.2` 中 Electron Framework 占 app 约 86.60%，ASAR 已降至 3.403 MiB；剩余主要空间属于宿主运行时、保留的 SwiftShader 和两份 native。LTO、共享动态库或进一步裁剪 Chromium 组件均需另行测量并评估代价，本轮不继续扩展范围。
+
+体积优化代码、自动回归、正式签名／公证发布和新旧正式包测量已完成，用户已授权归档，本记录作为完成事项冻结。最终 app 为 274.240 MiB，DMG 为 125.786 MiB；完整字节数、组成与验证证据见“正式 v0.1.1 与 v0.1.2 对比”。当前维护说明已补入现有发布文档和 Rust 模块说明，未新增长期文档，未修改根 README；本事项无残留 Plan。
+
+归档范围为本轮体积优化、自动验证、正式构建发布及体积对比。尚未确认的旧版到 `0.1.2` 真实安装／Sparkle 升级、重启与数据保留等交互，独立沿用既有 [正式包最终验收](../../../desktop/docs/macos-release.md#正式包最终验收) 流程，不记为本轮已通过。此前用户粗测仅覆盖五个 addon 的 ad-hoc 版本。未来出现明显体积变化时，按现有文档的比较口径引用此 baseline；如开展新的重大优化，另建事项，不向本归档继续追加结果。
+
+### 首轮裁剪
+
+首轮使用当时源码构建五个 release addon 和 desktop，逐项复用相同构建产物打 ad-hoc 目录包，测得：
 
 | 阶段 | 普通文件逻辑字节数 | MiB | 本步减少 |
 | --- | ---: | ---: | ---: |
@@ -154,12 +158,12 @@
 
 DMG 是压缩镜像，其减少比例与展开后的 app 不同。此表是两个正式版本的实际对比，两个 tag 之间也包含其他代码变化，不能把全部差额视为相同源码下单一优化的收益；五个 addon 合并为两个的独立本地对照仍为前文记录的 4.206 MiB。
 
-| app 组成 | v0.1.1 | v0.1.2 | 减少 |
-| --- | ---: | ---: | ---: |
-| Electron Framework | 284.477 MiB | 237.485 MiB | 46.991 MiB |
-| app.asar | 60.303 MiB | 3.403 MiB | 56.900 MiB |
-| app.asar.unpacked | 40.678 MiB | 27.248 MiB | 13.430 MiB |
-| 其他框架、资源与签名 | 6.115 MiB | 6.104 MiB | 0.010 MiB |
+| app 组成 | v0.1.1 | v0.1.2 | 新版占比 | 减少 |
+| --- | ---: | ---: | ---: | ---: |
+| Electron Framework | 284.477 MiB | 237.485 MiB | 86.60% | 46.991 MiB |
+| app.asar | 60.303 MiB | 3.403 MiB | 1.24% | 56.900 MiB |
+| app.asar.unpacked | 40.678 MiB | 27.248 MiB | 9.94% | 13.430 MiB |
+| 其他框架、资源与签名 | 6.115 MiB | 6.104 MiB | 2.23% | 0.010 MiB |
 
 | 内容检查 | v0.1.1 | v0.1.2 |
 | --- | ---: | ---: |
@@ -172,6 +176,8 @@ DMG 是压缩镜像，其减少比例与展开后的 app 不同。此表是两�
 | Electron locale.pak | 220 | 2（en、zh_CN） |
 | SwiftShader 字节数 | 16,625,552 | 16,625,552 |
 
+占比因四舍五入可能不恰好合计 100%。SwiftShader 已包含在 Electron Framework 中，不另行叠加。
+
 两份新版签名后二进制分别为 `xiaowei-agent` 7,384,160 bytes、`xiaowei-rust` 21,118,016 bytes。正式 app 比此前本机 ad-hoc 目录包小 43,647 bytes；正式旧版 app 比最初已安装基线小 2,220 bytes。两处均保留原始测量来源，不替换为同一个“基线”数字。
 
 验证证据：
@@ -182,7 +188,7 @@ DMG 是压缩镜像，其减少比例与展开后的 app 不同。此表是两�
 - Apple 已接受本次 DMG 公证（submission `6c687d1e-29ba-4cfc-a3b1-996dc1e235c8`），CI 已完成 app／DMG 票据及 Gatekeeper 校验、最终 ZIP 和 appcast 的签名验证。
 - 使用未认证的公开下载地址取得新旧 DMG 和 latest appcast。公开 feed 已指向版本 `0.1.2` 的更新 ZIP，URL 与 Release 一致，长度为 130,732,541 bytes，与正式 ZIP asset 元数据一致。未在本机执行应用升级或 GUI 验收。
 
-用户决定暂不提取两个 addon 之间的共享动态库：其净收益尚未量化，新增构建、加载、签名和全局状态管理复杂度本轮不引入。保留当前两个 addon，后续人工验收边界见 Current work。
+用户决定暂不提取两个 addon 之间的共享动态库：其净收益尚未量化，新增构建、加载、签名和全局状态管理复杂度本轮不引入。保留当前两个 addon，后续人工验收边界见“范围外与后续验收”。
 
 ### 其他环境代码裁剪
 
@@ -230,10 +236,8 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 
 代码混淆不采用：用户确认项目本身开源，无需通过混淆保护源码；此次仅调研了按业务模块筛选的可行性，没有接入混淆工具。后续单独授权的常规 minify 已实施，结果见上述章节。
 
-## 后续工作
+## 范围外与后续验收
 
-- 五个 `.node` 已合并为两个并测得 4.206 MiB 整包收益；常规包与 Agent 仍分别链接部分共用 Rust 实现。进一步提取共享动态库的收益尚未量化，本轮不继续调整，后续需评估加载、签名与发布成本。
-- 纯 JS 的 ESM／CJS、其他环境构建与内部包副本已由 bundler 的实际依赖图取代，不再维护按 SDK 目录删除的后续工作；新增运行时文件资源必须有明确用途和路径。
-- Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
-- SwiftShader 暂保留，用户决定本轮不裁剪。当前目录包的 `libvk_swiftshader.dylib` 为 16,625,408 bytes（15.855 MiB），保留软件图形回退能力；后续若重新评估，先明确 GPU 不可用时的兼容性要求。
-- 新正式版本仍需 Developer ID 签名／公证、安装及 Sparkle 更新验收；本地 ad-hoc 目录包不能替代。
+- 保留两个 addon，接受公共 Rust 实现分别链接；不引入共享动态库。Rust LTO 仍暂缓，净收益尚未测量。后续如重新开展优化，另建事项并引用本 baseline。
+- SwiftShader 按用户决定保留。正式新旧版本均为 16,625,552 bytes（约 15.855 MiB），提供软件图形回退，不作为待删除项。
+- 正式 `v0.1.2` 的 Developer ID 签名、公证、附件与公开 feed 已验证；真实安装／Sparkle 升级与业务交互仍按现有发布验收流程处理，不以本记录归档代替人工验收。

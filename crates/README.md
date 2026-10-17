@@ -67,7 +67,7 @@ crates/
   xw-platform/
 ```
 
-内部 `xw-*` crate 承载业务实现和通用能力，不依赖 Electron 或 napi。`xiaowei-rust-napi` 只负责公开接入、类型转换、异步调度和资源所有权适配，不把业务算法搬进绑定层。Agent 保持独立 `.node`；两个 addon 共享的 Rust 依赖仍分别参与链接。
+内部 `xw-*` crate 承载业务实现和通用能力，不依赖 Electron 或 napi。`xiaowei-rust-napi` 只负责公开接入、类型转换、异步调度和资源所有权适配，不把业务算法搬进绑定层。Agent 保持独立 `.node`；两个 addon 共享的 Rust 依赖仍分别参与链接。 分发体积的保留边界与后续测量方法见 [体积维护与优化边界](../desktop/docs/macos-release.md#体积维护与优化边界)。
 
 同一常规 addon 内只有一个 `GatewayEndpoint` 导出类型，各 endpoint 的 registry、owner 与服务实例仍独立。Storage 的数据库关闭职责、Clipboard 的停止／资源清理顺序保留；业务间继续通过既有 Gateway 调用。常规业务共享一次日志初始化，Agent 日志独立。根目录 `packages/` 保留给独立共享 npm 包。
 

@@ -20,6 +20,22 @@ main／preload／renderer 显式设置 `build.sourcemap: false`。构建回归�
 
 依赖升级或新增后须通过 `scripts/dev/desktop-source-resolution.test.mjs` 的构建图检查，以及 `desktop/tests/llm/bundled-worker.test.mjs` 的工作区外隔离运行检查。前者只允许宿主和两个 native 外部入口；后者不复制 SDK node_modules，覆盖十种 provider chunk 加载、HTTP/SSE、WebSocket、失败、取消和关闭。实际包验收时，将 ASAR 解包到工作区之外，验证 native 生成加载器，并通过 `XIAOWEI_TEST_BUNDLED_MAIN_DIR=<解包目录>/out/main` 对包内 worker 重跑隔离测试。该环境变量只用于测试，不改变应用运行入口。
 
+## 体积维护与优化边界
+
+正式 `v0.1.2` 作为后续迭代的体积 baseline。DMG、包内 app、Electron Framework、ASAR、原生模块和语言资源的实测明细及新旧对照统一保存在 [体积优化归档记录](../../.agent/records/archived/2026-10-16-release-size.md#正式-v011-与-v012-对比)，不在本文重复维护版本测量表。归档记录保留历史快照，不作为当前构建行为的说明；当前构建和分发约定以本文、配置及验证脚本为准。
+
+后续版本体积明显变化时，先与 baseline 按相同口径比较，再决定是否需要优化：
+
+1. 下载对应版本的正式 DMG，核对实际长度与 GitHub asset 的 SHA-256；不能混用正式包、ad-hoc 包和已安装后被修改的 app。
+2. 只读挂载 DMG，统计包内 app 的普通文件逻辑字节数，跳过符号链接。DMG 压缩字节数与 app 展开字节数分别记录；不以卷容量或磁盘块占用代替。
+3. 分别核对 Electron Framework、app.asar、app.asar.unpacked 和其余资源，再检查 native 数量、语言资源、source map、声明及生产依赖清单；从增长的组成定位原因。
+4. 记录比较的版本、源码提交、架构、工具链与签名方式。跨版本总差额不能直接归因于某一项优化；验证单项收益时使用相同源码和构建条件对照。
+5. 若需要新的重大优化，按 record 生命周期新建事项并引用此 baseline；新版本的测量与结论写入新事项，不修改已归档快照。
+
+当前保留 SwiftShader，提供 GPU 不可用时的软件图形回退；不按文件大小直接删除 Chromium 运行组件。常规业务与 Agent 保持两个独立 addon，共用依赖仍分别链接，当前未引入额外共享动态库。Rust LTO 尚未额外启用；如另行评估，应同时比较体积、构建耗时与功能回归。
+
+正式安装与 Sparkle 更新的人工验收继续遵循下文 [正式包最终验收](#正式包最终验收)，单次体积优化的归档不表示这些交互已通过。
+
 ## 本地打包
 
 准备工作区依赖、固定的 Node／pnpm／Rust 工具链和 Xcode Command Line Tools，在 Apple Silicon Mac 上执行：
