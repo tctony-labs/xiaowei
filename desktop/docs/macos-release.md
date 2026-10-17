@@ -12,6 +12,8 @@ main、LLM worker、preload 和 renderer 的纯 JS／TS（含工作区包与第�
 
 非 JS 资源须明确声明文件和用途。应用图标沿用 `extraResources`，Sparkle framework 和 LICENSE 沿用 `extraFiles`／`extraResources`；后续依赖若需运行时读取资源，应单独接入具体文件，不能恢复整个依赖目录复制。
 
+`build` 命令对 main（含 LLM worker）和 preload 显式启用 `minify: "esbuild"`，renderer 沿用 Vite 的生产压缩默认值；`serve` 开发构建不压缩 main／preload。使用常规空白、标识符和表达式压缩，不接入混淆或字节码工具。既有日志源码位置注入保留，异常栈按压缩产物显示。
+
 main／preload／renderer 显式设置 `build.sourcemap: false`。构建回归检查无 map 输出或引用，最终分发检查同时拒绝 `.map` 和 inline map 引用，不依赖打包后删除。native 类型声明及 Rust／Cargo 源码不在输入清单中；生成的 JS 加载器保留。
 
 每次 macOS 打包及独立发布阶段都会执行 `scripts/release/verify-package-content.mjs`，检查实际 ASAR、应用依赖声明、必需入口及 `app.asar.unpacked`。多余运行包、原始源码、声明、source map、其他架构二进制或缺失必需文件会阻止后续发布；签名、元数据、arm64 与五个 addon 的加载检查继续由既有打包入口执行。

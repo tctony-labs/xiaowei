@@ -34,8 +34,8 @@
 ## Current work
 
 - 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
-- 实际 ad-hoc 目录包为 294,287,179 bytes（280.654 MiB），ASAR 仅 74 个文件；相对上一轮减少 11.283 MiB。五个签名后二进制的大小和 SHA-256 与上一轮完全一致。
-- 73 项 LLM 测试、59 项 main 测试与 48 项构建／发布回归通过。真实包的隔离目录验收另通过 7 项 provider／worker 测试及五个 native 包加载器；详细范围见 Outcome。
+- 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，最新 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
+- minify 后重新通过构建压缩／依赖边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归；实际新包另通过 7 项 provider／worker 隔离测试及五个 native 包加载器。此前原生裁剪相关检查结果保留在 Outcome。
 - 代码与发布说明已完成，实施 Plan 已删除。真实 Electron GUI、语言回退及正式签名／公证／Sparkle 更新验收仍由用户启动后完成；未发布、未覆盖安装，record 保留 active。
 
 ## Outcome
@@ -92,6 +92,26 @@
 
 调整后 73 项 LLM 测试及 48 项构建／发布回归通过，包含真实 ASAR 成功与失败边界、发布内容失败后阻断后续制作。构建源码与产物内容检查已加入 release CI prebuilt 入口；isolated worker 测试由既有 desktop 测试通配入口覆盖。
 
+### Release JS minify
+
+用户决定项目本身开源，不采用源码混淆，随后授权仅做常规 minify。main（含 LLM worker）和 preload 的 build 命令显式使用 esbuild minify；serve 开发入口不压缩，renderer 继续沿用原有生产默认值。不新增依赖、混淆或 bytecode 接入，不改变 source map、native 外置与 provider chunk 边界。
+
+构建回归先在旧配置上因实际 main 输出没有缩小而失败；实现后用相同配置关闭 minify 的内存构建作对照，确认 main／preload 的生产输出确实更小，并确认 serve 的配置不压缩。源代码消费、Bedrock 懒加载、外部依赖及 source map 检查继续通过。
+
+| 项目 | 压缩前字节数 | 压缩后字节数 |
+| --- | ---: | ---: |
+| main（含 worker 和 provider chunks） | 4,123,722 | 1,852,854 |
+| preload | 1,213 | 576 |
+| renderer（含静态资源） | 1,697,256 | 1,697,256 |
+| app.asar | 5,842,916 | 3,571,383 |
+| 整个目录包 | 294,287,179 | 292,015,646 |
+
+实际目录包从 280.654 MiB 降至 278.488 MiB，减少 2,271,533 bytes（2.166 MiB）。renderer 大小及构建的内容哈希文件名保持一致；五个签名后的 native 二进制逐文件 SHA-256 与 minify 前一致。
+
+验证：desktop 构建、构建压缩／边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归通过。通过既有入口生成真实 ad-hoc 包后，ASAR 内容、签名、版本／更新元数据、arm64 与五个 addon 加载检查均通过。解包到工作区外，用该包 main 输出重跑 7 项隔离测试并通过五个 native 生成加载器；涵盖十种 provider chunk 加载、HTTP/SSE、WebSocket、Google 生成与 Bedrock 本地错误响应、失败、取消和关闭。日志仍显示注入的原始源码位置，临时解包目录已清理。
+
+五个工作区 native 包已恢复 debug 构建；目录包保留 release 裁剪产物。未冷启动 Electron、未覆盖已安装应用、未正式发布，GUI 与正式发布链路验收继续待用户执行。当前构建约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
+
 ### 其他环境代码裁剪
 
 用户要求继续处理未使用的其他环境构建，复用首轮相同源码及 release 构建；只增加发布文件过滤，不修改已安装依赖或生产业务逻辑。
@@ -136,11 +156,9 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 
 本阶段累计减少 8.083 MiB（含 ASAR 元数据），实际目录包为 306,118,222 bytes（291.937 MiB）。类型声明和 SDK 源码各自单独提交，提交 hook 执行 `just check`。只修改分发过滤和相关文档，开发依赖源码保留；工作区原生包恢复 debug 构建，release 目录包通过签名、版本、arm64 和五个 addon 加载检查。临时验证目录及哈希快照已清理。
 
-代码混淆不采用：用户确认项目本身开源，无需通过混淆保护源码；此次仅调研了按业务模块筛选的可行性，没有接入混淆工具或修改构建行为。
+代码混淆不采用：用户确认项目本身开源，无需通过混淆保护源码；此次仅调研了按业务模块筛选的可行性，没有接入混淆工具。后续单独授权的常规 minify 已实施，结果见上述章节。
 
 ## 后续工作
-
-- 压缩暂不实施，保留为独立的体积优化候选。当前 electron-vite 5 的 main（含 LLM worker）／preload 默认 `minify: false`，renderer 生产构建默认压缩。后续独立评估 main／worker／preload 开启压缩后的体积、启动和 provider 行为，并确认函数名／错误栈对日志排障的影响。
 
 - 五个 `.node` 仍分别链接了部分共用 Rust 实现；本次没有调整原生模块边界。后续若继续优化，先量化重复机器码及体积收益，再评估合并 addon 或共享动态库对模块职责、加载、签名和发布的影响。
 - 纯 JS 的 ESM／CJS、其他环境构建与内部包副本已由 bundler 的实际依赖图取代，不再维护按 SDK 目录删除的后续工作；新增运行时文件资源必须有明确用途和路径。

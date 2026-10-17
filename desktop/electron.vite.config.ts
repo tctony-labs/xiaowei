@@ -5,13 +5,14 @@ import { sourceLocationPlugin } from "@xiaowei/source-log/vite";
 import { defineConfig } from "electron-vite";
 import { defaultClientConditions, defaultServerConditions } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   main: {
     resolve: { conditions: ["source", ...defaultServerConditions] },
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
       sourcemap: false,
+      minify: command === "build" ? "esbuild" : false,
       externalizeDeps: false,
       rollupOptions: {
         external: [
@@ -37,6 +38,7 @@ export default defineConfig({
     plugins: [sourceLocationPlugin()],
     build: {
       sourcemap: false,
+      minify: command === "build" ? "esbuild" : false,
       externalizeDeps: false,
       rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } },
     },
@@ -60,4 +62,4 @@ export default defineConfig({
     ],
     server: { host: "127.0.0.1", watch: { usePolling: true, interval: 100 } },
   },
-});
+}));
