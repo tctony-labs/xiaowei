@@ -1,4 +1,4 @@
-import type { SparkleUpdater } from "xiaowei-platform";
+import type { SparkleUpdater } from "xiaowei-rust";
 
 type Updater = Pick<SparkleUpdater, "check" | "resumeInstall" | "close">;
 

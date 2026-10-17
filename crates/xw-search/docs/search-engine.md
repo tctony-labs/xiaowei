@@ -1,6 +1,6 @@
 # 搜索引擎
 
-本文描述 `xiaowei-search` 包内的查询、评分与结果组织。Launcher、数据源协作、宿主执行和图标资源见 [搜索实现](../../../docs/search.md)；构建与验证入口见 [模块 README](../README.md)。
+本文描述 `xw-search` 包内的查询、评分与结果组织。Launcher、数据源协作、宿主执行和图标资源见 [搜索实现](../../../docs/search.md)；构建与验证入口见 [模块 README](../README.md)。
 
 ## 引擎与入口
 

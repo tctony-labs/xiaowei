@@ -1,6 +1,6 @@
 # xw-storage
 
-应用共享存储核心。统一持有 SQLx SQLite 连接池，管理迁移、meta KV、设置持久化与业务 DAO；`../xiaowei-storage/napi/` 暂时承载桌面 npm 入口。其他业务通过 typed Gateway endpoint 访问，不提交 SQL 或自行管理本库连接。
+应用共享存储核心。统一持有 SQLx SQLite 连接池，管理迁移、meta KV、设置持久化与业务 DAO；[xiaowei-rust](../xiaowei-rust/README.md) 承载桌面 npm 入口。其他业务通过 typed Gateway endpoint 访问，不提交 SQL 或自行管理本库连接。
 
 ## 文档
 
@@ -11,6 +11,6 @@
 
 ## 验证
 
-在仓库根目录运行 `cargo test -p xw-storage -p xw-tokenizer --locked` 验证数据库与分词能力；原生包构建入口为 `pnpm --filter xiaowei-storage build:debug`，绑定测试入口为 `pnpm --filter xiaowei-storage test`，后者需有当前代码的原生产物。
+在仓库根目录运行 `cargo test -p xw-storage -p xw-tokenizer --locked` 验证数据库与分词能力；原生构建与绑定验证入口见 [xiaowei-rust](../xiaowei-rust/README.md#准备与验证)。
 
-[src/tests/](src/tests/) 覆盖事务、迁移、meta、设置及 FTS5，[绑定测试](../xiaowei-storage/napi/test/) 覆盖原生生命周期。真实跨 addon 调用与桌面故障清理由 [桌面测试](../../desktop/tests/README.md) 承载，不与同一 addon 的构建并行运行。
+[src/tests/](src/tests/) 覆盖事务、迁移、meta、设置及 FTS5，[绑定测试](../xiaowei-rust/napi/test/storage/) 覆盖原生生命周期。真实跨 addon 调用与桌面故障清理由 [桌面测试](../../desktop/tests/README.md) 承载，不与同一 addon 的构建并行运行。

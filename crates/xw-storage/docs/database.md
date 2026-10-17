@@ -1,6 +1,6 @@
 # Storage 数据库实现
 
-本文描述 `xiaowei-storage` 内部数据库、持久化和全文检索基础。跨包所有权、桌面路径与服务生命周期见 [共享存储接入](../../../docs/storage.md)，构建与验证入口见 [模块 README](../README.md)。
+本文描述 `xw-storage` 内部数据库、持久化和全文检索基础。跨包所有权、桌面路径与服务生命周期见 [共享存储接入](../../../docs/storage.md)，构建与验证入口见 [模块 README](../README.md)。
 
 ## 连接与初始化
 

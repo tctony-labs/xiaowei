@@ -17,24 +17,24 @@ const fixture = (name) => [
 
 test("standalone tests prepare separate production and fixture addons without restoration", async () => {
   const calls = [];
-  await withRustNapiFixtures(["search", "clipboard"], () => calls.push("tests"), {
+  await withRustNapiFixtures(["rust", "agent"], () => calls.push("tests"), {
     prepared: false,
     run: (args) => calls.push(args),
     writePackage: (name) => calls.push(`package:${name}`),
     verify(packages) {
-      assert.deepEqual(packages, ["search", "clipboard"]);
+      assert.deepEqual(packages, ["rust", "agent"]);
       calls.push("verify");
     },
   });
 
   assert.deepEqual(calls, [
-    production("search"),
-    production("clipboard"),
+    production("rust"),
+    production("agent"),
     "verify",
-    fixture("search"),
-    "package:search",
-    fixture("clipboard"),
-    "package:clipboard",
+    fixture("rust"),
+    "package:rust",
+    fixture("agent"),
+    "package:agent",
     "tests",
     "verify",
   ]);
@@ -42,7 +42,7 @@ test("standalone tests prepare separate production and fixture addons without re
 
 test("workspace preparation builds fixtures without repeating the production build", async () => {
   const calls = [];
-  await withRustNapiFixtures(["search"], () => calls.push("tests"), {
+  await withRustNapiFixtures(["rust"], () => calls.push("tests"), {
     prepared: false,
     productionPrepared: true,
     run: (args) => calls.push(args),
@@ -50,12 +50,12 @@ test("workspace preparation builds fixtures without repeating the production bui
     verify: () => calls.push("verify"),
   });
 
-  assert.deepEqual(calls, ["verify", fixture("search"), "package:search", "tests", "verify"]);
+  assert.deepEqual(calls, ["verify", fixture("rust"), "package:rust", "tests", "verify"]);
 });
 
 test("workspace children reuse prepared addons and still check production exports", async () => {
   const calls = [];
-  await withRustNapiFixtures(["search"], () => calls.push("tests"), {
+  await withRustNapiFixtures(["rust"], () => calls.push("tests"), {
     prepared: true,
     run: () => assert.fail("prepared tests must not rebuild addons"),
     writePackage: () => assert.fail("prepared tests must not rewrite fixture packages"),
@@ -92,7 +92,7 @@ test("a failed fixture build checks production artifacts without rebuilding or r
   const calls = [];
   const failure = new Error("fixture build failed");
   await assert.rejects(
-    withRustNapiFixtures(["search", "clipboard"], () => assert.fail("tests must not run"), {
+    withRustNapiFixtures(["rust", "agent"], () => assert.fail("tests must not run"), {
       prepared: false,
       productionPrepared: true,
       run(args) {
@@ -104,7 +104,7 @@ test("a failed fixture build checks production artifacts without rebuilding or r
     (error) => error === failure,
   );
 
-  assert.deepEqual(calls, ["verify", fixture("search"), "verify"]);
+  assert.deepEqual(calls, ["verify", fixture("rust"), "verify"]);
 });
 
 test("test and production check failures are both reported without a restoration build", async () => {
@@ -113,7 +113,7 @@ test("test and production check failures are both reported without a restoration
   let checks = 0;
   await assert.rejects(
     withRustNapiFixtures(
-      ["search", "clipboard"],
+      ["rust", "agent"],
       async () => {
         throw failure;
       },

@@ -1,6 +1,6 @@
 # 搜索实现
 
-本文描述当前代码中的搜索行为。全局搜索由 `xiaowei-search` 提供，采用内存候选遍历、nucleo 模糊匹配、拼音匹配和使用记录加权；不使用 SQLite、FTS5 或倒排索引。迁移背景与验收结果见 [搜索迁移 record](../.agent/records/archived/2026-09-16-migrate-search.md)。
+本文描述当前代码中的搜索行为。全局搜索由 `xw-search` 提供，采用内存候选遍历、nucleo 模糊匹配、拼音匹配和使用记录加权；不使用 SQLite、FTS5 或倒排索引。迁移背景与验收结果见 [搜索迁移 record](../.agent/records/archived/2026-09-16-migrate-search.md)。
 
 ## Launcher 搜索入口
 

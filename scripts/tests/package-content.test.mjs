@@ -52,11 +52,12 @@ test("real ASAR accepts only built outputs, metadata and native runtime files", 
 
 for (const path of [
   "node_modules/openai/index.js",
+  "node_modules/xiaowei-storage/index.js",
   "node_modules/xiaowei-gateway/src/index.ts",
   "node_modules/xiaowei-agent/src/lib.rs",
   "node_modules/xiaowei-agent/index.d.ts",
   "node_modules/xiaowei-agent/Cargo.toml",
-  "node_modules/xiaowei-agent/xiaowei-agent.darwin-x64.node",
+  "node_modules/xiaowei-rust/xiaowei-rust.darwin-x64.node",
   "src/main/index.js",
   "out/main/index.js.map",
   "out/main/chunks/extra.d.mts",

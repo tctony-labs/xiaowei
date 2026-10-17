@@ -48,7 +48,7 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 
 需要明确区分的边界：
 
-- 第一阶段设置由 Rust `xiaowei-storage/src/settings` 维护默认值、校验、旧 `setting.*` 数据读取与逐项写入；`Settings` Gateway 提供有类型的完整快照、单项更新和提交后变更事件。Electron 主进程通过 Gateway 读取设置，并通过回调执行系统操作；系统操作或持久化失败时尝试恢复此前系统状态。底层 SQLite `meta` 表只作为 Rust 实现，对外的通用 JSON KV 契约名为 `KeyValue`。通用 KV 不允许读写 `setting.*` 和 `migration_v2.*`，业务模块通过 `Settings` 更新设置，保证校验和通知。产品 `SettingsPage` 先订阅再读取快照，更新失败时重新读取已提交状态。Launcher 与设置窗口响应主题变更；Launcher 在设置变更后重新查询当前搜索词。应用菜单打开可重用的独立设置窗口：隐藏 Launcher 前捕获当前聚焦窗口所在显示器，无聚焦窗口时使用鼠标所在显示器；新窗口在目标屏幕可用区域居中，复用窗口仅在跨屏时按现有尺寸重新居中，同屏保留拖动位置。并提供原生“关闭窗口”命令（macOS 为 Cmd+W）；macOS 使用原生 `hiddenInset` 标题栏，Storybook 模拟按钮不进入产品。
+- 第一阶段设置由 Rust `xw-storage/src/settings` 维护默认值、校验、旧 `setting.*` 数据读取与逐项写入；`Settings` Gateway 提供有类型的完整快照、单项更新和提交后变更事件。Electron 主进程通过 Gateway 读取设置，并通过回调执行系统操作；系统操作或持久化失败时尝试恢复此前系统状态。底层 SQLite `meta` 表只作为 Rust 实现，对外的通用 JSON KV 契约名为 `KeyValue`。通用 KV 不允许读写 `setting.*` 和 `migration_v2.*`，业务模块通过 `Settings` 更新设置，保证校验和通知。产品 `SettingsPage` 先订阅再读取快照，更新失败时重新读取已提交状态。Launcher 与设置窗口响应主题变更；Launcher 在设置变更后重新查询当前搜索词。应用菜单打开可重用的独立设置窗口：隐藏 Launcher 前捕获当前聚焦窗口所在显示器，无聚焦窗口时使用鼠标所在显示器；新窗口在目标屏幕可用区域居中，复用窗口仅在跨屏时按现有尺寸重新居中，同屏保留拖动位置。并提供原生“关闭窗口”命令（macOS 为 Cmd+W）；macOS 使用原生 `hiddenInset` 标题栏，Storybook 模拟按钮不进入产品。
 - 剪贴板选取走 `Clipboard.Select`，成功复制后隐藏 Launcher；自动粘贴未配置时默认关闭，已显式保存的值保持原样。用户在 macOS 手动开启时立即请求辅助功能权限，之后获得授权才会在选取时发送 Command‑V；尚未授权时仍完成复制。右键复制只走 `Clipboard.Copy`。容量显示统计共享数据库（含 WAL）及剪贴板附件；手动“清理全部”与按期限清理共用只删除普通记录的保护条件，并释放附件。
 
 - “清理全部”是新增入口，旧版 `ClipboardTab` 没有；用户于 2026-09-20 明确仅制作设置 UI 预览。业务语义为复用自动清理规则，将清理截止时间设为点击时的当前时刻，清理该时刻之前的全部普通数据，而非按保留天数回推截止时间。普通数据须同时满足未收藏、无备注、无标签等保护标记；任一保护标记存在即保留。产品清理能力及剩余验收见第一部分计划；不得调用现有语义不同的 `clearHistory` API，见 [剪贴板后续事项](2026-09-17-migrate-local-clipboard.md)。

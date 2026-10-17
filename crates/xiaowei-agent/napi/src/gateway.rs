@@ -8,7 +8,9 @@ use xw_gateway::napi::{Callback, Endpoint, Reply, reply};
 #[napi]
 pub struct GatewayEndpoint {
     pub(crate) inner: Arc<Endpoint>,
-    pub(crate) agent: Arc<Agent>,
+    agent: Option<Arc<Agent>>,
+    #[cfg(feature = "gateway-fixtures")]
+    fixture: Option<Arc<xw_gateway::napi::fixture::Fixture>>,
 }
 
 #[napi]
@@ -38,12 +40,16 @@ impl GatewayEndpoint {
         env.spawn_future(async move {
             let result = async {
                 inner.activate().await?;
-                agent.activate(inner.client()?);
+                if let Some(agent) = &agent {
+                    agent.activate(inner.client()?);
+                }
                 Ok(vec![])
             }
             .await;
             if result.is_err() {
-                let _ = agent.close().await;
+                if let Some(agent) = &agent {
+                    let _ = agent.close().await;
+                }
                 let _ = inner.close().await;
             }
             Ok(reply(result))
@@ -145,7 +151,10 @@ impl GatewayEndpoint {
         let inner = self.inner.clone();
         let agent = self.agent.clone();
         env.spawn_future(async move {
-            let service = agent.close().await.map_err(xiaowei_agent::gateway::error);
+            let service = match agent {
+                Some(agent) => agent.close().await.map_err(xiaowei_agent::gateway::error),
+                None => Ok(()),
+            };
             let endpoint = inner.close().await;
             Ok(reply(service.and(endpoint)))
         })
@@ -170,7 +179,9 @@ pub(crate) fn create_endpoint(agent: &Arc<Agent>, env: napi::Env) -> napi::Resul
     })?;
     Ok(GatewayEndpoint {
         inner,
-        agent: agent.clone(),
+        agent: Some(agent.clone()),
+        #[cfg(feature = "gateway-fixtures")]
+        fixture: None,
     })
 }
 
@@ -178,6 +189,103 @@ impl Drop for GatewayEndpoint {
     fn drop(&mut self) {
         // GC/environment teardown cannot await; stop work and break registry/client
         // references. Explicit close is the path that waits for settlement.
-        self.agent.cancel();
+        if let Some(agent) = &self.agent {
+            agent.cancel();
+        }
     }
+}
+
+#[cfg(feature = "gateway-fixtures")]
+#[napi]
+pub fn create_gateway_fixture(env: napi::Env) -> napi::Result<GatewayEndpoint> {
+    let fixture = Arc::new(xw_gateway::napi::fixture::Fixture::new(true));
+    fixture.endpoint.install_cleanup(&env)?;
+    Ok(GatewayEndpoint {
+        inner: fixture.endpoint.clone(),
+        agent: None,
+        fixture: Some(fixture),
+    })
+}
+
+#[cfg(feature = "gateway-fixtures")]
+#[napi]
+impl GatewayEndpoint {
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn fixture_invoke<'env>(
+        &self,
+        env: &'env napi::Env,
+        route: String,
+        payload: Buffer,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let inner = self.inner.clone();
+        let payload = payload.to_vec();
+        env.spawn_future(async move { Ok(reply(inner.invoke(&route, payload).await)) })
+    }
+
+    #[napi]
+    pub fn fixture_rpc_usage(&self) -> u32 {
+        self.fixture.as_ref().unwrap().rpc_usage() as u32
+    }
+
+    #[napi]
+    pub fn fixture_stream_usage(&self) -> String {
+        self.fixture.as_ref().unwrap().stream_usage()
+    }
+
+    #[napi]
+    pub fn fixture_release(&self) {
+        self.fixture.as_ref().unwrap().release();
+    }
+
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn fixture_publish<'env>(
+        &self,
+        env: &'env napi::Env,
+        payload: Buffer,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let fixture = self.fixture.as_ref().unwrap().clone();
+        let payload = payload.to_vec();
+        env.spawn_future(async move { Ok(reply(fixture.publish(payload))) })
+    }
+
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn fixture_subscribe<'env>(
+        &self,
+        env: &'env napi::Env,
+        filter: Option<Buffer>,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let fixture = self.fixture.as_ref().unwrap().clone();
+        let filter = filter.map(|v| v.to_vec());
+        env.spawn_future(async move { Ok(reply(fixture.subscribe(filter).await)) })
+    }
+
+    #[napi]
+    pub fn fixture_unsubscribe(&self) {
+        self.fixture.as_ref().unwrap().unsubscribe();
+    }
+
+    #[napi(ts_return_type = "Promise<Buffer | string>")]
+    pub fn fixture_next<'env>(
+        &self,
+        env: &'env napi::Env,
+    ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let fixture = self.fixture.as_ref().unwrap().clone();
+        env.spawn_future(async move { Ok(reply(fixture.next().await)) })
+    }
+}
+
+#[cfg(feature = "gateway-fixtures")]
+#[napi]
+pub fn create_gateway_endpoint(env: napi::Env) -> napi::Result<GatewayEndpoint> {
+    let registry = XwInvokeRegistry::new();
+    let owner = registry
+        .register_owner("module", vec![], vec![])
+        .map_err(|error| napi::Error::from_reason(error.to_string()))?;
+    let inner = Endpoint::new(registry, owner);
+    inner.install_cleanup(&env)?;
+    Ok(GatewayEndpoint {
+        inner,
+        agent: None,
+        fixture: None,
+    })
 }

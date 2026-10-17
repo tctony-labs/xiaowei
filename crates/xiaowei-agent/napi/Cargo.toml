@@ -6,6 +6,9 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+gateway-fixtures = ["xw-gateway/test-fixtures"]
+
 [dependencies]
 tokio = { version = "1", features = ["rt"] }
 xiaowei-agent = { path = ".." }

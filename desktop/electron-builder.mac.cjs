@@ -14,13 +14,9 @@ module.exports = {
       filter: [
         "!**/*",
         ...base.files,
-        ...[
-          "xiaowei-agent",
-          "xiaowei-search",
-          "xiaowei-clipboard",
-          "xiaowei-storage",
-          "xiaowei-platform",
-        ].map((name) => `node_modules/${name}/{index.js,package.json,${name}.darwin-arm64.node}`),
+        ...["xiaowei-agent", "xiaowei-rust"].map(
+          (name) => `node_modules/${name}/{index.js,package.json,${name}.darwin-arm64.node}`,
+        ),
       ],
     },
   ],

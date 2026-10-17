@@ -3,13 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractFile, listPackage, statFile } from "@electron/asar";
 
-export const nativePackages = [
-  "xiaowei-agent",
-  "xiaowei-search",
-  "xiaowei-clipboard",
-  "xiaowei-storage",
-  "xiaowei-platform",
-];
+export const nativePackages = ["xiaowei-agent", "xiaowei-rust"];
 
 export function verifyPackageContent(app) {
   const archive = join(app, "Contents/Resources/app.asar");
@@ -85,7 +79,7 @@ export function verifyPackageContent(app) {
   verifyUnpacked(`${archive}.unpacked`);
   if (unpacked.size) throw new Error(`Missing unpacked files: ${[...unpacked].join(", ")}`);
   console.info(
-    `Packaged content verified: ${files.length} files, five native packages, no source maps or source directories`,
+    `Packaged content verified: ${files.length} files, two native packages, no source maps or source directories`,
   );
   return files;
 }

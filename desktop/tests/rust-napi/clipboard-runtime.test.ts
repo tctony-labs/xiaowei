@@ -18,13 +18,12 @@ import {
 import { bindClient, bindEvent, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
-import type * as ClipboardNative from "../../../crates/xiaowei-clipboard/napi/index.js";
-import type * as StorageNative from "../../../crates/xiaowei-storage/napi/index.js";
+import type * as ClipboardNative from "../../../crates/xiaowei-rust/napi/index.js";
+import type * as StorageNative from "../../../crates/xiaowei-rust/napi/index.js";
 
 const require = createRequire(import.meta.url);
-const { ClipboardHistory } =
-  require("../../../crates/xiaowei-clipboard/napi") as typeof ClipboardNative;
-const { Storage } = require("../../../crates/xiaowei-storage/napi") as typeof StorageNative;
+const { ClipboardHistory } = require("../../../crates/xiaowei-rust/napi") as typeof ClipboardNative;
+const { Storage } = require("../../../crates/xiaowei-rust/napi") as typeof StorageNative;
 
 test("Rust runtime cleans on retention changes, protects permanent records and stops on close", async () => {
   const directory = await mkdtemp(join(tmpdir(), "clipboard-runtime-"));

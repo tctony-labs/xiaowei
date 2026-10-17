@@ -18,11 +18,8 @@
     "storybook:build": "storybook build --disable-telemetry"
   },
   "dependencies": {
-    "xiaowei-clipboard": "workspace:*",
-    "xiaowei-search": "workspace:*",
-    "xiaowei-storage": "workspace:*",
-    "xiaowei-platform": "workspace:*",
-    "xiaowei-agent": "workspace:*"
+    "xiaowei-agent": "workspace:*",
+    "xiaowei-rust": "workspace:*"
   },
   "devDependencies": {
     "react": "19.3.0",

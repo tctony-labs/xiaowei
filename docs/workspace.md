@@ -32,72 +32,40 @@ XiaoWei 包含 Electron 桌面应用、Rust 原生模块和独立 Go 服务端�
 
 ### Rust 模块
 
-`crates/` 中的 `xiaowei-*` 是桌面使用的功能入口，`xw-*` 包含业务实现、支撑模块和通用能力。带 Node 接口的功能模块在自己的 `napi/` 下提供绑定 crate 和同名 npm 包；业务核心与适配层属于同一功能模块。
+`crates/` 中的 `xiaowei-*` 是桌面直接消费的入口，`xw-*` 是内部 Rust 业务实现与支撑模块。当前仅分发两个 `.node`：常规业务聚合到 `xiaowei-rust`，Agent 通过 `xiaowei-agent` 独立接入；npm 包名不带 `-napi`，对应 Cargo 绑定 crate 带 `-napi`。
 
 ```mermaid
 flowchart TB
     Main["Electron main"]
+    RustNapi["xiaowei-rust-napi<br/>npm：xiaowei-rust<br/>独立 xiaowei-rust.node"]
+    AgentNapi["xiaowei-agent-napi<br/>npm：xiaowei-agent<br/>独立 xiaowei-agent.node"]
 
-    subgraph NodeLayer["Node 适配层"]
-        Napi["xiaowei-*-napi<br/>npm 入口：xiaowei-*"]
-    end
+    Main --> RustNapi
+    Main --> AgentNapi
+    RustNapi --> Search["xw-search"]
+    RustNapi --> Clipboard["xw-clipboard"]
+    RustNapi --> Storage["xw-storage"]
+    RustNapi --> PlatformCore["xw-platform"]
+    AgentNapi --> Agent["xiaowei-agent"]
 
-    subgraph FeatureLayer["Rust 功能入口"]
-        Search["xw-search"]
-        Clipboard["xw-clipboard"]
-        Storage["xw-storage"]
-        Agent["xiaowei-agent"]
-        Platform["xiaowei-platform"]
-    end
-
-    subgraph BusinessLayer["业务模块"]
-        Apps["xw-app"]
-        Bookmarks["xw-bookmark"]
-    end
-
-    subgraph StorageLayer["存储依赖"]
-        Tokenizer["xw-tokenizer"]
-    end
-
-    subgraph AgentLayer["Agent 模块"]
-        AgentCore["xw-agent"]
-        Runtime["xw-agent-runtime"]
-        Rollout["xw-agent-rollout"]
-        Types["xw-agent-types"]
-    end
-
-    subgraph PlatformLayer["通用平台能力"]
-        PlatformCore["xw-platform"]
-    end
-
-    Main --> Napi
-    Napi --> Search
-    Napi --> Clipboard
-    Napi --> Storage
-    Napi --> Agent
-    Napi --> Platform
-
-    Search --> Apps
-    Search --> Bookmarks
+    Search --> Apps["xw-app"]
+    Search --> Bookmarks["xw-bookmark"]
     Search --> PlatformCore
-    Storage --> Tokenizer
-    Agent --> AgentCore
-    Platform --> PlatformCore
-
-    AgentCore --> Runtime
-    AgentCore --> Rollout
-    AgentCore --> Types
+    Storage --> Tokenizer["xw-tokenizer"]
+    Agent --> AgentCore["xw-agent"]
+    AgentCore --> Runtime["xw-agent-runtime"]
+    AgentCore --> Rollout["xw-agent-rollout"]
+    AgentCore --> Types["xw-agent-types"]
     Runtime --> Types
     Rollout --> Types
 
-    AgentLayer -.-> PlatformCore
     Apps -.-> PlatformCore
     Bookmarks -.-> PlatformCore
 ```
 
-实线表示当前主要使用或依赖关系，虚线表示可按需使用的通用平台能力。契约、Gateway 与日志等共享依赖未逐一连线。
+实线表示当前主要使用或依赖关系，虚线表示可按需使用的通用平台能力。图中的两个 napi 节点分别对应真实二进制。常规 addon 内的服务仍各自持有 registry、owner 和业务状态，继续通过既有 Gateway 通信；合并不自动合并数据库或服务生命周期。契约、Gateway、Tokio 与日志等公共依赖未逐一连线，跨两个 `.node` 仍分别链接。
 
-应用、书签等具体业务由各自的纯 Rust 模块实现。`xw-platform` 提供通用平台能力，可由 `xiaowei-platform`、Agent 模块及业务模块按需使用；`xw-tokenizer` 是 Storage 的单独依赖。
+应用、书签等具体业务由各自的纯 Rust 模块实现。`xw-platform` 提供通用平台能力，可由 `xiaowei-rust-napi` 及其他 Rust 模块按需使用；`xw-tokenizer` 是 Storage 的单独依赖。
 
 | 包 | 职责 |
 | --- | --- |
@@ -105,7 +73,8 @@ flowchart TB
 | `xw-clipboard` | 剪贴板采集、历史、资源与粘贴 |
 | `xw-storage` | SQLite 存储、迁移、设置与数据访问 |
 | `xiaowei-agent` | Agent 核心与 Gateway／LLM 的集成入口 |
-| `xiaowei-platform` | 原生平台能力的 Node 适配 |
+| `xiaowei-rust-napi` | 常规业务与平台能力的聚合 Node 适配 |
+| `xiaowei-agent-napi` | Agent 的独立 Node 适配 |
 | `xw-agent` | 会话、运行调度、持久化目录与业务恢复 |
 | `xw-agent-runtime` | 单次生成执行、结果收集与取消 |
 | `xw-agent-rollout` | 会话历史文件、提交与恢复 |
@@ -115,6 +84,8 @@ flowchart TB
 | `xw-platform` | 通用原生系统能力 |
 | `xw-tokenizer` | Storage 使用的 SQLite FTS5 分词 |
 | `xw-napi-log` | 原生模块日志接收 |
+
+另有 `contracts/` 下的 `xw-contracts`、`xw-contracts-codegen` 和 `gateway/rust/` 下的 `xw-gateway`，Cargo workspace 共 18 个包。
 
 各包的详细说明、依赖方向及原生构建约定见 [Rust 模块索引](../crates/README.md)。
 

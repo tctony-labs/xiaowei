@@ -4,7 +4,7 @@ runPnpm(["test:patches"]);
 runPnpm(["build:rust"]);
 
 await withRustNapiFixtures(
-  ["search", "clipboard"],
+  ["rust", "agent"],
   () => {
     runPnpm(["-r", "--workspace-concurrency=1", "test"], {
       ...process.env,

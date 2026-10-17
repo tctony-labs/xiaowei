@@ -2646,62 +2646,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "xiaowei-clipboard-napi"
+name = "xiaowei-rust-napi"
 version = "0.1.0"
 dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
  "prost",
+ "tokio",
  "xw-clipboard",
  "xw-contracts",
  "xw-gateway",
  "xw-napi-log",
-]
-
-[[package]]
-name = "xiaowei-platform"
-version = "0.1.0"
-dependencies = [
  "xw-platform",
-]
-
-[[package]]
-name = "xiaowei-platform-napi"
-version = "0.1.0"
-dependencies = [
- "napi",
- "napi-build",
- "napi-derive",
- "tokio",
- "xiaowei-platform",
-]
-
-[[package]]
-name = "xiaowei-search-napi"
-version = "0.1.0"
-dependencies = [
- "log",
- "napi",
- "napi-build",
- "napi-derive",
- "xw-gateway",
- "xw-napi-log",
  "xw-search",
-]
-
-[[package]]
-name = "xiaowei-storage-napi"
-version = "0.1.0"
-dependencies = [
- "log",
- "napi",
- "napi-build",
- "napi-derive",
- "prost",
- "xw-contracts",
- "xw-gateway",
- "xw-napi-log",
  "xw-storage",
 ]
 

@@ -15,13 +15,7 @@ export default defineConfig(({ command }) => ({
       minify: command === "build" ? "esbuild" : false,
       externalizeDeps: false,
       rollupOptions: {
-        external: [
-          "xiaowei-agent",
-          "xiaowei-search",
-          "xiaowei-clipboard",
-          "xiaowei-storage",
-          "xiaowei-platform",
-        ],
+        external: ["xiaowei-agent", "xiaowei-rust"],
         input: {
           index: fileURLToPath(new URL("./src/main/index.ts", import.meta.url)),
           "llm-worker": fileURLToPath(

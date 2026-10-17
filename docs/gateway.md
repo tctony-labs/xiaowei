@@ -9,12 +9,12 @@ flowchart LR
     Renderer["renderer typed client"] --> Preload["preload 通用 transport"]
     Preload -->|"Electron IPC"| Host["main：唯一 GatewayHost"]
     Host --> TS["TS service owner"]
-    Host <-->|"异步 napi"| RustA["Rust addon A：独立 registry／服务实例"]
-    Host <-->|"异步 napi"| RustB["Rust addon B：独立 registry／服务实例"]
+    Host <-->|"异步 napi"| RustA["xiaowei-rust：常规业务的各独立 endpoint"]
+    Host <-->|"异步 napi"| RustB["xiaowei-agent：独立 endpoint／服务实例"]
     Host <-->|"Worker MessagePort"| Worker["worker：endpoint／业务执行"]
 ```
 
-[Contracts](../contracts/README.md) 独立定义消息、codec 和 service descriptor，不依赖 Gateway、业务实现或传输。Gateway 核心不包含数据库、配置、账号或网络业务；具体 owner 由宿主装配。多个 `.node` 动态库各自持有 registry 和服务实例，依赖同一 Rust crate 不会共享内存状态，也不生成单独的 Gateway `.node`。
+[Contracts](../contracts/README.md) 独立定义消息、codec 和 service descriptor，不依赖 Gateway、业务实现或传输。Gateway 核心不包含数据库、配置、账号或网络业务；具体 owner 由宿主装配。当前有 `xiaowei-rust` 与 `xiaowei-agent` 两个 `.node`。常规 addon 内的 Storage、Clipboard、Search 等 endpoint 仍分别持有 registry 与服务实例，按现有 owner 接入唯一 main host；同库业务间的请求继续沿用 Gateway 路由。两个动态库分别链接的 Rust crate 不共享其静态状态，也不生成单独的 Gateway `.node`。
 
 Rust 本地命中直接执行，不进入 JS；未命中经异步 napi 回调请求 main 路由，main 通过目标 endpoint 的 `rpcControl` 发起或取消 unary，通过 `streamControl` 读取或取消响应流。main 本地 TS 调用不绕行 Electron IPC。renderer 只持有 client 和句柄，不维护全局注册表；preload 仅暴露通用 transport。worker 持有执行状态和 endpoint，不创建第二个全局 host。
 

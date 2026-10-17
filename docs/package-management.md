@@ -4,7 +4,7 @@
 
 新增 Rust crate 或 npm package 前，先向用户说明用途、边界和放置位置，获得确认后再创建。
 
-Rust 功能入口、业务实现与支撑模块、通用平台能力放在 `crates/`，功能模块的 napi 绑定和 npm 入口留在所属模块的 `napi/` 中；独立共享 npm 包放在 `packages/`。新包加入对应 workspace，通过公开入口提供能力，不为同一 Rust 模块另建 npm 包装目录。
+Rust 功能入口、业务实现与支撑模块、通用平台能力放在 `crates/`，功能模块的 napi 绑定和 npm 入口留在所属模块的 `napi/` 中；常规原生接入聚合在 `crates/xiaowei-rust/napi/`，直接依赖内部 `xw-*` 核心，不为聚合入口建立空的 Rust 转发 crate。独立共享 npm 包放在 `packages/`。新包加入对应 workspace，通过公开入口提供能力，不为同一 Rust 模块另建 npm 包装目录。
 
 ## 依赖管理
 

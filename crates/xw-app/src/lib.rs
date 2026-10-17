@@ -17,7 +17,7 @@
 //!
 //! 只扫应用（`.app`）。系统设置面板**不在**本 crate：现代 macOS 的 `.prefPane` 已是空壳，
 //! 改由 host 侧内置清单（bundle id → `x-apple.systempreferences:` URL）提供。
-//! 图标获取也不在本 crate：交给 `xiaowei_platform::app_icon`（走系统 API，兼容 asset catalog）。
+//! 图标获取也不在本 crate：交给 `xw_platform::app_icon`（走系统 API，兼容 asset catalog）。
 
 mod entry;
 mod path;

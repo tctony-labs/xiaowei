@@ -1,6 +1,6 @@
 # xw-search
 
-全局搜索核心。Rust 核心组织应用、系统设置、书签、命令与计算器候选，提供模糊匹配、拼音、高亮和最近使用加权；不依赖 Electron，不使用 SQLite／FTS5。`../xiaowei-search/napi/` 暂时承载桌面 npm 入口，宿主执行动作与窗口交互由桌面负责。
+全局搜索核心。Rust 核心组织应用、系统设置、书签、命令与计算器候选，提供模糊匹配、拼音、高亮和最近使用加权；不依赖 Electron，不使用 SQLite／FTS5。[xiaowei-rust](../xiaowei-rust/README.md) 承载桌面 npm 入口，宿主执行动作与窗口交互由桌面负责。
 
 ## 文档
 
@@ -10,6 +10,6 @@
 
 ## 验证
 
-在仓库根目录运行 `cargo test -p xw-search --locked` 验证核心；原生包构建入口为 `pnpm --filter xiaowei-search build:debug`，绑定测试入口为 `pnpm --filter xiaowei-search test`，后者需有当前代码的原生产物。
+在仓库根目录运行 `cargo test -p xw-search --locked` 验证核心；原生构建与绑定验证入口见 [xiaowei-rust](../xiaowei-rust/README.md#准备与验证)。
 
-[tests/search.rs](tests/search.rs) 与源码单元测试覆盖来源和算法，[绑定测试](../xiaowei-search/napi/test/) 覆盖绑定、预热与日志；真实跨 addon 业务联调由 [桌面测试](../../desktop/tests/README.md) 承载。不要将原生测试与同一 addon 的构建并行运行。
+[tests/search.rs](tests/search.rs) 与源码单元测试覆盖来源和算法，[绑定测试](../xiaowei-rust/napi/test/search/) 覆盖绑定、预热与日志；真实跨 addon 业务联调由 [桌面测试](../../desktop/tests/README.md) 承载。不要将原生测试与同一 addon 的构建并行运行。

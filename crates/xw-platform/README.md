@@ -6,7 +6,7 @@
 
 ## 调用与复用
 
-Rust 调用方直接依赖本 crate，使用其公开接口。TS 通过 [xiaowei-platform](../xiaowei-platform/README.md) 的 napi 入口调用；两者的职责和依赖关系统一见 [模块边界](../xiaowei-platform/README.md#模块边界)。
+Rust 调用方直接依赖本 crate，使用其公开接口。TS 通过 [xiaowei-rust](../xiaowei-rust/README.md) 的 napi 入口调用；两者的职责和依赖关系统一见 [模块边界](../xiaowei-rust/docs/platform.md#模块边界)。
 
 ## 无状态接口
 

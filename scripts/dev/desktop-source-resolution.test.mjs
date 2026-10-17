@@ -49,10 +49,7 @@ test("desktop release minifies and bundles source; development keeps readable ou
       "electron",
       ...builtinModules.flatMap((name) => [name, `node:${name}`]),
       "xiaowei-agent",
-      "xiaowei-search",
-      "xiaowei-clipboard",
-      "xiaowei-storage",
-      "xiaowei-platform",
+      "xiaowei-rust",
     ]);
     const emitted = new Set(outputs.map((entry) => entry.fileName));
     for (const chunk of chunks) {

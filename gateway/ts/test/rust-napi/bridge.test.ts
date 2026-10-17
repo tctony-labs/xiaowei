@@ -34,11 +34,11 @@ function binary(name: string): string {
   const directory = `${root}target/rust-napi-tests/${name}`;
   return `${directory}/${readdirSync(directory).find((name) => name.endsWith(".node"))}`;
 }
-const search = require(binary("search")) as {
+const business = require(binary("rust")) as {
   createGatewayFixture(): FixtureEndpoint;
   createGatewayEndpoint(): FixtureEndpoint;
 };
-const clipboard = require(binary("clipboard")) as typeof search;
+const agent = require(binary("agent")) as typeof business;
 const echo = methodRoute(Fixture.method.echo);
 const peerEcho = methodRoute(PeerFixture.method.echo);
 const bytes = (text = "", data = new Uint8Array()) =>
@@ -58,8 +58,8 @@ const isCode = (code: string) => (error: unknown) =>
   error instanceof GatewayFailure && error.detail.code === code;
 async function attachPair() {
   const host = new GatewayHost();
-  const a = search.createGatewayFixture();
-  const b = clipboard.createGatewayFixture();
+  const a = business.createGatewayFixture();
+  const b = agent.createGatewayFixture();
   const aHandle = await attachRustNapi(host, "a", a);
   const bHandle = await attachRustNapi(host, "b", b);
   return {
@@ -146,7 +146,7 @@ test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and o
     read(await pair.a.fixturePublish(changed(2n)));
     assert.deepEqual(read(await pair.b.fixtureNext()), changed(2n));
     await pair.a.close();
-    replacement = search.createGatewayFixture();
+    replacement = business.createGatewayFixture();
     replacementHandle = await attachRustNapi(pair.host, "a", replacement);
     await delay(10);
     read(await replacement.fixturePublish(changed(3n)));
@@ -165,18 +165,18 @@ test("Rust napi event source → Rust napi subscriber, filter, unsubscribe and o
 test("manifest conflicts roll back endpoint; same-name reconnection cannot be closed by stale handle", async () => {
   const host = new GatewayHost();
   const local = host.registerOwner("ts", bindHandlers(Fixture, { echo: (p) => p }));
-  const conflict = search.createGatewayFixture();
+  const conflict = business.createGatewayFixture();
   await assert.rejects(attachRustNapi(host, "native", conflict), isCode("CONFLICT"));
   assert.equal(
     readError(await conflict.fixtureInvoke(JSON.stringify(echo), bytes())),
     "OWNER_UNAVAILABLE",
   );
   local.close();
-  const first = search.createGatewayFixture();
+  const first = business.createGatewayFixture();
   const old = await attachRustNapi(host, "native", first);
-  const duplicate = search.createGatewayFixture();
+  const duplicate = business.createGatewayFixture();
   await assert.rejects(attachRustNapi(host, "another", duplicate), isCode("CONFLICT"));
-  const second = search.createGatewayFixture();
+  const second = business.createGatewayFixture();
   const current = await attachRustNapi(host, "native", second);
   await old.close();
   read(await second.fixtureInvoke(JSON.stringify(echo), bytes()));
@@ -197,7 +197,7 @@ test("source permissions survive Rust napi reentry and cannot be supplied in PB 
 
 test("callback Promise rejection, synchronous throw, queue full and callback close are explicit", async () => {
   for (const mode of ["reject", "throw", "pending", "echo"] as const) {
-    const endpoint = search.createGatewayEndpoint();
+    const endpoint = business.createGatewayEndpoint();
     endpoint.bind(
       (control, payload) => {
         if (mode === "throw") throw new Error("private message");
@@ -231,7 +231,7 @@ test("callback Promise rejection, synchronous throw, queue full and callback clo
 
 test("Rust napi Node child closes explicitly and exits without process.exit or leaked callbacks", () => {
   const script = `
-    const native = require(${JSON.stringify(binary("search"))});
+    const native = require(${JSON.stringify(binary("rust"))});
     (async () => {
       const endpoint = native.createGatewayEndpoint();
       endpoint.bind(async (_, bytes) => bytes, JSON.stringify({token:'origin',trusted:true}));
@@ -248,7 +248,7 @@ test("Rust napi Node child closes explicitly and exits without process.exit or l
 
 test("reservation does not publish early and failed activation preserves the running owner", async () => {
   const host = new GatewayHost();
-  const endpoint = search.createGatewayFixture();
+  const endpoint = business.createGatewayFixture();
   let release = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -287,7 +287,7 @@ test("reservation does not publish early and failed activation preserves the run
   );
   release();
   const handle = await attaching;
-  const replacement = search.createGatewayFixture();
+  const replacement = business.createGatewayFixture();
   const broken = new Proxy(replacement, {
     get(target, key) {
       if (key === "activate")
@@ -308,12 +308,12 @@ test("reservation does not publish early and failed activation preserves the run
 
 test("Rust napi subscriber can precede source registration; Ordered burst is delivered once", async () => {
   const host = new GatewayHost();
-  const b = clipboard.createGatewayFixture();
+  const b = agent.createGatewayFixture();
   const subscriber = await attachRustNapi(host, "b", b);
   let source: Awaited<ReturnType<typeof attachRustNapi>> | undefined;
   try {
     read(await b.fixtureSubscribe(null));
-    const a = search.createGatewayFixture();
+    const a = business.createGatewayFixture();
     source = await attachRustNapi(host, "a", a);
     await delay(10);
     for (let id = 0; id < 256; id++) read(await a.fixturePublish(changed(BigInt(id))));
@@ -328,7 +328,7 @@ test("Rust napi subscriber can precede source registration; Ordered burst is del
 test("worker environment shutdown settles Rust napi pending work without retaining the process", () => {
   const workerScript = `
     const { parentPort } = require('node:worker_threads');
-    const native = require(${JSON.stringify(binary("search"))});
+    const native = require(${JSON.stringify(binary("rust"))});
     (async () => {
       const endpoint = native.createGatewayEndpoint();
       endpoint.bind(() => new Promise(() => {}), JSON.stringify({token:'origin',trusted:true}));
@@ -402,13 +402,13 @@ test("Rust napi streams: pending open/next cancellation, caller ownership and ow
     await pending;
     await stream.cancel();
     const old = await client.watch(create(EnvelopeSchema, { id: 2n }));
-    const replacement = await attachRustNapi(host, "a", search.createGatewayFixture());
+    const replacement = await attachRustNapi(host, "a", business.createGatewayFixture());
     await assert.rejects(old.next(), isCode("OWNER_UNAVAILABLE"));
     await replacement.close();
     // Stream IDs address a caller-owned handle; knowing one cannot authorize another caller.
     const own = JSON.stringify({ token: "own", trusted: true });
     const other = JSON.stringify({ token: "other", trusted: true });
-    const endpoint = search.createGatewayFixture();
+    const endpoint = business.createGatewayFixture();
     endpoint.bind(async () => Buffer.alloc(0), own);
     read(await endpoint.activate());
     const control = (operation: string) =>
@@ -479,7 +479,7 @@ test("Rust napi stream backpressure reaches B and nested cancel releases the act
 });
 
 test("Rust napi stream teardown and late cancelled open cannot overwrite a reused handle", async () => {
-  const endpoint = search.createGatewayFixture();
+  const endpoint = business.createGatewayFixture();
   const context = JSON.stringify({ token: "owner", trusted: true });
   endpoint.bind(async () => Buffer.alloc(0), context);
   read(await endpoint.activate());
@@ -521,7 +521,7 @@ test("Rust napi stream teardown and late cancelled open cannot overwrite a reuse
   const payload = [...toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "wait", id: 1n }))];
   const worker = `
     const { parentPort } = require('node:worker_threads');
-    const endpoint = require(${JSON.stringify(binary("search"))}).createGatewayFixture();
+    const endpoint = require(${JSON.stringify(binary("rust"))}).createGatewayFixture();
     const context = ${JSON.stringify(context)};
     endpoint.bind(async () => Buffer.alloc(0), context);
     (async () => {
@@ -598,7 +598,7 @@ test("unary cancellation reaches native work without releasing admission early",
 
 test("unary cancellation crosses Rust reentry back to main with the original caller", async () => {
   const host = new GatewayHost();
-  const native = search.createGatewayFixture();
+  const native = business.createGatewayFixture();
   const handle = await attachRustNapi(host, "native", native);
   let started!: () => void;
   let stop!: () => void;
@@ -635,7 +635,7 @@ test("unary cancellation crosses Rust reentry back to main with the original cal
 
 test("service options cross napi in both directions without changing business bytes", async () => {
   const host = new GatewayHost();
-  const native = search.createGatewayFixture();
+  const native = business.createGatewayFixture();
   const attached = await attachRustNapi(host, "options-native", native);
   const local = host.registerOwner(
     "options-main",

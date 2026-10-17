@@ -50,7 +50,7 @@ mock.module(require.resolve("xiaowei-agent"), {
     },
   },
 });
-mock.module(require.resolve("xiaowei-storage"), {
+mock.module(require.resolve("xiaowei-rust"), {
   exports: {
     Storage: {
       async open() {
@@ -63,13 +63,7 @@ mock.module(require.resolve("xiaowei-storage"), {
         };
       },
     },
-  },
-});
-mock.module(require.resolve("xiaowei-search"), {
-  exports: { createSearchGatewayEndpoint: () => ({}) },
-});
-mock.module(require.resolve("xiaowei-clipboard"), {
-  exports: {
+    createSearchGatewayEndpoint: () => ({}),
     sendPasteShortcut: () => true,
     requestAccessibilityPermission: () => true,
     ClipboardHistory: {
@@ -96,6 +90,7 @@ mock.module(require.resolve("xiaowei-clipboard"), {
     },
   },
 });
+
 mock.module(import.meta.resolve("xiaowei-gateway/rust-napi"), {
   exports: {
     async attachRustNapi(host: GatewayHost, name: string) {

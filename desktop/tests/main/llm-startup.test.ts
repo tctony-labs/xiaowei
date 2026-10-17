@@ -55,13 +55,10 @@ mock.module(require.resolve("electron"), {
     shell: {},
   },
 });
-mock.module(require.resolve("xiaowei-search"), {
-  exports: { initializeLogging: noop, initializeSearch: async () => {} },
-});
-mock.module(require.resolve("xiaowei-clipboard"), { exports: { initializeLogging: noop } });
-mock.module(require.resolve("xiaowei-agent"), { exports: { initializeLogging: noop } });
-mock.module(require.resolve("xiaowei-platform"), {
+mock.module(require.resolve("xiaowei-rust"), {
   exports: {
+    initializeLogging: noop,
+    initializeSearch: async () => {},
     SparkleUpdater: {
       open() {
         if (!localPackage) throw new Error("Development must not initialize Sparkle");
@@ -70,6 +67,9 @@ mock.module(require.resolve("xiaowei-platform"), {
     },
   },
 });
+
+mock.module(require.resolve("xiaowei-agent"), { exports: { initializeLogging: noop } });
+
 const replace = (path: string, exports: Record<string, unknown>) =>
   mock.module(new URL(`../../src/main/${path}.ts`, import.meta.url).href, { exports });
 replace("app/logging", {

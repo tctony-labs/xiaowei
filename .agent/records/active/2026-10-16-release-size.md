@@ -33,13 +33,13 @@
 
 ## Current work
 
-- 用户已授权继续实施两个 addon：常规桌面能力通过 npm `xiaowei-rust`／Cargo `xiaowei-rust-napi` 汇入同一 `.node`，Agent 保持 `xiaowei-agent`／`xiaowei-agent-napi`。Search／Clipboard／Storage 核心改名为 `xw-*`，删除 Platform 转发壳，直接使用 `xw-platform`；proto 与 Gateway 路由保持原名。新增 npm／绑定包放在 `crates/xiaowei-rust/napi/`，根目录只承载说明，不创建空的转发 crate。
-- 核心改名切片已完成；后续按 [两个 addon Plan](../../plans/2026-10-16-release-size/03-two-native-addons.md) 实施、验证并分切片提交；同步更新当前架构与发布文档。已有 278.488 MiB 目录包作为本轮前置基线。
+- 两个 addon 已实施并完成自动验收：npm `xiaowei-rust`／Cargo `xiaowei-rust-napi` 汇集常规业务，`xiaowei-agent`／`xiaowei-agent-napi` 保持独立；内部核心使用 `xw-*`，移除 Platform 转发壳。当前架构和命名见 [工作区详情](../../../docs/workspace.md#rust-模块)。
+- 最新 ad-hoc 目录包为 287,605,574 bytes（274.282 MiB），相对合并前减少 4.206 MiB；生产包仅含两个 native 包。实施 Plan 已删除，工作区恢复两份 debug 产物。待用户启动本次两个 addon 的目录包做 GUI 验收；此前粗测针对五个 addon 版本，不能代替此次验收。正式签名、公证和 Sparkle 更新仍待发布时验证，record 保留 active。
 
 - 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
-- 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，最新 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
+- 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，当时 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
 - minify 后重新通过构建压缩／依赖边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归；实际新包另通过 7 项 provider／worker 隔离测试及五个 native 包加载器。此前原生裁剪相关检查结果保留在 Outcome。
-- 前序 JS／分发优化代码与发布说明已完成，其实施 Plan 已删除；当前继续实施 native 合并。用户对前序目录包反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
+- 前序 JS／分发优化代码与发布说明已完成，其实施 Plan 已删除；native 合并也已完成自动验收，结果见下文。用户对前序目录包反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
 
 ## Outcome
 
@@ -100,6 +100,30 @@
 已将 Search／Clipboard／Storage 核心迁移为 `xw-search`／`xw-clipboard`／`xw-storage`，同步目录、Cargo 依赖、Rust 引用、service binding 输出位置与当前文档链接。原有 napi npm 包暂留旧位置，作为可独立验证的第一切片；proto 包名、完整路由、临时资源前缀和数据布局均未修改。
 
 三个核心共 90 项 Rust 测试通过，三个受影响 napi 包构建及 9 项绑定测试通过，契约／Gateway 生成一致性检查通过。Cargo 锁文件只保留工作区包改名；核对第三方包的 name／version／source 集合与切片前完全相同。最初完整重新解析引入的无关派生宏版本变化已撤销，使用原锁文件由 Cargo 增量同步。
+
+### 合并为两个 native addon
+
+已将 Storage／Clipboard／Search／Platform 的绑定合并到 npm `xiaowei-rust`（Cargo `xiaowei-rust-napi`），Agent 保持 npm `xiaowei-agent`（Cargo `xiaowei-agent-napi`）。删除四个旧 napi 包和只做转发的 `xiaowei-platform` 核心；`xiaowei-rust/` 根目录只承载文档，不新增空转发 crate。Cargo workspace 实测为 18 个包。
+
+业务核心仍独立，proto、Gateway 路由、资源前缀与数据布局保持原名。常规 addon 共用一个 napi `GatewayEndpoint` 类型和一次日志初始化，但每个 endpoint 仍独立持有 registry／owner／服务；数据库关闭职责及 Clipboard 停止、关闭 endpoint、清理资源的顺序保留。Agent 日志 sink 继续独立。架构图、包边界、当前接入路径、测试及发布说明已同步更新，根 README 未修改。
+
+| 项目 | 合并前 | 合并后 | 减少 |
+| --- | ---: | ---: | ---: |
+| 整个目录包 | 292,015,646 bytes（278.488 MiB） | 287,605,574 bytes（274.282 MiB） | 4.206 MiB（1.51%） |
+| app.asar | 3,571,383 bytes | 3,568,720 bytes | 2,663 bytes |
+| app.asar.unpacked | 33,024,718 bytes | 28,620,367 bytes | 4.200 MiB |
+| 签名后 native 总大小 | 32,853,344 bytes（五份） | 28,551,296 bytes（两份） | 4,302,048 bytes |
+
+签名后的两份二进制分别为 `xiaowei-rust` 21,150,832 bytes、`xiaowei-agent` 7,400,464 bytes；Agent 的 16 bytes 差异来自重新构建／签名，不能归因于共享代码消除。整包差额还包含加载器、ASAR 元数据和签名差异，两个 addon 之间仍存在公共依赖的重复链接。相对最初已安装 0.1.1，累计减少 117.292 MiB（29.95%）；初始包与当前源码不同，不能把累计差额全部归因于相同源码的优化。
+
+验证结果：
+
+- Rust 相关核心 110 项测试通过；Gateway 全套 Rust／TS／真实 addon 与 worker 回归通过，真实 native 组为 18 项，覆盖跨两个实际动态库的 unary、stream、event、取消、权限及关闭。
+- 聚合 napi 13 项测试通过，包含真实 Storage／Clipboard／Search endpoint 共用类型、关闭业务 owner 后 Storage 仍可读写，以及常规 addon 与 Agent 的独立日志 sink。桌面全套测试通过，含 59 项 main、73 项 LLM、138 项 renderer 及原生业务集成。
+- 发布 prebuilt 入口通过检查、55 项构建／发布回归、Gateway、聚合 napi 和桌面测试。rust／agent fixture 分别构建在独立测试目录，测试前后两份生产 release `.node` 的 SHA-256 不变，生产包无 fixture 导出。最终排版调整后重新构建聚合 release 并通过 13 项绑定测试。
+- 实际 ad-hoc 目录包通过签名、版本／Sparkle 元数据、arm64、两个 native 加载及内容边界检查；ASAR 65 个文件，仅两个 native 包，无 source map、原始工作区源码或额外 JS 运行包。
+- 将实际 ASAR 解包到工作区外，使用两个生成加载器验证计算搜索、剪贴板读写、Storage Gateway KV 写入读取与 Agent 打开／关闭；关闭 Clipboard 与 DAO 后 Storage 仍可用。用该包 main 输出通过 7 项隔离 worker 测试，覆盖十种 provider chunk、HTTP/SSE、WebSocket、Google 生成和 Bedrock 本地错误请求；未访问真实模型。
+- 临时解包目录已删除，两份工作区 addon 已恢复 debug 构建，目录包保留 release 产物；未冷启动 Electron，未覆盖安装或发布。用户仍需验收本次新目录包的 GUI；正式签名、公证及更新链路仍待发布。
 
 ### Release JS minify
 
@@ -169,7 +193,7 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 
 ## 后续工作
 
-- 五个 `.node` 仍分别链接了部分共用 Rust 实现；本次没有调整原生模块边界。后续若继续优化，先量化重复机器码及体积收益，再评估合并 addon 或共享动态库对模块职责、加载、签名和发布的影响。
+- 五个 `.node` 已合并为两个并测得 4.206 MiB 整包收益；常规包与 Agent 仍分别链接部分共用 Rust 实现。进一步提取共享动态库的收益尚未量化，本轮不继续调整，后续需评估加载、签名与发布成本。
 - 纯 JS 的 ESM／CJS、其他环境构建与内部包副本已由 bundler 的实际依赖图取代，不再维护按 SDK 目录删除的后续工作；新增运行时文件资源必须有明确用途和路径。
 - Rust LTO 暂缓，用户已明确先不处理；原定评估为对比 `thin`／完整 LTO 的体积、构建时间与功能回归，收益尚未测量。
 - SwiftShader 暂保留，用户决定本轮不裁剪。当前目录包的 `libvk_swiftshader.dylib` 为 16,625,408 bytes（15.855 MiB），保留软件图形回退能力；后续若重新评估，先明确 GPU 不可用时的兼容性要求。

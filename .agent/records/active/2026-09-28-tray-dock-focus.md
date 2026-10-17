@@ -65,7 +65,7 @@ PNG／ICNS 图标按传统 macOS 网格保留外部透明留白：1024px 画布�
 
 Electron `windows/` 持有窗口列表、轮换和焦点会话；`app/tray.ts` 只管理 Tray 与菜单；`app/bootstrap.ts` 装配、退出清理；现有 Gateway owner 将调用方窗口交给窗口管理，不在 renderer 或 Rust 剪贴板中维护窗口策略。
 
-为避免窗口管理依赖搜索或剪贴板业务，本事项通过新增平台入口接入焦点能力；用户已确认创建该入口。`xiaowei-platform` 与 `xw-platform` 的通用职责、依赖方向和无状态接口约定统一维护在 [平台模块边界](../../../crates/xiaowei-platform/README.md#模块边界)，此处不重复维护。
+为避免窗口管理依赖搜索或剪贴板业务，本事项通过新增平台入口接入焦点能力；用户已确认创建该入口。平台绑定现归 `xiaowei-rust`，通用实现仍归 `xw-platform`；职责、依赖方向和无状态接口约定统一维护在 [平台模块边界](../../../crates/xiaowei-rust/docs/platform.md#模块边界)，此处不重复维护。
 
 本事项的 TS windows 层持有唤起来源、操作代次与取消状态。本轮不迁移 search／clipboard 中其他系统能力，不新增后台监听服务，不引入面向复用的发布流程。
 

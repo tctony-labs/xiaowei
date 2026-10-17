@@ -240,59 +240,35 @@ importers:
         specifier: workspace:*
         version: link:../../../gateway/ts
 
-  crates/xiaowei-clipboard/napi:
+  crates/xiaowei-rust/napi:
     devDependencies:
+      '@bufbuild/protobuf':
+        specifier: 'catalog:'
+        version: 2.15.0
       '@napi-rs/cli':
         specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
+        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
       tsx:
         specifier: 4.23.13
         version: 4.23.13
+      xiaowei-agent:
+        specifier: workspace:*
+        version: link:../../xiaowei-agent/napi
+      xiaowei-contracts:
+        specifier: workspace:*
+        version: link:../../../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../../../gateway/ts
-      xiaowei-search:
-        specifier: workspace:*
-        version: link:../../xiaowei-search/napi
-      xiaowei-storage:
-        specifier: workspace:*
-        version: link:../../xiaowei-storage/napi
-
-  crates/xiaowei-platform/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
-
-  crates/xiaowei-search/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
-
-  crates/xiaowei-storage/napi:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 3.10.1
-        version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
 
   desktop:
     dependencies:
       xiaowei-agent:
         specifier: workspace:*
         version: link:../crates/xiaowei-agent/napi
-      xiaowei-clipboard:
+      xiaowei-rust:
         specifier: workspace:*
-        version: link:../crates/xiaowei-clipboard/napi
-      xiaowei-platform:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-platform/napi
-      xiaowei-search:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-search/napi
-      xiaowei-storage:
-        specifier: workspace:*
-        version: link:../crates/xiaowei-storage/napi
+        version: link:../crates/xiaowei-rust/napi
     devDependencies:
       '@bufbuild/protobuf':
         specifier: 'catalog:'
@@ -399,9 +375,9 @@ importers:
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../ts
-      xiaowei-storage:
+      xiaowei-rust:
         specifier: workspace:*
-        version: link:../../crates/xiaowei-storage/napi
+        version: link:../../crates/xiaowei-rust/napi
 
   gateway/ts:
     dependencies:

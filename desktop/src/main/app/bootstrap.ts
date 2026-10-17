@@ -4,10 +4,8 @@ import { join } from "node:path";
 import { create } from "@bufbuild/protobuf";
 import { app, clipboard, globalShortcut, protocol, screen, shell } from "electron";
 import { initializeLogging as initializeAgentLogging } from "xiaowei-agent";
-import { initializeLogging as initializeClipboardLogging } from "xiaowei-clipboard";
 import { EmptySchema } from "xiaowei-contracts";
-import { SparkleUpdater } from "xiaowei-platform";
-import { initializeLogging, initializeSearch } from "xiaowei-search";
+import { initializeLogging, initializeSearch, SparkleUpdater } from "xiaowei-rust";
 import { loadConfig } from "../services/llm/config";
 import { createShortcutRegistry } from "../services/shortcuts/registry";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
@@ -112,7 +110,6 @@ export function startApplication(moduleDir: string): void {
     const nativeLog = createNativeLogSink(logs.main);
     initializeLogging(!app.isPackaged, nativeLog);
     initializeAgentLogging(!app.isPackaged, nativeLog);
-    initializeClipboardLogging(!app.isPackaged, nativeLog);
     app.on("web-contents-created", (_event, contents) => {
       if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
     });

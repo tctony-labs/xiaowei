@@ -15,7 +15,7 @@ import {
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
-import { Storage } from "xiaowei-storage";
+import { Storage } from "xiaowei-rust";
 import { AccountService } from "../../src/main/services/account/service";
 import type { AccountStore } from "../../src/main/services/account/store";
 import { registerXwapi } from "../../src/main/services/xwapi/gateway";

@@ -1,16 +1,16 @@
 # 共享存储接入
 
-本文描述桌面、Gateway 与 Rust 业务包如何共用 `xiaowei-storage`。连接、事务、迁移、meta 和 FTS5 注册的内部规则见 [Storage 数据库实现](../crates/xw-storage/docs/database.md)；建设背景与验收结果见 [Storage record](../.agent/records/archived/2026-09-18-implement-storage.md)和 [FTS5 record](../.agent/records/archived/2026-09-24-fts5-search.md)。
+本文描述桌面、Gateway 与 Rust 业务包如何共用 `xw-storage`。连接、事务、迁移、meta 和 FTS5 注册的内部规则见 [Storage 数据库实现](../crates/xw-storage/docs/database.md)；建设背景与验收结果见 [Storage record](../.agent/records/archived/2026-09-18-implement-storage.md)和 [FTS5 record](../.agent/records/archived/2026-09-24-fts5-search.md)。
 
 ## 所有权与调用边界
 
-应用共享业务数据库由 main 创建的 Storage native 实例统一持有。多个 `.node` 即使依赖同一个 Rust crate，也不会共享其中的全局变量或连接池，因此业务通过 Gateway 调用同一服务实例，不各自建库。
+应用共享业务数据库由 main 通过 `xiaowei-rust` 创建的 Storage native 实例统一持有。Storage 与 Clipboard 同属一个 addon，仍通过既有 Gateway owner 访问该实例。多个 `.node` 即使依赖同一个 Rust crate，也不会共享其中的全局变量或连接池，因此业务通过 Gateway 调用同一服务实例，不各自建库。
 
 ```mermaid
 flowchart LR
-    Main[Electron main] -->|创建并接入| Storage[xiaowei-storage]
+    Main[Electron main] -->|创建并接入| Storage[xw-storage]
     Renderer[Renderer typed client] --> Host[Gateway host]
-    Clipboard[xiaowei-clipboard] --> Host
+    Clipboard[xw-clipboard] --> Host
     Main --> Host
     Host --> KV[KeyValue / Storage endpoint]
     Host --> Settings[Settings endpoint]
@@ -61,7 +61,7 @@ Storage 接收 main 传入的数据库路径；剪贴板接收附件目录，数
 
 `xw-tokenizer` 提供通用分词和 SQLite 注册，Storage 确保每条池连接可用，具体 DAO 定义业务索引、同步和查询。当前剪贴板面板使用 FTS5；其索引字段、触发器、回填、过滤与召回规则仍维护在 [剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md#剪贴板全文索引与召回)。
 
-全局搜索由 `xiaowei-search` 的内存候选和 nucleo 提供，目前未调用剪贴板的 FTS5 召回接口，未实现对应的结果合并或重排。两种检索方式的边界见 [搜索实现](search.md#与剪贴板搜索的边界)。
+全局搜索由 `xw-search` 的内存候选和 nucleo 提供，目前未调用剪贴板的 FTS5 召回接口，未实现对应的结果合并或重排。两种检索方式的边界见 [搜索实现](search.md#与剪贴板搜索的边界)。
 
 ## 验证入口
 

@@ -1,0 +1,26 @@
+[package]
+name = "xiaowei-rust-napi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+gateway-fixtures = ["xw-gateway/test-fixtures"]
+
+[dependencies]
+xw-search = { path = "../../xw-search" }
+xw-clipboard = { path = "../../xw-clipboard" }
+xw-storage = { path = "../../xw-storage" }
+xw-platform = { path = "../../xw-platform" }
+xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
+xw-contracts = { path = "../../../contracts/rust" }
+xw-napi-log = { path = "../../xw-napi-log" }
+prost = { workspace = true }
+tokio = { version = "1", features = ["rt"] }
+napi = { version = "3", features = ["napi8", "async"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
