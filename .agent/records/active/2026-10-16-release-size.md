@@ -33,18 +33,13 @@
 
 ## Current work
 
-- 用户授权发布 `0.1.2`，本次准备应用版本与 `v0.1.2` tag；正式构建完成后，对照 GitHub Release `v0.1.1`／`v0.1.2` 的 DMG 和包内 app 实测大小及主要组成，回填本记录。CI 结果和正式包体积尚待确认，已有 ad-hoc 数字不作为正式产物结果。
-- 两个 addon 已实施并完成自动验收：npm `xiaowei-rust`／Cargo `xiaowei-rust-napi` 汇集常规业务，`xiaowei-agent`／`xiaowei-agent-napi` 保持独立；内部核心使用 `xw-*`，移除 Platform 转发壳。当前架构和命名见 [工作区详情](../../../docs/workspace.md#rust-模块)。
-- 最新 ad-hoc 目录包为 287,605,574 bytes（274.282 MiB），相对合并前减少 4.206 MiB；生产包仅含两个 native 包。实施 Plan 已删除，工作区恢复两份 debug 产物。待用户启动本次两个 addon 的目录包做 GUI 验收；此前粗测针对五个 addon 版本，不能代替此次验收。正式签名、公证和 Sparkle 更新仍待发布时验证，record 保留 active。
-
-- 构建与分发边界已实现并通过自动验收：纯 JS bundled、provider 懒加载 chunk、native 生产依赖及明确文件清单。旧的逐 SDK／环境／声明／源码／source map 过滤均已移除。
-- 分发边界调整后为 280.654 MiB；本次再启用 release JS minify，当时 ad-hoc 目录包为 292,015,646 bytes（278.488 MiB），再减少 2.166 MiB。ASAR 仍只有 74 个文件，五个签名后二进制 SHA-256 保持一致。
-- minify 后重新通过构建压缩／依赖边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归；实际新包另通过 7 项 provider／worker 隔离测试及五个 native 包加载器。此前原生裁剪相关检查结果保留在 Outcome。
-- 前序 JS／分发优化代码与发布说明已完成，其实施 Plan 已删除；native 合并也已完成自动验收，结果见下文。用户对前序目录包反馈打包模式粗略测试正常；未逐项确认语言回退或全部交互场景。正式签名／公证／Sparkle 更新留待发布时验收，record 保留 active。
+- 优化代码已合并到 `develop`，版本提交 `85b1022` 已通过 annotated tag `v0.1.2` 正式发布。[Release](https://github.com/tctony-labs/xiaowei/releases/tag/v0.1.2) 与 [CI](https://github.com/tctony-labs/xiaowei/actions/runs/39044930330) 已核对，公开 Sparkle latest feed 已指向新版。
+- 正式 DMG 与包内 app 的新旧对比、内容边界、签名与票据验证均已完成，详见下文“正式 v0.1.1 与 v0.1.2 对比”。本轮停止继续优化；保留两个 addon，不提取共享动态库，LTO 与 SwiftShader 维持原决定。
+- 仍待用户从已安装旧版通过 Sparkle 更新，验收原生 UI、安装与重启、业务关闭及数据保留；本次未冷启动 Electron、未覆盖本机安装。此前“粗略测试正常”针对五个 addon 的 ad-hoc 包，不能替代新版正式包的交互验收。record 保留 active，未归档。
 
 ## Outcome
 
-本轮实现与发布约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。每个优化点单独提交，同时回填本记录；无提交 AI 署名，无发布、覆盖安装或修改根 docs。
+本轮实现与发布约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。每个优化点单独提交，同时回填本记录；优化期间不覆盖本机安装，后续按用户授权发布 `v0.1.2`，正式结果见下文。
 
 使用当前源码构建五个 release addon 和 desktop，逐项复用相同构建产物打 ad-hoc 目录包，测得：
 
@@ -145,6 +140,49 @@
 验证：desktop 构建、构建压缩／边界回归、73 项 LLM 测试、59 项 main 测试及 43 项发布回归通过。通过既有入口生成真实 ad-hoc 包后，ASAR 内容、签名、版本／更新元数据、arm64 与五个 addon 加载检查均通过。解包到工作区外，用该包 main 输出重跑 7 项隔离测试并通过五个 native 生成加载器；涵盖十种 provider chunk 加载、HTTP/SSE、WebSocket、Google 生成与 Bedrock 本地错误响应、失败、取消和关闭。日志仍显示注入的原始源码位置，临时解包目录已清理。
 
 五个工作区 native 包已恢复 debug 构建；目录包保留 release 裁剪产物。实施期间 Agent 未冷启动 Electron、未覆盖已安装应用、未正式发布。用户随后在确认使用打包模式后反馈“粗略测试下来正常”，作为最新目录包的人工粗测结果；未据此认定所有交互、语言回退或正式发布链路均已验收。正式签名、公证及 Sparkle 更新留待发布时验证。当前构建约定见 [macOS 打包与更新](../../../desktop/docs/macos-release.md)。
+
+### 正式 v0.1.1 与 v0.1.2 对比
+
+用户授权发布新版本并等待正式包生成后比较 DMG 和 app。应用版本已从 `0.1.1` 递增为 `0.1.2`，提交 `85b102202f309c1583dc7c385f2023a92f712609` 已推送至 `origin/develop`，annotated tag `v0.1.2` 指向该提交。[macOS release CI](https://github.com/tctony-labs/xiaowei/actions/runs/39044930330) 全部成功，正式 [v0.1.2 Release](https://github.com/tctony-labs/xiaowei/releases/tag/v0.1.2) 已发布并设为 latest，包含 DMG、更新 ZIP 与 `appcast.xml`。
+
+本次直接从公开 GitHub Releases 下载 [旧版 DMG](https://github.com/tctony-labs/xiaowei/releases/download/v0.1.1/XiaoWei-0.1.1-arm64.dmg) 和 [新版 DMG](https://github.com/tctony-labs/xiaowei/releases/download/v0.1.2/XiaoWei-0.1.2-arm64.dmg)。DMG 使用下载文件的实际字节数；app 使用只读挂载镜像内 `XiaoWei.app` 的普通文件逻辑大小总和，跳过符号链接，不使用卷容量、磁盘块占用或已安装副本。MiB = 1,048,576 bytes。
+
+| 项目 | v0.1.1 | v0.1.2 | 减少 |
+| --- | ---: | ---: | ---: |
+| DMG | 157,356,289 bytes（150.067 MiB） | 131,896,283 bytes（125.786 MiB） | 25,460,006 bytes（24.281 MiB，16.18%） |
+| 包内 app | 410,593,265 bytes（391.572 MiB） | 287,561,927 bytes（274.240 MiB） | 123,031,338 bytes（117.332 MiB，29.96%） |
+
+DMG 是压缩镜像，其减少比例与展开后的 app 不同。此表是两个正式版本的实际对比，两个 tag 之间也包含其他代码变化，不能把全部差额视为相同源码下单一优化的收益；五个 addon 合并为两个的独立本地对照仍为前文记录的 4.206 MiB。
+
+| app 组成 | v0.1.1 | v0.1.2 | 减少 |
+| --- | ---: | ---: | ---: |
+| Electron Framework | 284.477 MiB | 237.485 MiB | 46.991 MiB |
+| app.asar | 60.303 MiB | 3.403 MiB | 56.900 MiB |
+| app.asar.unpacked | 40.678 MiB | 27.248 MiB | 13.430 MiB |
+| 其他框架、资源与签名 | 6.115 MiB | 6.104 MiB | 0.010 MiB |
+
+| 内容检查 | v0.1.1 | v0.1.2 |
+| --- | ---: | ---: |
+| ASAR 文件数 | 9,097 | 65 |
+| ASAR source map | 2,684 | 0 |
+| ASAR 类型声明 | 1,179 | 0 |
+| 应用生产依赖声明 | 15 个 | 仅 xiaowei-agent、xiaowei-rust |
+| `.node` 数量 | 5 | 2 |
+| `.node` 总字节数 | 42,423,904 | 28,502,176 |
+| Electron locale.pak | 220 | 2（en、zh_CN） |
+| SwiftShader 字节数 | 16,625,552 | 16,625,552 |
+
+两份新版签名后二进制分别为 `xiaowei-agent` 7,384,160 bytes、`xiaowei-rust` 21,118,016 bytes。正式 app 比此前本机 ad-hoc 目录包小 43,647 bytes；正式旧版 app 比最初已安装基线小 2,220 bytes。两处均保留原始测量来源，不替换为同一个“基线”数字。
+
+验证证据：
+
+- 两个 DMG 的实际长度及 SHA-256 均匹配 GitHub asset 元数据。v0.1.1：`6e768e1d7cbc2446596352fabdeb60c071fb6aeca27b860ad0d1386f1ded8753`；v0.1.2：`925ef3b6e3b5246d3f6f1f7e4ec87bdd07480832b0bdd28d8f696754dee244f4`。
+- 两个镜像内 app 均通过 `codesign --verify --deep --strict`，签名主体均为 `Developer ID Application: Chang Tang (NSWMLDGCEZ)`；两个正式 DMG 均通过 `xcrun stapler validate`。测量结束已卸载只读镜像。
+- 本次 CI 通过工作区检查、55 项构建／发布回归、Gateway、13 项聚合 napi 与完整 desktop 测试；两个生产 release addon 在测试前后 SHA-256 不变。实际包内容校验为 65 个文件、两个 native 包，签名身份、arm64 和原生加载检查通过。
+- Apple 已接受本次 DMG 公证（submission `6c687d1e-29ba-4cfc-a3b1-996dc1e235c8`），CI 已完成 app／DMG 票据及 Gatekeeper 校验、最终 ZIP 和 appcast 的签名验证。
+- 使用未认证的公开下载地址取得新旧 DMG 和 latest appcast。公开 feed 已指向版本 `0.1.2` 的更新 ZIP，URL 与 Release 一致，长度为 130,732,541 bytes，与正式 ZIP asset 元数据一致。未在本机执行应用升级或 GUI 验收。
+
+用户决定暂不提取两个 addon 之间的共享动态库：其净收益尚未量化，新增构建、加载、签名和全局状态管理复杂度本轮不引入。保留当前两个 addon，后续人工验收边界见 Current work。
 
 ### 其他环境代码裁剪
 
