@@ -136,9 +136,11 @@ OpenAI 6.40.0 与 Anthropic 0.124.0 的运行时 exports 不指向 `src`，编�
 
 本阶段累计减少 8.083 MiB（含 ASAR 元数据），实际目录包为 306,118,222 bytes（291.937 MiB）。类型声明和 SDK 源码各自单独提交，提交 hook 执行 `just check`。只修改分发过滤和相关文档，开发依赖源码保留；工作区原生包恢复 debug 构建，release 目录包通过签名、版本、arm64 和五个 addon 加载检查。临时验证目录及哈希快照已清理。
 
+代码混淆不采用：用户确认项目本身开源，无需通过混淆保护源码；此次仅调研了按业务模块筛选的可行性，没有接入混淆工具或修改构建行为。
+
 ## 后续工作
 
-- 压缩与代码混淆暂不实施。当前 electron-vite 5 的 main（含 LLM worker）／preload 默认 `minify: false`，renderer 生产构建默认压缩，项目未配置专门混淆。后续独立评估 main／worker／preload 开启压缩后的体积、启动和 provider 行为，并确认函数名／错误栈对日志排障的影响；专门混淆另行评估体积、运行性能和排障成本，压缩或关闭 source map 不视为防止 JS 被分析的保护措施。
+- 压缩暂不实施，保留为独立的体积优化候选。当前 electron-vite 5 的 main（含 LLM worker）／preload 默认 `minify: false`，renderer 生产构建默认压缩。后续独立评估 main／worker／preload 开启压缩后的体积、启动和 provider 行为，并确认函数名／错误栈对日志排障的影响。
 
 - 五个 `.node` 仍分别链接了部分共用 Rust 实现；本次没有调整原生模块边界。后续若继续优化，先量化重复机器码及体积收益，再评估合并 addon 或共享动态库对模块职责、加载、签名和发布的影响。
 - 纯 JS 的 ESM／CJS、其他环境构建与内部包副本已由 bundler 的实际依赖图取代，不再维护按 SDK 目录删除的后续工作；新增运行时文件资源必须有明确用途和路径。
