@@ -32,11 +32,109 @@ Host 注入接口为 xw-agent 的单个 AgentHost trait，含 generate／get_mod
 
 ### 内存上下文与最小持久信息
 
-**完整 RuntimeRunContext 在内存中组装，不整体持久化。** 消息和工具结果从历史重建；权限从已提交决定重建；系统指令使用当前 host 注入值，工具声明及调用参数从 RunContext 取得。取消句柄、provider／工具实例、连接、队列对象、缓存和进程句柄只在内存中，恢复时重新创建。重放指重建状态，绝不重新执行历史模型或工具。
+**完整 RuntimeRunContext 在内存中组装，不整体持久化。** 消息和工具结果从历史重建；权限从已提交决定重建；当前聊天执行的系统指令为空，工具声明及调用参数从 RunContext 取得。取消句柄、provider／工具实例、连接、队列对象、缓存和进程句柄只在内存中，恢复时重新创建。重放指重建状态，绝不重新执行历史模型或工具。
 
-`RunContext` 嵌在 RunStarted 中，Conversation Gen 继承所属 Run；辅助标题／压缩／工具提取 Gen 携带自己的必要配置。没有独立 ContextDefined、ContextId 或跨 Run 配置去重，不保存完整系统指令和外部设置。完整内存上下文由历史和这些必要参数组装。
+`RunContext` 嵌在 RunStarted 中，Conversation Gen 继承所属 Run；辅助标题／压缩／工具提取 Gen 携带自己的必要配置。没有独立 ContextDefined、ContextId 或跨 Run 配置去重，当前不保存完整系统指令和外部设置。完整内存上下文由历史和这些必要参数组装。[Preset 已暂缓](agent-presets.md)，不新增 RunContext.agent；连接／资源句柄继续仅驻内存。
 
 Run 只锁定 Agent 选择的 model_ref／reasoning 与 Agent 自己的运行配置；不检测 LM worker 中同引用的配置变化，原配置 token 设计已撤回。Meta 与 Run 配置分别保存 host 提供的 provider_name／model_name（例如 tctony 与 sol），使历史展示独立于当前模型列表；不保存预先拼接的名称，只在最终展示层格式化。凭据、认证 headers、带凭据的连接地址和完整 ModelConfiguration 不落盘；provider 默认值若当前接口未暴露，保持未显式指定。这套格式用于恢复领域历史与说明当时的选择，不承诺重新发送完全相同的 HTTP 请求。
+
+### Harness 能力上下文同步（已确认，待实施）
+
+2026-10-10 用户明确要求：harness 向模型同步工具、指令及以后技能的变化，采用“完整基线＋后续增量”。这决定模型可见上下文如何构成，不能交给 WebSocket 续接、网络去重或提示词缓存来代替实现。preset 暂缓不影响这一要求；当前先接提示词与工具，技能实现后移。
+
+| 时机 | Harness 写入当前模型上下文的内容 |
+| --- | --- |
+| 首次建立上下文 | 当前指令与完整可用工具声明；未来有技能时包含技能简介目录，正文仍按需加载 |
+| 普通后续生成，能力没有变化 | 不追加系统配置记录，复用已有基线与变化历史 |
+| 指令或工具发生变化 | 只追加有变化的指令片段、新增／移除工具；同名工具定义变化按移除旧定义再加入完整新定义表达 |
+| 压缩并建立新的上下文 | 用权威当前状态建立一份新基线，再继续累积后续增量；不把旧基线和全部旧增量重复塞入新上下文 |
+| 重开／恢复 | 从已提交历史恢复同步基线；基线有效时继续比较差异，基线确实缺失或被上下文替换时才补全量 |
+
+首次是“模型上下文的首次”，不等于每个 Run 的首次。每次生成可检查当前状态与已写入上下文状态的差异，但检查本身不生成记录。变更先在明确的生成边界提交，再用于后续生成和工具执行；写入失败不能推进已同步基线或继续生成。声明与执行共享生效工具集合，移除工具不能只通知模型却继续开放执行。
+
+XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复；只调用 `@earendil-works/pi-ai` 0.87.1 的 LLM provider，不使用 Pi Agent／harness。provider 的转换行为是接入时需要验证的事实，不能反过来决定核心何时重写上下文，也不能仅凭默认兼容配置断言模型接口不支持某种更新。
+
+当前缺口：AgentMessage／ChatMessage 只有 User、Assistant、ToolResult，LLM 请求只有单独的 system_prompt 与全量 tools，不能保存按时间出现的系统上下文变化。领域历史与 LLM 契约需要能够表达有序的系统上下文更新；系统更新由 harness 产生，不记作真实用户输入或模型生成的 Message，也不借 preset 引入新的身份体系。领域记录、持久化编码与 provider 消息结构分别承担自己的职责，不因 Pi 暴露某个字段就要求逐字段照搬到领域与 PB。
+
+候选接入方案是将系统上下文记录映射到 Pi SystemMessage：首条提供基线；后续 sections 替换／删除指令片段，toolsAdded／toolsRemoved 表达工具变化。下述请求编码实测已确认该映射的缺口，尚不能直接作为最终适配，也不属于用户已确认的字段级设计。可变指令按变化片段更新，新增／替换工具携带完整定义；比较定义内容，避免对象地址或 JSON 键顺序变化产生伪增量。
+
+采用该映射时，Agent 路径不能同时经顶层 system_prompt／tools 简写再向 Pi transcript 注入一份相同基线；其他 LLM 调用方的现有简写继续按既有语义处理。这不等于禁止 provider 按 API 契约生成顶层 tools 字段，也不代表该字段可以仅传变化部分。RunContext 的执行元数据与模型可见的同步记录分工独立，不把每 Run 的工具快照重复追加到模型历史。
+
+源码核对到的接入事实：worker 的 `provider.ts` 先调用 normalizeContext，再调用 Pi provider；normalizeContext 只把顶层简写转成首条系统消息。Pi 的 `utils/transcript.js` 另有 collapseSystemMessages／resolveTranscript，可将变化折叠成当前首条系统消息；OpenAI Responses provider 按 supportsMidConvoSystemMessages 决定是否折叠，默认值为 false。resolveTranscriptTools 在不满足增量条件或出现删除／重声明时会取当前完整工具集合。这些转换确实存在于 provider 包，不以使用 Pi harness 为前提；但它们不足以证明目标模型／API 的固有限制，也不能证明只打开一个开关就满足全部更新语义。
+
+自动验收分两层：先验证 harness 首次只有一份全量基线，无变化的生成／跨 Run 不增加记录，增删和 schema 变更只产生对应增量，重建状态等于权威状态，压缩／重开正确恢复，提交失败不生成。再沿正式 worker → 实际 Pi provider 路径检查最终请求中的指令位置、更新内容和生效工具定义，覆盖新增、删除及同名替换；PB 往返、provider 入口 mock 或 WebSocket 续接测试均不能单独证明这层语义。工具声明的 API 字段与变化通知是否分别需要表达，应由该验证确定。
+
+2026-10-18 用户确认优先实现 Agent 核心：02e 先按上述已确定语义实现领域状态、差异、持久化／恢复及工具循环，provider 原生增量与缓存实验不作为核心实施前置。领域字段不直接照搬 Pi；正式模型接入仍须验证拟用映射，若发生不符合要求的折叠，定位适配缺口并修正，不能默认为已获授权的全量降级，也不据此重新询问用户是否接受另一套 harness 策略。下述测试已验证 provider 请求编码；2026-10-11 最小适配另完成当前默认 Responses 模型的真实调用，完整 Agent 链路仍待实施。技能恢复实施时再补简介目录增量及已加载必要指令在压缩后的恢复验收。
+
+#### Pi provider 请求编码实测（2026-10-10）
+
+验证入口：[context-updates.test.mjs](../../../../desktop/tests/llm/context-updates.test.mjs)。使用 worker 的 toPiModel、apis 选择与 normalizeContext，调用已安装 Pi 0.87.1 的真实 stream／streamSimple；仅替换 SDK 的 fetch，捕获实际序列化请求并返回固定 400 结束调用。使用合成配置与消息，无真实凭据、无外部模型调用、未修改运行逻辑。测试里的显式开关直接传入 provider，不能视为当前应用设置已经支持。
+
+| 路径与条件 | 实际请求结果 |
+| --- | --- |
+| Responses、Chat Completions、Anthropic，默认兼容配置 | 更新合并到首条／顶层系统指令，工具取当前完整集合；历史里的指令更新位置不再保留 |
+| 三条路径，启用 supportsMidConvoSystemMessages | 保留旧指令基线，后续出现按名称替换／删除片段的文字通知；不是原样传输 sections 对象 |
+| Responses，再启用 supportsAdditionalTools，只有工具新增 | 初始工具在顶层 tools，后续新增在 additional_tools 项中；已覆盖 streamSimple 路径 |
+| Responses，同一历史出现工具删除或同名替换 | 顶层 tools 改为当前完整集合，原有 additional_tools 也不再输出；仅有工具变化的更新不会自动变成文字删除通知 |
+| Chat Completions，启用系统更新及工具新增开关，同名 schema 替换 | 使用当前完整 tools，消息中没有对应工具增删项 |
+| Anthropic，启用系统更新及工具变化开关，有初始工具且无同名重定义 | 请求包含 tool_addition／tool_removal；后加入的工具定义在顶层列表中标记 defer_loading |
+| Anthropic，同名 schema 替换 | 改用当前完整 tools，不再输出工具增删块 |
+| Anthropic，系统更新位于两条 user 消息之间 | 更新移动到后一条 user 消息之后；保留更新不等于保持全部原始位置 |
+| 当前 XiaoWei 契约／配置校验 | worker 拒绝 system 消息；应用配置拒绝上述中途系统更新开关，不能通过现有配置直接启用 |
+
+运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/context-updates.test.mjs`：12 项通过。测试证明 provider 的编码行为，以及当前接入缺口；未验证远端 API 接受这些字段、模型遵循更新的行为，也未覆盖其他 API、reasoning 模式或全部兼容开关组合。
+
+据此不能直接把 SystemMessage 映射判定为已满足同步要求。下一步需要分别落实模型可读的变化通知与 API 要求的可调用工具定义，处理删除／同名替换及更新位置；不能把“顶层 tools 等于当前集合”当成“模型已收到按时间出现的变化”。既有 harness 基线／增量决定保持不变，具体适配仍在 02e 完成。
+
+#### 最小适配实验（2026-10-11）
+
+用户同意先验证最小表达，再扩展契约。实验入口为 [verify-context-updates.mjs](../../../../desktop/scripts/verify-context-updates.mjs)，调用方式见 [验收脚本](../../../../desktop/scripts/README.md#上下文变化的最小适配验证)。复用 worker 的 toPiModel、apis 与 Pi streamSimple，直接提供合成上下文；没有改变生产代码、PB、历史格式、已保存配置或真实会话。
+
+实验选择配置中的全局默认模型 `sol`／openai-responses，不代表所有已有会话的独立选择。仅在内存中启用 supportsMidConvoSystemMessages，关闭 supportsAdditionalTools／supportsToolSearch，以 SSE、low reasoning 调用；凭据从应用既有加载器读取并仅发往该配置的接口。
+
+候选表达分工：harness 的增量消息明确写出移除名称和新增／替换的完整定义，并在同一更新中维护 Pi 的 toolsAdded／toolsRemoved 状态；指令片段仍由 sections 映射成具名更新通知。这样工具状态即使被 provider 解析成顶层当前集合，变化通知也不会随之消失。首次基线一次、后续消息只含变化，无变化不追加，重建时丢弃旧更新并建立当前基线。
+
+六次真实调用全部通过：
+
+| 场景 | 观察结果 |
+| --- | --- |
+| 初始基线 | 调用 probe_echo，参数为 `{ "text": "seven" }` |
+| 新增工具 | 调用新加入的 probe_lookup，参数为 `{ "key": "sample" }` |
+| 同名 schema 替换 | probe_echo 改为 `{ "count": 7 }`，没有沿用旧 text 字段 |
+| 移除工具并替换指令片段 | 未调用已移除的 probe_lookup，准确回复新的 `UNAVAILABLE_NEW` |
+| 无变化继续 | 不追加系统更新，仍准确遵循新指令且不调用已移除工具 |
+| 重建基线 | 仅保留当前基线，仍按新 schema 调用 probe_echo |
+
+本地 [context-adaptation.test.mjs](../../../../desktop/tests/llm/context-adaptation.test.mjs) 的 3 项自动测试通过：实际 provider 编码保留基线和独立增量、不重复追加或混入无关定义；无变化与重建行为正确；模拟模型仍调用已移除工具时实验失败；不支持的 API 在请求前拒绝。已有 provider 编码测试 12 项仍作为独立依据。
+
+边界：此次证明该目标接口接受这种消息表达，并观察到一次完整实验中的遵循行为，不保证所有模型或未来每次采样均遵循。模型可读的变化通知是增量，但请求 tools 仍为完整当前集合；既不能把消息增量宣称成原生工具声明增量，也不能承诺完整请求缓存前缀稳定。实验没有量化 token／缓存收益，未验证原生 additional_tools 路径。执行器仍必须独立按生效工具集合和 schema 校验，不能依赖模型自觉；实验仅有固定工具结果与基本允许集检查，生产执行防线尚未实现。
+
+此实验尚不足以直接确定 02e 的最终适配：用户随后指出顶层完整 tools 仍会变化，工具定义增量与前缀稳定问题没有解决。先核对实际代理并验证原生增量路径，再确定领域／PB；保留结构化变更方向，不把实验 JSON 文案固化成格式，也不把“文字通知＋完整 tools”当作已接受的最终方案。完整 Gateway／worker 接入、持久化／恢复、实际压缩与生产工具循环仍待实施；其他 provider 的表达不能据此推定。
+
+#### sol 实际请求链路核对（2026-10-11）
+
+按用户要求只读核对本地模型配置、线上部署与对应源码：显示 provider 为 tctony，provider 标识 custom，api 为 openai-responses；配置启用 WebSocket／auto，没有 compat 覆盖或 Responses Lite header。请求经过 token.edge.tctony.com 的 CLIProxyAPI，线上容器版本为 `81e9a1c67bd74169b23772ee848b215e4e8ee1db`，服务端 alias 将 sol 映射到 codex 通道的 gpt-6.1-sol。Codex executor 的默认上游为 `https://chatgpt.com/backend-api/codex/responses`；本次未抓取选中凭据的最终上游请求，不能把源码默认地址视为对所有凭据覆盖的实测。
+
+Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 tool search；tools 由当前集合生成。现有 WebSocket 补丁的 getCachedWebSocketInputDelta 先比较 input／previous_response_id 之外的全部请求字段；tools 变化会使比较失败，清除本次续接基线并发送完整请求，而非发送 previous_response_id＋input delta。这是传输续接行为，不能直接等同上游 KV cache 全部失效。
+
+部署版本的 [Responses→Codex 转换](https://github.com/tctony/CLIProxyAPI/blob/81e9a1c67bd74169b23772ee848b215e4e8ee1db/internal/translator/codex/openai/responses/codex_openai-responses_request.go#L15)保留 input／tools 的主体表示，进行 system→developer、内置工具名称等兼容处理；没有将两次完整工具集合自动 diff 成 additional_tools 的机制。executor 另有 schema 规范化，以及满足条件时补入 image_generation 的逻辑，不能把客户端请求直接当作上游最终请求。
+
+代理通过 header 或 client_metadata 中的 [Responses Lite 标记](https://github.com/tctony/CLIProxyAPI/blob/81e9a1c67bd74169b23772ee848b215e4e8ee1db/internal/util/codex.go#L11)识别原生路径；该版本已有保留 additional_tools、无顶层 tools 的本地测试，但当前 XiaoWei 请求不携带该标记。本次没有通过真实调用验证 Lite 新增／替换／删除或缓存收益，不能把普通 Responses 六次成功当作这条路径已验证。
+
+另纠正实验参数的适用范围：代理转换会移除 max_output_tokens、prompt_cache_options、prompt_cache_retention 和嵌套 prompt_cache_breakpoint。因此实验声明的 2048 tokens 是客户端请求值，不是已证实的上游限制；cacheRetention=none 也不能被描述为整个服务端链路确定关闭了缓存。六次实验仍只证明观察到的调用与指令行为，没有采集缓存命中证据。后续必须结合这一实际代理路径验证原生增量和缓存，不直接套用公共 Responses 文档的全部能力。
+
+### 接入顺序与工具／技能差异
+
+2026-10-10 用户确认按“上下文基线与增量机制 → tool → skill”的依赖顺序推进。共同机制负责首次全量、变化增量、无变化不追加，以及恢复／压缩后的基线重建；不要求工具和技能使用同一种内容结构。当前先用实际工具验证机制，技能的具体加载与生命周期规则随后设计，不预建统一能力插件框架。
+
+| 方面 | Tool | Skill（后续） |
+| --- | --- | --- |
+| 首次向模型公开 | 工具名称、描述、参数 schema 等调用声明 | 技能名称、简介及加载标识；不全量注入正文与资源 |
+| 变化同步 | 增删声明、替换变化的定义；执行允许集合同步生效 | 简介目录增删／更新；已经加载的正文是否失效或替换需单独确定，不能把目录更新等同于正文已更新 |
+| 使用方式 | 模型发起结构化调用，由执行器校验、执行并返回结果 | 模型按需取得正文与资源；技能可能指导多个工具的组合使用，技能本身不自动增加工具权限 |
+| 压缩后重建 | 精确重建当前可用工具声明，不依赖摘要猜测 schema | 重建简介目录；已加载且仍需遵循的指令、资源内容按技能生命周期处理，不因此把全部技能正文注入 |
+
+技能加载可以复用工具循环，但“技能目录同步”“正文／资源加载”和“实际工具执行”各自保留职责。技能仍有确定的后续方向，不是取消，也不因接技能而恢复当前已暂缓的 preset 工作。
 
 ### 当前消息字段逐项对齐
 
@@ -60,7 +158,7 @@ Run 只锁定 Agent 选择的 model_ref／reasoning 与 Agent 自己的运行配
 | `TokenUsage.reasoning, cache_write_1h, cost` | 三个 optional／message | 缺失与显式 0 分开；assistant 的有效回放要求 usage.cost 存在；tool result 可无 usage，但提供 usage 时同样须有 cost |
 | `UsageCost.input, output, cache_read, cache_write, total` | 五个同名 double | 有限且非负；原值往返，不重算总费用 |
 
-Pi 的 `SystemMessage.sections/toolsAdded/toolsRemoved`、custom agent message、deferred handle、diagnostics、raw errorMessage，以及 Codex encrypted reasoning／专有响应项不是当前 LLM PB 支持的模型历史。系统指令由 host 当前注入，工具声明及必要执行参数由 `RunContext` 表达；安全失败说明由 `GenEnded`／`TurnEnded`／`RunEnd` 表达；其他能力明确后续处理，不能用任意 AppEvent blob 假装已经支持。
+Pi 的 `SystemMessage.sections/toolsAdded/toolsRemoved` 尚未接入当前 LLM PB，已纳入上述 harness 同步的待实施范围；custom agent message、deferred handle、diagnostics、raw errorMessage，以及 Codex encrypted reasoning／专有响应项仍不在当前契约内。系统指令经 GenerationRequest 单独传递，当前聊天传空值；工具声明及必要执行参数由 `RunContext` 表达；安全失败说明由 `GenEnded`／`TurnEnded`／`RunEnd` 表达；其他能力明确后续处理，不能用任意 AppEvent blob 假装已经支持。
 
 ### 文件与 Rust 类型职责
 
@@ -82,7 +180,7 @@ Pi 的 `SystemMessage.sections/toolsAdded/toolsRemoved`、custom agent message�
 
 | 类型 | 全部字段 | 语义／不变量 |
 | --- | --- | --- |
-| `RunContext` | `model: ModelDescriptor`、`generation: GenerationParameters`、`tools: Vec<ToolDeclaration>`、`limits: RuntimeLimits` | 嵌在 RunStarted 中且该 Run 内不变；Conversation Gen 继承，辅助 Gen 自带必要配置。系统指令每次使用 host 注入值，不另存定义记录或跨 Run 配置引用；权限从历史重建 |
+| `RunContext` | `model: ModelDescriptor`、`generation: GenerationParameters`、`tools: Vec<ToolDeclaration>`、`limits: RuntimeLimits` | 嵌在 RunStarted 中且该 Run 内不变；Conversation Gen 继承，辅助 Gen 自带必要配置。当前系统指令为空且未入盘；preset 暂缓，不另存定义记录或跨 Run 配置引用；权限从历史重建 |
 | `ModelDescriptor` | `model_ref: String`、`provider_name: String?`、`model_name: String?`、`capabilities: ModelCapabilities?`、`budget: ModelBudget` | ref 为不透明调用身份，名称只展示；查询失败能力为 None（磁盘省略），预算记录实际 Default 回退，不含配置 token |
 | `ModelBudget` | `context_window: u64`、`max_output_tokens: u64`、`source: BudgetSource` | Host 或 Default；默认 256_000／32_768，恢复不改写历史值 |
 | `ModelCapabilities` | `input_modalities: Vec<InputModality>`、`supports_reasoning: bool`、`context_window: u64`、`max_output_tokens: u64` | 核心所需的输入能力、推理能力和预算；输入种类非空且不重复，预算为 JS safe 正整数、输出上限不超过上下文窗口 |

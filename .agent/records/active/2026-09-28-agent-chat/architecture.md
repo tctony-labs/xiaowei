@@ -6,6 +6,8 @@
 
 采用旧版 Rust Agent 迁移路线，Pi 继续承担模型适配，不将 Agent Core 改为 TS，也不整体引入 codex-core。迁移须核对业务、持久化、恢复与文件生命周期，不能只迁 UI 或替换模型调用。
 
+XiaoWei 使用的是 Pi 的 LLM provider，未使用 Pi Agent／harness。上下文组装、能力变化同步、历史与工具执行均由自己的核心负责。provider 仍可能转换消息；其转换需要在接入边界验收，不能把库的默认转换策略当作核心的生命周期约束。具体事实与验收见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步已确认待实施)。
+
 | 来源 | 核对基线与采用范围 |
 | --- | --- |
 | 旧 XiaoWei | `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3`；agent_loop/run.rs 的工具循环、steering／follow-up、预算和压缩，旧 xw-agent-session 的 JSONL／SQLite，xw-agent-app 的投影及交互 |
@@ -13,6 +15,8 @@
 | Codex App Server | `b741e480e203f037ca726bc2a76d99a8e8668e66` 与 `7f892275e31002f0422477c6219189284560e689`；统一 InProcess／Remote client、会话管理和直接业务事件。旧 notes 基于 `250de82bfb51a210325e88bfe1f7c30b0fa514f0`，只作为阅读线索 |
 
 Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目内部 Turn 包含 Gen 及其工具结果。借鉴职责和生命周期，不承诺 Codex wire 兼容或相同产品能力。Pi 的类型与旧字段对齐见[领域类型](model-types.md)。
+
+2026-10-10 用户确认 [Agent Preset 暂缓](agent-presets.md)，技能后移。当前先将提示词与工具装配集中在 xw-agent，xiaowei-agent 负责模型协议适配，runtime 执行循环；以后出现第二种实际模式时再提取 preset，当前不新增身份、注册目录或历史快照字段。
 
 ## 当前包与职责
 

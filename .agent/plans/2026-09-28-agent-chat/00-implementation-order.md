@@ -8,16 +8,33 @@
 
 下一运行能力切片为 02e 工具循环。01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成；它不阻塞小会话的工具循环。各工具片依赖既有持久化、同一 App Server 与直接事件流，不重复创建服务、存储 adapter 或模型接线。后续片实施时核对旧版及最新实际文件，再原地调整范围。
 
+2026-10-10 用户确认暂缓 preset，技能也后移。依赖顺序明确为“上下文基线／增量机制 → tool → skill”：当前先集中做好 xw-agent 的提示词与实际工具装配，继续 02e，用工具验证机制后再接技能；不以 preset ID、revision、会话绑定或新增运行快照为前置。[讨论与源码依据](../../records/active/2026-09-28-agent-chat/agent-presets.md)保留在 record，恢复时按第二种实际模式的需求重新设计。
+
+## 内置工具接入批次
+
+2026-10-18 用户确认按批次实施，每批整体实现并验收后进入下一批，不按单个工具逐项交付。先完成 02e 的共用上下文同步与 tool loop；下表为工具推进顺序，计划文件编号只用于定位，不代表执行先后。
+
+| 批次 | 本批工具 | 承载计划 |
+| --- | --- | --- |
+| 1 | Read／Write／Edit | [02g 文件工具](02g-filesystem-tools.md)第一阶段 |
+| 2 | Bash，仅前台执行 | [02h 命令执行](02h-bash-sandbox.md)第一阶段 |
+| 3 | Glob／Grep | [02g 文件工具](02g-filesystem-tools.md)第二阶段 |
+| 4 | AskUserQuestion／RequestPermission | [02f 交互](02f-interactions.md) |
+| 5 | WebFetch | [02i 网页读取](02i-webfetch.md) |
+| 6 | BgRun／BgOutput／BgStop | [02h 命令执行](02h-bash-sandbox.md)第二阶段 |
+
+文件工具先具备既有规则要求的权限检查；RequestPermission 接入前，需要额外授权且没有有效决定的操作返回权限不足，不为调整顺序放宽权限。前台 Bash 不包含后台启动参数或自动转后台行为。
+
 ## 剩余切片
 
 | 切片 | 剩余结果 | 前置 |
 | --- | --- | --- |
 | [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
 | [02e](02e-tool-loop.md) | 工具循环、意图／结果闭合与公共工具 Item | 当前文本执行／Host／rollout |
-| [02f](02f-interactions.md) | 两阶段交互、逐端 ACK 与唯一决定 | 02e |
-| [02g](02g-filesystem-tools.md) | 真实文件读写／搜索及 workspace 权限 | 02f |
-| [02h](02h-bash-sandbox.md) | Bash／后台进程与 macOS 隔离 | 02g |
-| [02i](02i-webfetch.md) | WebFetch 与辅助模型提取 | 02e |
+| [02g](02g-filesystem-tools.md) | 分阶段交付文件读写／搜索及权限检查 | 第一阶段接 02e；第二阶段接第 2 批 |
+| [02h](02h-bash-sandbox.md) | 分阶段交付前台 Bash、后台工具与 macOS 隔离 | 第一阶段接第 1 批；第二阶段接第 5 批 |
+| [02f](02f-interactions.md) | 两阶段交互、逐端 ACK 与唯一决定 | 第 3 批完成 |
+| [02i](02i-webfetch.md) | WebFetch 与辅助模型提取 | 第 4 批完成 |
 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 02e |
 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 02f、02g、02h、02j |
 | [02l](02l-titles.md) | 辅助标题 Gen 的独立持久记录 | 当前标题与 rollout |

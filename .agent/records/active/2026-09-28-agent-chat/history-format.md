@@ -4,6 +4,10 @@
 
 当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本生产者已接入；工具、Interaction、压缩的历史语义由固定 fixture 验证，实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
 
+## 后续系统上下文记录
+
+2026-10-10 已确认 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步已确认待实施)：首次／压缩后建立完整基线，后续只保存变化，无变化不追加。当前格式尚无有序系统上下文记录，02e 需贯通其 codec、校验和重建。2026-10-18 用户确认先实现核心语义及持久恢复，具体领域字段依此设计，不以 provider 原生增量或缓存实验为前置，也不直接照搬 Pi SystemMessage；正式模型映射另在接入边界验收。这属于实际指令／工具同步需求，与已暂缓的 preset 身份或每 Run 完整快照不同。以下仍描述当前已实现格式。
+
 ## 编码边界、SessionHeader 与 Meta
 
 磁盘表示由 types 的私有 codec 管理，领域对象保留运行、校验和重放需要的完整字段。序号按文件顺序重建，UUIDv7 只承担身份，不承担排序。payload 使用 `type`／`data`，所有字段及 variant 使用明确的 snake_case 名称。
@@ -43,7 +47,7 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `turn_ended` | `turn_id`、`status`、可选抢占原因、单调耗时、安全错误／`error_ref` | final_gen_id 从最后一个所属 Conversation Gen 重建；不能指向工具提取 Gen |
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
 
-`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。系统指令每次使用 host 注入值，不保存到 RunContext；工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。
+`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。当前聊天执行传入空系统指令，不保存到 RunContext；工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；此处无 data Header 与无 agent 上下文仍是当前生产格式。
 
 InputMode 为 FollowUp／Steering／Preempt（另有普通 Send）。FollowUp 按接纳顺序由下一 Run 消费；Steering 在工具之间的安全检查点生效，尚未启动的批次工具结算 skipped 后进入同 Run 后续 Turn；Preempt 先打断当前 Gen／工具，完成抢占结算后进入同 Run 后续 Turn。Steering／Preempt 必须指向活动 Run。当前公共 RPC／运行调度只接纳 Send，其余模式保留类型与历史校验，没有提前提供空调度或 UI。
 
