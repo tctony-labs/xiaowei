@@ -10,6 +10,8 @@
 
 生产依赖只有 serde／JSON、UUID 和安全错误支持。LLM PB 全字段转换及往返测试由 `xiaowei-agent` 提供；本包不依赖 contracts、ModelSettings、Storage、Gateway 或 napi。
 
+`SystemContext` 保存具名指令片段与工具声明，`SystemContextUpdate` 区分完整基线和非空增量，作为独立的 `EntryPayload::SystemContext` 入盘。同名工具替换须移除旧定义并加入新定义；指令片段按名称更新或删除。`apply` 只返回候选状态，不执行提交。历史校验拒绝无基线增量、重复基线、无效移除、无变化增量，以及模型生成中或工具结果尚未闭合时的更新。`Compacted.system_context` 在检查点中保存当前完整基线；已有同步状态时不得缺失或改变其内容，既有无系统记录的历史仍可读。模型请求映射尚未接入。
+
 ```sh
 cargo fmt -p xw-agent-types --check
 cargo check -p xw-agent-types --locked

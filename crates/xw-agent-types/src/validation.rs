@@ -45,7 +45,7 @@ fn value(condition: bool, path: &str) -> Result<(), ValidationError> {
     require(condition, ValidationCode::InvalidValue, path)
 }
 
-fn transition(condition: bool, path: &str) -> Result<(), ValidationError> {
+pub(crate) fn transition(condition: bool, path: &str) -> Result<(), ValidationError> {
     require(condition, ValidationCode::InvalidTransition, path)
 }
 
@@ -53,7 +53,7 @@ fn ownership(condition: bool, path: &str) -> Result<(), ValidationError> {
     require(condition, ValidationCode::InvalidOwnership, path)
 }
 
-fn reference<T: Copy>(item: Option<T>, path: &str) -> Result<T, ValidationError> {
+pub(crate) fn reference<T: Copy>(item: Option<T>, path: &str) -> Result<T, ValidationError> {
     item.ok_or_else(|| ValidationError {
         code: ValidationCode::MissingReference,
         entry_id: None,
@@ -367,8 +367,12 @@ fn context(context: &RunContext) -> Result<(), ValidationError> {
             }
         }
     }
+    tools(&context.tools)
+}
+
+fn tools(tools: &[ToolDeclaration]) -> Result<(), ValidationError> {
     let mut names = HashSet::new();
-    for tool in &context.tools {
+    for tool in tools {
         value(!tool.name.is_empty(), "tools.name")?;
         unique(&mut names, &tool.name, "tools.name")?;
         let schema = json_object(&tool.parameters_json, "tools.parameters_json")?;
@@ -389,6 +393,63 @@ fn context(context: &RunContext) -> Result<(), ValidationError> {
     Ok(())
 }
 
+pub(crate) fn system_context(context: &SystemContext) -> Result<(), ValidationError> {
+    instructions(&context.instructions)?;
+    tools(&context.tools)
+}
+
+fn instructions(
+    instructions: &std::collections::BTreeMap<String, String>,
+) -> Result<(), ValidationError> {
+    for (name, content) in instructions {
+        value(!name.trim().is_empty(), "system_context.instructions.name")?;
+        value(
+            !content.trim().is_empty(),
+            "system_context.instructions.content",
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn system_context_update(update: &SystemContextUpdate) -> Result<(), ValidationError> {
+    match update {
+        SystemContextUpdate::Baseline(context) => system_context(context),
+        SystemContextUpdate::Delta(delta) => {
+            instructions(&delta.instructions)?;
+            tools(&delta.tools_added)?;
+
+            for (names, path) in [
+                (
+                    &delta.instructions_removed,
+                    "system_context.instructions_removed",
+                ),
+                (&delta.tools_removed, "system_context.tools_removed"),
+            ] {
+                let mut seen = HashSet::new();
+                for name in names {
+                    value(!name.trim().is_empty(), path)?;
+                    unique(&mut seen, name, path)?;
+                }
+            }
+
+            value(
+                delta
+                    .instructions_removed
+                    .iter()
+                    .all(|name| !delta.instructions.contains_key(name)),
+                "system_context.instructions_removed",
+            )?;
+            value(
+                !delta.instructions.is_empty()
+                    || !delta.instructions_removed.is_empty()
+                    || !delta.tools_added.is_empty()
+                    || !delta.tools_removed.is_empty(),
+                "system_context.delta",
+            )
+        }
+    }
+}
+
 fn preempt_field(is_preempted: bool, input: Option<InputId>) -> Result<(), ValidationError> {
     value(is_preempted == input.is_some(), "preempting_input_id")
 }
@@ -406,6 +467,7 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
     timestamp(entry.timestamp_ms, "timestamp_ms")?;
     match &entry.payload {
         EntryPayload::SessionHeader => {}
+        EntryPayload::SystemContext(update) => system_context_update(update)?,
         EntryPayload::Meta(meta) => {
             value(
                 meta.model_ref
@@ -594,6 +656,9 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
             )?;
         }
         EntryPayload::Compacted(compacted) => {
+            if let Some(context) = &compacted.system_context {
+                system_context(context)?;
+            }
             value(
                 !compacted.summary.trim().is_empty() && !compacted.replacement_history.is_empty(),
                 "summary",
@@ -706,6 +771,7 @@ pub fn validate_model_context(
 
 #[derive(Default)]
 struct History<'a> {
+    system_context: Option<SystemContext>,
     entries: HashMap<EntryId, usize>,
     inputs: HashMap<InputId, (&'a InputAccepted, bool)>,
     runs: HashMap<RunId, (&'a RunStarted, Option<&'a RunEnd>)>,
@@ -875,6 +941,20 @@ impl<'a> History<'a> {
     fn push(&mut self, entry: &'a JournalEntry) -> Result<(), ValidationError> {
         match &entry.payload {
             EntryPayload::SessionHeader | EntryPayload::Meta(_) => {}
+            EntryPayload::SystemContext(update) => {
+                transition(
+                    self.gens.values().all(|(generation, end)| {
+                        generation.purpose != GenPurpose::Conversation || end.is_some()
+                    }) && self.tools.values().all(|(_, outcome)| outcome.is_some()),
+                    "system_context.boundary",
+                )?;
+                for (turn, end) in self.turns.values() {
+                    if end.is_none() {
+                        self.closed_tools(turn.turn_id)?;
+                    }
+                }
+                self.system_context = Some(update.apply(self.system_context.as_ref())?);
+            }
             EntryPayload::InputAccepted(input) => {
                 require(
                     !self.inputs.contains_key(&input.input_id),
@@ -1531,7 +1611,19 @@ impl<'a> History<'a> {
                 self.active_run = None;
                 self.last_run_end = Some(end);
             }
-            EntryPayload::Compacted(compacted) => self.compaction(entry.entry_id, compacted)?,
+            EntryPayload::Compacted(compacted) => {
+                self.compaction(entry.entry_id, compacted)?;
+                if let Some(previous) = &self.system_context {
+                    value(
+                        compacted
+                            .system_context
+                            .as_ref()
+                            .is_some_and(|current| current.has_same_content(previous)),
+                        "system_context",
+                    )?;
+                }
+                self.system_context = compacted.system_context.clone();
+            }
         }
         Ok(())
     }
@@ -1774,9 +1866,9 @@ impl ContextBudgetSnapshot {
                     snapshot.latest_compaction_id = Some(entry.entry_id);
                     snapshot.stale = true;
                 }
-                EntryPayload::InputConsumed(_) | EntryPayload::ToolOutcome(_) => {
-                    snapshot.stale = true
-                }
+                EntryPayload::InputConsumed(_)
+                | EntryPayload::ToolOutcome(_)
+                | EntryPayload::SystemContext(_) => snapshot.stale = true,
                 EntryPayload::Meta(meta) => {
                     let preferences = (&meta.model_ref, &meta.reasoning);
                     if model_preferences.is_some_and(|old| old != preferences) {

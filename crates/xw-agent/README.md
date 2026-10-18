@@ -18,3 +18,5 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 模型／思考选择通过 `set_session_config` 独立提交，并以 metadata revision 校验冲突。`start_run.config` 只覆盖该 Run，不修改会话默认。运行中切换不会改变已经捕获的配置。模型信息失败保持原引用可发送，警告通过快照／事件同步；实际预算回退为 256_000／32_768，未知能力保持未知。标题任务每次从 Host 查询辅助引用；标题及来源只保存至 SQLite，辅助引用不落 Meta。
 
 `xw-agent-rollout` 负责文件提交和尾部修复，本包负责上下文重建／业务结算。写盘失败终止 Run；下一条 query 在 NeedsCheck writer 上先修复并收尾，成功后开启新 Run，无自动重发。只有 InputAccepted 而未开始 Run 的输入仍保留身份，重试返回冲突，不重新接纳。持久模式列表支持普通／归档过滤和分页；归档先停止结算，取消归档后才能打开。删除先提交 SQLite deleting，再直接清理登记文件和自有 workspace，成功后移除记录；失败保留状态，重开只重试已知删除路径。标题更新不追加 JSONL，数据库故障明确报错，无历史扫描兜底。
+
+系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。记录／恢复已实现，生产 `start_run`、模型适配及工具循环尚未接入；不能将这一入口视为已交付模型同步。

@@ -9,6 +9,7 @@ mod message;
 mod model;
 mod rollout;
 mod stored_json;
+mod system_context;
 mod validation;
 
 pub use context::{
@@ -36,6 +37,8 @@ pub use message::{
     AgentMessage, AssistantMessage, ContentBlock, FinishReason, TokenUsage, ToolResultMessage,
     UsageCost, UserMessage,
 };
+
+pub use system_context::{SystemContext, SystemContextDelta, SystemContextUpdate};
 
 pub use rollout::{
     Compacted, CompactionTrigger, ContextBudgetSnapshot, DeletionMarker, EntryPayload, GenEnded,

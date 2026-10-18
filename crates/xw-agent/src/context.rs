@@ -7,6 +7,7 @@ use xw_agent_types::*;
 pub struct RebuiltContext {
     pub meta: SessionMeta,
     pub messages: Vec<AgentMessage>,
+    pub system_context: Option<SystemContext>,
     pub granted_paths: Vec<PermissionTarget>,
     pub budget: ContextBudgetSnapshot,
 }
@@ -41,6 +42,7 @@ pub fn rebuild_context(
         })
         .ok_or_else(|| invalid("meta"))?;
     let mut inputs = BTreeMap::new();
+    let mut system_context = None;
     let mut messages = BTreeMap::new();
     let mut generations = BTreeMap::new();
     let mut positions = BTreeMap::new();
@@ -52,6 +54,9 @@ pub fn rebuild_context(
     for entry in entries {
         positions.insert(entry.entry_id, entry.sequence.0);
         match &entry.payload {
+            EntryPayload::SystemContext(update) => {
+                system_context = Some(update.apply(system_context.as_ref())?);
+            }
             EntryPayload::InputAccepted(input) => {
                 inputs.insert(input.input_id, &input.message.message);
             }
@@ -78,6 +83,7 @@ pub fn rebuild_context(
             }
             EntryPayload::Compacted(compacted) => {
                 checkpoints.insert(entry.entry_id, compacted);
+                system_context = compacted.system_context.clone();
             }
             EntryPayload::InteractionOpened(opened) => {
                 interactions.insert(opened.interaction_id, &opened.request);
@@ -115,6 +121,7 @@ pub fn rebuild_context(
     Ok(RebuiltContext {
         meta,
         messages: rebuilt,
+        system_context,
         granted_paths,
         budget: ContextBudgetSnapshot::from_entries(entries)?,
     })

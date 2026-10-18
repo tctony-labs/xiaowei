@@ -4,9 +4,15 @@
 
 当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本生产者已接入；工具、Interaction、压缩的历史语义由固定 fixture 验证，实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
 
-## 后续系统上下文记录
+## 系统上下文记录（核心记录／恢复已实现）
 
-2026-10-10 已确认 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步已确认待实施)：首次／压缩后建立完整基线，后续只保存变化，无变化不追加。当前格式尚无有序系统上下文记录，02e 需贯通其 codec、校验和重建。2026-10-18 用户确认先实现核心语义及持久恢复，具体领域字段依此设计，不以 provider 原生增量或缓存实验为前置，也不直接照搬 Pi SystemMessage；正式模型映射另在接入边界验收。这属于实际指令／工具同步需求，与已暂缓的 preset 身份或每 Run 完整快照不同。以下仍描述当前已实现格式。
+2026-10-18 已实现独立 `system_context` 记录及其 v2 编解码／校验和核心恢复入口；首次／压缩后完整基线、后续仅变化、无变化不追加的语义见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步已确认待实施)。生产生成入口、PB／worker 映射与工具循环仍未接入，不以 provider 原生增量或缓存实验为核心实施前置。
+
+`payload.data` 使用 `type`／`data` 区分两种更新：`baseline` 的 data 为完整 `SystemContext`，含 `instructions`（名称到正文的有序键映射）与 `tools`（ToolDeclaration 列表）；`delta` 的 data 包含非空变化项 `instructions`、`instructions_removed`、`tools_added`、`tools_removed`，空集合省略。指令同名更新直接替换正文；工具同名替换须在同一增量移除旧名并加入完整新定义。工具 schema 原始 JSON 字符串仍原样保存；差异比较忽略对象键顺序和空白，保留数字原始表示，避免大数字舍入隐藏真实变化。
+
+系统记录不依附 Run／Gen，不伪装用户输入或助手 Message；外层身份、顺序与时间复用普通 entry。首次空基线仍是一条明确记录；已有基线时禁止再次追加 baseline，实际无变化的 delta 也拒绝。Conversation Gen 未结束或工具结果未闭合时禁止更新，包括模型已返回完整工具调用、ToolIntent 尚未提交的前缀。
+
+`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动压缩的实际触发、生成和提交接线仍属于 02j。
 
 ## 编码边界、SessionHeader 与 Meta
 

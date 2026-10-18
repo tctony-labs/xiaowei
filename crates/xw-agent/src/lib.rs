@@ -1,6 +1,7 @@
 //! Transport-independent Agent App Server with an owned SQLite catalog and authoritative JSONL history.
 mod catalog;
 mod context;
+mod context_sync;
 mod error;
 mod events;
 mod execution;
@@ -31,6 +32,7 @@ pub use host::{AgentHost, AuxiliaryModelRefFuture, ModelInfoFuture};
 pub use xw_agent_types::{AuxiliaryModelError, ModelInfo, ModelInfoError, ModelSelection};
 
 pub use context::{RebuiltContext, rebuild_context};
+pub use context_sync::{plan_system_context_update, sync_system_context};
 pub use recovery::{RecoveryState, inspect_recovery, settle_interrupted};
 
 pub use retention::SessionViewing;

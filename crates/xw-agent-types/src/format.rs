@@ -251,7 +251,7 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
     let data = member(member(&mut stored, "payload")?, "data")?;
     match &entry.payload {
         EntryPayload::SessionHeader => unreachable!("header encoded above"),
-        EntryPayload::Meta(_) => {}
+        EntryPayload::Meta(_) | EntryPayload::SystemContext(_) => {}
         EntryPayload::RunStarted(_) => context_encode(member(data, "context")?)?,
         EntryPayload::TurnStarted(_) => remove(data, &["ordinal"])?,
         EntryPayload::InputAccepted(_) => {
@@ -382,7 +382,7 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
     match kind.as_str() {
-        "meta" => {}
+        "meta" | "system_context" => {}
         "run_started" => context_decode(member(data, "context")?)?,
         "turn_started" => {
             absent(data, &["ordinal"])?;

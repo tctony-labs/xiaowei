@@ -54,7 +54,7 @@ Run 只锁定 Agent 选择的 model_ref／reasoning 与 Agent 自己的运行配
 
 XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复；只调用 `@earendil-works/pi-ai` 0.87.1 的 LLM provider，不使用 Pi Agent／harness。provider 的转换行为是接入时需要验证的事实，不能反过来决定核心何时重写上下文，也不能仅凭默认兼容配置断言模型接口不支持某种更新。
 
-当前缺口：AgentMessage／ChatMessage 只有 User、Assistant、ToolResult，LLM 请求只有单独的 system_prompt 与全量 tools，不能保存按时间出现的系统上下文变化。领域历史与 LLM 契约需要能够表达有序的系统上下文更新；系统更新由 harness 产生，不记作真实用户输入或模型生成的 Message，也不借 preset 引入新的身份体系。领域记录、持久化编码与 provider 消息结构分别承担自己的职责，不因 Pi 暴露某个字段就要求逐字段照搬到领域与 PB。
+当前模型接入缺口：AgentMessage／ChatMessage 仍只有 User、Assistant、ToolResult，LLM 请求只有单独的 system_prompt 与全量 tools，尚不能传递有序系统更新。2026-10-18 已先实现独立领域历史记录与恢复，见下节；生成请求投影及 LLM 契约仍待贯通。系统更新由 harness 产生，不记作真实用户输入或模型生成的 Message，也不借 preset 引入新的身份体系。领域记录、持久化编码与 provider 消息结构分别承担自己的职责，不因 Pi 暴露某个字段就要求逐字段照搬到领域与 PB。
 
 候选接入方案是将系统上下文记录映射到 Pi SystemMessage：首条提供基线；后续 sections 替换／删除指令片段，toolsAdded／toolsRemoved 表达工具变化。下述请求编码实测已确认该映射的缺口，尚不能直接作为最终适配，也不属于用户已确认的字段级设计。可变指令按变化片段更新，新增／替换工具携带完整定义；比较定义内容，避免对象地址或 JSON 键顺序变化产生伪增量。
 
@@ -65,6 +65,18 @@ XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复�
 自动验收分两层：先验证 harness 首次只有一份全量基线，无变化的生成／跨 Run 不增加记录，增删和 schema 变更只产生对应增量，重建状态等于权威状态，压缩／重开正确恢复，提交失败不生成。再沿正式 worker → 实际 Pi provider 路径检查最终请求中的指令位置、更新内容和生效工具定义，覆盖新增、删除及同名替换；PB 往返、provider 入口 mock 或 WebSocket 续接测试均不能单独证明这层语义。工具声明的 API 字段与变化通知是否分别需要表达，应由该验证确定。
 
 2026-10-18 用户确认优先实现 Agent 核心：02e 先按上述已确定语义实现领域状态、差异、持久化／恢复及工具循环，provider 原生增量与缓存实验不作为核心实施前置。领域字段不直接照搬 Pi；正式模型接入仍须验证拟用映射，若发生不符合要求的折叠，定位适配缺口并修正，不能默认为已获授权的全量降级，也不据此重新询问用户是否接受另一套 harness 策略。下述测试已验证 provider 请求编码；2026-10-11 最小适配另完成当前默认 Responses 模型的真实调用，完整 Agent 链路仍待实施。技能恢复实施时再补简介目录增量及已加载必要指令在压缩后的恢复验收。
+
+#### 系统上下文核心记录与恢复（2026-10-18）
+
+02e 首步已新增 `xw-agent-types/src/system_context.rs` 与 `xw-agent/src/context_sync.rs`。types 提供 SystemContext／SystemContextDelta／SystemContextUpdate 及纯状态转换；核心 `plan_system_context_update` 计算基线／差异，`sync_system_context` 直接复用 Journal 的已提交记录与 append，不另加 Session 同步缓存或存储抽象。恢复以现有 ContextBoundary 为上界，`RebuiltContext.system_context` 区分尚无基线与空基线。磁盘字段和检查点语义只在[历史格式](history-format.md#系统上下文记录核心记录恢复已实现)维护。
+
+同名工具 schema 或描述变化只移除并加入该工具；工具列表顺序、JSON 对象键顺序或空白变化不产生伪增量，数字比较不经过 f64。首次基线、无变化不写、增删替换、空基线、关闭重开、跨 Run 和既有检查点恢复由临时 JSONL／固定历史验证。写入前、半行、完整行未确认和 sync 失败四种注入均验证已提交状态不前进，修复后仍计算相同变化，不自动重试或调用模型。新增测试为 `xw-agent/tests/context_sync.rs` 的 8 项与 `xw-agent-types/tests/system_context.rs` 的 6 项，均已通过。
+
+最终验证：types／rollout／runtime／xw-agent／xiaowei-agent 合计 137 项 Rust 测试通过；五包 all-targets、no-deps 严格 Clippy 通过；正式 xiaowei-agent napi 的 build:debug 与 just check 通过。仅使用临时目录与合成内容，没有真实模型调用、修改应用配置或启动应用。
+
+本步没有接生产生成边界，没有修改 AgentMessage／LLM PB／worker，也未启用工具或自动压缩；有效消息中的系统更新投影、提交失败不生成、执行集合一致等完整链路验收仍在 02e 后续实施。不把核心持久入口通过当作生产工具循环完成。
+
+系统提示词来源核对：旧仓库 `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3` 的 `xw-agent-app/src/{send,interactive,agent_manager}.rs` 均传入空 static_system_prompt／dynamic_system_prompt 和空动态片段；runtime 的 build_system_prompt 只拼接这些输入，没有可直接迁移的完整聊天正文。旧 runtime 另以环境／会话 attachment 注入当前时间、变化日期、cwd、时区和模型选择，这不等于基础系统提示词；当前尚未迁移这条产品环境链路。本步使用合成指令验机制；后续由 xw-agent 维护实际基础指令、随已接入工具装配使用规则，必要环境片段按实际来源接入，不宣称已全面对齐旧环境注入。
 
 #### Pi provider 请求编码实测（2026-10-10）
 
