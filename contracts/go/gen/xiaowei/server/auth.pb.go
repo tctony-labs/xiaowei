@@ -965,7 +965,7 @@ var File_xiaowei_server_auth_proto protoreflect.FileDescriptor
 
 const file_xiaowei_server_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x19xiaowei/server/auth.proto\x12\x13xiaowei.server.auth\x1a\x14xiaowei/common.proto\"a\n" +
+	"\x19xiaowei/server/auth.proto\x12\x13xiaowei.server.auth\x1a\x14xiaowei/common.proto\x1a\x1bxiaowei/server/common.proto\"a\n" +
 	"\fUserSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\"\n" +
@@ -1031,10 +1031,10 @@ const file_xiaowei_server_auth_proto_rawDesc = "" +
 	"\x1bAUTH_ERROR_CODE_UNSPECIFIED\x10\x00\x12(\n" +
 	"#AUTH_ERROR_CODE_INVALID_CREDENTIALS\x10\xf4N\x12-\n" +
 	"(AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED\x10\xf5N\x123\n" +
-	".AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED\x10\xf6N2\xc8\x02\n" +
-	"\x04Auth\x12N\n" +
-	"\x05Login\x12!.xiaowei.server.auth.LoginRequest\x1a\".xiaowei.server.auth.LoginResponse\x12T\n" +
-	"\aRefresh\x12#.xiaowei.server.auth.RefreshRequest\x1a$.xiaowei.server.auth.RefreshResponse\x12T\n" +
+	".AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED\x10\xf6N2\xd8\x02\n" +
+	"\x04Auth\x12V\n" +
+	"\x05Login\x12!.xiaowei.server.auth.LoginRequest\x1a\".xiaowei.server.auth.LoginResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12\\\n" +
+	"\aRefresh\x12#.xiaowei.server.auth.RefreshRequest\x1a$.xiaowei.server.auth.RefreshResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12T\n" +
 	"\x0eGetCurrentUser\x12\x15.xiaowei.common.Empty\x1a+.xiaowei.server.auth.GetCurrentUserResponse\x12D\n" +
 	"\x06Logout\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.auth.LogoutResponseb\x06proto3"
 
@@ -1103,6 +1103,7 @@ func file_xiaowei_server_auth_proto_init() {
 	if File_xiaowei_server_auth_proto != nil {
 		return
 	}
+	file_xiaowei_server_common_proto_init()
 	file_xiaowei_server_auth_proto_msgTypes[4].OneofWrappers = []any{
 		(*LoginRequest_Password)(nil),
 	}

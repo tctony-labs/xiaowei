@@ -1,6 +1,6 @@
 # Go 服务端
 
-独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、首次管理员初始化、设备会话和健康检查；邮箱注册、找回密码与 WebSocket 尚未实现。Go 版本见 [go.mod](go.mod)，当前实现见下列模块文档，未完成范围由 [server-development](../.agent/records/active/2026-10-11-server-development.md) 跟进；历史取舍与验收见 [用户与登录归档](../.agent/records/archived/2026-09-25-user-authentication.md)。
+独立 Go HTTP 服务，使用 PostgreSQL 持久化。目前提供运行配置、启动迁移、用户存储、邮箱密码登录、首次管理员初始化、设备会话、健康检查和认证 WebSocket；邮箱注册与找回密码尚未实现。Go 版本见 [go.mod](go.mod)，当前实现见下列模块文档，未完成范围由 [server-development](../.agent/records/active/2026-10-11-server-development.md) 跟进；历史取舍与验收见 [用户与登录归档](../.agent/records/archived/2026-09-25-user-authentication.md)。
 
 ## 模块索引
 
@@ -11,7 +11,8 @@
 | `internal/config/` | 配置读取与校验 |
 | `internal/db/` | PostgreSQL 连接、迁移及用户、身份与会话存储 |
 | `internal/auth/` | 密码校验、随机登录凭据与设备会话规则 |
-| `internal/httpapi/` | HTTP 路由、认证接入、限流与健康检查 |
+| `internal/httpapi/` | 共享 API 注册、HTTP／认证 WS 接入、限流与健康检查 |
+| `internal/gateway/` | 与账号无关的双向 WebSocket Gateway、显式路由、事件及响应流 |
 | `internal/scheduler/` | 后台定时任务、执行超时与退出取消 |
 | `config/` | YAML、`.env` 及模板 |
 | `deploy/` | Dockerfile、独立生产 Compose、部署模板与隔离容器验收 |
@@ -25,6 +26,7 @@
 - [配置、存储与迁移](docs/persistence.md)
 - [HTTP 接口](docs/http.md)
 - [限流设计](docs/rate-limiting.md)
+- [WebSocket 接入](docs/websocket.md)
 - [认证与会话](docs/authentication.md)
 - [部署交付](docs/deployment.md)
 
@@ -84,8 +86,10 @@ go run ./cmd/xiaowei-server --config /path/to/server.yaml --check-config
 服务完成数据库连接、迁移及按需管理员初始化后才监听 HTTP，失败则退出。迁移使用 UTC 时间戳版本；其他分支已执行的迁移会保留并提示，不阻止启动。迁移约定见 [数据库迁移](docs/persistence.md#数据库迁移)。另开终端检查：
 
 ```sh
-curl -f http://127.0.0.1:10001/healthz
-curl -f http://127.0.0.1:10001/readyz
+curl -f -X POST -H 'Content-Type: application/json' -d '{}' \
+  http://127.0.0.1:10001/api/common.Health/Check
+curl -f -X POST -H 'Content-Type: application/json' -d '{}' \
+  http://127.0.0.1:10001/api/common.Health/Ready
 ```
 
 检查响应中的 `code = 0`，不能仅凭 HTTP 200 或 curl 退出状态判断就绪。语义见 [HTTP 接口](docs/http.md#健康检查)。

@@ -1,82 +1,71 @@
 # HTTP 接口
 
-消息结构及错误码语义由 [Proto 契约](../../contracts/proto/xiaowei/server/README.md) 定义；HTTP 状态、路由及限流等传输行为由 Go 的 `internal/httpapi/` 负责。
+本文维护 HTTP 编解码、响应状态、探针使用和日志规则。方法与消息见 [服务端 proto](../../contracts/proto/xiaowei/server/)，统一寻址与传输支持范围见 [xwapi](../../docs/xwapi.md#方法与登录要求)。
 
 ## 接口总览
 
-当前已实现的全部 HTTP 接口如下，路由定义见 [handler.go](../internal/httpapi/handler.go)。
+业务接口使用统一的 POST 短路由，由 [共享 API 注册](../internal/httpapi/api.go) 派生；[HTTP handler](../internal/httpapi/handler.go) 统一解码、鉴权和编码，不按方法另写接入逻辑。`GET /api/ws` 是 [WebSocket 升级入口](websocket.md)，成功返回 HTTP 101，之后使用 WS 帧。
 
-| 方法 | 路径 | 用途 | 凭据 | 详细说明 |
-| --- | --- | --- | --- | --- |
-| GET | `/healthz` | 检查进程是否可响应 | 无 | [健康检查](#健康检查) |
-| GET | `/readyz` | 检查数据库是否可用 | 无 | [健康检查](#健康检查) |
-| POST | `/api/auth/login` | 邮箱密码登录，返回用户、设备和 token | 请求体中的邮箱与密码 | [认证与会话](authentication.md) |
-| POST | `/api/auth/refresh` | 轮换 refresh token，签发新的 access token | 请求体中的 refresh token | [认证与会话](authentication.md) |
-| GET | `/api/auth/me` | 查询当前用户、设备和会话 | Bearer access token | [认证与会话](authentication.md) |
-| POST | `/api/auth/logout` | 撤销当前会话及其全部 token | Bearer access token | [认证与会话](authentication.md) |
+HTTP 接入遵循以下约定：
 
-Bearer 凭据通过 `Authorization: Bearer <access_token>` 传递。注册、找回密码、第三方登录／绑定和 WebSocket 尚未提供接口。
+- 请求体为完整 Request 的 Proto JSON，使用 `Content-Type: application/json`，空消息发送 `{}`；输入 descriptor 为空消息时也接受空请求体。
+- 请求体上限 16 KiB，严格按 schema 解码，拒绝未知字段、重复字段和无效 JSON。
+- 需要 session 时通过 `Authorization: Bearer <access_token>` 鉴权；不需要 session 的方法仍执行自身的凭据和参数校验。
+- 响应使用 Proto JSON 的 snake_case 字段名，int64 按 Proto JSON 规则编码；设置 `Cache-Control: no-store`。
 
 ## 响应约定
 
-**应用生成的响应统一返回 HTTP 200，成功或失败通过响应体的 code 表达。** 这包括解析失败、请求过大、内容类型错误、限流、未登录、参数错误、服务不可用和内部错误；不能直接透传框架默认的 4xx／5xx 响应。
+应用 handler 生成的响应统一使用 HTTP 200，包含未知路径、错误请求方法、解码失败、限流和业务失败；调用方必须按 [契约约定](../../contracts/proto/xiaowei/server/README.md#响应约定) 检查 code，字段和错误码语义不在这里重复定义。
 
-成功返回 `{ code: 0, msg, data }`，失败返回 `{ code: 非零错误码, msg }`。公共与业务错误码都写入 code，说明字段统一为 msg，服务端提供的提示文案使用中文。JSON／协议解码失败由接入层返回 INVALID_REQUEST，解码成功后的业务参数校验失败返回 INVALID_ARGUMENT；具体定义见 [契约文档](../../contracts/proto/xiaowei/server/README.md#接入错误与参数错误)。服务器不认识的新 oneof 分支按解码失败处理。
+反向代理生成的非 200 响应、损坏 HTTP 报文在进入 handler 前被 net/http 拒绝，以及网络中断，都不保证带有业务响应。进入 WS 后，连接和协议错误也不套用 HTTP 200／JSON 约定。
 
-客户端收到 HTTP 200 仍需检查 code。网络断连、超时或反向代理生成的非 200 响应属于应用外异常，不能假定带有契约消息。服务端日志区分接入和业务失败，对外 msg 不暴露凭据、请求原文或底层错误。
-
-健康探针和应用路由的未知路径／方法错误同样使用该规则。进入 handler 之前的损坏 HTTP 报文由 net/http 处理，不保证带有本应用响应；已断开的连接无法补发响应。
+桌面 [HTTP client](../../desktop/src/main/services/xwapi/http.ts) 禁止重定向，只接受 HTTP 200，并在完整读取后按 UTF-8 字节检查 64 KiB 响应上限；这不是流式读取限额。响应必须能按契约解码，预期失败向本地 Gateway 的映射见 [xwapi](../../docs/xwapi.md#http-与-websocket-选择)。
 
 ## 健康检查
 
-`GET /healthz` 表示进程可响应，`GET /readyz` 检查数据库是否可用，探测超时为 2 秒。两者均返回 HTTP 200：就绪时 code 为 0、data.status 为 ok；数据库不可用时 code 为 UNAVAILABLE（10008），不带 data。
+检查含义、请求／响应类型和失败码由 [Health proto](../../contracts/proto/xiaowei/server/common.proto) 定义，按相同规则推导 POST 路由；没有独立的运维 GET 入口。
 
-检查响应体中的 code，不能仅凭 curl -f 的退出状态判断是否就绪。数据库故障不会退出已运行的服务，连接恢复后 readiness 可以恢复。
+容器内 `/xiaowei-healthcheck` 定期直连 Go 的 Ready，部署验收通过 HTTPS 域名请求同一接口，额外验证 Nginx 链路；命令与部署参数见 [部署交付](deployment.md)。Nginx 仅转发，不主动探测。Check 供测试和人工检查，桌面不定时轮询这两个方法。数据库中断时 Go 保持运行，数据库恢复后 Ready 可以恢复成功；HTTP 200 或 curl 成功本身不代表就绪。
 
 ## 请求限流
 
-通用 IP 限流和接口专用限流的范围、叠加顺序、配置方案与实现状态见 [限流设计](rate-limiting.md)。
+通用 IP 与认证专用额度、可信来源、健康检查豁免及叠加顺序见 [限流设计](rate-limiting.md)。
 
 ## 请求日志
 
-日志分为两层：通用 HTTP 层记录每次请求的结果，接口业务层按需要记录业务事件和诊断上下文。两层沿用现有日志机制，客户端为 console／Electron 采集，服务端为 slog。
+客户端使用 console／Electron 采集，服务端使用 slog。通用层只记录安全元信息，业务层按需记录登录、刷新或撤销等事件；普通拒绝和限流不额外重复汇总，内部故障可附带安全错误分类、SQLSTATE 或诊断栈。
 
-客户端 HTTP 入口位于 `desktop/src/main/services/xwapi/http.ts`；`services/xwapi/service.ts` 负责强类型接口映射、本地登录态检查、请求编码与业务结果校验，并通过 xwapi Gateway owner 提供服务器调用。xwapi 不管理会话，AccountService 负责凭据保存、刷新与退出；通用传输层不依赖 account，不覆盖第三方 LLM／provider 协议。服务端 `internal/httpapi/logging.go` 的中间件覆盖进入应用 handler 的请求，响应写出入口主动标注业务 code，不读取或缓存响应体来获取 code。
+每次真实 HTTP 请求记录 `HTTP request started` 和 `HTTP request completed`。字段白名单如下，未取得的状态／业务码省略，不用本地产生的错误码代替服务器结果：
 
-每次请求开始时输出一条 `HTTP request started`，包含 method 和安全 path；结束时输出一条 `HTTP request completed`，另外包含 duration_ms、http_status 和 code，不输出加工的 outcome 字段。客户端两条日志都另记录 server origin，使用单行 `key=val` 文本，与服务端默认 slog 文本格式一致；未取得 HTTP 状态或合法业务码时省略对应字段，不用本地产生的错误码替代服务端业务码。HTTP 200 必须结合 code 判断结果。客户端在公共响应解码及业务封装的结果校验后记录汇总。未通过本地登录态检查的请求只记录安全的 `Xwapi request rejected`，不输出尚未发生的 HTTP 开始／结束日志。
+| 范围 | 字段 |
+| --- | --- |
+| 开始与结束 | `method`、安全 `path` |
+| 结束时增加 | `duration_ms`、`http_status`、`code` |
+| 客户端增加 | `server`，仅 origin |
+| 服务端已匹配业务方法的结束日志增加 | `rpc_method` 完整名、`transport=http` |
 
-| 日志阶段／请求结果 | 客户端等级 | 服务端等级 |
+客户端在解码和结果校验后记录结束；服务端由响应写出入口标注 code，不读取或缓存响应体获取它。本地鉴权拒绝只记录 `Xwapi request rejected` 及安全方法／原因分类，不产生尚未发生的 HTTP 请求日志。
+
+| 阶段／结果 | 客户端等级 | 服务端等级 |
 | --- | --- | --- |
-| 请求开始 | debug | info |
-| 成功请求结束 | debug | info |
+| 开始、成功结束 | debug | info |
 | 业务拒绝、认证失败、参数错误、限流 | warn | warn |
 | 服务不可用、内部错误、协议错误、网络或传输异常 | error | error |
 | 外部 HTTP 4xx／5xx | warn／error | warn／error |
-| 用户主动取消 | debug | 按实际响应或传输结果记录 |
+| 主动取消 | debug | 按实际响应或传输结果 |
 
-客户端成功日志遵循既有采集策略，正式版默认不输出 debug；服务器所有接口（包括健康检查）的开始及成功结束日志统一使用 info。登录成功、会话刷新和撤销等业务事件继续保留，普通拒绝和限流不重复输出汇总；内部故障可以额外记录安全的错误分类、SQLSTATE 或诊断栈。
+健康检查沿用相同等级。客户端正式版默认不输出 debug，采集链路见 [桌面日志](../../docs/desktop-logging.md)。
 
 ### 敏感信息规则
 
-通用层对所有接口使用同一份元信息白名单，不根据 path、业务模块或字段名称选择脱敏规则，不采集整个对象后再递归打码。新增业务接口无需更新通用日志规则。业务层自行选择需要记录的字段，但不能放宽以下要求；所有日志级别及测试凭据同样遵守。
+所有接口、日志级别及测试凭据共用以下边界。通用层使用元信息白名单，不采集对象后再递归脱敏，也不按业务字段识别秘密；业务日志不能放宽这些规则。
 
 | 信息 | 记录规则 |
 | --- | --- |
-| 密码、授权码、验证码、邀请码、AT／RT、第三方绑定 token、Cookie、Authorization、API key、数据库凭据 | 不输出值；确需保留字段时整值替换为 `[REDACTED]`，不保留首尾、长度或哈希 |
-| 邮箱 | 请求日志不记录；业务事件确需记录时，`@` 前至少 3 个字符则保留首尾各 1 个字符，中间固定为 `***`，否则整个 local part 为 `***`；域名保留，如 `user@example.com` → `u***r@example.com` |
-| 公开 user_id、device_id、session_id | 必要业务事件允许原样记录，前提是它们不能作为登录凭据；请求日志不新增这些字段或内部自增用户主键 |
-| 昵称、设备名称、客户端 IP | 本次不记录 |
-| 服务器地址 | 客户端只记录 origin，即协议、主机和端口，排除 userinfo、基础子路径、query 和 fragment |
-| 接口路径 | 客户端由业务代码提供固定路径／路由模板，服务端使用匹配的路由键；未知路径记为 `[unmatched]`，不输出提交的原始路径或查询参数；动态路由使用参数占位符 |
-| 请求／响应体、完整 headers、响应 msg、data、原始异常对象或文本 | 不进入请求日志；根据错误类别选择等级，不输出 fetch cause、解码错误原文或 panic 值 |
-
-示例（客户端普通成功请求，均为 debug；服务端开始与成功结束为 info）：
-
-```text
-HTTP request started method=GET path=/api/auth/me server=http://127.0.0.1:10001
-HTTP request completed method=GET path=/api/auth/me server=http://127.0.0.1:10001 duration_ms=94 http_status=200 code=0
-```
-
-开始日志在网络请求／业务 handler 执行之前写出，不包含尚未取得的状态码、业务码或耗时；结束日志沿用结果分级。客户端错误分类仅供内部等级选择和业务封装处理，不输出为日志字段。健康检查使用与其他接口相同的日志等级，没有单独例外。
-
-路径模板只用于展示，不参与敏感信息判断。业务层需要记录邮箱等字段时由业务代码明确处理，通用 HTTP 层不识别这些字段，也不预建任意对象脱敏工具。
+| 密码、授权码、验证码、邀请码、access／refresh token、第三方绑定 token、Cookie、Authorization、API key、数据库凭据 | 不输出值；必须保留字段时整值替换为 `[REDACTED]`，不保留首尾、长度或哈希 |
+| 邮箱 | 请求日志不记录；业务事件确需记录时，local part 至少 3 个字符则保留首尾各 1 个字符，中间固定为 `***`，否则整个 local part 为 `***`；域名保留 |
+| 公开 user_id、device_id、session_id | 仅必要业务事件允许记录，不能作为凭据；请求日志不新增这些字段或内部数据库主键 |
+| 昵称、设备名称、客户端 IP | 不记录 |
+| 服务器地址 | 仅 origin，排除 userinfo、基础子路径、query 和 fragment |
+| 接口路径 | 仅契约推导的固定路径／匹配的路由键；动态参数使用占位符，未知路径为 `[unmatched]`，不输出原始未知路径或 query |
+| 请求／响应体、完整 headers、msg、data、原始异常文本 | 不进入请求日志；不输出 fetch cause、解码错误原文或 panic 值 |

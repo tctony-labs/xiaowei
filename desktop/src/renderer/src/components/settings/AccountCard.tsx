@@ -6,6 +6,7 @@ export interface AccountCardProps {
   servers: string[];
   server: string;
   user?: { uid: string; avatar?: string };
+  connectionStatus: "connected" | "disconnected" | "connecting" | "reconnecting";
   busy?: boolean;
   onSelectServer: (server: string) => void;
   onAddServer: () => void;
@@ -18,6 +19,7 @@ export function AccountCard({
   servers,
   server,
   user,
+  connectionStatus,
   busy = false,
   onSelectServer,
   onAddServer,
@@ -26,6 +28,13 @@ export function AccountCard({
   onCopyUid,
 }: AccountCardProps) {
   const serverAnchorRef = useRef<HTMLDivElement>(null);
+  const connectionLabel = {
+    connected: "云连接：已连接",
+    disconnected: "云连接：未连接",
+    connecting: "云连接：正在连接",
+    reconnecting: "云连接：连接中断，正在重连",
+  }[connectionStatus];
+  const connecting = connectionStatus === "connecting" || connectionStatus === "reconnecting";
 
   return (
     <SettingCard>
@@ -53,7 +62,7 @@ export function AccountCard({
             <div className="min-w-0">
               <div className="flex items-center gap-1 text-[13px] leading-[18px]">
                 <span className="truncate" title={`UID：${user.uid}`}>
-                  UID：{user.uid}
+                  {user.uid}
                 </span>
                 <button
                   type="button"
@@ -64,8 +73,31 @@ export function AccountCard({
                   ⧉
                 </button>
               </div>
-              <p className="mt-0.5 truncate text-[11px] leading-[14px] text-muted" title={server}>
-                {server}
+              <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-[14px] text-muted">
+                <span
+                  role="status"
+                  aria-label={connectionLabel}
+                  title={connectionLabel}
+                  className="inline-flex size-2.5 shrink-0 items-center justify-center"
+                >
+                  {connecting ? (
+                    <span
+                      aria-hidden="true"
+                      className="size-1.5 rounded-full bg-muted
+                        motion-safe:animate-[cloud-connection-pulse_1s_ease-in-out_infinite]"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className={`size-1.5 rounded-full ${
+                        connectionStatus === "connected" ? "bg-primary" : "bg-danger"
+                      }`}
+                    />
+                  )}
+                </span>
+                <span className="truncate" title={server}>
+                  {server}
+                </span>
               </p>
             </div>
           </div>

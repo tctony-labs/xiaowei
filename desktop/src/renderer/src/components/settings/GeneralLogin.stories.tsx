@@ -15,6 +15,27 @@ type Story = StoryObj<typeof meta>;
 
 export const SignedOut: Story = {};
 export const SignedIn: Story = { args: { signedIn: true } };
+export const Disconnected: Story = {
+  args: { signedIn: true, connectionStatus: "disconnected" },
+};
+export const Connecting: Story = {
+  args: { signedIn: true, connectionStatus: "connecting" },
+};
+export const Reconnecting: Story = {
+  args: { signedIn: true, connectionStatus: "reconnecting" },
+};
+export const DarkSignedIn: Story = {
+  args: SignedIn.args,
+  globals: { theme: "dark" },
+};
+export const DarkDisconnected: Story = {
+  args: Disconnected.args,
+  globals: { theme: "dark" },
+};
+export const DarkConnecting: Story = {
+  args: Connecting.args,
+  globals: { theme: "dark" },
+};
 export const NoServers: Story = { args: { emptyServers: true } };
 export const SavedServers: Story = {
   play: async () => {

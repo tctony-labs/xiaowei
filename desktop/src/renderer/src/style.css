@@ -67,6 +67,19 @@ body {
   font-variant-ligatures: none;
 }
 
+@keyframes cloud-connection-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
 kbd {
   font-family: var(--font-mono);
 }

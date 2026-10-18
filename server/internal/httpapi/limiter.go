@@ -86,8 +86,7 @@ func sourceIP(r *http.Request) string {
 	return ip.String()
 }
 
-func loginQuotas(r *http.Request, email string, limits config.AuthRateLimit) []quota {
-	ip := sourceIP(r)
+func loginQuotas(ip, email string, limits config.AuthRateLimit) []quota {
 	emailHash := sha256.Sum256([]byte(email))
 	return []quota{
 		{key: "login:" + ip, limit: limits.LoginIP.Limit, window: limits.LoginIP.Window},

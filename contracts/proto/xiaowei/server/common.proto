@@ -2,15 +2,31 @@ syntax = "proto3";
 
 package xiaowei.server.common;
 
+import "google/protobuf/descriptor.proto";
+
 import "xiaowei/common.proto";
+
+message ApiMethodOptions {
+  // False or omitted requires an access session: authenticated HTTP and WebSocket.
+  // True allows calls without a session, over HTTP only. Credentials may still be required.
+  bool no_login = 1;
+}
+
+extend google.protobuf.MethodOptions {
+  ApiMethodOptions api = 50001;
+}
 
 service Health {
   // No login required. Success means the server process can respond.
-  rpc Check(xiaowei.common.Empty) returns (BaseResponse);
+  rpc Check(xiaowei.common.Empty) returns (BaseResponse) {
+    option (xiaowei.server.common.api).no_login = true;
+  }
 
   // No login required. Probes database availability for up to two seconds.
   // Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
-  rpc Ready(xiaowei.common.Empty) returns (BaseResponse);
+  rpc Ready(xiaowei.common.Empty) returns (BaseResponse) {
+    option (xiaowei.server.common.api).no_login = true;
+  }
 }
 
 // Common error codes occupy 10000-10099; zero means success.
@@ -35,4 +51,6 @@ message BaseResponse {
   int32 code = 1;
   // Safe human-readable description. Clients must not parse this to classify errors.
   string msg = 2;
+  // Present and empty on success; omitted on failure. All callers use the same response schema.
+  xiaowei.common.Empty data = 3;
 }

@@ -23,6 +23,7 @@ import type { ResolvedModelConfig } from "../services/llm/shared/models";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
+import { ServerConnection } from "../services/xwapi/connection";
 import { registerXwapi } from "../services/xwapi/gateway";
 import { XwapiService } from "../services/xwapi/service";
 
@@ -59,6 +60,7 @@ export async function createApplicationGateway(
   let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
   let account: ReturnType<typeof registerAccount> | undefined;
   let xwapi: ReturnType<typeof registerXwapi> | undefined;
+  let connection: ServerConnection | undefined;
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
@@ -103,8 +105,16 @@ export async function createApplicationGateway(
     shortcuts = registerShortcuts(host, actions.updateShortcuts);
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
-    const serverApi = new XwapiService();
     let accountService: AccountService | undefined;
+    connection = new ServerConnection(
+      host,
+      () => accountService?.serverContext() ?? { server: "" },
+      (status) => accountService?.setCloudConnection(status),
+      () => {
+        void accountService?.restore().catch(() => console.warn("Account revalidation failed"));
+      },
+    );
+    const serverApi = new XwapiService(fetch, Date.now, connection);
     xwapi = registerXwapi(host, serverApi, () => accountService?.serverContext() ?? { server: "" });
     accountService = await AccountService.open({
       client: host.client({ caller: "account-main", trusted: true }),
@@ -116,6 +126,7 @@ export async function createApplicationGateway(
       deviceName: hostname().slice(0, 64),
     });
     account = registerAccount(host, accountService);
+    connection.start((listener) => accountService.subscribe(listener));
     void accountService.restore().catch(() => console.warn("Initial account restore failed"));
     clipboardDao = await attachRustNapi(
       host,
@@ -146,6 +157,7 @@ export async function createApplicationGateway(
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
     await account?.close().catch(() => console.warn("Account shutdown failed"));
+    connection?.close();
     await xwapi?.close();
     await modelSettings?.close();
     await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
@@ -173,6 +185,7 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         await account?.close().catch(() => console.warn("Account shutdown failed"));
+        connection?.close();
         await xwapi?.close();
         await modelSettings?.close();
         const agentResults = await Promise.allSettled([closeAgent()]);

@@ -1,5 +1,12 @@
 import { type DescMessage, fromJson, type MessageShape } from "@bufbuild/protobuf";
-import { Auth, BaseResponseSchema, ErrorCode, Health, XwApiOptionsSchema } from "xiaowei-contracts";
+import {
+  Auth,
+  BaseResponseSchema,
+  ErrorCode,
+  Health,
+  serverApiMethod,
+  XwApiOptionsSchema,
+} from "xiaowei-contracts";
 import { bindHandlers, type Client } from "xiaowei-gateway";
 import { type CallContext, contextPermissions, type GatewayHost } from "xiaowei-gateway/host";
 import { type XwapiContext, XwapiError, type XwapiService } from "./service";
@@ -46,6 +53,8 @@ export function registerXwapi(
       requests.delete(controller);
     }
   }
+
+  for (const method of [...Auth.methods, ...Health.methods]) serverApiMethod(method);
 
   const registration = host.registerOwner("xwapi", [
     ...bindHandlers(

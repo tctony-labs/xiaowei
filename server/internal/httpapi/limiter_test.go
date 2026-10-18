@@ -54,14 +54,14 @@ func TestLimiterCapacityAndAtomicQuotas(t *testing.T) {
 }
 
 func TestSourceIgnoresProxyHeaders(t *testing.T) {
-	r := httptest.NewRequest("POST", "/api/auth/login", nil)
+	r := httptest.NewRequest("POST", "/api/auth.Auth/Login", nil)
 	r.RemoteAddr = "[::ffff:192.0.2.1]:1234"
 	r.Header.Set("X-Forwarded-For", "198.51.100.1")
 	if sourceIP(r) != "192.0.2.1" {
 		t.Fatal("proxy header changed trusted source")
 	}
-	first := loginQuotas(r, "a@example.com", config.DefaultAuthRateLimit())
-	second := loginQuotas(r, "b@example.com", config.DefaultAuthRateLimit())
+	first := loginQuotas(sourceIP(r), "a@example.com", config.DefaultAuthRateLimit())
+	second := loginQuotas(sourceIP(r), "b@example.com", config.DefaultAuthRateLimit())
 	if first[1].key == second[1].key {
 		t.Fatal("email quotas are not isolated")
 	}

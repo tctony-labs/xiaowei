@@ -33,6 +33,8 @@ func main() {
 			value = new(auth.LoginRequest)
 		case "login-response":
 			value = new(auth.LoginResponse)
+		case "base-response":
+			value = new(auth.BaseResponse)
 		default:
 			panic("unknown codec mode")
 		}

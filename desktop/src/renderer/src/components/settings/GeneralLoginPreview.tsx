@@ -11,6 +11,7 @@ export interface GeneralLoginPreviewProps {
   longAddress?: boolean;
   initialDialog?: "login" | "add";
   loginState?: "idle" | "pending" | "error";
+  connectionStatus?: AccountCardProps["connectionStatus"];
 }
 
 export function GeneralLoginPreview({
@@ -19,6 +20,7 @@ export function GeneralLoginPreview({
   longAddress = false,
   initialDialog,
   loginState = "idle",
+  connectionStatus = "connected",
 }: GeneralLoginPreviewProps) {
   const initialServer = longAddress
     ? "https://development.example.test/xiaowei/very-long-reverse-proxy-path/another-path-segment"
@@ -64,6 +66,7 @@ export function GeneralLoginPreview({
             servers={servers}
             server={server}
             user={user}
+            connectionStatus={connectionStatus}
             busy={dialog !== undefined}
             onSelectServer={setServer}
             onAddServer={() => setDialog("add")}

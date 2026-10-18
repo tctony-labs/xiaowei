@@ -1,6 +1,6 @@
 # 桌面账号与会话
 
-桌面端已实现服务器选择、邮箱密码登录、设备身份、登录态保存、启动恢复、刷新和退出。账号 owner 位于 [services/account](../src/main/services/account/service.ts)，经本地 Gateway 向 renderer 提供 [Account 契约](../../contracts/proto/xiaowei/account.proto)；网络请求通过 [xwapi](../../docs/xwapi.md) 的 typed Auth client 执行。注册、找回密码、微信授权和 WebSocket 尚未接入。
+桌面端已实现服务器选择、邮箱密码登录、设备身份、登录态保存、启动恢复、刷新和退出。账号 owner 位于 [services/account](../src/main/services/account/service.ts)，经本地 Gateway 向 renderer 提供 [Account 契约](../../contracts/proto/xiaowei/account.proto)；网络请求通过 [xwapi](../../docs/xwapi.md) 的 typed Auth client 执行。已接入独立的云连接状态；注册、找回密码及微信授权尚未接入。
 
 ## 模块与凭据边界
 
@@ -41,9 +41,9 @@ stateDiagram-v2
     SIGNED_IN --> SIGNED_OUT: 退出成功或确认已失效
 ```
 
-读取已保存会话后异步恢复，不阻塞桌面启动。恢复先保证 access 可用，再调用 `/me` 核对用户、设备和 session ID；access 到期前 5 分钟刷新。恢复请求合并并经账号操作队列串行执行，避免并发消费同一个 refresh token。
+读取已保存会话后异步恢复，不阻塞桌面启动。恢复先保证 access 可用，再调用 `Auth.GetCurrentUser` 核对用户、设备和 session ID；access 到期前 5 分钟刷新。恢复请求合并并经账号操作队列串行执行，避免并发消费同一个 refresh token。
 
-临时网络失败保留用户和凭据并显示离线，30 秒后重试；明确失效才清除本地会话。没有独立 HTTP 心跳，正常状态不额外轮询在线状态；启动校验、刷新后的校验及离线恢复复用 `/me`。当前离线状态只反映会话验证可用性，不等于尚未实现的 WebSocket 连接状态。
+临时网络失败保留用户和凭据并显示离线，30 秒后重试；明确失效才清除本地会话。没有独立 HTTP 心跳，正常状态不额外轮询在线状态；启动校验、刷新后的校验及离线恢复复用 `Auth.GetCurrentUser`。当前离线状态只反映会话验证可用性，与独立的 WebSocket 云连接状态分开展示。
 
 刷新轮换后若保存失败，内存保留新凭据并标记待持久化，先重试保存，不再使用已消费的旧 refresh token。刷新响应丢失，或新凭据尚未持久化进程就退出时，可能需要重新登录，不能承诺自动恢复所有网络歧义。
 
@@ -51,12 +51,20 @@ stateDiagram-v2
 
 退出先请求服务器撤销当前会话，成功或明确失效后删除本地登录态；网络失败保留会话供重试。退出不修改设备 UUID 或保存的地址，其他服务器和设备的会话由服务端规则隔离。普通离线业务不依赖账号服务可用。
 
+## 云连接
+
+`services/xwapi/connection.ts` 持有当前已提交会话的唯一认证连接。Account 提供服务器和会话只读快照，连接层只回填 `cloud_connection`，不保存／刷新 token。登录或恢复出有效凭据后建立连接；服务器、session 或 access token 变化时先取消旧握手和连接，再创建新连接。过期凭据不用于新建连接，凭据刷新仍由 Account 调度。
+
+临时断线保留账号，连接层从 500 毫秒开始指数退避，基础等待最多 30 秒并附加最多 1 秒抖动；在线时每 15 秒发送心跳，5 秒无响应则关闭重连。服务端明确拒绝认证或撤销会话时，连接层触发已有 Account 恢复流程重新核验；只有 HTTP 认证明确失效才清除本地凭据，数据库故障或断网继续保留。旧连接响应不能覆盖新会话，不自动重放请求、事件或流。
+
+账号快照分别表达登录态与 `DISCONNECTED`／`CONNECTING`／`CONNECTED`／`RECONNECTING` 云连接状态。设置页在已登录卡片第二行的服务器地址前显示状态点：已连接为绿点，未连接为红点，连接中或重连中为每秒轻微缩放、明暗变化的灰点；系统开启减少动态效果时使用静态灰点。悬停提示和辅助功能标签说明具体状态，卡片下方不再单列云连接文字。连接中断不隐藏已登录用户。实际服务端支持的路由和认证边界见 [WebSocket 接入](../../server/docs/websocket.md)。
+
 ## 设置交互
 
-通用设置通过 `AccountSettingsSection` 使用 Account typed client，先订阅再读取快照，用递增 revision 忽略迟到状态。账号卡片登录前后高度为 58px：未登录显示服务器选择与登录入口，空列表显示“添加服务器”；已登录显示头像占位、公开 UID、只读服务器地址和退出入口，不显示昵称。
+通用设置通过 `AccountSettingsSection` 使用 Account typed client，先订阅再读取快照，用递增 revision 忽略迟到状态。账号卡片登录前后高度为 58px：未登录显示服务器选择与登录入口，空列表显示“添加服务器”；已登录显示头像占位、公开 UID、只读服务器地址和退出入口，不显示昵称。第一行只显示 ID，不添加 `UID：` 前缀，保留复制按钮；第二行显示云连接状态点和服务器地址。
 
 密码登录使用设置窗口内的浮层，服务器地址只读。loading 至少持续 500 毫秒，期间卡片保持未登录，成功结束时浮层关闭与卡片切换同步；错误显示在标题与服务器信息之间的既有空隙，不撑高浮层。关闭时清空密码草稿。
 
-`Settings/GeneralLogin` Storybook 覆盖空列表、地址选择与添加、登录前后、进行中、失败、长地址和深色主题。旧微信预览仅用于对照，不表示微信能力已经实现。
+`Settings/GeneralLogin` Storybook 覆盖空列表、地址选择与添加、登录前后、进行中、失败、云连接各状态、长地址和深色主题。旧微信预览仅用于对照，不表示微信能力已经实现。
 
 测试入口见 [桌面测试](../tests/README.md)。账号测试覆盖真实 Gateway／HTTP／Storage／文件边界、取消与迟到结果、刷新轮换和保存失败；现场验证关注用户登录、退出与重启恢复，不用自动测试代替实际 UI 验收。

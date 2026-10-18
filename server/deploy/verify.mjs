@@ -66,18 +66,15 @@ function sql(statement) {
 }
 
 let address;
-async function request(path, { body, token, code = 0, method = body ? "POST" : "GET" } = {}) {
-  const headers = { Connection: "close" };
-  if (body) {
-    headers["Content-Type"] = "application/json";
-  }
+async function request(path, { body, token, code = 0, method = "POST" } = {}) {
+  const headers = { Connection: "close", "Content-Type": "application/json" };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
   const response = await fetch(`${address}${path}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: JSON.stringify(body ?? {}),
     signal: AbortSignal.timeout(10_000),
   });
   assert.equal(response.status, 200, `${path}: unexpected HTTP status`);
@@ -140,7 +137,7 @@ try {
   stage("Starting an isolated production Compose project");
   compose(["up", "--detach", "--wait", "--wait-timeout", "120"]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
-  await request("/readyz");
+  await request("/api/common.Health/Ready");
 
   const serverID = compose(["ps", "--quiet", "server"]).toString().trim();
   const inspection = JSON.parse(docker(["inspect", serverID]).toString())[0];
@@ -152,14 +149,14 @@ try {
     device_name: "Delivery test",
     password: { email, password },
   };
-  await request("/api/auth/login", {
+  await request("/api/auth.Auth/Login", {
     body: { ...loginBody, password: { email, password: "wrong-password" } },
     code: 10100,
   });
-  const login = await request("/api/auth/login", { body: loginBody });
+  const login = await request("/api/auth.Auth/Login", { body: loginBody });
   assert.ok(login.authenticated, "Password login did not establish a session");
   const credentials = login.authenticated;
-  await request("/api/auth/me", { token: credentials.tokens.access_token });
+  await request("/api/auth.Auth/GetCurrentUser", { token: credentials.tokens.access_token });
   stage("Administrator initialization and real container login passed");
 
   const invalidCheck = [
@@ -184,7 +181,7 @@ try {
     },
   );
   assert.equal(compose(["ps", "--quiet", "server"]).toString().trim(), serverID);
-  await request("/api/auth/me", { token: credentials.tokens.access_token });
+  await request("/api/auth.Auth/GetCurrentUser", { token: credentials.tokens.access_token });
   stage("Failed candidate configuration leaves the old server and session running");
 
   writeFileSync(join(root, "config/.env"), `${databaseEnv.join("\n")}\n`, { mode: 0o600 });
@@ -199,29 +196,36 @@ try {
     "server",
   ]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
-  const restored = await request("/api/auth/me", { token: credentials.tokens.access_token });
+  const restored = await request("/api/auth.Auth/GetCurrentUser", {
+    token: credentials.tokens.access_token,
+  });
   assert.ok(
     restored.user.user_id === credentials.user.user_id,
     "Container replacement changed account identity",
   );
-  const refreshed = await request("/api/auth/refresh", {
+  const refreshed = await request("/api/auth.Auth/Refresh", {
     body: { refresh_token: credentials.tokens.refresh_token },
   });
-  await request("/api/auth/refresh", {
+  await request("/api/auth.Auth/Refresh", {
     body: { refresh_token: credentials.tokens.refresh_token },
     code: 10002,
   });
-  await request("/api/auth/me", { token: refreshed.access_token });
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token });
   stage("Container replacement, persistent session and refresh rotation passed");
 
   compose(["stop", "db"]);
-  const unavailable = await fetch(`${address}/readyz`, { signal: AbortSignal.timeout(10_000) });
+  const unavailable = await fetch(`${address}/api/common.Health/Ready`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(10_000),
+  });
   assert.equal(unavailable.status, 200);
   assert.ok((await unavailable.json()).code !== 0, "Database outage must fail readiness");
   assert.throws(() => compose(["exec", "-T", "server", "/xiaowei-healthcheck"]));
   compose(["up", "--detach", "--wait", "--wait-timeout", "120"]);
-  await request("/readyz");
-  await request("/api/auth/me", { token: refreshed.access_token });
+  await request("/api/common.Health/Ready");
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token });
   stage("HTTP 200 database failure correctly fails the container readiness probe");
 
   writeFileSync(
@@ -243,7 +247,7 @@ try {
 
   compose(["up", "--detach", "--no-deps", "--wait", "--wait-timeout", "120", "server"]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
-  await request("/api/auth/me", { token: refreshed.access_token });
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token });
   rmSync(join(root, "backups/upgrade-pending"));
 
   // Inject a pg_dump failure to verify preservation and automatic old-service recovery.
@@ -280,7 +284,7 @@ try {
   );
   assert.ok(!existsSync(join(root, "backups/upgrade-pending")));
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
-  await request("/api/auth/me", { token: refreshed.access_token });
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token });
   stage("Backup failure preserves the previous snapshot and restores the old service");
 
   execFileSync("bash", backupArgs, backupOptions);
@@ -321,9 +325,9 @@ try {
   copyFileSync(join(restoredDir, "release.txt"), join(root, "release.txt"));
   compose(["up", "--detach", "--no-deps", "--wait", "--wait-timeout", "120", "server"]);
   address = `http://${compose(["port", "server", "10001"]).toString().trim()}`;
-  await request("/api/auth/me", { token: refreshed.access_token });
-  await request("/api/auth/logout", { token: refreshed.access_token, method: "POST" });
-  await request("/api/auth/me", { token: refreshed.access_token, code: 10002 });
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token });
+  await request("/api/auth.Auth/Logout", { token: refreshed.access_token, method: "POST" });
+  await request("/api/auth.Auth/GetCurrentUser", { token: refreshed.access_token, code: 10002 });
   rmSync(join(root, "backups/upgrade-pending"));
   stage(
     "Single rollback snapshot restores configuration, database, accounts and sessions; logout passed",

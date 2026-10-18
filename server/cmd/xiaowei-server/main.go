@@ -105,7 +105,10 @@ func serve(ctx context.Context, configPath string) error {
 	if err != nil {
 		return fmt.Errorf("listen HTTP: %w", err)
 	}
-	handler := httpapi.NewHandler(store.Ping, authService, cfg.Server.RateLimit, cfg.Auth.RateLimit)
+	api := httpapi.NewAPI(store.Ping, authService, cfg.Auth.RateLimit)
+	connections := httpapi.NewConnectionHub(api)
+	defer connections.Close()
+	handler := httpapi.NewHandler(api, cfg.Server.RateLimit, connections)
 	handler = httpapi.WithTrustedProxies(handler, cfg.Server.TrustedProxyCIDRs)
 	if len(cfg.Server.TrustedProxyCIDRs) > 0 {
 		slog.Info("trusted reverse proxies configured", "networks", len(cfg.Server.TrustedProxyCIDRs))
@@ -147,6 +150,7 @@ func serve(ctx context.Context, configPath string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		slog.Info("server stopping")
+		connections.Close()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			_ = server.Close()
 			return err

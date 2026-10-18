@@ -16,3 +16,4 @@ export * from "./gen/xiaowei/shortcuts_pb.js";
 export * from "./gen/xiaowei/storage_pb.ts";
 export * from "./gen/xiaowei/system_pb.ts";
 export * from "./gen/xiaowei/xwapi_pb.ts";
+export * from "./server-api.ts";

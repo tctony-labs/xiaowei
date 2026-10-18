@@ -2,32 +2,38 @@
 // @generated from file xiaowei/xwapi.proto (package xiaowei.xwapi, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file xiaowei/xwapi.proto.
  */
 export const file_xiaowei_xwapi: GenFile = /*@__PURE__*/
-  fileDesc("ChN4aWFvd2VpL3h3YXBpLnByb3RvEg14aWFvd2VpLnh3YXBpIjYKDFh3QXBpT3B0aW9ucxIXCgp0aW1lb3V0X21zGAEgASgNSACIAQFCDQoLX3RpbWVvdXRfbXNiBnByb3RvMw");
+  fileDesc("ChN4aWFvd2VpL3h3YXBpLnByb3RvEg14aWFvd2VpLnh3YXBpInsKDFh3QXBpT3B0aW9ucxIXCgp0aW1lb3V0X21zGAEgASgNSACIAQESNQoJdHJhbnNwb3J0GAIgASgOMh0ueGlhb3dlaS54d2FwaS5Yd0FwaVRyYW5zcG9ydEgBiAEBQg0KC190aW1lb3V0X21zQgwKCl90cmFuc3BvcnQqbQoOWHdBcGlUcmFuc3BvcnQSIAocWFdfQVBJX1RSQU5TUE9SVF9VTlNQRUNJRklFRBAAEhkKFVhXX0FQSV9UUkFOU1BPUlRfSFRUUBABEh4KGlhXX0FQSV9UUkFOU1BPUlRfV0VCU09DS0VUEAJiBnByb3RvMw");
 
 /**
- * Request/response messages and service descriptors are defined in xiaowei/server/*.proto.
- * This file only defines local xwapi execution options, encoded independently
- * from the server request payload and never sent as part of the server request.
- *
  * @generated from message xiaowei.xwapi.XwApiOptions
  */
 export type XwApiOptions = Message<"xiaowei.xwapi.XwApiOptions"> & {
   /**
-   * HTTP request timeout in milliseconds. Absent uses 15000.
+   * Network request wait in milliseconds for either transport. Absent uses 15000.
    * Gateway execution timeout still applies, including when zero is supplied.
-   * Zero disables only the HTTP timeout. Positive values must not exceed 2147483647.
+   * Zero disables only the xwapi wait timer, not Gateway/peer execution limits.
+   * Positive values must not exceed 2147483647.
    *
    * @generated from field: optional uint32 timeout_ms = 1;
    */
   timeoutMs?: number | undefined;
+
+  /**
+   * Absent/UNSPECIFIED prefers a ready, authenticated WebSocket exporting a compatible
+   * method; otherwise uses HTTP. Explicit HTTP/WEBSOCKET never switches transport.
+   * Once dispatched over WebSocket, failures never trigger HTTP replay.
+   *
+   * @generated from field: optional xiaowei.xwapi.XwApiTransport transport = 2;
+   */
+  transport?: XwApiTransport | undefined;
 };
 
 /**
@@ -36,4 +42,34 @@ export type XwApiOptions = Message<"xiaowei.xwapi.XwApiOptions"> & {
  */
 export const XwApiOptionsSchema: GenMessage<XwApiOptions> = /*@__PURE__*/
   messageDesc(file_xiaowei_xwapi, 0);
+
+/**
+ * Request/response messages and service descriptors are defined in xiaowei/server/*.proto.
+ * This file only defines local xwapi execution options, encoded independently
+ * from the server request payload and never sent as part of the server request.
+ *
+ * @generated from enum xiaowei.xwapi.XwApiTransport
+ */
+export enum XwApiTransport {
+  /**
+   * @generated from enum value: XW_API_TRANSPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: XW_API_TRANSPORT_HTTP = 1;
+   */
+  HTTP = 1,
+
+  /**
+   * @generated from enum value: XW_API_TRANSPORT_WEBSOCKET = 2;
+   */
+  WEBSOCKET = 2,
+}
+
+/**
+ * Describes the enum xiaowei.xwapi.XwApiTransport.
+ */
+export const XwApiTransportSchema: GenEnum<XwApiTransport> = /*@__PURE__*/
+  enumDesc(file_xiaowei_xwapi, 0);
 

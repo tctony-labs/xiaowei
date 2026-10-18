@@ -14,7 +14,10 @@ import (
 func TestGlobalRateLimit(t *testing.T) {
 	limits := config.DefaultServerRateLimit()
 	limits.IP = config.RateLimit{Limit: 2, Window: 1500 * time.Millisecond}
-	handler := NewHandler(func(context.Context) error { return nil }, nil, limits, config.DefaultAuthRateLimit())
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit(),
+	)
+	handler := NewHandler(api, limits)
 	request := func(method, path, ip string) (int32, string) {
 		t.Helper()
 		r := httptest.NewRequest(method, path, nil)
@@ -38,24 +41,26 @@ func TestGlobalRateLimit(t *testing.T) {
 		return body.Code, w.Header().Get("Retry-After")
 	}
 	ip := "192.0.2.1:1234"
-	if code, _ := request("GET", "/api/auth/me", ip); code != 10002 {
+	if code, _ := request("POST", "/api/auth.Auth/GetCurrentUser", ip); code != 10002 {
 		t.Fatalf("first request: %d", code)
 	}
 	if code, _ := request("GET", "/missing", ip); code != 10004 {
 		t.Fatalf("second request: %d", code)
 	}
-	if code, retry := request("POST", "/api/auth/logout", "[::ffff:192.0.2.1]:9999"); code != 10007 || retry != "2" {
+	if code, retry := request("POST", "/api/auth.Auth/Logout",
+		"[::ffff:192.0.2.1]:9999"); code != 10007 || retry != "2" {
 		t.Fatalf("shared normalized IP quota: %d, %s", code, retry)
 	}
-	for _, path := range []string{"/healthz", "/readyz"} {
-		if code, _ := request("GET", path, ip); code != 0 {
+	for _, path := range []string{"/api/common.Health/Check", "/api/common.Health/Ready"} {
+		if code, _ := request("POST", path, ip); code != 0 {
 			t.Fatal("health limited")
 		}
-		if code, _ := request("POST", path, ip); code != 10007 {
+		if code, _ := request("GET", path, ip); code != 10007 {
 			t.Fatal("invalid method bypassed limit")
 		}
 	}
-	if code, _ := request("GET", "/api/auth/me", "192.0.2.2:1234"); code == 10007 {
+	if code, _ := request("POST", "/api/auth.Auth/GetCurrentUser",
+		"192.0.2.2:1234"); code == 10007 {
 		t.Fatal("IP quotas not isolated")
 	}
 }
@@ -65,9 +70,12 @@ func TestLayeredRateLimits(t *testing.T) {
 	global.IP.Limit = 3
 	dedicated := config.DefaultAuthRateLimit()
 	dedicated.RefreshIP = config.RateLimit{Limit: 1, Window: 5 * time.Minute}
-	handler := NewHandler(func(context.Context) error { return nil }, nil, global, dedicated)
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, dedicated,
+	)
+	handler := NewHandler(api, global)
 	for i, wantRetry := range []string{"", "300", "300", "60"} {
-		r := httptest.NewRequest("POST", "/api/auth/refresh", nil)
+		r := httptest.NewRequest("POST", "/api/auth.Auth/Refresh", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		if got := w.Header().Get("Retry-After"); got != wantRetry {

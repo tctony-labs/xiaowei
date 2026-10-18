@@ -46,11 +46,14 @@ func TestProxySourceRequiresTrustedPeerAndSingleIP(t *testing.T) {
 func TestTrustedProxySeparatesRateLimitsWithoutTrustingDirectSpoofing(t *testing.T) {
 	limits := config.DefaultServerRateLimit()
 	limits.IP.Limit = 1
-	handler := NewHandler(func(context.Context) error { return nil }, nil, limits, config.DefaultAuthRateLimit())
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit(),
+	)
+	handler := NewHandler(api, limits)
 	handler = WithTrustedProxies(handler, []netip.Prefix{netip.MustParsePrefix("172.18.0.1/32")})
 	request := func(peer, client string) int32 {
 		t.Helper()
-		r := httptest.NewRequest("GET", "/api/auth/me", nil)
+		r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser", nil)
 		r.RemoteAddr = peer
 		r.Header.Set("X-Real-IP", client)
 		w := httptest.NewRecorder()

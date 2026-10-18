@@ -10,6 +10,7 @@ import {
   AccountOperationResponseSchema,
   AccountSnapshotSchema,
   AccountStatus,
+  CloudConnectionStatus,
   EmptySchema,
   UserSnapshotSchema,
 } from "xiaowei-contracts";
@@ -96,11 +97,11 @@ test("real typed client logs in, shows the public UID and restores the selector 
     await act(async () => {});
     await act(async () => vi.advanceTimersByTimeAsync(499));
     expect(login.getByRole("button", { name: "登录中…" })).toBeDisabled();
-    expect(page.queryByText("UID：u_public_identity")).not.toBeInTheDocument();
+    expect(page.queryByText("u_public_identity")).not.toBeInTheDocument();
     expect(page.getByRole("button", { name: "登录服务器" })).toBeVisible();
     await act(async () => vi.advanceTimersByTimeAsync(1));
     vi.useRealTimers();
-    expect(page.getByText("UID：u_public_identity")).toBeVisible();
+    expect(page.getByText("u_public_identity")).toBeVisible();
     expect(page.queryByRole("dialog")).not.toBeInTheDocument();
     expect(page.queryByRole("button", { name: "登录服务器" })).not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "退出登录" }));
@@ -157,9 +158,9 @@ test("subscription precedes the initial snapshot and stale replies cannot overwr
         toBinary(AccountChangedSchema, create(AccountChangedSchema, { snapshot: newer })),
       ),
     );
-    expect(await within(document.body).findByText("UID：u_newer")).toBeVisible();
+    expect(await within(document.body).findByText("u_newer")).toBeVisible();
     await act(async () => release?.());
-    expect(within(document.body).getByText("UID：u_newer")).toBeVisible();
+    expect(within(document.body).getByText("u_newer")).toBeVisible();
   } finally {
     cleanup();
     owner.close();
@@ -216,6 +217,46 @@ test("closing the login overlay cancels its attempt and ignores a late failure",
     expect(page.queryByRole("dialog")).not.toBeInTheDocument();
   } finally {
     cleanup();
+    owner.close();
+  }
+});
+
+test("cloud reconnect state changes without removing the signed-in account", async () => {
+  const host = new GatewayHost();
+  let snapshot = create(AccountSnapshotSchema, {
+    revision: 1n,
+    status: AccountStatus.SIGNED_IN,
+    servers: ["https://example.test"],
+    selectedServer: "https://example.test",
+    user: create(UserSnapshotSchema, { userId: "u_still_signed_in" }),
+    cloudConnection: CloudConnectionStatus.CONNECTED,
+  });
+  const owner = host.registerOwner(
+    "account",
+    bindHandlers(Account, { get: () => snapshot }, { partial: true }),
+    [bindEvent(AccountChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  const services = createServices(() => host.client({ caller: "settings", trusted: true }));
+  const page = render(<AccountSettingsSection services={services} />);
+  try {
+    await page.findByRole("status", { name: "云连接：已连接" });
+    snapshot = create(AccountSnapshotSchema, {
+      ...snapshot,
+      revision: 2n,
+      cloudConnection: CloudConnectionStatus.RECONNECTING,
+    });
+    await act(async () =>
+      owner.publish(
+        AccountChangedSchema.typeName,
+        toBinary(AccountChangedSchema, create(AccountChangedSchema, { snapshot })),
+      ),
+    );
+    const reconnecting = await page.findByRole("status", { name: "云连接：连接中断，正在重连" });
+    expect(reconnecting).toBeVisible();
+    expect(page.getByText("u_still_signed_in")).toBeVisible();
+    expect(page.queryByRole("button", { name: "登录服务器" })).not.toBeInTheDocument();
+  } finally {
+    page.unmount();
     owner.close();
   }
 });

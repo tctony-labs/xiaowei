@@ -33,10 +33,10 @@ func TestAuthJSONBoundaries(t *testing.T) {
 		{"empty", "", "application/json", pb.ErrorCode_ERROR_CODE_INVALID_REQUEST},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(tc.body))
+			r := httptest.NewRequest("POST", "/api/auth.Auth/Login", strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", tc.contentType)
 			w := httptest.NewRecorder()
-			if readAuthRequest(w, r, new(pb.LoginRequest), false) || w.Code != 200 ||
+			if readAPIRequest(w, r, new(pb.LoginRequest), false) || w.Code != 200 ||
 				strings.Contains(w.Body.String(), "private-secret") || w.Header().Get("Cache-Control") != "no-store" {
 				t.Fatal("invalid JSON accepted or unsafe response")
 			}
@@ -47,19 +47,21 @@ func TestAuthJSONBoundaries(t *testing.T) {
 		})
 	}
 	for _, body := range []string{"", "{}"} {
-		r := httptest.NewRequest("POST", "/api/auth/logout", strings.NewReader(body))
+		r := httptest.NewRequest("POST", "/api/auth.Auth/Logout", strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		if !readAuthRequest(httptest.NewRecorder(), r, new(common.Empty), true) {
+		if !readAPIRequest(httptest.NewRecorder(), r, new(common.Empty), true) {
 			t.Fatal("valid empty logout request rejected")
 		}
 	}
 }
 
 func TestAuthHeaderAndMethods(t *testing.T) {
-	handler := NewHandler(func(context.Context) error { return nil }, nil,
-		config.DefaultServerRateLimit(), config.DefaultAuthRateLimit())
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit(),
+	)
+	handler := NewHandler(api, config.DefaultServerRateLimit())
 	for _, header := range []string{"", "Basic private-secret", "Bearer", "Bearer  private-secret"} {
-		r := httptest.NewRequest("GET", "/api/auth/me?token=private-secret", nil)
+		r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser?token=private-secret", nil)
 		r.Header.Set("Authorization", header)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
@@ -70,7 +72,7 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 			t.Fatal("invalid header accepted or token leaked")
 		}
 	}
-	r := httptest.NewRequest("GET", "/api/auth/me", nil)
+	r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser", nil)
 	r.Header.Add("Authorization", "Bearer first")
 	r.Header.Add("Authorization", "Bearer second")
 	w := httptest.NewRecorder()
@@ -80,9 +82,9 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 		response.Code != int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED) || response.Data != nil {
 		t.Fatal("multiple authorization headers accepted")
 	}
-	for _, path := range []string{"login", "refresh", "logout"} {
+	for _, path := range []string{"Login", "Refresh", "GetCurrentUser", "Logout"} {
 		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/auth/"+path, nil))
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/auth.Auth/"+path, nil))
 		response := new(pb.BaseResponse)
 		if err := protojson.Unmarshal(w.Body.Bytes(), response); err != nil || w.Code != 200 ||
 			response.Code != int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST) {
@@ -123,8 +125,10 @@ func TestAuthErrorSanitization(t *testing.T) {
 }
 
 func TestLoginCredentialAndBindingBoundaries(t *testing.T) {
-	handler := NewHandler(func(context.Context) error { return nil }, nil,
-		config.DefaultServerRateLimit(), config.DefaultAuthRateLimit())
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit(),
+	)
+	handler := NewHandler(api, config.DefaultServerRateLimit())
 	for _, tc := range []struct {
 		body string
 		code int32
@@ -137,7 +141,7 @@ func TestLoginCredentialAndBindingBoundaries(t *testing.T) {
 			int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED)},
 	} {
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(tc.body))
+		r := httptest.NewRequest("POST", "/api/auth.Auth/Login", strings.NewReader(tc.body))
 		r.Header.Set("Content-Type", "application/json")
 		handler.ServeHTTP(w, r)
 		response := new(pb.LoginResponse)

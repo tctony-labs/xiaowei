@@ -39,6 +39,11 @@
       "source": "./src/renderer/index.ts",
       "import": "./dist/renderer/index.js"
     },
+    "./websocket": {
+      "types": "./src/websocket/peer.ts",
+      "source": "./src/websocket/peer.ts",
+      "import": "./dist/websocket/peer.js"
+    },
     "./worker-host": {
       "types": "./src/main/worker.ts",
       "source": "./src/main/worker.ts",
