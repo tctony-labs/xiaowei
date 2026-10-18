@@ -96,6 +96,9 @@ test("dragging then hiding and invoking a shortcut preserves position until expl
     show: () => {
       visible = true;
     },
+    showInactive: () => {
+      visible = true;
+    },
     focus: () => {
       focused = true;
     },
@@ -155,6 +158,7 @@ test("invoking the launcher follows the cursor to another display before showing
         getSize: () => [800, height],
         setPosition: (...position) => calls.push(["position", ...position]),
         show: () => calls.push(["show"]),
+        showInactive: () => calls.push(["show"]),
         focus: () => calls.push(["focus"]),
       };
       const screen = {
@@ -184,7 +188,7 @@ test("macOS configures all-Space visibility once before repeated launcher activa
     getBounds: () => ({ x: 320, y: 156, width: 800, height: 71 }),
     setVisibleOnAllWorkspaces: (visible, options) =>
       calls.push(["all-workspaces", visible, options]),
-    show: () => calls.push(["show"]),
+    showInactive: () => calls.push(["show-inactive"]),
     focus: () => calls.push(["focus"]),
   };
   const screen = {
@@ -195,18 +199,82 @@ test("macOS configures all-Space visibility once before repeated launcher activa
 
   configureLauncherWorkspaces(window, "darwin");
   for (let invocation = 0; invocation < 4; invocation++) {
-    showLauncherWindow(window, screen);
+    showLauncherWindow(window, screen, "darwin");
   }
 
   assert.deepEqual(calls, [
     ["all-workspaces", true, { skipTransformProcessType: true }],
-    ...Array.from({ length: 4 }, () => [["show"], ["focus"]]).flat(),
+    ...Array.from({ length: 4 }, () => [["show-inactive"], ["focus"]]).flat(),
   ]);
 });
 
 test("other platforms do not configure macOS workspaces", () => {
   configureLauncherWorkspaces({}, "linux");
   configureLauncherWorkspaces({}, "win32");
+});
+
+test("other platforms show and focus the launcher normally", () => {
+  const calls = [];
+  const display = { id: 1 };
+  const window = {
+    isDestroyed: () => false,
+    getBounds: () => ({ x: 0, y: 0, width: 800, height: 71 }),
+    show: () => calls.push("show"),
+    focus: () => calls.push("focus"),
+  };
+  const screen = {
+    getCursorScreenPoint: () => ({ x: 200, y: 200 }),
+    getDisplayNearestPoint: () => display,
+    getDisplayMatching: () => display,
+  };
+
+  for (const platform of ["linux", "win32"]) {
+    showLauncherWindow(window, screen, platform);
+  }
+
+  assert.deepEqual(calls, ["show", "focus", "show", "focus"]);
+});
+
+test("macOS reveals a hidden launcher on the active Space before activating the app", () => {
+  let activeSpace = 1;
+  let windowSpace = 3;
+  let visible = false;
+  let focused = false;
+  const workArea = { x: 0, y: 25, width: 1440, height: 875 };
+  const window = {
+    isDestroyed: () => false,
+    getBounds: () => ({ x: 320, y: 156, width: 800, height: 71 }),
+    show() {
+      // App activation can restore its previous Space while every window is hidden.
+      activeSpace = windowSpace;
+      visible = true;
+    },
+    showInactive() {
+      windowSpace = activeSpace;
+      visible = true;
+    },
+    focus() {
+      activeSpace = windowSpace;
+      focused = true;
+    },
+  };
+  const screen = {
+    getCursorScreenPoint: () => ({ x: 200, y: 200 }),
+    getDisplayNearestPoint: () => ({ id: 1, workArea }),
+    getDisplayMatching: () => ({ id: 1, workArea }),
+  };
+
+  for (const space of [1, 2, 1]) {
+    activeSpace = space;
+    visible = false;
+    focused = false;
+
+    showLauncherWindow(window, screen, "darwin");
+
+    assert.equal(activeSpace, space);
+    assert.equal(visible, true);
+    assert.equal(focused, true);
+  }
 });
 
 test("main shortcut toggles every mode without changing its presentation", () => {

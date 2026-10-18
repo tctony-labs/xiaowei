@@ -42,6 +42,10 @@ class FakeWindow extends EventEmitter {
     this.shows++;
     this.visible = true;
   }
+  showInactive() {
+    this.shows++;
+    this.visible = true;
+  }
   focus() {
     this.focused = true;
   }
