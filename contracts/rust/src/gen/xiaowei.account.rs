@@ -16,6 +16,8 @@ pub struct AccountSnapshot {
     /// Safe description of restore, persistence or connection failure; never used for branching.
     #[prost(string, tag = "6")]
     pub status_message: ::prost::alloc::string::String,
+    #[prost(enumeration = "CloudConnectionStatus", tag = "7")]
+    pub cloud_connection: i32,
 }
 impl ::prost::Name for AccountSnapshot {
     const NAME: &'static str = "AccountSnapshot";
@@ -167,6 +169,42 @@ impl AccountStatus {
             "ACCOUNT_STATUS_SIGNING_IN" => Some(Self::SigningIn),
             "ACCOUNT_STATUS_SIGNED_IN" => Some(Self::SignedIn),
             "ACCOUNT_STATUS_OFFLINE" => Some(Self::Offline),
+            _ => None,
+        }
+    }
+}
+/// Independent from the saved login session and HTTP validation state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum CloudConnectionStatus {
+    Unspecified = 0,
+    Disconnected = 1,
+    Connecting = 2,
+    Connected = 3,
+    Reconnecting = 4,
+}
+impl CloudConnectionStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "CLOUD_CONNECTION_STATUS_UNSPECIFIED",
+            Self::Disconnected => "CLOUD_CONNECTION_STATUS_DISCONNECTED",
+            Self::Connecting => "CLOUD_CONNECTION_STATUS_CONNECTING",
+            Self::Connected => "CLOUD_CONNECTION_STATUS_CONNECTED",
+            Self::Reconnecting => "CLOUD_CONNECTION_STATUS_RECONNECTING",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CLOUD_CONNECTION_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "CLOUD_CONNECTION_STATUS_DISCONNECTED" => Some(Self::Disconnected),
+            "CLOUD_CONNECTION_STATUS_CONNECTING" => Some(Self::Connecting),
+            "CLOUD_CONNECTION_STATUS_CONNECTED" => Some(Self::Connected),
+            "CLOUD_CONNECTION_STATUS_RECONNECTING" => Some(Self::Reconnecting),
             _ => None,
         }
     }

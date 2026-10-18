@@ -1,8 +1,11 @@
 import {
   type DescMessage,
   type DescMethodUnary,
+  fromBinary,
   fromJson,
+  fromJsonString,
   type MessageShape,
+  toBinary,
   toJsonString,
 } from "@bufbuild/protobuf";
 import {
@@ -10,10 +13,14 @@ import {
   BaseResponseSchema,
   ErrorCode,
   Health,
+  serverApiMethod,
   type TokenPair,
   type XwApiOptions,
+  XwApiTransport,
 } from "xiaowei-contracts";
+import { methodRoute } from "xiaowei-gateway";
 import { normalizeServerAddress } from "../../../shared/server-address";
+import type { ServerConnection } from "./connection";
 import { HttpRequestError, ServerHttpClient } from "./http";
 
 export interface XwapiContext {
@@ -27,22 +34,6 @@ export interface XwapiContext {
   signal: AbortSignal;
   options?: XwApiOptions;
 }
-
-interface HttpMethod {
-  method: "GET" | "POST";
-  path: string;
-  requiresLogin?: false;
-}
-
-// Only explicit exceptions bypass the access-session check. Payloads cannot change this policy.
-const methods = new Map<DescMethodUnary, HttpMethod>([
-  [Auth.method.login, { method: "POST", path: "/api/auth/login", requiresLogin: false }],
-  [Auth.method.refresh, { method: "POST", path: "/api/auth/refresh", requiresLogin: false }],
-  [Auth.method.getCurrentUser, { method: "GET", path: "/api/auth/me" }],
-  [Auth.method.logout, { method: "POST", path: "/api/auth/logout" }],
-  [Health.method.check, { method: "GET", path: "/healthz", requiresLogin: false }],
-  [Health.method.ready, { method: "GET", path: "/readyz", requiresLogin: false }],
-]);
 
 export class XwapiError extends Error {
   constructor(
@@ -59,6 +50,7 @@ export class XwapiService {
   constructor(
     fetcher: typeof fetch = fetch,
     private readonly now: () => number = Date.now,
+    private readonly connection?: Pick<ServerConnection, "canInvoke" | "invoke">,
   ) {
     this.http = new ServerHttpClient(fetcher);
   }
@@ -74,12 +66,21 @@ export class XwapiService {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 2_147_483_647) {
       throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "请求超时时间无效");
     }
-    const route = methods.get(method);
-    if (!route) throw new XwapiError(ErrorCode.INTERNAL_ERROR, "服务器接口未配置");
+    const route = serverApiMethod(method);
     if (context.signal.aborted) throw new XwapiError(ErrorCode.UNAVAILABLE, "服务器请求已取消");
 
+    const transport = context.options?.transport ?? XwApiTransport.UNSPECIFIED;
+    if (
+      ![XwApiTransport.UNSPECIFIED, XwApiTransport.HTTP, XwApiTransport.WEBSOCKET].includes(
+        transport,
+      )
+    )
+      throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "服务器传输方式无效");
+    if (transport === XwApiTransport.WEBSOCKET && !route.websocket)
+      throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "此接口不支持 WebSocket");
+
     let token: string | undefined;
-    if (route.requiresLogin !== false) {
+    if (route.requiresLogin) {
       const session = context.session;
       let reason: string | undefined;
       if (!session?.sessionId || !session.accessToken) reason = "missing_session";
@@ -102,30 +103,59 @@ export class XwapiService {
       throw new XwapiError(ErrorCode.INVALID_ARGUMENT, "请先选择有效的服务器地址");
     }
 
+    const wsRoute = { ...methodRoute(method), name: route.id };
+    const useWebSocket =
+      transport === XwApiTransport.WEBSOCKET ||
+      (transport === XwApiTransport.UNSPECIFIED &&
+        route.websocket &&
+        this.connection?.canInvoke(wsRoute, context));
+
+    if (useWebSocket) {
+      if (!this.connection) throw new XwapiError(ErrorCode.UNAVAILABLE, "云连接尚未就绪");
+      console.debug(`WebSocket request started method=${method.parent.typeName}.${method.name}`);
+      const started = this.now();
+      try {
+        const response = fromBinary(
+          schema,
+          await this.connection.invoke(
+            wsRoute,
+            toBinary(
+              method.input,
+              body ? fromJsonString(method.input, body) : fromJson(method.input, {}),
+            ),
+            context,
+          ),
+        );
+        const code = (response as { code?: number }).code;
+        if (!Number.isInteger(code)) throw new Error("Invalid WebSocket response");
+        if (code === 0) {
+          if (!(response as { data?: unknown }).data) throw new Error("Missing response data");
+          validate(response);
+        }
+        console.debug(
+          `WebSocket request completed method=${method.parent.typeName}.${method.name} ` +
+            `code=${code} duration_ms=${this.now() - started}`,
+        );
+        return response;
+      } catch {
+        console.warn(`WebSocket request failed method=${method.parent.typeName}.${method.name}`);
+        throw new XwapiError(ErrorCode.UNAVAILABLE, "云连接不可用，请稍后重试");
+      }
+    }
+
     try {
       return await this.http.request(
         `${server}${route.path}`,
         schema,
         {
-          method: route.method,
+          method: "POST",
           logPath: route.path,
           signal: context.signal,
           timeoutMs,
-          body,
+          body: body ?? "{}",
           token,
         },
         (value) => {
-          if (method === Health.method.check || method === Health.method.ready) {
-            // Health HTTP has data.status; the Gateway result needs only code/msg.
-            if (!value || typeof value !== "object" || Array.isArray(value))
-              throw new Error("Invalid health response");
-            const data = value.data;
-            if (!data || typeof data !== "object" || Array.isArray(data) || data.status !== "ok") {
-              throw new Error("Invalid health status");
-            }
-            return fromJson(schema, { code: value.code, msg: value.msg });
-          }
-
           const response = fromJson(schema, value);
           validate(response);
           return response;

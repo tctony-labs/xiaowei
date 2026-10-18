@@ -45,6 +45,7 @@
 - 新增或修改 `desktop/src/main/` 下的代码前，先完整读取 [main 模块组织](desktop/src/main/README.md)，遵循其中的目录职责、service 边界和 Gateway 调用规则。调整模块边界时同步更新该 README。
 - 新增或修改 renderer UI、样式、状态展示及交互前，先完整读取并遵循 [Renderer UI 开发](desktop/src/renderer/README.md)。调整通用开发与验收约定时同步更新该 README。
 - 新增或修改 `server/` 下的代码、配置或部署文件前，先完整读取并遵循 [服务端开发](server/README.md)。
+- 新增或修改客户端与服务器之间的接口前，先完整读取并遵循 [xwapi 服务器调用](docs/xwapi.md)，按其中的契约声明、HTTP／WebSocket 路由、登录态与传输约定实现。
 - 新增或调整工作区包、依赖、包入口，或修改构建与测试中的源码加载方式前，先完整读取并遵循 [包和依赖管理](docs/package-management.md)。
 
 其他或更详细的目录结构、模块关系与工具链组织见 [工作区详情](docs/workspace.md)。

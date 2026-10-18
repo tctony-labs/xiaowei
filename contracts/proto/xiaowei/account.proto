@@ -32,6 +32,15 @@ enum AccountStatus {
   ACCOUNT_STATUS_OFFLINE = 5;
 }
 
+// Independent from the saved login session and HTTP validation state.
+enum CloudConnectionStatus {
+  CLOUD_CONNECTION_STATUS_UNSPECIFIED = 0;
+  CLOUD_CONNECTION_STATUS_DISCONNECTED = 1;
+  CLOUD_CONNECTION_STATUS_CONNECTING = 2;
+  CLOUD_CONNECTION_STATUS_CONNECTED = 3;
+  CLOUD_CONNECTION_STATUS_RECONNECTING = 4;
+}
+
 message AccountSnapshot {
   // Monotonic for this owner lifetime; includes transient state changes.
   uint64 revision = 1;
@@ -42,6 +51,7 @@ message AccountSnapshot {
   xiaowei.server.auth.UserSnapshot user = 5;
   // Safe description of restore, persistence or connection failure; never used for branching.
   string status_message = 6;
+  CloudConnectionStatus cloud_connection = 7;
 }
 
 message AccountChanged {

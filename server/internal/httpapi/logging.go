@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bufio"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -36,6 +38,7 @@ type responseWriter struct {
 	status    int
 	code      *int32
 	path      string
+	apiMethod string
 	panicked  bool
 	writeFail bool
 }
@@ -59,6 +62,18 @@ func (w *responseWriter) Write(body []byte) (int, error) {
 	return n, err
 }
 
+func (w *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	connection, buffer, err := http.NewResponseController(w.ResponseWriter).Hijack()
+	if err == nil {
+		w.written = true
+		w.status = http.StatusSwitchingProtocols
+	}
+	return connection, buffer, err
+}
+
+// Unwrap lets net/http ResponseController reach Hijacker for WebSocket upgrades.
+func (w *responseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 func recordResponseCode(w http.ResponseWriter, code int32) {
 	if tracked, ok := w.(*responseWriter); ok {
 		tracked.code = &code
@@ -76,6 +91,8 @@ func (w *responseWriter) log(r *http.Request, duration time.Duration) {
 		level = slog.LevelError
 	case w.status >= 400:
 		level = slog.LevelWarn
+	case w.status == http.StatusSwitchingProtocols:
+		level = slog.LevelInfo
 	case w.code == nil:
 		level = slog.LevelError
 	case *w.code == int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR) ||
@@ -88,6 +105,9 @@ func (w *responseWriter) log(r *http.Request, duration time.Duration) {
 	// Only metadata enters this logger; no body, headers or raw URL is inspected.
 	fields := []any{
 		"method", r.Method, "path", w.path, "duration_ms", duration.Milliseconds(),
+	}
+	if w.apiMethod != "" {
+		fields = append(fields, "rpc_method", w.apiMethod, "transport", "http")
 	}
 	status := w.status
 	if !w.written {

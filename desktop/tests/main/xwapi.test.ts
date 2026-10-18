@@ -205,7 +205,7 @@ test("health validates JSON business results; HTTP 200 alone does not mean ready
     await server.close();
   });
   assert.equal((await health.ready(empty)).code, 0);
-  assert.equal(server.state.requests.at(-1)?.path, "/xiaowei/readyz");
+  assert.equal(server.state.requests.at(-1)?.path, "/xiaowei/api/common.Health/Ready");
   server.state.ready = false;
   assert.equal((await health.ready(empty)).code, ErrorCode.UNAVAILABLE);
   for (const response of [
@@ -214,7 +214,6 @@ test("health validates JSON business results; HTTP 200 alone does not mean ready
     '{"msg":"ok","data":{"status":"ok"}}',
     '{"code":0,"data":{"status":"ok"}}',
     '{"code":0,"msg":"ok"}',
-    '{"code":0,"msg":"ok","data":{}}',
     '{"code":0,"msg":"ok","data":{"status":"wrong"}}',
     '{"code":2147483648,"msg":"invalid code"}',
   ]) {
@@ -355,9 +354,7 @@ test("xwapi defaults to 15000 and zero omits the HTTP timeout signal", async (t)
   const host = new GatewayHost();
   const owner = registerXwapi(
     host,
-    new XwapiService(
-      async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: { status: "ok" } })),
-    ),
+    new XwapiService(async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: {} }))),
     () => ({ server: "https://example.test" }),
   );
   const health = bindClient(Health, host.client({ caller: "default-timeout", trusted: true }), {

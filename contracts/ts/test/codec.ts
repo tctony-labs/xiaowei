@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { create, fromBinary, fromJson, type JsonValue, toBinary } from "@bufbuild/protobuf";
 import {
+  BaseResponseSchema,
   ChangedSchema,
   EnvelopeSchema,
   Fixture,
@@ -158,3 +159,23 @@ assert.throws(() =>
 console.log(
   "Login codec checks passed: oneof results, password credentials, optional binding token and JSON.",
 );
+
+for (const value of [
+  create(BaseResponseSchema, { msg: "ok", data: {} }),
+  create(BaseResponseSchema, { code: 10008, msg: "unavailable" }),
+]) {
+  for (const path of [
+    [rust, go],
+    [go, rust],
+  ]) {
+    const bytes = path.reduce(
+      (data, bin) =>
+        runCodec(bin, data, {
+          args: ["base-response"],
+          caseName: "health response with optional empty data",
+        }),
+      toBinary(BaseResponseSchema, value),
+    );
+    assert.deepEqual(fromBinary(BaseResponseSchema, bytes), value);
+  }
+}

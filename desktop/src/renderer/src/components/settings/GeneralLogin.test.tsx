@@ -33,7 +33,7 @@ test("add and select a server, then lock its address while signed in", async () 
   await waitFor(() => expect(page.getByRole("button", { name: "退出登录" })).toBeVisible());
   expect(page.queryByRole("button", { name: "登录服务器" })).not.toBeInTheDocument();
   expect(page.getByText("http://127.0.0.1:10001")).toBeVisible();
-  expect(page.getByText(/UID：u_/)).toBeVisible();
+  expect(page.getByText("u_7mK2qR9xW4nT8bYpC6dHfA")).toBeVisible();
   await actions.click(page.getByRole("button", { name: "退出登录" }));
   expect(page.getByRole("button", { name: "登录服务器" })).toHaveTextContent(
     "http://127.0.0.1:10001",

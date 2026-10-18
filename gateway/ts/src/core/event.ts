@@ -20,18 +20,35 @@ export interface RemoteEventExport extends EventDescriptor {
   ): Promise<Subscription>;
 }
 export type EventExport = LocalEventExport | RemoteEventExport;
+export interface DeliveryLimits {
+  items: number;
+  bytes: number;
+  overflow(): void;
+}
 export class DeliveryQueue implements Subscription {
   private pending: Uint8Array[] = [];
   private draining = false;
+  private bytes = 0;
   private active = true;
   constructor(
     public policy: Backpressure,
     private sink: EventSink,
+    private limits?: DeliveryLimits,
   ) {}
   enqueue(payload: Uint8Array): void {
     if (!this.active || (this.policy === "drop" && this.pending.length)) return;
-    if (this.policy === "coalesce") this.pending.length = 0;
+    if (this.policy === "coalesce") this.clear();
+    if (
+      this.limits &&
+      (this.pending.length >= this.limits.items ||
+        this.bytes + payload.byteLength > this.limits.bytes)
+    ) {
+      this.close();
+      this.limits.overflow();
+      return;
+    }
     this.pending.push(payload.slice());
+    this.bytes += payload.byteLength;
     if (this.draining) return;
     this.draining = true;
     // Native Node callbacks may return without a microtask checkpoint (e.g. Electron hotkeys).
@@ -46,6 +63,7 @@ export class DeliveryQueue implements Subscription {
     while (this.active && this.pending.length) {
       const payload = this.pending.shift();
       if (!payload) break;
+      this.bytes -= payload.byteLength;
       try {
         await this.sink(payload);
       } catch {
@@ -56,6 +74,7 @@ export class DeliveryQueue implements Subscription {
   }
   clear(): void {
     this.pending.length = 0;
+    this.bytes = 0;
   }
   close(): void {
     this.active = false;
@@ -129,6 +148,7 @@ export class Events {
     filter: Uint8Array | undefined,
     sink: EventSink,
     persistent: boolean,
+    limits?: DeliveryLimits,
   ): Promise<Subscription> {
     authorize(context, event, true);
     validateName(event);
@@ -144,7 +164,7 @@ export class Events {
       event,
       filter: filter?.slice(),
       persistent,
-      queue: new DeliveryQueue(entry?.export.policy ?? "drop", sink),
+      queue: new DeliveryQueue(entry?.export.policy ?? "drop", sink, limits),
     };
     this.consumers.add(consumer);
     try {

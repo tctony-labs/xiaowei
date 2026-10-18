@@ -5,6 +5,7 @@ import {
   AccountSnapshotSchema,
   AccountStatus,
   Auth,
+  CloudConnectionStatus,
   EmptySchema,
   ErrorCode,
   type GetCurrentUserData,
@@ -36,6 +37,7 @@ export class AccountService {
   private status = AccountStatus.SIGNED_OUT;
   private message = "";
   private revision = 1n;
+  private cloudConnection = CloudConnectionStatus.DISCONNECTED;
   private readonly listeners = new Set<() => void>();
   private queue: Promise<unknown> = Promise.resolve();
   private network?: AbortController;
@@ -116,7 +118,14 @@ export class AccountService {
       status: this.status,
       user: this.session?.authenticated.user,
       statusMessage: this.message,
+      cloudConnection: this.cloudConnection,
     });
+  }
+
+  setCloudConnection(status: CloudConnectionStatus) {
+    if (this.cloudConnection === status || this.closed) return;
+    this.cloudConnection = status;
+    this.changed();
   }
 
   subscribe(listener: () => void) {

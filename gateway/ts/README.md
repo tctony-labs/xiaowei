@@ -63,3 +63,12 @@ preload 使用 `xiaowei-gateway/preload` 的 `createPreloadBridge(ipcRenderer)`�
 每个 renderer client 使用独立的随机 UUID 前缀和递增序号生成 RPC／订阅／流句柄 ID；热更新重建 client 而 preload 会话仍存活时，新旧句柄不会复用，旧句柄关闭或新请求失败清理也不会取消其他 client 的资源。
 
 宿主分配 session／generation，主 frame 实际提交导航（`did-navigate`）、renderer 退出、窗口销毁时取消在途 RPC 并清理订阅和流。不能在 `did-start-navigation` 清理：导航可能随后被窗口策略取消，旧 document 仍需继续使用原会话。提交导航后、新 preload 连接前清理旧会话；新连接分配新 generation，旧 bridge 仍被拒绝。每会话的订阅和流句柄均有上限，具体限制见 [Electron adapter](src/main/electron.ts)；取消尚未 ready 的订阅后，初始化槽位保留到 attach 结束，迟到成功立即关闭。订阅先安装本地 listener，再等待远端 ready。流 open 不预取，cancel 和窗口销毁会取消实际 native producer；typed handler 返回的源在首次 next 前取消也会被释放。
+
+
+## WebSocket 接入
+
+从 `xiaowei-gateway/websocket` 导入 `connectWebSocket`。传入 WSS 地址、access token，以及本地 `host` 和允许远端访问的显式 `manifest`；未导出的本地服务不可从网络调用。首帧认证和契约协商在 5 秒内完成，成功后返回带有 `client`、`manifest`、`ping()` 和幂等 `close()` 的独立连接。默认入口不导入 WebSocket 实现。
+
+`peer.client` 可直接配合 `bindClient`、`bindStreamClient` 和事件订阅。`peer.canInvoke(route)` 在不发请求的情况下检查连接存活及远端路由兼容性；实际请求仍可能因随后断线而失败。它仅寻址该连接发布的服务，不注册到本地 host，不接管未命中的本地路由。双向 unary 的取消向实际 handler 传播；响应流逐条 pull，不预读。事件订阅等待 ready，使用应答控制发送，有界队列溢出则关闭连接，不能悄悄丢弃 ordered 事件。
+
+断线结束该实例的在途请求、订阅和流；重建连接后需重新订阅，不重放业务写操作或历史事件。`onClose` 可取得服务端安全的认证拒绝原因，通用传输不修改账号状态。产品的重连和凭据生命周期归桌面 `services/xwapi/connection.ts`；Go 认证适配及限制见 [服务端 WebSocket](../../server/docs/websocket.md)。

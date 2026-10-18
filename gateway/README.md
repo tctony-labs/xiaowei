@@ -1,11 +1,12 @@
 # Gateway
 
-Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 绑定、响应流和事件，以及 TS ↔ Rust napi、Worker MessagePort 和 Electron IPC 通信适配层。业务消息由 [contracts](../contracts/README.md) 定义，具体 owner 由宿主装配。
+Gateway 提供环境无关的 TS host／client、Rust registry、Protobuf typed 绑定、响应流和事件，以及 TS ↔ Rust napi、Worker MessagePort、Electron IPC 和双向 WebSocket 通信适配层。业务消息由 [contracts](../contracts/README.md) 定义，具体 owner 由宿主装配。
 
 ## 工程入口
 
 - [`ts/`](ts/README.md)：npm 包 `xiaowei-gateway`。默认入口提供 client、协议和绑定，`/host` 提供宿主管理；两者不依赖 Node／Electron。`/rust-napi` 提供使用 Node Buffer 的 Rust napi 接入，`/worker-host` 与 `/worker` 提供 Node worker 两侧接入，`/electron`、`/preload`、`/renderer` 分别提供 Electron 各侧接入。
 - [`rust/`](rust/README.md)：crate `xw-gateway`，默认纯 Rust；显式开启 `napi` feature 才编译 napi 通信适配层。
+- Go 网络对端位于 [`server/internal/gateway/`](../server/internal/gateway/)，复用现有 server module；不依赖认证业务，产品接入见 [服务端 WebSocket](../server/docs/websocket.md)。
 - [`tests/`](tests/README.md)：跨语言、原生模块和 Electron 验收入口。
 
 TS 类型入口指向源码，工作区消费者必须通过 `source` 条件加载源码，Node 同时配置 TS loader。默认 import 的 `dist/` 入口保留给本包构建产物验收。

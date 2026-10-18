@@ -2,7 +2,7 @@
 
 登录、刷新、当前用户和退出接口见 [HTTP 接口总览](http.md#接口总览)。
 
-认证业务位于 `internal/auth/`，PostgreSQL 访问与事务位于 `internal/db/`，`internal/httpapi/` 负责协议适配、日志和限流。账号归属、公开用户标识和迁移规则见 [配置、存储与迁移](persistence.md)。注册、找回密码、微信与 WebSocket 尚未实现，后续方案由 [server-development](../../.agent/records/active/2026-10-11-server-development.md) 跟进。
+认证业务位于 `internal/auth/`，PostgreSQL 访问与事务位于 `internal/db/`，`internal/httpapi/` 负责协议适配、日志和限流。账号归属、公开用户标识和迁移规则见 [配置、存储与迁移](persistence.md)。WebSocket 连接认证和失效处理见 [WebSocket 接入](websocket.md)。注册、找回密码与微信尚未实现，后续方案由 [server-development](../../.agent/records/active/2026-10-11-server-development.md) 跟进。
 
 ## 登录输入与结果
 
@@ -21,7 +21,7 @@
 
 device_id 由客户端首次使用生成并保存在共享数据目录，同一设备的多个安装共用；不是硬件指纹。成功响应位于 data.authenticated，包含 user、device 和 tokens。同一账号同一设备重登会替换旧会话，旧 access／refresh token 均失效，其他设备不受影响。thirdparty_bind_token 已预留但绑定尚未实现，携带时会明确拒绝。
 
-POST 请求使用 `Content-Type: application/json`；logout 允许空请求体。me 和 logout 使用 `Authorization: Bearer <access_token>`。消息定义见 [auth.proto](../../contracts/proto/xiaowei/server/auth.proto)，JSON 字段采用 snake_case，Unix 毫秒时间按 Protobuf JSON 规则输出字符串。
+所有方法的 HTTP 入口统一 POST，请求使用 `Content-Type: application/json`。空消息发送 `{}`，也接受空请求体；GetCurrentUser 和 Logout 使用 `Authorization: Bearer <access_token>`。消息定义见 [auth.proto](../../contracts/proto/xiaowei/server/auth.proto)，JSON 字段采用 snake_case，Unix 毫秒时间按 Protobuf JSON 规则输出字符串。
 
 消息结构及错误码语义见 [服务端契约](../../contracts/proto/xiaowei/server/README.md)，HTTP 状态处理见 [HTTP 接口](http.md)。
 
@@ -47,7 +47,7 @@ access token 默认有效期 2 小时；refresh token 默认 30 天，每次成�
 
 同一 refresh token 的并发刷新只有一次成功。刷新事务替换 refresh hash 并写入新 access token，失败不消费旧 token；重复使用旧 refresh 只拒绝当前请求。退出与刷新对同一会话行的写锁保证刷新不会复活已撤销会话。已完成认证的在途请求不承诺被中途取消。
 
-刷新响应丢失时，已消费的旧 refresh token 不能再次刷新；当前不提供幂等刷新结果缓存，客户端可能需要重新登录。桌面端串行刷新、持久化失败和恢复行为见 [桌面账号](../../desktop/docs/account.md)。密码重置后的全部会话撤销及 WebSocket 失效断连仍在后续范围。
+刷新响应丢失时，已消费的旧 refresh token 不能再次刷新；当前不提供幂等刷新结果缓存，客户端可能需要重新登录。桌面端串行刷新、持久化失败和恢复行为见 [桌面账号](../../desktop/docs/account.md)。退出及同设备重新登录会使对应 WebSocket 连接失效；密码重置及其全部会话撤销仍在后续范围。
 
 ## 存储与事务
 

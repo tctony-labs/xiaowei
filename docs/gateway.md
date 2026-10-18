@@ -136,13 +136,13 @@ Worker MessagePort 通信适配层通过专用 Node Worker 的 parentPort 连接
 
 service handler、执行配额、执行超时、AbortController、iterator 和实际清理归 worker；main 保留全局路由、授权、owner 生命周期及通信等待。worker 与 main 本地 handler 复用环境无关的 `ExecutionScope`，远端流通过独立 `StreamDispatcher` 接口挂载，main 不重复执行流 admission 或 producer 状态机。通信关闭并不提前释放仍在执行的 worker 任务许可。
 
-## 远端服务与双向 WebSocket（尚未实现）
+## 远端服务与双向 WebSocket
 
 同一套 Gateway 调用方式可以覆盖远端 server。client／server 建立已认证的 WS 连接后，双方均可作为调用方和服务提供方，使用同一份 contracts 生成的 typed client 与 handler 接口。上层调用方式与本地服务一致，网络不可用、超时等结果仍明确返回，不伪装成本地调用必然成功。
 
 ```mermaid
 flowchart LR
-    Client["客户端 Gateway／typed client 与 handler"] <-->|"已认证的双向 WebSocket（待实现）"| Server["服务端 Gateway／typed client 与 handler"]
+    Client["客户端 Gateway／typed client 与 handler"] <-->|"已认证的双向 WebSocket"| Server["服务端 Gateway／typed client 与 handler"]
 ```
 
 职责分层：
@@ -152,15 +152,15 @@ flowchart LR
 - WS transport／连接管理层：认证、连接状态、请求／响应关联、超时、断线清理，以及订阅、流取消和背压的跨网络传播。
 - 业务 handler：业务处理，不各自建立 WS 或维护连接状态；依赖业务在线状态时通过连接层接口获知。
 
-连接建立且完成认证、契约及服务发布协商后，将显式导出的远端服务挂到对应连接 owner；断开时撤销可用状态，使在途请求／流明确失败并清理订阅和资源。重连使用新的连接实例标识，旧响应／旧 stream ID 不得影响新连接；可重新发布服务和建立订阅，但不自动重试写操作、重放事件或恢复 LLM 流，可靠恢复需业务专门设计。
+连接建立且完成认证、契约及服务发布协商后，通过绑定该连接的 `peer.client` 调用远端显式导出的服务；不把远端 manifest 注册或覆盖到本地 host，也不把本地未命中请求自动转发到网络。断线结束该实例的在途请求、订阅和流；重连使用新的 generation，业务重新建立订阅，不自动重试写操作、重放事件或恢复 LLM 流，可靠恢复仍由业务设计。
 
-WS 是双向传输，不自动提供应用层 RPC、取消或背压；复用并扩展 Gateway 控制语义，仍需有界发送缓冲、独立取消路径和 owner／caller 关联。请求 ID 需区分连接实例及调用方向，具体帧格式、心跳、重连退避和流量控制映射在远端实施前细化。
+WS transport 已提供双向 unary、独立取消、事件应答和逐条 pull 的响应流。每条连接有独立 generation 和双向请求 ID、有界业务／控制表、事件队列与发送字节预算。取消和超时不承诺撤销已经发生的副作用，不合作的实际执行仍占用许可；资源限制与帧格式见 [服务端 WebSocket](../server/docs/websocket.md#传输与资源限制)。
 
 本地自有模块默认可信的约定不延伸为网络免认证。远端导出的 route／event 应显式声明并进行会话授权，不能因为共享契约或建立 WS 就把本机所有服务暴露给服务器，或把 Storage 原始数据库接口公开给任意客户端。反向调用同样受导出范围和会话权限约束。
 
-本地与远端的路由作用域必须区分：面向 server 的 client 绑定明确远端 owner／目标，不能把任意本地未命中调用自动发送到网络，也不能让同名服务覆盖本地 owner。具体目标选择和多连接命名规则后续确定。
+本地与远端的路由作用域分开：本地调用仍通过宿主 GatewayHost，网络调用通过连接的独立 typed client。桌面 xwapi owner 只注册服务端契约；本地使用完整方法名，xwapi 从 descriptor 推导短网络标识，HTTP 和 WS 共用该标识，PB 类型全名保留。方法的 session 要求决定网络导出范围，调用选项决定本次使用 HTTP 或认证 WS，普通业务不能通过 payload 选择服务器或替换凭据。
 
-当前只实现本地 Electron IPC、napi 和 Worker MessagePort 链路，尚无 WebSocket transport 或 Go Gateway runtime。帧格式、心跳、重连策略和服务端接入须在后续事项中设计与验收。业务方选择 HTTP 或已认证 WebSocket 的要求见 [xwapi 后续传输设计](xwapi.md#后续-http-与-websocket-选择尚未实现)。
+当前已实现 Electron IPC、napi、Worker MessagePort 和 TS／Go WebSocket。Go 对端位于现有 server module 的 `internal/gateway/`，认证适配归 `internal/httpapi/`；TS 接入见 [Gateway TS](../gateway/ts/README.md#websocket-接入)，业务传输选择见 [xwapi](xwapi.md#http-与-websocket-选择)。这不表示已经实现收藏同步、密码重置或生产部署验收。
 
 ## 本地 socket 接入（尚未实现）
 

@@ -167,7 +167,8 @@ func startAuthServer(t *testing.T, fixture authFixture) func() {
 			t.Fatalf("authentication server did not start: %v", err)
 		default:
 		}
-		response, err := client.Get("http://" + fixture.address + "/readyz")
+		response, err := client.Post("http://"+fixture.address+"/api/common.Health/Ready",
+			"application/json", strings.NewReader("{}"))
 		if err == nil {
 			var body struct {
 				Code *int32 `json:"code"`
@@ -262,7 +263,7 @@ func loginFixture(t *testing.T, fixture authFixture) *pb.Authenticated {
 	t.Helper()
 	result := new(pb.LoginResponse)
 	request := passwordRequest(" USER@EXAMPLE.COM ", fixture.password, testDeviceID(t))
-	response := requestAuth(fixture.address, "POST", "/api/auth/login", "", request)
+	response := requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "", request)
 	requireAuthResponse(t, response, 200, 0, result)
 	identity := result.GetData().GetAuthenticated()
 	if identity == nil || identity.User.UserId != fixture.userID || identity.User.Email != "user@example.com" ||
@@ -299,10 +300,10 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 
 	wrong := new(pb.LoginResponse)
 	missing := new(pb.LoginResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/login", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
 		passwordRequest("user@example.com", "wrong-password", testDeviceID(t))),
 		200, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS), wrong)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/login", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
 		passwordRequest("missing@example.com", fixture.password, testDeviceID(t))),
 		200, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS), missing)
 	if !proto.Equal(wrong, missing) || wrong.Code != int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS) {
@@ -318,33 +319,36 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 	}
 	me := new(pb.GetCurrentUserResponse)
 	requireAuthResponse(t,
-		requestAuth(fixture.address, "GET", "/api/auth/me", first.Tokens.AccessToken, nil), 200, 0, me)
+		requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			first.Tokens.AccessToken, nil), 200, 0, me)
 	if me.Data.User.UserId != fixture.userID || me.Data.SessionId != first.Tokens.SessionId ||
 		!proto.Equal(me.Data.Device, first.Device) {
 		t.Fatal("bearer did not resolve trusted identity")
 	}
 	requireAuthResponse(t,
-		requestAuth(fixture.address, "GET", "/api/auth/me", first.Tokens.RefreshToken, nil),
+		requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			first.Tokens.RefreshToken, nil),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: first.Tokens.AccessToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 
 	rotated := new(pb.RefreshResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}), 200, 0, rotated)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	for _, token := range []string{first.Tokens.AccessToken, rotated.Data.AccessToken} {
-		requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", token, nil), 200, 0, nil)
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			token, nil), 200, 0, nil)
 	}
 
 	results := make(chan authResponse, 5)
 	var workers sync.WaitGroup
 	for range 5 {
 		workers.Go(func() {
-			results <- requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+			results <- requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 				&pb.RefreshRequest{RefreshToken: rotated.Data.RefreshToken})
 		})
 	}
@@ -368,7 +372,7 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 		t.Fatal("HTTP concurrent refresh did not have exactly one winner")
 	}
 	current := new(pb.RefreshResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: winner.Data.RefreshToken}), 200, 0, current)
 	if current.Data.RefreshExpiresAtMs < rotated.Data.RefreshExpiresAtMs {
 		t.Fatal("refresh did not renew expiry")
@@ -377,21 +381,25 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 	stop()
 	stop = startAuthServer(t, fixture)
 	for _, token := range []string{first.Tokens.AccessToken, current.Data.AccessToken, second.Tokens.AccessToken} {
-		requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", token, nil), 200, 0, nil)
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			token, nil), 200, 0, nil)
 	}
 	requireAuthResponse(t,
-		requestAuth(fixture.address, "POST", "/api/auth/logout", current.Data.AccessToken, nil), 200, 0, nil)
+		requestAuth(fixture.address, "POST", "/api/auth.Auth/Logout",
+			current.Data.AccessToken, nil), 200, 0, nil)
 	for _, token := range []string{
 		first.Tokens.AccessToken, rotated.Data.AccessToken, winner.Data.AccessToken, current.Data.AccessToken,
 	} {
-		requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", token, nil),
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			token, nil),
 			200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	}
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: current.Data.RefreshToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	requireAuthResponse(t,
-		requestAuth(fixture.address, "GET", "/api/auth/me", second.Tokens.AccessToken, nil), 200, 0, nil)
+		requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			second.Tokens.AccessToken, nil), 200, 0, nil)
 
 	var refreshHash []byte
 	var passwordHash string
@@ -405,11 +413,16 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 		t.Fatal("database contains incorrect credential hashes")
 	}
 	stop()
-	for _, route := range []string{"/api/auth/login", "/api/auth/me", "/api/auth/refresh", "/api/auth/logout"} {
+	for _, route := range []string{
+		"/api/auth.Auth/Login",
+		"/api/auth.Auth/GetCurrentUser",
+		"/api/auth.Auth/Refresh",
+		"/api/auth.Auth/Logout",
+	} {
 		requireHTTPLog(t, logs, route, 0, "INFO")
 	}
-	requireHTTPLog(t, logs, "/api/auth/login", 10100, "WARN")
-	requireHTTPLog(t, logs, "/api/auth/me", 10002, "WARN")
+	requireHTTPLog(t, logs, "/api/auth.Auth/Login", 10100, "WARN")
+	requireHTTPLog(t, logs, "/api/auth.Auth/GetCurrentUser", 10002, "WARN")
 	for _, secret := range []string{
 		fixture.password, "user@example.com", first.Tokens.AccessToken, first.Tokens.RefreshToken,
 		rotated.Data.RefreshToken, winner.Data.RefreshToken, current.Data.RefreshToken, second.Tokens.AccessToken,
@@ -436,10 +449,11 @@ func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", login.Tokens.AccessToken, nil),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		login.Tokens.AccessToken, nil),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	refreshed := new(pb.RefreshResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: login.Tokens.RefreshToken}), 200, 0, refreshed)
 	_, err = fixture.pool.Exec(ctx,
 		"UPDATE auth_sessions SET refresh_expires_at = now() - interval '1 second' WHERE session_id = $1",
@@ -447,11 +461,11 @@ func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: refreshed.Data.RefreshToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	for i := range 5 {
-		response := requestAuth(fixture.address, "POST", "/api/auth/login", "",
+		response := requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
 			passwordRequest("user@example.com", "wrong-password", testDeviceID(t)))
 		want := 200
 		code := int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS)
@@ -468,10 +482,11 @@ func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response := requestAuth(fixture.address, "GET", "/api/auth/me", refreshed.Data.AccessToken, nil)
+	response := requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		refreshed.Data.AccessToken, nil)
 	requireAuthResponse(t, response, 200, int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), nil)
-	requireHTTPLog(t, logs, "/api/auth/login", 10007, "WARN")
-	requireHTTPLog(t, logs, "/api/auth/me", 10008, "ERROR")
+	requireHTTPLog(t, logs, "/api/auth.Auth/Login", 10007, "WARN")
+	requireHTTPLog(t, logs, "/api/auth.Auth/GetCurrentUser", 10008, "ERROR")
 	var body map[string]any
 	if err := json.Unmarshal(response.body, &body); err != nil || strings.Contains(string(response.body), "SQLSTATE") {
 		t.Fatal("database failure leaked internal detail")
@@ -481,7 +496,8 @@ func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	requireAuthResponse(t,
-		requestAuth(fixture.address, "GET", "/api/auth/me", refreshed.Data.AccessToken, nil), 200, 0, nil)
+		requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			refreshed.Data.AccessToken, nil), 200, 0, nil)
 }
 
 func passwordRequest(email, password, deviceID string) *pb.LoginRequest {
@@ -501,9 +517,11 @@ func TestDeviceReloginAndRejectedBindingHTTP(t *testing.T) {
 	request.DeviceName = "renamed"
 	token := "private-bind-secret"
 	request.ThirdpartyBindToken = &token
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/login", "", request),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login",
+		"", request),
 		200, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED), nil)
-	requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", first.Tokens.AccessToken, nil),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		first.Tokens.AccessToken, nil),
 		200, 0, nil)
 	var count int
 	err := fixture.pool.QueryRow(context.Background(), "SELECT count(*) FROM auth_sessions").Scan(&count)
@@ -512,24 +530,29 @@ func TestDeviceReloginAndRejectedBindingHTTP(t *testing.T) {
 	}
 	request.ThirdpartyBindToken = nil
 	request.GetPassword().Password = "wrong"
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/login", "", request),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login",
+		"", request),
 		200, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_INVALID_CREDENTIALS), nil)
-	requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", first.Tokens.AccessToken, nil),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		first.Tokens.AccessToken, nil),
 		200, 0, nil)
 	request.GetPassword().Password = fixture.password
 	replacement := new(pb.LoginResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/login", "", request), 200, 0, replacement)
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login",
+		"", request), 200, 0, replacement)
 	current := replacement.Data.GetAuthenticated()
 	if current == nil || current.Device.DeviceId != first.Device.DeviceId || current.Device.DeviceName != "renamed" {
 		t.Fatal("replacement did not retain device identity")
 	}
-	requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", first.Tokens.AccessToken, nil),
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		first.Tokens.AccessToken, nil),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth/refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 	for _, access := range []string{current.Tokens.AccessToken, other.Tokens.AccessToken} {
-		requireAuthResponse(t, requestAuth(fixture.address, "GET", "/api/auth/me", access, nil), 200, 0, nil)
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+			access, nil), 200, 0, nil)
 	}
 }
 
@@ -543,7 +566,7 @@ func TestConfiguredRateLimitsHTTP(t *testing.T) {
 	defer stop()
 
 	for i, code := range []int32{10100, 10007, 10007, 10007} {
-		response := requestAuth(fixture.address, "POST", "/api/auth/login", "",
+		response := requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
 			passwordRequest("user@example.com", "wrong-password", testDeviceID(t)))
 		requireAuthResponse(t, response, 200, code, nil)
 		if i > 0 {
@@ -553,8 +576,8 @@ func TestConfiguredRateLimitsHTTP(t *testing.T) {
 			}
 		}
 	}
-	for _, path := range []string{"/healthz", "/readyz"} {
-		requireAuthResponse(t, requestAuth(fixture.address, "GET", path, "", nil), 200, 0, nil)
+	for _, path := range []string{"/api/common.Health/Check", "/api/common.Health/Ready"} {
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", path, "", nil), 200, 0, nil)
 	}
 }
 

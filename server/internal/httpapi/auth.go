@@ -5,9 +5,12 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"mime"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	common "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
@@ -15,6 +18,7 @@ import (
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
+	"github.com/tctony-labs/xiaowei/server/internal/gateway"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -25,120 +29,107 @@ type authAPI struct {
 	limits  config.AuthRateLimit
 }
 
-func (a *authAPI) login(w http.ResponseWriter, r *http.Request) {
-	request := new(pb.LoginRequest)
-	if !readAuthRequest(w, r, request, false) {
-		return
-	}
+func (a *authAPI) login(
+	ctx context.Context, input proto.Message, call apiCall,
+) (proto.Message, error) {
+	request := input.(*pb.LoginRequest)
 	credential, ok := request.Credential.(*pb.LoginRequest_Password)
 	if !ok || credential.Password == nil {
-		writeAuthError(w, "login", auth.ErrInvalidArgument)
-		return
+		return nil, auth.ErrInvalidArgument
 	}
 	if request.ThirdpartyBindToken != nil {
 		if request.GetThirdpartyBindToken() == "" {
-			writeAuthError(w, "login", auth.ErrInvalidArgument)
-		} else {
-			writeProtocolError(w, int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED),
-				"暂不支持第三方账号绑定")
+			return nil, auth.ErrInvalidArgument
 		}
-		return
+		return nil, &apiError{
+			code: int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED),
+			msg:  "暂不支持第三方账号绑定",
+		}
 	}
 	email, err := auth.NormalizeEmail(credential.Password.Email)
 	if err != nil {
-		writeAuthError(w, "login", auth.ErrInvalidArgument)
-		return
+		return nil, auth.ErrInvalidArgument
 	}
-	if !a.limiter.check(w, loginQuotas(r, email, a.limits)...) {
-		return
+	retry := a.limiter.allow(time.Now(), loginQuotas(call.ip, email, a.limits)...)
+	if retry != 0 {
+		return nil, rateLimitError(retry)
 	}
 	result, err := a.service.Login(
-		r.Context(), email, credential.Password.Password, request.DeviceId, request.DeviceName,
+		ctx, email, credential.Password.Password, request.DeviceId, request.DeviceName,
 	)
 	if err != nil {
-		writeAuthError(w, "login", err)
-		return
+		return nil, err
 	}
-	slog.Info("user logged in", "user_id", result.Identity.User.PublicID, "session_id", result.Tokens.SessionID)
-	writeAuthJSON(w, &pb.LoginResponse{
-		Msg: "成功",
-		Data: &pb.LoginResult{Result: &pb.LoginResult_Authenticated{
-			Authenticated: &pb.Authenticated{
-				User: userMessage(result.Identity), Tokens: tokenMessage(result.Tokens),
-				Device: deviceMessage(result.Identity.Device),
-			},
+	slog.Info("user logged in", "user_id", result.Identity.User.PublicID,
+		"session_id", result.Tokens.SessionID)
+	return &pb.LoginResponse{Msg: "成功", Data: &pb.LoginResult{
+		Result: &pb.LoginResult_Authenticated{Authenticated: &pb.Authenticated{
+			User: userMessage(result.Identity), Tokens: tokenMessage(result.Tokens),
+			Device: deviceMessage(result.Identity.Device),
 		}},
-	})
+	}}, nil
 }
 
-func (a *authAPI) refresh(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.check(w, quota{
-		key: "refresh:" + sourceIP(r), limit: a.limits.RefreshIP.Limit, window: a.limits.RefreshIP.Window,
-	}) {
-		return
+func (a *authAPI) refreshLimit(call apiCall) *apiError {
+	retry := a.limiter.allow(time.Now(), quota{
+		key: "refresh:" + call.ip, limit: a.limits.RefreshIP.Limit, window: a.limits.RefreshIP.Window,
+	})
+	if retry != 0 {
+		return rateLimitError(retry)
 	}
-	request := new(pb.RefreshRequest)
-	if !readAuthRequest(w, r, request, false) {
-		return
-	}
-	tokens, err := a.service.Refresh(r.Context(), request.RefreshToken)
+	return nil
+}
+
+func (a *authAPI) refresh(
+	ctx context.Context, input proto.Message, _ apiCall,
+) (proto.Message, error) {
+	tokens, err := a.service.Refresh(ctx, input.(*pb.RefreshRequest).RefreshToken)
 	if err != nil {
-		writeAuthError(w, "refresh", err)
-		return
+		return nil, err
 	}
 	slog.Info("session refreshed", "session_id", tokens.SessionID)
-	writeAuthJSON(w, &pb.RefreshResponse{Msg: "成功", Data: tokenMessage(tokens)})
+	return &pb.RefreshResponse{Msg: "成功", Data: tokenMessage(tokens)}, nil
 }
 
-func (a *authAPI) authenticate(w http.ResponseWriter, r *http.Request) (db.SessionUser, bool) {
+func (a *authAPI) authenticate(r *http.Request) (db.SessionUser, error) {
 	values := r.Header.Values("Authorization")
 	if len(values) != 1 {
-		writeAuthError(w, "authenticate", auth.ErrUnauthenticated)
-		return db.SessionUser{}, false
+		return db.SessionUser{}, auth.ErrUnauthenticated
 	}
 	parts := strings.Split(values[0], " ")
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
-		writeAuthError(w, "authenticate", auth.ErrUnauthenticated)
-		return db.SessionUser{}, false
+		return db.SessionUser{}, auth.ErrUnauthenticated
 	}
-	identity, err := a.service.Authenticate(r.Context(), parts[1])
-	if err != nil {
-		writeAuthError(w, "authenticate", err)
-		return db.SessionUser{}, false
-	}
-	return identity, true
+	return a.service.Authenticate(r.Context(), parts[1])
 }
 
-func (a *authAPI) me(w http.ResponseWriter, r *http.Request) {
-	identity, ok := a.authenticate(w, r)
-	if !ok {
-		return
-	}
-	writeAuthJSON(w, &pb.GetCurrentUserResponse{
-		Msg: "成功",
-		Data: &pb.GetCurrentUserData{
-			User: userMessage(identity), SessionId: identity.SessionID, Device: deviceMessage(identity.Device),
-		},
-	})
+func (a *authAPI) me(_ context.Context, _ proto.Message, call apiCall) (proto.Message, error) {
+	identity := call.identity
+	return &pb.GetCurrentUserResponse{Msg: "成功", Data: &pb.GetCurrentUserData{
+		User: userMessage(identity), SessionId: identity.SessionID, Device: deviceMessage(identity.Device),
+	}}, nil
 }
 
-func (a *authAPI) logout(w http.ResponseWriter, r *http.Request) {
-	if !readAuthRequest(w, r, new(common.Empty), true) {
-		return
+func (a *authAPI) logout(
+	ctx context.Context, _ proto.Message, call apiCall,
+) (proto.Message, error) {
+	if call.peer != nil {
+		if err := call.peer.EndAfterReply(ctx); err != nil {
+			return nil, err
+		}
+		ctx = auth.WithSessionChangeDelivery(ctx, func(notify func()) {
+			gateway.AfterReply(ctx, notify)
+		})
 	}
-	identity, ok := a.authenticate(w, r)
-	if !ok {
-		return
+	if err := a.service.Logout(ctx, call.identity); err != nil {
+		return nil, err
 	}
-	if err := a.service.Logout(r.Context(), identity); err != nil {
-		writeAuthError(w, "logout", err)
-		return
-	}
-	slog.Info("session logged out", "user_id", identity.User.PublicID, "session_id", identity.SessionID)
-	writeAuthJSON(w, &pb.LogoutResponse{Msg: "成功", Data: new(common.Empty)})
+	slog.Info("session logged out", "user_id", call.identity.User.PublicID,
+		"session_id", call.identity.SessionID)
+	return &pb.LogoutResponse{Msg: "成功", Data: new(common.Empty)}, nil
 }
 
-func readAuthRequest(w http.ResponseWriter, r *http.Request, message proto.Message, allowEmpty bool) bool {
+func readAPIRequest(w http.ResponseWriter, r *http.Request, message proto.Message, allowEmpty bool) bool {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 16*1024))
 	if err != nil {
 		var sizeError *http.MaxBytesError
@@ -182,7 +173,33 @@ func tokenMessage(tokens auth.Tokens) *pb.TokenPair {
 	}
 }
 
+type apiError struct {
+	code  int32
+	msg   string
+	retry time.Duration
+}
+
+func (e *apiError) Error() string { return e.msg }
+
+func rateLimitError(retry time.Duration) *apiError {
+	return &apiError{code: int32(pb.ErrorCode_ERROR_CODE_RATE_LIMITED),
+		msg: "请求过于频繁，请稍后重试", retry: retry}
+}
+
 func writeAuthError(w http.ResponseWriter, operation string, err error) {
+	failure := authFailure(operation, err)
+	if failure.retry != 0 {
+		seconds := int64(math.Ceil(failure.retry.Seconds()))
+		w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+	}
+	writeProtocolError(w, failure.code, failure.msg)
+}
+
+func authFailure(operation string, err error) *apiError {
+	var failure *apiError
+	if errors.As(err, &failure) {
+		return failure
+	}
 	code := int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR)
 	message := "认证失败，请稍后重试"
 	switch {
@@ -212,19 +229,17 @@ func writeAuthError(w http.ResponseWriter, operation string, err error) {
 		}
 		slog.Error("authentication request failed", fields...)
 	}
-	writeProtocolError(w, code, message)
+	return &apiError{code: code, msg: message}
 }
 
-func writeAuthJSON(w http.ResponseWriter, message interface {
-	proto.Message
-	GetCode() int32
-}) {
+func writeAPIJSON(w http.ResponseWriter, message proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true, EmitDefaultValues: true}).Marshal(message)
 	if err != nil {
 		writeAuthError(w, "encode", auth.ErrInternal)
 		return
 	}
-	recordResponseCode(w, message.GetCode())
+	recordResponseCode(w, int32(message.ProtoReflect().Get(
+		message.ProtoReflect().Descriptor().Fields().ByName("code")).Int()))
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(body)

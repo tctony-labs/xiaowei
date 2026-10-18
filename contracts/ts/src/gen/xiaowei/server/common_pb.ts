@@ -2,9 +2,11 @@
 // @generated from file xiaowei/server/common.proto (package xiaowei.server.common, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { EmptySchema } from "../common_pb";
+import type { GenEnum, GenExtension, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, extDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { MethodOptions } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_descriptor } from "@bufbuild/protobuf/wkt";
+import type { Empty, EmptySchema } from "../common_pb";
 import { file_xiaowei_common } from "../common_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +14,27 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/server/common.proto.
  */
 export const file_xiaowei_server_common: GenFile = /*@__PURE__*/
-  fileDesc("Cht4aWFvd2VpL3NlcnZlci9jb21tb24ucHJvdG8SFXhpYW93ZWkuc2VydmVyLmNvbW1vbiIpCgxCYXNlUmVzcG9uc2USDAoEY29kZRgBIAEoBRILCgNtc2cYAiABKAkq6wIKCUVycm9yQ29kZRIWChJFUlJPUl9DT0RFX1NVQ0NFU1MQABIfChpFUlJPUl9DT0RFX0lOVkFMSURfUkVRVUVTVBCQThIgChtFUlJPUl9DT0RFX0lOVkFMSURfQVJHVU1FTlQQkU4SHwoaRVJST1JfQ09ERV9VTkFVVEhFTlRJQ0FURUQQkk4SIQocRVJST1JfQ09ERV9QRVJNSVNTSU9OX0RFTklFRBCTThIZChRFUlJPUl9DT0RFX05PVF9GT1VORBCUThIhChxFUlJPUl9DT0RFX1JFUVVFU1RfVE9PX0xBUkdFEJVOEiYKIUVSUk9SX0NPREVfVU5TVVBQT1JURURfTUVESUFfVFlQRRCWThIcChdFUlJPUl9DT0RFX1JBVEVfTElNSVRFRBCXThIbChZFUlJPUl9DT0RFX1VOQVZBSUxBQkxFEJhOEh4KGUVSUk9SX0NPREVfSU5URVJOQUxfRVJST1IQmU4ykgEKBkhlYWx0aBJDCgVDaGVjaxIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zZXJ2ZXIuY29tbW9uLkJhc2VSZXNwb25zZRJDCgVSZWFkeRIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zZXJ2ZXIuY29tbW9uLkJhc2VSZXNwb25zZWIGcHJvdG8z", [file_xiaowei_common]);
+  fileDesc("Cht4aWFvd2VpL3NlcnZlci9jb21tb24ucHJvdG8SFXhpYW93ZWkuc2VydmVyLmNvbW1vbiIkChBBcGlNZXRob2RPcHRpb25zEhAKCG5vX2xvZ2luGAEgASgIIk4KDEJhc2VSZXNwb25zZRIMCgRjb2RlGAEgASgFEgsKA21zZxgCIAEoCRIjCgRkYXRhGAMgASgLMhUueGlhb3dlaS5jb21tb24uRW1wdHkq6wIKCUVycm9yQ29kZRIWChJFUlJPUl9DT0RFX1NVQ0NFU1MQABIfChpFUlJPUl9DT0RFX0lOVkFMSURfUkVRVUVTVBCQThIgChtFUlJPUl9DT0RFX0lOVkFMSURfQVJHVU1FTlQQkU4SHwoaRVJST1JfQ09ERV9VTkFVVEhFTlRJQ0FURUQQkk4SIQocRVJST1JfQ09ERV9QRVJNSVNTSU9OX0RFTklFRBCTThIZChRFUlJPUl9DT0RFX05PVF9GT1VORBCUThIhChxFUlJPUl9DT0RFX1JFUVVFU1RfVE9PX0xBUkdFEJVOEiYKIUVSUk9SX0NPREVfVU5TVVBQT1JURURfTUVESUFfVFlQRRCWThIcChdFUlJPUl9DT0RFX1JBVEVfTElNSVRFRBCXThIbChZFUlJPUl9DT0RFX1VOQVZBSUxBQkxFEJhOEh4KGUVSUk9SX0NPREVfSU5URVJOQUxfRVJST1IQmU4yogEKBkhlYWx0aBJLCgVDaGVjaxIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GiMueGlhb3dlaS5zZXJ2ZXIuY29tbW9uLkJhc2VSZXNwb25zZSIGirUYAggBEksKBVJlYWR5EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIy54aWFvd2VpLnNlcnZlci5jb21tb24uQmFzZVJlc3BvbnNlIgaKtRgCCAE6WwoDYXBpEh4uZ29vZ2xlLnByb3RvYnVmLk1ldGhvZE9wdGlvbnMY0YYDIAEoCzInLnhpYW93ZWkuc2VydmVyLmNvbW1vbi5BcGlNZXRob2RPcHRpb25zUgNhcGliBnByb3RvMw", [file_google_protobuf_descriptor, file_xiaowei_common]);
+
+/**
+ * @generated from message xiaowei.server.common.ApiMethodOptions
+ */
+export type ApiMethodOptions = Message<"xiaowei.server.common.ApiMethodOptions"> & {
+  /**
+   * False or omitted requires an access session: authenticated HTTP and WebSocket.
+   * True allows calls without a session, over HTTP only. Credentials may still be required.
+   *
+   * @generated from field: bool no_login = 1;
+   */
+  noLogin: boolean;
+};
+
+/**
+ * Describes the message xiaowei.server.common.ApiMethodOptions.
+ * Use `create(ApiMethodOptionsSchema)` to create a new message.
+ */
+export const ApiMethodOptionsSchema: GenMessage<ApiMethodOptions> = /*@__PURE__*/
+  messageDesc(file_xiaowei_server_common, 0);
 
 /**
  * Result without domain data; also the failure envelope for typed business responses.
@@ -34,6 +56,13 @@ export type BaseResponse = Message<"xiaowei.server.common.BaseResponse"> & {
    * @generated from field: string msg = 2;
    */
   msg: string;
+
+  /**
+   * Present and empty on success; omitted on failure. All callers use the same response schema.
+   *
+   * @generated from field: xiaowei.common.Empty data = 3;
+   */
+  data?: Empty | undefined;
 };
 
 /**
@@ -41,7 +70,7 @@ export type BaseResponse = Message<"xiaowei.server.common.BaseResponse"> & {
  * Use `create(BaseResponseSchema)` to create a new message.
  */
 export const BaseResponseSchema: GenMessage<BaseResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_server_common, 0);
+  messageDesc(file_xiaowei_server_common, 1);
 
 /**
  * Common error codes occupy 10000-10099; zero means success.
@@ -138,4 +167,10 @@ export const Health: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_xiaowei_server_common, 0);
+
+/**
+ * @generated from extension: xiaowei.server.common.ApiMethodOptions api = 50001;
+ */
+export const api: GenExtension<MethodOptions, ApiMethodOptions> = /*@__PURE__*/
+  extDesc(file_xiaowei_server_common, 0);
 

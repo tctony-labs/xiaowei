@@ -8,6 +8,7 @@ import {
   AccountStatus,
   AddServerRequestSchema,
   CancelAccountLoginRequestSchema,
+  CloudConnectionStatus,
   EmptySchema,
   SelectServerRequestSchema,
   WriteClipboardTextRequestSchema,
@@ -135,6 +136,15 @@ export function AccountSettingsSection({ services }: { services: Services }) {
         servers={snapshot.servers}
         server={snapshot.selectedServer}
         user={cardUser ? { uid: cardUser.userId } : undefined}
+        connectionStatus={
+          snapshot.cloudConnection === CloudConnectionStatus.CONNECTED
+            ? "connected"
+            : snapshot.cloudConnection === CloudConnectionStatus.CONNECTING
+              ? "connecting"
+              : snapshot.cloudConnection === CloudConnectionStatus.RECONNECTING
+                ? "reconnecting"
+                : "disconnected"
+        }
         busy={accountBusy || dialog !== undefined}
         onSelectServer={(serverAddress) => {
           void run(() => api.selectServer(create(SelectServerRequestSchema, { serverAddress })));

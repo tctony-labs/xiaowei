@@ -2,13 +2,19 @@
 
 本目录定义客户端与 Go 服务端之间的业务契约。生成与消费方式见 [契约工程](../../../README.md)，通用设计规则见 [业务契约](../README.md)。各业务的消息与专用错误枚举放在各自的 proto 中。
 
+## API 声明与传输
+
+对外 unary 方法默认要求 access session，提供认证 HTTP 和认证 WS。仅允许未登录调用的方法在 [common.proto](common.proto) 的 MethodOptions 扩展中声明 `(xiaowei.server.common.api).no_login = true`，此类方法仅提供 HTTP；该标记不免除密码、刷新凭据或业务参数校验。
+
+方法、Request、Response 和访问策略元信息只在 proto 维护。网络短标识、统一 POST 路径、网站契约复用与传输选择规则见 [xwapi](../../../../docs/xwapi.md#方法与登录要求)；新增方法须显式注册业务 handler，不因存在 descriptor 而自动发布。
+
 ## 响应约定
 
 响应中的 `int32 code` 表达处理结果，`code = 0` 表示当前请求步骤处理成功，非零表示失败；是否已建立登录态由具体结果分支决定。`msg` 提供安全的可读说明，客户端不解析文案来判断结果。
 
 业务响应采用平铺的 `{ code, msg, data }`：成功时明确输出 `code: 0`、`msg` 和有具体类型的 `data`；失败只返回 `{ code, msg }`，省略 `data`。无业务数据的成功响应使用 `data: {}`。公共错误和业务错误共用 `code`，不另设业务错误字段。
 
-Proto 不支持消息继承或泛型。各业务 response 分别声明 `code = 1`、`msg = 2` 和具体业务类型的 `data = 3`，不使用 Any，也不嵌套公共结果字段。公共 `BaseResponse` 只声明前两个字段，可用于无专用返回数据的方法；其失败 JSON 可直接按具体业务 response 解码。
+Proto 不支持消息继承或泛型。各业务 response 分别声明 `code = 1`、`msg = 2` 和具体业务类型的 `data = 3`，不使用 Any，也不嵌套公共结果字段。公共 `BaseResponse` 声明前两个字段和空消息 `data = 3`，可用于无专用返回数据的方法；其失败 JSON 可直接按具体业务 response 解码。
 
 说明字段统一命名为 `msg`，不使用 `message`；错误码统一放在 `code`，不另设 `error_code` 或 `business_code`。本目录定义消息及错误码语义，具体传输行为由接入实现负责。
 

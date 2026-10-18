@@ -14,7 +14,11 @@ const run = (cmd, args, cwd = root) => {
 
 try {
   run("node", ["--test", "contracts/ts/test/proto-selection.test.mjs"]);
-  run(tsx, ["--test", "contracts/ts/test/codec-process.test.ts"]);
+  run(tsx, [
+    "--test",
+    "contracts/ts/test/codec-process.test.ts",
+    "contracts/ts/test/server-api.test.ts",
+  ]);
   run("cargo", ["build", "--locked", "-p", "xw-contracts", "--example", "codec"]);
   run(
     "go",

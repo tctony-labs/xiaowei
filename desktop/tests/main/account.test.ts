@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { create, fromBinary, toJsonString } from "@bufbuild/protobuf";
+import { create, fromBinary, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
 import {
   Account,
   AccountChangedSchema,
@@ -77,7 +77,7 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   assert.equal(
     server.state.requests.find(
       (entry) =>
-        entry.path.endsWith("/login") &&
+        entry.path.endsWith("/Login") &&
         (entry.body.password as { password: string }).password === "  sample  ",
     )?.bearer,
     undefined,
@@ -138,6 +138,84 @@ test("Gateway login saves JSON credentials, omits the password and restores the 
   assert.deepEqual(reloaded.servers, [server.url, "https://xiaowei.tctony.com"]);
   assert.ok(events.includes(AccountStatus.SIGNING_IN));
   assert.ok(events.includes(AccountStatus.SIGNED_IN));
+});
+
+test("default WS Logout clears the account before queued connection revalidation", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-ws-logout-"));
+  const server = await authServer();
+  const path = join(directory, "auth.json");
+  let ready = false;
+  let revalidate = () => Promise.resolve();
+  let revalidation: Promise<void> | undefined;
+  const wsMethods: string[] = [];
+  const httpMethods: string[] = [];
+  // Bridge PB replies to the isolated auth fixture; the real socket lifecycle is tested separately.
+  const api = new XwapiService(
+    (url, options) => {
+      httpMethods.push(String(url).split("/").at(-1) ?? "");
+      return fetch(url, options);
+    },
+    Date.now,
+    {
+      canInvoke: () => ready,
+      async invoke(route, _payload, context) {
+        wsMethods.push(route.name);
+        const method =
+          route.name === "auth.Auth/Logout" ? Auth.method.logout : Auth.method.getCurrentUser;
+        const response = await fetch(`${server.url}/api/${route.name}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${context.session?.accessToken}`,
+          },
+          body: "{}",
+        });
+        const bytes = toBinary(method.output, fromJsonString(method.output, await response.text()));
+        if (method === Auth.method.logout) {
+          ready = false;
+          revalidation = revalidate();
+        }
+        return bytes;
+      },
+    },
+  );
+  const service = await openAccount(t, {
+    store: new AccountStore(path, await accountMeta(t, directory)),
+    deviceName: "test",
+    api,
+  });
+  revalidate = () => service.restore();
+  t.after(async () => {
+    await service.close();
+    await server.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.addServer(server.url);
+  assert.equal(
+    (
+      await service.login(
+        create(AccountLoginRequestSchema, {
+          serverAddress: server.url,
+          password: { email: "user@example.test", password: "  sample  " },
+          attemptId: randomUUID(),
+        }),
+      )
+    ).code,
+    0,
+  );
+  ready = true;
+  await service.restore();
+  assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
+  assert.equal((await service.logout()).code, 0);
+  assert.ok(revalidation);
+  await revalidation;
+  assert.deepEqual(wsMethods, ["auth.Auth/GetCurrentUser", "auth.Auth/Logout"]);
+  assert.equal(httpMethods.includes("Logout"), false);
+  assert.equal(server.state.logouts, 1);
+  assert.equal(server.state.revoked, true);
+  assert.equal(service.snapshot().user, undefined);
+  assert.equal(service.serverContext().session, undefined);
+  await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" });
 });
 
 test("offline retains the session; concurrent restore rotates once; revoked credentials clear", async (t) => {
@@ -209,7 +287,7 @@ test("switching servers discards cancelled login results; stale cancellation can
   const http = new XwapiService((url, options) =>
     fetch(url, {
       ...options,
-      signal: String(url).endsWith("/login") ? undefined : options?.signal,
+      signal: String(url).endsWith("/Login") ? undefined : options?.signal,
     }),
   );
   const host = new GatewayHost();
@@ -256,7 +334,9 @@ test("switching servers discards cancelled login results; stale cancellation can
     0,
     "a discarded response supplies no credentials for revocation",
   );
-  assert.ok(server.state.requests.every((entry) => entry.path.startsWith("/xiaowei/api/auth/")));
+  assert.ok(
+    server.state.requests.every((entry) => entry.path.startsWith("/xiaowei/api/auth.Auth/")),
+  );
   await api.selectServer(create(SelectServerRequestSchema, { serverAddress: server.url }));
   const newLogin = api.login(
     create(AccountLoginRequestSchema, {
@@ -275,7 +355,7 @@ test("redirect never forwards credentials", async (t) => {
 
   const otherServer = await authServer();
   t.after(() => otherServer.close());
-  server.state.redirectTo = `${otherServer.url}/api/auth/me`;
+  server.state.redirectTo = `${otherServer.url}/api/auth.Auth/GetCurrentUser`;
   const http = new XwapiService();
   await assert.rejects(
     http.getCurrentUser({
@@ -353,7 +433,7 @@ test("received login credentials are revoked through Gateway when saving fails, 
   }
   const publicAuth = bindClient(Auth, host.client({ caller: "public-auth", trusted: true }));
   const http = new XwapiService(async (url, options) => {
-    if (String(url).endsWith("/logout")) {
+    if (String(url).endsWith("/Logout")) {
       assert.equal(
         (await publicAuth.getCurrentUser(create(EmptySchema))).code,
         ErrorCode.UNAUTHENTICATED,

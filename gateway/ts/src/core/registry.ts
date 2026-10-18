@@ -1,6 +1,6 @@
 import { type Client, createClient } from "./client.js";
 import { authorize, type CallContext, caller, createContext, type Permissions } from "./context.js";
-import { type EventExport, Events } from "./event.js";
+import { type DeliveryLimits, type EventExport, Events } from "./event.js";
 import { ExecutionScope } from "./execution.js";
 import {
   accepts,
@@ -494,8 +494,9 @@ export class GatewayHost {
     filter: Uint8Array | undefined,
     sink: EventSink,
     persistent = false,
+    limits?: DeliveryLimits,
   ): Promise<Subscription> {
-    return this.events.subscribe(context, event, filter, sink, persistent);
+    return this.events.subscribe(context, event, filter, sink, persistent, limits);
   }
   cleanupCaller(id: string): void {
     for (const call of this.calls) {

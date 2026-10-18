@@ -1,6 +1,6 @@
 # 部署交付
 
-生产使用 CI 发布的镜像和部署包，不在服务器构建源码。当前支持邮箱密码登录、会话刷新／恢复／退出、首次管理员初始化；注册、SMTP、找回密码及 WebSocket 尚未实现，其完整交付验收由 [server-development](../../.agent/records/active/2026-10-11-server-development.md) 的后续切片跟进。
+生产使用 CI 发布的镜像和部署包，不在服务器构建源码。当前支持邮箱密码登录、会话刷新／恢复／退出、首次管理员初始化及认证 WebSocket；注册、SMTP及找回密码尚未实现，其完整交付验收由 [server-development](../../.agent/records/active/2026-10-11-server-development.md) 的后续切片跟进。
 
 ## 发布链路
 
@@ -113,7 +113,7 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 docker compose --project-name xiaowei --env-file config/.env --file compose.yaml ps
 ```
 
-`--wait` 依赖容器内 `/xiaowei-healthcheck`：探针要求 `/readyz` 同时返回 HTTP 200 与整数 code 0；数据库不可用时，即使 HTTP 200 也会返回非零退出码。探针不读取配置或凭据，不启动应用。未配置服务器 YAML、迁移失败或初始化失败时不会开放 HTTP。
+`--wait` 依赖容器内 `/xiaowei-healthcheck`：探针 POST 请求容器内部的 `/api/common.Health/Ready`，要求同时返回 HTTP 200 与整数 code 0；数据库不可用时，即使 HTTP 200 也会返回非零退出码。探针不读取配置或凭据，不启动应用。未配置服务器 YAML、迁移失败或初始化失败时不会开放 HTTP。
 
 管理员登录由用户验证。初始化后保留 config/.env 中两项 `XIAOWEI_BOOTSTRAP_ADMIN_*` 及“仅首次初始化使用”的注释，不自动删除或改写。数据库已有初始化标记时会跳过初始化，后续修改这些变量不会重置已有密码，变量值也不代表当前登录密码。具体事务和密码规则见 [首次管理员初始化](authentication.md#首次管理员初始化)。
 
@@ -133,7 +133,7 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 docker network inspect xiaowei_default --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}'
 ```
 
-Nginx 模板将 `/api/` 前缀和精确路径 `/healthz`、`/readyz` 原样转发给 Go，其余路径暂时返回空的 HTTP 200，作为前台页面接入前的占位。HTTP 入口仍重定向到 HTTPS。
+Nginx 模板将 `/api/` 下的统一 POST 接口及 WS 升级原样转发给 Go，其余路径暂时返回空的 HTTP 200，作为前台页面接入前的占位。HTTP 入口仍重定向到 HTTPS。
 
 Nginx 模板使用 `proxy_set_header X-Real-IP $remote_addr` 覆盖外部输入，服务端仅在 TCP 来源匹配配置时采用这个单 IP。X-Forwarded-For 不参与限流，不解析多级代理链。配置后重建 server，确认启动日志包含 `trusted reverse proxies configured`；没有代理时保持空列表。来源与限流规则见 [限流文档](rate-limiting.md#计数与来源)。
 
@@ -144,12 +144,13 @@ cp releases/<version>/nginx.example.conf /etc/nginx/sites-enabled/xiaowei.tctony
 cp releases/<version>/nginx.logrotate /etc/logrotate.d/xiaowei
 nginx -t
 systemctl reload nginx
-curl --fail --silent --show-error https://xiaowei.tctony.com/readyz
+curl --fail --silent --show-error -X POST -H 'Content-Type: application/json' \
+  -d '{}' https://xiaowei.tctony.com/api/common.Health/Ready
 ```
 
 常规应用升级复用现有 HTTPS 接入，只执行公网访问验证，不重复复制 Nginx 模板、签发证书或重载 Nginx。仅在域名、上游端口、代理规则或证书配置变化时，更新对应设置并检查、重载；证书续期沿用服务器既有机制。
 
-最后一项必须读取 JSON 的 code，curl 成功本身不证明就绪。Agent 默认只检查容器健康、公网路由、健康检查业务 code、初始化记录，以及数据库和 10001 没有公网暴露，不读取用户密码或执行生产登录。登录及容器重建后的会话恢复由用户验证；用户另行授权认证验收时才执行对应操作，并使用独立验收会话。健康检查通过不等于登录验收通过，等待用户确认期间明确保留待验收状态。正误密码、当前用户、刷新、退出等自动测试继续在 CI 隔离环境执行。反代不自动重放请求；当前不配置尚未实现的 WebSocket 转发。
+最后一项必须读取 JSON 的 code，curl 成功本身不证明就绪。Agent 默认只检查容器健康、公网路由、健康检查业务 code、初始化记录，以及数据库和 10001 没有公网暴露，不读取用户密码或执行生产登录。登录及容器重建后的会话恢复由用户验证；用户另行授权认证验收时才执行对应操作，并使用独立验收会话。健康检查通过不等于登录验收通过，等待用户确认期间明确保留待验收状态。正误密码、当前用户、刷新、退出等自动测试继续在 CI 隔离环境执行。反代不自动重放请求；Nginx 模板通过独立的 `/api/ws` location 转发 Upgrade／Connection 和可信代理头，关闭缓冲并使用 60 秒读写超时；客户端每 15 秒发起应用心跳。部署后还需验证真实 WSS 建连和 typed 调用，健康检查不能替代这项验收。
 
 ## 备份与恢复
 
@@ -199,7 +200,7 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 
 逐步检查退出码，任何失败都停止后续操作，保留回滚备份并排查；恢复成功后才启动旧 server，期间不开放业务接口。不能在恢复前把故障数据写入 latest.tar。普通升级不改变 PostgreSQL 主版本、数据库身份或凭据，恢复配置必须与仍运行的 db 对应。数据库恢复要求它独占该应用的数据库，不能对共享业务数据库执行上述命令。验收后删除 upgrade-pending 和本次临时恢复目录。
 
-恢复后验证用户、设备和会话，确认 /readyz 的 code 0；备份内未失效的会话也随数据库恢复。恢复演练使用隔离数据库，不在生产库做破坏性演练。若新版本已接受业务写入，恢复会丢失备份后的数据，必须先说明具体影响并取得确认。
+恢复后验证用户、设备和会话，确认 /api/common.Health/Ready 的 code 0；备份内未失效的会话也随数据库恢复。恢复演练使用隔离数据库，不在生产库做破坏性演练。若新版本已接受业务写入，恢复会丢失备份后的数据，必须先说明具体影响并取得确认。
 
 ## 升级与回滚
 
@@ -247,4 +248,4 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 
 邀请签发仍计划使用 `xiaowei-server invite`，不提供公开 HTTP 签发接口。实现后通过同一生产 Compose 的 `exec -T server /xiaowei-server invite --config /etc/xiaowei/server.yaml ...` 在运行容器内启动独立进程，使用容器网络、环境变量和配置，完成后退出；不会替换 HTTP 主进程。
 
-Compose 的 `--env-file` 用于 Compose 配置解析，不等同于二进制 `--config`；exec 也不自动继承 server 的启动参数。普通邀请码不授予管理角色。本命令和真实 SMTP／邀请注册／WSS 的验收依赖未完成切片，不属于当前已可运行功能。
+Compose 的 `--env-file` 用于 Compose 配置解析，不等同于二进制 `--config`；exec 也不自动继承 server 的启动参数。普通邀请码不授予管理角色。本命令与真实 SMTP／邀请注册验收依赖未完成切片；认证 WSS 的当前行为见 [WebSocket 接入](websocket.md)。

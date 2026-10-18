@@ -1,77 +1,78 @@
 package httpapi
 
 import (
-	"context"
-	"encoding/json"
+	"math"
 	"net/http"
-	"time"
+	"strconv"
 
 	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
-	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 )
 
-func NewHandler(checkDatabase func(context.Context) error, authService *auth.Service,
-	serverLimits config.ServerRateLimit, authLimits config.AuthRateLimit,
+func NewHandler(api *API, serverLimits config.ServerRateLimit,
+	connections ...*ConnectionHub,
 ) http.Handler {
-	api := &authAPI{service: authService, limiter: newLimiter(), limits: authLimits}
 	globalLimiter := newLimiter()
-	routes := map[string]struct {
-		method string
-		handle http.HandlerFunc
-		health bool
-	}{
-		"/healthz": {http.MethodGet, func(w http.ResponseWriter, r *http.Request) {
-			writeHealth(w)
-		}, true},
-		"/readyz": {http.MethodGet, func(w http.ResponseWriter, r *http.Request) {
-			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-			defer cancel()
-			if err := checkDatabase(ctx); err != nil {
-				writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), "服务暂不可用")
-				return
-			}
-			writeHealth(w)
-		}, true},
-		"/api/auth/login":   {http.MethodPost, api.login, false},
-		"/api/auth/refresh": {http.MethodPost, api.refresh, false},
-		"/api/auth/me":      {http.MethodGet, api.me, false},
-		"/api/auth/logout":  {http.MethodPost, api.logout, false},
-	}
 	return withRequestLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route, exists := routes[r.URL.Path]
-		health := exists && route.health && r.Method == route.method
-		if !health && !globalLimiter.check(w, quota{
+		entry := api.methods[r.URL.Path]
+		if entry != nil {
+			if tracked, ok := w.(*responseWriter); ok {
+				tracked.apiMethod = string(entry.method.FullName())
+			}
+		}
+		probe := entry != nil && entry.probe && r.Method == http.MethodPost
+		if !probe && !globalLimiter.check(w, quota{
 			key: sourceIP(r), limit: serverLimits.IP.Limit, window: serverLimits.IP.Window,
 		}) {
 			return
 		}
-		if !exists {
+		if r.URL.Path == "/api/ws" && len(connections) > 0 {
+			if r.Method != http.MethodGet {
+				writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST),
+					"不支持此请求方法")
+				return
+			}
+			connections[0].ServeHTTP(w, r)
+			return
+		}
+		if entry == nil {
 			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_NOT_FOUND), "接口不存在")
 			return
 		}
-		if r.Method != route.method {
-			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST), "不支持此请求方法")
+		if r.Method != http.MethodPost {
+			writeProtocolError(w, int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST),
+				"不支持此请求方法")
 			return
 		}
-		route.handle(w, r)
-	}), func(r *http.Request) string {
-		_, exists := routes[r.URL.Path]
-		if !exists {
-			return "[unmatched]"
+		call := apiCall{ip: sourceIP(r)}
+		if entry.before != nil {
+			if failure := entry.before(call); failure != nil {
+				writeAuthError(w, string(entry.method.FullName()), failure)
+				return
+			}
 		}
-		// Supply matched route metadata before logging; never echo unknown paths.
-		return r.URL.Path
+		input := entry.input.New().Interface()
+		if !readAPIRequest(w, r, input, entry.method.Input().Fields().Len() == 0) {
+			return
+		}
+		if entry.requiresSession {
+			identity, err := api.auth.authenticate(r)
+			if err != nil {
+				writeAuthError(w, string(entry.method.FullName()), err)
+				return
+			}
+			call.identity = identity
+		}
+		response, failure := entry.invoke(r.Context(), input, call)
+		if failure != nil && failure.retry != 0 {
+			seconds := int64(math.Ceil(failure.retry.Seconds()))
+			w.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
+		}
+		writeAPIJSON(w, response)
+	}), func(r *http.Request) string {
+		if api.methods[r.URL.Path] != nil || (r.URL.Path == "/api/ws" && len(connections) > 0) {
+			return r.URL.Path
+		}
+		return "[unmatched]"
 	})
-}
-
-func writeHealth(w http.ResponseWriter) {
-	recordResponseCode(w, 0)
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(struct {
-		Code int32             `json:"code"`
-		Msg  string            `json:"msg"`
-		Data map[string]string `json:"data"`
-	}{Msg: "成功", Data: map[string]string{"status": "ok"}})
 }

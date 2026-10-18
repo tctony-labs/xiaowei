@@ -6,19 +6,20 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 func main() {
 	client := &http.Client{Timeout: 2 * time.Second}
-	if err := checkReadiness(client, "http://127.0.0.1:10001/readyz"); err != nil {
+	if err := checkReadiness(client, "http://127.0.0.1:10001/api/common.Health/Ready"); err != nil {
 		_, _ = io.WriteString(os.Stderr, "server is not ready\n")
 		os.Exit(1)
 	}
 }
 
 func checkReadiness(client *http.Client, address string) error {
-	response, err := client.Get(address)
+	response, err := client.Post(address, "application/json", strings.NewReader("{}"))
 	if err != nil {
 		return errors.New("readiness request failed")
 	}

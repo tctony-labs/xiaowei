@@ -10,6 +10,7 @@ import (
 	xiaowei "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -96,6 +97,52 @@ func (ErrorCode) EnumDescriptor() ([]byte, []int) {
 	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{0}
 }
 
+type ApiMethodOptions struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False or omitted requires an access session: authenticated HTTP and WebSocket.
+	// True allows calls without a session, over HTTP only. Credentials may still be required.
+	NoLogin       bool `protobuf:"varint,1,opt,name=no_login,json=noLogin,proto3" json:"no_login,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApiMethodOptions) Reset() {
+	*x = ApiMethodOptions{}
+	mi := &file_xiaowei_server_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApiMethodOptions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApiMethodOptions) ProtoMessage() {}
+
+func (x *ApiMethodOptions) ProtoReflect() protoreflect.Message {
+	mi := &file_xiaowei_server_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApiMethodOptions.ProtoReflect.Descriptor instead.
+func (*ApiMethodOptions) Descriptor() ([]byte, []int) {
+	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ApiMethodOptions) GetNoLogin() bool {
+	if x != nil {
+		return x.NoLogin
+	}
+	return false
+}
+
 // Result without domain data; also the failure envelope for typed business responses.
 type BaseResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -103,14 +150,16 @@ type BaseResponse struct {
 	// Zero on success, nonzero on failure; transport success alone does not mean business success.
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Safe human-readable description. Clients must not parse this to classify errors.
-	Msg           string `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Msg string `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	// Present and empty on success; omitted on failure. All callers use the same response schema.
+	Data          *xiaowei.Empty `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BaseResponse) Reset() {
 	*x = BaseResponse{}
-	mi := &file_xiaowei_server_common_proto_msgTypes[0]
+	mi := &file_xiaowei_server_common_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +171,7 @@ func (x *BaseResponse) String() string {
 func (*BaseResponse) ProtoMessage() {}
 
 func (x *BaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xiaowei_server_common_proto_msgTypes[0]
+	mi := &file_xiaowei_server_common_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +184,7 @@ func (x *BaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BaseResponse.ProtoReflect.Descriptor instead.
 func (*BaseResponse) Descriptor() ([]byte, []int) {
-	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{0}
+	return file_xiaowei_server_common_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *BaseResponse) GetCode() int32 {
@@ -152,14 +201,41 @@ func (x *BaseResponse) GetMsg() string {
 	return ""
 }
 
+func (x *BaseResponse) GetData() *xiaowei.Empty {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+var file_xiaowei_server_common_proto_extTypes = []protoimpl.ExtensionInfo{
+	{
+		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
+		ExtensionType: (*ApiMethodOptions)(nil),
+		Field:         50001,
+		Name:          "xiaowei.server.common.api",
+		Tag:           "bytes,50001,opt,name=api",
+		Filename:      "xiaowei/server/common.proto",
+	},
+}
+
+// Extension fields to descriptorpb.MethodOptions.
+var (
+	// optional xiaowei.server.common.ApiMethodOptions api = 50001;
+	E_Api = &file_xiaowei_server_common_proto_extTypes[0]
+)
+
 var File_xiaowei_server_common_proto protoreflect.FileDescriptor
 
 const file_xiaowei_server_common_proto_rawDesc = "" +
 	"\n" +
-	"\x1bxiaowei/server/common.proto\x12\x15xiaowei.server.common\x1a\x14xiaowei/common.proto\"4\n" +
+	"\x1bxiaowei/server/common.proto\x12\x15xiaowei.server.common\x1a google/protobuf/descriptor.proto\x1a\x14xiaowei/common.proto\"-\n" +
+	"\x10ApiMethodOptions\x12\x19\n" +
+	"\bno_login\x18\x01 \x01(\bR\anoLogin\"_\n" +
 	"\fBaseResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
-	"\x03msg\x18\x02 \x01(\tR\x03msg*\xeb\x02\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x04data\x18\x03 \x01(\v2\x15.xiaowei.common.EmptyR\x04data*\xeb\x02\n" +
 	"\tErrorCode\x12\x16\n" +
 	"\x12ERROR_CODE_SUCCESS\x10\x00\x12\x1f\n" +
 	"\x1aERROR_CODE_INVALID_REQUEST\x10\x90N\x12 \n" +
@@ -171,10 +247,11 @@ const file_xiaowei_server_common_proto_rawDesc = "" +
 	"!ERROR_CODE_UNSUPPORTED_MEDIA_TYPE\x10\x96N\x12\x1c\n" +
 	"\x17ERROR_CODE_RATE_LIMITED\x10\x97N\x12\x1b\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x98N\x12\x1e\n" +
-	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99N2\x92\x01\n" +
-	"\x06Health\x12C\n" +
-	"\x05Check\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponse\x12C\n" +
-	"\x05Ready\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponseb\x06proto3"
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99N2\xa2\x01\n" +
+	"\x06Health\x12K\n" +
+	"\x05Check\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12K\n" +
+	"\x05Ready\x12\x15.xiaowei.common.Empty\x1a#.xiaowei.server.common.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01:[\n" +
+	"\x03api\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\v2'.xiaowei.server.common.ApiMethodOptionsR\x03apib\x06proto3"
 
 var (
 	file_xiaowei_server_common_proto_rawDescOnce sync.Once
@@ -189,22 +266,27 @@ func file_xiaowei_server_common_proto_rawDescGZIP() []byte {
 }
 
 var file_xiaowei_server_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_xiaowei_server_common_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_xiaowei_server_common_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_xiaowei_server_common_proto_goTypes = []any{
-	(ErrorCode)(0),        // 0: xiaowei.server.common.ErrorCode
-	(*BaseResponse)(nil),  // 1: xiaowei.server.common.BaseResponse
-	(*xiaowei.Empty)(nil), // 2: xiaowei.common.Empty
+	(ErrorCode)(0),                     // 0: xiaowei.server.common.ErrorCode
+	(*ApiMethodOptions)(nil),           // 1: xiaowei.server.common.ApiMethodOptions
+	(*BaseResponse)(nil),               // 2: xiaowei.server.common.BaseResponse
+	(*xiaowei.Empty)(nil),              // 3: xiaowei.common.Empty
+	(*descriptorpb.MethodOptions)(nil), // 4: google.protobuf.MethodOptions
 }
 var file_xiaowei_server_common_proto_depIdxs = []int32{
-	2, // 0: xiaowei.server.common.Health.Check:input_type -> xiaowei.common.Empty
-	2, // 1: xiaowei.server.common.Health.Ready:input_type -> xiaowei.common.Empty
-	1, // 2: xiaowei.server.common.Health.Check:output_type -> xiaowei.server.common.BaseResponse
-	1, // 3: xiaowei.server.common.Health.Ready:output_type -> xiaowei.server.common.BaseResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	3, // 0: xiaowei.server.common.BaseResponse.data:type_name -> xiaowei.common.Empty
+	4, // 1: xiaowei.server.common.api:extendee -> google.protobuf.MethodOptions
+	1, // 2: xiaowei.server.common.api:type_name -> xiaowei.server.common.ApiMethodOptions
+	3, // 3: xiaowei.server.common.Health.Check:input_type -> xiaowei.common.Empty
+	3, // 4: xiaowei.server.common.Health.Ready:input_type -> xiaowei.common.Empty
+	2, // 5: xiaowei.server.common.Health.Check:output_type -> xiaowei.server.common.BaseResponse
+	2, // 6: xiaowei.server.common.Health.Ready:output_type -> xiaowei.server.common.BaseResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	2, // [2:3] is the sub-list for extension type_name
+	1, // [1:2] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_xiaowei_server_common_proto_init() }
@@ -218,14 +300,15 @@ func file_xiaowei_server_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xiaowei_server_common_proto_rawDesc), len(file_xiaowei_server_common_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
-			NumExtensions: 0,
+			NumMessages:   2,
+			NumExtensions: 1,
 			NumServices:   1,
 		},
 		GoTypes:           file_xiaowei_server_common_proto_goTypes,
 		DependencyIndexes: file_xiaowei_server_common_proto_depIdxs,
 		EnumInfos:         file_xiaowei_server_common_proto_enumTypes,
 		MessageInfos:      file_xiaowei_server_common_proto_msgTypes,
+		ExtensionInfos:    file_xiaowei_server_common_proto_extTypes,
 	}.Build()
 	File_xiaowei_server_common_proto = out.File
 	file_xiaowei_server_common_proto_goTypes = nil

@@ -82,16 +82,24 @@ func TestRequestLoggingRoutesAndFailures(t *testing.T) {
 		code                                     int32
 		readiness                                func(context.Context) error
 	}{
-		{"health", "GET", "/healthz?foo=private-query", "", "/healthz", "INFO", 0, nil},
-		{"ready", "GET", "/readyz", "", "/readyz", "INFO", 0, nil},
-		{"wrong method", "POST", "/healthz", "", "/healthz", "WARN", 10000, nil},
+		{"health", "POST", "/api/common.Health/Check?foo=private-query",
+			"", "/api/common.Health/Check", "INFO", 0, nil},
+		{"ready", "POST", "/api/common.Health/Ready",
+			"", "/api/common.Health/Ready", "INFO", 0, nil},
+		{"wrong method", "GET", "/api/common.Health/Check",
+			"", "/api/common.Health/Check", "WARN", 10000, nil},
 		{"missing", "GET", "/private-path?foo=private-query", "", "[unmatched]", "WARN", 10004, nil},
-		{"decode", "POST", "/api/auth/login", `{"foo":"private-body"}`, "/api/auth/login", "WARN", 10000, nil},
-		{"argument", "POST", "/api/auth/login", `{}`, "/api/auth/login", "WARN", 10001, nil},
-		{"unauthenticated", "GET", "/api/auth/me", "", "/api/auth/me", "WARN", 10002, nil},
-		{"unavailable", "GET", "/readyz", "", "/readyz", "ERROR", 10008,
+		{"decode", "POST", "/api/auth.Auth/Login",
+			`{"foo":"private-body"}`, "/api/auth.Auth/Login", "WARN", 10000, nil},
+		{"argument", "POST", "/api/auth.Auth/Login",
+			`{}`, "/api/auth.Auth/Login", "WARN", 10001, nil},
+		{"unauthenticated", "POST", "/api/auth.Auth/GetCurrentUser",
+			"", "/api/auth.Auth/GetCurrentUser", "WARN", 10002, nil},
+		{"unavailable", "POST", "/api/common.Health/Ready",
+			"", "/api/common.Health/Ready", "ERROR", 10008,
 			func(context.Context) error { return errors.New("private-db-password") }},
-		{"panic", "GET", "/readyz", "", "/readyz", "ERROR", 10009,
+		{"panic", "POST", "/api/common.Health/Ready",
+			"", "/api/common.Health/Ready", "ERROR", 10009,
 			func(context.Context) error { panic("private-panic-value") }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -100,7 +108,10 @@ func TestRequestLoggingRoutesAndFailures(t *testing.T) {
 			if check == nil {
 				check = func(context.Context) error { return nil }
 			}
-			handler := NewHandler(check, nil, config.DefaultServerRateLimit(), config.DefaultAuthRateLimit())
+			api := NewAPI(
+				check, nil, config.DefaultAuthRateLimit(),
+			)
+			handler := NewHandler(api, config.DefaultServerRateLimit())
 			r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			r.Header.Set("Authorization", "Basic private-access")
 			r.Header.Set("Cookie", "foo=private-cookie")
@@ -130,13 +141,17 @@ func TestRequestLoggingRateLimit(t *testing.T) {
 	logs := captureRequestLogs(t)
 	limits := config.DefaultServerRateLimit()
 	limits.IP.Limit = 1
-	handler := NewHandler(func(context.Context) error { return nil }, nil, limits, config.DefaultAuthRateLimit())
+	api := NewAPI(
+		func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit(),
+	)
+	handler := NewHandler(api, limits)
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/missing", nil))
 	logs.Reset()
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/auth/login", strings.NewReader("{}")))
+	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/auth.Auth/Login",
+		strings.NewReader("{}")))
 	entry := requestSummary(t, logs)
-	if entry["level"] != "WARN" || entry["code"] != float64(10007) || entry["path"] != "/api/auth/login" ||
+	if entry["level"] != "WARN" || entry["code"] != float64(10007) || entry["path"] != "/api/auth.Auth/Login" ||
 		response.Header().Get("Retry-After") == "" || strings.Contains(logs.String(), "HTTP request rate limited") {
 		t.Fatal("rate limit did not produce a single warning summary")
 	}

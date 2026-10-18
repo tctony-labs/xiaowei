@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -15,7 +16,7 @@ func TestReadinessRequiresHTTPAndBusinessSuccess(t *testing.T) {
 		body   string
 		ready  bool
 	}{
-		{"ready", 200, `{"code":0,"msg":"成功","data":{"status":"ok"}}`, true},
+		{"ready", 200, `{"code":0,"msg":"成功","data":{}}`, true},
 		{"database unavailable", 200, `{"code":10005,"msg":"unavailable"}`, false},
 		{"missing code", 200, `{}`, false},
 		{"null code", 200, `{"code":null}`, false},
@@ -25,11 +26,18 @@ func TestReadinessRequiresHTTPAndBusinessSuccess(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil || r.Method != "POST" || r.URL.Path != "/api/common.Health/Ready" ||
+					r.Header.Get("Content-Type") != "application/json" ||
+					strings.TrimSpace(string(body)) != "{}" {
+					t.Error("readiness did not use the canonical POST API")
+				}
 				w.WriteHeader(tc.status)
 				_, _ = io.WriteString(w, tc.body)
 			}))
 			defer server.Close()
-			if err := checkReadiness(server.Client(), server.URL); (err == nil) != tc.ready {
+			err := checkReadiness(server.Client(), server.URL+"/api/common.Health/Ready")
+			if (err == nil) != tc.ready {
 				t.Fatalf("readiness = %v, want %v", err == nil, tc.ready)
 			}
 		})

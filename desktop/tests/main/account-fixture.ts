@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { join } from "node:path";
@@ -64,6 +65,8 @@ export async function authServer() {
     let bodyText = "";
     for await (const chunk of request) bodyText += chunk;
     const body = bodyText ? JSON.parse(bodyText) : {};
+    assert.equal(request.method, "POST");
+    assert.equal(request.headers["content-type"], "application/json");
     const bearer = request.headers.authorization;
     state.requests.push({ path, bearer, body });
     if (state.redirectTo) {
@@ -86,17 +89,20 @@ export async function authServer() {
       response.end(JSON.stringify({ code, msg }));
     };
 
-    if (path === "/xiaowei/healthz" || path === "/xiaowei/readyz") {
+    if (
+      path === "/xiaowei/api/common.Health/Check" ||
+      path === "/xiaowei/api/common.Health/Ready"
+    ) {
       if (state.healthResponse !== undefined) {
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(state.healthResponse);
-      } else if (path.endsWith("/readyz") && !state.ready) {
+      } else if (path.endsWith("/api/common.Health/Ready") && !state.ready) {
         fail(10008, "数据库暂不可用");
       } else {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ code: 0, msg: "成功", data: { status: "ok" } }));
+        response.end(JSON.stringify({ code: 0, msg: "成功", data: {} }));
       }
-    } else if (path === "/xiaowei/api/auth/login") {
+    } else if (path === "/xiaowei/api/auth.Auth/Login") {
       await state.beforeLogin?.();
       const password = body.password as { email?: string; password?: string } | undefined;
       if (password?.email !== user.email || password.password !== "  sample  ") {
@@ -125,7 +131,7 @@ export async function authServer() {
           },
         }),
       );
-    } else if (path === "/xiaowei/api/auth/refresh") {
+    } else if (path === "/xiaowei/api/auth.Auth/Refresh") {
       state.refreshes++;
       if (state.revoked || body.refresh_token !== state.tokens.refreshToken) {
         fail(10002, "登录已失效");
@@ -133,12 +139,15 @@ export async function authServer() {
       }
       rotate();
       send(RefreshResponseSchema, create(RefreshResponseSchema, { msg: "ok", data: state.tokens }));
-    } else if (path === "/xiaowei/api/auth/me" || path === "/xiaowei/api/auth/logout") {
+    } else if (
+      path === "/xiaowei/api/auth.Auth/GetCurrentUser" ||
+      path === "/xiaowei/api/auth.Auth/Logout"
+    ) {
       if (state.revoked || !access.has(bearer?.replace(/^Bearer /, "") ?? "")) {
         fail(10002, "登录已失效");
         return;
       }
-      if (path.endsWith("/me")) {
+      if (path.endsWith("/GetCurrentUser")) {
         send(
           GetCurrentUserResponseSchema,
           create(GetCurrentUserResponseSchema, {

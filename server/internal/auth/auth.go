@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -28,10 +29,13 @@ type Options struct {
 }
 
 type Service struct {
-	store         *db.Store
-	options       Options
-	dummyHash     string
-	passwordSlots chan struct{}
+	store              *db.Store
+	options            Options
+	dummyHash          string
+	passwordSlots      chan struct{}
+	connectionsMu      sync.Mutex
+	connectionSequence uint64
+	connections        map[uint64]func(SessionChange)
 }
 
 type Tokens struct {
@@ -121,6 +125,7 @@ func (s *Service) Login(ctx context.Context, email, password, deviceID, deviceNa
 	if err := s.store.CreateSession(ctx, identity.User.ID, tokens.SessionID, device, hashes, now); err != nil {
 		return LoginResult{}, unavailable(err)
 	}
+	s.sessionChanged(SessionChange{UserID: identity.User.PublicID, DeviceID: device.ID, KeepSessionID: tokens.SessionID})
 	return LoginResult{
 		Identity: db.SessionUser{
 			User: identity.User, Email: identity.Email, SessionID: tokens.SessionID,
@@ -206,5 +211,6 @@ func (s *Service) Logout(ctx context.Context, identity db.SessionUser) error {
 	if err != nil {
 		return unavailable(err)
 	}
+	s.deliverSessionChange(ctx, SessionChange{SessionID: identity.SessionID})
 	return nil
 }
