@@ -31,7 +31,7 @@ const outputs = [
 
 const cleanups = workspaces.map((root) => ({
   root,
-  paths: [...outputs, ...globSync("crates/*/napi/*.node", { cwd: root })]
+  paths: [...outputs, ...globSync("crates/*/napi/*.node{,.dSYM}", { cwd: root })]
     .map((output) => join(root, output))
     .filter(existsSync),
 }));

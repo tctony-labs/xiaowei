@@ -29,6 +29,7 @@ desktop/storybook-static/
 
 # Native build outputs
 crates/*/napi/*.node
+crates/*/napi/*.dSYM/
 crates/*/.napi.napi-stage-*/
 crates/*/napi/.*.retired.tmp.*
 

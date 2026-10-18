@@ -147,7 +147,7 @@ test(
       staples.map((call) => call[3]),
       [result.dmg, result.app],
     );
-    assert.deepEqual(calls.at(-1), [
+    assert.deepEqual(calls.at(-2), [
       "ditto",
       "-c",
       "-k",
@@ -156,6 +156,8 @@ test(
       result.app,
       result.archive,
     ]);
+    assert.match(calls.at(-1)[1], /\/debug-symbols\.mjs$/);
+    assert.equal(calls.at(-1)[2], result.app);
   },
 );
 
@@ -185,7 +187,8 @@ test(
     }
     assert.equal(calls.filter((call) => call[1] === "notarytool").length, 1);
     assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 2);
-    assert.equal(calls.at(-1)[0], "ditto");
+    assert.equal(calls.at(-2)[0], "ditto");
+    assert.match(calls.at(-1)[1], /\/debug-symbols\.mjs$/);
   },
 );
 

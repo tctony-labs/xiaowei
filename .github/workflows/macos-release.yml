@@ -142,6 +142,7 @@ jobs:
           path: |
             desktop/dist/XiaoWei-*-arm64.dmg
             desktop/dist/XiaoWei-*-arm64.zip
+            desktop/dist/XiaoWei-*-arm64-debug-symbols.zip
             desktop/dist/appcast.xml
           if-no-files-found: error
 
@@ -151,4 +152,5 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" --verify-tag --latest --generate-notes \
             --title "XiaoWei $RELEASE_TAG" \
-            desktop/dist/XiaoWei-*-arm64.dmg desktop/dist/XiaoWei-*-arm64.zip desktop/dist/appcast.xml
+            desktop/dist/XiaoWei-*-arm64.dmg desktop/dist/XiaoWei-*-arm64.zip \
+            desktop/dist/XiaoWei-*-arm64-debug-symbols.zip desktop/dist/appcast.xml

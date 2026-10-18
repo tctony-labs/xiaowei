@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { builtinModules } from "node:module";
+import { builtinModules, SourceMap } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolveConfig } from "electron-vite";
@@ -53,7 +53,15 @@ test("desktop release minifies and bundles source; development keeps readable ou
     ]);
     const emitted = new Set(outputs.map((entry) => entry.fileName));
     for (const chunk of chunks) {
-      assert.equal(chunk.map, null, `${target}: unexpected source map`);
+      assert.ok(chunk.map, `${target}: missing source map for ${chunk.fileName}`);
+      assert.ok(emitted.has(`${chunk.fileName}.map`), `${target}: source map must be emitted`);
+      if (chunk.map.sources.length) {
+        const sourceMap = new SourceMap(chunk.map);
+        const mappedLine = chunk.map.mappings.split(";").findIndex(Boolean);
+        const original = sourceMap.findEntry(mappedLine, 1_000_000);
+        assert.ok(original.originalSource, `${target}: source map must resolve code locations`);
+      }
+      assert.equal(chunk.map.sourcesContent.length, chunk.map.sources.length);
       assert.ok(
         !/sourceMappingURL=/.test(chunk.code),
         `${target}: unexpected source map reference`,
@@ -66,7 +74,7 @@ test("desktop release minifies and bundles source; development keeps readable ou
       }
     }
 
-    assert.ok(!outputs.some((entry) => entry.fileName.endsWith(".map")));
+    assert.ok(outputs.some((entry) => entry.fileName.endsWith(".map")));
     const modules = outputs
       .filter((entry) => entry.type === "chunk")
       .flatMap((entry) => Object.keys(entry.modules));
@@ -102,6 +110,9 @@ test("desktop release minifies and bundles source; development keeps readable ou
   const { config: development } = await resolveConfig({}, "serve", "development");
   assert.equal(development.main.build.minify, false);
   assert.equal(development.preload.build.minify, false);
+  for (const target of ["main", "preload", "renderer"]) {
+    assert.equal(development[target].build.sourcemap, false);
+  }
 
   const configWithSource = await storybook.viteFinal({});
   assert.ok(configWithSource.resolve.conditions.includes("source"));

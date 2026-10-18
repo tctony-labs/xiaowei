@@ -11,7 +11,7 @@ export default defineConfig(({ command }) => ({
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
-      sourcemap: false,
+      sourcemap: command === "build" ? "hidden" : false,
       minify: command === "build" ? "esbuild" : false,
       externalizeDeps: false,
       rollupOptions: {
@@ -31,14 +31,14 @@ export default defineConfig(({ command }) => ({
     ssr: { resolve: { conditions: ["source", ...defaultServerConditions] } },
     plugins: [sourceLocationPlugin()],
     build: {
-      sourcemap: false,
+      sourcemap: command === "build" ? "hidden" : false,
       minify: command === "build" ? "esbuild" : false,
       externalizeDeps: false,
       rollupOptions: { output: { format: "cjs", entryFileNames: "index.cjs" } },
     },
   },
   renderer: {
-    build: { sourcemap: false },
+    build: { sourcemap: command === "build" ? "hidden" : false },
     resolve: { conditions: ["source", ...defaultClientConditions] },
     plugins: [
       sourceLocationPlugin(),

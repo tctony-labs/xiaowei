@@ -36,6 +36,7 @@ export async function testPrebuilt({
       "scripts/tests/package-content.test.mjs",
       "scripts/tests/macos-release.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
+      "scripts/tests/debug-symbols.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",
     ]);
     await fixtures(

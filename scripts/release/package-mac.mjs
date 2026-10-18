@@ -136,6 +136,9 @@ export function packageMac({
 
   // Directory-only packaging has no DMG; submit the app once via a temporary ZIP.
   if (directoryOnly && signed) notarizeApp(app);
+  if (!localTest && (steps.includes("zip") || directoryOnly)) {
+    run(process.execPath, [fileURLToPath(new URL("./debug-symbols.mjs", import.meta.url)), app]);
+  }
   return { app, version, output, archive, dmg };
 }
 

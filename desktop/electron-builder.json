@@ -4,7 +4,7 @@
   "directories": {
     "output": "dist"
   },
-  "files": ["out/**/*"],
+  "files": ["out/**/*", "!out/**/*.map"],
   "extraResources": [{ "from": "resources/logo-sizes", "to": "logo-sizes" }],
   "mac": {
     "category": "public.app-category.productivity",

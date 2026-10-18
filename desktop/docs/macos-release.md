@@ -12,9 +12,9 @@ main、LLM worker、preload 和 renderer 的纯 JS／TS（含工作区包与第�
 
 非 JS 资源须明确声明文件和用途。应用图标沿用 `extraResources`，Sparkle framework 和 LICENSE 沿用 `extraFiles`／`extraResources`；后续依赖若需运行时读取资源，应单独接入具体文件，不能恢复整个依赖目录复制。
 
-`build` 命令对 main（含 LLM worker）和 preload 显式启用 `minify: "esbuild"`，renderer 沿用 Vite 的生产压缩默认值；`serve` 开发构建不压缩 main／preload。使用常规空白、标识符和表达式压缩，不接入混淆或字节码工具。既有日志源码位置注入保留，异常栈按压缩产物显示。
+`build` 命令对 main（含 LLM worker）和 preload 显式启用 `minify: "esbuild"`，renderer 沿用 Vite 的生产压缩默认值；`serve` 开发构建不压缩 main／preload。使用常规空白、标识符和表达式压缩，不接入混淆或字节码工具。既有日志源码位置注入保留，运行时异常栈按压缩产物显示，事后通过独立归档的 source map 还原源码位置。
 
-main／preload／renderer 显式设置 `build.sourcemap: false`。构建回归检查无 map 输出或引用，最终分发检查同时拒绝 `.map` 和 inline map 引用，不依赖打包后删除。native 类型声明及 Rust／Cargo 源码不在输入清单中；生成的 JS 加载器保留。
+main／preload／renderer 正式构建设置 `build.sourcemap: "hidden"`，同时生成 JS 与独立 `.map`，不向 JS 写入 `sourceMappingURL`；开发构建保持 `false`。打包输入显式排除 `out/**/*.map`，构建回归检查映射可用且无引用，最终分发检查继续拒绝 `.map` 和 inline map 引用，不依赖打包后删除。native 类型声明及 Rust／Cargo 源码不在输入清单中；生成的 JS 加载器保留。
 
 每次 macOS 打包及独立发布阶段都会执行 `scripts/release/verify-package-content.mjs`，检查实际 ASAR、应用依赖声明、必需入口及 `app.asar.unpacked`。多余运行包、原始源码、声明、source map、其他架构二进制或缺失必需文件会阻止后续发布；签名、元数据、arm64 与两个 addon 的加载检查继续由既有打包入口执行。
 
@@ -51,10 +51,11 @@ pnpm --dir desktop package:mac
 - `desktop/dist/mac-arm64/XiaoWei.app`
 - `desktop/dist/XiaoWei-<version>-arm64.dmg`
 - `desktop/dist/XiaoWei-<version>-arm64.zip`
+- `desktop/dist/XiaoWei-<version>-arm64-debug-symbols.zip`
 
-macOS 的原生 `build --release` 在 napi 构建成功后执行 `xcrun strip -x`，移除本地符号并记录前后字节数；裁剪失败会阻止后续发布。裁剪发生在原生测试、ASAR 完整性元数据生成和代码签名前，CI 与本地打包共用此入口；`build:debug` 保留符号。`packageMac({ build: false })` 复用已经完成裁剪并经过测试的 release 产物，不重复处理。
+macOS 的原生 `build --release` 为此次 Cargo 构建设置 `debug=2`、`split-debuginfo=unpacked` 和 `strip=none`，保留 release 优化与调试信息。napi 构建成功后，先对每个 `.node` 执行 `xcrun dsymutil`，在旁边生成 `.node.dSYM` 并核对架构和 UUID，再执行 `xcrun strip -x`，复核 UUID 并记录裁剪前后字节数。生成、匹配或裁剪失败均阻止后续发布。裁剪发生在原生测试、ASAR 完整性元数据生成和代码签名前，CI 与本地打包共用此入口；`build:debug` 保持原有行为。`packageMac({ build: false })` 复用已经完成这些步骤并经过测试的 release 产物，不重复处理。
 
-默认采用 ad-hoc 签名，不自动选用本机 Developer ID；不公证、不上传，也不启动应用。Sparkle 支持 ad-hoc 应用通过 Ed25519 验证更新，但这不等于应用已获得 Gatekeeper 的对外分发认可。`--dir` 仅生成应用目录，仍执行相同的原生 release 构建和签名流程：
+默认采用 ad-hoc 签名，不自动选用本机 Developer ID；不公证、不上传，也不启动应用。Sparkle 支持 ad-hoc 应用通过 Ed25519 验证更新，但这不等于应用已获得 Gatekeeper 的对外分发认可。`--dir` 生成应用目录和独立调试归档，不生成分发 DMG／更新 ZIP，仍执行相同的原生 release 构建和签名流程：
 
 ```sh
 pnpm --dir desktop package:mac --dir
@@ -73,6 +74,36 @@ pnpm --dir desktop package:mac --signed
 DMG 内的 app 在制包时尚未单独附加票据，DMG 分发携带外层票据；更新 ZIP 中的 app 携带自身票据。正式验收需分别覆盖 DMG 离线安装运行与 ZIP／Sparkle 更新，不能只凭本地 ad-hoc 打包或在线 stapler 校验认定离线体验已通过。
 
 原有 `pnpm --dir desktop package` 保留为通用开发目录包入口，不携带 Sparkle；验收更新必须使用 `package:mac` 的产物。
+
+## 发布调试信息
+
+每次正式完整打包在最终更新 ZIP 生成后执行 `scripts/release/debug-symbols.mjs`；`--dir` 在应用签名及验证后执行。独立 CI 的 `app`／`dmg`／`notarize` 阶段不提前归档，`zip` 阶段完成归档后才能上传或发布。本地两版本更新测试不生成此归档。调试 ZIP 不进入应用、DMG 或 Sparkle feed，不改变用户安装包体积。
+
+`XiaoWei-<version>-arm64-debug-symbols.zip` 的顶层目录与文件名同名，包含：
+
+- `native/`：从已打包应用复制的两个实际发布 `.node`（含最终代码签名），以及对应的 `.node.dSYM`。归档前再次核对架构及 UUID，避免使用 debug 重建或其他版本留下的 dSYM。
+- `javascript/out/`：包内全部 main、LLM worker、preload、renderer JS 及相邻 chunk，以及它们对应的 `.map`。每个 JS 必须与本次 `desktop/out/` 构建产物逐字节相同，map 必须包含对应文件名、映射及内嵌源码；Vite 生成且没有源码来源的辅助 chunk 允许空映射。缺失 map、存在公开 map 引用或 JS 不一致会阻止归档。
+- `electron/SHASUMS256.txt`：从对应 Electron 官方 Release 获取的校验清单。
+- `manifest.json`：应用版本、源码 commit、工作区状态、架构、Rust／Xcode／macOS SDK／Node 版本、两个 native UUID、Electron Framework UUID、每个归档文件的 SHA-256，以及匹配 Electron 版本和 arm64 架构的官方 `dsym.tar.xz`／`symbols.zip` 下载地址与 SHA-256。仅安装 Command Line Tools 时 Xcode 版本记为 `null`，仍记录 SDK 版本。打包的 Electron Framework 版本必须与依赖声明一致，官方校验清单必须同时包含两种符号包。
+- `source.patch`：工作区有已跟踪文件差异时保存 `git diff --binary HEAD`；正式 CI 按已提交 tag 构建，通常没有该文件。未跟踪文件仅记录于工作区状态，不由 patch 保存；本地脏工作区归档不等同于可完整重建的正式源码快照。
+
+Electron 官方符号按版本引用，不向每个 XiaoWei Release 重复上传大文件。macOS `.ips` 原生报告和 LLDB／`atos` 使用对应 dSYM；Electron `crashReporter` 产生的 minidump 使用官方 `symbols.zip`。下载后校验 manifest 中的 SHA-256，符号化时再核对报告模块 UUID。dSYM 和 source map 都必须来自实际发布的同一次构建，之后重新编译不能替代原始符号。
+
+定位 Rust 崩溃时，先检查归档中的 UUID 与 `.ips` 报告的模块 UUID 一致，例如：
+
+```sh
+xcrun dwarfdump --uuid native/xiaowei-agent.darwin-arm64.node.dSYM
+```
+
+然后用 `atos -arch arm64 -o <dSYM 内 Contents/Resources/DWARF 下的文件> -l <报告中的模块加载地址> <崩溃地址>` 还原函数和源码位置。JS 错误使用 `javascript/out/` 中与堆栈文件匹配的 `.map`，由 source map 工具解析行列号；Node `SourceMap.findEntry` 接受从 0 开始的行列号。应用运行时不会自动加载这些独立归档的 map。
+
+必要时可对仍保留同一构建 `.map` 与 dSYM 的应用重新运行归档入口：
+
+```sh
+node scripts/release/debug-symbols.mjs desktop/dist/mac-arm64/XiaoWei.app
+```
+
+该入口读取官方校验清单但不下载完整 Electron 符号包；网络或符号校验失败会退出非零码。它先在临时目录生成 ZIP，成功后替换目标调试 ZIP，失败时保留已有归档并清理临时目录。
 
 ## 本地两版本更新联调
 
@@ -129,7 +160,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 
 参数必须匹配当前 `desktop/package.json`。工具只处理本版本的 ZIP，以 stdin 将私钥交给官方 `generate_appcast`，不从个人 Keychain 隐式读取凭据；生成后使用官方 `sign_update --verify` 验证 feed 签名，并使用构建公钥验证 ZIP 的 Ed25519 签名、长度、版本和对应 tag 的下载地址。本期只发布完整更新 ZIP，不生成 delta，也不保留多个版本的 appcast 条目。
 
-应用要求签名 feed 和更新包。固定 feed 为 `https://github.com/tctony-labs/xiaowei/releases/latest/download/appcast.xml`，条目中的下载地址指向对应 `v<version>` Release 的 ZIP。GitHub 的 latest 下载地址只在 Release 正式发布后更新；草稿和 prerelease 不进入这条稳定 feed。发布时同时携带 DMG、ZIP 和 `appcast.xml`。
+应用要求签名 feed 和更新包。固定 feed 为 `https://github.com/tctony-labs/xiaowei/releases/latest/download/appcast.xml`，条目中的下载地址指向对应 `v<version>` Release 的更新 ZIP。GitHub 的 latest 下载地址只在 Release 正式发布后更新；草稿和 prerelease 不进入这条稳定 feed。发布时同时携带 DMG、更新 ZIP、独立调试 ZIP 和 `appcast.xml`。
 
 ## GitHub Release 准备
 
@@ -138,7 +169,7 @@ node scripts/release/generate-appcast.mjs v0.1.0
 1. `app`：生成目录包、签名并验证 app。
 2. `dmg`：通过 electron-builder 的 `--prepackaged` 复用 app，仅制作并签名 DMG。
 3. `notarize`：只提交 DMG，等待 Accepted，然后分别附加并校验 DMG 与 app 票据和 Gatekeeper。
-4. `zip`：重新校验 app 票据后，用 ditto 制作最终更新 ZIP，不重建 DMG。
+4. `zip`：重新校验 app 票据后，用 ditto 制作最终更新 ZIP，再校验并生成独立调试 ZIP，不重建 DMG。
 
 每个 step 独立显示耗时，前一步失败会阻止后续发布。随后生成验证 appcast，上传 Actions artifact，并直接发布稳定 GitHub Release、设为 latest；公开更新源随之生效。本地一键入口不指定 stage 时按相同顺序执行；ad-hoc 模式跳过公证。
 
@@ -173,7 +204,7 @@ org 设置查询曾受到 GitHub token 权限限制（403）。小微使用独�
 3. 决定正式发布时，推送发布提交，再在同一提交上创建并推送 `v<version>` annotated tag。tag 推送会触发 macOS release workflow，校验成功后自动正式发布；CI 检出 tag 指向的提交，并核对 tag、应用版本与 HEAD 一致。已发布版本的 tag 和附件不覆盖；修正已分发版本时递增版本重新发布。
 4. 等待 CI 完成构建／测试、app 签名、DMG 制作、单次公证及两份票据校验、最终 ZIP 与 appcast 签名验证。核对 run 的 head SHA 与发布 tag 一致，所有发布阶段成功。
 5. CI 在所有前置阶段成功后直接发布稳定 Release、设为 latest，并生成 Release notes。推送 tag 是本次正式发布的触发点，后续没有草稿转正式的人工步骤。
-6. 核对已发布 Release 包含本版本的 `XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip` 和 `appcast.xml`，检查版本、签名身份、公证、更新下载地址及 Release notes。用户运行验收按下节执行，未完成的项目明确保留为待验收。
+6. 核对已发布 Release 包含本版本的 `XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip`、`XiaoWei-<version>-arm64-debug-symbols.zip` 和 `appcast.xml`，检查版本、签名身份、公证、更新下载地址及 Release notes；调试归档的 commit、模块 UUID 和文件校验值必须对应本次发布。用户运行验收按下节执行，未完成的项目明确保留为待验收。
 7. 发布后通过未登录下载地址验证 DMG、ZIP 和 `releases/latest/download/appcast.xml`；确认 latest feed 的版本、ZIP 下载地址、长度与签名匹配最终产物。由用户启动已安装旧版，通过检查更新完成安装、重启及数据保留验收。
 
 以 `0.1.1` 为例，在版本改动已提交且相关检查通过后，触发构建的命令为：
