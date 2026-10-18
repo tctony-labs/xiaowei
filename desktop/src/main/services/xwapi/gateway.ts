@@ -86,7 +86,7 @@ export function registerXwapi(
   ]);
 
   return {
-    // Host-only scope for Account's uncommitted-session cleanup; never exposed through payload/options.
+    // Host-only target for Account checks and session cleanup; never exposed in payload/options.
     async withContext<T>(
       client: Client,
       context: Omit<XwapiContext, "signal">,

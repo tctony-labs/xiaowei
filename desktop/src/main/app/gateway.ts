@@ -108,8 +108,10 @@ export async function createApplicationGateway(
       host,
       () => accountService?.serverContext() ?? { server: "" },
       (status) => accountService?.setCloudConnection(status),
-      () => {
-        void accountService?.restore().catch(() => console.warn("Account revalidation failed"));
+      (accessToken) => {
+        void accountService
+          ?.restore(accessToken)
+          .catch(() => console.warn("Account revalidation failed"));
       },
     );
     const serverApi = new XwapiService(fetch, Date.now, connection);
@@ -117,6 +119,7 @@ export async function createApplicationGateway(
     accountService = await AccountService.open({
       client: host.client({ caller: "account-main", trusted: true }),
       withServerContext: xwapi.withContext,
+      authenticateConnection: connection.authenticate.bind(connection),
       store: new AccountStore(
         authPath,
         bindClient(KeyValue, host.client({ caller: "account-main", trusted: true })),

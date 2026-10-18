@@ -13,12 +13,13 @@ import {
   RefreshResponseSchema,
   TokenPairSchema,
 } from "xiaowei-contracts";
-import { bindClient } from "xiaowei-gateway";
+import { bindClient, type Client } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { Storage } from "xiaowei-rust";
 import { AccountService } from "../../src/main/services/account/service";
 import type { AccountStore } from "../../src/main/services/account/store";
+import type { ConnectionAuthentication } from "../../src/main/services/xwapi/connection";
 import { registerXwapi } from "../../src/main/services/xwapi/gateway";
 import { XwapiService } from "../../src/main/services/xwapi/service";
 
@@ -41,6 +42,8 @@ export async function authServer() {
     logouts: 0,
     deviceId: "",
     beforeLogin: undefined as (() => Promise<void>) | undefined,
+    beforeHealth: undefined as (() => Promise<void>) | undefined,
+    beforeCurrentUser: undefined as (() => Promise<void>) | undefined,
     redirectTo: undefined as string | undefined,
     requests: [] as { path: string; bearer?: string; body: Record<string, unknown> }[],
     tokens: create(TokenPairSchema),
@@ -93,6 +96,7 @@ export async function authServer() {
       path === "/xiaowei/api/common.Health/Check" ||
       path === "/xiaowei/api/common.Health/Ready"
     ) {
+      await state.beforeHealth?.();
       if (state.healthResponse !== undefined) {
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(state.healthResponse);
@@ -148,6 +152,7 @@ export async function authServer() {
         return;
       }
       if (path.endsWith("/GetCurrentUser")) {
+        await state.beforeCurrentUser?.();
         send(
           GetCurrentUserResponseSchema,
           create(GetCurrentUserResponseSchema, {
@@ -189,6 +194,10 @@ export async function openAccount(
     deviceName: string;
     api?: XwapiService;
     now?: () => number;
+    authenticateConnection?: (
+      client: Client,
+      signal: AbortSignal,
+    ) => Promise<ConnectionAuthentication>;
   },
   host = new GatewayHost(),
 ) {
@@ -205,6 +214,7 @@ export async function openAccount(
       now: options.now,
       client: host.client({ caller: "account-main", trusted: true }),
       withServerContext: xwapi.withContext,
+      authenticateConnection: options.authenticateConnection ?? (async () => "unavailable"),
     });
   } catch (error) {
     await xwapi.close();

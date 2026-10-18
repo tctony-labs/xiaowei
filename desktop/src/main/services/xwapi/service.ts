@@ -88,9 +88,7 @@ export class XwapiService {
       else if (session.accessExpiresAtMs <= BigInt(this.now())) reason = "access_expired";
 
       if (reason) {
-        console.warn(
-          `Xwapi request rejected method=${method.parent.typeName}.${method.name} reason=${reason}`,
-        );
+        console.warn(`Xwapi request rejected method=${route.id} reason=${reason}`);
         throw new XwapiError(ErrorCode.UNAUTHENTICATED, "没有可用的登录凭据，请刷新会话或重新登录");
       }
       token = session?.accessToken;
@@ -112,7 +110,7 @@ export class XwapiService {
 
     if (useWebSocket) {
       if (!this.connection) throw new XwapiError(ErrorCode.UNAVAILABLE, "云连接尚未就绪");
-      console.debug(`WebSocket request started method=${method.parent.typeName}.${method.name}`);
+      console.debug(`WebSocket request started method=${route.id}`);
       const started = this.now();
       try {
         const response = fromBinary(
@@ -133,12 +131,12 @@ export class XwapiService {
           validate(response);
         }
         console.debug(
-          `WebSocket request completed method=${method.parent.typeName}.${method.name} ` +
+          `WebSocket request completed method=${route.id} ` +
             `code=${code} duration_ms=${this.now() - started}`,
         );
         return response;
       } catch {
-        console.warn(`WebSocket request failed method=${method.parent.typeName}.${method.name}`);
+        console.warn(`WebSocket request failed method=${route.id}`);
         throw new XwapiError(ErrorCode.UNAVAILABLE, "云连接不可用，请稍后重试");
       }
     }

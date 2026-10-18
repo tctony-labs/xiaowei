@@ -11,7 +11,7 @@ export interface AccountCardProps {
   onSelectServer: (server: string) => void;
   onAddServer: () => void;
   onLogin: () => void;
-  onLogout: () => void;
+  onManage: () => void;
   onCopyUid: () => void;
 }
 
@@ -24,7 +24,7 @@ export function AccountCard({
   onSelectServer,
   onAddServer,
   onLogin,
-  onLogout,
+  onManage,
   onCopyUid,
 }: AccountCardProps) {
   const serverAnchorRef = useRef<HTMLDivElement>(null);
@@ -129,13 +129,13 @@ export function AccountCard({
         <button
           type="button"
           disabled={busy || (!user && !server)}
-          onClick={user ? onLogout : onLogin}
+          onClick={user ? onManage : onLogin}
           className={`shrink-0 cursor-pointer rounded-md px-3 py-1 text-[12px] font-medium
             disabled:cursor-not-allowed disabled:opacity-60 ${
-              user ? "bg-danger/10 text-danger" : "bg-primary text-white"
+              user ? "bg-hover text-ink" : "bg-primary text-white"
             }`}
         >
-          {user ? "退出登录" : "登录"}
+          {user ? "管理" : "登录"}
         </button>
       </div>
     </SettingCard>

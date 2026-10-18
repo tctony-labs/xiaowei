@@ -4,7 +4,7 @@ import { AboutSettings } from "./AboutSettings";
 import { AgentSettings, type AgentValues } from "./AgentSettings";
 import { type ArchivedSession, ArchiveSettings } from "./ArchiveSettings";
 import { type CleanupStatus, ClipboardSettings, type ClipboardValues } from "./ClipboardSettings";
-import { type AccountView, GeneralSettings, type GeneralValues } from "./GeneralSettings";
+import { GeneralSettings, type GeneralValues } from "./GeneralSettings";
 import {
   type DownloadState,
   type LocalModel,
@@ -98,10 +98,6 @@ export interface PreviewProps {
   initialTab?: TabId;
   phaseOne?: boolean;
   loading?: boolean;
-  accountStatus?: AccountView["status"];
-  loggedIn?: boolean;
-  loginWaiting?: boolean;
-  loginError?: boolean;
   longText?: boolean;
   noShortcuts?: boolean;
   clipboardDisabled?: boolean;
@@ -136,19 +132,6 @@ export function SettingsPreview(props: PreviewProps) {
     theme: "system",
     autostart: false,
     bookmarks: true,
-  });
-  const [account, setAccount] = useState<AccountView>({
-    loggedIn: props.loggedIn ?? true,
-    loggingIn: props.loginWaiting,
-    nickname: props.longText ? "很长的用户昵称用于核对账号区域截断行为".repeat(4) : "示例用户",
-    uin: "10000001",
-    status: props.accountStatus ?? "connected",
-    error: props.loginError ? "登录失败，请重新尝试" : undefined,
-    avatar: `data:image/svg+xml,${encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40">' +
-        '<rect width="40" height="40" rx="20" fill="#00c572"/>' +
-        '<text x="20" y="27" text-anchor="middle" fill="white" font-size="22">微</text></svg>',
-    )}`,
   });
   const [shortcuts, setShortcuts] = useState<Shortcuts>(
     props.noShortcuts
@@ -240,26 +223,11 @@ export function SettingsPreview(props: PreviewProps) {
         return (
           <GeneralSettings
             values={general}
-            account={account}
-            showAccount={!props.phaseOne && !props.accountSection}
             accountSection={props.accountSection}
             onChange={(next) => {
               setGeneral(next);
               if (next.theme !== general.theme) document.documentElement.dataset.theme = next.theme;
             }}
-            onLogin={() => {
-              setAccount({ ...account, loggingIn: true, error: undefined });
-              void delay().then(() =>
-                setAccount({
-                  ...account,
-                  loggedIn: !props.operationFailure,
-                  loggingIn: false,
-                  error: props.operationFailure ? "登录失败，请重新尝试" : undefined,
-                }),
-              );
-            }}
-            onLogout={() => setAccount({ ...account, loggedIn: false })}
-            onCopy={() => setToast("已复制 UIN（预览）")}
           />
         );
       case "shortcut":

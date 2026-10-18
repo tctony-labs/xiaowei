@@ -135,6 +135,7 @@ test("raw authentication responses leave Account state and persisted credentials
     host,
   );
   await account.addServer(server.url);
+  await account.selectServer(server.url);
   const auth = bindClient(Auth, host.client({ caller: "raw-auth-test", trusted: true }));
   t.after(async () => {
     await account.close();
@@ -176,7 +177,7 @@ test("raw authentication responses leave Account state and persisted credentials
   assert.equal(refreshed.code, 0);
   assert.notEqual(
     refreshed.data?.refreshToken,
-    JSON.parse(contents).authenticated.tokens.refreshToken,
+    JSON.parse(contents).sessions[0].authenticated.tokens.refreshToken,
   );
   assert.deepEqual(account.snapshot(), signedIn);
   assert.equal(await readFile(path, "utf8"), contents);

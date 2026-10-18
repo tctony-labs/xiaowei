@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import {
   type AccountLoginRequest,
+  type AccountLogoutRequest,
   AccountOperationResponseSchema,
   AccountSnapshotSchema,
   AccountStatus,
@@ -9,12 +10,15 @@ import {
   EmptySchema,
   ErrorCode,
   type GetCurrentUserData,
+  Health,
   LoginRequestSchema,
   RefreshRequestSchema,
   XwApiOptionsSchema,
+  XwApiTransport,
 } from "xiaowei-contracts";
 import { bindClient, type Client, type Rpc } from "xiaowei-gateway";
 import { normalizeServerAddress } from "../../../shared/server-address";
+import type { ConnectionAuthentication } from "../xwapi/connection";
 import { AccountError, accountError } from "./errors";
 import type { AccountDocument, AccountStore, SavedSession } from "./store";
 
@@ -30,6 +34,10 @@ interface AccountOptions {
   ) => Promise<T>;
   deviceName: string;
   now?: () => number;
+  authenticateConnection: (
+    client: Client,
+    signal: AbortSignal,
+  ) => Promise<ConnectionAuthentication>;
 }
 
 export class AccountService {
@@ -44,7 +52,7 @@ export class AccountService {
   private loginAttempt?: { id: string; controller: AbortController };
   private timer?: ReturnType<typeof setTimeout>;
   private refreshing?: Promise<void>;
-  private dirtySession = false;
+  private readonly dirtySessions = new Set<string>();
   private closed = false;
   private closing?: Promise<void>;
 
@@ -55,28 +63,12 @@ export class AccountService {
     private readonly withServerContext: AccountOptions["withServerContext"],
     private readonly deviceName: string,
     private readonly now: () => number,
+    private readonly authenticateConnection: AccountOptions["authenticateConnection"],
   ) {
-    try {
-      this.session = document.session;
-      if (this.session) {
-        const authenticated = this.session.authenticated;
-        if (
-          this.session.server !== document.selectedServer ||
-          authenticated.device?.deviceId !== document.deviceId ||
-          !authenticated.user?.userId ||
-          !authenticated.tokens?.accessToken ||
-          !authenticated.tokens.refreshToken ||
-          !authenticated.tokens.sessionId ||
-          authenticated.tokens.accessExpiresAtMs <= 0n ||
-          authenticated.tokens.refreshExpiresAtMs <= 0n
-        ) {
-          this.session = undefined;
-          throw new AccountError(ErrorCode.INTERNAL_ERROR, "无法读取已保存的登录凭据，请重新登录");
-        }
-      }
-      if (this.session) this.status = AccountStatus.RESTORING;
-    } catch (error) {
-      this.message = accountError(error).message;
+    this.session = this.savedSession(document.selectedServer);
+    if (this.session) this.status = AccountStatus.RESTORING;
+    else if (document.sessions.some((entry) => entry.server === document.selectedServer)) {
+      this.message = "无法读取已保存的登录凭据，请重新登录";
       console.warn("Saved account credentials unavailable");
     }
   }
@@ -90,7 +82,37 @@ export class AccountService {
       options.withServerContext,
       options.deviceName,
       options.now ?? Date.now,
+      options.authenticateConnection,
     );
+  }
+
+  private savedSession(server: string) {
+    const session = this.document.sessions.find((entry) => entry.server === server);
+    if (!session) return undefined;
+    const authenticated = session.authenticated;
+    if (
+      authenticated.device?.deviceId !== this.document.deviceId ||
+      !authenticated.user?.userId ||
+      !authenticated.tokens?.accessToken ||
+      !authenticated.tokens.refreshToken ||
+      !authenticated.tokens.sessionId ||
+      authenticated.tokens.accessExpiresAtMs <= 0n ||
+      authenticated.tokens.refreshExpiresAtMs <= 0n
+    ) {
+      return undefined;
+    }
+    return session;
+  }
+
+  private withSession(session: SavedSession | undefined): AccountDocument {
+    const server = session?.server ?? this.document.selectedServer;
+    return {
+      ...this.document,
+      sessions: [
+        ...this.document.sessions.filter((entry) => entry.server !== server),
+        ...(session ? [session] : []),
+      ],
+    };
   }
 
   // Read on each request; never cache credentials in the Gateway owner.
@@ -119,6 +141,10 @@ export class AccountService {
       user: this.session?.authenticated.user,
       statusMessage: this.message,
       cloudConnection: this.cloudConnection,
+      serverAccounts: this.document.servers.map((serverAddress) => ({
+        serverAddress,
+        user: this.savedSession(serverAddress)?.authenticated.user,
+      })),
     });
   }
 
@@ -126,6 +152,9 @@ export class AccountService {
     if (this.cloudConnection === status || this.closed) return;
     this.cloudConnection = status;
     this.changed();
+    if (status === CloudConnectionStatus.CONNECTED && this.status !== AccountStatus.RESTORING) {
+      void this.restore().catch(() => console.warn("Account connection recovery failed"));
+    }
   }
 
   subscribe(listener: () => void) {
@@ -178,19 +207,14 @@ export class AccountService {
     }
   }
 
-  private signedOutOnly() {
-    if (this.session)
-      throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请先退出登录，再选择服务器");
-  }
-
   private async save(document: AccountDocument) {
     await this.store.save(document);
     this.document = document;
+    this.dirtySessions.clear();
   }
 
   private async persistSession() {
-    await this.save({ ...this.document, session: this.session });
-    this.dirtySession = false;
+    await this.save(this.withSession(this.session));
   }
 
   private abortNetwork() {
@@ -199,10 +223,26 @@ export class AccountService {
     clearTimeout(this.timer);
   }
 
-  addServer(address: string) {
-    if (!this.session) this.abortNetwork();
+  private async activateServer(address: string, servers: string[], client = this.client) {
+    if (this.dirtySessions.size) await this.persistSession();
+    await this.save({ ...this.document, servers, selectedServer: address });
+    this.session = undefined;
+    this.status = AccountStatus.SIGNED_OUT;
+    this.message = "";
+    this.cloudConnection = CloudConnectionStatus.DISCONNECTED;
+    this.session = this.savedSession(address);
+    if (this.session) this.status = AccountStatus.RESTORING;
+    else if (this.document.sessions.some((entry) => entry.server === address)) {
+      this.message = "无法读取已保存的登录凭据，请重新登录";
+      console.warn("Selected server credentials unavailable");
+    }
+    this.changed();
+    console.info("Account server selected", { server: address, savedSession: !!this.session });
+    if (this.session) await this.restoreInside(client);
+  }
+
+  addServer(address: string, client = this.client) {
     return this.operation(async () => {
-      this.signedOutOnly();
       let normalized: string;
       try {
         normalized = normalizeServerAddress(address);
@@ -212,28 +252,42 @@ export class AccountService {
       if (this.document.servers.includes(normalized)) {
         throw new AccountError(ErrorCode.INVALID_ARGUMENT, "该服务器地址已保存，请从列表中选择");
       }
-      await this.save({
-        ...this.document,
-        servers: [...this.document.servers, normalized],
-        selectedServer: normalized,
-        session: undefined,
-      });
-      this.message = "";
-      this.changed();
-    });
+      const controller = new AbortController();
+      this.network = controller;
+      const signal = AbortSignal.any([controller.signal, client.cancellation()]);
+      try {
+        signal.throwIfAborted();
+        await this.withServerContext(
+          client,
+          { server: normalized, session: undefined },
+          async (scoped) => {
+            const api = bindClient(Health, scoped, { optionsSchema: XwApiOptionsSchema });
+            await this.request(
+              api.check(create(EmptySchema), { transport: XwApiTransport.HTTP }),
+              signal,
+            );
+          },
+        );
+        signal.throwIfAborted();
+        if (this.dirtySessions.size) await this.persistSession();
+        await this.save({ ...this.document, servers: [...this.document.servers, normalized] });
+        this.changed();
+        console.info("Account server added after health check");
+      } finally {
+        if (this.network === controller) this.network = undefined;
+      }
+    }).finally(() => this.schedule());
   }
 
-  selectServer(address: string) {
-    if (!this.session) this.abortNetwork();
+  selectServer(address: string, client = this.client) {
+    if (address !== this.document.selectedServer) this.abortNetwork();
     return this.operation(async () => {
-      this.signedOutOnly();
       if (!this.document.servers.includes(address)) {
         throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请从已保存的服务器中选择");
       }
-      await this.save({ ...this.document, selectedServer: address, session: undefined });
-      this.message = "";
-      this.changed();
-    });
+      if (address === this.document.selectedServer) return;
+      await this.activateServer(address, this.document.servers, client);
+    }).finally(() => this.schedule());
   }
 
   login(request: AccountLoginRequest, client = this.client) {
@@ -252,35 +306,49 @@ export class AccountService {
     const abort = () => attempt.controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) abort();
-    const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
     return this.operation(async () => {
-      this.signedOutOnly();
       if (
         !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(attempt.id) ||
-        request.serverAddress !== this.document.selectedServer ||
-        !request.serverAddress ||
+        !this.document.servers.includes(request.serverAddress) ||
         !request.password?.email ||
         !request.password.password
       ) {
         throw new AccountError(ErrorCode.INVALID_ARGUMENT, "登录参数无效，请重新打开登录窗口");
       }
+      if (this.savedSession(request.serverAddress)) {
+        throw new AccountError(ErrorCode.INVALID_ARGUMENT, "该服务器已登录，请直接切换");
+      }
+      const password = request.password;
+      if (this.dirtySessions.size) await this.persistSession();
       this.network = attempt.controller;
-      this.status = AccountStatus.SIGNING_IN;
-      this.message = "";
-      this.changed();
+      const previousStatus = this.status;
+      const previousMessage = this.message;
+      const changesCurrent = request.serverAddress === this.document.selectedServer;
+      if (changesCurrent) {
+        this.status = AccountStatus.SIGNING_IN;
+        this.message = "";
+        this.changed();
+      }
       let received: SavedSession | undefined;
       let accepted = false;
       try {
         attempt.controller.signal.throwIfAborted();
-        const response = await this.request(
-          api.login(
-            create(LoginRequestSchema, {
-              deviceId: this.document.deviceId,
-              deviceName: this.deviceName,
-              credential: { case: "password", value: request.password },
-            }),
-          ),
-          attempt.controller.signal,
+        const response = await this.withServerContext(
+          client,
+          { server: request.serverAddress, session: undefined },
+          async (scoped) => {
+            const api = bindClient(Auth, scoped, { optionsSchema: XwApiOptionsSchema });
+            return this.request(
+              api.login(
+                create(LoginRequestSchema, {
+                  deviceId: this.document.deviceId,
+                  deviceName: this.deviceName,
+                  credential: { case: "password", value: password },
+                }),
+              ),
+              attempt.controller.signal,
+            );
+          },
         );
         const result = response.data?.result;
         if (result?.case !== "authenticated") {
@@ -288,23 +356,37 @@ export class AccountService {
         }
         received = { server: request.serverAddress, authenticated: result.value };
         attempt.controller.signal.throwIfAborted();
-        await this.store.save({ ...this.document, session: received });
+        const next = { ...this.withSession(received), selectedServer: request.serverAddress };
+        try {
+          await this.store.save(next);
+        } catch (error) {
+          try {
+            await this.store.save(this.document);
+          } catch {
+            console.warn("Uncommitted account selection could not be rolled back");
+          }
+          throw error;
+        }
         if (attempt.controller.signal.aborted) {
-          await this.store.save({ ...this.document, session: undefined });
+          await this.store.save(this.document);
           throw new AccountError(ErrorCode.UNAVAILABLE, "登录操作已取消");
         }
-        this.document = { ...this.document, session: received };
+        this.document = next;
         this.session = received;
-        this.dirtySession = false;
         this.status = AccountStatus.SIGNED_IN;
+        this.message = "";
+        this.cloudConnection = CloudConnectionStatus.DISCONNECTED;
         accepted = true;
         this.changed();
         this.schedule();
         console.info("Account signed in", { userId: received.authenticated.user?.userId });
       } finally {
         if (!accepted) {
-          this.status = AccountStatus.SIGNED_OUT;
-          this.changed();
+          if (changesCurrent) {
+            this.status = previousStatus;
+            this.message = previousMessage;
+            this.changed();
+          }
           if (received) await this.revokeUncommitted(received, client);
         }
         if (this.network === attempt.controller) this.network = undefined;
@@ -312,6 +394,7 @@ export class AccountService {
     }).finally(() => {
       signal.removeEventListener("abort", abort);
       if (this.loginAttempt === attempt) this.loginAttempt = undefined;
+      this.schedule();
     });
   }
 
@@ -330,13 +413,18 @@ export class AccountService {
     }
   }
 
-  private async clearSession(message = "") {
-    await this.save({ ...this.document, session: undefined });
-    this.session = undefined;
-    this.dirtySession = false;
-    this.status = AccountStatus.SIGNED_OUT;
-    this.message = message;
-    clearTimeout(this.timer);
+  private async clearSession(message = "", server = this.document.selectedServer) {
+    await this.save({
+      ...this.document,
+      sessions: this.document.sessions.filter((entry) => entry.server !== server),
+    });
+    if (server === this.document.selectedServer) {
+      this.session = undefined;
+      this.status = AccountStatus.SIGNED_OUT;
+      this.cloudConnection = CloudConnectionStatus.DISCONNECTED;
+      this.message = message;
+      clearTimeout(this.timer);
+    }
     this.changed();
   }
 
@@ -344,18 +432,24 @@ export class AccountService {
     signal: AbortSignal,
     force = false,
     client = this.client,
+    session = this.session,
   ): Promise<void> {
-    const session = this.session;
     const tokens = session?.authenticated.tokens;
     if (!session || !tokens || Number(tokens.refreshExpiresAtMs) <= this.now()) {
       throw new AccountError(ErrorCode.UNAUTHENTICATED, "登录已失效，请重新登录");
     }
-    if (this.dirtySession) await this.persistSession();
+    if (this.dirtySessions.size) await this.persistSession();
     if (force || Number(tokens.accessExpiresAtMs) <= this.now() + REFRESH_LEAD_MS) {
-      const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
-      const response = await this.request(
-        api.refresh(create(RefreshRequestSchema, { refreshToken: tokens.refreshToken })),
-        signal,
+      const response = await this.withServerContext(
+        client,
+        this.serverContext(session),
+        async (scoped) => {
+          const api = bindClient(Auth, scoped, { optionsSchema: XwApiOptionsSchema });
+          return this.request(
+            api.refresh(create(RefreshRequestSchema, { refreshToken: tokens.refreshToken })),
+            signal,
+          );
+        },
       );
       const next = response.data;
       if (!next) throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了无效的刷新结果");
@@ -364,45 +458,80 @@ export class AccountService {
       }
       // Rotation has consumed the old refresh token. Retain the new pair even if disk persistence fails.
       session.authenticated.tokens = next;
-      this.dirtySession = true;
+      this.dirtySessions.add(session.server);
       await this.persistSession();
       console.info("Account session refreshed");
     }
   }
 
-  private async restoreInside() {
+  private async validateSession(client: Client, signal: AbortSignal, confirmRejection = false) {
+    const connection = await this.authenticateConnection(client, signal);
+    signal.throwIfAborted();
+    if (connection === "rejected" && !confirmRejection) {
+      throw new AccountError(ErrorCode.UNAUTHENTICATED, "云连接登录凭据已失效");
+    }
+
+    console.debug(
+      connection === "authenticated"
+        ? "Account connection authenticated; loading current user"
+        : "Account session validation falling back to HTTP",
+    );
+    const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
+    const current: GetCurrentUserData | undefined = (
+      await this.request(
+        api.getCurrentUser(create(EmptySchema), {
+          transport:
+            connection === "authenticated" ? XwApiTransport.UNSPECIFIED : XwApiTransport.HTTP,
+        }),
+        signal,
+      )
+    ).data;
+    signal.throwIfAborted();
+    if (
+      !current ||
+      current.user?.userId !== this.session?.authenticated.user?.userId ||
+      current.device?.deviceId !== this.document.deviceId ||
+      current.sessionId !== this.session?.authenticated.tokens?.sessionId
+    ) {
+      throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了不匹配的账号信息");
+    }
+    if (this.session) this.session.authenticated.user = current.user;
+  }
+
+  private async restoreInside(client = this.client, rejectedAccessToken?: string) {
     if (!this.session) return;
+    if (
+      rejectedAccessToken &&
+      rejectedAccessToken !== this.session.authenticated.tokens?.accessToken
+    )
+      return;
     const controller = new AbortController();
     this.network = controller;
-    const api = bindClient(Auth, this.client, { optionsSchema: XwApiOptionsSchema });
+    const signal = AbortSignal.any([controller.signal, client.cancellation()]);
+    const forceRefresh = !!rejectedAccessToken;
     try {
-      await this.freshAccess(controller.signal);
-      let current: GetCurrentUserData | undefined;
+      await this.freshAccess(signal, forceRefresh, client);
       try {
-        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal))
-          .data;
+        await this.validateSession(client, signal, forceRefresh);
       } catch (error) {
-        if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
-        await this.freshAccess(controller.signal, true);
-        current = (await this.request(api.getCurrentUser(create(EmptySchema)), controller.signal))
-          .data;
+        if (forceRefresh || accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
+        await this.freshAccess(signal, true, client);
+        await this.validateSession(client, signal, true);
       }
-      controller.signal.throwIfAborted();
-      if (
-        !current ||
-        current.user?.userId !== this.session.authenticated.user?.userId ||
-        current.device?.deviceId !== this.document.deviceId ||
-        current.sessionId !== this.session.authenticated.tokens?.sessionId
-      ) {
-        throw new AccountError(ErrorCode.UNAVAILABLE, "服务器返回了不匹配的账号信息");
-      }
-      this.session.authenticated.user = current.user;
+      signal.throwIfAborted();
       await this.persistSession();
       this.status = AccountStatus.SIGNED_IN;
       this.message = "";
       this.changed();
     } catch (error) {
-      if (controller.signal.aborted) return;
+      if (signal.aborted) {
+        if (this.status === AccountStatus.RESTORING) {
+          this.status = AccountStatus.OFFLINE;
+          this.message = "账号校验已取消，稍后重试";
+          this.changed();
+        }
+        return;
+      }
       const failure = accountError(error);
       if (failure.code === ErrorCode.UNAUTHENTICATED) {
         await this.clearSession("登录已失效，请重新登录");
@@ -419,8 +548,10 @@ export class AccountService {
     }
   }
 
-  restore(): Promise<void> {
-    this.refreshing ??= this.enqueue(() => this.restoreInside()).finally(() => {
+  restore(rejectedAccessToken?: string): Promise<void> {
+    this.refreshing ??= this.enqueue(() =>
+      this.restoreInside(this.client, rejectedAccessToken),
+    ).finally(() => {
       this.refreshing = undefined;
     });
     return this.refreshing;
@@ -431,7 +562,7 @@ export class AccountService {
     if (this.closed || !this.session) return;
     const expiry = Number(this.session.authenticated.tokens?.accessExpiresAtMs ?? 0n);
     const delay =
-      this.status === AccountStatus.OFFLINE || this.dirtySession
+      this.status === AccountStatus.OFFLINE || this.dirtySessions.size > 0
         ? 30_000
         : Math.max(1_000, Math.min(2_147_483_647, expiry - this.now() - REFRESH_LEAD_MS));
     this.timer = setTimeout(() => {
@@ -440,34 +571,74 @@ export class AccountService {
     this.timer.unref();
   }
 
-  logout(client = this.client) {
+  logout(request?: AccountLogoutRequest, client = this.client) {
     this.abortNetwork();
     return this.operation(async () => {
-      if (!this.session) return;
+      if (request?.allServers && request.serverAddress) {
+        throw new AccountError(
+          ErrorCode.INVALID_ARGUMENT,
+          "退出目标不能同时指定服务器和全部服务器",
+        );
+      }
+      const servers = request?.allServers
+        ? this.document.sessions.map((entry) => entry.server)
+        : [request?.serverAddress || this.document.selectedServer];
+      if (servers.some((server) => !this.document.servers.includes(server))) {
+        throw new AccountError(ErrorCode.INVALID_ARGUMENT, "请从已保存的服务器中选择");
+      }
       const controller = new AbortController();
       this.network = controller;
       const signal = AbortSignal.any([controller.signal, client.cancellation()]);
-      const api = bindClient(Auth, client, { optionsSchema: XwApiOptionsSchema });
+      let failure: AccountError | undefined;
+      let failures = 0;
       try {
-        await this.freshAccess(signal, false, client);
-        try {
-          await this.request(api.logout(create(EmptySchema)), signal);
-        } catch (error) {
-          if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
-          await this.freshAccess(signal, true, client);
-          await this.request(api.logout(create(EmptySchema)), signal);
+        for (const server of servers) {
+          signal.throwIfAborted();
+          try {
+            const session = this.savedSession(server);
+            if (!session && !this.document.sessions.some((entry) => entry.server === server))
+              continue;
+            if (session) await this.revokeSavedSession(session, signal, client);
+            signal.throwIfAborted();
+            await this.clearSession("", server);
+            console.info("Account saved session signed out");
+          } catch (error) {
+            if (signal.aborted) throw error;
+            failure ??= accountError(error);
+            failures++;
+            console.warn("Account saved session logout unavailable", {
+              code: accountError(error).code,
+            });
+          }
         }
-      } catch (error) {
-        if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) {
-          this.schedule();
-          throw error;
+        if (failure) {
+          throw new AccountError(failure.code, `${failures} 个服务器退出失败：${failure.message}`);
         }
       } finally {
         if (this.network === controller) this.network = undefined;
+        this.schedule();
       }
-      await this.clearSession();
-      console.info("Account signed out");
     });
+  }
+
+  private async revokeSavedSession(session: SavedSession, signal: AbortSignal, client: Client) {
+    const revoke = () =>
+      this.withServerContext(client, this.serverContext(session), async (scoped) => {
+        const api = bindClient(Auth, scoped, { optionsSchema: XwApiOptionsSchema });
+        await this.request(api.logout(create(EmptySchema)), signal);
+      });
+    try {
+      await this.freshAccess(signal, false, client, session);
+      try {
+        await revoke();
+      } catch (error) {
+        if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
+        await this.freshAccess(signal, true, client, session);
+        await revoke();
+      }
+    } catch (error) {
+      if (accountError(error).code !== ErrorCode.UNAUTHENTICATED) throw error;
+    }
   }
 
   close(): Promise<void> {
@@ -475,7 +646,7 @@ export class AccountService {
       this.closed = true;
       this.abortNetwork();
       await this.queue;
-      if (this.dirtySession) await this.persistSession();
+      if (this.dirtySessions.size) await this.persistSession();
       this.listeners.clear();
     })();
     return this.closing;

@@ -9,14 +9,14 @@ export function registerAccount(host: GatewayHost, service: AccountService) {
     "account",
     bindHandlers(Account, {
       get: () => service.snapshot(),
-      addServer: (request) => service.addServer(request.serverAddress),
-      selectServer: (request) => service.selectServer(request.serverAddress),
+      addServer: (request, client) => service.addServer(request.serverAddress, client),
+      selectServer: (request, client) => service.selectServer(request.serverAddress, client),
       login: (request, client) => service.login(request, client),
       cancelLogin(request) {
         service.cancelLogin(request.attemptId);
         return create(EmptySchema);
       },
-      logout: (_request, client) => service.logout(client),
+      logout: (request, client) => service.logout(request, client),
     }),
     [bindEvent(AccountChangedSchema, EmptySchema, "coalesce", () => true)],
   );

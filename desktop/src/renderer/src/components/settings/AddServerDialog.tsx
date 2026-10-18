@@ -50,7 +50,18 @@ export function AddServerDialog({
         <>
           <ModalButton onClick={onClose}>取消</ModalButton>
           <ModalButton variant="primary" disabled={!address.trim() || pending} onClick={save}>
-            {pending ? "保存中…" : "保存"}
+            {pending ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="size-3 animate-spin rounded-full border border-current
+                    border-t-transparent"
+                />
+                校验中…
+              </span>
+            ) : (
+              "保存"
+            )}
           </ModalButton>
         </>
       }

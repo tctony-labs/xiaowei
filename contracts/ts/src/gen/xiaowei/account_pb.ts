@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/account.proto.
  */
 export const file_xiaowei_account: GenFile = /*@__PURE__*/
-  fileDesc("ChV4aWFvd2VpL2FjY291bnQucHJvdG8SD3hpYW93ZWkuYWNjb3VudCKIAgoPQWNjb3VudFNuYXBzaG90EhAKCHJldmlzaW9uGAEgASgEEg8KB3NlcnZlcnMYAiADKAkSFwoPc2VsZWN0ZWRfc2VydmVyGAMgASgJEi4KBnN0YXR1cxgEIAEoDjIeLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50U3RhdHVzEi8KBHVzZXIYBSABKAsyIS54aWFvd2VpLnNlcnZlci5hdXRoLlVzZXJTbmFwc2hvdBIWCg5zdGF0dXNfbWVzc2FnZRgGIAEoCRJAChBjbG91ZF9jb25uZWN0aW9uGAcgASgOMiYueGlhb3dlaS5hY2NvdW50LkNsb3VkQ29ubmVjdGlvblN0YXR1cyJECg5BY2NvdW50Q2hhbmdlZBIyCghzbmFwc2hvdBgBIAEoCzIgLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50U25hcHNob3QiaQoYQWNjb3VudE9wZXJhdGlvblJlc3BvbnNlEgwKBGNvZGUYASABKAUSCwoDbXNnGAIgASgJEjIKCHNuYXBzaG90GAMgASgLMiAueGlhb3dlaS5hY2NvdW50LkFjY291bnRTbmFwc2hvdCIqChBBZGRTZXJ2ZXJSZXF1ZXN0EhYKDnNlcnZlcl9hZGRyZXNzGAEgASgJIi0KE1NlbGVjdFNlcnZlclJlcXVlc3QSFgoOc2VydmVyX2FkZHJlc3MYASABKAkidwoTQWNjb3VudExvZ2luUmVxdWVzdBIWCg5zZXJ2ZXJfYWRkcmVzcxgBIAEoCRI0CghwYXNzd29yZBgCIAEoCzIiLnhpYW93ZWkuc2VydmVyLmF1dGguUGFzc3dvcmRMb2dpbhISCgphdHRlbXB0X2lkGAMgASgJIi8KGUNhbmNlbEFjY291bnRMb2dpblJlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCSrFAQoNQWNjb3VudFN0YXR1cxIeChpBQ0NPVU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUFDQ09VTlRfU1RBVFVTX1NJR05FRF9PVVQQARIcChhBQ0NPVU5UX1NUQVRVU19SRVNUT1JJTkcQAhIdChlBQ0NPVU5UX1NUQVRVU19TSUdOSU5HX0lOEAMSHAoYQUNDT1VOVF9TVEFUVVNfU0lHTkVEX0lOEAQSGgoWQUNDT1VOVF9TVEFUVVNfT0ZGTElORRAFKuMBChVDbG91ZENvbm5lY3Rpb25TdGF0dXMSJwojQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIoCiRDTE9VRF9DT05ORUNUSU9OX1NUQVRVU19ESVNDT05ORUNURUQQARImCiJDTE9VRF9DT05ORUNUSU9OX1NUQVRVU19DT05ORUNUSU5HEAISJQohQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfQ09OTkVDVEVEEAMSKAokQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfUkVDT05ORUNUSU5HEAQy/QMKB0FjY291bnQSPgoDR2V0EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIC54aWFvd2VpLmFjY291bnQuQWNjb3VudFNuYXBzaG90ElkKCUFkZFNlcnZlchIhLnhpYW93ZWkuYWNjb3VudC5BZGRTZXJ2ZXJSZXF1ZXN0GikueGlhb3dlaS5hY2NvdW50LkFjY291bnRPcGVyYXRpb25SZXNwb25zZRJfCgxTZWxlY3RTZXJ2ZXISJC54aWFvd2VpLmFjY291bnQuU2VsZWN0U2VydmVyUmVxdWVzdBopLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50T3BlcmF0aW9uUmVzcG9uc2USWAoFTG9naW4SJC54aWFvd2VpLmFjY291bnQuQWNjb3VudExvZ2luUmVxdWVzdBopLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50T3BlcmF0aW9uUmVzcG9uc2USUAoLQ2FuY2VsTG9naW4SKi54aWFvd2VpLmFjY291bnQuQ2FuY2VsQWNjb3VudExvZ2luUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EkoKBkxvZ291dBIVLnhpYW93ZWkuY29tbW9uLkVtcHR5GikueGlhb3dlaS5hY2NvdW50LkFjY291bnRPcGVyYXRpb25SZXNwb25zZWIGcHJvdG8z", [file_xiaowei_common, file_xiaowei_server_auth]);
+  fileDesc("ChV4aWFvd2VpL2FjY291bnQucHJvdG8SD3hpYW93ZWkuYWNjb3VudCLBAgoPQWNjb3VudFNuYXBzaG90EhAKCHJldmlzaW9uGAEgASgEEg8KB3NlcnZlcnMYAiADKAkSFwoPc2VsZWN0ZWRfc2VydmVyGAMgASgJEi4KBnN0YXR1cxgEIAEoDjIeLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50U3RhdHVzEi8KBHVzZXIYBSABKAsyIS54aWFvd2VpLnNlcnZlci5hdXRoLlVzZXJTbmFwc2hvdBIWCg5zdGF0dXNfbWVzc2FnZRgGIAEoCRJAChBjbG91ZF9jb25uZWN0aW9uGAcgASgOMiYueGlhb3dlaS5hY2NvdW50LkNsb3VkQ29ubmVjdGlvblN0YXR1cxI3Cg9zZXJ2ZXJfYWNjb3VudHMYCCADKAsyHi54aWFvd2VpLmFjY291bnQuU2VydmVyQWNjb3VudCJYCg1TZXJ2ZXJBY2NvdW50EhYKDnNlcnZlcl9hZGRyZXNzGAEgASgJEi8KBHVzZXIYAiABKAsyIS54aWFvd2VpLnNlcnZlci5hdXRoLlVzZXJTbmFwc2hvdCJECg5BY2NvdW50Q2hhbmdlZBIyCghzbmFwc2hvdBgBIAEoCzIgLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50U25hcHNob3QiaQoYQWNjb3VudE9wZXJhdGlvblJlc3BvbnNlEgwKBGNvZGUYASABKAUSCwoDbXNnGAIgASgJEjIKCHNuYXBzaG90GAMgASgLMiAueGlhb3dlaS5hY2NvdW50LkFjY291bnRTbmFwc2hvdCIqChBBZGRTZXJ2ZXJSZXF1ZXN0EhYKDnNlcnZlcl9hZGRyZXNzGAEgASgJIi0KE1NlbGVjdFNlcnZlclJlcXVlc3QSFgoOc2VydmVyX2FkZHJlc3MYASABKAkidwoTQWNjb3VudExvZ2luUmVxdWVzdBIWCg5zZXJ2ZXJfYWRkcmVzcxgBIAEoCRI0CghwYXNzd29yZBgCIAEoCzIiLnhpYW93ZWkuc2VydmVyLmF1dGguUGFzc3dvcmRMb2dpbhISCgphdHRlbXB0X2lkGAMgASgJIkMKFEFjY291bnRMb2dvdXRSZXF1ZXN0EhYKDnNlcnZlcl9hZGRyZXNzGAEgASgJEhMKC2FsbF9zZXJ2ZXJzGAIgASgIIi8KGUNhbmNlbEFjY291bnRMb2dpblJlcXVlc3QSEgoKYXR0ZW1wdF9pZBgBIAEoCSrFAQoNQWNjb3VudFN0YXR1cxIeChpBQ0NPVU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUFDQ09VTlRfU1RBVFVTX1NJR05FRF9PVVQQARIcChhBQ0NPVU5UX1NUQVRVU19SRVNUT1JJTkcQAhIdChlBQ0NPVU5UX1NUQVRVU19TSUdOSU5HX0lOEAMSHAoYQUNDT1VOVF9TVEFUVVNfU0lHTkVEX0lOEAQSGgoWQUNDT1VOVF9TVEFUVVNfT0ZGTElORRAFKuMBChVDbG91ZENvbm5lY3Rpb25TdGF0dXMSJwojQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIoCiRDTE9VRF9DT05ORUNUSU9OX1NUQVRVU19ESVNDT05ORUNURUQQARImCiJDTE9VRF9DT05ORUNUSU9OX1NUQVRVU19DT05ORUNUSU5HEAISJQohQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfQ09OTkVDVEVEEAMSKAokQ0xPVURfQ09OTkVDVElPTl9TVEFUVVNfUkVDT05ORUNUSU5HEAQyjQQKB0FjY291bnQSPgoDR2V0EhUueGlhb3dlaS5jb21tb24uRW1wdHkaIC54aWFvd2VpLmFjY291bnQuQWNjb3VudFNuYXBzaG90ElkKCUFkZFNlcnZlchIhLnhpYW93ZWkuYWNjb3VudC5BZGRTZXJ2ZXJSZXF1ZXN0GikueGlhb3dlaS5hY2NvdW50LkFjY291bnRPcGVyYXRpb25SZXNwb25zZRJfCgxTZWxlY3RTZXJ2ZXISJC54aWFvd2VpLmFjY291bnQuU2VsZWN0U2VydmVyUmVxdWVzdBopLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50T3BlcmF0aW9uUmVzcG9uc2USWAoFTG9naW4SJC54aWFvd2VpLmFjY291bnQuQWNjb3VudExvZ2luUmVxdWVzdBopLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50T3BlcmF0aW9uUmVzcG9uc2USUAoLQ2FuY2VsTG9naW4SKi54aWFvd2VpLmFjY291bnQuQ2FuY2VsQWNjb3VudExvZ2luUmVxdWVzdBoVLnhpYW93ZWkuY29tbW9uLkVtcHR5EloKBkxvZ291dBIlLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50TG9nb3V0UmVxdWVzdBopLnhpYW93ZWkuYWNjb3VudC5BY2NvdW50T3BlcmF0aW9uUmVzcG9uc2ViBnByb3RvMw", [file_xiaowei_common, file_xiaowei_server_auth]);
 
 /**
  * @generated from message xiaowei.account.AccountSnapshot
@@ -60,6 +60,13 @@ export type AccountSnapshot = Message<"xiaowei.account.AccountSnapshot"> & {
    * @generated from field: xiaowei.account.CloudConnectionStatus cloud_connection = 7;
    */
   cloudConnection: CloudConnectionStatus;
+
+  /**
+   * Public saved identities for the server list. Inactive servers have no background connection.
+   *
+   * @generated from field: repeated xiaowei.account.ServerAccount server_accounts = 8;
+   */
+  serverAccounts: ServerAccount[];
 };
 
 /**
@@ -68,6 +75,30 @@ export type AccountSnapshot = Message<"xiaowei.account.AccountSnapshot"> & {
  */
 export const AccountSnapshotSchema: GenMessage<AccountSnapshot> = /*@__PURE__*/
   messageDesc(file_xiaowei_account, 0);
+
+/**
+ * @generated from message xiaowei.account.ServerAccount
+ */
+export type ServerAccount = Message<"xiaowei.account.ServerAccount"> & {
+  /**
+   * @generated from field: string server_address = 1;
+   */
+  serverAddress: string;
+
+  /**
+   * Absent when no session is saved. Never includes credentials.
+   *
+   * @generated from field: xiaowei.server.auth.UserSnapshot user = 2;
+   */
+  user?: UserSnapshot | undefined;
+};
+
+/**
+ * Describes the message xiaowei.account.ServerAccount.
+ * Use `create(ServerAccountSchema)` to create a new message.
+ */
+export const ServerAccountSchema: GenMessage<ServerAccount> = /*@__PURE__*/
+  messageDesc(file_xiaowei_account, 1);
 
 /**
  * @generated from message xiaowei.account.AccountChanged
@@ -84,7 +115,7 @@ export type AccountChanged = Message<"xiaowei.account.AccountChanged"> & {
  * Use `create(AccountChangedSchema)` to create a new message.
  */
 export const AccountChangedSchema: GenMessage<AccountChanged> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 1);
+  messageDesc(file_xiaowei_account, 2);
 
 /**
  * @generated from message xiaowei.account.AccountOperationResponse
@@ -115,7 +146,7 @@ export type AccountOperationResponse = Message<"xiaowei.account.AccountOperation
  * Use `create(AccountOperationResponseSchema)` to create a new message.
  */
 export const AccountOperationResponseSchema: GenMessage<AccountOperationResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 2);
+  messageDesc(file_xiaowei_account, 3);
 
 /**
  * @generated from message xiaowei.account.AddServerRequest
@@ -134,14 +165,14 @@ export type AddServerRequest = Message<"xiaowei.account.AddServerRequest"> & {
  * Use `create(AddServerRequestSchema)` to create a new message.
  */
 export const AddServerRequestSchema: GenMessage<AddServerRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 3);
+  messageDesc(file_xiaowei_account, 4);
 
 /**
  * @generated from message xiaowei.account.SelectServerRequest
  */
 export type SelectServerRequest = Message<"xiaowei.account.SelectServerRequest"> & {
   /**
-   * Must be saved. Selection is rejected while signed in, including offline saved sessions.
+   * Must be saved. Switching never logs out the previous server.
    *
    * @generated from field: string server_address = 1;
    */
@@ -153,14 +184,15 @@ export type SelectServerRequest = Message<"xiaowei.account.SelectServerRequest">
  * Use `create(SelectServerRequestSchema)` to create a new message.
  */
 export const SelectServerRequestSchema: GenMessage<SelectServerRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 4);
+  messageDesc(file_xiaowei_account, 5);
 
 /**
  * @generated from message xiaowei.account.AccountLoginRequest
  */
 export type AccountLoginRequest = Message<"xiaowei.account.AccountLoginRequest"> & {
   /**
-   * Must equal the currently selected server, preventing a stale form from changing its target.
+   * Must be saved and have no saved session. Success selects this server;
+   * failure or cancellation preserves the previously selected server and its session.
    *
    * @generated from field: string server_address = 1;
    */
@@ -184,7 +216,33 @@ export type AccountLoginRequest = Message<"xiaowei.account.AccountLoginRequest">
  * Use `create(AccountLoginRequestSchema)` to create a new message.
  */
 export const AccountLoginRequestSchema: GenMessage<AccountLoginRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 5);
+  messageDesc(file_xiaowei_account, 6);
+
+/**
+ * @generated from message xiaowei.account.AccountLogoutRequest
+ */
+export type AccountLogoutRequest = Message<"xiaowei.account.AccountLogoutRequest"> & {
+  /**
+   * Empty means the selected server. Mutually exclusive with all_servers.
+   *
+   * @generated from field: string server_address = 1;
+   */
+  serverAddress: string;
+
+  /**
+   * True revokes all sessions saved by this installation, retaining failed entries for retry.
+   *
+   * @generated from field: bool all_servers = 2;
+   */
+  allServers: boolean;
+};
+
+/**
+ * Describes the message xiaowei.account.AccountLogoutRequest.
+ * Use `create(AccountLogoutRequestSchema)` to create a new message.
+ */
+export const AccountLogoutRequestSchema: GenMessage<AccountLogoutRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_account, 7);
 
 /**
  * @generated from message xiaowei.account.CancelAccountLoginRequest
@@ -203,7 +261,7 @@ export type CancelAccountLoginRequest = Message<"xiaowei.account.CancelAccountLo
  * Use `create(CancelAccountLoginRequestSchema)` to create a new message.
  */
 export const CancelAccountLoginRequestSchema: GenMessage<CancelAccountLoginRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_account, 6);
+  messageDesc(file_xiaowei_account, 8);
 
 /**
  * @generated from enum xiaowei.account.AccountStatus
@@ -299,7 +357,8 @@ export const Account: GenService<{
     output: typeof AccountSnapshotSchema;
   },
   /**
-   * Saves and selects the address. Only available while signed out.
+   * Validates with unauthenticated HTTP Health.Check before saving the address.
+   * Does not select or log in. Failure leaves the server list and current session unchanged.
    *
    * @generated from rpc xiaowei.account.Account.AddServer
    */
@@ -309,6 +368,8 @@ export const Account: GenService<{
     output: typeof AccountOperationResponseSchema;
   },
   /**
+   * Keeps the previous session and restores the target server's saved session, if any.
+   *
    * @generated from rpc xiaowei.account.Account.SelectServer
    */
   selectServer: {
@@ -335,13 +396,14 @@ export const Account: GenService<{
     output: typeof EmptySchema;
   },
   /**
-   * Network failure retains the session for retry; successful or already-invalid sessions clear locally.
+   * Revokes the requested saved session(s), without selecting another server.
+   * Failed servers remain saved for retry; successful or already-invalid sessions are removed.
    *
    * @generated from rpc xiaowei.account.Account.Logout
    */
   logout: {
     methodKind: "unary";
-    input: typeof EmptySchema;
+    input: typeof AccountLogoutRequestSchema;
     output: typeof AccountOperationResponseSchema;
   },
 }> = /*@__PURE__*/

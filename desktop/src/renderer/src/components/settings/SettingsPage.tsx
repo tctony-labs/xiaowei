@@ -184,7 +184,6 @@ export function SettingsPage({
               autostart: snapshot.autostart,
               bookmarks: snapshot.includeChromeBookmarks,
             }}
-            showAccount={false}
             accountSection={<AccountSettingsSection services={services} />}
             onChange={(values) => {
               if (values.theme !== themeValue(snapshot.theme)) {

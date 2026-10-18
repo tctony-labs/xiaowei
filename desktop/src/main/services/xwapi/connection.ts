@@ -1,8 +1,10 @@
-import { CloudConnectionStatus } from "xiaowei-contracts";
-import { GatewayFailure, type Route } from "xiaowei-gateway";
-import type { GatewayHost } from "xiaowei-gateway/host";
+import { Auth, CloudConnectionStatus } from "xiaowei-contracts";
+import { type Client, GatewayFailure, methodRoute, type Route } from "xiaowei-gateway";
+import { contextPermissions, type GatewayHost } from "xiaowei-gateway/host";
 import { connectWebSocket, type WebSocketPeer } from "xiaowei-gateway/websocket";
 import type { XwapiContext } from "./service";
+
+export type ConnectionAuthentication = "authenticated" | "rejected" | "unavailable";
 
 /** Owns one authenticated connection for the currently committed account session. */
 export class ServerConnection {
@@ -15,12 +17,13 @@ export class ServerConnection {
   private failures = 0;
   private closed = false;
   private unsubscribe?: () => void;
+  private authentication?: Promise<ConnectionAuthentication>;
 
   constructor(
     private host: GatewayHost,
     private readContext: () => Omit<XwapiContext, "signal">,
     private changed: (status: CloudConnectionStatus) => void,
-    private unauthorized: () => void = () => {},
+    private unauthorized: (accessToken: string) => void = () => {},
   ) {}
 
   start(subscribe: (listener: () => void) => () => void) {
@@ -48,16 +51,58 @@ export class ServerConnection {
     this.generation++;
     this.stopConnection();
     this.failures = 0;
-    if (key) void this.connect(this.generation);
+    if (key) this.authentication = this.connect(this.generation);
     else this.changed(CloudConnectionStatus.DISCONNECTED);
   }
 
-  private async connect(generation: number) {
-    if (this.closed || generation !== this.generation) return;
+  // Require the same capability as GetCurrentUser; an existing peer grants no permissions.
+  async authenticate(client: Client, signal: AbortSignal): Promise<ConnectionAuthentication> {
+    const permissions = contextPermissions(client.context());
+    if (
+      !permissions.trusted &&
+      !permissions.invoke?.includes(methodRoute(Auth.method.getCurrentUser).name)
+    ) {
+      throw new GatewayFailure({ code: "UNAUTHORIZED", message: "capability not authorized" });
+    }
+    signal.throwIfAborted();
+    this.update();
+    if (this.closed || !this.key) return "unavailable";
+    const key = this.key;
+    let cancel!: () => void;
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      cancel = () => reject(new DOMException("Connection validation cancelled", "AbortError"));
+      signal.addEventListener("abort", cancel, { once: true });
+      if (signal.aborted) cancel();
+    });
+    try {
+      const result = await Promise.race([this.authentication, cancelled]);
+      signal.throwIfAborted();
+      if (result === "authenticated" && !this.peer) return "unavailable";
+      return !this.closed && key === this.key ? (result ?? "unavailable") : "unavailable";
+    } finally {
+      signal.removeEventListener("abort", cancel);
+    }
+  }
+
+  private failed(generation: number, token: string, reason?: unknown) {
+    const rejected = reason instanceof GatewayFailure && reason.detail.code === "UNAUTHORIZED";
+    this.authentication = Promise.resolve(rejected ? "rejected" : "unavailable");
+    if (rejected) {
+      this.changed(CloudConnectionStatus.DISCONNECTED);
+      console.warn("Server WebSocket authentication rejected; waiting for refreshed credentials");
+      this.unauthorized(token);
+    } else {
+      this.retry(generation);
+    }
+    return rejected ? "rejected" : "unavailable";
+  }
+
+  private async connect(generation: number): Promise<ConnectionAuthentication> {
+    if (this.closed || generation !== this.generation) return "unavailable";
     const context = this.readContext();
     if (this.sessionKey(context) !== this.key || !context.session) {
       this.update();
-      return;
+      return "unavailable";
     }
     const controller = new AbortController();
     this.pending = controller;
@@ -71,8 +116,7 @@ export class ServerConnection {
       this.peer = undefined;
       clearInterval(this.heartbeat);
       this.heartbeat = undefined;
-      if (reason?.detail.code === "UNAUTHORIZED") this.unauthorized();
-      this.retry(generation);
+      this.failed(generation, context.session?.accessToken ?? "", reason);
     };
     try {
       const address = new URL(`${context.server}/api/ws`);
@@ -86,7 +130,7 @@ export class ServerConnection {
       });
       if (lost || this.closed || generation !== this.generation || controller.signal.aborted) {
         peer.close();
-        return;
+        return "unavailable";
       }
       this.pending = undefined;
       this.peer = peer;
@@ -108,12 +152,12 @@ export class ServerConnection {
             pinging = false;
           });
       }, 15_000);
+      return "authenticated";
     } catch (error) {
-      if (this.closed || generation !== this.generation || controller.signal.aborted) return;
+      if (this.closed || generation !== this.generation || controller.signal.aborted)
+        return "unavailable";
       this.pending = undefined;
-      if (error instanceof GatewayFailure && error.detail.code === "UNAUTHORIZED")
-        this.unauthorized();
-      this.retry(generation);
+      return this.failed(generation, context.session.accessToken, error);
     }
   }
 
@@ -127,7 +171,7 @@ export class ServerConnection {
       () => {
         this.timer = undefined;
         if (this.sessionKey(this.readContext()) !== this.key) this.update();
-        else void this.connect(generation);
+        else this.authentication = this.connect(generation);
       },
       wait + Math.floor(Math.random() * Math.min(wait / 4, 1000)),
     );
@@ -161,6 +205,7 @@ export class ServerConnection {
     this.heartbeat = undefined;
     this.pending?.abort();
     this.pending = undefined;
+    this.authentication = undefined;
     const peer = this.peer;
     this.peer = undefined;
     peer?.close();

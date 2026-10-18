@@ -8,9 +8,11 @@ import "xiaowei/server/auth.proto";
 service Account {
   rpc Get(xiaowei.common.Empty) returns (AccountSnapshot);
 
-  // Saves and selects the address. Only available while signed out.
+  // Validates with unauthenticated HTTP Health.Check before saving the address.
+  // Does not select or log in. Failure leaves the server list and current session unchanged.
   rpc AddServer(AddServerRequest) returns (AccountOperationResponse);
 
+  // Keeps the previous session and restores the target server's saved session, if any.
   rpc SelectServer(SelectServerRequest) returns (AccountOperationResponse);
 
   // Device identity, HTTP requests and saved credentials belong to the main owner.
@@ -18,8 +20,9 @@ service Account {
 
   rpc CancelLogin(CancelAccountLoginRequest) returns (xiaowei.common.Empty);
 
-  // Network failure retains the session for retry; successful or already-invalid sessions clear locally.
-  rpc Logout(xiaowei.common.Empty) returns (AccountOperationResponse);
+  // Revokes the requested saved session(s), without selecting another server.
+  // Failed servers remain saved for retry; successful or already-invalid sessions are removed.
+  rpc Logout(AccountLogoutRequest) returns (AccountOperationResponse);
 }
 
 enum AccountStatus {
@@ -52,6 +55,14 @@ message AccountSnapshot {
   // Safe description of restore, persistence or connection failure; never used for branching.
   string status_message = 6;
   CloudConnectionStatus cloud_connection = 7;
+  // Public saved identities for the server list. Inactive servers have no background connection.
+  repeated ServerAccount server_accounts = 8;
+}
+
+message ServerAccount {
+  string server_address = 1;
+  // Absent when no session is saved. Never includes credentials.
+  xiaowei.server.auth.UserSnapshot user = 2;
 }
 
 message AccountChanged {
@@ -72,16 +83,24 @@ message AddServerRequest {
 }
 
 message SelectServerRequest {
-  // Must be saved. Selection is rejected while signed in, including offline saved sessions.
+  // Must be saved. Switching never logs out the previous server.
   string server_address = 1;
 }
 
 message AccountLoginRequest {
-  // Must equal the currently selected server, preventing a stale form from changing its target.
+  // Must be saved and have no saved session. Success selects this server;
+  // failure or cancellation preserves the previously selected server and its session.
   string server_address = 1;
   xiaowei.server.auth.PasswordLogin password = 2;
   // Client-generated UUID v4 identifies this attempt for explicit cancellation.
   string attempt_id = 3;
+}
+
+message AccountLogoutRequest {
+  // Empty means the selected server. Mutually exclusive with all_servers.
+  string server_address = 1;
+  // True revokes all sessions saved by this installation, retaining failed entries for retry.
+  bool all_servers = 2;
 }
 
 message CancelAccountLoginRequest {

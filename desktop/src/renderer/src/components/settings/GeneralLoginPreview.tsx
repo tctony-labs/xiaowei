@@ -1,6 +1,7 @@
 // Storybook fixture only. Account actions are simulated and never contact a server.
 import { useEffect, useState } from "react";
 import { AccountCard, type AccountCardProps } from "./AccountCard";
+import { AccountManagementDialog } from "./AccountManagementDialog";
 import { AddServerDialog } from "./AddServerDialog";
 import { PasswordLoginDialog } from "./PasswordLoginDialog";
 import { SettingsPreview } from "./SettingsPreview";
@@ -9,8 +10,10 @@ export interface GeneralLoginPreviewProps {
   signedIn?: boolean;
   emptyServers?: boolean;
   longAddress?: boolean;
-  initialDialog?: "login" | "add";
+  initialDialog?: "login" | "add" | "manage";
+  multipleSessions?: boolean;
   loginState?: "idle" | "pending" | "error";
+  addState?: "idle" | "pending" | "error";
   connectionStatus?: AccountCardProps["connectionStatus"];
 }
 
@@ -19,7 +22,9 @@ export function GeneralLoginPreview({
   emptyServers = false,
   longAddress = false,
   initialDialog,
+  multipleSessions = false,
   loginState = "idle",
+  addState = "idle",
   connectionStatus = "connected",
 }: GeneralLoginPreviewProps) {
   const initialServer = longAddress
@@ -29,13 +34,23 @@ export function GeneralLoginPreview({
     emptyServers ? [] : [initialServer, "https://team.example.test/xiaowei"],
   );
   const [server, setServer] = useState(emptyServers ? "" : initialServer);
-  const [user, setUser] = useState<AccountCardProps["user"]>(
-    signedIn ? { uid: "u_7mK2qR9xW4nT8bYpC6dHfA" } : undefined,
+  const [sessions, setSessions] = useState<Record<string, string>>(
+    signedIn
+      ? {
+          [initialServer]: "u_7mK2qR9xW4nT8bYpC6dHfA",
+          ...(multipleSessions
+            ? { "https://team.example.test/xiaowei": "u_remote_8bYpC6dHfA" }
+            : {}),
+        }
+      : {},
   );
   const [dialog, setDialog] = useState(initialDialog);
+  const [loginServer, setLoginServer] = useState(initialServer);
+  const [returnToManagement, setReturnToManagement] = useState(initialDialog === "manage");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(loginState === "error" ? "邮箱或密码错误" : "");
   const [copied, setCopied] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (!pending || loginState === "pending") return;
@@ -44,17 +59,34 @@ export function GeneralLoginPreview({
       if (loginState === "error") {
         setError("邮箱或密码错误");
       } else {
-        setUser({ uid: "u_7mK2qR9xW4nT8bYpC6dHfA" });
-        setDialog(undefined);
+        setSessions((current) => ({ ...current, [loginServer]: "u_7mK2qR9xW4nT8bYpC6dHfA" }));
+        setServer(loginServer);
+        setDialog(returnToManagement ? "manage" : undefined);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [pending, loginState]);
+  }, [pending, loginState, loginServer, returnToManagement]);
 
   function closeDialog() {
     setPending(false);
-    setDialog(undefined);
+    setDialog(returnToManagement ? "manage" : undefined);
     setError("");
+  }
+
+  function logout(address: string) {
+    setSessions((current) => {
+      const next = { ...current };
+      delete next[address];
+      return next;
+    });
+    setCopied(false);
+  }
+
+  async function addServer(address: string) {
+    // Simulate validation without contacting a real server from Storybook.
+    if (addState === "pending") await new Promise<void>(() => {});
+    if (addState === "error") throw new Error("无法连接服务器，请检查地址后重试");
+    setServers((current) => [...current, address]);
   }
 
   return (
@@ -65,38 +97,68 @@ export function GeneralLoginPreview({
           <AccountCard
             servers={servers}
             server={server}
-            user={user}
+            user={sessions[server] ? { uid: sessions[server] } : undefined}
             connectionStatus={connectionStatus}
             busy={dialog !== undefined}
             onSelectServer={setServer}
-            onAddServer={() => setDialog("add")}
+            onAddServer={() => {
+              setReturnToManagement(false);
+              setDialog("add");
+            }}
             onLogin={() => {
+              setLoginServer(server);
+              setReturnToManagement(false);
               setCopied(false);
               setError("");
               setDialog("login");
             }}
-            onLogout={() => {
-              setUser(undefined);
-              setCopied(false);
+            onManage={() => {
+              setReturnToManagement(true);
+              setDialog("manage");
             }}
             onCopyUid={() => setCopied(true)}
           />
         }
       />
+      {dialog === "manage" && (
+        <AccountManagementDialog
+          servers={servers.map((address) => ({ address, uid: sessions[address] }))}
+          currentServer={server}
+          onClose={() => setDialog(undefined)}
+          onSwitch={setServer}
+          onLogin={(address) => {
+            setLoginServer(address);
+            setError("");
+            setDialog("login");
+          }}
+          onLogout={logout}
+          onLogoutAll={() => {
+            setSessions({});
+            setCopied(false);
+            setDialog(undefined);
+          }}
+          onAddServer={addServer}
+        />
+      )}
       {dialog === "add" && (
         <AddServerDialog
           servers={servers}
+          pending={adding}
+          saveError={error}
           onClose={closeDialog}
           onSave={(address) => {
-            setServers((current) => [...current, address]);
-            setServer(address);
-            closeDialog();
+            setAdding(true);
+            setError("");
+            void addServer(address)
+              .then(() => setDialog(undefined))
+              .catch((error: Error) => setError(error.message))
+              .finally(() => setAdding(false));
           }}
         />
       )}
       {dialog === "login" && (
         <PasswordLoginDialog
-          server={server}
+          server={loginServer}
           pending={pending}
           error={error}
           onClose={closeDialog}

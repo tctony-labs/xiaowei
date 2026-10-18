@@ -17,7 +17,7 @@ import {
   XwApiOptionsSchema,
   XwApiTransport,
 } from "xiaowei-contracts";
-import { methodRoute } from "xiaowei-gateway";
+import { GatewayFailure, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { ServerConnection } from "../../src/main/services/xwapi/connection";
 import { type XwapiContext, XwapiError, XwapiService } from "../../src/main/services/xwapi/service";
@@ -59,12 +59,14 @@ test("committed session connects; rotation, logout and retry isolate old connect
   let status = CloudConnectionStatus.DISCONNECTED;
   let revalidations = 0;
   let connected!: () => void;
+  const host = new GatewayHost();
+  const client = host.client({ caller: "connection-test", trusted: true });
   const nextConnection = () =>
     new Promise<void>((resolve) => {
       connected = resolve;
     });
   const manager = new ServerConnection(
-    new GatewayHost(),
+    host,
     () => context,
     (next) => {
       status = next;
@@ -95,7 +97,20 @@ test("committed session connects; rotation, logout and retry isolate old connect
     };
     changed?.();
     assert.equal(manager.canInvoke(echo, { ...context, signal: AbortSignal.timeout(5000) }), false);
+    const cancelled = new AbortController();
+    const cancelledValidation = manager.authenticate(client, cancelled.signal);
+    cancelled.abort();
+    await assert.rejects(cancelledValidation, /cancelled|aborted/i);
+    const authentication = manager.authenticate(client, AbortSignal.timeout(5000));
     await first;
+    assert.equal(await authentication, "authenticated");
+    await assert.rejects(
+      manager.authenticate(
+        host.client({ caller: "limited", trusted: false, invoke: [] }),
+        AbortSignal.timeout(5000),
+      ),
+      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "UNAUTHORIZED",
+    );
     const request = toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "roundtrip", id: 7n }));
     const callContext = () => ({ ...context, signal: new AbortController().signal });
     assert.equal(manager.canInvoke(echo, callContext()), true);
@@ -151,7 +166,7 @@ test("committed session connects; rotation, logout and retry isolate old connect
       7n,
     );
 
-    // Auth failure schedules a bounded retry without clearing the committed login context.
+    // Pause rejected credentials until Account refreshes them; never loop on the same token.
     context = {
       ...context,
       session: {
@@ -165,12 +180,14 @@ test("committed session connects; rotation, logout and retry isolate old connect
     changed?.();
     const deadline = Date.now() + 2000;
     while (
-      (status !== CloudConnectionStatus.RECONNECTING || revalidations === 0) &&
+      (status !== CloudConnectionStatus.DISCONNECTED || revalidations === 0) &&
       Date.now() < deadline
     ) {
       await delay(10);
     }
-    assert.equal(status, CloudConnectionStatus.RECONNECTING);
+    assert.equal(status, CloudConnectionStatus.DISCONNECTED);
+    assert.equal(await manager.authenticate(client, AbortSignal.timeout(5000)), "rejected");
+    await delay(700);
     assert.equal(manager.canInvoke(echo, callContext()), false);
     assert.equal(revalidations, 1);
     assert.ok(context.session);
@@ -187,6 +204,10 @@ test("committed session connects; rotation, logout and retry isolate old connect
     };
     changed?.();
     await restored;
+    assert.ok(context.session);
+    context = { ...context, session: { ...context.session, accessExpiresAtMs: 1n } };
+    changed?.();
+    assert.equal(await manager.authenticate(client, AbortSignal.timeout(5000)), "unavailable");
     context = { server };
     changed?.();
     assert.equal(status, CloudConnectionStatus.DISCONNECTED);

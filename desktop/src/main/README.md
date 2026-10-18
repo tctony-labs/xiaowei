@@ -12,7 +12,8 @@
 - 前端及跨模块业务调用统一通过 proto service／Gateway；preload 只承载 Gateway bridge，不新增 raw 业务 IPC 或专用跨语言副作用回调。
 - `resources/` 负责渲染资源协议和缓存；资源 URL 不作为绕过 Gateway 的业务命令入口。
 - `services/xwapi/` 负责小微服务端请求、强类型协议映射、本地鉴权与安全请求日志，经 Gateway 提供服务器能力。调用与登录检查边界见 [xwapi 服务器调用](../../../docs/xwapi.md)。请求执行器不管理会话；同目录的 `connection.ts` 统一持有认证 WebSocket、心跳和退避重连，按 Account 的凭据快照替换连接。AccountService 持有服务器选择、凭据和刷新流程；装配为公共入口提供当前会话的只读快照。日志字段、等级及敏感信息规则见 [HTTP 接口与日志](../../../server/docs/http.md#请求日志)。
-- AccountService 的认证事务通过 Gateway typed Auth client 调用 xwapi，自行处理响应 code/msg 和凭据提交；业务 handler 使用原注入 client，后台恢复使用宿主 client。撤销已收到但未提交的登录结果时使用 xwapi 的宿主内部隔离上下文，保留原 caller 权限，不能先将未提交凭据公开为当前登录态；服务器地址与 token 不放入业务 payload 或 service options。
+- AccountService 的认证事务通过 Gateway typed Auth client 调用 xwapi，自行处理响应 code/msg 和凭据提交；添加地址前通过 typed Health client 校验目标服务器。业务 handler 使用原注入 client，后台恢复使用宿主 client。新地址校验与撤销已收到但未提交的登录结果使用 xwapi 的宿主内部隔离上下文，保留原 caller 权限；新地址校验不携带当前凭据，未提交凭据不能先公开为当前登录态。服务器地址与 token 不放入服务端 API 的业务 payload 或 service options。
+- Account 恢复通过注入的 ServerConnection 入口等待当前连接鉴权，再使用 typed GetCurrentUser 核对身份；等待入口保留原 caller 的 GetCurrentUser 权限，连接层只回报鉴权结果和被拒绝的 token，不自行刷新或删除登录态。过期、拒绝和 HTTP 回退规则见 [桌面账号](../../docs/account.md#恢复刷新与退出)。
 - 每个 owner 提供显式接入与关闭入口。导入模块不自动注册服务或启动后台任务；不预建空目录、通用 utils 或多层转发包装。
 
 ## 目录

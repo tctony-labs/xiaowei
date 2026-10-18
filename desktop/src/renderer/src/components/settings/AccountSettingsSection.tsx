@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccountChangedSchema,
   AccountLoginRequestSchema,
+  AccountLogoutRequestSchema,
   type AccountOperationResponse,
   type AccountSnapshot,
   AccountStatus,
@@ -13,16 +14,20 @@ import {
   SelectServerRequestSchema,
   WriteClipboardTextRequestSchema,
 } from "xiaowei-contracts";
-import type { Subscription } from "xiaowei-gateway";
+import type { Rpc, Subscription } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { AccountCard } from "./AccountCard";
+import { AccountManagementDialog } from "./AccountManagementDialog";
 import { AddServerDialog } from "./AddServerDialog";
 import { PasswordLoginDialog } from "./PasswordLoginDialog";
 
 export function AccountSettingsSection({ services }: { services: Services }) {
   const api = services.getAccount();
   const [snapshot, setSnapshot] = useState<AccountSnapshot>();
-  const [dialog, setDialog] = useState<"login" | "add">();
+  const [dialog, setDialog] = useState<"login" | "add" | "manage">();
+  const [loginServer, setLoginServer] = useState("");
+  const returnToManagement = useRef(false);
+  const loginOrigin = useRef<AccountSnapshot | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -30,6 +35,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
   const active = useRef(false);
   const attempt = useRef<string | undefined>(undefined);
   const operationId = useRef(0);
+  const operationRequest = useRef<Rpc<AccountOperationResponse> | undefined>(undefined);
 
   const accept = useCallback((next: AccountSnapshot) => {
     if (!active.current || (current.current && next.revision < current.current.revision)) return;
@@ -62,6 +68,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
       disposed = true;
       active.current = false;
       operationId.current++;
+      operationRequest.current?.cancel();
       subscription?.close();
       const id = attempt.current;
       attempt.current = undefined;
@@ -74,43 +81,53 @@ export function AccountSettingsSection({ services }: { services: Services }) {
 
   function closeDialog() {
     operationId.current++;
+    operationRequest.current?.cancel();
+    operationRequest.current = undefined;
     const id = attempt.current;
     attempt.current = undefined;
     if (id)
       void api.cancelLogin(create(CancelAccountLoginRequestSchema, { attemptId: id })).catch(() => {
         if (active.current) setNotice("取消登录请求失败，请检查账号状态");
       });
-    setDialog(undefined);
+    setDialog(dialog === "login" && returnToManagement.current ? "manage" : undefined);
     setBusy(false);
     setError("");
   }
 
   async function run(
-    work: () => Promise<AccountOperationResponse>,
-    close = false,
-    minimumPendingMs = 0,
+    work: () => Rpc<AccountOperationResponse>,
+    options: { close?: boolean; minimumPendingMs?: number; showError?: boolean } = {},
   ) {
     const id = ++operationId.current;
     setBusy(true);
     setError("");
     setNotice("");
     const minimumPending =
-      minimumPendingMs > 0
-        ? new Promise<void>((resolve) => setTimeout(resolve, minimumPendingMs))
+      (options.minimumPendingMs ?? 0) > 0
+        ? new Promise<void>((resolve) => setTimeout(resolve, options.minimumPendingMs))
         : undefined;
     try {
-      const result = await work();
+      const request = work();
+      operationRequest.current = request;
+      const result = await request;
       await minimumPending;
       if (!active.current || operationId.current !== id) return;
       if (result.snapshot) accept(result.snapshot);
-      if (result.code !== 0) setError(result.msg || "账号操作失败");
-      else if (close) setDialog(undefined);
+      if (result.code !== 0) {
+        if (options.showError !== false) setError(result.msg || "账号操作失败");
+      } else if (options.close) {
+        setDialog(dialog === "login" && returnToManagement.current ? "manage" : undefined);
+      }
+      return result;
     } catch {
       await minimumPending;
-      if (active.current && operationId.current === id) setError("账号操作失败，请重试");
+      if (active.current && operationId.current === id && options.showError !== false) {
+        setError("账号操作失败，请重试");
+      }
     } finally {
       if (active.current && operationId.current === id) {
         attempt.current = undefined;
+        operationRequest.current = undefined;
         setBusy(false);
       }
     }
@@ -128,20 +145,21 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     snapshot.status === AccountStatus.RESTORING ||
     snapshot.status === AccountStatus.SIGNING_IN;
   // 登录事件可能先于最短 loading 时间到达，卡片与浮层结束时一起切换。
-  const cardUser = dialog === "login" && busy ? undefined : snapshot.user;
+  const cardSnapshot = dialog === "login" && busy ? (loginOrigin.current ?? snapshot) : snapshot;
+  const cardUser = cardSnapshot.user;
 
   return (
     <div>
       <AccountCard
         servers={snapshot.servers}
-        server={snapshot.selectedServer}
+        server={cardSnapshot.selectedServer}
         user={cardUser ? { uid: cardUser.userId } : undefined}
         connectionStatus={
-          snapshot.cloudConnection === CloudConnectionStatus.CONNECTED
+          cardSnapshot.cloudConnection === CloudConnectionStatus.CONNECTED
             ? "connected"
-            : snapshot.cloudConnection === CloudConnectionStatus.CONNECTING
+            : cardSnapshot.cloudConnection === CloudConnectionStatus.CONNECTING
               ? "connecting"
-              : snapshot.cloudConnection === CloudConnectionStatus.RECONNECTING
+              : cardSnapshot.cloudConnection === CloudConnectionStatus.RECONNECTING
                 ? "reconnecting"
                 : "disconnected"
         }
@@ -154,11 +172,15 @@ export function AccountSettingsSection({ services }: { services: Services }) {
           setDialog("add");
         }}
         onLogin={() => {
+          loginOrigin.current = snapshot;
+          returnToManagement.current = false;
+          setLoginServer(snapshot.selectedServer);
           setError("");
           setDialog("login");
         }}
-        onLogout={() => {
-          void run(() => api.logout(create(EmptySchema)));
+        onManage={() => {
+          setError("");
+          setDialog("manage");
         }}
         onCopyUid={() => {
           void services
@@ -186,6 +208,44 @@ export function AccountSettingsSection({ services }: { services: Services }) {
           {notice}
         </p>
       )}
+      {dialog === "manage" && (
+        <AccountManagementDialog
+          servers={snapshot.servers.map((address) => ({
+            address,
+            uid: snapshot.serverAccounts.find((entry) => entry.serverAddress === address)?.user
+              ?.userId,
+          }))}
+          currentServer={snapshot.selectedServer}
+          busy={accountBusy}
+          error={error || snapshot.statusMessage}
+          onClose={closeDialog}
+          onSwitch={(serverAddress) => {
+            void run(() => api.selectServer(create(SelectServerRequestSchema, { serverAddress })));
+          }}
+          onLogin={(address) => {
+            loginOrigin.current = snapshot;
+            returnToManagement.current = true;
+            setLoginServer(address);
+            setError("");
+            setDialog("login");
+          }}
+          onLogout={(serverAddress) => {
+            void run(() => api.logout(create(AccountLogoutRequestSchema, { serverAddress })));
+          }}
+          onLogoutAll={() => {
+            void run(() => api.logout(create(AccountLogoutRequestSchema, { allServers: true })), {
+              close: true,
+            });
+          }}
+          onAddServer={async (serverAddress) => {
+            const result = await run(
+              () => api.addServer(create(AddServerRequestSchema, { serverAddress })),
+              { showError: false },
+            );
+            if (result?.code !== 0) throw new Error(result?.msg || "添加服务器失败，请重试");
+          }}
+        />
+      )}
       {dialog === "add" && (
         <AddServerDialog
           servers={snapshot.servers}
@@ -193,13 +253,15 @@ export function AccountSettingsSection({ services }: { services: Services }) {
           saveError={error}
           onClose={closeDialog}
           onSave={(serverAddress) => {
-            void run(() => api.addServer(create(AddServerRequestSchema, { serverAddress })), true);
+            void run(() => api.addServer(create(AddServerRequestSchema, { serverAddress })), {
+              close: true,
+            });
           }}
         />
       )}
       {dialog === "login" && (
         <PasswordLoginDialog
-          server={snapshot.selectedServer}
+          server={loginServer}
           pending={busy}
           error={error}
           onClose={closeDialog}
@@ -210,13 +272,12 @@ export function AccountSettingsSection({ services }: { services: Services }) {
               () =>
                 api.login(
                   create(AccountLoginRequestSchema, {
-                    serverAddress: snapshot.selectedServer,
+                    serverAddress: loginServer,
                     password: { email, password },
                     attemptId,
                   }),
                 ),
-              true,
-              500,
+              { close: true, minimumPendingMs: 500 },
             );
           }}
         />

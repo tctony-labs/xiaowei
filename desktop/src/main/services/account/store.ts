@@ -21,12 +21,21 @@ export interface AccountDocument {
   deviceId: string;
   servers: string[];
   selectedServer: string;
-  session?: SavedSession;
+  sessions: SavedSession[];
 }
 
 export interface SavedSession {
   server: string;
   authenticated: Authenticated;
+}
+
+function configurationJson(document: AccountDocument) {
+  return JSON.stringify({
+    version: document.version,
+    deviceId: document.deviceId,
+    servers: document.servers,
+    selectedServer: document.selectedServer,
+  });
 }
 
 export class AccountStore {
@@ -46,8 +55,9 @@ export class AccountStore {
         deviceId: randomUUID(),
         servers: [DEFAULT_SERVER],
         selectedServer: DEFAULT_SERVER,
+        sessions: [],
       };
-      const json = JSON.stringify(document);
+      const json = configurationJson(document);
       await this.meta.set(create(KvEntrySchema, { key: "account.config", json }));
       this.configuration = json;
       console.info("Account settings initialized in meta");
@@ -57,22 +67,27 @@ export class AccountStore {
         document.servers.push(DEFAULT_SERVER);
         if (!document.selectedServer) document.selectedServer = DEFAULT_SERVER;
         await this.meta.set(
-          create(KvEntrySchema, { key: "account.config", json: JSON.stringify(document) }),
+          create(KvEntrySchema, { key: "account.config", json: configurationJson(document) }),
         );
         console.info("Default account server added to settings");
       }
-      this.configuration = JSON.stringify(document);
+      this.configuration = configurationJson(document);
     }
 
     try {
       const value = JSON.parse(await readFile(this.path, "utf8"));
-      if (value.version !== 1 || typeof value.server !== "string" || !value.authenticated) {
-        throw new Error("Invalid auth document");
-      }
-      document.session = {
-        server: value.server,
-        authenticated: fromJson(AuthenticatedSchema, value.authenticated),
-      };
+      const sessions = value.version === 1 ? [value] : value.version === 2 ? value.sessions : null;
+      if (!Array.isArray(sessions)) throw new Error("Invalid auth document");
+      const servers = new Set<string>();
+      document.sessions = sessions.map((session) => {
+        if (typeof session.server !== "string" || !session.authenticated)
+          throw new Error("Invalid saved session");
+        const server = normalizeServerAddress(session.server);
+        if (!document.servers.includes(server) || servers.has(server))
+          throw new Error("Invalid saved session server");
+        servers.add(server);
+        return { server, authenticated: fromJson(AuthenticatedSchema, session.authenticated) };
+      });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw new AccountError(ErrorCode.INTERNAL_ERROR, "登录态无法读取，请检查本地 auth.json");
@@ -106,6 +121,7 @@ export class AccountStore {
         deviceId: value.deviceId,
         servers,
         selectedServer: value.selectedServer,
+        sessions: [],
       };
     } catch {
       throw new AccountError(
@@ -116,12 +132,33 @@ export class AccountStore {
   }
 
   async save(document: AccountDocument): Promise<void> {
-    const configuration = JSON.stringify({
-      version: document.version,
-      deviceId: document.deviceId,
-      servers: document.servers,
-      selectedServer: document.selectedServer,
-    });
+    const temporary = `${this.path}.${randomUUID()}.tmp`;
+    try {
+      if (document.sessions.length === 0) {
+        await rm(this.path, { force: true });
+      } else {
+        await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
+        const auth = {
+          version: 2,
+          sessions: document.sessions.map((session) => ({
+            server: session.server,
+            authenticated: toJson(AuthenticatedSchema, session.authenticated),
+          })),
+        };
+        await writeFile(temporary, `${JSON.stringify(auth, null, 2)}\n`, {
+          mode: 0o600,
+          flag: "wx",
+        });
+        await rename(temporary, this.path);
+      }
+    } catch {
+      throw new AccountError(ErrorCode.INTERNAL_ERROR, "保存登录态失败，请检查磁盘权限或空间");
+    } finally {
+      await rm(temporary, { force: true });
+    }
+
+    // Save credentials before publishing a new selection. Either selection remains recoverable.
+    const configuration = configurationJson(document);
     if (configuration !== this.configuration) {
       try {
         await this.meta.set(create(KvEntrySchema, { key: "account.config", json: configuration }));
@@ -129,26 +166,6 @@ export class AccountStore {
       } catch {
         throw new AccountError(ErrorCode.INTERNAL_ERROR, "保存账号配置失败，请检查数据库状态");
       }
-    }
-
-    const temporary = `${this.path}.${randomUUID()}.tmp`;
-    try {
-      if (!document.session) {
-        await rm(this.path, { force: true });
-        return;
-      }
-      await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-      const auth = {
-        version: 1,
-        server: document.session.server,
-        authenticated: toJson(AuthenticatedSchema, document.session.authenticated),
-      };
-      await writeFile(temporary, `${JSON.stringify(auth, null, 2)}\n`, { mode: 0o600, flag: "wx" });
-      await rename(temporary, this.path);
-    } catch {
-      throw new AccountError(ErrorCode.INTERNAL_ERROR, "保存登录态失败，请检查磁盘权限或空间");
-    } finally {
-      await rm(temporary, { force: true });
     }
   }
 }
