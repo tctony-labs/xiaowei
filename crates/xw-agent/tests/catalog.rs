@@ -32,6 +32,7 @@ fn source() -> InputSource {
 
 fn create_request() -> CreateSessionRequest {
     CreateSessionRequest {
+        cwd: None,
         client_request_id: ClientRequestId::new().to_string(),
         config: Some(AgentModelConfig {
             model_ref: "model".into(),
@@ -466,7 +467,8 @@ async fn failed_delete_keeps_pending_sql_state_and_only_known_paths_are_retried(
         .unwrap()
         .session
         .unwrap();
-    std::os::unix::fs::symlink(outside.path(), root.path().join("workspaces")).unwrap();
+    std::fs::remove_dir_all(root.path().join("quick-chat")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.path().join("quick-chat")).unwrap();
     assert_eq!(
         service
             .delete_session(DeleteSessionRequest {
@@ -495,7 +497,7 @@ async fn failed_delete_keeps_pending_sql_state_and_only_known_paths_are_retried(
         b"outside"
     );
     service.close().await.unwrap();
-    std::fs::remove_file(root.path().join("workspaces")).unwrap();
+    std::fs::remove_file(root.path().join("quick-chat")).unwrap();
     let reopened = AgentService::open(Arc::new(Host), root.path().into())
         .await
         .unwrap();

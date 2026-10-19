@@ -4,7 +4,7 @@
 
 从包根使用 `AgentService`、`AgentError`、`EventSubscription`、`SubscriptionError` 与 `protocol`。先创建会话，再以必填 `session_id` 调用 `subscribe_session`；第一帧 `SubscriptionReady` 已携带该单个会话完整快照，并与观察者登记原子完成；随后顺序消费快照之后的直接业务事件。未知／已删除会话返回 `AgentError::NotFound`。订阅过载明确返回 `Lagged` 并结束，需要重新订阅并用新首帧替换缓存。独立 `read_session` 只用于查询，不能覆盖活跃事件缓存。关闭观察者不关闭服务，宿主通过 `close().await` 释放服务并唤醒观察者。
 
-`AgentService::new` 提供内存模式，`AgentService::open(host, root).await` 打开核心自有的 `sessions.sqlite` 与 rollout 文件层；宿主只传目录和模型 Host，不接存储 Gateway。正常启动／列表仅查 SQLite；打开登记会话时按需校验 JSONL、结算遗留运行、恢复历史与配置，不执行旧模型请求。`with_rollout` 仅保留显式 legacy fixture 的文件模式。所有会话控制方法使用同一公开服务入口。会话支持模型配置、幂等创建、单个活动 Run、完整公共历史和有界事件订阅。`start_run` 原子接纳稳定 input ID，立即返回 Run；重复原请求复用同一 Run，冲突请求不修改状态。后台执行单次 Gen，只将完整成功 AssistantMessage 加入下轮上下文，失败／取消保留用户输入和部分显示。`interrupt_run` 指定准确 Run，终态通过 RunCompleted 确认。异步删除和关闭取消并等待任务；持久模式关闭后可从同一根目录重开；内存模式关闭后历史丢失。
+`AgentService::new` 提供内存模式，`AgentService::open(host, root).await` 打开核心自有的 `sessions.sqlite` 与 rollout 文件层；宿主只传目录和模型 Host，不接存储 Gateway。正常启动／列表仅查 SQLite；打开登记会话时按需校验 JSONL、结算遗留运行、恢复历史与配置，不执行旧模型请求。`with_rollout` 仅保留显式 legacy fixture 的文件模式。所有会话控制方法使用同一公开服务入口。会话支持模型配置、幂等创建、单个活动 Run、完整公共历史和有界事件订阅。`start_run` 原子接纳稳定 input ID，立即返回 Run；重复原请求复用同一 Run，冲突请求不修改状态。后台执行多 Turn 工具循环；完整成功 AssistantMessage 与已提交工具结果进入后续上下文，失败／取消保留用户输入和部分显示。`interrupt_run` 指定准确 Run，终态通过 RunCompleted 确认。异步删除和关闭取消并等待任务；持久模式关闭后可从同一根目录重开；内存模式关闭后历史丢失。
 
 每会话模型历史加原始幂等请求的编码字节合计不超过 8 MiB，显示投影不超过 8 MiB，Run／输入关联最多 1024 项；不会静默淘汰身份。ReadSession 完整结果和订阅首帧超出 1 MiB 编码预算时明确 ResourceExhausted；订阅积压受 64 帧／1 MiB 限制。较大历史的分页属于后续工作。生成过程仅记录安全身份、阶段和耗时，不输出正文。
 
@@ -19,4 +19,10 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 `xw-agent-rollout` 负责文件提交和尾部修复，本包负责上下文重建／业务结算。写盘失败终止 Run；下一条 query 在 NeedsCheck writer 上先修复并收尾，成功后开启新 Run，无自动重发。只有 InputAccepted 而未开始 Run 的输入仍保留身份，重试返回冲突，不重新接纳。持久模式列表支持普通／归档过滤和分页；归档先停止结算，取消归档后才能打开。删除先提交 SQLite deleting，再直接清理登记文件和自有 workspace，成功后移除记录；失败保留状态，重开只重试已知删除路径。标题更新不追加 JSONL，数据库故障明确报错，无历史扫描兜底。
 
-系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。记录／恢复已实现，生产 `start_run`、模型适配及工具循环尚未接入；不能将这一入口视为已交付模型同步。
+系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。生产 `start_run` 已在生成前提交同步结果，`rebuild_context` 将独立系统记录按历史顺序投影进模型请求；跨 Run 无变化不追加，重开不重复基线。
+
+`build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和与实际传入声明对应的 Read／Write／Edit 使用规则，返回经过校验的 SystemContext；不会注册工具或改变执行权限。正文与工具 schema 分别维护，规则随工具增删一起经过已有差异／持久化入口。`tool_registry` 按实际 cwd 装配文件工具及环境片段，再用于生产模型请求；待实现工具不提前开放。
+
+创建持久会话时，默认使用 `<root>/quick-chat/<session-id>/`，可显式指定已有绝对目录。cwd 创建时写入 Header，重开保持稳定；无 cwd 的旧 Header 按固定自有目录回退而不改写。归档保留文件；删除只清理自有目录，外部 cwd 保留。无根目录的内存会话没有 cwd 时只提供文本聊天。
+
+工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集和文件原语。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止等待已启动的阻塞文件操作实际结算，余下调用补 skipped，不再生成；结果未知时阻止普通新 Run，不自动重放。公共工具 Item 可由历史重建。

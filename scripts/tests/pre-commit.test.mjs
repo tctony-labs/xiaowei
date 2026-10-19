@@ -141,6 +141,29 @@ test("Rust uses each package edition without following child modules; Go formats
   assert.equal(git("write-tree"), index);
 });
 
+test("proto generated files keep their original bytes and still run the workspace check", (context) => {
+  const { write, read, git, run } = fixture(context);
+  const generated = {
+    "contracts/rust/src/gen/example.rs": "pub struct Generated {pub value:u32}\n",
+    "contracts/ts/src/gen/example.ts": "export const generated={value:1}\n",
+    "contracts/go/gen/example.pb.go": "package generated\nfunc Generated( ) { }\n",
+  };
+  for (const [path, contents] of Object.entries(generated)) {
+    write(path, contents);
+    git("add", path);
+  }
+  const index = git("write-tree");
+  const result = run();
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /full-workspace-check/);
+  assert.doesNotMatch(result.stdout, /\[pre-commit\] (pnpm|rustfmt|gofmt)/);
+  for (const [path, contents] of Object.entries(generated)) {
+    assert.equal(read(path), contents);
+  }
+  assert.equal(git("write-tree"), index);
+});
+
 test("renames, deletions and unsupported files are accepted; an empty staged set still runs check", (context) => {
   const { write, git, run } = fixture(context);
   git("mv", "selected file.js", "renamed file.js");

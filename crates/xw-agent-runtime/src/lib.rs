@@ -11,3 +11,6 @@ pub use generation::{
 pub use tokio_util::sync::CancellationToken;
 mod text;
 pub use text::{RunEvent, RunOutcome, RunRequest, RunStatus, execute_text};
+
+mod permission;
+pub mod tools;

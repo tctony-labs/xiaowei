@@ -131,6 +131,21 @@ fn header_is_immutable_and_initial_meta_must_precede_other_records() {
 }
 
 #[test]
+fn optional_absolute_cwd_roundtrips_in_the_header_and_relative_cwd_is_rejected() {
+    let mut history = decode_history(TEXT).unwrap();
+    history[0].payload = EntryPayload::SessionHeader {
+        cwd: Some("/tmp/session".into()),
+    };
+    let encoded = encode_history(&history).unwrap();
+    assert!(encoded.lines().next().unwrap().contains("/tmp/session"));
+    assert_eq!(decode_history(&encoded).unwrap(), history);
+    history[0].payload = EntryPayload::SessionHeader {
+        cwd: Some("relative/session".into()),
+    };
+    assert!(encode_history(&history).is_err());
+}
+
+#[test]
 fn user_body_and_tool_arguments_are_recorded_once_and_terminal_statistics_are_shared() {
     let stored: Vec<Value> = TOOLS
         .lines()
@@ -337,7 +352,7 @@ fn explicit_deletion_marker_api_keeps_its_separate_format_and_path_validation() 
         schema_version: 1,
         session_id: entry.session_id,
         journal_relpath: format!("sessions/2026/10/{}.jsonl", entry.session_id),
-        workspace_relpath: format!("workspaces/{}", entry.session_id),
+        workspace_relpath: format!("quick-chat/{}", entry.session_id),
         deleted_at_ms: 1000,
         committed_sequence: Sequence(10),
     };

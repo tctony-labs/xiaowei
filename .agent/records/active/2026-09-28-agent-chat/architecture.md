@@ -1,12 +1,12 @@
 # 架构、分包与依赖方向
 
-所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已交付持久文本聊天；工具执行和远程 transport 尚未实现。
+所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已接入持久文本聊天及 Read／Write／Edit 工具循环；其他工具及远程 transport 尚未实现。
 
 ## 技术路线与源码参考
 
 采用旧版 Rust Agent 迁移路线，Pi 继续承担模型适配，不将 Agent Core 改为 TS，也不整体引入 codex-core。迁移须核对业务、持久化、恢复与文件生命周期，不能只迁 UI 或替换模型调用。
 
-XiaoWei 使用的是 Pi 的 LLM provider，未使用 Pi Agent／harness。上下文组装、能力变化同步、历史与工具执行均由自己的核心负责。provider 仍可能转换消息；其转换需要在接入边界验收，不能把库的默认转换策略当作核心的生命周期约束。具体事实与验收见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步已确认待实施)。
+XiaoWei 使用的是 Pi 的 LLM provider，未使用 Pi Agent／harness。上下文组装、能力变化同步、历史与工具执行均由自己的核心负责。provider 仍可能转换消息；其转换需要在接入边界验收，不能把库的默认转换策略当作核心的生命周期约束。具体事实与验收见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步)。
 
 | 来源 | 核对基线与采用范围 |
 | --- | --- |
@@ -24,8 +24,8 @@ Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目�
 | --- | --- |
 | `xw-agent-types` | 领域身份、消息、生成纯数据、模型选择／说明、RunContext、rollout 和严格 compact codec／校验。lib.rs 显式导出，内部模块私有；不是公共 RPC 协议，不依赖 contracts |
 | `xw-agent-rollout` | JSONL 读写、提交边界、跨进程 writer 锁、尾部修复及文件生命周期；不管理 SQLite，不决定业务 Run 如何恢复 |
-| `xw-agent-runtime` | 文本 Gen 执行、取消、内部事件及完整流收集；消费 types，保持内部执行 trait，不接受 UI RPC、不依赖 Gateway。工具循环与压缩后续扩展 |
-| `xw-agent` | App Server：会话／输入／运行所有权、上下文重建、公共 Run／Item 投影、直接事件、标题、SQLite 目录和自动维护；定义统一 AgentHost。公开服务使用 Agent proto，不依赖 Gateway 或外部业务 service |
+| `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具及基础写权限；消费 types，不接受 UI RPC、不依赖 Gateway |
+| `xw-agent` | App Server：顺序工具循环与提交、会话／输入／运行所有权、上下文重建、公共 Run／Item 投影、直接事件、标题、SQLite 目录和自动维护；定义统一 AgentHost。公开服务使用 Agent proto，不依赖 Gateway 或外部业务 service |
 | `contracts/proto/xiaowei/agent.proto` | Request／Response、Session／Run／Item 与公共事件；由 xw-contracts／xiaowei-contracts 生成消息和 service descriptor，不包含 Rust trait 或宿主运行对象 |
 | `xiaowei-agent` | 薄集成层：实现 AgentHost、LLM 消息 codec、Gateway handler 和 consumer binding；不保存第二份会话／运行状态 |
 | `xiaowei-agent/napi` | Rust xiaowei-agent-napi／npm xiaowei-agent：Node 生命周期、endpoint 与日志适配；main 传目录并装配依赖 |

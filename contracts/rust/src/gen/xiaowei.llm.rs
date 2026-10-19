@@ -347,7 +347,7 @@ impl ::prost::Name for ToolResultMessage {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ChatMessage {
-    #[prost(oneof = "chat_message::Message", tags = "1, 2, 3")]
+    #[prost(oneof = "chat_message::Message", tags = "1, 2, 3, 4")]
     pub message: ::core::option::Option<chat_message::Message>,
 }
 /// Nested message and enum types in `ChatMessage`.
@@ -360,6 +360,8 @@ pub mod chat_message {
         Assistant(super::AssistantMessage),
         #[prost(message, tag = "3")]
         ToolResult(super::ToolResultMessage),
+        #[prost(message, tag = "4")]
+        SystemContext(super::SystemContextUpdate),
     }
 }
 impl ::prost::Name for ChatMessage {
@@ -370,6 +372,34 @@ impl ::prost::Name for ChatMessage {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.llm.ChatMessage".into()
+    }
+}
+/// Ordered harness update, independent of user/assistant messages.
+/// Baseline appears once (or after compaction); deltas contain only changed capabilities.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SystemContextUpdate {
+    #[prost(bool, tag = "1")]
+    pub baseline: bool,
+    #[prost(map = "string, string", tag = "2")]
+    pub instructions: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    #[prost(string, repeated, tag = "3")]
+    pub instructions_removed: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(message, repeated, tag = "4")]
+    pub tools_added: ::prost::alloc::vec::Vec<ToolDefinition>,
+    #[prost(string, repeated, tag = "5")]
+    pub tools_removed: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+impl ::prost::Name for SystemContextUpdate {
+    const NAME: &'static str = "SystemContextUpdate";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.SystemContextUpdate".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.SystemContextUpdate".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

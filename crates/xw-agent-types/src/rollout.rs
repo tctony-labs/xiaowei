@@ -372,7 +372,10 @@ pub enum GenPurpose {
 )]
 pub enum EntryPayload {
     /// Immutable first record. Identity, version and creation time are in the envelope.
-    SessionHeader,
+    SessionHeader {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cwd: Option<String>,
+    },
     Meta(SessionMeta),
     SystemContext(SystemContextUpdate),
     InputAccepted(InputAccepted),

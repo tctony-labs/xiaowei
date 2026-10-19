@@ -223,7 +223,50 @@ function decodeAssistant(message: AssistantMessage): PiAssistant {
 
 export function toContext(request: GenerateRequest, acceptsImages: boolean): Context {
   if (request.messages.length && request.userText) invalid("messages and user_text are exclusive");
+  let hasBaseline = false;
+  const activeTools = new Set<string>();
+  const activeInstructions = new Set<string>();
   const messages: Message[] = request.messages.map(({ message }) => {
+    if (message.case === "systemContext") {
+      const update = message.value;
+      if (update.baseline === hasBaseline) invalid("invalid system context baseline order");
+      if (update.baseline && (update.instructionsRemoved.length || update.toolsRemoved.length))
+        invalid("baseline cannot remove capabilities");
+      hasBaseline = true;
+      const sections: Record<string, string | null> = Object.create(null);
+      for (const name of update.instructionsRemoved) {
+        if (!activeInstructions.delete(name)) invalid("unknown instruction removal");
+        sections[name] = null;
+      }
+      for (const [name, text] of Object.entries(update.instructions)) {
+        if (!name || !text.trim()) invalid("invalid instruction");
+        activeInstructions.add(name);
+        sections[name] = text;
+      }
+      for (const name of update.toolsRemoved) {
+        if (!activeTools.delete(name)) invalid("unknown tool removal");
+      }
+      const toolsAdded = decodeTools(update.toolsAdded);
+      for (const tool of toolsAdded) {
+        if (activeTools.has(tool.name)) invalid("duplicate active tool");
+        activeTools.add(tool.name);
+      }
+      if (
+        !update.baseline &&
+        !Object.keys(sections).length &&
+        !toolsAdded.length &&
+        !update.toolsRemoved.length
+      )
+        invalid("empty system update");
+      return {
+        role: "system",
+        content: "",
+        timestamp: 0,
+        sections,
+        toolsAdded,
+        toolsRemoved: update.toolsRemoved.map((name) => ({ name })),
+      };
+    }
     if (message.case === "assistant") return decodeAssistant(message.value);
     if (message.case !== "user" && message.case !== "toolResult") invalid("missing message role");
     const content = message.value.content.map(decodeBlock);
@@ -255,8 +298,19 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
     if (!request.userText.trim()) invalid("user text or messages is required");
     messages.push({ role: "user", content: request.userText, timestamp: Date.now() });
   }
+  const tools = decodeTools(request.tools);
+  if (hasBaseline && (request.systemPrompt || tools.length))
+    invalid("ordered system history cannot be combined with top-level instructions or tools");
+  return {
+    systemPrompt: request.systemPrompt || undefined,
+    messages,
+    tools: tools.length ? tools : undefined,
+  };
+}
+
+function decodeTools(definitions: GenerateRequest["tools"]): Tool[] {
   const names = new Set<string>();
-  const tools: Tool[] = request.tools.map((tool) => {
+  return definitions.map((tool) => {
     if (!tool.name || names.has(tool.name)) invalid("invalid or duplicate tool name");
     names.add(tool.name);
     const parameters = json(tool.parametersJson, true) as Record<string, unknown>;
@@ -289,9 +343,4 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
       constrainedSampling: constrained as Tool["constrainedSampling"],
     };
   });
-  return {
-    systemPrompt: request.systemPrompt || undefined,
-    messages,
-    tools: tools.length ? tools : undefined,
-  };
 }

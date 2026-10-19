@@ -19,6 +19,39 @@ pub enum CodecError {
 
 pub fn decode_message(value: pb::ChatMessage) -> Result<AgentMessage, CodecError> {
     match value.message.ok_or(CodecError::MissingOneof("message"))? {
+        pb::chat_message::Message::SystemContext(update) => {
+            let tools = update
+                .tools_added
+                .into_iter()
+                .map(|tool| {
+                    validate_json(Some(&tool.parameters_json), "tool.parameters_json", true)?;
+                    Ok(ToolDeclaration {
+                        name: tool.name,
+                        description: tool.description,
+                        parameters_json: tool.parameters_json,
+                        constrained_sampling_json: tool.constrained_sampling_json,
+                    })
+                })
+                .collect::<Result<Vec<_>, CodecError>>()?;
+            let instructions = update.instructions.into_iter().collect();
+            let update = if update.baseline {
+                if !update.instructions_removed.is_empty() || !update.tools_removed.is_empty() {
+                    return Err(CodecError::InvalidJson("system_context.baseline"));
+                }
+                SystemContextUpdate::Baseline(SystemContext {
+                    instructions,
+                    tools,
+                })
+            } else {
+                SystemContextUpdate::Delta(SystemContextDelta {
+                    instructions,
+                    instructions_removed: update.instructions_removed,
+                    tools_added: tools,
+                    tools_removed: update.tools_removed,
+                })
+            };
+            Ok(AgentMessage::SystemContext { update })
+        }
         pb::chat_message::Message::User(message) => Ok(AgentMessage::User(UserMessage {
             content: decode_blocks(message.content)?,
             timestamp_ms: message.timestamp_ms,
@@ -58,6 +91,36 @@ pub fn decode_message(value: pb::ChatMessage) -> Result<AgentMessage, CodecError
 
 pub fn encode_message(value: AgentMessage) -> Result<pb::ChatMessage, CodecError> {
     let message = match value {
+        AgentMessage::SystemContext { update } => {
+            let (baseline, instructions, instructions_removed, tools, tools_removed) = match update
+            {
+                SystemContextUpdate::Baseline(context) => {
+                    (true, context.instructions, vec![], context.tools, vec![])
+                }
+                SystemContextUpdate::Delta(delta) => (
+                    false,
+                    delta.instructions,
+                    delta.instructions_removed,
+                    delta.tools_added,
+                    delta.tools_removed,
+                ),
+            };
+            pb::chat_message::Message::SystemContext(pb::SystemContextUpdate {
+                baseline,
+                instructions: instructions.into_iter().collect(),
+                instructions_removed,
+                tools_removed,
+                tools_added: tools
+                    .into_iter()
+                    .map(|tool| pb::ToolDefinition {
+                        name: tool.name,
+                        description: tool.description,
+                        parameters_json: tool.parameters_json,
+                        constrained_sampling_json: tool.constrained_sampling_json,
+                    })
+                    .collect(),
+            })
+        }
         AgentMessage::User(message) => pb::chat_message::Message::User(pb::UserMessage {
             content: encode_blocks(message.content)?,
             timestamp_ms: message.timestamp_ms,

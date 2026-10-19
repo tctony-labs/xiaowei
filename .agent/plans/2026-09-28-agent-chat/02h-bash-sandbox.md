@@ -1,8 +1,8 @@
 # 02h：Bash、后台进程与隔离
 
-前置：第一阶段接 [02g 文件读写](02g-filesystem-tools.md)完成，第二阶段接 [02i WebFetch](02i-webfetch.md)完成。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
+前置：第一阶段接 [第一批文件读写](../../records/active/2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)完成，第二阶段接 [02i WebFetch](02i-webfetch.md)完成。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
 
-本片分两阶段交付：第 2 批仅前台 Bash；第 6 批后台工具 BgRun／BgOutput／BgStop，停止、删除和退出能结算对应进程组。不再使用 BashOutput／KillBash 作为工具名称。
+本片分两阶段交付：第 2 批仅前台 Bash；第 7 批后台工具 BgRun／BgOutput／BgStop，停止、删除和退出能结算对应进程组。不再使用 BashOutput／KillBash 作为工具名称。
 
 范围边界：不声称跨平台 Bash 已交付，不修改用户沙箱或系统配置。
 
@@ -24,7 +24,7 @@
 
 1. 第一阶段为第 2 批：仅实现并注册前台 Bash，等待命令结束后返回结果；保留旧超时／输出上限及进程组取消，不提前提供后台执行参数、任务注册或后台工具。
 2. macOS 真正验证 Seatbelt，其他平台返回明确不可用，不退回裸 shell。复用第 1 批已有权限检查，不因权限申请工具尚未接入而放宽权限。
-3. 第一阶段验收完成后回填 record，删除已完成的实施步骤，后续依次推进第 3 至第 5 批；第二阶段为第 6 批，BgRun／BgOutput／BgStop 一起实现与验收。
+3. 第一阶段验收完成后回填 record，删除已完成的实施步骤，后续依次推进第 3 至第 6 批；第二阶段为第 7 批，BgRun／BgOutput／BgStop 一起实现与验收。
 4. 第二阶段核对旧后台任务的存储、输出、停止和退出清理语义，工具名称按用户要求调整；BgRun 启动成功不等于任务结束，BgStop 等待进程退出。历史 PID 重启后不能重新连接或重跑。
 
 ## 独立验收

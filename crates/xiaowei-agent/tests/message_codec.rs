@@ -86,6 +86,46 @@ fn roundtrip(message: pb::ChatMessage) {
 }
 
 #[test]
+fn system_context_baseline_and_delta_preserve_named_updates() {
+    for baseline in [true, false] {
+        roundtrip(pb::ChatMessage {
+            message: Some(pb::chat_message::Message::SystemContext(
+                pb::SystemContextUpdate {
+                    baseline,
+                    instructions: [("base".into(), "中文规则".into())].into(),
+                    instructions_removed: if baseline { vec![] } else { vec!["old".into()] },
+                    tools_added: vec![pb::ToolDefinition {
+                        name: "Read".into(),
+                        description: "Read text".into(),
+                        parameters_json: " {\"type\":\"object\"} ".into(),
+                        constrained_sampling_json: Some("false".into()),
+                    }],
+                    tools_removed: if baseline {
+                        vec![]
+                    } else {
+                        vec!["Read".into()]
+                    },
+                },
+            )),
+        });
+    }
+
+    let invalid = pb::ChatMessage {
+        message: Some(pb::chat_message::Message::SystemContext(
+            pb::SystemContextUpdate {
+                baseline: true,
+                tools_removed: vec!["Read".into()],
+                ..Default::default()
+            },
+        )),
+    };
+    assert_eq!(
+        decode_message(invalid),
+        Err(CodecError::InvalidJson("system_context.baseline"))
+    );
+}
+
+#[test]
 fn complete_history_preserves_every_known_message_field() {
     let image = block(pb::content_block::Content::Image(pb::ImageContent {
         mime_type: "image/png".into(),

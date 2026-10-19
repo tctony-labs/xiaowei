@@ -149,8 +149,8 @@ impl AgentService {
             .ok_or(AgentError::InvalidArgument("config"))?;
         crate::input::validate_config(config)?;
         let previous = self.state()?.creations.get(&request_id).cloned();
-        if let Some((id, original_config)) = previous {
-            if &original_config != config {
+        if let Some((id, original_config, original_cwd)) = previous {
+            if &original_config != config || original_cwd != request.cwd {
                 return Err(AgentError::Conflict("creation config"));
             }
             self.require(&id.to_string()).await?;
@@ -192,9 +192,18 @@ impl AgentService {
             }
             state
                 .creations
-                .retain(|_, (session_id, _)| *session_id != id);
+                .retain(|_, (session_id, _, _)| *session_id != id);
             return Err(error);
         }
+        Self::publish(
+            &mut *self.state()?,
+            AgentEvent {
+                emitted_at_ms: view.created_at_ms,
+                payload: Some(agent_event::Payload::SessionStarted(SessionStarted {
+                    session: Some(view.clone()),
+                })),
+            },
+        );
         Ok(response)
     }
 
@@ -652,7 +661,7 @@ impl AgentService {
             state.sessions.remove(&id);
             state
                 .creations
-                .retain(|_, (session_id, _)| *session_id != id);
+                .retain(|_, (session_id, _, _)| *session_id != id);
         } else if let Some(session) = state.sessions.get_mut(&id) {
             session.frozen = false;
         }
@@ -810,7 +819,7 @@ impl AgentService {
             state.sessions.remove(&id); // releases file ownership before direct cleanup
             state
                 .creations
-                .retain(|_, (session_id, _)| *session_id != id);
+                .retain(|_, (session_id, _, _)| *session_id != id);
         }
         if let Some(ownership) = ownership {
             ownership

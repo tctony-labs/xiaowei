@@ -28,7 +28,7 @@ fn invalid_initial_meta_removes_the_partial_header_and_allows_creation_retry() {
     let journal = store.create(id, created_at_ms, meta.clone()).unwrap();
     assert!(matches!(
         journal.entries()[0].payload,
-        EntryPayload::SessionHeader
+        EntryPayload::SessionHeader { .. }
     ));
     assert_eq!(
         journal.entries()[1].payload,

@@ -92,6 +92,7 @@ fn source(name: &str) -> InputSource {
 fn create(service: &AgentService) -> AgentSession {
     service
         .create_session(CreateSessionRequest {
+            cwd: None,
             title_model_ref: String::new(),
             client_request_id: ClientRequestId::new().to_string(),
             config: Some(AgentModelConfig {
@@ -190,8 +191,8 @@ async fn two_callers_share_runs_final_history_config_and_idempotency() {
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[1].model_ref, "changed");
         assert!(calls[1].reasoning.is_none());
-        assert_eq!(calls[1].messages.len(), 3);
-        let History::Assistant(message) = &calls[1].messages[1] else {
+        assert_eq!(calls[1].messages.len(), 4);
+        let History::Assistant(message) = &calls[1].messages[2] else {
             panic!();
         };
         assert_eq!(message.response_id.as_deref(), Some("response-id"));
@@ -300,7 +301,7 @@ async fn observer_drop_does_not_stop_run_interrupt_is_exact_partial_never_enters
         .await
         .unwrap();
     terminal(&mut observer).await;
-    assert_eq!(model.requests.lock().unwrap()[2].messages.len(), 3);
+    assert_eq!(model.requests.lock().unwrap()[2].messages.len(), 4);
     let running = service
         .start_run(request(&session, "hold"), source("a"))
         .await

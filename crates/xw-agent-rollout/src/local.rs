@@ -33,6 +33,16 @@ impl RolloutStore {
         created_at_ms: i64,
         meta: xw_agent_types::SessionMeta,
     ) -> Result<Journal> {
+        self.create_with_cwd(id, created_at_ms, meta, None)
+    }
+
+    pub fn create_with_cwd(
+        &self,
+        id: SessionId,
+        created_at_ms: i64,
+        meta: xw_agent_types::SessionMeta,
+        cwd: Option<String>,
+    ) -> Result<Journal> {
         let path = self.registered_path(id, created_at_ms)?;
         let directory = path.parent().expect("session path has a directory");
         fs::create_dir_all(directory)?;
@@ -55,7 +65,7 @@ impl RolloutStore {
             fault: None,
         };
         let initialized = journal
-            .append(EntryPayload::SessionHeader, created_at_ms)
+            .append(EntryPayload::SessionHeader { cwd }, created_at_ms)
             .and_then(|_| journal.append(EntryPayload::Meta(meta), created_at_ms));
         if let Err(error) = initialized {
             fs::remove_file(&journal.path)?;
@@ -231,33 +241,34 @@ pub struct SessionFiles {
 
 impl SessionFiles {
     pub fn delete(&self) -> Result<()> {
-        let path = &self.path;
-        let root = &self.root;
-        let id = self.id;
-        match fs::remove_file(path) {
-            Ok(()) => {
-                #[cfg(unix)]
-                File::open(path.parent().ok_or(RolloutError::InvalidHistory)?)?.sync_all()?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-        let workspaces = root.join("workspaces");
-        if workspaces
-            .symlink_metadata()
-            .is_ok_and(|meta| meta.is_symlink())
-        {
-            return Err(RolloutError::InvalidHistory);
-        }
-        let workspace = workspaces.join(id.to_string());
-        match workspace.symlink_metadata() {
-            Ok(meta) if meta.is_dir() && !meta.is_symlink() => fs::remove_dir_all(workspace)?,
-            Ok(_) => fs::remove_file(workspace)?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-        Ok(())
+        delete_files(&self.root, &self.path, self.id)
     }
+}
+
+fn delete_files(root: &Path, path: &Path, id: SessionId) -> Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => {
+            #[cfg(unix)]
+            File::open(path.parent().ok_or(RolloutError::InvalidHistory)?)?.sync_all()?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let workspaces = root.join("quick-chat");
+    if workspaces
+        .symlink_metadata()
+        .is_ok_and(|meta| meta.is_symlink())
+    {
+        return Err(RolloutError::InvalidHistory);
+    }
+    let workspace = workspaces.join(id.to_string());
+    match workspace.symlink_metadata() {
+        Ok(meta) if meta.is_dir() && !meta.is_symlink() => fs::remove_dir_all(workspace)?,
+        Ok(_) => fs::remove_file(workspace)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
 }
 
 pub struct Journal {
@@ -298,7 +309,7 @@ impl Journal {
                 .map_err(|_| RolloutError::InvalidHistory)?
                 .to_string_lossy()
                 .replace('\\', "/"),
-            workspace_relpath: format!("workspaces/{}", self.id),
+            workspace_relpath: format!("quick-chat/{}", self.id),
             deleted_at_ms,
             committed_sequence: Sequence(self.entries.len() as u64),
         };
@@ -316,25 +327,17 @@ impl Journal {
         fs::rename(temporary, marker_path)?;
         #[cfg(unix)]
         File::open(&directory)?.sync_all()?;
-        match fs::remove_file(&self.path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-        let workspace = self.root.join(&marker.workspace_relpath);
-        if let Ok(meta) = workspace.symlink_metadata() {
-            if meta.is_symlink() {
-                fs::remove_file(workspace)?;
-            } else if meta.is_dir() {
-                fs::remove_dir_all(workspace)?;
-            }
-        }
+        delete_files(&self.root, &self.path, self.id)?;
         Ok(())
     }
 
     pub fn entries(&self) -> &[JournalEntry] {
         &self.entries
     }
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }

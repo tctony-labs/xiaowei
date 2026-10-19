@@ -192,9 +192,9 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     await send("second");
     assert.deepEqual(
       requests[1].messages.map((message) => message.role),
-      ["user", "assistant", "user"],
+      ["developer", "user", "assistant", "user"],
     );
-    assert.equal(requests[1].messages[1].content, "partial-answer");
+    assert.equal(requests[1].messages[2].content, "partial-answer");
     assert.equal((await send("length")).final.status, pb.AgentRunStatus.COMPLETED);
     assert.equal((await send("eof")).final.status, pb.AgentRunStatus.FAILED);
     assert.equal((await send("http-error")).final.status, pb.AgentRunStatus.FAILED);
@@ -373,7 +373,7 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     await terminals(secondObserver, secondRun.runId);
     assert.deepEqual(
       requests.at(-1).messages.map((message) => message.role),
-      ["user"],
+      ["developer", "user"],
     );
     await secondObserver.cancel();
     const listed = await api.listSessions(create(pb.ListSessionsRequestSchema));
@@ -503,7 +503,7 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));
-    assert.deepEqual(records[0].payload, { type: "session_header" });
+    assert.deepEqual(records[0].payload, { type: "session_header", data: { cwd: session.cwd } });
     assert.equal(records[1].payload.type, "meta");
     assert.equal(records[1].payload.data.provider_name, "Test provider");
     assert.equal(records[1].payload.data.model_name, "Test");

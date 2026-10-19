@@ -245,12 +245,13 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
     if !history.is_empty() {
         remove(&mut stored, &["session_id", "schema_version"])?;
     }
-    if matches!(entry.payload, EntryPayload::SessionHeader) {
+    if let EntryPayload::SessionHeader { cwd: None } = &entry.payload {
+        remove(member(&mut stored, "payload")?, &["data"])?;
         return serde_json::to_string(&stored).map_err(|_| invalid());
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
     match &entry.payload {
-        EntryPayload::SessionHeader => unreachable!("header encoded above"),
+        EntryPayload::SessionHeader { .. } => {}
         EntryPayload::Meta(_) | EntryPayload::SystemContext(_) => {}
         EntryPayload::RunStarted(_) => context_encode(member(data, "context")?)?,
         EntryPayload::TurnStarted(_) => remove(data, &["ordinal"])?,
@@ -378,6 +379,12 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
     let outer_time: i64 = get(&stored, "timestamp_ms")?;
     let kind: String = get(&stored["payload"], "type")?;
     if kind == "session_header" {
+        let payload = member(&mut stored, "payload")?;
+        if payload.get("data").is_none() {
+            put(payload, "data", serde_json::json!({}))?;
+        } else if payload["data"].get("cwd").and_then(Value::as_str).is_none() {
+            return Err(invalid());
+        }
         return decode_stored(stored, history);
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
@@ -600,9 +607,10 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             let summary = replacement
                 .iter()
                 .flat_map(|message| match message {
-                    AgentMessage::User(message) => &message.content,
-                    AgentMessage::Assistant(message) => &message.content,
-                    AgentMessage::ToolResult(message) => &message.content,
+                    AgentMessage::SystemContext { .. } => &[][..],
+                    AgentMessage::User(message) => message.content.as_slice(),
+                    AgentMessage::Assistant(message) => message.content.as_slice(),
+                    AgentMessage::ToolResult(message) => message.content.as_slice(),
                 })
                 .filter_map(|block| match block {
                     ContentBlock::Text { text, .. } => Some(text.as_str()),

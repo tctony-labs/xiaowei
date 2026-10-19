@@ -92,12 +92,37 @@ message AgentReasoning {
   string text = 1;
 }
 
+enum AgentToolStatus {
+  AGENT_TOOL_STATUS_UNSPECIFIED = 0;
+  AGENT_TOOL_STATUS_PENDING = 1;
+  AGENT_TOOL_STATUS_COMPLETED = 2;
+  AGENT_TOOL_STATUS_FAILED = 3;
+  AGENT_TOOL_STATUS_CANCELLED = 4;
+  AGENT_TOOL_STATUS_SKIPPED = 5;
+  AGENT_TOOL_STATUS_RESULT_UNKNOWN = 6;
+}
+
+// Display projection of a committed tool intent and its eventual result.
+message AgentToolCall {
+  string tool_id = 1;
+  string turn_id = 2;
+  string gen_id = 3;
+  string provider_call_id = 4;
+  string name = 5;
+  string arguments_json = 6;
+  AgentToolStatus status = 7;
+  string output = 8;
+  optional string metadata_json = 9;
+  optional uint64 duration_ms = 10;
+}
+
 message AgentItem {
   string item_id = 1;
   oneof content {
     AgentUserMessage user_message = 2;
     AgentMessage agent_message = 3;
     AgentReasoning reasoning = 4;
+    AgentToolCall tool_call = 5;
   }
 }
 
@@ -153,6 +178,8 @@ message AgentSession {
   bool archived = 13;
   uint64 archive_revision = 14;
   int64 updated_at_ms = 15;
+  // Absolute working directory; absent for a rootless text-only session.
+  optional string cwd = 16;
 }
 
 // Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
@@ -173,6 +200,9 @@ message CreateSessionRequest {
   AgentModelConfig config = 2;
   // Deprecated and ignored. Auxiliary selection is obtained from AgentHost.
   string title_model_ref = 3;
+  // Existing absolute directory. Absent creates quick-chat/<session-id> under Agent home.
+  // Immutable after creation; external directories are retained when deleting the session.
+  optional string cwd = 4;
 }
 
 message CreateSessionResponse {

@@ -100,6 +100,7 @@ fn create(service: &AgentService, host: &Model, model: &str) -> AgentSession {
     *host.auxiliary.lock().unwrap() = (!model.is_empty()).then(|| model.to_owned());
     service
         .create_session(CreateSessionRequest {
+            cwd: None,
             client_request_id: ClientRequestId::new().to_string(),
             config: Some(AgentModelConfig {
                 model_ref: "chat".into(),
@@ -240,7 +241,7 @@ async fn automatic_title_is_after_run_completion_and_shared_by_observers_and_rec
     wait_for(&model, 4).await;
     assert_eq!(
         model.requests.lock().unwrap()[2].messages.len(),
-        3,
+        4,
         "title prompt must not enter chat history"
     );
     service.close().await.unwrap();

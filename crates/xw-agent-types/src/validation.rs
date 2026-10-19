@@ -147,6 +147,7 @@ fn message(
     images: bool,
 ) -> Result<(), ValidationError> {
     let (blocks, time, assistant) = match message {
+        AgentMessage::SystemContext { update } => return system_context_update(update),
         AgentMessage::User(message) => (&message.content, message.timestamp_ms, false),
         AgentMessage::Assistant(message) => {
             if complete {
@@ -230,6 +231,7 @@ fn message(
 
 fn recorded(message: &RecordedMessage) -> Result<(), ValidationError> {
     let blocks = match &message.message {
+        AgentMessage::SystemContext { .. } => return value(false, "message.role"),
         AgentMessage::User(message) => &message.content,
         AgentMessage::Assistant(message) => &message.content,
         AgentMessage::ToolResult(message) => &message.content,
@@ -466,7 +468,14 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
     value(entry.sequence.0 > 0, "sequence")?;
     timestamp(entry.timestamp_ms, "timestamp_ms")?;
     match &entry.payload {
-        EntryPayload::SessionHeader => {}
+        EntryPayload::SessionHeader { cwd } => {
+            if let Some(cwd) = cwd {
+                value(
+                    std::path::Path::new(cwd).is_absolute(),
+                    "session_header.cwd",
+                )?;
+            }
+        }
         EntryPayload::SystemContext(update) => system_context_update(update)?,
         EntryPayload::Meta(meta) => {
             value(
@@ -707,7 +716,7 @@ pub(crate) fn validate_deletion_marker(marker: &DeletionMarker) -> Result<(), Va
         "journal_relpath",
     )?;
     value(
-        marker.workspace_relpath == format!("workspaces/{}", marker.session_id),
+        marker.workspace_relpath == format!("quick-chat/{}", marker.session_id),
         "workspace_relpath",
     )
 }
@@ -719,6 +728,7 @@ pub fn validate_model_context(
     value(!messages.is_empty(), "messages")?;
     model_capabilities(capabilities)?;
     let mut pending: HashMap<&str, &str> = HashMap::new();
+    let mut system = None;
     for (index, msg) in messages.iter().enumerate() {
         let result: Result<(), ValidationError> = (|| {
             message(
@@ -730,6 +740,14 @@ pub fn validate_model_context(
                     .contains(&InputModality::Image),
             )?;
             match msg {
+                AgentMessage::SystemContext { update } => {
+                    require(
+                        pending.is_empty(),
+                        ValidationCode::UnpairedToolCall,
+                        "system_context",
+                    )?;
+                    system = Some(update.apply(system.as_ref())?);
+                }
                 AgentMessage::Assistant(assistant) => {
                     require(
                         pending.is_empty(),
@@ -940,7 +958,7 @@ impl<'a> History<'a> {
 
     fn push(&mut self, entry: &'a JournalEntry) -> Result<(), ValidationError> {
         match &entry.payload {
-            EntryPayload::SessionHeader | EntryPayload::Meta(_) => {}
+            EntryPayload::SessionHeader { .. } | EntryPayload::Meta(_) => {}
             EntryPayload::SystemContext(update) => {
                 transition(
                     self.gens.values().all(|(generation, end)| {
@@ -1811,12 +1829,12 @@ pub fn validate_history(entries: &[JournalEntry]) -> Result<(), ValidationError>
             )?;
             if index == 0 {
                 value(
-                    matches!(entry.payload, EntryPayload::SessionHeader),
+                    matches!(entry.payload, EntryPayload::SessionHeader { .. }),
                     "payload",
                 )?;
             } else {
                 value(
-                    !matches!(entry.payload, EntryPayload::SessionHeader),
+                    !matches!(entry.payload, EntryPayload::SessionHeader { .. }),
                     "payload",
                 )?;
                 if index == 1 {

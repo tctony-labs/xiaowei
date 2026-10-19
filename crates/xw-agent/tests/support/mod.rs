@@ -42,6 +42,7 @@ pub fn service() -> AgentService {
 pub fn create(service: &AgentService) -> AgentSession {
     service
         .create_session(CreateSessionRequest {
+            cwd: None,
             title_model_ref: String::new(),
             client_request_id: ClientRequestId::new().to_string(),
             config: Some(config()),

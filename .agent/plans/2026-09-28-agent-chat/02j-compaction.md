@@ -1,10 +1,10 @@
 # 02j：上下文预算与自动压缩
 
-前置：[02e](02e-tool-loop.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[已交付的工具循环](../../records/active/2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：超过预算时按旧算法生成并提交压缩检查点，工具配对与原始历史保持完整。
 
-范围边界：不引入新压缩产品设置，不实现 rewind／fork。承接 [Harness 能力上下文同步](../../records/active/2026-09-28-agent-chat/model-types.md#harness-能力上下文同步已确认待实施)，新上下文需重新建立当前指令／工具的完整基线。
+范围边界：不引入新压缩产品设置，不实现 rewind／fork。承接 [Harness 能力上下文同步](../../records/active/2026-09-28-agent-chat/model-types.md#harness-能力上下文同步)，新上下文需重新建立当前指令／工具的完整基线。
 
 ## 文件与改动
 

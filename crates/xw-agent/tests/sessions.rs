@@ -11,6 +11,7 @@ use xw_agent_types::ClientRequestId;
 fn concurrent_create_is_idempotent_and_deleted_creation_never_resurrects() {
     let service = Arc::new(service());
     let request = CreateSessionRequest {
+        cwd: None,
         title_model_ref: String::new(),
         client_request_id: ClientRequestId::new().to_string(),
         config: Some(config()),
@@ -83,6 +84,7 @@ fn concurrent_create_is_idempotent_and_deleted_creation_never_resurrects() {
 fn creation_and_session_limits_do_not_evict_idempotency() {
     let service = service();
     let request = CreateSessionRequest {
+        cwd: None,
         title_model_ref: String::new(),
         client_request_id: ClientRequestId::new().to_string(),
         config: Some(config()),
@@ -107,6 +109,7 @@ fn creation_and_session_limits_do_not_evict_idempotency() {
     assert!(matches!(
         service
             .create_session(CreateSessionRequest {
+                cwd: None,
                 title_model_ref: String::new(),
                 client_request_id: ClientRequestId::new().to_string(),
                 config: Some(config()),
@@ -156,6 +159,7 @@ fn creation_and_session_limits_do_not_evict_idempotency() {
     assert!(matches!(
         service
             .create_session(CreateSessionRequest {
+                cwd: None,
                 title_model_ref: String::new(),
                 client_request_id: ClientRequestId::new().to_string(),
                 config: Some(config()),
@@ -172,6 +176,7 @@ fn malformed_ids_and_metadata_conflicts_do_not_mutate_sessions() {
     assert!(matches!(
         service
             .create_session(CreateSessionRequest {
+                cwd: None,
                 title_model_ref: String::new(),
                 client_request_id: "550e8400-e29b-41d4-a716-446655440000".into(),
                 config: Some(config()),
@@ -219,6 +224,7 @@ fn malformed_ids_and_metadata_conflicts_do_not_mutate_sessions() {
 fn creation_stores_config_and_rejects_conflicting_idempotent_retry() {
     let service = service();
     let request = CreateSessionRequest {
+        cwd: None,
         title_model_ref: String::new(),
         client_request_id: ClientRequestId::new().to_string(),
         config: Some(config()),
@@ -267,6 +273,7 @@ fn missing_and_invalid_config_never_create_a_session() {
         assert!(matches!(
             service
                 .create_session(CreateSessionRequest {
+                    cwd: None,
                     title_model_ref: String::new(),
                     client_request_id: ClientRequestId::new().to_string(),
                     config,

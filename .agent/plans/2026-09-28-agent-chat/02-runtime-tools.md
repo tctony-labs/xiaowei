@@ -1,15 +1,16 @@
 # 02：运行时与工具阶段索引
 
-关联 [record](../../records/active/2026-09-28-agent-chat.md)与[总实施顺序](00-implementation-order.md)。统一 Host、文本执行、持久化与标题产品能力已交付；本阶段接提示词与工具、交互、压缩、继续及辅助调用记录；preset 与技能暂缓，不重复实现模型／napi 接线。
+关联 [record](../../records/active/2026-09-28-agent-chat.md)与[总实施顺序](00-implementation-order.md)。统一 Host、文本执行、持久化与标题产品能力已交付；本阶段接提示词与工具、交互、压缩、继续及辅助调用记录。preset 暂缓；Todo 与 Skill 已登记批次，具体范围后续再定，不提前展开计划或实现，不重复实现模型／napi 接线。
 
 | 切片 | 剩余结果 | 前置 |
 | --- | --- | --- |
-| [02e](02e-tool-loop.md) | 顺序工具循环与结果闭合后继续生成 | 当前文本执行 |
-| [02g](02g-filesystem-tools.md) | 第 1 批文件读写、第 3 批文件搜索 | 依总实施顺序分阶段推进 |
-| [02h](02h-bash-sandbox.md) | 第 2 批前台 Bash、第 6 批后台工具及 macOS 隔离 | 依总实施顺序分阶段推进 |
+| [02g](02g-filesystem-tools.md) | 第 3 批文件搜索 | 第 2 批前台 Bash 完成 |
+| [02h](02h-bash-sandbox.md) | 第 2 批前台 Bash、第 7 批后台工具及 macOS 隔离 | 依总实施顺序分阶段推进 |
 | [02f](02f-interactions.md) | 第 4 批问答／权限交互、逐端接收确认与唯一决定 | 第 3 批完成 |
-| [02i](02i-webfetch.md) | 第 5 批网页读取与辅助模型提取 | 第 4 批完成 |
-| [02j](02j-compaction.md) | 自动压缩与持久检查点 | 02e |
+| Todo（已登记） | 第 5 批，具体范围后续确定 | 第 4 批完成 |
+| [02i](02i-webfetch.md) | 第 6 批网页读取与辅助模型提取 | 第 5 批完成 |
+| Skill（已登记） | 第 8 批，最后实施，具体范围后续确定 | 第 7 批完成 |
+| [02j](02j-compaction.md) | 自动压缩与持久检查点 | 已交付工具循环 |
 | [02k](02k-continue-recovery.md) | 显式 Continue 及未知副作用保护 | 02f、02g、02h、02j |
 | [02l](02l-titles.md) | 辅助标题 Gen 的持久记录 | 当前标题与 rollout |
 

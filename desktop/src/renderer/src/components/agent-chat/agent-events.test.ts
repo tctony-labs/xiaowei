@@ -5,6 +5,7 @@ import {
   AgentRunStatus,
   type AgentSession,
   AgentSessionSchema,
+  AgentToolStatus,
 } from "xiaowei-contracts";
 import { applyAgentEvent, chatMessages } from "./agent-events";
 
@@ -128,4 +129,43 @@ test("snapshot replaces display; direct events preserve order and terminal wins 
       }),
     ),
   ).toBe(fresh);
+});
+
+test("tool completion replaces pending state and survives snapshot restore", () => {
+  const initial = create(AgentSessionSchema, {
+    sessionId: "s",
+    runs: [{ runId: "r", status: AgentRunStatus.IN_PROGRESS }],
+  });
+  const event = (status: AgentToolStatus, output: string) =>
+    create(AgentEventSchema, {
+      payload: {
+        case: status === AgentToolStatus.PENDING ? "itemStarted" : "itemCompleted",
+        value: {
+          sessionId: "s",
+          runId: "r",
+          item: {
+            itemId: "tool-block",
+            content: {
+              case: "toolCall",
+              value: { name: "Read", status, output, argumentsJson: '{"path":"a.txt"}' },
+            },
+          },
+        },
+      },
+    });
+  let state = applyAgentEvent(initial, event(AgentToolStatus.PENDING, ""));
+  expect(chatMessages(state)[1].tools).toEqual([
+    { id: "tool-block", name: "Read", status: "执行中", output: '{"path":"a.txt"}' },
+  ]);
+  state = applyAgentEvent(state, event(AgentToolStatus.COMPLETED, "1: verified"));
+  expect(state?.runs[0].items).toHaveLength(1);
+  const restored = applyAgentEvent(
+    undefined,
+    create(AgentEventSchema, {
+      payload: { case: "subscriptionReady", value: { session: state } },
+    }),
+  );
+  expect(chatMessages(restored)[1].tools).toEqual([
+    { id: "tool-block", name: "Read", status: "已完成", output: "1: verified" },
+  ]);
 });

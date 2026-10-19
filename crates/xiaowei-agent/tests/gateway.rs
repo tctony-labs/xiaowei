@@ -27,6 +27,7 @@ async fn inactive_errors_not_found_and_shared_snapshots_use_registered_handlers(
         MethodKind::Unary,
     );
     let request = CreateSessionRequest {
+        cwd: None,
         title_model_ref: String::new(),
         client_request_id: ClientRequestId::new().to_string(),
         config: Some(AgentModelConfig {

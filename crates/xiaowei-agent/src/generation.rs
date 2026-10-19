@@ -174,11 +174,11 @@ fn decode_event(event: pb::GenerateEvent) -> Result<GenerationEvent, GenerationE
             content_index: d.content_index,
             text: d.delta,
         },
-        Event::BlockDelta(_) => {
-            return Err(GenerationError::Failed(
-                "tools are not supported in text runs".into(),
-            ));
-        }
+        Event::BlockDelta(d) if d.kind == "toolcall" => GenerationEvent::ToolCallDelta {
+            content_index: d.content_index,
+            delta: d.delta,
+        },
+        Event::BlockDelta(_) => return Err(invalid()),
         Event::BlockStarted(b) => GenerationEvent::BlockStarted {
             content_index: b.content_index,
             block: codec::decode_block(b.block.ok_or_else(invalid)?).map_err(|_| invalid())?,

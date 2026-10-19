@@ -299,7 +299,12 @@ fn context_boundaries_restore_only_updates_already_committed_at_that_boundary() 
             .unwrap()
             .has_same_content(&desired)
     );
-    assert!(earlier.messages.is_empty());
+    assert!(matches!(
+        earlier.messages.as_slice(),
+        [xw_agent_types::AgentMessage::SystemContext {
+            update: SystemContextUpdate::Baseline(_)
+        }]
+    ));
 }
 
 #[test]

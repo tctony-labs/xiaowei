@@ -5,6 +5,7 @@ import {
   type AgentSession,
   AgentSessionSchema,
   AgentSessionStatus,
+  AgentToolStatus,
 } from "xiaowei-contracts";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
 
@@ -104,6 +105,26 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
     const thinking = run.items
       .flatMap((item) => (item.content.case === "reasoning" ? [item.content.value.text] : []))
       .join("");
+    const tools = run.items.flatMap((item) => {
+      if (item.content.case !== "toolCall") return [];
+      const tool = item.content.value;
+      const labels: Record<number, string> = {
+        [AgentToolStatus.PENDING]: "执行中",
+        [AgentToolStatus.COMPLETED]: "已完成",
+        [AgentToolStatus.FAILED]: "失败",
+        [AgentToolStatus.CANCELLED]: "已停止",
+        [AgentToolStatus.SKIPPED]: "未执行",
+        [AgentToolStatus.RESULT_UNKNOWN]: "结果未知",
+      };
+      return [
+        {
+          id: item.itemId,
+          name: tool.name,
+          status: labels[tool.status] ?? "状态未知",
+          output: tool.output || tool.argumentsJson,
+        },
+      ];
+    });
     const status =
       run.status === AgentRunStatus.IN_PROGRESS
         ? "generating"
@@ -119,6 +140,7 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
         role: "assistant",
         text,
         thinking,
+        ...(tools.length ? { tools } : {}),
         status,
         error:
           status === "failed" ? run.error || "模型请求失败，请检查模型配置后重试。" : undefined,

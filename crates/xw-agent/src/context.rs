@@ -56,6 +56,12 @@ pub fn rebuild_context(
         match &entry.payload {
             EntryPayload::SystemContext(update) => {
                 system_context = Some(update.apply(system_context.as_ref())?);
+                effective.push((
+                    entry.entry_id,
+                    AgentMessage::SystemContext {
+                        update: update.clone(),
+                    },
+                ));
             }
             EntryPayload::InputAccepted(input) => {
                 inputs.insert(input.input_id, &input.message.message);
@@ -104,6 +110,11 @@ pub fn rebuild_context(
     let mut rebuilt = Vec::new();
     let mut replaced = 0;
     if let Some((id, checkpoint)) = checkpoints.iter().max_by_key(|(id, _)| positions[id]) {
+        if let Some(context) = &checkpoint.system_context {
+            rebuilt.push(AgentMessage::SystemContext {
+                update: SystemContextUpdate::Baseline(context.clone()),
+            });
+        }
         rebuilt.extend(checkpoint.replacement_history.iter().cloned());
         let mut through = checkpoint.replaced_through_entry_id;
         while let Some(previous) = checkpoints.get(&through) {
@@ -115,7 +126,13 @@ pub fn rebuild_context(
     rebuilt.extend(
         effective
             .into_iter()
-            .filter(|(id, _)| positions[id] > replaced)
+            .filter(|(id, message)| {
+                positions[id] > replaced
+                    && (!matches!(message, AgentMessage::SystemContext { .. })
+                        || checkpoints
+                            .keys()
+                            .all(|checkpoint| positions[id] > positions[checkpoint]))
+            })
             .map(|(_, message)| message),
     );
     Ok(RebuiltContext {

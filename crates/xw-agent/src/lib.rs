@@ -12,6 +12,7 @@ mod model;
 mod persistence;
 #[cfg(test)]
 mod persistence_tests;
+mod prompts;
 mod recovery;
 mod retention;
 mod service;
@@ -33,6 +34,11 @@ pub use xw_agent_types::{AuxiliaryModelError, ModelInfo, ModelInfoError, ModelSe
 
 pub use context::{RebuiltContext, rebuild_context};
 pub use context_sync::{plan_system_context_update, sync_system_context};
+pub use prompts::build_chat_system_context;
 pub use recovery::{RecoveryState, inspect_recovery, settle_interrupted};
 
 pub use retention::SessionViewing;
+
+mod run_loop;
+mod tool_registry;
+mod workspace;
