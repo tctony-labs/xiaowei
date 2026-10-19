@@ -179,8 +179,8 @@ export function Launcher({
       );
       if (destination === LauncherMode.CLIPBOARD) setClipboardOpen(true);
       changeQuery("");
-    } catch {
-      setError("执行失败，请重试");
+    } catch (error) {
+      console.error("Launcher action dispatch failed", error);
     } finally {
       executing.current = false;
     }

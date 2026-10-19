@@ -190,6 +190,34 @@ test("keyboard selection and composition guard", async () => {
   await waitFor(() => expect(input).toHaveValue(""));
 });
 
+test("failed actions keep search results, log errors and allow another dispatch", async () => {
+  const search = preview();
+  search.calls.execute.mockImplementationOnce(() => {
+    throw new Error("Action unavailable");
+  });
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const canvas = render(<Launcher services={search.services} />);
+    const user = userEvent.setup();
+    const input = canvas.getByRole("textbox", { name: "搜索" });
+    await user.type(input, "wx");
+    await canvas.findByRole("option", { name: /微\s*信\s*应用/ });
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(search.calls.execute).toHaveBeenCalledTimes(1));
+    expect(canvas.queryByRole("alert")).toBeNull();
+    expect(canvas.getAllByRole("option")).toHaveLength(2);
+    expect(input).toHaveValue("wx");
+    expect(log).toHaveBeenCalledWith("Launcher action dispatch failed", expect.any(Error));
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(search.calls.execute).toHaveBeenCalledTimes(2);
+  } finally {
+    log.mockRestore();
+  }
+});
+
 test("open clipboard after subscription is ready and return with Backspace", async () => {
   const clipboard = preview(true);
   const canvas = render(<Launcher services={clipboard.services} />);
