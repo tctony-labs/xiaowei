@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
+import type { BrowserWindow } from "electron";
 import {
   ClipboardBiz,
   ClipboardCategoryRequestSchema,
@@ -16,16 +17,21 @@ import {
   EditTextRequestSchema,
   EmptySchema,
   FavoriteRequestSchema,
+  Launcher,
+  LauncherQueryRequestSchema,
+  ResultRequestSchema,
   SaveCategoryRequestSchema,
   Search,
   SearchClipboardEntitiesRequestSchema,
   SearchRequestSchema,
   SetCategoryRequestSchema,
   SetRemarkRequestSchema,
+  System,
 } from "xiaowei-contracts";
-import { bindClient, methodRoute } from "xiaowei-gateway";
+import { bindClient, bindHandlers, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
+import { registerSearch } from "../../src/main/services/launcher/gateway";
 
 const require = createRequire(import.meta.url);
 const clipboard =
@@ -168,5 +174,75 @@ test("production search endpoint uses generated contract and rejects invalid que
     );
   } finally {
     await owner.close();
+  }
+});
+
+test("search update command invokes System and preserves update window focus", {
+  skip: process.platform !== "darwin",
+}, async () => {
+  for (const development of [false, true]) {
+    const host = new GatewayHost();
+    const native = await attachRustNapi(
+      host,
+      "search",
+      search.createSearchGatewayEndpoint(development),
+    );
+    const calls: string[] = [];
+    let failUpdate = false;
+    const system = host.registerOwner(
+      "system",
+      bindHandlers(
+        System,
+        {
+          checkForUpdates() {
+            calls.push("check");
+            if (failUpdate) throw new Error("Updater unavailable");
+            return create(EmptySchema);
+          },
+        },
+        { partial: true },
+      ),
+    );
+    const window = {} as BrowserWindow;
+    const launcher = registerSearch(host, () => window, {
+      development,
+      platform: "darwin",
+      windowGeneration: () => 0,
+      async dismiss(target, restore) {
+        assert.equal(target, window);
+        assert.equal(restore, false);
+        calls.push("dismiss");
+      },
+      async openExternal() {},
+      writeText() {},
+      async restart() {},
+      resetPosition() {},
+      modeChanged() {},
+      iconUrl: () => "",
+      includeChromeBookmarks: async () => false,
+    });
+    const api = bindClient(Launcher, host.client({ caller: "test", trusted: true }));
+    try {
+      const result = await api.query(create(LauncherQueryRequestSchema, { query: "检查更新" }));
+      const hit = result.hits.find((hit) => hit.id === "command:check-for-updates");
+      if (development) {
+        assert.equal(hit, undefined);
+        continue;
+      }
+      assert.equal(hit?.title, "检查更新");
+      assert.ok(hit);
+      const request = create(ResultRequestSchema, { token: result.token, id: hit.id });
+      await api.execute(request);
+      assert.deepEqual(calls, ["check", "dismiss"]);
+
+      calls.length = 0;
+      failUpdate = true;
+      await assert.rejects(api.execute(request), /handler or transport failed/);
+      assert.deepEqual(calls, ["check"]);
+    } finally {
+      launcher.close();
+      system.close();
+      await native.close();
+    }
   }
 });

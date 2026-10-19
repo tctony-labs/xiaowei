@@ -187,14 +187,20 @@ test("native update windows keep Dock visibility until dismissal and ignore late
   assert.deepEqual(item.visibility, [true, false, true, false, true, false]);
 });
 
-test("a rejected manual check restores previous native window visibility", () => {
+test("a rejected manual check leaves native window visibility unchanged and logs the failure", () => {
   const item = fixture();
-  item.service.start();
-  item.failCheck(true);
-  assert.throws(() => item.service.check());
-  assert.deepEqual(item.visibility, [true, false]);
-  item.emit("ui-visible");
-  assert.throws(() => item.service.check());
-  assert.deepEqual(item.visibility, [true, false, true]);
-  item.service.close();
+  const warning = mock.method(console, "warn", () => {});
+  try {
+    item.service.start();
+    item.failCheck(true);
+    assert.throws(() => item.service.check());
+    assert.deepEqual(item.visibility, []);
+    item.emit("ui-visible");
+    assert.throws(() => item.service.check());
+    assert.deepEqual(item.visibility, [true]);
+    assert.equal(warning.mock.callCount(), 2);
+  } finally {
+    item.service.close();
+    warning.mock.restore();
+  }
 });

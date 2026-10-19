@@ -83,13 +83,16 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
                                     Action::OpenUrl(value) => WireAction::OpenUrl(value),
                                     Action::LaunchApp(value) => WireAction::LaunchApp(value),
                                     Action::RunCommand(value) => {
-                                        WireAction::Command(match value.as_str() {
+                                        let command = match value.as_str() {
                                             "clipboard" => pb::SearchCommand::OpenClipboard,
                                             "toggle-system-theme" => pb::SearchCommand::ToggleTheme,
                                             "rs" => pb::SearchCommand::RestartDevelopment,
+                                            "check-for-updates" => {
+                                                pb::SearchCommand::CheckForUpdates
+                                            }
                                             _ => pb::SearchCommand::Unspecified,
-                                        }
-                                            as i32)
+                                        };
+                                        WireAction::Command(command as i32)
                                     }
                                 };
                                 pb::SearchHit {

@@ -111,6 +111,12 @@ export function registerSearch(
             )
               await bindClient(System, client).toggleTheme(create(EmptySchema));
             else if (
+              hit.action.action.value === SearchCommand.CHECK_FOR_UPDATES &&
+              actions.platform === "darwin" &&
+              !actions.development
+            )
+              await bindClient(System, client).checkForUpdates(create(EmptySchema));
+            else if (
               hit.action.action.value === SearchCommand.RESTART_DEVELOPMENT &&
               actions.development
             )
@@ -150,7 +156,12 @@ export function registerSearch(
           currentGeneration === actions.windowGeneration()
         ) {
           const action = hit.action?.action.case;
-          await actions.dismiss(windowFor(context), action !== "launchApp" && action !== "openUrl");
+          const opensUpdateWindow =
+            action === "command" && hit.action?.action.value === SearchCommand.CHECK_FOR_UPDATES;
+          await actions.dismiss(
+            windowFor(context),
+            action !== "launchApp" && action !== "openUrl" && !opensUpdateWindow,
+          );
         }
         return create(ExecuteResponseSchema);
       },

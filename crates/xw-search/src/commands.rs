@@ -25,6 +25,12 @@ pub fn search(query: &str, development: bool) -> Vec<SearchHit> {
             ][..],
             cfg!(target_os = "macos"),
         ),
+        (
+            "check-for-updates",
+            "检查更新",
+            &["更新", "升级", "update", "check for updates"][..],
+            cfg!(target_os = "macos") && !development,
+        ),
         ("rs", "rs", &["reload", "rebuild"][..], development),
     ];
     let mut scorer = FuzzyScorer::new(query);
@@ -72,6 +78,28 @@ mod tests {
                 .iter()
                 .any(|hit| hit.id == "command:rs"));
             assert!(search(query, true).iter().any(|hit| hit.id == "command:rs"));
+        }
+    }
+
+    #[test]
+    fn updates_match_aliases_only_on_macos_outside_development() {
+        for query in [
+            "检查更新",
+            "更新",
+            "升级",
+            "update",
+            "jianchagengxin",
+            "jcgx",
+        ] {
+            assert_eq!(
+                search(query, false)
+                    .iter()
+                    .any(|hit| hit.id == "command:check-for-updates"),
+                cfg!(target_os = "macos"),
+            );
+            assert!(!search(query, true)
+                .iter()
+                .any(|hit| hit.id == "command:check-for-updates"));
         }
     }
 

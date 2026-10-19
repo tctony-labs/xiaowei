@@ -130,6 +130,8 @@ pub enum SearchCommand {
     OpenClipboard = 1,
     ToggleTheme = 2,
     RestartDevelopment = 3,
+    /// Opens the native update UI; available on macOS outside development mode.
+    CheckForUpdates = 4,
 }
 impl SearchCommand {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -142,6 +144,7 @@ impl SearchCommand {
             Self::OpenClipboard => "SEARCH_COMMAND_OPEN_CLIPBOARD",
             Self::ToggleTheme => "SEARCH_COMMAND_TOGGLE_THEME",
             Self::RestartDevelopment => "SEARCH_COMMAND_RESTART_DEVELOPMENT",
+            Self::CheckForUpdates => "SEARCH_COMMAND_CHECK_FOR_UPDATES",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -151,6 +154,7 @@ impl SearchCommand {
             "SEARCH_COMMAND_OPEN_CLIPBOARD" => Some(Self::OpenClipboard),
             "SEARCH_COMMAND_TOGGLE_THEME" => Some(Self::ToggleTheme),
             "SEARCH_COMMAND_RESTART_DEVELOPMENT" => Some(Self::RestartDevelopment),
+            "SEARCH_COMMAND_CHECK_FOR_UPDATES" => Some(Self::CheckForUpdates),
             _ => None,
         }
     }

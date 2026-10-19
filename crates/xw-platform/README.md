@@ -24,3 +24,5 @@ Rust 调用方直接依赖本 crate，使用其公开接口。TS 通过 [xiaowei
 创建、检查、恢复安装和释放均在 macOS 主线程执行。安装 delegate 返回延期，并持有 Sparkle 的 continuation；调用方处理 `prepare-install` 通知、关闭自身资源后，再调用 `resume_install()`。其他通知用于记录可用版本、无更新和错误。非 macOS 返回不支持，不提供替代更新实现。
 
 同一 delegate 也接入标准 user driver：更新 UI 即将显示、模态提示显示时发送 `ui-visible`，模态提示关闭、更新会话／检查周期结束时发送 `ui-hidden`。这些通知供宿主管理可见窗口状态；窗口创建、内容和关闭仍由 Sparkle 管理。交互式检查的“正在检查”窗口没有对应的显示回调，由宿主在发起检查时登记可见状态，并在会话结束时清除。
+
+手动检查遇到正在执行的后台检查时，复用标准 user driver 展示前台 loading，继续等待同一检查；重复手动调用只聚焦已有 UI。找到更新后将结果窗口带到前台，无更新或失败时展示 Sparkle 原生结果提示，不把正常忙碌当作调用错误。取消前台等待会关闭 loading，原后台检查仍按 Sparkle 的流程继续；释放 controller 时清理尚未结束的前台等待窗口。`manual-check-waiting`、`manual-check-focused`、`manual-check-cancelled` 和结果事件记录交接过程。

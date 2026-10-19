@@ -5,7 +5,8 @@ use objc2::{
     define_class, extern_class, msg_send, DeclaredClass, MainThreadMarker, MainThreadOnly,
 };
 use objc2_foundation::{NSBundle, NSError, NSString};
-use std::cell::RefCell;
+use std::cell::{Cell, OnceCell, RefCell};
+use std::rc::Rc;
 
 extern_class!(
     #[unsafe(super(NSObject))]
@@ -14,9 +15,18 @@ extern_class!(
     struct Controller;
 );
 
+#[derive(Clone, Copy, PartialEq)]
+enum ManualCheck {
+    Idle,
+    Waiting,
+    Active,
+}
+
 struct DelegateIvars {
-    event: Box<dyn Fn(String)>,
+    event: Rc<dyn Fn(String)>,
     install: RefCell<Option<RcBlock<dyn Fn()>>>,
+    manual_check: Rc<Cell<ManualCheck>>,
+    user_driver: OnceCell<Retained<NSObject>>,
 }
 
 define_class!(
@@ -27,9 +37,24 @@ define_class!(
     struct Delegate;
 
     impl Delegate {
+        #[unsafe(method(standardUserDriverShouldHandleShowingScheduledUpdate:andInImmediateFocus:))]
+        fn showing_scheduled_update(&self, _item: &NSObject, _focus: bool) -> bool {
+            // Let the pending manual request focus the result instead of scheduling it in back.
+            self.ivars().manual_check.get() != ManualCheck::Waiting
+        }
+
         #[unsafe(method(standardUserDriverWillHandleShowingUpdate:forUpdate:state:))]
         fn showing_update(&self, handle: bool, _item: &NSObject, _state: &NSObject) {
-            if handle {
+            let foreground = self.ivars().manual_check.get() == ManualCheck::Waiting;
+            if foreground {
+                self.ivars().manual_check.set(ManualCheck::Active);
+                let driver = self.ivars().user_driver.get().unwrap();
+                unsafe {
+                    let _: () = msg_send![driver, showUpdateInFocus];
+                }
+                (self.ivars().event)("manual-check-result update-available".into());
+            }
+            if handle || foreground {
                 (self.ivars().event)("ui-visible".into());
             }
         }
@@ -42,16 +67,53 @@ define_class!(
         #[unsafe(method(standardUserDriverDidShowModalAlert))]
         fn finished_alert(&self) {
             // Sparkle invokes this after the modal alert has been dismissed.
+            self.ivars().manual_check.set(ManualCheck::Idle);
             (self.ivars().event)("ui-hidden".into());
         }
 
         #[unsafe(method(standardUserDriverWillFinishUpdateSession))]
         fn finished_session(&self) {
+            if self.ivars().manual_check.get() == ManualCheck::Waiting {
+                return;
+            }
+            self.ivars().manual_check.set(ManualCheck::Idle);
             (self.ivars().event)("ui-hidden".into());
         }
 
         #[unsafe(method(updater:didFinishUpdateCycleForUpdateCheck:error:))]
-        fn finished_check(&self, _updater: &NSObject, _check: isize, _error: Option<&NSError>) {
+        fn finished_check(&self, updater: &NSObject, _check: isize, error: Option<&NSError>) {
+            if self.ivars().manual_check.get() == ManualCheck::Waiting {
+                let driver = self.ivars().user_driver.get().unwrap();
+                if let Some(error) = error {
+                    self.ivars().manual_check.set(ManualCheck::Active);
+                    let acknowledgement = RcBlock::new(|| {});
+                    unsafe {
+                        if error.domain().to_string() == "SUSparkleErrorDomain" && error.code() == 1001 {
+                            let _: () = msg_send![
+                                driver,
+                                showUpdateNotFoundWithError: error,
+                                acknowledgement: &*acknowledgement,
+                            ];
+                        } else {
+                            let _: () = msg_send![
+                                driver,
+                                showUpdaterError: error,
+                                acknowledgement: &*acknowledgement,
+                            ];
+                        }
+                    }
+                } else {
+                    // A completed automatic download can be resumed by the interactive driver.
+                    // Keep the host visible while replacing our waiting UI with that driver.
+                    unsafe {
+                        let _: () = msg_send![driver, dismissUpdateInstallation];
+                        self.ivars().manual_check.set(ManualCheck::Active);
+                        let _: () = msg_send![updater, checkForUpdates];
+                    }
+                }
+                return;
+            }
+            self.ivars().manual_check.set(ManualCheck::Idle);
             (self.ivars().event)("ui-hidden".into());
         }
 
@@ -120,8 +182,10 @@ impl SparkleUpdater {
             }
 
             let delegate = Delegate::alloc(marker).set_ivars(DelegateIvars {
-                event: Box::new(event),
+                event: Rc::new(event),
                 install: RefCell::new(None),
+                manual_check: Rc::new(Cell::new(ManualCheck::Idle)),
+                user_driver: OnceCell::new(),
             });
             let delegate: Retained<Delegate> = msg_send![super(delegate), init];
             let controller: Retained<Controller> = msg_send![
@@ -131,6 +195,8 @@ impl SparkleUpdater {
                 userDriverDelegate: &*delegate,
             ];
             let updater: Retained<NSObject> = msg_send![&controller, updater];
+            let driver: Retained<NSObject> = msg_send![&controller, userDriver];
+            delegate.ivars().user_driver.set(driver).unwrap();
             let _: Option<Retained<NSObject>> = msg_send![&updater, clearFeedURLFromUserDefaults];
             let mut error: *mut NSError = std::ptr::null_mut();
             let started: bool = msg_send![&updater, startUpdater: &mut error];
@@ -154,12 +220,33 @@ impl SparkleUpdater {
         autoreleasepool(|_| unsafe {
             let updater: Retained<NSObject> = msg_send![&self.controller, updater];
             let available: bool = msg_send![&updater, canCheckForUpdates];
-            if !available {
-                return Err("Sparkle update session already in progress".into());
-            }
+            let state = &self.delegate.ivars().manual_check;
+            let driver = self.delegate.ivars().user_driver.get().unwrap();
             if background {
+                if !available {
+                    return Err("Sparkle update session already in progress".into());
+                }
                 let _: () = msg_send![&updater, checkForUpdatesInBackground];
+            } else if state.get() != ManualCheck::Idle {
+                let _: () = msg_send![driver, showUpdateInFocus];
+                (self.delegate.ivars().event)("manual-check-focused".into());
+            } else if !available {
+                state.set(ManualCheck::Waiting);
+                let state = state.clone();
+                let event = self.delegate.ivars().event.clone();
+                let cancellation = RcBlock::new(move || {
+                    // Cancel this foreground wait; the original background check continues.
+                    state.set(ManualCheck::Idle);
+                    event("manual-check-cancelled".into());
+                    event("ui-hidden".into());
+                });
+                let _: () = msg_send![
+                    driver,
+                    showUserInitiatedUpdateCheckWithCancellation: &*cancellation,
+                ];
+                (self.delegate.ivars().event)("manual-check-waiting".into());
             } else {
+                state.set(ManualCheck::Active);
                 let _: () = msg_send![&self.controller, checkForUpdates: Option::<&NSObject>::None];
             }
             Ok(())
@@ -177,5 +264,17 @@ impl SparkleUpdater {
             .ok_or_else(|| "No Sparkle installation is waiting".to_string())?;
         autoreleasepool(|_| install.call(()));
         Ok(())
+    }
+}
+
+impl Drop for SparkleUpdater {
+    fn drop(&mut self) {
+        if self.delegate.ivars().manual_check.get() == ManualCheck::Waiting {
+            let driver = self.delegate.ivars().user_driver.get().unwrap();
+            self.delegate.ivars().manual_check.set(ManualCheck::Idle);
+            unsafe {
+                let _: () = msg_send![driver, dismissUpdateInstallation];
+            }
+        }
     }
 }

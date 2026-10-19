@@ -57,6 +57,7 @@
 | --- | --- | --- |
 | `clipboard` | 所有当前实例 | 打开剪贴板模式，支持 clipboard、粘贴板、剪贴板历史等别名 |
 | `toggle-system-theme` | macOS | 切换系统明暗主题，支持主题、深色、dark、theme 等别名 |
+| `check-for-updates` | macOS 非开发实例 | 检查小微更新，支持更新、升级、update、check for updates 及标题拼音；通过 System 调用原生更新窗口，成功后隐藏搜索窗口且不恢复到原应用 |
 | `rs` | 开发实例 | touch 当前桌面目录的 `.rs`，触发现有 nodemon 构建与重启流程，支持 reload／rebuild 别名 |
 
 开发命令可用性取决于宿主传入的 development 状态，不取决于 Rust debug/release 编译模式。命令通过 Electron 白名单执行。

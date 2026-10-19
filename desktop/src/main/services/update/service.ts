@@ -57,14 +57,13 @@ export function createUpdateService(options: {
     },
     check() {
       if (closed || !updater) throw new Error("Sparkle updater unavailable in this application");
-      const wasVisible = windowVisible;
-      setWindowVisible(true);
       try {
         updater.check(false);
       } catch (error) {
-        setWindowVisible(wasVisible);
+        console.warn("Sparkle interactive check failed", error);
         throw error;
       }
+      setWindowVisible(true);
       console.info("Sparkle interactive check started");
     },
     close() {
