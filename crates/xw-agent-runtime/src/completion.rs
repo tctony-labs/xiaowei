@@ -36,6 +36,11 @@ pub async fn complete_text(
             match event {
                 GenerationEvent::Finished(message) => {
                     crate::text::validate_final(&message)?;
+                    if message.stop_reason == xw_agent_types::FinishReason::ToolUse {
+                        return Err(GenerationError::Failed(
+                            "unsupported auxiliary tool call".into(),
+                        ));
+                    }
                     return Ok(message);
                 }
                 GenerationEvent::Failed { error, .. } => return Err(error),

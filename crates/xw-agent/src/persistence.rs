@@ -141,6 +141,10 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
         reasoning: rebuilt.meta.reasoning.clone(),
     };
     let mut session = Session::new(id, entries[0].timestamp_ms, config);
+    session.view.cwd = match &entries[0].payload {
+        domain::EntryPayload::SessionHeader { cwd: Some(cwd) } => Some(cwd.clone()),
+        _ => Some(crate::workspace::prepare(journal.root(), id)?),
+    };
     session.view.provider_name = rebuilt.meta.provider_name.clone().unwrap_or_default();
     session.view.model_name = rebuilt.meta.model_name.clone().unwrap_or_default();
     let mut accepted = std::collections::BTreeMap::new();
@@ -217,6 +221,37 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     }
                 }
             }
+            domain::EntryPayload::ToolIntent(intent) => {
+                if let Some(run) = session
+                    .view
+                    .runs
+                    .iter_mut()
+                    .find(|run| run.run_id == intent.key.run_id.to_string())
+                {
+                    run.items.push(crate::run_loop::tool_item(intent, None));
+                }
+            }
+            domain::EntryPayload::ToolOutcome(outcome) => {
+                if let Some(intent) = entries.iter().find_map(|entry| match &entry.payload {
+                    domain::EntryPayload::ToolIntent(intent)
+                        if intent.tool_id == outcome.tool_id =>
+                    {
+                        Some(intent)
+                    }
+                    _ => None,
+                }) && let Some(run) = session
+                    .view
+                    .runs
+                    .iter_mut()
+                    .find(|run| run.run_id == intent.key.run_id.to_string())
+                    && let Some(item) = run
+                        .items
+                        .iter_mut()
+                        .find(|item| item.item_id == intent.block_id.to_string())
+                {
+                    *item = crate::run_loop::tool_item(intent, Some(outcome));
+                }
+            }
             domain::EntryPayload::RunEnd(end) => {
                 if let Some(run) = session
                     .view
@@ -232,6 +267,13 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     .into();
                     run.completed_at_ms = Some(entry.timestamp_ms);
                     run.error = end.error.as_ref().map(|error| error.message.clone());
+                    for item in &mut run.items {
+                        if let Some(agent_item::Content::ToolCall(tool)) = &mut item.content
+                            && tool.status == AgentToolStatus::Pending as i32
+                        {
+                            tool.status = AgentToolStatus::ResultUnknown.into();
+                        }
+                    }
                 }
             }
             _ => {}
@@ -302,10 +344,10 @@ impl Session {
                 max_tokens: execution.generation.max_tokens,
                 ..Default::default()
             },
-            tools: Vec::new(),
+            tools: crate::tool_registry::context(self)?.tools,
             limits: domain::RuntimeLimits {
-                max_gens: Some(1),
-                max_tool_calls: 0,
+                max_gens: Some(51),
+                max_tool_calls: 50,
             },
         };
         let content = request
@@ -401,7 +443,7 @@ impl Session {
         Ok(())
     }
 
-    pub(crate) fn record_end(
+    pub(crate) fn record_generation(
         &mut self,
         execution: &xw_agent_runtime::RunRequest,
         outcome: &xw_agent_runtime::RunOutcome,
@@ -434,7 +476,6 @@ impl Session {
         let recorded_id = message.as_ref().map(|_| execution.message_id);
         let stop_reason = message.as_ref().map(|message| message.stop_reason);
         let usage = message.as_ref().and_then(|message| message.usage.clone());
-        let context_tokens = usage.as_ref().map(|usage| usage.input);
         if let Some(message) = message {
             let block_ids = message
                 .content
@@ -469,22 +510,10 @@ impl Session {
             code: "generation_failed".into(),
             message: "模型请求失败，请检查模型配置后重试".into(),
         });
-        let (gen_status, turn_status, run_status) = match outcome.status {
-            xw_agent_runtime::RunStatus::Completed => (
-                domain::GenStatus::Completed,
-                domain::TurnStatus::Completed,
-                domain::RunStatus::Completed,
-            ),
-            xw_agent_runtime::RunStatus::Failed => (
-                domain::GenStatus::Failed,
-                domain::TurnStatus::Failed,
-                domain::RunStatus::Failed,
-            ),
-            xw_agent_runtime::RunStatus::Cancelled => (
-                domain::GenStatus::Aborted,
-                domain::TurnStatus::Aborted,
-                domain::RunStatus::Aborted,
-            ),
+        let gen_status = match outcome.status {
+            xw_agent_runtime::RunStatus::Completed => domain::GenStatus::Completed,
+            xw_agent_runtime::RunStatus::Failed => domain::GenStatus::Failed,
+            xw_agent_runtime::RunStatus::Cancelled => domain::GenStatus::Aborted,
         };
         self.append(
             domain::EntryPayload::GenEnded(domain::GenEnded {
@@ -495,33 +524,10 @@ impl Session {
                 stop_reason,
                 assistant_message_id: recorded_id,
                 usage,
-                context_tokens,
+                context_tokens: None,
                 duration_ms: Some(outcome.elapsed_ms),
                 reasoning_duration_ms: None,
                 error: error.clone(),
-            }),
-            outcome.ended_at_ms,
-        )?;
-        self.append(
-            domain::EntryPayload::TurnEnded(domain::TurnEnded {
-                turn_id: execution.turn_id,
-                status: turn_status,
-                final_gen_id: Some(execution.gen_id),
-                preempting_input_id: None,
-                duration_ms: Some(outcome.elapsed_ms),
-                error: error.clone(),
-            }),
-            outcome.ended_at_ms,
-        )?;
-        self.append(
-            domain::EntryPayload::RunEnd(domain::RunEnd {
-                run_id: execution.run_id,
-                status: run_status,
-                error,
-                duration_ms: Some(outcome.elapsed_ms),
-                had_assistant_output: recorded_id.is_some(),
-                tool_calls_used: 0,
-                context_tokens,
             }),
             outcome.ended_at_ms,
         )?;

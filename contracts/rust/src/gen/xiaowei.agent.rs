@@ -106,11 +106,45 @@ impl ::prost::Name for AgentReasoning {
         "/xiaowei.agent.AgentReasoning".into()
     }
 }
+/// Display projection of a committed tool intent and its eventual result.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentToolCall {
+    #[prost(string, tag = "1")]
+    pub tool_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub turn_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub gen_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub provider_call_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub arguments_json: ::prost::alloc::string::String,
+    #[prost(enumeration = "AgentToolStatus", tag = "7")]
+    pub status: i32,
+    #[prost(string, tag = "8")]
+    pub output: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "9")]
+    pub metadata_json: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(uint64, optional, tag = "10")]
+    pub duration_ms: ::core::option::Option<u64>,
+}
+impl ::prost::Name for AgentToolCall {
+    const NAME: &'static str = "AgentToolCall";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentToolCall".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentToolCall".into()
+    }
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentItem {
     #[prost(string, tag = "1")]
     pub item_id: ::prost::alloc::string::String,
-    #[prost(oneof = "agent_item::Content", tags = "2, 3, 4")]
+    #[prost(oneof = "agent_item::Content", tags = "2, 3, 4, 5")]
     pub content: ::core::option::Option<agent_item::Content>,
 }
 /// Nested message and enum types in `AgentItem`.
@@ -123,6 +157,8 @@ pub mod agent_item {
         AgentMessage(super::AgentMessage),
         #[prost(message, tag = "4")]
         Reasoning(super::AgentReasoning),
+        #[prost(message, tag = "5")]
+        ToolCall(super::AgentToolCall),
     }
 }
 impl ::prost::Name for AgentItem {
@@ -215,6 +251,9 @@ pub struct AgentSession {
     pub archive_revision: u64,
     #[prost(int64, tag = "15")]
     pub updated_at_ms: i64,
+    /// Absolute working directory; absent for a rootless text-only session.
+    #[prost(string, optional, tag = "16")]
+    pub cwd: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for AgentSession {
     const NAME: &'static str = "AgentSession";
@@ -260,6 +299,10 @@ pub struct CreateSessionRequest {
     /// Deprecated and ignored. Auxiliary selection is obtained from AgentHost.
     #[prost(string, tag = "3")]
     pub title_model_ref: ::prost::alloc::string::String,
+    /// Existing absolute directory. Absent creates quick-chat/<session-id> under Agent home.
+    /// Immutable after creation; external directories are retained when deleting the session.
+    #[prost(string, optional, tag = "4")]
+    pub cwd: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for CreateSessionRequest {
     const NAME: &'static str = "CreateSessionRequest";
@@ -1161,6 +1204,47 @@ impl ModelInfoWarningCode {
             "MODEL_INFO_WARNING_CODE_NOT_FOUND" => Some(Self::NotFound),
             "MODEL_INFO_WARNING_CODE_UNAVAILABLE" => Some(Self::Unavailable),
             "MODEL_INFO_WARNING_CODE_INVALID_RESPONSE" => Some(Self::InvalidResponse),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum AgentToolStatus {
+    Unspecified = 0,
+    Pending = 1,
+    Completed = 2,
+    Failed = 3,
+    Cancelled = 4,
+    Skipped = 5,
+    ResultUnknown = 6,
+}
+impl AgentToolStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_TOOL_STATUS_UNSPECIFIED",
+            Self::Pending => "AGENT_TOOL_STATUS_PENDING",
+            Self::Completed => "AGENT_TOOL_STATUS_COMPLETED",
+            Self::Failed => "AGENT_TOOL_STATUS_FAILED",
+            Self::Cancelled => "AGENT_TOOL_STATUS_CANCELLED",
+            Self::Skipped => "AGENT_TOOL_STATUS_SKIPPED",
+            Self::ResultUnknown => "AGENT_TOOL_STATUS_RESULT_UNKNOWN",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_TOOL_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_TOOL_STATUS_PENDING" => Some(Self::Pending),
+            "AGENT_TOOL_STATUS_COMPLETED" => Some(Self::Completed),
+            "AGENT_TOOL_STATUS_FAILED" => Some(Self::Failed),
+            "AGENT_TOOL_STATUS_CANCELLED" => Some(Self::Cancelled),
+            "AGENT_TOOL_STATUS_SKIPPED" => Some(Self::Skipped),
+            "AGENT_TOOL_STATUS_RESULT_UNKNOWN" => Some(Self::ResultUnknown),
             _ => None,
         }
     }

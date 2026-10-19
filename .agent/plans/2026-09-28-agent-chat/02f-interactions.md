@@ -1,6 +1,6 @@
 # 02f：两阶段交互与权限决定
 
-前置：[02e](02e-tool-loop.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：第 3 批 [Glob／Grep](02g-filesystem-tools.md)完成。作为第 4 批，AskUserQuestion／RequestPermission 一起实现与验收。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
 
 本片结果：AskUserQuestion／RequestPermission 经同一 App Server 完成逐端接收确认、唯一决定和运行继续。
 
@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 修改 | `contracts/proto/xiaowei/agent.proto` | Interaction／Delivery 视图；ObserveInteractions 响应流、AcknowledgeInteraction 与 RespondInteraction |
 | 新增 | `crates/xw-agent/src/interactive.rs、interaction_delivery.rs` | 持久审批／问答状态和决定，与逐 caller observer／delivery 接收状态分开 |
-| 新增 | `crates/xw-agent-runtime/src/permission.rs` | 服务端权限范围与决定消费；不从普通聊天文本获得授权 |
+| 修改 | `crates/xw-agent-runtime/src/permission.rs` | 在已有基础检查上接入有效权限决定消费；不从普通聊天文本获得授权 |
 | 新增 | `crates/xw-agent-runtime/src/tools/core/mod.rs、ask_user_question.rs、request_permission.rs` | 迁移结构化问题与权限请求，保留选项／自由文本 |
 | 修改 | `crates/xw-agent-runtime/src/lib.rs、text.rs、tools/mod.rs、agent_loop/tool_execution.rs` | 通过实际交互接口等待决定，模型流释放后等待；取消使请求失效 |
 | 修改 | `crates/xw-agent/src/lib.rs、execution.rs、service.rs、tool_registry.rs、events.rs、persistence.rs`、`crates/xiaowei-agent/src/gateway.rs` | 接同一实例、注册 stream／unary，交互／送达变化共享投影 |

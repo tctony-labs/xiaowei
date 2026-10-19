@@ -2,7 +2,17 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本生产者已接入；工具、Interaction、压缩的历史语义由固定 fixture 验证，实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
+当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本与 Read／Write／Edit 工具生产者已接入；Interaction、压缩的实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
+
+## 系统上下文记录（核心记录／恢复已实现）
+
+2026-10-18 已实现独立 `system_context` 记录及其 v2 编解码／校验和核心恢复入口；首次／压缩后完整基线、后续仅变化、无变化不追加的语义见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步)。生产生成入口、PB／worker 映射与工具循环已接入；具体 provider 支持边界见[正式生成接线](model-types.md#正式生成接线与适配边界2026-10-18)。
+
+`payload.data` 使用 `type`／`data` 区分两种更新：`baseline` 的 data 为完整 `SystemContext`，含 `instructions`（名称到正文的有序键映射）与 `tools`（ToolDeclaration 列表）；`delta` 的 data 包含非空变化项 `instructions`、`instructions_removed`、`tools_added`、`tools_removed`，空集合省略。指令同名更新直接替换正文；工具同名替换须在同一增量移除旧名并加入完整新定义。工具 schema 原始 JSON 字符串仍原样保存；差异比较忽略对象键顺序和空白，保留数字原始表示，避免大数字舍入隐藏真实变化。
+
+系统记录不依附 Run／Gen，不伪装用户输入或助手 Message；外层身份、顺序与时间复用普通 entry。首次空基线仍是一条明确记录；已有基线时禁止再次追加 baseline，实际无变化的 delta 也拒绝。Conversation Gen 未结束或工具结果未闭合时禁止更新，包括模型已返回完整工具调用、ToolIntent 尚未提交的前缀。
+
+`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动压缩的实际触发、生成和提交接线仍属于 02j。
 
 ## 编码边界、SessionHeader 与 Meta
 
@@ -11,7 +21,7 @@
 | 位置 | 实际保存字段 | 重建规则 |
 | --- | --- | --- |
 | 第一条 SessionHeader 的外层 | `schema_version: 2`、`session_id`、`entry_id`、`timestamp_ms`、`payload` | 时间提供会话创建时间；Header 只写一次 |
-| Header payload | `{"type":"session_header"}` | 无 data，不包含模型配置 |
+| Header payload | `{"type":"session_header","data":{"cwd":"/absolute/path"}}` | cwd 可选；既有无 data 的 Header 保持可读，不包含模型配置 |
 | 后续记录外层 | `entry_id`、`timestamp_ms`、`payload` | 版本及会话身份从首条继承；不重复保存 `sequence` |
 | Meta payload | `model_ref`、可选 `reasoning`／`provider_name`／`model_name` | 第二条保存初始配置，之后每次写全量小配置；省略 reasoning 表示模型默认，不包含创建时间 |
 
@@ -19,7 +29,16 @@ Meta 不保存标题、标题来源、归档、创建请求 ID／来源、原始
 
 CreateSession 先查询 Host 模型信息，成功时初始 Meta 带独立名称；查询失败仍按原选择创建，省略未知名称并通过公共快照提示。Header 和初始 Meta 都提交成功后才登记 SQLite，初始模型查询后不再重复启动创建刷新。模型／思考选择修改立即提交新 Meta；普通发送不重复保存会话配置。provider_name／model_name 分别保存（如 tctony 与 sol），最终展示时才组合为 `tctony/sol`。后续查询成功补充名称时可追加 Meta，名称变化不改写历史 Run，查询失败提示与连接状态不落盘。
 
-后续可选工作目录的设计归属（用户确认）：`cwd` 放入 SessionHeader，创建时确定，后续默认不更改，不放 Meta；工具接入时带入 RunContext。本次仅记录设计决定，未新增目录字段或自动切换行为。
+`cwd` 已放入 SessionHeader，创建时确定，后续默认不更改，不放 Meta；具体生命周期见下节。
+
+### 会话工作目录
+
+2026-10-18 用户确认将目录生命周期纳入 02e＋Read／Write／Edit 当前批次，实际结果与验证见[工具循环与文件工具](implementation-results.md#工具循环与文件工具2026-10-18)。由 xw-agent 管理，renderer 不创建目录，工具不修改进程的全局 cwd。
+
+- CreateSession 可选传入已有目录的绝对路径；未传时，在 Agent root 下创建 `quick-chat/<session-id>/` 作为应用自有目录。2026-10-18 用户指定父目录为 quick-chat；核对 Codex 的草稿命名行为后，确认保留原 session ID 命名规则，不引入 task-name 生成。创建时即可确定目录，不依赖草稿、首条消息或异步会话标题。
+- 准备成功后把实际绝对 cwd 写入一次性 Header，公开会话快照返回该路径，工具执行上下文与模型环境片段使用同一值。创建请求幂等比较包含目录选择；模型／思考配置变更不改变 cwd。
+- 重开按 Header 恢复；现有无 cwd 的 v2 Header 按 `<root>/quick-chat/<session-id>/` 确定目录并按需准备，不改写旧 Header，不回退到进程 cwd。显式目录失效时报告错误；不静默换目录。纯内存且没有 root 的服务需显式 cwd 才能执行文件工具，纯文本使用不受影响。
+- 归档保留目录；删除及创建失败清理只处理应用管理的本会话专属目录，不递归删除调用方提供的外部 cwd，不跟随 symlink。目录创建、Header／Meta 提交或 SQLite 注册失败时，不留下对外可用的会话，复用现有失败清理及删除恢复路径。
 
 创建请求 ID 与原始参数只在当前服务实例内存中去重，重启后不重建；重开使用 session_id。InputAccepted 的业务身份仍持久化：相同 input ID／相同请求返回原 Run，相同 ID／不同请求冲突；只接纳尚未开始 Run 的输入重试明确冲突，不自动执行。
 
@@ -43,7 +62,7 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `turn_ended` | `turn_id`、`status`、可选抢占原因、单调耗时、安全错误／`error_ref` | final_gen_id 从最后一个所属 Conversation Gen 重建；不能指向工具提取 Gen |
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
 
-`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。系统指令每次使用 host 注入值，不保存到 RunContext；工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。
+`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。当前聊天系统指令使用独立 system_context 历史同步，不重复保存到 RunContext；工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
 
 InputMode 为 FollowUp／Steering／Preempt（另有普通 Send）。FollowUp 按接纳顺序由下一 Run 消费；Steering 在工具之间的安全检查点生效，尚未启动的批次工具结算 skipped 后进入同 Run 后续 Turn；Preempt 先打断当前 Gen／工具，完成抢占结算后进入同 Run 后续 Turn。Steering／Preempt 必须指向活动 Run。当前公共 RPC／运行调度只接纳 Send，其余模式保留类型与历史校验，没有提前提供空调度或 UI。
 
@@ -100,7 +119,7 @@ FormatError 区分 UnsupportedVersion 与 InvalidStructure，ValidationError 返
 
 ## JSONL 提交与恢复
 
-1. main 解析绝对路径 `XIAOWEI_AGENT_HOME`，默认 `~/.xiaowei`，直接传给 Agent.open，不添加 agent 子目录。文件位于 `<root>/sessions/YYYY/MM/<session-id>.jsonl`，年月来自创建时间 UTC，不从 UUID 推测；workspace 位于 `<root>/workspaces/<session-id>/`。模型设置在同根的 models.json；其他业务数据保持原目录。
+1. main 解析绝对路径 `XIAOWEI_AGENT_HOME`，默认 `~/.xiaowei`，直接传给 Agent.open，不添加 agent 子目录。文件位于 `<root>/sessions/YYYY/MM/<session-id>.jsonl`，年月来自创建时间 UTC，不从 UUID 推测。自有目录为 `<root>/quick-chat/<session-id>/`，创建与清理规则见[会话工作目录](#会话工作目录)。模型设置在同根的 models.json；其他业务数据保持原目录。
 2. xw-agent-rollout 取得跨进程独占写锁后读取／修复。锁覆盖可写 Journal 生命周期，不抢占其他宿主。完整行、换行、flush／sync_data 成功后才推进确认边界并发布持久状态，多行不是原子事务。live cache 使用同一 compact codec 重建，和文件重开结果一致。
 3. 冷打开或 NeedsCheck 后的下一次使用才重新检查文件，正常 query 不重扫。末端截断／未提交换行的合法记录保存 tail 诊断后截断，不提升为提交；未知版本／字段、完整非法记录和中间损坏保留报错，不跳过。
 4. 必需记录写盘失败立即使整个 Run 失败并取消生成，提示用户排除磁盘空间／权限问题。没有补写队列、恢复按钮或自动重发；下一条 query 必要时清理失败尾部、结算旧 Run，成功才接纳新输入，仍不可写则报错。

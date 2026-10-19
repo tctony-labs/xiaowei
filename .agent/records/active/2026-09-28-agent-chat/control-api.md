@@ -1,6 +1,6 @@
 # App Server 控制协议与客户端同步
 
-> 当前文本控制已接入 JSONL 基础持久化；会话选择独立提交，重开可恢复文本 Run／Item。SQLite 列表分页、归档与删除已接入；历史分页、工具与交互仍是后续范围，实际宿主边界见 [Host](host-interface.md)。
+> 当前文本控制已接入 JSONL 基础持久化；会话选择独立提交，重开可恢复文本 Run／Item。SQLite 列表分页、归档与删除已接入；工具 Item 已接执行与恢复；历史分页、其他工具与交互仍是后续范围，实际宿主边界见 [Host](host-interface.md)。
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
@@ -35,14 +35,14 @@
 
 `xiaowei.agent.Agent` 是客户端控制协议。xw-agent 直接使用生成的 Request／Response／AgentEvent，独立于 Gateway；xiaowei-agent 已注册同名 unary／stream handler，使用 Llm／ModelSettings consumer，分别查询生成能力与辅助引用。会话目录由 xw-agent 内置 SQLite 管理，xiaowei-agent 只传目录，不存在存储 Gateway RPC 或注入 adapter。
 
-当前 Rust 服务和 Gateway 都提供 CreateSession、ListSessions、ReadSession、SetSessionConfig、SetSessionTitle、SetSessionArchived、DeleteSession、SubscribeSession、TrackSessionViewing、StartRun、InterruptRun、RegenerateTitle 及 GetSessionRetentionPolicy／SetSessionRetentionPolicy。正式 napi 与 Quick Chat 已接通，Run／Item 事件由真实文本执行产生。
+当前 Rust 服务和 Gateway 都提供 CreateSession、ListSessions、ReadSession、SetSessionConfig、SetSessionTitle、SetSessionArchived、DeleteSession、SubscribeSession、TrackSessionViewing、StartRun、InterruptRun、RegenerateTitle 及 GetSessionRetentionPolicy／SetSessionRetentionPolicy。正式 napi 与 Quick Chat 已接通，Run／Item 事件由真实文本及文件工具执行产生。
 
 | 公共实体／方法 | 已定义的语义 |
 | --- | --- |
-| AgentSession | ID、model_ref／optional reasoning 配置、idle／running／deleted、时间、metadata revision、title／auto_title_enabled、可选完整 runs |
+| AgentSession | ID、model_ref／optional reasoning 配置、idle／running／deleted、时间、metadata revision、title／auto_title_enabled、可选 cwd 和完整 runs |
 | AgentRun | 对应 Codex Turn；run／input ID、有效模型配置、状态、items、开始／结束时间与安全错误 |
-| AgentItem | 稳定 item ID，oneof user_message／agent_message／reasoning；显示内容与模型回放分开 |
-| CreateSession | client_request_id + 必填 config；仅在当前服务实例内幂等创建、同键不同原始配置冲突；重启后通过 session_id 重开会话，不从 SQLite 或 JSONL 恢复创建去重 |
+| AgentItem | 稳定 item ID，oneof user_message／agent_message／reasoning／tool_call；显示内容与模型回放分开 |
+| CreateSession | client_request_id + 必填 config + 可选已有绝对 cwd；省略时创建自有目录，仅在当前服务实例内幂等创建、同键不同原始配置或目录选择冲突；重启后通过 session_id 重开会话，不从 SQLite 或 JSONL 恢复创建去重 |
 | ListSessions | 返回不含运行历史的会话摘要，包含标题、自动生成开关、创建／更新时间、归档状态与 revision；archived 与标题 query 过滤、默认 50／最大 100、continuation 绑定两种过滤条件；菜单／设置页按需刷新 |
 | ReadSession | session_id + include_runs；读取配置／状态及可选 Run／Item 快照；不暴露内部 journal |
 | SetSessionTitle | session_id + title；trim 后 1～50 个 Unicode 字符且无控制字符，设 auto_title_enabled=false，取消旧标题任务并关闭自动生成；成功同时推进 updated_at_ms，响应确认 title／metadata_revision，同名且已关闭自动生成、无在途任务时幂等；不调用模型或停止 Run |

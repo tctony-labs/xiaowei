@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
 use prost::Message;
-use tokio::sync::mpsc;
-use xw_agent_runtime::{GenerationRequest, RunRequest, RunStatus, execute_text};
+use xw_agent_runtime::{GenerationRequest, RunRequest};
 use xw_agent_types::{
     AgentMessage as ModelMessage, BlockId, ContentBlock, GenId, InputId, MessageId, RunId,
     SessionId, TurnId, UserMessage,
@@ -15,8 +14,8 @@ use crate::{
     session::{ActiveRun, parse_id},
 };
 
-const MAX_HISTORY_BYTES: usize = 8 * 1024 * 1024;
-const MAX_DISPLAY_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_HISTORY_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_DISPLAY_BYTES: usize = 8 * 1024 * 1024;
 
 impl AgentService {
     pub(crate) async fn start_loaded(
@@ -90,6 +89,11 @@ impl AgentService {
         if session.active.is_some() {
             return Err(AgentError::Conflict("session is running"));
         }
+        if crate::tool_registry::has_unclosed_calls(&session.history) {
+            return Err(AgentError::Conflict(
+                "previous tool results remain unresolved",
+            ));
+        }
         if session.requests.len() >= 1024 {
             return Err(AgentError::ResourceExhausted("run identities"));
         }
@@ -152,6 +156,7 @@ impl AgentService {
                 .collect(),
             timestamp_ms: started_at_ms,
         });
+        crate::tool_registry::synchronize(session, started_at_ms)?;
         let mut history = session.history.clone();
         history.push(user);
         let history_bytes = serde_json::to_vec(&history)
@@ -263,178 +268,28 @@ impl AgentService {
         let index = self.index.clone();
         let generation = self.generation.clone();
         let host = self.host.clone();
-        handle.spawn(async move {
-            let _done = done.drop_guard();
-            let (tx, mut rx) = mpsc::channel(32);
-            let future = execute_text(execution.clone(), generation.clone(), cancellation.clone(), tx);
-            tokio::pin!(future);
-            let mut blocks = BTreeMap::<u32, (String, ContentBlock)>::new();
-            let mut display_exhausted = false;
-            let mut storage_failed = false;
-            let mut outcome = loop {
-                tokio::select! {
-                    // Drain all accepted events before settling (including a final ready result).
-                    biased;
-                    Some(update) = rx.recv() => {
-                        let mut state = shared.lock().unwrap();
-                        if let Some(session) = state.sessions.get_mut(&id).filter(|s| !s.deleted()) {
-                            if display_exhausted || storage_failed { continue; }
-                            if let GenerationEvent::FirstSseReceived { received_at_ms } = &update.event
-                                && session.append(xw_agent_types::EntryPayload::GenFirstSseReceived(
-                                    xw_agent_types::GenFirstSseReceived { gen_id: execution.gen_id,
-                                        received_at_ms: *received_at_ms }), *received_at_ms).is_err() {
-                                    storage_failed = true;
-                                    session.failed_run = Some(run_id);
-                                    cancellation.cancel();
-                                    continue;
-                            }
-                            let previous = session.view.runs.last().unwrap().clone();
-                            let run = session.view.runs.last_mut().unwrap();
-                            let changes = project_update(id, run, update.event, &mut blocks);
-                            if session.view.encoded_len() > MAX_DISPLAY_BYTES - 2048 {
-                                *session.view.runs.last_mut().unwrap() = previous;
-                                display_exhausted = true;
-                                cancellation.cancel();
-                            } else {
-                                for change in changes { AgentService::publish(&mut state, event(change)); }
-                            }
-                        }
-                    }
-                    outcome = &mut future => break outcome,
-                }
-            };
-            {
-                let mut state = shared.lock().unwrap();
-                let Some(session) = state.sessions.get_mut(&id) else {
-                    return;
-                };
-                if session.deleted() {
-                    session.active = None;
-                    return;
-                }
-                if display_exhausted {
-                    outcome.status = RunStatus::Failed;
-                    outcome.error = Some(crate::GenerationError::Failed("display history budget exceeded".into()));
-                }
-                let mut status = match outcome.status {
-                    RunStatus::Completed => AgentRunStatus::Completed,
-                    RunStatus::Failed => AgentRunStatus::Failed,
-                    RunStatus::Cancelled => AgentRunStatus::Interrupted,
-                };
-                let mut error = outcome.error.as_ref().map(|e| e.to_string());
-                // Allocate final block IDs before journaling so reopen preserves the exact UI identity.
-                if let Some(message) = &outcome.message {
-                    for (index, block) in message.content.iter().enumerate() {
-                        blocks
-                            .entry(index as u32)
-                            .or_insert_with(|| (BlockId::new().to_string(), block.clone()));
-                    }
-                }
-                if !storage_failed && session.record_end(&execution, &outcome, &blocks).is_err() {
-                    storage_failed = true;
-                    session.failed_run = Some(run_id);
-                }
-                if storage_failed {
-                    status = AgentRunStatus::Failed;
-                    error = Some(AgentError::Persistence.to_string());
-                }
-                if display_exhausted {
-                    status = AgentRunStatus::Failed;
-                    error = Some("display history budget exceeded".into());
-                }
-                let previous_items = session.view.runs.last().unwrap().items.clone();
-                let message = outcome.message;
-                let final_blocks = message.as_ref().map(|m| m.content.clone()).unwrap_or(outcome.partial);
-                {
-                    let run = session.view.runs.last_mut().unwrap();
-                    run.items.truncate(1);
-                    for (index, block) in final_blocks.into_iter().enumerate() {
-                        let item_id = blocks
-                            .get(&(index as u32))
-                            .map(|(id, _)| id.clone())
-                            .unwrap_or_else(|| BlockId::new().to_string());
-                        if let Some(item) = display_item(item_id, &block) {
-                            run.items.push(item);
-                        }
-                    }
-                }
-                if display_exhausted || session.view.encoded_len() > MAX_DISPLAY_BYTES - 2048 {
-                    session.view.runs.last_mut().unwrap().items = previous_items;
-                    status = AgentRunStatus::Failed;
-                    error = Some("display history budget exceeded".into());
-                }
-                if status == AgentRunStatus::Completed
-                    && let Some(message) = message
-                {
-                    let mut history = session.history.clone();
-                    history.push(ModelMessage::Assistant(message));
-                    let retained_request_bytes = session.requests.values().map(Message::encoded_len).sum::<usize>();
-                    if serde_json::to_vec(&history)
-                        .map_or(true, |bytes| bytes.len() + retained_request_bytes > MAX_HISTORY_BYTES)
-                    {
-                        status = AgentRunStatus::Failed;
-                        error = Some("model history budget exceeded".into());
-                    } else {
-                        session.history = history;
-                    }
-                }
-                let run = session.view.runs.last_mut().unwrap();
-                run.status = status.into();
-                run.completed_at_ms = Some(outcome.ended_at_ms);
-                run.error = (status == AgentRunStatus::Failed).then_some(error).flatten();
-                let run = run.clone();
-                session.active = None;
-                session.view.status = AgentSessionStatus::Idle.into();
-                session.view.updated_at_ms = session.view.updated_at_ms.max(outcome.ended_at_ms);
-                for item in &run.items {
-                    AgentService::publish(
-                        &mut state,
-                        event(agent_event::Payload::ItemCompleted(ItemCompleted {
-                            session_id: id.to_string(),
-                            run_id: run_id.to_string(),
-                            item: Some(item.clone()),
-                        })),
-                    );
-                }
-                AgentService::publish(
-                    &mut state,
-                    event(agent_event::Payload::RunCompleted(RunCompleted {
-                        session_id: id.to_string(),
-                        run: Some(run),
-                    })),
-                );
-                log::debug!("Agent Run settled session={id} input={input_id} run={run_id} status={status:?}");
-                let session = &state.sessions[&id];
-                let has_output = crate::title::has_output(session.view.runs.last().unwrap());
-                if !state.closed
-                    && !session.frozen
-                    && has_output
-                    && !storage_failed
-                    && session.view.auto_title_enabled
-                    && let Err(error) =
-                        crate::title::schedule_title(&mut state, shared.clone(), host, index.clone(), id, false)
-                {
-                    log::debug!("Agent automatic title skipped session={id} reason={error}");
-                }
-            }
-            if let Some(index) = index {
-                let _gate = index.gate.lock().await;
-                let _ = crate::index::flush(&shared, &index, id).await;
-            }
-        });
+        handle.spawn(crate::run_loop::execute(
+            shared,
+            index,
+            host,
+            generation,
+            execution,
+            cancellation,
+            done,
+        ));
         log::debug!("Agent Run accepted session={id} input={input_id} run={run_id}");
         Ok(StartRunResponse { run: Some(run) })
     }
 }
 
-fn event(payload: agent_event::Payload) -> AgentEvent {
+pub(crate) fn event(payload: agent_event::Payload) -> AgentEvent {
     AgentEvent {
         emitted_at_ms: now_ms().unwrap_or_default(),
         payload: Some(payload),
     }
 }
 
-fn display_item(item_id: String, block: &ContentBlock) -> Option<AgentItem> {
+pub(crate) fn display_item(item_id: String, block: &ContentBlock) -> Option<AgentItem> {
     let content = match block {
         ContentBlock::Text { text, .. } => {
             agent_item::Content::AgentMessage(AgentMessage { text: text.clone() })
@@ -450,11 +305,12 @@ fn display_item(item_id: String, block: &ContentBlock) -> Option<AgentItem> {
     })
 }
 
-fn project_update(
+pub(crate) fn project_update(
     session_id: SessionId,
     run: &mut AgentRun,
     update: GenerationEvent,
     blocks: &mut BTreeMap<u32, (String, ContentBlock)>,
+    base_items: usize,
 ) -> Vec<agent_event::Payload> {
     let (index, delta, thinking, replacement) = match update {
         GenerationEvent::TextDelta {
@@ -539,7 +395,7 @@ fn project_update(
             item: Some(item),
         }));
     }
-    run.items.truncate(1);
+    run.items.truncate(base_items);
     run.items.extend(
         blocks
             .values()

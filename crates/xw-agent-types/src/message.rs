@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AgentMessage {
+    /// Projection of an independently committed system-context record.
+    SystemContext {
+        update: crate::SystemContextUpdate,
+    },
     User(UserMessage),
     Assistant(AssistantMessage),
     ToolResult(ToolResultMessage),

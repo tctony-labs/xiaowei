@@ -100,6 +100,7 @@ impl AgentHost for Host {
 fn create(service: &AgentService) -> xw_agent::protocol::AgentSession {
     service
         .create_session(CreateSessionRequest {
+            cwd: None,
             client_request_id: ClientRequestId::new().to_string(),
             config: Some(AgentModelConfig {
                 model_ref: "sol".into(),
@@ -179,7 +180,7 @@ async fn creation_persists_header_then_resolved_meta_and_lookup_failure_keeps_th
         assert_eq!(repair.discarded_bytes, 0);
         assert!(matches!(
             journal.entries()[0].payload,
-            EntryPayload::SessionHeader
+            EntryPayload::SessionHeader { .. }
         ));
         assert_eq!(journal.entries()[0].timestamp_ms, session.created_at_ms);
         let EntryPayload::Meta(meta) = &journal.entries()[1].payload else {
@@ -393,6 +394,7 @@ async fn delayed_old_lookup_cannot_overwrite_the_committed_selection_or_its_warn
     let creating = tokio::spawn(async move {
         creating_service
             .create_session(CreateSessionRequest {
+                cwd: None,
                 client_request_id: ClientRequestId::new().to_string(),
                 config: Some(AgentModelConfig {
                     model_ref: "sol".into(),

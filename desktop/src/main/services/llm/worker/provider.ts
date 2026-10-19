@@ -59,6 +59,28 @@ export function generate(
     let events: ReturnType<ReturnType<(typeof apis)[keyof typeof apis]>["stream"]> | undefined;
     try {
       const model = toPiModel(config);
+      const updates = transcriptUpdates(request);
+      if (updates.length) {
+        const nonAdditive = updates.some((update) => update.toolsRemoved.length);
+        if (nonAdditive) {
+          invalid("this provider adapter cannot preserve tool removal or replacement updates");
+        }
+        if (config.api === "openai-responses") {
+          model.compat = {
+            ...model.compat,
+            supportsMidConvoSystemMessages: true,
+            supportsAdditionalTools: true,
+          };
+        } else if (config.api === "openai-completions") {
+          model.compat = {
+            ...model.compat,
+            supportsMidConvoSystemMessages: true,
+            supportsMidConvoToolAdditions: true,
+          };
+        } else if (updates.some((update) => !update.baseline)) {
+          invalid("ordered context updates are unsupported by this provider adapter");
+        }
+      }
       const api = apis[config.api]();
       let firstSseAt: number | undefined;
       let firstSseEmitted = false;
@@ -122,4 +144,10 @@ export function generate(
       signal.removeEventListener("abort", abort);
     }
   }
+}
+
+function transcriptUpdates(request: GenerateRequest) {
+  return request.messages.flatMap(({ message }) =>
+    message.case === "systemContext" ? [message.value] : [],
+  );
 }

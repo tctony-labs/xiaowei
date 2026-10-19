@@ -295,6 +295,7 @@ mod tests {
         service
             .create_session_with_source(
                 CreateSessionRequest {
+                    cwd: None,
                     client_request_id: ClientRequestId::new().to_string(),
                     config: Some(AgentModelConfig {
                         model_ref: "model".into(),

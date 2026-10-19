@@ -31,9 +31,9 @@ SELECT * FROM session WHERE session_id = ?;
 <Agent 根目录>/sessions/YYYY/MM/<session_id>.jsonl
 ```
 
-年月取 SQLite 的创建时间，不使用 UUID 中的时间或本地时区，也不通过扫描全部 JSONL 作为常规定位方式。对应工作目录为 `<Agent 根目录>/workspaces/<session_id>/`。
+年月取 SQLite 的创建时间，不使用 UUID 中的时间或本地时区，也不通过扫描全部 JSONL 作为常规定位方式。工作目录以 Header 的可选 cwd 为准；默认及既有无 cwd Header 的固定回退为 `<Agent 根目录>/quick-chat/<session_id>/`。
 
-只读查看 JSONL，按行号定位记录。首条 SessionHeader 的外层保存 `schema_version`、`session_id` 和作为创建时间的 `timestamp_ms`；payload 仅为 `{"type":"session_header"}`。第二条 Meta 保存初始模型配置，后续 Meta 表示配置变化。后续记录省略版本和会话 ID；`sequence` 按行序重建。标题和归档状态只在 SQLite 中；JSONL 保存模型配置及运行历史，精简记录中的归属和上下文信息可能继承前面的记录，不能把单行视为完整的重放结果。
+只读查看 JSONL，按行号定位记录。首条 SessionHeader 的外层保存 `schema_version`、`session_id` 和作为创建时间的 `timestamp_ms`；payload 为 `{"type":"session_header"}`，或含可选 `data: {"cwd":"/absolute/path"}`；不要为检查而改写 Header。第二条 Meta 保存初始模型配置，后续 Meta 表示配置变化。后续记录省略版本和会话 ID；`sequence` 按行序重建。标题和归档状态只在 SQLite 中；JSONL 保存模型配置及运行历史，精简记录中的归属和上下文信息可能继承前面的记录，不能把单行视为完整的重放结果。
 
 报告数据库路径、会话行、JSONL 路径及相关记录；文件缺失时单独报告，不自动清理或修复。检查可在应用运行时进行，无需停止所有工作区，但 SQLite 和 JSONL 可能在读取期间变化；需要一致结果时说明这一限制，再协调暂停相关写入。
 

@@ -235,6 +235,8 @@ pub struct Compacted {
     pub previous_checkpoint_id: Option<EntryId>,
     pub summary: String,
     pub replacement_history: Vec<AgentMessage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_context: Option<SystemContext>,
     pub trigger: CompactionTrigger,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens_before: Option<u64>,
@@ -370,8 +372,12 @@ pub enum GenPurpose {
 )]
 pub enum EntryPayload {
     /// Immutable first record. Identity, version and creation time are in the envelope.
-    SessionHeader,
+    SessionHeader {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cwd: Option<String>,
+    },
     Meta(SessionMeta),
+    SystemContext(SystemContextUpdate),
     InputAccepted(InputAccepted),
     InputConsumed(InputConsumed),
     InputCancelled(InputCancelled),

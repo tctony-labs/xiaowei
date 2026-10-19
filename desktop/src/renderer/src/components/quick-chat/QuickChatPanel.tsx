@@ -9,6 +9,7 @@ export interface QuickChatMessage {
   role: "user" | "assistant";
   text: string;
   thinking?: string;
+  tools?: { id: string; name: string; status: string; output: string }[];
   status?: "generating" | "complete" | "cancelled" | "failed";
   error?: string;
 }
@@ -284,14 +285,28 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                           <p className="whitespace-pre-wrap break-words">{message.thinking}</p>
                         </details>
                       )}
+                      {message.tools?.map((tool) => (
+                        <details
+                          key={tool.id}
+                          className="mb-2 border-l-2 border-line pl-3 text-xs text-muted"
+                        >
+                          <summary className="cursor-pointer py-1">
+                            {tool.name} · {tool.status}
+                          </summary>
+                          <p className="whitespace-pre-wrap break-words">{tool.output}</p>
+                        </details>
+                      ))}
                       {message.text && (
                         <p className="whitespace-pre-wrap break-words">{message.text}</p>
                       )}
-                      {message.status === "generating" && !message.text && !message.thinking && (
-                        <p role="status" className="text-xs text-muted">
-                          正在等待回复…
-                        </p>
-                      )}
+                      {message.status === "generating" &&
+                        !message.text &&
+                        !message.thinking &&
+                        !message.tools?.length && (
+                          <p role="status" className="text-xs text-muted">
+                            正在等待回复…
+                          </p>
+                        )}
                       {message.status === "cancelled" && (
                         <p className="mt-1 text-xs text-muted">已停止</p>
                       )}

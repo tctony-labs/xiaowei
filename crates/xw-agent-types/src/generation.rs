@@ -26,6 +26,10 @@ pub enum GenerationEvent {
         content_index: u32,
         text: String,
     },
+    ToolCallDelta {
+        content_index: u32,
+        delta: String,
+    },
     ThinkingDelta {
         content_index: u32,
         text: String,

@@ -40,3 +40,17 @@ pnpm --dir desktop exec tsx --conditions=source scripts/verify-llm.mjs --config 
 工具结果由脚本固定提供，service 不执行工具。取消确认不等于上游停止计费；真实 Node worker 验证不能替代 Electron 应用包验收。
 
 WebSocket 验收继续使用原有 `openai-responses` 配置与 base URL。提供方已开启 supportsWebSocket 且 transport 为 auto 时，脚本自动使用该默认值；无需修改文件。每次脚本执行生成独立 sessionId，工具两轮共用该 ID，以验证连接复用和增量续接。可用 `--transport websocket-cached` 强制 WebSocket 与增量续接，排除握手失败后 SSE 回退影响；`--transport sse` 则验证 HTTP。覆盖仅作用于本次脚本，不写回配置。缺少 sessionId 的产品调用不会跨请求复用连接，后续 agent 必须提供稳定的会话 ID。
+
+## 上下文变化的最小适配验证
+
+`verify-context-updates.mjs` 验证 Responses provider 中的有序变化通知，属于 02e 的接入实验。当前 PB 尚不支持系统更新，因此直接复用 worker 的模型转换和 provider 选择，不经过 Gateway／构建后的 worker，不启动应用。无需构建；通过源码条件运行：
+
+```sh
+pnpm --dir desktop exec tsx --conditions=source scripts/verify-context-updates.mjs --config /absolute/path/models.json
+```
+
+使用同一配置加载器；省略 `--model` 时选择配置的 defaults.modelRef，也可显式提供本地模型 ID。只接受 openai-responses。凭据仅用于选中模型的已配置接口，不输出、不写回。脚本固定使用 SSE、low reasoning（推理模型），请求输出上限为 2048 tokens、45 秒客户端超时且不重试，合计六次真实调用，会产生模型费用。代理可能移除请求的 token 上限或缓存参数；当前 sol 对应 CLIProxyAPI 就会移除这些字段，不能把客户端值当作上游保证，超时也不保证上游立即停止计费。
+
+调用依次验证初始工具、新增、同名 schema 替换、移除与指令更新、无变化继续及新基线。仅发送合成内容，工具由脚本返回固定结果，无文件／进程工具副作用。失败以非零退出，输出脱敏状态；不会保存实验会话，也不会修改应用设置。基线重建是实验构造，不等于产品压缩已实现。
+
+实验在内存模型上开启 supportsMidConvoSystemMessages，并关闭原生工具新增／搜索路径：变化通知放在消息中，tools 仍由 Pi 生成当前完整集合。它不证明原生工具声明增量、缓存收益或其他接口的兼容性。自动回归见 `tests/llm/context-adaptation.test.mjs`；结果与适用边界维护在 [Agent 同步设计](../../.agent/records/active/2026-09-28-agent-chat/model-types.md#最小适配实验2026-10-11)。

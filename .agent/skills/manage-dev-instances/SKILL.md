@@ -49,6 +49,12 @@ cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --scrol
 - 客户端 cmux 不可用、无法定位 console 或保留的输出不足时，完整读取 [客户端日志文件回退](references/desktop-logs.md)，按原流程查询 main、renderer、Rust 和 Node worker 日志。应用日志由多个工作区共享，仍需进程证据确认归属。
 - 服务端目前由 `scripts/dev/server.mjs` 把 stdout／stderr 继承到启动终端，没有专用日志文件。cmux scrollback 是终端保留的历史，不是持久日志。若 cmux 不可用，可使用当前工具会话已经掌握的终端读取能力；没有这种能力时，明确说明无法取得该实例的历史日志。不得把隔离测试日志当作本地实例日志，也不为读取日志另起一个 server。
 
+## 窗口验收
+
+开发客户端默认可在后台运行且窗口隐藏。需要窗口操作时，先按上述流程确认当前工作区实例，按[查询快捷键并唤起窗口](references/window-activation.md)读取当前实例的有效快捷键，再发送对应组合键，窗口可见后连接原生窗口自动化。`⌘⇧C` 只是 macOS 新设置的默认 Quick Chat 绑定，不能未经查询就假定它仍有效；只激活应用进程不等于显示 Launcher／Quick Chat。
+
+隐藏时取窗可能返回 timeoutReached 或 cgWindowNotFound，不能仅凭这些错误认定自动化服务不可用或冷启动另一个应用。先确认窗口确已可见，再判断连接是否异常。
+
 ## 重启已有实例
 
 用户要求重启，或当前开发任务需要已有实例加载改动时，先重新确认工作区归属、控制脚本仍存活及 console 映射。确定接收者确实是对应开发脚本，不能向已经返回 shell 或其他程序的终端发送按键。

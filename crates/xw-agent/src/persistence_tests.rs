@@ -17,6 +17,81 @@ struct Host {
     pending: Mutex<Option<tokio::sync::mpsc::UnboundedSender<GenerationEvent>>>,
 }
 
+#[tokio::test]
+async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                reasoning: None,
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let id: domain::SessionId = session.session_id.parse().unwrap();
+    send(&service, request(&session.session_id)).await.unwrap();
+    while host.pending.lock().unwrap().is_none() {
+        tokio::task::yield_now().await;
+    }
+    let fixture = domain::decode_history(include_str!("../tests/fixtures/tools.jsonl")).unwrap();
+    let mut message = fixture
+        .iter()
+        .find_map(|entry| match &entry.payload {
+            domain::EntryPayload::Message(recorded) => match &recorded.message {
+                domain::AgentMessage::Assistant(message) => Some(message.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .unwrap();
+    message.stop_reason = domain::FinishReason::ToolUse;
+    message.content = vec![domain::ContentBlock::ToolCall {
+        id: "write-call".into(),
+        name: "Write".into(),
+        arguments_json: Some(r#"{"path":"committed-side-effect","contents":"once"}"#.into()),
+        thought_signature: None,
+        namespace: None,
+    }];
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&id)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_append_after(3, TestFault::Partial);
+    host.pending
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .send(GenerationEvent::Finished(message))
+        .unwrap();
+    idle(&service, id).await;
+    assert_eq!(host.calls.lock().unwrap().len(), 1);
+    let file = std::path::Path::new(session.cwd.as_ref().unwrap()).join("committed-side-effect");
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "once");
+    service.close().await.unwrap();
+    std::fs::write(&file, "sentinel").unwrap();
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    assert!(matches!(
+        send(&service, request(&session.session_id)).await,
+        Err(AgentError::Conflict(_))
+    ));
+    assert_eq!(host.calls.lock().unwrap().len(), 1);
+    assert_eq!(std::fs::read_to_string(file).unwrap(), "sentinel");
+    service.close().await.unwrap();
+}
+
 impl AgentHost for Host {
     fn get_model_info(&self, _: String) -> ModelInfoFuture {
         Box::pin(async { Err(crate::ModelInfoError::Unavailable) })
@@ -82,6 +157,7 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
     let service = AgentService::with_rollout(host.clone(), directory.path().into()).unwrap();
     let session = service
         .create_session(CreateSessionRequest {
+            cwd: None,
             client_request_id: domain::ClientRequestId::new().to_string(),
             config: Some(AgentModelConfig {
                 model_ref: "original".into(),
@@ -105,7 +181,7 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
             .journal
             .as_mut()
             .unwrap()
-            .fail_append_after(1, TestFault::Partial);
+            .fail_append_after(2, TestFault::Partial);
     }
     assert!(matches!(
         send(&service, original.clone()).await,
@@ -128,7 +204,7 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
     while host.calls.lock().unwrap().is_empty() {
         tokio::task::yield_now().await;
     }
-    assert_eq!(host.calls.lock().unwrap()[0].messages.len(), 1);
+    assert_eq!(host.calls.lock().unwrap()[0].messages.len(), 2);
     // A required in-flight append failure fails the whole Run and cancels generation.
     {
         let mut state = service.state().unwrap();

@@ -77,6 +77,7 @@ pub async fn execute_text(
         request.gen_id
     );
     let mut first_sse_at_ms = None;
+    let mut argument_bytes = 0usize;
     let mut blocks = BTreeMap::<u32, ContentBlock>::new();
     let result = async {
         if cancellation.is_cancelled() || events.is_closed() {
@@ -132,9 +133,9 @@ pub async fn execute_text(
                 }
                 GenerationEvent::BlockStarted { content_index, block }
                 | GenerationEvent::BlockFinished { content_index, block } => {
-                    if !matches!(block, ContentBlock::Text { .. } | ContentBlock::Thinking { .. }) {
+                    if matches!(block, ContentBlock::Image { .. }) {
                         return Err(GenerationError::Failed(
-                            "tools and images are not supported in text runs".into(),
+                            "assistant images are not supported".into(),
                         ));
                     }
                     blocks.insert(*content_index, block.clone());
@@ -160,10 +161,14 @@ pub async fn execute_text(
                     };
                     accumulated.push_str(text);
                 }
+                GenerationEvent::ToolCallDelta { delta, .. } => {
+                    argument_bytes = argument_bytes.saturating_add(delta.len());
+                }
                 _ => {}
             }
             // Bound transient memory independently from transport queues.
-            if blocks.len() > 1024 || blocks.values().map(block_bytes).sum::<usize>() > 1024 * 1024 {
+            let display_bytes = blocks.values().map(block_bytes).sum::<usize>() + argument_bytes;
+            if blocks.len() > 1024 || display_bytes > 1024 * 1024 {
                 return Err(GenerationError::Failed("generation display budget exceeded".into()));
             }
             tokio::select! {
@@ -207,19 +212,27 @@ pub async fn execute_text(
 fn block_bytes(block: &ContentBlock) -> usize {
     match block {
         ContentBlock::Text { text, .. } | ContentBlock::Thinking { text, .. } => text.len(),
-        _ => usize::MAX,
+        ContentBlock::ToolCall {
+            id,
+            name,
+            arguments_json,
+            ..
+        } => id.len() + name.len() + arguments_json.as_ref().map_or(0, String::len),
+        _ => 1024 * 1024 + 1,
     }
 }
 
 pub(crate) fn validate_final(message: &AssistantMessage) -> Result<(), GenerationError> {
     if !matches!(
         message.stop_reason,
-        FinishReason::Stop | FinishReason::Length
+        FinishReason::Stop | FinishReason::Length | FinishReason::ToolUse
     ) || message.content.is_empty()
         || message.content.iter().any(|block| {
             !matches!(
                 block,
-                ContentBlock::Text { .. } | ContentBlock::Thinking { .. }
+                ContentBlock::Text { .. }
+                    | ContentBlock::Thinking { .. }
+                    | ContentBlock::ToolCall { .. }
             )
         })
         || message.content.iter().map(block_bytes).sum::<usize>() > 1024 * 1024
@@ -229,6 +242,37 @@ pub(crate) fn validate_final(message: &AssistantMessage) -> Result<(), Generatio
     {
         return Err(GenerationError::Failed(
             "unsupported or invalid final message".into(),
+        ));
+    }
+    let mut calls = std::collections::HashSet::new();
+    for block in &message.content {
+        let ContentBlock::ToolCall {
+            id,
+            name,
+            arguments_json,
+            ..
+        } = block
+        else {
+            continue;
+        };
+        if message.stop_reason != FinishReason::ToolUse
+            || id.is_empty()
+            || name.is_empty()
+            || !calls.insert(id)
+            || arguments_json.as_ref().is_none_or(|arguments| {
+                serde_json::from_str::<serde_json::Value>(arguments)
+                    .map_or(true, |value| !value.is_object())
+            })
+        {
+            return Err(GenerationError::Failed(
+                "invalid or truncated tool call".into(),
+            ));
+        }
+    }
+
+    if message.stop_reason == FinishReason::ToolUse && calls.is_empty() {
+        return Err(GenerationError::Failed(
+            "tool stop without a tool call".into(),
         ));
     }
     Ok(())

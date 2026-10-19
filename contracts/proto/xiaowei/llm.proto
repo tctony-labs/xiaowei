@@ -178,7 +178,18 @@ message ChatMessage {
     UserMessage user = 1;
     AssistantMessage assistant = 2;
     ToolResultMessage tool_result = 3;
+    SystemContextUpdate system_context = 4;
   }
+}
+
+// Ordered harness update, independent of user/assistant messages.
+// Baseline appears once (or after compaction); deltas contain only changed capabilities.
+message SystemContextUpdate {
+  bool baseline = 1;
+  map<string, string> instructions = 2;
+  repeated string instructions_removed = 3;
+  repeated ToolDefinition tools_added = 4;
+  repeated string tools_removed = 5;
 }
 
 message ToolDefinition {

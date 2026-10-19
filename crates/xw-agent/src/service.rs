@@ -20,7 +20,7 @@ const MAX_OBSERVERS: usize = 64;
 pub(crate) struct State {
     pub(crate) closed: bool,
     pub(crate) sessions: BTreeMap<SessionId, Session>,
-    pub(crate) creations: BTreeMap<ClientRequestId, (SessionId, AgentModelConfig)>,
+    pub(crate) creations: BTreeMap<ClientRequestId, (SessionId, AgentModelConfig, Option<String>)>,
     pub(crate) observers: Vec<Weak<Observer>>,
     pub(crate) viewers: BTreeMap<SessionId, Vec<Weak<()>>>,
 }
@@ -112,9 +112,9 @@ impl AgentService {
         input::validate_config(&config)?;
         let info = self.host.get_model_info(config.model_ref.clone()).await;
         let mut state = self.state()?;
-        if let Some((id, original_config)) = state.creations.get(&request_id) {
+        if let Some((id, original_config, original_cwd)) = state.creations.get(&request_id) {
             let session = &state.sessions[id];
-            if original_config != &config {
+            if original_config != &config || original_cwd != &request.cwd {
                 return Err(AgentError::Conflict("creation config"));
             }
             return Ok(CreateSessionResponse {
@@ -138,13 +138,27 @@ impl AgentService {
         let created_at_ms = now_ms()?;
         let id = SessionId::new();
         let mut session = Session::new(id, created_at_ms, config.clone());
+        session.view.cwd = crate::workspace::explicit(request.cwd.as_deref())?;
+        if session.view.cwd.is_none()
+            && let Some(store) = &self.rollout
+        {
+            session.view.cwd = Some(crate::workspace::prepare(store.root(), id)?);
+        }
         crate::model::apply_info(&mut session, &config.model_ref, info);
         session.indexed = self.index.is_some();
         if let Some(store) = &self.rollout {
             let meta = crate::persistence::initial_meta(&session);
             let journal = store
-                .create(id, created_at_ms, meta.clone())
-                .map_err(crate::persistence::storage_error)?;
+                .create_with_cwd(id, created_at_ms, meta.clone(), session.view.cwd.clone())
+                .map_err(|error| {
+                    if request.cwd.is_none() {
+                        let path = crate::workspace::owned_path(store.root(), id);
+                        if let Err(cleanup) = std::fs::remove_dir(&path) {
+                            log::error!("Agent workspace cleanup failed session={id}: {cleanup}");
+                        }
+                    }
+                    crate::persistence::storage_error(error)
+                })?;
             session.meta = Some(meta);
             session.journal = Some(journal);
         }
@@ -158,8 +172,12 @@ impl AgentService {
             })),
         };
         state.sessions.insert(id, session);
-        state.creations.insert(request_id, (id, config));
-        Self::publish(&mut state, event);
+        state
+            .creations
+            .insert(request_id, (id, config, request.cwd));
+        if self.index.is_none() {
+            Self::publish(&mut state, event);
+        }
         log::debug!("Agent session created session={id}");
         Ok(response)
     }
@@ -449,6 +467,7 @@ mod tests {
         let service = AgentService::new(Arc::new(NeverGenerate));
         let session = service
             .create_session(CreateSessionRequest {
+                cwd: None,
                 title_model_ref: String::new(),
                 client_request_id: ClientRequestId::new().to_string(),
                 config: Some(AgentModelConfig {
