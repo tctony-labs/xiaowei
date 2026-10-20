@@ -127,10 +127,19 @@ export function registerSearch(
             actions.writeText(hit.action.action.value);
             break;
           case "launchApp": {
-            await bindClient(System, client).openPath(
-              create(LocalPathRequestSchema, { path: hit.action.action.value }),
-            );
-            break;
+            // Keep the caller's permissions, but do not hold the launcher open for OS prompts.
+            void bindClient(System, client)
+              .openPath(create(LocalPathRequestSchema, { path: hit.action.action.value }))
+              .then(() => {
+                console.info("Launcher application opened", { id: hit.id });
+                return record();
+              })
+              .catch((error) => {
+                console.error("Launcher application action failed", { id: hit.id }, error);
+              });
+            console.info("Launcher application launch dispatched", { id: hit.id });
+            await actions.dismiss(windowFor(context), false);
+            return create(ExecuteResponseSchema);
           }
           case "openUrl": {
             const url = new URL(hit.action.action.value);
@@ -158,10 +167,7 @@ export function registerSearch(
           const action = hit.action?.action.case;
           const opensUpdateWindow =
             action === "command" && hit.action?.action.value === SearchCommand.CHECK_FOR_UPDATES;
-          await actions.dismiss(
-            windowFor(context),
-            action !== "launchApp" && action !== "openUrl" && !opensUpdateWindow,
-          );
+          await actions.dismiss(windowFor(context), action !== "openUrl" && !opensUpdateWindow);
         }
         return create(ExecuteResponseSchema);
       },

@@ -1,5 +1,6 @@
 import { access } from "node:fs/promises";
 import { isAbsolute } from "node:path";
+import { pathToFileURL } from "node:url";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { app, type BrowserWindow, clipboard, shell } from "electron";
 import {
@@ -99,8 +100,15 @@ export function registerSystem(
           return create(EmptySchema);
         },
         async openPath(request) {
-          const error = await shell.openPath(await localPath(request.path));
-          if (error) throw new Error(error);
+          const path = await localPath(request.path);
+          if (process.platform === "darwin") {
+            // openPath uses synchronous NSWorkspace.openURL on macOS, even with a Promise API.
+            // openExternal uses the completion-handler API, including for validated file URLs.
+            await shell.openExternal(pathToFileURL(path).href);
+          } else {
+            const error = await shell.openPath(path);
+            if (error) throw new Error(error);
+          }
           return create(EmptySchema);
         },
         async revealPath(request) {

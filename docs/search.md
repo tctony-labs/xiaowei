@@ -65,7 +65,9 @@ Renderer → Launcher Gateway（Electron main）
 
 Electron main 按调用上下文保存最新一轮 token 和结果 ID → 完整结果映射。renderer 只接收标题、provider、label、基础分、高亮和图标 URL 等展示字段；执行时提交 token 与 ID，由 main 回查动作。新查询开始即清除旧动作，旧查询响应不能覆盖新查询结果，过期结果不能执行。
 
-普通 URL 仅允许 HTTP(S)，系统设置 URL 仅允许来自应用 provider。打开应用、URL、复制计算结果及执行主题／重启命令后隐藏窗口；打开剪贴板命令返回模式切换结果。宿主只执行白名单中的命令与上述动作，renderer 不能提交任意路径或 URL。
+普通 URL 仅允许 HTTP(S)，系统设置 URL 仅允许来自应用 provider。打开应用时，Launcher 派发 System.OpenPath 后立即隐藏窗口并返回，不等待系统首次启动确认或应用启动完成，也不归还来源焦点。后台调用保留原调用方权限；成功后记录使用，失败写入日志，完成回调不操作窗口，避免误关后来重新唤起的搜索界面。macOS 本地路径通过异步系统接口打开，实现约定见 [main 模块组织](../desktop/src/main/README.md#gateway-装配与生命周期)。
+
+打开 URL、复制计算结果及执行主题／重启命令后隐藏窗口；打开剪贴板命令返回模式切换结果。宿主只执行白名单中的命令与上述动作，renderer 不能提交任意路径或 URL。
 
 ## 图标资源
 

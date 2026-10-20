@@ -25,7 +25,7 @@ import { createIconResources } from "../../../desktop/src/main/resources/app-ico
 import { registerSearch } from "../../../desktop/src/main/services/launcher/gateway.js";
 import { createServices } from "../../../desktop/src/renderer/src/services.js";
 
-test("launcher tokens and execution are preserved; search does not read icons", async () => {
+test("launcher tokens and execution are preserved; search does not read icons", async (t) => {
   const host = new GatewayHost();
   let slow!: () => void;
   let reads = 0;
@@ -141,13 +141,17 @@ test("launcher tokens and execution are preserved; search does not read icons", 
     api.execute(create(ResultRequestSchema, { token: current.token - 1, id: "slow" })),
   );
   failOpen = true;
-  await assert.rejects(
-    api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" })),
-  );
-  assert.deepEqual(actions, []);
+  const errors = t.mock.method(console, "error", () => {});
+  await api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" }));
+  await new Promise(setImmediate);
+  assert.deepEqual(actions, ["hide"]);
+  assert.equal(errors.mock.callCount(), 1);
+  errors.mock.restore();
+  actions.length = 0;
   failOpen = false;
   await api.execute(create(ResultRequestSchema, { token: current.token, id: "fast" }));
-  assert.deepEqual(actions.slice(0, 3), ["/Applications/Test.app", ["usage", "app:test"], "hide"]);
+  await new Promise(setImmediate);
+  assert.deepEqual(actions, ["/Applications/Test.app", "hide", ["usage", "app:test"]]);
   await api.updateLayout(
     create(UpdateLayoutRequestSchema, { resultCount: 2, mode: LauncherMode.SEARCH }),
   );

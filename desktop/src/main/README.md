@@ -87,6 +87,8 @@ services/<service>/
 
 平台原语的直接 napi 调用边界见 [xiaowei-rust 平台绑定](../../../crates/xiaowei-rust/docs/platform.md#模块边界)。窗口策略与唤起会话由 `windows/` 管理；System.HideWindow 等宿主业务入口仍由 TS Gateway owner 提供，不在平台包注册服务。
 
+System.OpenPath 校验绝对路径、空字符和文件存在性。macOS 将路径编码为 file URL 后使用 `shell.openExternal` 的原生异步接口，避免 `shell.openPath` 在主线程同步等待首次打开确认；其他平台沿用 `shell.openPath`。System.OpenPath 仍等待操作结果并传播失败，调用方自行决定是否等待；System.OpenUrl 继续只接受 HTTP(S)，不开放任意 file URL 输入。
+
 `services/shortcuts/registry.ts` 统一持有全局快捷键注册及其回调，负责菜单期间的注销与恢复；设置快捷键 owner 通过该注册表管理绑定。Tray 只将注册表快照映射为原生菜单快捷键，不枚举快捷键业务；可见菜单动作与这份快照独立。配置、更新与原生交接见 [桌面快捷键](../../../docs/shortcuts.md)。
 
 - 业务 handler 模块的命名与边界遵循 [Gateway 接入约定](../../../gateway/README.md#接入约定)。

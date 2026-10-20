@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { create } from "@bufbuild/protobuf";
 import {
   EmptySchema,
@@ -27,6 +28,8 @@ let fail = false;
 const clipboardTexts: string[] = [];
 const pathCalls: string[][] = [];
 let pathError = "";
+let pendingOpen: Promise<void> | undefined;
+let notifyOpen: (() => void) | undefined;
 let autostart = false;
 let rejectAutostart = false;
 let appHidden = 0;
@@ -53,6 +56,13 @@ mock.module(require.resolve("electron"), {
         pathCalls.push(["reveal", path]);
       },
       async openExternal(url: string) {
+        if (url.startsWith("file:")) {
+          pathCalls.push(["openExternal", url]);
+          notifyOpen?.();
+          await pendingOpen;
+          if (pathError) throw new Error(pathError);
+          return;
+        }
         if (fail) throw new Error("Unable to open browser");
         opened.push(url);
       },
@@ -107,7 +117,7 @@ test("System opens only web URLs without clipboard and coexists with separate th
 
 test("System validates local paths, opens files and directories, and propagates host failures", async () => {
   const directory = await mkdtemp(join(tmpdir(), "system-paths-"));
-  const file = join(directory, "中文 file.txt");
+  const file = join(directory, "中文 #? file.txt");
   await writeFile(file, "test");
   const host = new GatewayHost();
   const owner = registerSystem(host, () => ({ hide() {} }));
@@ -117,8 +127,10 @@ test("System validates local paths, opens files and directories, and propagates 
     await api.openPath(create(LocalPathRequestSchema, { path: directory }));
     await api.revealPath(create(LocalPathRequestSchema, { path: file }));
     assert.deepEqual(pathCalls, [
-      ["open", file],
-      ["open", directory],
+      process.platform === "darwin" ? ["openExternal", pathToFileURL(file).href] : ["open", file],
+      process.platform === "darwin"
+        ? ["openExternal", pathToFileURL(directory).href]
+        : ["open", directory],
       ["reveal", file],
     ]);
 
@@ -141,6 +153,43 @@ test("System validates local paths, opens files and directories, and propagates 
     assert.equal(pathCalls.length, 4);
   } finally {
     pathError = "";
+    owner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("macOS local opening stays pending without blocking other System calls", {
+  skip: process.platform !== "darwin",
+  timeout: 5000,
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "system-open-wait-"));
+  let finish!: () => void;
+  pendingOpen = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    notifyOpen = resolve;
+  });
+  const host = new GatewayHost();
+  const owner = registerSystem(host, () => ({ hide() {} }));
+  const api = bindClient(System, host.client({ caller: "test", trusted: true }));
+  let completed = false;
+  const opening = api.openPath(create(LocalPathRequestSchema, { path: directory })).then(() => {
+    completed = true;
+  });
+  try {
+    await started;
+    await api.writeClipboardText(create(WriteClipboardTextRequestSchema, { text: "responsive" }));
+    assert.equal(clipboardTexts.pop(), "responsive");
+    assert.equal(completed, false);
+    finish();
+    await opening;
+    assert.deepEqual(pathCalls.at(-1), ["openExternal", pathToFileURL(directory).href]);
+  } finally {
+    finish();
+    await opening;
+    pendingOpen = undefined;
+    notifyOpen = undefined;
     owner.close();
     await rm(directory, { recursive: true, force: true });
   }
