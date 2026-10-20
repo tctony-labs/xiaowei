@@ -20,6 +20,7 @@ import {
   deriveUpdatePublicKey,
   verifyUpdateKeyPair,
 } from "../release/check-release.mjs";
+import { generateAppcast } from "../release/generate-appcast.mjs";
 import {
   localUpdateAppId,
   localUpdateName,
@@ -27,6 +28,7 @@ import {
 } from "../release/local-update-config.mjs";
 import { createLocalUpdateServer } from "../release/local-update-server.mjs";
 import { packageMac } from "../release/package-mac.mjs";
+import { readReleaseNotes } from "../release/release-notes.mjs";
 import {
   notarizeApp,
   notarizeDmg,
@@ -523,6 +525,100 @@ test("appcast generation rejects an unrelated tag before using credentials or in
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Expected release tag/);
   assert.equal(result.stdout, "");
+});
+
+test("release notes require a matching version and substantive content", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-release-notes-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const path = join(directory, "1.2.3.md");
+  assert.throws(() => readReleaseNotes("1.2.3", directory), /ENOENT/);
+  assert.throws(() => readReleaseNotes("../1.2.3", directory), /stable x.y.z/);
+
+  for (const invalid of ["", "# XiaoWei 1.2.2\n\n- 修复问题\n"]) {
+    writeFileSync(path, invalid);
+    assert.throws(() => readReleaseNotes("1.2.3", directory), /must start with/);
+  }
+  for (const empty of ["\n", "\n## 修复\n", "\n<!-- 待填写 -->\n"]) {
+    writeFileSync(path, `# XiaoWei 1.2.3\n${empty}`);
+    assert.throws(() => readReleaseNotes("1.2.3", directory), /must contain update details/);
+  }
+
+  const markdown = "# XiaoWei 1.2.3\r\n\r\n- 修复更新说明。\r\n";
+  writeFileSync(path, markdown);
+  assert.deepEqual(readReleaseNotes("1.2.3", directory), { path, markdown });
+});
+
+test("release notes CLI validates the current release and rejects a mismatched tag", () => {
+  const script = fileURLToPath(new URL("../release/release-notes.mjs", import.meta.url));
+  const valid = spawnSync(process.execPath, [script, `v${version}`], { encoding: "utf8" });
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.match(valid.stdout, /Release notes verified/);
+
+  const invalid = spawnSync(process.execPath, [script, "wrong/tag"], { encoding: "utf8" });
+  assert.notEqual(invalid.status, 0);
+  assert.match(invalid.stderr, /Expected release tag/);
+});
+
+test("Sparkle embeds the release Markdown in a signed feed without a separate notes URL", {
+  skip: process.platform !== "darwin",
+}, (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-appcast-notes-test-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const app = join(directory, "Notes.app");
+  mkdirSync(join(app, "Contents/MacOS"), { recursive: true });
+  fs.copyFileSync("/usr/bin/true", join(app, "Contents/MacOS/Notes"));
+  const keys = generateKeyPairSync("ed25519");
+  const key = keys.publicKey
+    .export({ format: "der", type: "spki" })
+    .subarray(-32)
+    .toString("base64");
+  const privateKey = keys.privateKey
+    .export({ format: "der", type: "pkcs8" })
+    .subarray(-32)
+    .toString("base64");
+  writeFileSync(
+    join(app, "Contents/Info.plist"),
+    `<?xml version="1.0"?>
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>com.tctony.xiaowei.notes-test</string>
+  <key>CFBundleName</key><string>Notes</string>
+  <key>CFBundleExecutable</key><string>Notes</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>1.2.3</string>
+  <key>CFBundleShortVersionString</key><string>1.2.3</string>
+  <key>SURequireSignedFeed</key><true/>
+  <key>SUPublicEDKey</key><string>${key}</string>
+</dict></plist>`,
+  );
+  const signed = spawnSync("codesign", ["--force", "--sign", "-", app]);
+  assert.equal(signed.status, 0, signed.stderr.toString());
+  const archivePath = join(directory, "Notes-1.2.3.zip");
+  const zipped = spawnSync("ditto", ["-c", "-k", "--keepParent", app, archivePath]);
+  assert.equal(zipped.status, 0, zipped.stderr.toString());
+
+  const markdown = "# XiaoWei 1.2.3\n\n## 修复\n\n- 更新说明 & `<内容>`\n";
+  writeFileSync(join(directory, "1.2.3.md"), markdown);
+  const notes = readReleaseNotes("1.2.3", directory).markdown;
+  const output = join(directory, "appcast.xml");
+  generateAppcast({
+    archivePath,
+    output,
+    version: "1.2.3",
+    urlPrefix: "https://example.test/",
+    key,
+    privateKey,
+    notesUrl: "https://github.com/tctony-labs/xiaowei/releases",
+    notes,
+  });
+  const xml = readFileSync(output, "utf8");
+  assert.match(xml, /<description[^>]*sparkle:format="markdown"/);
+  assert.ok(xml.includes(`<![CDATA[${markdown}]]>`), xml);
+  assert.match(
+    xml,
+    /<sparkle:fullReleaseNotesLink>https:\/\/github.com\/tctony-labs\/xiaowei\/releases</,
+  );
+  assert.doesNotMatch(xml, /<sparkle:releaseNotesLink>/);
+  verifySignedAppcast({ feed: Buffer.from(xml), key });
 });
 
 test("appcast generation requires an explicit signing key rather than using the user's Keychain", () => {

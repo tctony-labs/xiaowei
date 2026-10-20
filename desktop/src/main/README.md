@@ -55,7 +55,7 @@ LLM 的生成接口、模型配置持久化与 Responses WebSocket 行为见 [LL
 
 账号的服务器选择、设备身份、登录态持久化及恢复规则见 [桌面账号](../../docs/account.md)；服务器 typed API 与传输边界见 [xwapi](../../../docs/xwapi.md)。
 
-macOS 正式包的更新由 `services/update/service.ts` 持有，通过平台 napi 调用 Sparkle 原生窗口；关于页沿用 System service 的 typed 调用。安装前等待应用 Gateway／后台业务关闭，再恢复 Sparkle 的安装 continuation；controller 在 `will-quit` 释放。开发态和其他平台不初始化 updater。本地测试包通过独立身份隔离所有业务数据与 Agent／模型目录。打包、本地更新联调和后续正式签名见 [macOS 发布](../../docs/macos-release.md)。
+macOS 正式包的更新由 `services/update/service.ts` 持有，通过平台 napi 调用 Sparkle 原生窗口；关于页沿用 System service 的 typed 调用。安装前等待应用 Gateway／后台业务关闭，再恢复 Sparkle 的安装 continuation；controller 在 `will-quit` 释放。开发态和其他平台不初始化 updater。本地测试包通过独立身份隔离所有业务数据与 Agent／模型目录。打包、本地更新联调和后续正式签名见 [macOS 发布](../../docs/macos-packaging-and-updates.md)。
 
 更新 service 将 Sparkle 的原生 UI 生命周期通知转交 `windows/ordinary-windows.ts`，与 Electron 普通窗口共同决定 Dock 显隐。交互式检查发起时登记其检查窗口，发起失败则恢复之前状态；会话结束或 service 关闭时清除原生窗口状态。Dock 管理器仅管理可见策略，不接管原生更新窗口。
 

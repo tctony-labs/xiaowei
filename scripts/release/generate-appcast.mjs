@@ -1,7 +1,8 @@
-import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readReleaseNotes } from "./release-notes.mjs";
 import {
   desktopDirectory,
   ensureSparkle,
@@ -22,6 +23,7 @@ export function generateAppcast({
   key,
   privateKey,
   notesUrl,
+  notes,
 }) {
   releaseVersion(version);
   if (!privateKey) throw new Error("SPARKLE_ED_PRIVATE_KEY is required to sign the appcast");
@@ -31,6 +33,10 @@ export function generateAppcast({
   const archive = basename(archivePath);
   try {
     copyFileSync(archivePath, join(directory, archive));
+    if (notes !== undefined) {
+      if (!notes.trim()) throw new Error("Release notes must not be empty");
+      writeFileSync(join(directory, `${basename(archive, ".zip")}.md`), notes);
+    }
     // Sparkle reads the seed from stdin; it is never an argument or a persistent file.
     const input = `${normalizePrivateKey(privateKey)}\n`;
     run(
@@ -41,6 +47,7 @@ export function generateAppcast({
         "--download-url-prefix",
         urlPrefix,
         ...(notesUrl ? ["--full-release-notes-url", notesUrl] : []),
+        ...(notes !== undefined ? ["--embed-release-notes"] : []),
         "--maximum-versions",
         "1",
         "--maximum-deltas",
@@ -63,7 +70,10 @@ export function generateAppcast({
       version,
       url: `${urlPrefix}${encodeURIComponent(archive)}`,
     });
-    console.info(`Signed Sparkle appcast generated for ${version}`);
+    console.info(
+      `Signed Sparkle appcast generated for ${version};`,
+      `release notes embedded=${notes !== undefined}`,
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -81,7 +91,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     output: join(desktopDirectory, "dist/appcast.xml"),
     version,
     urlPrefix: `https://github.com/${releaseRepository}/releases/download/${tag}/`,
-    notesUrl: `https://github.com/${releaseRepository}/releases/tag/${tag}`,
+    notesUrl: `https://github.com/${releaseRepository}/releases`,
+    notes: readReleaseNotes(version).markdown,
     key: process.env.SPARKLE_ED_PUBLIC_KEY,
     privateKey: process.env.SPARKLE_ED_PRIVATE_KEY,
   });
