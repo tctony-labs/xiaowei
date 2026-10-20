@@ -1,8 +1,8 @@
 ---
 name: release-desktop-app
 description: >-
-  准备或发布 XiaoWei macOS App 时使用：维护版本及更新说明，推送 tag 触发发布，
-  跟踪 CI 并核对发布结果。也覆盖本地打包与更新联调；创建技能或讨论方案不触发发布。
+  准备或发布 XiaoWei macOS App 时使用：处理代码、版本和更新说明，合回 develop，
+  确认发布范围后推送分支与 tag，触发 CI。创建技能或讨论方案不触发发布。
 ---
 
 # 发布 XiaoWei 桌面 App
@@ -11,7 +11,7 @@ description: >-
 
 先明确用户要求的是准备发布、本地打包还是正式发布。正式发布先将当前分支合回 `develop`，再基于合并后的 `develop` 确定版本范围、整理更新说明并完成检查；展示这些具体内容并获得用户确认后，才推送分支和触发发布。同一份内容已确认时不重复询问。源码提交、推送和合并遵循根 [AGENTS.md](../../../AGENTS.md) 与会话授权；缺少提交授权时，先展示具体改动并请求提交授权，再继续合并。不要把仅准备文件或创建本技能解释为正式发布授权。
 
-仅做本地打包、两版本更新联调、更新密钥准备、调试归档或体积核对时，读取 [本地打包与验证](references/local-validation.md) 对应章节。应用由用户冷启动，Agent 不启动 Electron 或覆盖已安装应用。
+用户另行要求本地打包、两版本更新联调、更新密钥准备、调试归档或体积核对时，读取 [本地打包与验证](references/local-validation.md) 对应章节。应用由用户冷启动，Agent 不启动 Electron 或覆盖已安装应用。
 
 ## 1. 合回 develop 并准备版本与更新说明
 
@@ -34,13 +34,7 @@ node scripts/release/release-notes.mjs "$release_tag"
 
 完成相关回归和 `just check`。核对待发布代码、版本、说明和必要文档均已准备齐全，没有遗漏的发布改动；按提交授权将它们纳入 `develop` 的发布提交，记录完整 `release_sha`。
 
-## 2. 核对发布配置
-
-继续使用现有 Developer ID 身份与长期 Sparkle 更新密钥。配置名称、来源和环境变量映射见 [CI 配置](../../../desktop/docs/macos-packaging-and-updates.md#ci-配置)。核对这些配置对目标仓库可用，不读取或输出 secret 值，不为普通发布生成新密钥。
-
-CI 会校验 tag 与应用版本、tag 提交与 HEAD、签名配置以及 Ed25519 公私钥配对。org 配置查询遇到权限不足时，明确区分“无法查询”和“配置缺失”；以实际 CI 预检查结果为准，不能用本地测试密钥绕过。
-
-## 3. 触发并跟踪正式发布
+## 2. 推送并触发 CI
 
 tag 推送会自动正式发布稳定 Release 并设为 latest，没有草稿转正式的人工步骤。完成合并、准备和检查后，向用户展示上一稳定版本／tag、最终 `develop` 提交 SHA、本次目标版本与源码范围、完整更新说明和检查结果，等待用户确认再推送发布。若这些具体内容已在当前会话确认，沿用确认；确认后发布范围或说明发生实质变化时，重新展示变更并确认。手动触发 workflow dispatch 也遵循此确认点。
 
@@ -65,15 +59,6 @@ gh workflow run macos-release.yml --repo tctony-labs/xiaowei \
 ```sh
 gh run list --repo tctony-labs/xiaowei --workflow macos-release.yml \
   --commit "$release_sha" --json databaseId,event,headSha,status,conclusion,url
-gh run view "$run_id" --repo tctony-labs/xiaowei --json headSha,status,conclusion,url
 ```
 
-跟踪版本说明校验、配置预检查、构建与测试、app 签名、DMG 制作、公证和票据、ZIP、签名 appcast、附件上传及 Release 发布。保持进度反馈；run 成功必须对应本次 tag 的提交。具体阶段及产物复用机制见设计文档，不在技能中复制实现。
-
-失败时先定位失败阶段。网络等临时故障可在确认原因后重跑同一提交的 CI；不要反复触发相同失败。源码修改不会自动进入旧 tag。尚未分发的 tag 需要调整时，先确认没有并发构建或公开产物，再按用户授权处理；已分发版本的 tag 和附件不覆盖，修复使用新版本号。
-
-## 4. 核对发布结果
-
-常规发布只核对对应提交的 CI 全部成功，以及 Release 的 tag、正式状态、latest 状态和发布链接。更新说明读取、签名／公证、附件生成、feed 验签和调试信息匹配由流水线自动检查；不在每次发布后重复下载安装包、手工验签或要求用户安装升级验收。
-
-交付时报告版本、源码 SHA、CI run 和 Release 链接、更新说明及 CI 结果。例行发布结果在对话中汇报，不为每次发布新建开发 record。
+确认对应提交的 CI 已触发后，报告版本、源码 SHA、更新说明和 CI 链接，发布技能的执行到此结束。默认不持续跟踪 CI、不核对发布结果，也不执行发布后的额外验证；仅在用户明确要求，或本次相关代码修改需要验证时，按实际范围执行。

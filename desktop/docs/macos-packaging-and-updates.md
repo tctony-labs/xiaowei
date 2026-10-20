@@ -1,6 +1,6 @@
 # macOS 桌面打包与更新设计
 
-本文说明当前打包、分发和自动更新的设计与实现。版本准备、更新说明维护、tag 发布和验收步骤统一见 [release-desktop-app 技能](../../.agent/skills/release-desktop-app/SKILL.md)；本地打包、更新联调和排障操作见其 [本地验证参考](../../.agent/skills/release-desktop-app/references/local-validation.md)。
+本文说明当前打包、分发和自动更新的设计与实现。版本准备、更新说明维护和推送 tag 触发 CI 的步骤统一见 [release-desktop-app 技能](../../.agent/skills/release-desktop-app/SKILL.md)；本地打包、更新联调和排障操作见其 [本地验证参考](../../.agent/skills/release-desktop-app/references/local-validation.md)。
 
 ## 平台、版本与产物
 
@@ -165,4 +165,4 @@ sequenceDiagram
 
 ## 验证边界
 
-自动回归覆盖 Gateway 调用、开发态禁用、原生桥接失败、并发检查、安装前等待关闭、关闭后的迟到事件、关于页交互，以及更新说明校验和签名 feed 嵌入。常规发布依赖 CI 自动检查，完成后核对对应版本的发布结果，流程见 [发布技能](../../.agent/skills/release-desktop-app/SKILL.md#4-核对发布结果)。
+自动回归覆盖 Gateway 调用、开发态禁用、原生桥接失败、并发检查、安装前等待关闭、关闭后的迟到事件、关于页交互，以及更新说明校验和签名 feed 嵌入。常规发布依赖 CI 自动检查，触发流程见 [发布技能](../../.agent/skills/release-desktop-app/SKILL.md#2-推送并触发-ci)。
