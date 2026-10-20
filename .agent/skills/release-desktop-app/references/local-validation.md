@@ -24,7 +24,7 @@ pnpm --dir desktop package:mac --signed
 
 需要签名目录包时可组合 `--signed --dir`；它走 app 临时 ZIP 公证路径。通用 `pnpm --dir desktop package` 不携带 Sparkle，不用于更新验收。
 
-完成 DMG／ZIP 后，使用匹配当前应用版本的 `release_tag`，提供 `SPARKLE_ED_PUBLIC_KEY`、`SPARKLE_ED_PRIVATE_KEY` 和对应的 `desktop/releases/<version>.md`，校验并生成正式 appcast：
+完成 DMG／ZIP 后，使用匹配当前应用版本的 `release_tag`，提供 `SPARKLE_ED_PUBLIC_KEY`、`SPARKLE_ED_PRIVATE_KEY` 和对应的 `desktop/release-notes/<version>.md`，校验并生成正式 appcast：
 
 ```sh
 node scripts/release/check-release.mjs "$release_tag"

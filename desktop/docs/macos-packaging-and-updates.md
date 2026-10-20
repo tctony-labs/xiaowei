@@ -96,7 +96,7 @@ Sparkle Ed25519 密钥和 Apple 代码签名证书相互独立。正式应用的
 
 ### 单一更新说明来源
 
-`desktop/releases/<version>.md` 同时作为 GitHub Release 正文与 Sparkle 更新弹窗内容。`scripts/release/release-notes.mjs` 校验稳定版本、文件存在、首行 `# XiaoWei <version>` 和非空正文；只有标题、空章节或注释会被拒绝。
+`desktop/release-notes/<version>.md` 同时作为 GitHub Release 正文与 Sparkle 更新弹窗内容。`scripts/release/release-notes.mjs` 校验稳定版本、文件存在、首行 `# XiaoWei <version>` 和非空正文；只有标题、空章节或注释会被拒绝。
 
 CI 在构建前校验说明，发布时使用 `gh release create --notes-file`，不再使用 `--generate-notes`。appcast 生成器将同一份 Markdown 放入与 ZIP 同名的临时 `.md`，通过 Sparkle 的 `--embed-release-notes` 生成带 Markdown 格式的 `description`，正文与 feed 一起签名，无须额外托管说明文件或增加 Markdown 转换依赖。
 

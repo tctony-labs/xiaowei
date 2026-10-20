@@ -17,7 +17,7 @@ description: >-
 
 1. 核对当前分支、未提交改动、远端已发布版本和用户指定的发布范围，确定本次源码提交及上一稳定版本。不要将工作区改动当作已经进入远端构建。
 2. 选择高于已分发版本的稳定 `x.y.z`，只修改 `desktop/package.json` 的应用版本；内部 workspace npm 包和 Rust crate 不随之递增。对应 tag 为 `v<version>`，不能只打 tag 而不改应用版本。
-3. 在 `desktop/releases/<version>.md` 维护本次更新说明。这是 GitHub Release 正文和 Sparkle 更新弹窗的唯一内容来源；不要另写两份正文，也不再依赖 GitHub `--generate-notes`。
+3. 在 `desktop/release-notes/<version>.md` 维护本次更新说明。这是 GitHub Release 正文和 Sparkle 更新弹窗的唯一内容来源；不要另写两份正文，也不再依赖 GitHub `--generate-notes`。
 4. 比较上一稳定版本到待发布提交的实际改动，整理面向用户的新增、优化、修复和必要的使用影响。可参考提交说明，但须核对实现；未实现、未进入发布提交或没有证据的功能不写入。仅保留有内容的分类，不用提交列表或 Full Changelog 链接代替具体说明。
 
 说明第一行必须为 `# XiaoWei <version>`，正文使用 Markdown 标题、段落和列表。文件需包含实际更新内容；只有标题、空章节或注释会被校验拒绝。发布后保留该版本文件，后续版本另建文件，不重写已分发版本的说明。
@@ -72,7 +72,7 @@ gh run view "$run_id" --repo tctony-labs/xiaowei --json headSha,status,conclusio
 
 ## 4. 发布核对与运行验收
 
-1. 核对本次 Release 的 tag、提交、正式状态和 latest 状态；正文必须与 `desktop/releases/<version>.md` 一致，不能只有版本对比链接。
+1. 核对本次 Release 的 tag、提交、正式状态和 latest 状态；正文必须与 `desktop/release-notes/<version>.md` 一致，不能只有版本对比链接。
 2. 核对四个附件：`XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip`、`XiaoWei-<version>-arm64-debug-symbols.zip`、`appcast.xml`。检查 CI 签名身份、公证 Accepted、app／DMG 票据与 Gatekeeper 的结果；调试归档的 commit、模块 UUID 和校验值须对应本次构建。
 3. 通过未登录的 GitHub 正式下载地址验证 DMG、ZIP 和 `releases/latest/download/appcast.xml`，检查重定向、版本、ZIP URL、长度和 Ed25519 签名。可复用 `scripts/release/sparkle.mjs` 的 `verifySignedAppcast` 与 `verifyUpdateArchive`，使用既有公钥；历史草稿附件不属于公开更新源。
 4. 核对 feed 的 `description` 包含本次 Markdown 正文，`fullReleaseNotesLink` 指向 `https://github.com/tctony-labs/xiaowei/releases`。正文在生成 feed 时一起签名，不手工修改已签名 XML。

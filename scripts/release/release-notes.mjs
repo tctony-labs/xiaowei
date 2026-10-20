@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { desktopDirectory, releaseVersion } from "./sparkle.mjs";
 
-export function readReleaseNotes(version, directory = join(desktopDirectory, "releases")) {
+export function readReleaseNotes(version, directory = join(desktopDirectory, "release-notes")) {
   releaseVersion(version);
   const path = join(directory, `${version}.md`);
   const markdown = readFileSync(path, "utf8");

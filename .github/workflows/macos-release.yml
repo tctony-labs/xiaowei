@@ -154,7 +154,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$RELEASE_TAG" --verify-tag --latest \
-            --notes-file "desktop/releases/${RELEASE_TAG#v}.md" \
+            --notes-file "desktop/release-notes/${RELEASE_TAG#v}.md" \
             --title "XiaoWei $RELEASE_TAG" \
             desktop/dist/XiaoWei-*-arm64.dmg desktop/dist/XiaoWei-*-arm64.zip \
             desktop/dist/XiaoWei-*-arm64-debug-symbols.zip desktop/dist/appcast.xml
