@@ -42,11 +42,13 @@ CI 会校验 tag 与应用版本、tag 提交与 HEAD、签名配置以及 Ed255
 
 tag 推送会自动正式发布稳定 Release 并设为 latest，没有草稿转正式的人工步骤。完成上述准备和检查后，向用户展示上一稳定版本／tag、本次目标版本与源码范围、完整更新说明和检查结果，等待用户确认再触发发布。若这些具体内容已在当前会话确认，沿用确认；确认后发布范围或说明发生实质变化时，重新展示变更并确认。手动触发 workflow dispatch 也遵循此确认点。
 
-确认后执行已授权的源码推送、annotated tag 创建与推送。记录完整 `release_sha`，核对发布提交包含确认过的代码、版本和说明：
+确认后先同步远端 `develop` 的状态，将当前发布分支合入本地 `develop`，再推送远端 `develop`；已在 `develop` 时直接准备该分支。能快进时使用快进合并，存在分叉时保留双方提交并解决冲突；不要为了发布先推送工作分支。
+
+合并后核对 `develop` 包含确认过的代码、版本和说明。若带入未确认的功能改动或改变说明，先更新范围、说明与相关检查并获得确认。以最终 `develop` 提交作为 `release_sha`，先推送分支，成功后才在同一提交创建并推送 annotated tag：
 
 ```sh
-release_sha=$(git rev-parse HEAD)
-git push origin HEAD
+release_sha=$(git rev-parse develop)
+git push origin develop
 git tag -a "$release_tag" "$release_sha" -m "XiaoWei $release_tag"
 git push origin "refs/tags/$release_tag"
 ```
