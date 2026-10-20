@@ -2,7 +2,7 @@
 name: release-desktop-app
 description: >-
   准备或发布 XiaoWei macOS App 时使用：维护版本及更新说明，推送 tag 触发发布，
-  跟踪 CI 并验证安装包和自动更新。也覆盖本地打包与更新联调；创建技能或讨论方案不触发发布。
+  跟踪 CI 并核对发布结果。也覆盖本地打包与更新联调；创建技能或讨论方案不触发发布。
 ---
 
 # 发布 XiaoWei 桌面 App
@@ -74,11 +74,16 @@ gh run view "$run_id" --repo tctony-labs/xiaowei --json headSha,status,conclusio
 
 ## 4. 发布核对与运行验收
 
-1. 核对本次 Release 的 tag、提交、正式状态和 latest 状态；正文必须与 `desktop/release-notes/<version>.md` 一致，不能只有版本对比链接。
-2. 核对四个附件：`XiaoWei-<version>-arm64.dmg`、`XiaoWei-<version>-arm64.zip`、`XiaoWei-<version>-arm64-debug-symbols.zip`、`appcast.xml`。检查 CI 签名身份、公证 Accepted、app／DMG 票据与 Gatekeeper 的结果；调试归档的 commit、模块 UUID 和校验值须对应本次构建。
-3. 通过未登录的 GitHub 正式下载地址验证 DMG、ZIP 和 `releases/latest/download/appcast.xml`，检查重定向、版本、ZIP URL、长度和 Ed25519 签名。可复用 `scripts/release/sparkle.mjs` 的 `verifySignedAppcast` 与 `verifyUpdateArchive`，使用既有公钥；历史草稿附件不属于公开更新源。
-4. 核对 feed 的 `description` 包含本次 Markdown 正文，`fullReleaseNotesLink` 指向 `https://github.com/tctony-labs/xiaowei/releases`。正文在生成 feed 时一起签名，不手工修改已签名 XML。
-5. 由用户启动使用同一长期公钥、同一 Developer ID 的已安装旧版，检查新版本说明显示、取消／网络失败、下载、安装前业务关闭、重启、版本递增、数据保留及无新 crash。新版再次检查更新时，核对“版本历史记录”打开全部版本列表。受控 feed 联调不能代替公开更新链路验收。
-6. 由用户验证正式 DMG 的离线安装运行；该验收与 ZIP／Sparkle 更新分别记录，不能只凭 ad-hoc 包、在线 stapler 或构建成功认定通过。
+常规发布只核对对应提交的 CI 全部成功，以及 Release 的 tag、正式状态、latest 状态和发布链接。更新说明读取、签名／公证、附件生成、feed 验签和调试信息匹配由流水线自动检查；不在每次发布后重复下载安装包、手工验签或要求用户安装升级验收。
 
-交付时报告版本、源码 SHA、CI run 和 Release 链接、更新说明及实际验证结果。技术发布完成与用户运行验收分别说明；尚未执行的项目列明待验收，不宣称已经通过。例行发布结果在对话中汇报，不为每次发布新建开发 record。
+### Release notes 一次性验收
+
+新接入的 release notes 链路完成一次正式环境验收即可；通过后，后续常规发布不再逐次检查读取和展示，也不把这项验收重复列为待办：
+
+1. 核对 GitHub Release 正文与该 tag 中的 Markdown 说明一致。
+2. 核对公开 appcast 的 `description` 包含同一份说明，`fullReleaseNotesLink` 指向 `https://github.com/tctony-labs/xiaowei/releases`。
+3. 由用户在已安装旧版的更新提示中确认说明实际显示正确，并确认“版本历史记录”打开全部版本列表。Agent 不自行启动应用，不用 XML 校验代替真实界面确认。
+
+只有相关开发事项或用户明确要求专项验证时，才安排对应的安装、升级、数据保留或离线安装验收，不将其作为例行发布步骤。
+
+交付时报告版本、源码 SHA、CI run 和 Release 链接、更新说明及 CI 结果。首次验收未完成时单独说明尚待用户确认的项目，不宣称界面已经验证。例行发布结果在对话中汇报，不为每次发布新建开发 record。
