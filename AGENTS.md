@@ -12,11 +12,12 @@
 开始非平凡开发事项前，先完整读取 [`.agent/records/README.md`](.agent/records/README.md)，并遵循其中的路径选择与事项生命周期。
 
 - 存放：事项的 why、what、how、进展和结果维护在 `.agent/records/`；当前状态和事实按需维护在 `docs/`；临时实施步骤维护在 `.agent/plans/`。
-- 路径：开始实施前，Agent 根据需求规模、复杂度和跟踪需要，在 `record + Plans` 与 `Plan` 中二选一；用户已指定时遵循用户选择。小需求可直接采用 `Plan`，不必先提议创建 record。
+- 路径：开始实施前，Agent 根据需求规模、复杂度和跟踪需要，在 `record + Plans`、`Plan` 与「直接修改」三条路径中选择；用户已指定时遵循用户选择。小需求按跟踪需要采用 `Plan` 或直接修改，不必先提议创建 record，也不强制创建 Plan。
 - `record + Plans`：适合较大或复杂的需求，record 跟踪整体事项，Plan 跟踪实施切片。新建 record 前，须说明拟记录的事项和创建理由并获得用户确认；用户已明确要求创建该 record 时无需重复确认。
-- `Plan`：适合范围较小、方案明确的需求，直接用 Plan 跟踪实施，不要求 record，也不为结果回填而擅自新建 record。
-- Plan 维护：创建和维护 Plan 时先读取 [`.agent/plans/README.md`](.agent/plans/README.md)。`record + Plans` 路径中，只有正在实施的 active 事项可以拥有 Plan；两条路径都在每份 Plan 完成后回填持久信息或报告结果，并删除 Plan 和空目录。
-- 文档：两条路径都可在实施过程中及完成后逐步更新长期文档，不必等到事项归档；修改仍遵循上述 Documentation 授权规则。
+- `Plan`：适合范围较小、方案明确，但需要跟踪多个步骤、依赖或验证的需求，用 Plan 跟踪实施，不要求 record，也不为结果回填而擅自新建 record。
+- 直接修改：适合简单、局部且可直接验证的任务，无需创建 record 或 Plan；修改并验证后报告结果。
+- Plan 维护：创建和维护 Plan 时先读取 [`.agent/plans/README.md`](.agent/plans/README.md)。`record + Plans` 路径中，只有正在实施的 active 事项可以拥有 Plan；每份 Plan 完成后回填持久信息或报告结果，并删除 Plan 和空目录。
+- 文档：三条路径都可按需在实施过程中及完成后逐步更新长期文档，不必等到事项归档；修改仍遵循上述 Documentation 授权规则。
 - 完成：`record + Plans` 路径中的事项实施完成或离开 active 时，必须回填 Outcome，更新相关的当前状态文档，并删除对应 Plan。
 - 归档：事项范围已完成并验证，且不再有基于原事项的重大改动时，应向用户提议沉淀长期说明并归档。归档须由用户明确发起或确认，未获确认时保留在 active。成果仍在生效不妨碍完成归档。
 - 归档后：record 冻结，长期文档持续更新。
