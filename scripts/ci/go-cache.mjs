@@ -37,7 +37,11 @@ if (mode === "version") {
       modules.includes(path) ||
       /^server\/.*\.(go|sql)$/.test(path) ||
       /^contracts\/go\/.*\.go$/.test(path) ||
-      [".github/workflows/test.yml", "scripts/ci/go-cache.mjs"].includes(path),
+      [
+        ".github/workflows/test.yml",
+        ".github/workflows/macos-release.yml",
+        "scripts/ci/go-cache.mjs",
+      ].includes(path),
   );
 
   function hash(contents) {

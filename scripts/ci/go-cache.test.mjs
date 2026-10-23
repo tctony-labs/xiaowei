@@ -30,6 +30,7 @@ function fixture(context) {
     "contracts/go/codec.go": "package contracts\n",
     "desktop/example.tsx": "// renderer\n",
     ".github/workflows/test.yml": "name: test\n",
+    ".github/workflows/macos-release.yml": "name: release\n",
     "scripts/ci/go-cache.mjs": "// cache script\n",
   };
   for (const [path, contents] of Object.entries(inputs)) {
@@ -86,6 +87,8 @@ test("cache paths and prefixes reflect the actual Go environment and runner", (c
   assert.equal(outputs.prefix, `go-v1-testOS-testArch-${version}`);
   assert.notEqual(run("key", { RUNNER_OS: "differentOS" }).prefix, outputs.prefix);
   assert.notEqual(run("key", { RUNNER_ARCH: "differentArch" }).prefix, outputs.prefix);
+  assert.deepEqual(run("key", { GITHUB_REF: "refs/heads/develop" }), outputs);
+  assert.deepEqual(run("key", { GITHUB_REF: "refs/tags/v0.1.7" }), outputs);
 });
 
 test("both modules' dependency changes rotate module and build snapshots", (context) => {
@@ -116,6 +119,7 @@ test("Go sources, SQL migrations and CI logic rotate only the build snapshot", (
     "contracts/go/codec.go",
     "server/internal/db/migrations/first.sql",
     ".github/workflows/test.yml",
+    ".github/workflows/macos-release.yml",
     "scripts/ci/go-cache.mjs",
   ];
   for (const path of inputs) {

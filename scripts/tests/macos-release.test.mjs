@@ -72,7 +72,7 @@ function mockNotarization(
   return { calls, waits, warnings };
 }
 
-function mockPackaging(t, submission, staplerResult = () => ({ status: 0 })) {
+function mockPackaging(t, submission, staplerResult = () => ({ status: 0 }), commandResult) {
   const env = {
     CSC_LINK: "test-certificate",
     CSC_KEY_PASSWORD: "test-password",
@@ -100,6 +100,8 @@ function mockPackaging(t, submission, staplerResult = () => ({ status: 0 })) {
     SUVerifyUpdateBeforeExtraction: "true",
   };
   const result = mockNotarization(t, staplerResult, submission, (command, args) => {
+    const override = commandResult?.(command, args);
+    if (override) return override;
     if (command.endsWith("PlistBuddy"))
       return { status: 0, stdout: info[args[1].slice("Print :".length)] };
     if (command === "otool") return { status: 0, stdout: "" };
@@ -110,6 +112,7 @@ function mockPackaging(t, submission, staplerResult = () => ({ status: 0 })) {
           "TeamIdentifier=ABCDEFGHIJ",
           "Authority=Developer ID Application: Test (ABCDEFGHIJ)",
           "CodeDirectory flags=0x10000",
+          "Timestamp=Oct 23, 2026 at 10:00:00 AM",
         ].join("\n"),
       };
     }
@@ -135,6 +138,14 @@ test(
     const { calls } = mockPackaging(t);
     const result = packageMac({ signed: true, build: false });
 
+    assert.ok(
+      calls.some(
+        (call) =>
+          call[0] === "codesign" &&
+          call.includes("--display") &&
+          call.at(-1).endsWith("/Squirrel.framework/Versions/A/Resources/ShipIt"),
+      ),
+    );
     const submissions = calls.filter((call) => call[1] === "notarytool");
     assert.equal(submissions.length, 1);
     assert.equal(submissions[0][3], result.dmg);
@@ -162,6 +173,25 @@ test(
     assert.equal(calls.at(-1)[2], result.app);
   },
 );
+
+test("signed packaging rejects ad-hoc ShipIt before creating the DMG", macOnly, (t) => {
+  const { calls } = mockPackaging(t, undefined, undefined, (command, args) => {
+    if (
+      command === "codesign" &&
+      args.includes("--display") &&
+      args.at(-1).endsWith("/Squirrel.framework/Versions/A/Resources/ShipIt")
+    ) {
+      return { status: 0, stderr: "Signature=adhoc\nTeamIdentifier=not set" };
+    }
+  });
+
+  assert.throws(
+    () => packageMac({ signed: true, build: false }),
+    /Developer ID Application.*Squirrel\.framework\/Versions\/A\/Resources\/ShipIt/,
+  );
+  assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
+  assert.ok(!calls.some((call) => call[1] === "notarytool" || call[0] === "ditto"));
+});
 
 test(
   "CI stages submit once and the ZIP stage needs no signing or notarization secrets",
@@ -397,12 +427,13 @@ test("successful ticket operations proceed without waiting or warnings", (t) => 
   assert.equal(calls.at(-1)[0], "spctl");
 });
 
-test("formal signatures require the selected Developer ID team and hardened runtime", () => {
+test("formal signatures require Developer ID, a secure timestamp and hardened runtime", () => {
   const team = "ABCDEFGHIJ";
   const details = `Executable=/tmp/XiaoWei.app/Contents/MacOS/XiaoWei
 CodeDirectory v=20500 size=400 flags=0x10000(runtime) hashes=8+7 location=embedded
 Authority=Developer ID Application: Release Publisher (${team})
 Authority=Developer ID Certification Authority
+Timestamp=Oct 23, 2026 at 10:00:00 AM
 TeamIdentifier=${team}`;
   verifySigningDetails(details, team);
   assert.throws(() => verifySigningDetails(details, "KLMNOPQRST"), /Team ID/);
@@ -414,6 +445,14 @@ TeamIdentifier=${team}`;
     /hardened runtime/,
   );
   assert.throws(() => verifySigningDetails("Signature=adhoc\nTeamIdentifier=not set", team));
+  assert.throws(
+    () => verifySigningDetails(details.replace(/^Timestamp=.+\n/m, ""), team),
+    /secure timestamp/,
+  );
+  assert.throws(
+    () => verifySigningDetails(details.replace(/^Timestamp=.+\n/m, ""), team, false),
+    /secure timestamp/,
+  );
   verifySigningDetails(details.replace("0x10000(runtime)", "0x0(none)"), team, false);
 });
 
@@ -691,6 +730,9 @@ test("packaging keeps local HTTP and test identity out of production and enables
     assert.ok(ignored("App.app/Contents/Frameworks/Electron.framework/Resources/MainMenu.nib"));
     assert.ok(!ignored("App.app/Contents/Resources/app.asar.unpacked/node_modules/rust/rust.node"));
     assert.ok(!ignored("App.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"));
+    assert.ok(
+      !ignored("App.app/Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt"),
+    );
     assert.equal(config.appId, local ? localUpdateAppId : "com.tctony.xiaowei");
     if (local) {
       assert.equal(config.productName, localUpdateName);

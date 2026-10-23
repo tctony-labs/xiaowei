@@ -205,6 +205,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
     for (const code of [
       app,
       join(app, "Contents/Frameworks/Electron Framework.framework"),
+      join(app, "Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt"),
       join(app, "Contents/Frameworks/Sparkle.framework"),
       join(app, "Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"),
       join(app, "Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"),

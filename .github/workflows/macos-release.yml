@@ -69,6 +69,18 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
 
+      - name: Locate pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Select Go toolchain
         id: go-toolchain
         run: node scripts/ci/go-cache.mjs version >> "$GITHUB_OUTPUT"
@@ -79,8 +91,46 @@ jobs:
           go-version: ${{ steps.go-toolchain.outputs.version }}
           cache: false
 
+      - name: Locate Go caches and compute snapshot keys
+        id: go-cache
+        run: node scripts/ci/go-cache.mjs key >> "$GITHUB_OUTPUT"
+
+      - name: Cache Go module downloads
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-cache.outputs.module-path }}
+          key: >-
+            ${{ steps.go-cache.outputs.prefix }}-modules-${{ steps.go-cache.outputs.module-hash }}
+          restore-keys: ${{ steps.go-cache.outputs.prefix }}-modules-
+
+      - name: Cache Go builds
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-cache.outputs.build-path }}
+          key: ${{ steps.go-cache.outputs.prefix }}-build-${{ steps.go-cache.outputs.build-hash }}
+          restore-keys: ${{ steps.go-cache.outputs.prefix }}-build-
+
       - name: Set up Rust from rust-toolchain.toml
         run: rustup show active-toolchain
+
+      - name: Compute Cargo cache key
+        id: cargo-key
+        run: node scripts/ci/cargo-cache.mjs key >> "$GITHUB_OUTPUT"
+
+      # Share keys with develop's test workflow so tag runs can restore its snapshots.
+      - name: Cache Rust builds
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-key.outputs.key }}
+          restore-keys: ${{ steps.cargo-key.outputs.restore-key }}
+
+      - name: Restore unchanged Cargo input timestamps
+        run: node scripts/ci/cargo-cache.mjs restore
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
@@ -90,6 +140,9 @@ jobs:
 
       - name: Check and test the desktop and release tools
         run: node scripts/release/test-prebuilt.mjs
+
+      - name: Record Cargo input timestamps for the next run
+        run: node scripts/ci/cargo-cache.mjs save
 
       - name: Package and sign the app
         env:

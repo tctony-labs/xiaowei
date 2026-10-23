@@ -71,9 +71,9 @@ flowchart LR
 
 Apple 为 DMG 内的代码生成票据，工作目录 app 因签名身份相同可取得自身票据。electron-builder 自动公证关闭；公证后不再重新打包或签名，更新 ZIP 由 ditto 从已附加票据的 app 生成。DMG 携带外层票据，ZIP 内 app 携带自身票据；两种安装路径需要分别验收。依据见 [Apple 公证工作流](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)。
 
-脚本验证主 app、Electron／Sparkle framework、Sparkle helper／XPC 和两个 napi 的 Team ID、Developer ID、hardened runtime，以及 app／DMG 票据和 Gatekeeper。stapler 的 CloudKit 错误 68 按 5、10、20 秒重试，其他错误或重试耗尽直接失败，不重复提交公证。独立 ZIP 阶段也必须通过 app 票据与 Gatekeeper 校验。`--signed --dir` 没有 DMG，改用临时 ZIP 对 app 公证一次，附加票据后删除临时 ZIP。
+脚本验证主 app、Electron／Sparkle framework、Squirrel 的 ShipIt、Sparkle helper／XPC 和两个 napi 的 Team ID、Developer ID、安全时间戳及 hardened runtime；DMG 验证 Developer ID 和安全时间戳。随后验证 app／DMG 票据和 Gatekeeper。stapler 的 CloudKit 错误 68 按 5、10、20 秒重试，其他错误或重试耗尽直接失败，不重复提交公证。独立 ZIP 阶段也必须通过 app 票据与 Gatekeeper 校验。`--signed --dir` 没有 DMG，改用临时 ZIP 对 app 公证一次，附加票据后删除临时 ZIP。
 
-`mac.signIgnore` 让 `Resources/` 下的普通资源由父 bundle 签名封存，只为其中的 `.node` 原生模块单独签名。默认签名器会把二进制资源也单独签名，产生 Sparkle 不支持的 `com.apple.cs.*` 扩展属性；打包验证因此同时检查并拒绝这些属性，不在签名后剥除它们。已有主 app、framework、helper／XPC 与 napi 的签名验证继续执行。
+`mac.signIgnore` 让 `Resources/` 下的普通资源由父 bundle 签名封存，其中的 `.node` 原生模块和 Squirrel 的 `Resources/ShipIt` 可执行文件仍单独签名。新增位于资源目录中的可执行代码时，须同步核对忽略规则和签名校验，不能只依赖父 bundle 的封存。默认签名器会把二进制资源也单独签名，产生 Sparkle 不支持的 `com.apple.cs.*` 扩展属性；打包验证因此同时检查并拒绝这些属性，不在签名后剥除它们。
 
 ### 发布调试信息
 
@@ -116,6 +116,8 @@ CI 在构建前校验说明，发布时使用 `gh release create --notes-file`�
 [macOS release workflow](../../.github/workflows/macos-release.yml) 支持推送 `v*` tag 或手动传入已有 tag，在 macOS runner 检出该 tag。发布任务串行执行，不取消先前发布；源码、应用版本和 tag 必须一致。
 
 流水线依次校验说明和发布配置、安装 locked 依赖、构建一次两个生产 release addon，再由 `test-prebuilt.mjs` 执行工作区检查、tooling、Gateway、原生包和 desktop 测试。desktop 测试生成的 JS 构建输出与生产 addon 供后续打包复用。
+
+发布和 develop 测试流水线使用相同 key 恢复 pnpm、Go 和 Cargo 缓存；Rust 编译前恢复未变输入的时间戳，测试通过后记录新快照。tag 运行可以读取默认分支 develop 的缓存，仍需编译其中缺少的 release profile 产物；跨 tag 缓存范围、输入及收益验证见 [CI 构建缓存](../../scripts/ci/README.md)。分发应用、签名和公证产物继续由本次构建生成。
 
 测试 fixture 在独立的 `target/rust-napi-tests/rust` 和 `target/rust-napi-tests/agent` 构建，成功后才给消费测试设置 `XIAOWEI_TEST_NAPI_PREPARED=1`。fixture 使用 debug profile，不进入发布包。测试前后生产 `.node` 的 SHA-256 必须不变；测试失败、生产文件缺失或变化均阻止打包。普通 test workflow 保持原有 debug 构建和 fixture 流程。
 

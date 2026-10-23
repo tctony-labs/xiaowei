@@ -90,6 +90,25 @@ test("Rust changes rotate snapshots, flags isolate fallbacks and renderer change
   assert.notEqual(differentPrefix, prefix);
 });
 
+test("workflow changes rotate Cargo snapshots without isolating tags", (context) => {
+  const { workspace, run } = fixture(context);
+  mkdirSync(join(workspace, ".github/workflows"), { recursive: true });
+  const workflows = [".github/workflows/test.yml", ".github/workflows/macos-release.yml"];
+  for (const path of workflows) writeFileSync(join(workspace, path), "name: original\n");
+  execFileSync("git", ["add", ".github/workflows"], { cwd: workspace });
+  const first = run("key");
+  assert.equal(run("key", { GITHUB_REF: "refs/heads/develop" }), first);
+  assert.equal(run("key", { GITHUB_REF: "refs/tags/v0.1.7" }), first);
+
+  for (const path of workflows) {
+    writeFileSync(join(workspace, path), "name: changed\n");
+    const changed = run("key");
+    assert.notEqual(changed.split("\n")[0], first.split("\n")[0], path);
+    assert.equal(changed.split("\n")[1], first.split("\n")[1], path);
+    writeFileSync(join(workspace, path), "name: original\n");
+  }
+});
+
 test("restored Cargo artifacts stay fresh after checkout but changed Rust source recompiles", (context) => {
   const { directory, workspace, env, run } = fixture(context);
   const buildEnv = { ...env, CARGO_TERM_COLOR: "always" };

@@ -42,6 +42,7 @@ if (mode === "key") {
         "rust-toolchain.toml",
         "justfile",
         ".github/workflows/test.yml",
+        ".github/workflows/macos-release.yml",
         "scripts/dev/build-napi.mjs",
         "scripts/tests/run.mjs",
         "scripts/tests/rust-napi-fixtures.mjs",

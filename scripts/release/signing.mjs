@@ -34,6 +34,9 @@ export function verifySigningDetails(details, team, hardenedRuntime = true) {
       "Code signature does not match the expected Developer ID Application and Team ID",
     );
   }
+  if (!/^Timestamp=.+$/m.test(details)) {
+    throw new Error("Code signature does not include a secure timestamp");
+  }
   if (hardenedRuntime && (!flags || (Number.parseInt(flags, 16) & 0x10000) === 0)) {
     throw new Error("Code signature does not enable hardened runtime");
   }
