@@ -14,6 +14,7 @@ import {
   notarizeDmg,
   runStapler,
   signingConfiguration,
+  verifyDeltaSigning,
   verifySignedCode,
 } from "./signing.mjs";
 import {
@@ -148,6 +149,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
     app,
   ]);
   run("codesign", ["--verify", "--deep", "--strict", app]);
+  verifyDeltaSigning(app);
   const expectedInfo = {
     CFBundleIdentifier: localTest ? localUpdateAppId : "com.tctony.xiaowei",
     CFBundleShortVersionString: version,

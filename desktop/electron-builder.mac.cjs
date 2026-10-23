@@ -46,6 +46,9 @@ module.exports = {
     notarize: false,
     entitlements: "resources/entitlements.mac.plist",
     entitlementsInherit: "resources/entitlements.mac.plist",
+    // Parent signatures seal resources; only unpacked native modules need their own signature.
+    // Signing binary data separately stores signatures in xattrs that Sparkle cannot diff.
+    signIgnore: ["/Resources/(?!.*\\.node$)"],
     extendInfo: {
       SUFeedURL: feedUrl,
       SUPublicEDKey: publicKey(process.env.SPARKLE_ED_PUBLIC_KEY),

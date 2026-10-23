@@ -10,21 +10,29 @@ import {
 import { verifySignedAppcast, verifyUpdateArchive } from "./sparkle.mjs";
 
 export function createLocalUpdateServer(directory, scenario = "valid") {
-  if (!["valid", "invalid-feed", "invalid-archive"].includes(scenario))
-    throw new Error("Unknown update scenario");
+  const scenarios = ["valid", "full-only", "invalid-feed", "invalid-archive", "invalid-delta"];
+  if (!scenarios.includes(scenario)) throw new Error("Unknown update scenario");
   const manifest = JSON.parse(readFileSync(join(directory, "test.json"), "utf8"));
   const source = join(directory, "source");
-  const feed = readFileSync(join(source, "appcast.xml"));
-  const archivePath = join(source, manifest.archive);
-  const length = statSync(archivePath).size;
+  const fullOnly = scenario === "full-only" || scenario === "invalid-archive";
+  const deltas = fullOnly ? [] : (manifest.deltas ?? []);
+  const feedName = fullOnly && manifest.deltas?.length ? "appcast-full.xml" : "appcast.xml";
+  const feed = readFileSync(join(source, feedName));
   verifySignedAppcast({ feed, key: manifest.key });
-  verifyUpdateArchive({
-    xml: feed.toString(),
-    archive: readFileSync(archivePath),
-    key: manifest.key,
-    version: manifest.newVersion,
-    url: `${localUpdateOrigin}/${encodeURIComponent(manifest.archive)}`,
-  });
+  const files = new Map();
+  for (const { filename, deltaFrom } of [{ filename: manifest.archive }, ...deltas]) {
+    const pathname = `/${encodeURIComponent(filename)}`;
+    const path = join(source, filename);
+    verifyUpdateArchive({
+      xml: feed.toString(),
+      archive: readFileSync(path),
+      key: manifest.key,
+      version: manifest.newVersion,
+      url: `${localUpdateOrigin}${pathname}`,
+      deltaFrom,
+    });
+    files.set(pathname, { path, length: statSync(path).size, delta: deltaFrom !== undefined });
+  }
 
   return createServer((request, response) => {
     const pathname = new URL(request.url, localUpdateOrigin).pathname;
@@ -50,18 +58,24 @@ export function createLocalUpdateServer(directory, scenario = "valid") {
       response.end(request.method === "HEAD" ? undefined : payload);
       return;
     }
-    if (pathname !== `/${encodeURIComponent(manifest.archive)}`) {
+    const file = files.get(pathname);
+    if (!file) {
       response.writeHead(404).end();
       return;
     }
-    response.writeHead(200, { "Content-Type": "application/zip", "Content-Length": length });
+    response.writeHead(200, {
+      "Content-Type": file.delta ? "application/octet-stream" : "application/zip",
+      "Content-Length": file.length,
+    });
     if (request.method === "HEAD") {
       response.end();
       return;
     }
-    const tampered = scenario === "invalid-archive";
+    const tampered =
+      (scenario === "invalid-archive" && !file.delta) ||
+      (scenario === "invalid-delta" && file.delta);
     if (tampered) response.write(Buffer.from([0]));
-    const stream = createReadStream(archivePath, tampered ? { start: 1 } : undefined);
+    const stream = createReadStream(file.path, tampered ? { start: 1 } : undefined);
     stream.on("error", (error) => {
       console.error("Local update archive read failed", error.message);
       response.destroy(error);
@@ -73,7 +87,9 @@ export function createLocalUpdateServer(directory, scenario = "valid") {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.length > 3)
-    throw new Error("Usage: local-update-server.mjs [valid|invalid-feed|invalid-archive]");
+    throw new Error(
+      "Usage: local-update-server.mjs [valid|full-only|invalid-feed|invalid-archive|invalid-delta]",
+    );
   const scenario = process.argv[2] ?? "valid";
   const server = createLocalUpdateServer(localUpdateDirectory, scenario);
   server.on("error", (error) => {

@@ -642,8 +642,9 @@ test("release verification checks actual archive signatures, the public key, ver
   const signature = sign(null, archive, keys.privateKey).toString("base64");
   const url =
     "https://github.com/tctony-labs/xiaowei/releases/download/v1.2.3/XiaoWei-1.2.3-arm64.zip";
-  const xml = `<sparkle:version>1.2.3</sparkle:version>
-    <enclosure url="${url}" length="${archive.length}" sparkle:edSignature="${signature}" />`;
+  const xml = `<item><sparkle:version>1.2.3</sparkle:version>
+    <enclosure url="${url}" length="${archive.length}" sparkle:edSignature="${signature}" />
+  </item>`;
   const input = { xml, archive, key, version: "1.2.3", url };
   verifyUpdateArchive(input);
   assert.throws(() =>
@@ -684,6 +685,12 @@ test("packaging keeps local HTTP and test identity out of production and enables
     assert.equal(config.mac.hardenedRuntime, false);
     assert.equal(config.mac.extendInfo.SURequireSignedFeed, true);
     assert.equal(config.mac.extendInfo.SUVerifyUpdateBeforeExtraction, true);
+    const ignored = (path) =>
+      config.mac.signIgnore.some((pattern) => new RegExp(pattern).test(path));
+    assert.ok(ignored("App.app/Contents/Resources/app.asar"));
+    assert.ok(ignored("App.app/Contents/Frameworks/Electron.framework/Resources/MainMenu.nib"));
+    assert.ok(!ignored("App.app/Contents/Resources/app.asar.unpacked/node_modules/rust/rust.node"));
+    assert.ok(!ignored("App.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"));
     assert.equal(config.appId, local ? localUpdateAppId : "com.tctony.xiaowei");
     if (local) {
       assert.equal(config.productName, localUpdateName);
@@ -711,8 +718,9 @@ test("local HTTP source serves exact signed bytes, failure scenarios and no unre
   const filename = "XiaoWei Local Update-0.1.1-arm64.zip";
   const url = `${localUpdateOrigin}/${encodeURIComponent(filename)}`;
   const signature = sign(null, archive, keys.privateKey).toString("base64");
-  const content = `<sparkle:version>0.1.1</sparkle:version>
-    <enclosure url="${url}" length="${archive.length}" sparkle:edSignature="${signature}" />`;
+  const content = `<item><sparkle:version>0.1.1</sparkle:version>
+    <enclosure url="${url}" length="${archive.length}" sparkle:edSignature="${signature}" />
+  </item>`;
   const feedSignature = sign(null, Buffer.from(content), keys.privateKey).toString("base64");
   const metadata = `edSignature: ${feedSignature}\nlength: ${Buffer.byteLength(content)}\n`;
   const xml = `${content}<!-- sparkle-signatures:\n${metadata}-->`;
@@ -771,5 +779,27 @@ test(
     assert.ok(calls.some((call) => String(call[1]).endsWith("/verify-package-content.mjs")));
     assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
     assert.ok(!calls.some((call) => call[0] === "codesign" || call[0] === "ditto"));
+  },
+);
+
+test(
+  "packaging rejects resource code-signing xattrs before creating update archives",
+  macOnly,
+  (t) => {
+    const { calls } = mockPackaging(t);
+    const previous = childProcess.spawnSync;
+    t.mock.method(childProcess, "spawnSync", (command, args, ...options) => {
+      if (command === "xattr") {
+        return {
+          status: 0,
+          stdout: "App.app/Contents/Resources/app.asar: com.apple.cs.CodeDirectory\n",
+        };
+      }
+      return previous(command, args, ...options);
+    });
+    syncBuiltinESMExports();
+    assert.throws(() => packageMac({ build: false }), /resource code-signing xattrs/);
+    assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
+    assert.ok(!calls.some((call) => call[0] === "ditto"));
   },
 );

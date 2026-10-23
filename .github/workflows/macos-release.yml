@@ -135,6 +135,7 @@ jobs:
 
       - name: Generate and verify the signed appcast
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: node scripts/release/generate-appcast.mjs "$RELEASE_TAG"
 
@@ -146,6 +147,7 @@ jobs:
             desktop/dist/XiaoWei-*-arm64.dmg
             desktop/dist/XiaoWei-*-arm64.zip
             desktop/dist/XiaoWei-*-arm64-debug-symbols.zip
+            desktop/dist/*.delta
             desktop/dist/appcast.xml
           if-no-files-found: error
 
@@ -153,8 +155,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          shopt -s nullglob
+          deltas=(desktop/dist/*.delta)
           gh release create "$RELEASE_TAG" --verify-tag --latest \
             --notes-file "desktop/release-notes/${RELEASE_TAG#v}.md" \
             --title "XiaoWei $RELEASE_TAG" \
             desktop/dist/XiaoWei-*-arm64.dmg desktop/dist/XiaoWei-*-arm64.zip \
-            desktop/dist/XiaoWei-*-arm64-debug-symbols.zip desktop/dist/appcast.xml
+            desktop/dist/XiaoWei-*-arm64-debug-symbols.zip desktop/dist/appcast.xml \
+            "${deltas[@]}"

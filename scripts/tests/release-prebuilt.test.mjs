@@ -30,6 +30,7 @@ test("release tests set prepared only after fixture preparation and never build 
       "scripts/dev/desktop-source-resolution.test.mjs",
       "scripts/tests/package-content.test.mjs",
       "scripts/tests/macos-release.test.mjs",
+      "scripts/tests/sparkle-delta.test.mjs",
       "scripts/tests/release-prebuilt.test.mjs",
       "scripts/tests/debug-symbols.test.mjs",
       "scripts/tests/rust-napi-fixtures.test.mjs",

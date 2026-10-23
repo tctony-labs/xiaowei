@@ -15,6 +15,7 @@ export function run(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: "inherit", cwd: desktopDirectory, ...options });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} failed with status ${result.status}`);
+  return result;
 }
 
 export function ensureSparkle() {
@@ -102,22 +103,32 @@ export function verifySignedAppcast({ feed, key }) {
   }
 }
 
-export function verifyUpdateArchive({ xml, archive, key, version, url }) {
-  // Parse the one enclosure emitted by the pinned official generator; feed signature verification runs separately.
-  const enclosure = xml.match(/<enclosure\b[^>]*>/)?.[0];
-  const signature = enclosure?.match(/\bsparkle:edSignature="([^"]+)"/)?.[1];
-  const archiveUrl = enclosure?.match(/\burl="([^"]+)"/)?.[1];
-  const length = enclosure?.match(/\blength="([^"]+)"/)?.[1];
-  const archiveVersion = xml.match(/<sparkle:version>([^<]+)<\/sparkle:version>/)?.[1];
-  if (
-    !signature ||
-    archiveUrl !== url ||
-    Number(length) !== archive.length ||
-    archiveVersion !== version
-  ) {
+export function updateEnclosures(xml, version) {
+  // Read the pinned official generator's signed XML, excluding release-note CDATA and comments.
+  const content = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->/g, "");
+  const items = [...content.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/g)];
+  const matches = items.filter(
+    ([, item]) => item.match(/<sparkle:version>([^<]+)<\/sparkle:version>/)?.[1] === version,
+  );
+  if (matches.length !== 1) throw new Error(`Expected one appcast item for version ${version}`);
+
+  return [...matches[0][1].matchAll(/<enclosure\b[^>]*>/g)].map(([enclosure]) => ({
+    url: enclosure.match(/\burl="([^"]+)"/)?.[1],
+    signature: enclosure.match(/\bsparkle:edSignature="([^"]+)"/)?.[1],
+    length: Number(enclosure.match(/\blength="([^"]+)"/)?.[1]),
+    deltaFrom: enclosure.match(/\bsparkle:deltaFrom="([^"]+)"/)?.[1],
+  }));
+}
+
+export function verifyUpdateArchive({ xml, archive, key, version, url, deltaFrom }) {
+  const enclosures = updateEnclosures(xml, version).filter(
+    (item) => item.url === url && item.deltaFrom === deltaFrom,
+  );
+  const enclosure = enclosures[0];
+  if (enclosures.length !== 1 || !enclosure.signature || enclosure.length !== archive.length) {
     throw new Error("Generated appcast does not describe the expected signed update archive");
   }
-  if (!verify(null, archive, verificationKey(key), Buffer.from(signature, "base64"))) {
+  if (!verify(null, archive, verificationKey(key), Buffer.from(enclosure.signature, "base64"))) {
     throw new Error("Update archive signature does not match SPARKLE_ED_PUBLIC_KEY");
   }
 }

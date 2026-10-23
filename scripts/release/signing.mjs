@@ -50,6 +50,20 @@ export function verifySignedCode(path, team, hardenedRuntime = true) {
   }
 }
 
+export function verifyDeltaSigning(app) {
+  const result = run("xattr", ["-r", app], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  const unsupported = result.stdout?.split("\n").find((line) => /: com\.apple\.cs\./.test(line));
+  if (unsupported) {
+    throw new Error(
+      `Sparkle delta updates cannot use resource code-signing xattrs: ${unsupported}`,
+    );
+  }
+  console.info("Packaged app has no resource code-signing extended attributes");
+}
+
 export function runStapler(action, path) {
   const delays = [5000, 10000, 20000];
   for (let attempt = 0; ; attempt += 1) {

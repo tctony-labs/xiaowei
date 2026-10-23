@@ -32,7 +32,11 @@ node scripts/release/release-notes.mjs "$release_tag"
 node scripts/release/generate-appcast.mjs "$release_tag"
 ```
 
-`check-release.mjs` 还需要正式签名／公证环境变量，不用于无凭据的 ad-hoc 联调。核对 app、DMG、更新 ZIP、调试 ZIP 和 feed 的版本，检查签名、公证和验签结果；生成失败不上传部分产物。
+`generate-appcast.mjs` 还需要可访问发布仓库的 GitHub CLI 登录态或 `GH_TOKEN`，会下载并验证最近 3 个较旧稳定版本的更新 ZIP 与签名 feed。核对日志中的基线、实际 delta 数量及体积，并确认 feed 列出的 `.delta` 全部位于 `desktop/dist/`。没有历史版本或工具未生成合适补丁时，feed 仍提供完整 ZIP。
+
+基线被生成器判定不兼容时，按设计文档的 [签名与下载契约](../../../../desktop/docs/macos-packaging-and-updates.md#签名与下载契约) 核对已知边界；不要修改或重新签名历史基线来绕过生成器检查。
+
+`check-release.mjs` 还需要正式签名／公证环境变量，不用于无凭据的 ad-hoc 联调。核对 app、DMG、更新 ZIP、delta、调试 ZIP 和 feed 的版本，检查签名、公证和验签结果；生成失败不上传部分产物。
 
 ## 本地两版本更新联调
 
@@ -48,15 +52,23 @@ pnpm --dir desktop update:mac:serve
 1. 保持正常更新源运行。由用户启动 `desktop/dist/local-update/installed/XiaoWei Local Update.app` 旧版副本；或从旧版 DMG 拖至可写的 Applications 目录再启动。不要在 DMG 只读卷中更新，也不要先安装新版。
 2. 在关于页确认旧版本，创建可识别的测试设置、剪贴板条目或 Agent 会话，可选记录数据文件内容以便比较。
 3. 点击检查更新，核对 Sparkle 识别新版；先取消下载／安装，确认旧版可用。关闭服务检查网络失败，恢复服务后继续。
-4. 分别用下列模式检查错误显示和日志，确认没有安装新版。每次切换先停止前一个服务，并关闭上一轮 Sparkle 窗口；测试后恢复正常服务。
+4. 分别用下列模式检查错误显示和日志，确认损坏的 feed 或完整 ZIP 被拒绝。每次切换先停止前一个服务，并关闭上一轮 Sparkle 窗口；测试后恢复正常服务。
 
    ```sh
    pnpm --dir desktop update:mac:serve invalid-feed
    pnpm --dir desktop update:mac:serve invalid-archive
    ```
 
-5. 正常下载并安装，确认日志先记录 `prepare-install` 与业务关闭，再由 Sparkle 替换、重启；关于页变成新版，原数据仍在，同版本检查不再提示升级。
-6. 核对测试包进程、独立日志和下载请求，记录实际结果。普通 Node 加载 addon 不代替 Electron 验证。本地 ad-hoc 联调不代替正式签名、公证和公开下载链路验收。
+5. 正常下载并安装，确认服务日志实际请求 `.delta`，应用日志先记录 `prepare-install` 与业务关闭，再由 Sparkle 替换、重启；关于页变成新版，原数据仍在，同版本检查不再提示升级。
+6. 退出测试应用，从 `test.json` 的 `oldApp` 重新复制旧版到 `installed/` 后，由用户启动并使用 `full-only` 模式重复更新，确认 feed 没有 delta、服务只收到完整 ZIP 下载。每次成功更新后都需恢复旧版副本，才能继续其他更新场景。
+
+   ```sh
+   pnpm --dir desktop update:mac:serve full-only
+   pnpm --dir desktop update:mac:serve invalid-delta
+   ```
+
+7. 使用 `invalid-delta` 检查损坏补丁的签名拒绝及后续行为。再恢复正常源，在运行中的旧版副本 `Contents/Resources/` 新增无关测试文件，使安装基线与发布包不一致；触发更新，核对补丁应用失败后下载完整 ZIP、完成安装并保留数据。记录实际请求与错误，不把签名拒绝等同于补丁应用失败。
+8. 核对测试包进程、独立日志和下载请求，记录实际结果。普通 Node 加载 addon 或单独运行 `BinaryDelta` 不代替 Electron 安装和回退验证。本地 ad-hoc 联调不代替正式签名、公证和公开下载链路验收。
 
 当前本地测试 feed 未填更新说明，不能用它验收正式 Release 的说明正文。正文的签名嵌入由 tooling 测试覆盖，实际显示还需用正式 feed 验证。
 

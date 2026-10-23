@@ -32,14 +32,19 @@ try {
   mkdirSync(source, { recursive: true });
   const archive = basename(newPackage.archive);
   copyFileSync(newPackage.archive, join(source, archive));
-  generateAppcast({
+  const update = {
     archivePath: join(source, archive),
-    output: join(source, "appcast.xml"),
     version: newVersion,
     urlPrefix: `${localUpdateOrigin}/`,
     key,
     privateKey: seed.toString("base64"),
+  };
+  const deltas = generateAppcast({
+    ...update,
+    output: join(source, "appcast.xml"),
+    baselines: [{ version: oldVersion, archivePath: oldPackage.archive }],
   });
+  generateAppcast({ ...update, output: join(source, "appcast-full.xml") });
   const installedApp = join(localUpdateDirectory, "installed", `${localUpdateName}.app`);
   cpSync(oldPackage.app, installedApp, { recursive: true, verbatimSymlinks: true });
   const manifest = {
@@ -47,6 +52,7 @@ try {
     newVersion,
     key,
     archive,
+    deltas,
     oldApp: oldPackage.app,
     newApp: newPackage.app,
     installedApp,
