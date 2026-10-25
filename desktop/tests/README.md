@@ -25,6 +25,34 @@
 
 Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:test` 负责；不由该入口运行桌面业务测试。
 
+## 校验脚本与测试素材同步
+
+修改校验脚本的校验要求时，须在同一次变更中更新受影响测试的准备素材（fixture）。查找范围包括直接调用校验脚本的测试，以及经其他函数间接依赖它的测试。
+
+例如，[包内容校验器](../../scripts/release/verify-package-content.mjs)的 `verifyPackageContent()` 有以下测试调用方：
+
+| 测试 | 调用关系 |
+| --- | --- |
+| [包内容测试](../../scripts/tests/package-content.test.mjs) | 直接调用 `verifyPackageContent()`。 |
+| [调试归档测试](../../scripts/tests/debug-symbols.test.mjs) | 通过 `archiveDebugSymbols()` 间接调用 `verifyPackageContent()`。 |
+
+新增二进制资源使校验器要求包内存在 `Contents/Resources/bin/xiaowei-inspect` 时，上述两处构造完整应用包的 fixture 都须补齐该文件及执行权限，例如使用 `0755`。成功用例的准备素材须满足全部校验要求；针对特定错误的用例须满足其余前提，确保仍进入预期的失败分支。
+
+`develop` push 的 [Full test suite](../../.github/workflows/test.yml) 执行 `just test`，其中根 `pnpm test` 的 [运行器](../../scripts/tests/run.mjs) 会执行 `pnpm test:tooling`；上述测试属于这条日常测试链路。
+
+从仓库根目录执行定向回归，再验证日常工具链入口：
+
+```sh
+node --test \
+  scripts/tests/package-content.test.mjs \
+  scripts/tests/debug-symbols.test.mjs
+
+pnpm test:tooling
+just check
+```
+
+`just check` 检查格式、类型和静态规则，不执行上述回归用例；提交检查通过后仍须运行相应测试。
+
 ## Renderer 用例范围与交互
 
 每个用例围绕一个可观察行为组织。已有 preview 的初始状态能直接进入目标场景时，优先使用它，减少重复打开页面、填写表单和切换菜单。合并重复用例前核对断言的去向，保留成功、失败、取消及相关边界；保存行为应检查提交后的结果，字段往返应保存后重新打开验证，不能只断言按钮可点或弹窗关闭。
