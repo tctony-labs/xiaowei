@@ -193,12 +193,14 @@ async fn baseline_database_is_backfilled_and_reopen_does_not_duplicate_index() {
     let path = temp.path().join("db.sqlite");
     let db = Database::open(&path).await.unwrap();
     let registry = clipboard_migrations::registry();
-    db.rollback(DatabaseRollback {
-        name: registry.migrations.last().unwrap().name.clone(),
-        migrations: registry.migrations,
-    })
-    .await
-    .unwrap();
+    for migration in registry.migrations.iter().skip(1).rev() {
+        db.rollback(DatabaseRollback {
+            name: migration.name.clone(),
+            migrations: registry.migrations.clone(),
+        })
+        .await
+        .unwrap();
+    }
     sqlx::query(
         "INSERT INTO clipboard_items(hash,kind,text,remark,paths,created_at,last_used_at)
         VALUES('old','text','历史记录','项目计划','[\"/tmp/Report.txt\"]',1,1)",

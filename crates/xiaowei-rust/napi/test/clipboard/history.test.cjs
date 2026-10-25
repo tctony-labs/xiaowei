@@ -120,3 +120,38 @@ test("native editing, notes and categories round trip through napi", async () =>
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("native categories move recently edited names and colors to the front", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "xiaowei-category-order-"));
+  let context = await open(directory);
+  const { history } = context;
+  const ids = async () => (await history.categories()).map((category) => category.id);
+
+  try {
+    const first = await history.saveCategory("工作", "#123456");
+    const second = await history.saveCategory("生活", "#654321");
+    assert.deepEqual(await ids(), [second.id, first.id]);
+
+    // Native saves use the real owner clock; separate the update from the creation millisecond.
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await history.saveCategory("工作项目", first.color, first.id);
+    assert.deepEqual(await ids(), [first.id, second.id]);
+
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await history.saveCategory(second.name, "#1677FF", second.id);
+    const categories = await history.categories();
+    assert.deepEqual(
+      categories.map((category) => category.id),
+      [second.id, first.id],
+    );
+    assert.equal(categories[0].color, "#1677FF");
+    assert.equal(categories[1].name, "工作项目");
+
+    await context.close();
+    context = await open(directory);
+    assert.deepEqual(await context.history.categories(), categories);
+  } finally {
+    await context.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

@@ -1142,6 +1142,8 @@ export const ClipboardBiz: GenService<{
     output: typeof ClipboardStorageUsageSchema;
   },
   /**
+   * Most recently saved categories first; equal modification times use descending IDs.
+   *
    * @generated from rpc xiaowei.clipboard.ClipboardBiz.Categories
    */
   categories: {
@@ -1150,6 +1152,8 @@ export const ClipboardBiz: GenService<{
     output: typeof ClipboardCategoriesSchema;
   },
   /**
+   * A successful create or update records the owner's current category modification time.
+   *
    * @generated from rpc xiaowei.clipboard.ClipboardBiz.SaveCategory
    */
   saveCategory: {
@@ -1287,6 +1291,8 @@ export const ClipboardDao: GenService<{
     output: typeof EmptySchema;
   },
   /**
+   * Same modification-time ordering as ClipboardBiz.Categories.
+   *
    * @generated from rpc xiaowei.clipboard.ClipboardDao.Categories
    */
   categories: {
@@ -1295,6 +1301,8 @@ export const ClipboardDao: GenService<{
     output: typeof ClipboardCategoriesSchema;
   },
   /**
+   * Storage owns modification time; callers do not provide it.
+   *
    * @generated from rpc xiaowei.clipboard.ClipboardDao.SaveCategory
    */
   saveCategory: {

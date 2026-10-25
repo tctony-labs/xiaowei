@@ -19,7 +19,9 @@ service ClipboardBiz {
   rpc PurgeOrdinary(xiaowei.common.Empty) returns (PurgeOrdinaryResponse);
   rpc PurgeExpired(PurgeExpiredRequest) returns (PurgeOrdinaryResponse);
   rpc StorageUsage(xiaowei.common.Empty) returns (ClipboardStorageUsage);
+  // Most recently saved categories first; equal modification times use descending IDs.
   rpc Categories(xiaowei.common.Empty) returns (ClipboardCategories);
+  // A successful create or update records the owner's current category modification time.
   rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
   rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
   rpc SetRemark(SetRemarkRequest) returns (xiaowei.common.Empty);
@@ -40,7 +42,9 @@ service ClipboardDao {
   rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
   rpc SetRemark(SetRemarkRequest) returns (xiaowei.common.Empty);
   rpc SetCategory(SetCategoryRequest) returns (xiaowei.common.Empty);
+  // Same modification-time ordering as ClipboardBiz.Categories.
   rpc Categories(xiaowei.common.Empty) returns (ClipboardCategories);
+  // Storage owns modification time; callers do not provide it.
   rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
   rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
   rpc EditText(EditClipboardEntityTextRequest) returns (EditClipboardEntityTextResponse);

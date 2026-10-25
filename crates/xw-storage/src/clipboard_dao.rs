@@ -4,6 +4,7 @@ pub mod gateway;
 
 use crate::{invalid, sql as storage_pb, Database, Result};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
 
 const COLUMNS: &str = "id,kind,text,paths,width,height,created_at,last_used_at,
@@ -215,7 +216,7 @@ impl ClipboardDao {
         let result = self
             .database
             .query(statement(
-                "SELECT id,name,color FROM clipboard_categories ORDER BY id",
+                "SELECT id,name,color FROM clipboard_categories ORDER BY updated_at DESC,id DESC",
                 vec![],
             ))
             .await?;
@@ -239,15 +240,28 @@ impl ClipboardDao {
         {
             return Err(invalid("Invalid category name or color"));
         }
+
+        let updated_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| invalid("Clock precedes epoch"))?
+            .as_millis() as i64;
+
         let step = if let Some(id) = request.id {
             statement(
-                "UPDATE clipboard_categories SET name=?1,color=?2 WHERE id=?3 RETURNING id,name,color",
-                vec![value(name), value(request.color), value(as_id(id)?)],
+                "UPDATE clipboard_categories SET name=?1,color=?2,updated_at=?3
+                WHERE id=?4 RETURNING id,name,color",
+                vec![
+                    value(name),
+                    value(request.color),
+                    value(updated_at),
+                    value(as_id(id)?),
+                ],
             )
         } else {
             statement(
-                "INSERT INTO clipboard_categories(name,color) VALUES(?1,?2) RETURNING id,name,color",
-                vec![value(name), value(request.color)],
+                "INSERT INTO clipboard_categories(name,color,updated_at)
+                VALUES(?1,?2,?3) RETURNING id,name,color",
+                vec![value(name), value(request.color), value(updated_at)],
             )
         };
         let result = self

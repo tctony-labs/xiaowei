@@ -55,6 +55,15 @@ pub fn registry() -> DatabaseMigrations {
                     "DROP TABLE clipboard_fts".into(),
                 ],
             },
+            DatabaseMigration {
+                name: "20261025000000_clipboard_category_updated_at".into(),
+                up: vec![
+                    "ALTER TABLE clipboard_categories
+                    ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0"
+                        .into(),
+                ],
+                down: vec!["ALTER TABLE clipboard_categories DROP COLUMN updated_at".into()],
+            },
         ],
     }
 }
