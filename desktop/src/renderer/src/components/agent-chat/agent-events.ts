@@ -5,9 +5,9 @@ import {
   type AgentSession,
   AgentSessionSchema,
   AgentSessionStatus,
-  AgentToolStatus,
 } from "xiaowei-contracts";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
+import { messageBlocks } from "./message-blocks";
 
 export function applyAgentEvent(
   current: AgentSession | undefined,
@@ -64,6 +64,10 @@ export function applyAgentEvent(
     if (final.completedAtMs !== undefined && final.completedAtMs > session.updatedAtMs) {
       session.updatedAtMs = final.completedAtMs;
     }
+  } else if (payload.case === "generationUpdated") {
+    const run = session.runs.find((run) => run.runId === payload.value.runId);
+    if (!run) throw new Error("Unknown generation run");
+    run.generation = payload.value.generation;
   } else if (
     ["itemStarted", "itemCompleted", "agentMessageDelta", "reasoningDelta"].includes(
       payload.case ?? "",
@@ -99,32 +103,6 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
             .flatMap((input) => (input.content.case === "text" ? [input.content.value] : []))
             .join("\n")
         : "";
-    const text = run.items
-      .flatMap((item) => (item.content.case === "agentMessage" ? [item.content.value.text] : []))
-      .join("");
-    const thinking = run.items
-      .flatMap((item) => (item.content.case === "reasoning" ? [item.content.value.text] : []))
-      .join("");
-    const tools = run.items.flatMap((item) => {
-      if (item.content.case !== "toolCall") return [];
-      const tool = item.content.value;
-      const labels: Record<number, string> = {
-        [AgentToolStatus.PENDING]: "执行中",
-        [AgentToolStatus.COMPLETED]: "已完成",
-        [AgentToolStatus.FAILED]: "失败",
-        [AgentToolStatus.CANCELLED]: "已停止",
-        [AgentToolStatus.SKIPPED]: "未执行",
-        [AgentToolStatus.RESULT_UNKNOWN]: "结果未知",
-      };
-      return [
-        {
-          id: item.itemId,
-          name: tool.name,
-          status: labels[tool.status] ?? "状态未知",
-          output: tool.output || tool.argumentsJson,
-        },
-      ];
-    });
     const status =
       run.status === AgentRunStatus.IN_PROGRESS
         ? "generating"
@@ -134,13 +112,33 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
             ? "cancelled"
             : "failed";
     return [
-      { id: run.inputId, role: "user", text: userText },
+      { id: run.inputId, role: "user", text: userText, timestampMs: run.startedAtMs },
       {
         id: run.runId,
         role: "assistant",
-        text,
-        thinking,
-        ...(tools.length ? { tools } : {}),
+        timestampMs: run.startedAtMs,
+        blocks: messageBlocks(run.items),
+        generation:
+          run.status === AgentRunStatus.IN_PROGRESS && run.generation
+            ? {
+                id: run.generation.genId,
+                startedAtMs: Number(run.generation.startedAtMs),
+                receivedContent: run.generation.receivedContent,
+                activeBlockId: run.generation.activeItemId,
+              }
+            : undefined,
+        finalResponseBlockIds:
+          run.status === AgentRunStatus.COMPLETED && run.finalGenId !== undefined
+            ? run.items
+                .filter(
+                  (item) => item.genId === run.finalGenId && item.content.case === "agentMessage",
+                )
+                .map((item) => item.itemId)
+            : undefined,
+        durationMs:
+          run.completedAtMs !== undefined && run.completedAtMs >= run.startedAtMs
+            ? run.completedAtMs - run.startedAtMs
+            : undefined,
         status,
         error:
           status === "failed" ? run.error || "模型请求失败，请检查模型配置后重试。" : undefined,

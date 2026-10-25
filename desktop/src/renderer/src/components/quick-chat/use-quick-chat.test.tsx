@@ -1,5 +1,13 @@
 import { create, toBinary } from "@bufbuild/protobuf";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import {
   AgentEventSchema,
@@ -13,12 +21,14 @@ import {
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
   ModelSettingsSnapshotSchema,
+  System,
 } from "xiaowei-contracts";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { createServices } from "../../services";
 import { AgentChatClient } from "../agent-chat/client";
 import { agentIdentity } from "../agent-chat/identity";
 import { agentFixture } from "../agent-chat/test-fixture";
+import { QuickChatPanel } from "./QuickChatPanel";
 import { useQuickChat } from "./use-quick-chat";
 
 afterEach(cleanup);
@@ -82,6 +92,88 @@ function prompt(result: { current: ReturnType<typeof useQuickChat> }, text: stri
   act(() => result.current.onSend());
 }
 
+test("message copy and links use typed System calls and propagate host failures", async () => {
+  const app = fixture();
+  const copied: string[] = [];
+  const opened: string[] = [];
+  let fail = false;
+  app.host.registerOwner(
+    "chat-system",
+    bindHandlers(
+      System,
+      {
+        writeClipboardText(request) {
+          if (fail) throw new Error("clipboard unavailable");
+          copied.push(request.text);
+          return create(EmptySchema);
+        },
+        openUrl(request) {
+          if (fail) throw new Error("open failed");
+          opened.push(request.url);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+  const { result } = renderHook(() => useQuickChat(app.services));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  const source = "## 标题\n\n中文🙂与 **原始 Markdown**。\n".repeat(5000);
+  await result.current.onCopyMessageText(source);
+  await result.current.onOpenMessageUrl("https://example.com/docs");
+  expect(copied).toEqual([source]);
+  expect(opened).toEqual(["https://example.com/docs"]);
+  expect(app.requests).toHaveLength(0);
+
+  fail = true;
+  await expect(result.current.onCopyMessageText("retry")).rejects.toThrow();
+  await expect(result.current.onOpenMessageUrl("https://example.com")).rejects.toThrow();
+  expect(copied).toEqual([source]);
+  expect(opened).toEqual(["https://example.com/docs"]);
+});
+
+test("the product Panel renders and copies final Markdown via System", async () => {
+  const app = fixture();
+  const copied: string[] = [];
+  app.host.registerOwner(
+    "panel-system",
+    bindHandlers(
+      System,
+      {
+        writeClipboardText(request) {
+          copied.push(request.text);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+
+  function Chat() {
+    const chat = useQuickChat(app.services);
+    return <QuickChatPanel {...chat} expanded search={<div />} onCollapse={() => {}} />;
+  }
+  render(<Chat />);
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "快速对话输入" })).toBeEnabled());
+  fireEvent.change(screen.getByRole("textbox", { name: "快速对话输入" }), {
+    target: { value: "show Markdown" },
+  });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  expect(screen.getByLabelText("模型正在生成")).toHaveClass("agent-shimmer");
+  act(() => app.finish(AgentRunStatus.COMPLETED, "**final answer**", "process reasoning"));
+  expect(await screen.findByText("final answer")).toHaveProperty("tagName", "STRONG");
+  for (const element of screen.getAllByText("process reasoning")) {
+    expect(element).not.toBeVisible();
+  }
+  fireEvent.click(screen.getByRole("button", { name: "复制回复" }));
+  await waitFor(() => expect(copied).toEqual(["**final answer**"]));
+  fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
+  expect(screen.getByText("思考过程")).toBeVisible();
+  expect(screen.queryByLabelText("模型正在生成")).toBeNull();
+});
+
 test("startup restores the last updated unarchived session and remount preserves an explicit new chat", async () => {
   const app = fixture();
   const previous = new AgentChatClient(app.services);
@@ -120,7 +212,10 @@ test("startup restores the last updated unarchived session and remount preserves
   await waitFor(() => expect(restored.result.current.sessionId).toBe(first.sessionId));
   await waitFor(() => expect(restored.result.current.loading).toBe(false));
   expect(restored.result.current.messages[0].text).toBe("older conversation");
-  expect(restored.result.current.messages[1].text).toBe("answer");
+  expect(restored.result.current.messages[1].blocks).toMatchObject([
+    { kind: "reasoning", text: "reason" },
+    { kind: "text", text: "answer" },
+  ]);
   expect(restored.result.current.selectedModelRef).toBe("other");
   expect(restored.result.current.reasoning).toBe("low");
   expect(app.requests).toHaveLength(2);
@@ -155,8 +250,10 @@ test("default model drives Agent input; history comes from the session projectio
   act(() => app.finish());
   await waitFor(() => expect(result.current.generating).toBe(false));
   expect(result.current.messages[1]).toMatchObject({
-    text: "answer",
-    thinking: "reason",
+    blocks: [
+      { kind: "reasoning", text: "reason" },
+      { kind: "text", text: "answer" },
+    ],
     status: "complete",
   });
   act(() => app.update("other"));
@@ -182,7 +279,10 @@ test("Stop waits for terminal; new conversation retains history after settlement
   expect(result.current.generating).toBe(true);
   act(() => app.finish(AgentRunStatus.INTERRUPTED, "partial"));
   await waitFor(() => expect(result.current.generating).toBe(false));
-  expect(result.current.messages[1]).toMatchObject({ text: "partial", status: "cancelled" });
+  expect(result.current.messages[1]).toMatchObject({
+    blocks: [{ kind: "reasoning" }, { kind: "text", text: "partial" }],
+    status: "cancelled",
+  });
   prompt(result, "second");
   await waitFor(() => expect(app.requests).toHaveLength(2));
   act(() => result.current.onNewConversation());

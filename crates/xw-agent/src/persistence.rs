@@ -148,6 +148,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
     session.view.provider_name = rebuilt.meta.provider_name.clone().unwrap_or_default();
     session.view.model_name = rebuilt.meta.model_name.clone().unwrap_or_default();
     let mut accepted = std::collections::BTreeMap::new();
+    let mut generations = std::collections::BTreeMap::new();
     for entry in entries {
         match &entry.payload {
             domain::EntryPayload::InputAccepted(input) => {
@@ -185,12 +186,34 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     started_at_ms: entry.timestamp_ms,
                     items: vec![AgentItem {
                         item_id: input.message.block_ids[0].to_string(),
+                        gen_id: None,
                         content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                             content,
                         })),
                     }],
                     ..Default::default()
                 });
+            }
+            domain::EntryPayload::GenStarted(generation) => {
+                if let Some(run_id) = generation.run_id {
+                    generations.insert(generation.gen_id, run_id);
+                }
+            }
+            domain::EntryPayload::GenEnded(generation) => {
+                if generation.status == domain::GenStatus::Completed
+                    && matches!(
+                        generation.stop_reason,
+                        Some(domain::FinishReason::Stop | domain::FinishReason::Length)
+                    )
+                    && let Some(run_id) = generations.get(&generation.gen_id)
+                    && let Some(run) = session
+                        .view
+                        .runs
+                        .iter_mut()
+                        .find(|run| run.run_id == run_id.to_string())
+                {
+                    run.final_gen_id = Some(generation.gen_id.to_string());
+                }
             }
             domain::EntryPayload::Message(message) if message.run_id.is_some() => {
                 if let Some(run) = session
@@ -216,6 +239,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                         };
                         run.items.push(AgentItem {
                             item_id: id.to_string(),
+                            gen_id: message.gen_id.map(|id| id.to_string()),
                             content: Some(content),
                         });
                     }
@@ -267,6 +291,9 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     .into();
                     run.completed_at_ms = Some(entry.timestamp_ms);
                     run.error = end.error.as_ref().map(|error| error.message.clone());
+                    if end.status != domain::RunStatus::Completed {
+                        run.final_gen_id = None;
+                    }
                     for item in &mut run.items {
                         if let Some(agent_item::Content::ToolCall(tool)) = &mut item.content
                             && tool.status == AgentToolStatus::Pending as i32

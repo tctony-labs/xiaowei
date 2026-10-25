@@ -84,6 +84,7 @@ test("thinking is separate from text; completed replies permit another turn and 
   type("你好");
   send();
   act(() => vi.advanceTimersByTime(8000));
+  fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
   expect(screen.getByText("思考过程")).toBeVisible();
   expect(screen.getByRole("article", { name: "助手消息" })).toHaveTextContent("这是模拟的流式回复");
   type("继续");
@@ -100,7 +101,14 @@ test("reopening a completed chat restores the bottom or the user's reading posit
   const props: QuickChatPanelProps = {
     expanded: true,
     search: <div>search</div>,
-    messages: [{ id: "reply", role: "assistant", text: "long reply", status: "complete" }],
+    messages: [
+      {
+        id: "reply",
+        role: "assistant",
+        blocks: [{ id: "answer", kind: "text", text: "long reply" }],
+        status: "complete",
+      },
+    ],
     draft: "",
     configured: true,
     generating: false,
@@ -109,6 +117,8 @@ test("reopening a completed chat restores the bottom or the user's reading posit
     onStop() {},
     onNewConversation() {},
     onCollapse() {},
+    onCopyMessageText: async () => {},
+    onOpenMessageUrl: async () => {},
   };
   const { rerender } = render(<QuickChatPanel {...props} />);
   const reopen = () => {
@@ -138,6 +148,8 @@ function menuPanel(overrides: Partial<QuickChatPanelProps> = {}) {
     onStop: vi.fn(),
     onNewConversation: vi.fn(),
     onCollapse: vi.fn(),
+    onCopyMessageText: vi.fn(async () => {}),
+    onOpenMessageUrl: vi.fn(async () => {}),
     ...overrides,
   };
   render(<QuickChatPanel {...props} />);
@@ -238,7 +250,14 @@ test("switching sessions restores each session's reading position", () => {
     expanded: true,
     search: <div>search</div>,
     sessionId: "first",
-    messages: [{ id: "first-reply", role: "assistant", text: "First reply", status: "complete" }],
+    messages: [
+      {
+        id: "first-reply",
+        role: "assistant",
+        blocks: [{ id: "first-answer", kind: "text", text: "First reply" }],
+        status: "complete",
+      },
+    ],
     draft: "",
     configured: true,
     generating: false,
@@ -247,11 +266,20 @@ test("switching sessions restores each session's reading position", () => {
     onStop() {},
     onNewConversation() {},
     onCollapse() {},
+    onCopyMessageText: async () => {},
+    onOpenMessageUrl: async () => {},
   };
   const second: QuickChatPanelProps = {
     ...props,
     sessionId: "second",
-    messages: [{ id: "second-reply", role: "assistant", text: "Second reply", status: "complete" }],
+    messages: [
+      {
+        id: "second-reply",
+        role: "assistant",
+        blocks: [{ id: "second-answer", kind: "text", text: "Second reply" }],
+        status: "complete",
+      },
+    ],
   };
   const { rerender } = render(<QuickChatPanel {...props} />);
   const scroller = screen.getByRole("region", { name: "对话消息" });

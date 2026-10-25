@@ -124,6 +124,18 @@ message AgentItem {
     AgentReasoning reasoning = 4;
     AgentToolCall tool_call = 5;
   }
+  // Generating response identity for assistant/reasoning/tool items; absent for user input.
+  optional string gen_id = 6;
+}
+
+// Current conversation Generate, including opening/queueing and gaps between content blocks.
+// Tool declarations count as received content but are not executable tool Items yet.
+message AgentGeneration {
+  string gen_id = 1;
+  int64 started_at_ms = 2;
+  bool received_content = 3;
+  // Absent while waiting or emitting a tool declaration; never points to an older Generate.
+  optional string active_item_id = 4;
 }
 
 enum AgentRunStatus {
@@ -147,6 +159,12 @@ message AgentRun {
   optional string error = 8;
   string provider_name = 9;
   string model_name = 10;
+  // Present only while a model Generate is active, not during tool execution.
+  AgentGeneration generation = 11;
+  // Successful final response with no tool calls. Absent until normal Run completion;
+  // present even when that response contains no visible text. Select matching Item.gen_id
+  // for the final reply; earlier responses remain process content. Rebuilt from the journal.
+  optional string final_gen_id = 12;
 }
 
 message AgentSession {
@@ -401,6 +419,14 @@ message ReasoningDelta {
   string delta = 4;
 }
 
+message GenerationUpdated {
+  string session_id = 1;
+  string run_id = 2;
+  // Absent closes the Generate. Changes follow the same serial boundary as Item events
+  // and SubscriptionReady; do not infer lifecycle from text deltas or Run status alone.
+  AgentGeneration generation = 3;
+}
+
 message SessionTitleUpdated {
   string session_id = 1;
   string title = 2;
@@ -455,6 +481,7 @@ message AgentEvent {
     SessionConfigUpdated session_config_updated = 12;
     SessionModelInfoWarningUpdated session_model_info_warning_updated = 13;
     SessionArchivedUpdated session_archived_updated = 14;
+    GenerationUpdated generation_updated = 15;
   }
 }
 

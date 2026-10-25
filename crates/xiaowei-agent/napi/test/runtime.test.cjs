@@ -157,6 +157,8 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
         titleModelRef,
       });
       const run = (await api.startRun(request)).run;
+      assert.ok(run.generation?.genId);
+      assert.equal(run.generation.receivedContent, false);
       const watching = observers.map((observer) => terminals(observer, run.runId));
       if (text === "cancel") {
         await until(
@@ -182,6 +184,17 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
           .map((event) => event.payload.case),
       );
       const final = events[0].at(-1).payload.value.run;
+      assert.equal(final.generation, undefined);
+      if (final.status === pb.AgentRunStatus.COMPLETED) {
+        assert.equal(final.finalGenId, run.generation.genId);
+        assert.ok(
+          final.items
+            .filter((item) => item.content.case !== "userMessage")
+            .every((item) => item.genId === final.finalGenId),
+        );
+      } else {
+        assert.equal(final.finalGenId, undefined);
+      }
       const retry = await api.startRun(request);
       assert.equal(retry.run.runId, run.runId);
       return { final, events: events[0] };
@@ -189,6 +202,13 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     const first = await send("first");
     assert.equal(first.final.status, pb.AgentRunStatus.COMPLETED);
     assert.ok(first.events.some((event) => event.payload.case === "reasoningDelta"));
+    assert.ok(
+      first.events.some(
+        (event) =>
+          event.payload.case === "generationUpdated" &&
+          event.payload.value.generation?.receivedContent,
+      ),
+    );
     await send("second");
     assert.deepEqual(
       requests[1].messages.map((message) => message.role),

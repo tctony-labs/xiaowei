@@ -129,6 +129,32 @@ async fn complete_final_preserves_metadata_and_length_instead_of_delta_text() {
 }
 
 #[tokio::test]
+async fn empty_final_response_is_successful_but_empty_tool_use_is_invalid() {
+    for reason in [
+        FinishReason::Stop,
+        FinishReason::Length,
+        FinishReason::ToolUse,
+    ] {
+        let mut final_message = message(reason);
+        final_message.content.clear();
+        let (tx, _rx) = mpsc::channel(8);
+        let result = execute_text(
+            request(),
+            model(vec![GenerationEvent::Finished(final_message.clone())]),
+            CancellationToken::new(),
+            tx,
+        )
+        .await;
+        if reason == FinishReason::ToolUse {
+            assert_eq!(result.status, RunStatus::Failed);
+        } else {
+            assert_eq!(result.status, RunStatus::Completed);
+            assert_eq!(result.message, Some(final_message));
+        }
+    }
+}
+
+#[tokio::test]
 async fn eof_partial_failure_and_tools_never_succeed() {
     for events in [
         vec![GenerationEvent::TextDelta {

@@ -497,6 +497,7 @@ mod tests {
                     input_id: InputId::new().to_string(),
                     status: AgentRunStatus::InProgress.into(),
                     items: vec![AgentItem {
+                        gen_id: None,
                         item_id: item_id.clone(),
                         content: Some(agent_item::Content::AgentMessage(AgentMessage {
                             text: "before".into(),

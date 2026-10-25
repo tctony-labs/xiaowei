@@ -4,7 +4,7 @@
 
 包根导出 `LlmGeneration`、`GenerationRequest`、`GenerationEvent`、`GenerationError`、异步流／future 别名和取消 token。实现方必须在开流与消费阶段响应取消，并在 future／stream 被释放时取消上游工作。错误不得携带原始响应正文或凭据。
 
-`execute_text` 使用 App Server 提供的身份，单次调用 generate 并返回唯一 RunOutcome。内部 RunEvent 通过有界 channel 传递增量；取消覆盖开流、读取和发送等待。完整 STOP／LENGTH 文本或合法 TOOL_USE 消息用于成功结果；TOOL_USE 要求非空调用、唯一 ID 和完整对象参数，截断参数不会执行。部分显示不作为模型历史。RunRequest／RunOutcome 沿用历史命名，只代表本次生成；多 Turn 循环及记录提交由 xw-agent 编排。记录 Gen 开始／结束和单调耗时；来源未提供首 SSE 时间时保持 None。实际 LLM adapter 由集成层提供，不增加通用 `types.rs`。
+`execute_text` 使用 App Server 提供的身份，单次调用 generate 并返回唯一 RunOutcome。内部 RunEvent 通过有界 channel 传递增量；取消覆盖开流、读取和发送等待。完整 STOP／LENGTH 消息或合法 TOOL_USE 消息用于成功结果；STOP／LENGTH 允许没有内容块，仍需有效完成消息及模型元数据，不能将 EOF 当作空回复成功。TOOL_USE 要求非空调用、唯一 ID 和完整对象参数，截断参数不会执行。部分显示不作为模型历史。RunRequest／RunOutcome 沿用历史命名，只代表本次生成；多 Turn 循环及记录提交由 xw-agent 编排。记录 Gen 开始／结束和单调耗时；来源未提供首 SSE 时间时保持 None。实际 LLM adapter 由集成层提供，不增加通用 `types.rs`。
 
 `complete_text` 供标题等辅助任务消费同一生成流，只返回通过校验且没有工具调用的完整成功 AssistantMessage，不向聊天投影发送增量；开流、读取、失败与取消沿用同一生成边界。调用方提供模型引用、指令和生成选项，并拥有任务超时与业务结果的提交。
 

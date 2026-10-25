@@ -167,7 +167,7 @@ impl AgentService {
                 "model history and input identities",
             ));
         }
-        let run = AgentRun {
+        let mut run = AgentRun {
             run_id: run_id.to_string(),
             input_id: input_id.to_string(),
             status: AgentRunStatus::InProgress.into(),
@@ -183,6 +183,7 @@ impl AgentService {
             started_at_ms,
             items: vec![AgentItem {
                 item_id: BlockId::new().to_string(),
+                gen_id: None,
                 content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                     content: request.input.clone(),
                 })),
@@ -206,6 +207,11 @@ impl AgentService {
                 messages: history.clone(),
             },
         };
+        run.generation = Some(AgentGeneration {
+            gen_id: execution.gen_id.to_string(),
+            started_at_ms,
+            ..Default::default()
+        });
         let budget = queried
             .as_ref()
             .map(|info| xw_agent_types::ModelBudget {
@@ -289,7 +295,11 @@ pub(crate) fn event(payload: agent_event::Payload) -> AgentEvent {
     }
 }
 
-pub(crate) fn display_item(item_id: String, block: &ContentBlock) -> Option<AgentItem> {
+pub(crate) fn display_item(
+    item_id: String,
+    gen_id: String,
+    block: &ContentBlock,
+) -> Option<AgentItem> {
     let content = match block {
         ContentBlock::Text { text, .. } => {
             agent_item::Content::AgentMessage(AgentMessage { text: text.clone() })
@@ -301,7 +311,16 @@ pub(crate) fn display_item(item_id: String, block: &ContentBlock) -> Option<Agen
     };
     Some(AgentItem {
         item_id,
+        gen_id: Some(gen_id),
         content: Some(content),
+    })
+}
+
+pub(crate) fn generation_update(session_id: SessionId, run: &AgentRun) -> agent_event::Payload {
+    agent_event::Payload::GenerationUpdated(GenerationUpdated {
+        session_id: session_id.to_string(),
+        run_id: run.run_id.clone(),
+        generation: run.generation.clone(),
     })
 }
 
@@ -312,6 +331,22 @@ pub(crate) fn project_update(
     blocks: &mut BTreeMap<u32, (String, ContentBlock)>,
     base_items: usize,
 ) -> Vec<agent_event::Payload> {
+    let previous_generation = run.generation.clone();
+    let finished = matches!(&update, GenerationEvent::BlockFinished { .. });
+    let content_received = match &update {
+        GenerationEvent::BlockStarted { .. } | GenerationEvent::BlockFinished { .. } => true,
+        GenerationEvent::TextDelta { text, .. } | GenerationEvent::ThinkingDelta { text, .. } => {
+            !text.is_empty()
+        }
+        GenerationEvent::ToolCallDelta { .. } => true,
+        _ => false,
+    };
+    if content_received && let Some(generation) = &mut run.generation {
+        generation.received_content = true;
+        if matches!(&update, GenerationEvent::ToolCallDelta { .. }) {
+            generation.active_item_id = None;
+        }
+    }
     let (index, delta, thinking, replacement) = match update {
         GenerationEvent::TextDelta {
             content_index,
@@ -334,7 +369,13 @@ pub(crate) fn project_update(
             matches!(block, ContentBlock::Thinking { .. }),
             Some(block),
         ),
-        _ => return Vec::new(),
+        _ => {
+            return if run.generation != previous_generation {
+                vec![generation_update(session_id, run)]
+            } else {
+                Vec::new()
+            };
+        }
     };
     let new = !blocks.contains_key(&index);
     let (item_id, block) = blocks.entry(index).or_insert_with(|| {
@@ -355,16 +396,21 @@ pub(crate) fn project_update(
         )
     });
     let mut events = Vec::new();
-    let session_id = session_id.to_string();
-    if new && let Some(item) = display_item(item_id.clone(), block) {
+    let gen_id = run
+        .generation
+        .as_ref()
+        .expect("active Generate")
+        .gen_id
+        .clone();
+    if let Some(replacement) = replacement {
+        *block = replacement;
+    }
+    if new && let Some(item) = display_item(item_id.clone(), gen_id.clone(), block) {
         events.push(agent_event::Payload::ItemStarted(ItemStarted {
-            session_id: session_id.clone(),
+            session_id: session_id.to_string(),
             run_id: run.run_id.clone(),
             item: Some(item),
         }));
-    }
-    if let Some(replacement) = replacement {
-        *block = replacement;
     }
     if let Some(delta) = delta {
         match block {
@@ -375,31 +421,101 @@ pub(crate) fn project_update(
         }
         if thinking {
             events.push(agent_event::Payload::ReasoningDelta(ReasoningDelta {
-                session_id,
+                session_id: session_id.to_string(),
                 run_id: run.run_id.clone(),
                 item_id: item_id.clone(),
                 delta,
             }));
         } else {
             events.push(agent_event::Payload::AgentMessageDelta(AgentMessageDelta {
-                session_id,
+                session_id: session_id.to_string(),
                 run_id: run.run_id.clone(),
                 item_id: item_id.clone(),
                 delta,
             }));
         }
-    } else if let Some(item) = display_item(item_id.clone(), block) {
+    } else if finished && let Some(item) = display_item(item_id.clone(), gen_id.clone(), block) {
         events.push(agent_event::Payload::ItemCompleted(ItemCompleted {
-            session_id,
+            session_id: session_id.to_string(),
             run_id: run.run_id.clone(),
             item: Some(item),
         }));
+    }
+    if let Some(generation) = &mut run.generation {
+        if finished {
+            if generation.active_item_id.as_ref() == Some(item_id) {
+                generation.active_item_id = None;
+            }
+        } else {
+            generation.active_item_id = matches!(
+                block,
+                ContentBlock::Text { .. } | ContentBlock::Thinking { .. }
+            )
+            .then(|| item_id.clone());
+        }
     }
     run.items.truncate(base_items);
     run.items.extend(
         blocks
             .values()
-            .filter_map(|(id, block)| display_item(id.clone(), block)),
+            .filter_map(|(id, block)| display_item(id.clone(), gen_id.clone(), block)),
     );
+    if run.generation != previous_generation {
+        events.push(generation_update(session_id, run));
+    }
     events
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sse_control_and_tool_declarations_do_not_become_running_tool_items() {
+        let session_id = SessionId::new();
+        let mut run = AgentRun {
+            generation: Some(AgentGeneration {
+                gen_id: GenId::new().to_string(),
+                started_at_ms: 100,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let mut blocks = BTreeMap::new();
+        let changes = project_update(
+            session_id,
+            &mut run,
+            GenerationEvent::FirstSseReceived {
+                received_at_ms: 200,
+            },
+            &mut blocks,
+            0,
+        );
+        assert!(changes.is_empty());
+        assert!(!run.generation.as_ref().unwrap().received_content);
+
+        let changes = project_update(
+            session_id,
+            &mut run,
+            GenerationEvent::BlockStarted {
+                content_index: 0,
+                block: ContentBlock::ToolCall {
+                    id: "call".into(),
+                    name: "Read".into(),
+                    arguments_json: None,
+                    thought_signature: None,
+                    namespace: None,
+                },
+            },
+            &mut blocks,
+            0,
+        );
+        assert!(run.items.is_empty());
+        assert!(run.generation.as_ref().unwrap().received_content);
+        assert!(run.generation.as_ref().unwrap().active_item_id.is_none());
+        assert!(matches!(
+            changes.as_slice(),
+            [agent_event::Payload::GenerationUpdated(_)]
+        ));
+    }
 }

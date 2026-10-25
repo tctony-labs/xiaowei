@@ -144,6 +144,9 @@ impl ::prost::Name for AgentToolCall {
 pub struct AgentItem {
     #[prost(string, tag = "1")]
     pub item_id: ::prost::alloc::string::String,
+    /// Generating response identity for assistant/reasoning/tool items; absent for user input.
+    #[prost(string, optional, tag = "6")]
+    pub gen_id: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(oneof = "agent_item::Content", tags = "2, 3, 4, 5")]
     pub content: ::core::option::Option<agent_item::Content>,
 }
@@ -171,6 +174,30 @@ impl ::prost::Name for AgentItem {
         "/xiaowei.agent.AgentItem".into()
     }
 }
+/// Current conversation Generate, including opening/queueing and gaps between content blocks.
+/// Tool declarations count as received content but are not executable tool Items yet.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentGeneration {
+    #[prost(string, tag = "1")]
+    pub gen_id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "2")]
+    pub started_at_ms: i64,
+    #[prost(bool, tag = "3")]
+    pub received_content: bool,
+    /// Absent while waiting or emitting a tool declaration; never points to an older Generate.
+    #[prost(string, optional, tag = "4")]
+    pub active_item_id: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for AgentGeneration {
+    const NAME: &'static str = "AgentGeneration";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentGeneration".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentGeneration".into()
+    }
+}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AgentRun {
     #[prost(string, tag = "1")]
@@ -195,6 +222,14 @@ pub struct AgentRun {
     pub provider_name: ::prost::alloc::string::String,
     #[prost(string, tag = "10")]
     pub model_name: ::prost::alloc::string::String,
+    /// Present only while a model Generate is active, not during tool execution.
+    #[prost(message, optional, tag = "11")]
+    pub generation: ::core::option::Option<AgentGeneration>,
+    /// Successful final response with no tool calls. Absent until normal Run completion;
+    /// present even when that response contains no visible text. Select matching Item.gen_id
+    /// for the final reply; earlier responses remain process content. Rebuilt from the journal.
+    #[prost(string, optional, tag = "12")]
+    pub final_gen_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for AgentRun {
     const NAME: &'static str = "AgentRun";
@@ -825,6 +860,27 @@ impl ::prost::Name for ReasoningDelta {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GenerationUpdated {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub run_id: ::prost::alloc::string::String,
+    /// Absent closes the Generate. Changes follow the same serial boundary as Item events
+    /// and SubscriptionReady; do not infer lifecycle from text deltas or Run status alone.
+    #[prost(message, optional, tag = "3")]
+    pub generation: ::core::option::Option<AgentGeneration>,
+}
+impl ::prost::Name for GenerationUpdated {
+    const NAME: &'static str = "GenerationUpdated";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.GenerationUpdated".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.GenerationUpdated".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SessionTitleUpdated {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
@@ -926,7 +982,7 @@ pub struct AgentEvent {
     pub emitted_at_ms: i64,
     #[prost(
         oneof = "agent_event::Payload",
-        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14"
+        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
     )]
     pub payload: ::core::option::Option<agent_event::Payload>,
 }
@@ -960,6 +1016,8 @@ pub mod agent_event {
         SessionModelInfoWarningUpdated(super::SessionModelInfoWarningUpdated),
         #[prost(message, tag = "14")]
         SessionArchivedUpdated(super::SessionArchivedUpdated),
+        #[prost(message, tag = "15")]
+        GenerationUpdated(super::GenerationUpdated),
     }
 }
 impl ::prost::Name for AgentEvent {

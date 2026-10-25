@@ -226,16 +226,14 @@ pub(crate) fn validate_final(message: &AssistantMessage) -> Result<(), Generatio
     if !matches!(
         message.stop_reason,
         FinishReason::Stop | FinishReason::Length | FinishReason::ToolUse
-    ) || message.content.is_empty()
-        || message.content.iter().any(|block| {
-            !matches!(
-                block,
-                ContentBlock::Text { .. }
-                    | ContentBlock::Thinking { .. }
-                    | ContentBlock::ToolCall { .. }
-            )
-        })
-        || message.content.iter().map(block_bytes).sum::<usize>() > 1024 * 1024
+    ) || message.content.iter().any(|block| {
+        !matches!(
+            block,
+            ContentBlock::Text { .. }
+                | ContentBlock::Thinking { .. }
+                | ContentBlock::ToolCall { .. }
+        )
+    }) || message.content.iter().map(block_bytes).sum::<usize>() > 1024 * 1024
         || message.api.is_empty()
         || message.provider.is_empty()
         || message.model_id.is_empty()

@@ -155,7 +155,11 @@ test("one client per Services survives disconnect and remount without duplicatin
   expect(fixture.counts.interrupted).toBe(0);
   fixture.finish(AgentRunStatus.COMPLETED, "finished while hidden");
   const unsubscribe = client.observe(() => {});
-  await waitFor(() => expect(client.messages[1].text).toBe("finished while hidden"));
+  await waitFor(() =>
+    expect(client.messages[1].blocks).toContainEqual(
+      expect.objectContaining({ kind: "text", text: "finished while hidden" }),
+    ),
+  );
   expect(fixture.counts.created).toBe(1);
   expect(fixture.requests).toHaveLength(1);
   unsubscribe();
@@ -235,7 +239,11 @@ test("a disconnected observation resubscribes once using a fresh authoritative s
   fixture.disconnectObservers();
   fixture.finish(AgentRunStatus.COMPLETED, "settled during reconnection");
   await waitFor(() => expect(fixture.counts.disconnected).toBe(1));
-  await waitFor(() => expect(client.messages[1].text).toBe("settled during reconnection"));
+  await waitFor(() =>
+    expect(client.messages[1].blocks).toContainEqual(
+      expect.objectContaining({ kind: "text", text: "settled during reconnection" }),
+    ),
+  );
   expect(client.error).toBe("");
   expect(fixture.requests).toHaveLength(1);
   fixture.disconnectObservers();
@@ -289,12 +297,16 @@ test("switching never interrupts another session and restores its latest history
   expect(fixture.counts.interrupted).toBe(0);
   fixture.finish(AgentRunStatus.COMPLETED, "second finished offscreen", "", secondId);
   fixture.updateTitle("第二个标题", "small", secondId);
-  expect(client.messages[1].text).toBe("answer");
+  expect(client.messages[1].blocks).toContainEqual(
+    expect.objectContaining({ kind: "text", text: "answer" }),
+  );
   await client.listSessions();
   expect(client.sessions.map((session) => session.sessionId)).toContain(secondId);
   await client.switchSession(secondId);
   expect(client.draft).toBe("second draft");
-  expect(client.messages[1].text).toBe("second finished offscreen");
+  expect(client.messages[1].blocks).toContainEqual(
+    expect.objectContaining({ kind: "text", text: "second finished offscreen" }),
+  );
   expect(client.session?.title).toBe("第二个标题");
   expect(fixture.counts.deleted).toBe(0);
   await waitFor(() => expect(fixture.counts.observing).toBe(1));

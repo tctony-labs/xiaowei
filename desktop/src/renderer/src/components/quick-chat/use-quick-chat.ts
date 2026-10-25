@@ -6,6 +6,7 @@ import {
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
   OpenSettingsRequestSchema,
+  OpenUrlRequestSchema,
   SettingsAnchor,
   WriteClipboardTextRequestSchema,
 } from "xiaowei-contracts";
@@ -159,6 +160,12 @@ export function useQuickChat(services: Services, viewing = false) {
     }
   }
 
+  async function copyText(text: string) {
+    await services
+      .getSystem()
+      .writeClipboardText(create(WriteClipboardTextRequestSchema, { text }));
+  }
+
   return {
     messages: client.messages,
     sessionId: client.session?.sessionId ?? null,
@@ -172,10 +179,10 @@ export function useQuickChat(services: Services, viewing = false) {
         .openSettings(create(OpenSettingsRequestSchema, { anchor: SettingsAnchor.MODEL_PROVIDERS }))
         .catch(() => console.warn("Failed to open title model settings"));
     },
-    onCopySessionId: async (id: string) => {
-      await services
-        .getSystem()
-        .writeClipboardText(create(WriteClipboardTextRequestSchema, { text: id }));
+    onCopySessionId: copyText,
+    onCopyMessageText: copyText,
+    onOpenMessageUrl: async (url: string) => {
+      await services.getSystem().openUrl(create(OpenUrlRequestSchema, { url }));
     },
     sessions: client.sessions.map((session) => ({
       id: session.sessionId,

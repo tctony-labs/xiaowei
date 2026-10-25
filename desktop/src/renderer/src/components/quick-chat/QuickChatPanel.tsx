@@ -1,4 +1,6 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { AgentMessage } from "../agent-chat/AgentMessage";
+import type { AgentGenerationState, AgentMessageBlock } from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
 import QuickChatTitleBar, { type QuickChatSessionItem } from "./QuickChatTitleBar";
@@ -7,9 +9,13 @@ import { QuickChatTransition } from "./QuickChatTransition";
 export interface QuickChatMessage {
   id: string;
   role: "user" | "assistant";
-  text: string;
-  thinking?: string;
-  tools?: { id: string; name: string; status: string; output: string }[];
+  // User input only; assistant responses retain their ordered blocks.
+  text?: string;
+  blocks?: AgentMessageBlock[];
+  generation?: AgentGenerationState;
+  finalResponseBlockIds?: string[];
+  durationMs?: bigint;
+  timestampMs?: bigint;
   status?: "generating" | "complete" | "cancelled" | "failed";
   error?: string;
 }
@@ -19,6 +25,8 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   search: ReactNode;
   searchHeight?: number;
   messages: QuickChatMessage[];
+  onCopyMessageText: (text: string) => Promise<void>;
+  onOpenMessageUrl: (url: string) => Promise<void>;
   sessionId?: string | null;
   onCopySessionId?: (id: string) => Promise<void>;
   title?: string;
@@ -275,46 +283,13 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                           : "text-sm leading-6 text-ink"
                       }
                     >
-                      {message.thinking && (
-                        <details className="mb-2 border-l-2 border-line pl-3 text-xs text-muted">
-                          <summary className="cursor-pointer py-1">
-                            {message.status === "generating" && !message.text
-                              ? "正在思考"
-                              : "思考过程"}
-                          </summary>
-                          <p className="whitespace-pre-wrap break-words">{message.thinking}</p>
-                        </details>
-                      )}
-                      {message.tools?.map((tool) => (
-                        <details
-                          key={tool.id}
-                          className="mb-2 border-l-2 border-line pl-3 text-xs text-muted"
-                        >
-                          <summary className="cursor-pointer py-1">
-                            {tool.name} · {tool.status}
-                          </summary>
-                          <p className="whitespace-pre-wrap break-words">{tool.output}</p>
-                        </details>
-                      ))}
-                      {message.text && (
-                        <p className="whitespace-pre-wrap break-words">{message.text}</p>
-                      )}
-                      {message.status === "generating" &&
-                        !message.text &&
-                        !message.thinking &&
-                        !message.tools?.length && (
-                          <p role="status" className="text-xs text-muted">
-                            正在等待回复…
-                          </p>
-                        )}
-                      {message.status === "cancelled" && (
-                        <p className="mt-1 text-xs text-muted">已停止</p>
-                      )}
-                      {message.error && (
-                        <p role="alert" className="mt-1 text-xs text-danger">
-                          {message.error}
-                        </p>
-                      )}
+                      <AgentMessage
+                        message={message}
+                        generation={message.generation}
+                        finalResponseBlockIds={message.finalResponseBlockIds}
+                        onCopy={props.onCopyMessageText}
+                        onOpenUrl={props.onOpenMessageUrl}
+                      />
                     </article>
                   ))}
                   {props.emptyState && (

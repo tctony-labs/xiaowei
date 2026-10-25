@@ -78,11 +78,15 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-25 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路和产品窗口验收。旧会话只追加两个工具与对应规则，既有记录前缀不变；真实搜索、无匹配、非法模式及重启不重放证据见 [搜索交付结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。02g 临时计划已删除。
 
-下一批进入 [AskUserQuestion／RequestPermission](../../plans/2026-09-28-agent-chat/02f-interactions.md)，之后依次为 Todo、WebFetch、后台三工具、Skill；其中 Todo／Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环。动态工具删除／替换和其他 provider 联调作为独立限制跟踪，不静默改成全量工具重注入。
+2026-10-25 用户要求进入问答／权限工具之前，先实施 [03a](../../plans/2026-09-28-agent-chat/03a-history-ui.md) 的 Markdown／代码／复制与 [03c](../../plans/2026-09-28-agent-chat/03c-tools-interaction-ui.md) 的有序现有工具 UI。本批已接实际 Quick Chat，移除旧 Run 聚合展示及预览专用分派；Harness 的当前 Generate、活跃 Item 与最终回复归属经公开快照／事件接到 renderer，历史关联由既有 Journal 重建。自动测试、正式原生链路及浏览器检查通过，当前工作区实际 sol 模型的工具分组、Markdown、系统复制、停止、失败、文件 diff 和重启不重放均已验收。源码依据和适配见 [核对表](2026-09-28-agent-chat/runtime-ui.md#参考行为逐项核对)，实际证据见[交付结果](2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。03a／03c 仅保留大历史分页／完整长内容及问答／权限卡片，分别依赖 01f／02f。
 
-PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历史、Markdown／完整工具卡片、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
+下一工具批进入 [AskUserQuestion／RequestPermission](../../plans/2026-09-28-agent-chat/02f-interactions.md)，之后依次为 Todo、WebFetch、后台三工具、Skill；其中 Todo／Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环。动态工具删除／替换和其他 provider 联调作为独立限制跟踪，不静默改成全量工具重注入。
+
+PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历史／完整长内容、问答／权限卡片、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
 
 ## Outcome
+
+2026-10-25 有序消息与现有工具 UI 已接实际 Quick Chat，并完成自动、正式原生链路、浏览器及当前工作区真实 sol 模型窗口验收。系统复制、停止、失败、Edit diff 和重启恢复均已核对；新验收会话重启前后历史、SQLite 和文件摘要完全相同，无新增生成或工具重放。具体证据及剩余范围见[本批结果](2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。
 
 2026-10-25 Glob／Grep 整批已完成实现与验收；旧版搜索语义、当前输出／取消边界、旧会话增量、正式链路及窗口／重启证据见 [搜索结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。下一批为问答／权限。
 
@@ -96,4 +100,4 @@ PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历�
 
 上述里程碑与工具批次的自动检查、真实数据、窗口证据和剩余验收分别见[交付证据](2026-09-28-agent-chat/implementation-results.md)。本日 Bash 的新验证与之前文件工具的历史验收分别记录。
 
-本里程碑不等于完整工具闭环完成。当前消息只展示纯文本及可折叠思考，Markdown／代码块和消息复制尚未实现；当时工具执行尚未交付；现已接入首批文件工具，审批、压缩、Continue 和大历史分页仍未交付。部分实际窗口操作仍没有直接验收证据，不能用集成测试或启动日志替代。事项继续位于 active，保留未完成范围的计划。
+上述文本里程碑不等于完整工具闭环完成。现已补齐前三批工具及 Markdown／代码块、消息复制和有序工具展示；审批、后续工具批次、压缩、Continue 和大历史／完整长内容仍未交付。原有其他窗口操作的验收限制以交付证据为准，不能用集成测试或启动日志替代。事项继续位于 active，保留未完成范围的计划。

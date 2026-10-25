@@ -96,7 +96,7 @@ export class AgentChatClient {
       messages.push({
         id: `pending-${this.pending.inputId}`,
         role: "assistant",
-        text: "",
+        blocks: [],
         status: "generating",
       });
     }

@@ -26,21 +26,38 @@ function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): Quick
     scenario === "loading"
   )
     return [];
+  const text =
+    scenario === "thinking" || scenario === "error"
+      ? ""
+      : scenario === "text" || scenario === "stopped"
+        ? "可以先明确今天最需要完成的一件事。"
+        : "1. 先明确今天最需要完成的一件事。\n" +
+          "2. 集中时间完成它，并验证结果。\n3. 整理剩余事项，安排下一步。";
+  const generating = scenario === "text" || scenario === "thinking";
   return [
     { id: "user", role: "user", text: "帮我把今天的工作安排成三个步骤。" },
     {
       id: "assistant",
       role: "assistant",
-      text:
-        scenario === "thinking" || scenario === "error"
-          ? ""
-          : scenario === "text" || scenario === "stopped"
-            ? "可以先明确今天最需要完成的一件事。"
-            : "1. 先明确今天最需要完成的一件事。\n2. 集中时间完成它，并验证结果。\n3. 整理剩余事项，安排下一步。",
-      thinking:
+      blocks:
         scenario === "thinking"
-          ? "先确定优先级，再把执行和验证分开，最后留出整理时间。"
-          : undefined,
+          ? [
+              {
+                id: "thinking",
+                kind: "reasoning",
+                text: "先确定优先级，再把执行和验证分开，最后留出整理时间。",
+              },
+            ]
+          : [{ id: "answer", kind: "text", text }],
+      generation: generating
+        ? {
+            id: "preview-generation",
+            startedAtMs: Date.now(),
+            receivedContent: true,
+            activeBlockId: scenario === "thinking" ? "thinking" : "answer",
+          }
+        : undefined,
+      finalResponseBlockIds: scenario === "complete" ? ["answer"] : undefined,
       status:
         scenario === "text" || scenario === "thinking"
           ? "generating"
@@ -82,8 +99,23 @@ export function QuickChatChatPreview({
           message.id === run
             ? {
                 ...message,
-                thinking: thinking.slice(0, offset),
-                text: answer.slice(0, Math.max(0, offset - thinking.length)),
+                blocks: [
+                  { id: "thinking", kind: "reasoning", text: thinking.slice(0, offset) },
+                  {
+                    id: "answer",
+                    kind: "text",
+                    text: answer.slice(0, Math.max(0, offset - thinking.length)),
+                  },
+                ],
+                generation: complete
+                  ? undefined
+                  : {
+                      id: run,
+                      startedAtMs: message.generation?.startedAtMs ?? Date.now(),
+                      receivedContent: true,
+                      activeBlockId: offset < thinking.length ? "thinking" : "answer",
+                    },
+                finalResponseBlockIds: complete ? ["answer"] : undefined,
                 status: complete ? "complete" : "generating",
               }
             : message,
@@ -100,7 +132,13 @@ export function QuickChatChatPreview({
     setMessages((items) => [
       ...items,
       { id: crypto.randomUUID(), role: "user", text: draft },
-      { id, role: "assistant", text: "", status: "generating" },
+      {
+        id,
+        role: "assistant",
+        blocks: [],
+        status: "generating",
+        generation: { id, startedAtMs: Date.now(), receivedContent: false },
+      },
     ]);
     setDraft("");
     setRun(id);
@@ -110,7 +148,9 @@ export function QuickChatChatPreview({
     setRun(null);
     setMessages((items) =>
       items.map((message) =>
-        message.status === "generating" ? { ...message, status: "cancelled" } : message,
+        message.status === "generating"
+          ? { ...message, generation: undefined, status: "cancelled" }
+          : message,
       ),
     );
   }
@@ -165,6 +205,8 @@ export function QuickChatChatPreview({
         messages={messages}
         sessionId={messages.length ? "preview-session" : null}
         onCopySessionId={async () => {}}
+        onCopyMessageText={async () => {}}
+        onOpenMessageUrl={async () => {}}
         draft={draft}
         configured={configured}
         generating={generating}

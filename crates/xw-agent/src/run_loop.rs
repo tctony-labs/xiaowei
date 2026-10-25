@@ -12,7 +12,10 @@ use xw_agent_types as domain;
 
 use crate::{
     AgentError, AgentHost, AgentService, CancellationToken, GenerationEvent, LlmGeneration,
-    execution::{MAX_DISPLAY_BYTES, MAX_HISTORY_BYTES, display_item, event, project_update},
+    execution::{
+        MAX_DISPLAY_BYTES, MAX_HISTORY_BYTES, display_item, event, generation_update,
+        project_update,
+    },
     index::IndexAccess,
     protocol::*,
     service::{State, now_ms},
@@ -53,6 +56,9 @@ pub(crate) async fn execute(
         let run = session.view.runs.last_mut().expect("accepted run");
         run.status = status.into();
         run.error = error;
+        run.generation = None;
+        run.final_gen_id =
+            (status == AgentRunStatus::Completed).then(|| request.gen_id.to_string());
         for item in &mut run.items {
             if let Some(agent_item::Content::ToolCall(tool)) = &mut item.content
                 && tool.status == AgentToolStatus::Pending as i32
@@ -236,7 +242,11 @@ async fn drive(
                     .iter()
                     .enumerate()
                     .filter_map(|(index, block)| {
-                        display_item(blocks[&(index as u32)].0.clone(), block)
+                        display_item(
+                            blocks[&(index as u32)].0.clone(),
+                            request.gen_id.to_string(),
+                            block,
+                        )
                     }),
             );
             if session.view.encoded_len() > MAX_DISPLAY_BYTES - 2048 {
@@ -254,6 +264,9 @@ async fn drive(
                     .push(domain::AgentMessage::Assistant(message.clone()));
             }
             let items = session.view.runs.last().unwrap().items[base_items..].to_vec();
+            session.view.runs.last_mut().unwrap().generation = None;
+            let generation_ended =
+                generation_update(request.session_id, session.view.runs.last().unwrap());
             for item in items {
                 AgentService::publish(
                     &mut state,
@@ -264,6 +277,7 @@ async fn drive(
                     })),
                 );
             }
+            AgentService::publish(&mut state, event(generation_ended));
         }
         let mut status = outcome.status;
         let mut error = outcome.error.as_ref().map(ToString::to_string);
@@ -589,6 +603,7 @@ pub(crate) fn tool_item(
         .unwrap_or_default();
     AgentItem {
         item_id: intent.block_id.to_string(),
+        gen_id: Some(intent.key.gen_id.to_string()),
         content: Some(agent_item::Content::ToolCall(AgentToolCall {
             tool_id: intent.tool_id.to_string(),
             turn_id: intent.key.turn_id.to_string(),
@@ -717,5 +732,13 @@ fn start_next(
         at,
     )?;
     request.generation.messages = session.history.clone();
+    let run = session.view.runs.last_mut().expect("active Run");
+    run.generation = Some(AgentGeneration {
+        gen_id: request.gen_id.to_string(),
+        started_at_ms: at,
+        ..Default::default()
+    });
+    let update = generation_update(request.session_id, run);
+    AgentService::publish(&mut state, event(update));
     Ok(())
 }

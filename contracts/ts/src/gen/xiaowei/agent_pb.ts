@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/agent.proto.
  */
 export const file_xiaowei_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChN4aWFvd2VpL2FnZW50LnByb3RvEg14aWFvd2VpLmFnZW50IksKEEFnZW50TW9kZWxDb25maWcSEQoJbW9kZWxfcmVmGAEgASgJEhYKCXJlYXNvbmluZxgCIAEoCUgAiAEBQgwKCl9yZWFzb25pbmciWAoQTW9kZWxJbmZvV2FybmluZxIRCgltb2RlbF9yZWYYASABKAkSMQoEY29kZRgCIAEoDjIjLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZ0NvZGUiKwoOQWdlbnRVc2VySW5wdXQSDgoEdGV4dBgBIAEoCUgAQgkKB2NvbnRlbnQiQgoQQWdlbnRVc2VyTWVzc2FnZRIuCgdjb250ZW50GAEgAygLMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFVzZXJJbnB1dCIcCgxBZ2VudE1lc3NhZ2USDAoEdGV4dBgBIAEoCSIeCg5BZ2VudFJlYXNvbmluZxIMCgR0ZXh0GAEgASgJIpkCCg1BZ2VudFRvb2xDYWxsEg8KB3Rvb2xfaWQYASABKAkSDwoHdHVybl9pZBgCIAEoCRIOCgZnZW5faWQYAyABKAkSGAoQcHJvdmlkZXJfY2FsbF9pZBgEIAEoCRIMCgRuYW1lGAUgASgJEhYKDmFyZ3VtZW50c19qc29uGAYgASgJEi4KBnN0YXR1cxgHIAEoDjIeLnhpYW93ZWkuYWdlbnQuQWdlbnRUb29sU3RhdHVzEg4KBm91dHB1dBgIIAEoCRIaCg1tZXRhZGF0YV9qc29uGAkgASgJSACIAQESGAoLZHVyYXRpb25fbXMYCiABKARIAYgBAUIQCg5fbWV0YWRhdGFfanNvbkIOCgxfZHVyYXRpb25fbXMi/QEKCUFnZW50SXRlbRIPCgdpdGVtX2lkGAEgASgJEjcKDHVzZXJfbWVzc2FnZRgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRVc2VyTWVzc2FnZUgAEjQKDWFnZW50X21lc3NhZ2UYAyABKAsyGy54aWFvd2VpLmFnZW50LkFnZW50TWVzc2FnZUgAEjIKCXJlYXNvbmluZxgEIAEoCzIdLnhpYW93ZWkuYWdlbnQuQWdlbnRSZWFzb25pbmdIABIxCgl0b29sX2NhbGwYBSABKAsyHC54aWFvd2VpLmFnZW50LkFnZW50VG9vbENhbGxIAEIJCgdjb250ZW50IscCCghBZ2VudFJ1bhIOCgZydW5faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSLQoGc3RhdHVzGAMgASgOMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFJ1blN0YXR1cxIvCgZjb25maWcYBCABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSJwoFaXRlbXMYBSADKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbRIVCg1zdGFydGVkX2F0X21zGAYgASgDEhwKD2NvbXBsZXRlZF9hdF9tcxgHIAEoA0gAiAEBEhIKBWVycm9yGAggASgJSAGIAQESFQoNcHJvdmlkZXJfbmFtZRgJIAEoCRISCgptb2RlbF9uYW1lGAogASgJQhIKEF9jb21wbGV0ZWRfYXRfbXNCCAoGX2Vycm9yIugDCgxBZ2VudFNlc3Npb24SEgoKc2Vzc2lvbl9pZBgBIAEoCRIvCgZjb25maWcYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSMQoGc3RhdHVzGAMgASgOMiEueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb25TdGF0dXMSFQoNY3JlYXRlZF9hdF9tcxgEIAEoAxIZChFtZXRhZGF0YV9yZXZpc2lvbhgFIAEoBBIlCgRydW5zGAYgAygLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1bhINCgV0aXRsZRgHIAEoCRIXCg90aXRsZV9tb2RlbF9yZWYYCCABKAkSGgoSYXV0b190aXRsZV9lbmFibGVkGAkgASgIEhUKDXByb3ZpZGVyX25hbWUYCiABKAkSEgoKbW9kZWxfbmFtZRgLIAEoCRI7ChJtb2RlbF9pbmZvX3dhcm5pbmcYDCABKAsyHy54aWFvd2VpLmFnZW50Lk1vZGVsSW5mb1dhcm5pbmcSEAoIYXJjaGl2ZWQYDSABKAgSGAoQYXJjaGl2ZV9yZXZpc2lvbhgOIAEoBBIVCg11cGRhdGVkX2F0X21zGA8gASgDEhAKA2N3ZBgQIAEoCUgAiAEBQgYKBF9jd2QiTwoWU2Vzc2lvblJldGVudGlvblBvbGljeRIaChJhcmNoaXZlX2FmdGVyX2RheXMYASABKA0SGQoRZGVsZXRlX2FmdGVyX2RheXMYAiABKA0ilQEKFENyZWF0ZVNlc3Npb25SZXF1ZXN0EhkKEWNsaWVudF9yZXF1ZXN0X2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIXCg90aXRsZV9tb2RlbF9yZWYYAyABKAkSEAoDY3dkGAQgASgJSACIAQFCBgoEX2N3ZCJFChVDcmVhdGVTZXNzaW9uUmVzcG9uc2USLAoHc2Vzc2lvbhgBIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIl8KE0xpc3RTZXNzaW9uc1JlcXVlc3QSEAoIYXJjaGl2ZWQYASABKAgSEQoJcGFnZV9zaXplGAIgASgNEhQKDGNvbnRpbnVhdGlvbhgDIAEoCRINCgVxdWVyeRgEIAEoCSKXAgoTQWdlbnRTZXNzaW9uU3VtbWFyeRISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEjEKBnN0YXR1cxgEIAEoDjIhLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3RhdHVzEhUKDWNyZWF0ZWRfYXRfbXMYBSABKAMSGQoRbWV0YWRhdGFfcmV2aXNpb24YBiABKAQSGgoSYXV0b190aXRsZV9lbmFibGVkGAcgASgIEhAKCGFyY2hpdmVkGAggASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YCSABKAQSFQoNdXBkYXRlZF9hdF9tcxgKIAEoA0oECAMQBFITZmlyc3RfaW5wdXRfcHJldmlldyJiChRMaXN0U2Vzc2lvbnNSZXNwb25zZRI0CghzZXNzaW9ucxgBIAMoCzIiLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3VtbWFyeRIUCgxjb250aW51YXRpb24YAiABKAkiPgoSUmVhZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFAoMaW5jbHVkZV9ydW5zGAIgASgIIlIKE1JlYWRTZXNzaW9uUmVzcG9uc2USDQoFZm91bmQYASABKAgSLAoHc2Vzc2lvbhgCIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIoIBChdTZXRTZXNzaW9uQ29uZmlnUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIiChpleHBlY3RlZF9tZXRhZGF0YV9yZXZpc2lvbhgDIAEoBCI1ChhTZXRTZXNzaW9uQ29uZmlnUmVzcG9uc2USGQoRbWV0YWRhdGFfcmV2aXNpb24YASABKAQiOwoWU2V0U2Vzc2lvblRpdGxlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJIkMKF1NldFNlc3Npb25UaXRsZVJlc3BvbnNlEg0KBXRpdGxlGAEgASgJEhkKEW1ldGFkYXRhX3JldmlzaW9uGAIgASgEImQKGVNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghhcmNoaXZlZBgCIAEoCBIhChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgEIkgKGlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEhAKCGFyY2hpdmVkGAEgASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YAiABKAQikwEKE0RlbGV0ZVNlc3Npb25UYXJnZXQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIiChpleHBlY3RlZF9tZXRhZGF0YV9yZXZpc2lvbhgCIAEoBBImChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgESACIAQFCHAoaX2V4cGVjdGVkX2FyY2hpdmVfcmV2aXNpb24iSwoURGVsZXRlU2Vzc2lvblJlcXVlc3QSMwoHdGFyZ2V0cxgBIAMoCzIiLnhpYW93ZWkuYWdlbnQuRGVsZXRlU2Vzc2lvblRhcmdldCJsChNEZWxldGVTZXNzaW9uUmVzdWx0EhIKCnNlc3Npb25faWQYASABKAkSMgoGc3RhdHVzGAIgASgOMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uU3RhdHVzEg0KBWVycm9yGAMgASgJIkwKFURlbGV0ZVNlc3Npb25SZXNwb25zZRIzCgdyZXN1bHRzGAEgAygLMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzdWx0Ii0KF1N1YnNjcmliZVNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiQQoRU3Vic2NyaXB0aW9uUmVhZHkSLAoHc2Vzc2lvbhgBIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIj4KDlNlc3Npb25TdGFydGVkEiwKB3Nlc3Npb24YASABKAsyGy54aWFvd2VpLmFnZW50LkFnZW50U2Vzc2lvbiIkCg5TZXNzaW9uRGVsZXRlZBISCgpzZXNzaW9uX2lkGAEgASgJIoIBCgpSdW5TdGFydGVkEhIKCnNlc3Npb25faWQYASABKAkSJAoDcnVuGAIgASgLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1bhIhChlzZXNzaW9uX21ldGFkYXRhX3JldmlzaW9uGAMgASgEEhcKD3RpdGxlX21vZGVsX3JlZhgEIAEoCSJICgxSdW5Db21wbGV0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIkCgNydW4YAiABKAsyFy54aWFvd2VpLmFnZW50LkFnZW50UnVuIlkKC0l0ZW1TdGFydGVkEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEiYKBGl0ZW0YAyABKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbSJbCg1JdGVtQ29tcGxldGVkEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEiYKBGl0ZW0YAyABKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbSJXChFBZ2VudE1lc3NhZ2VEZWx0YRISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIPCgdpdGVtX2lkGAMgASgJEg0KBWRlbHRhGAQgASgJIlQKDlJlYXNvbmluZ0RlbHRhEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg8KB2l0ZW1faWQYAyABKAkSDQoFZGVsdGEYBCABKAkinwEKE1Nlc3Npb25UaXRsZVVwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIZChFtZXRhZGF0YV9yZXZpc2lvbhgDIAEoBBIXCg90aXRsZV9tb2RlbF9yZWYYBCABKAkSGgoSYXV0b190aXRsZV9lbmFibGVkGAUgASgIEhUKDXVwZGF0ZWRfYXRfbXMYBiABKAMioQEKFFNlc3Npb25Db25maWdVcGRhdGVkEhIKCnNlc3Npb25faWQYASABKAkSLwoGY29uZmlnGAIgASgLMh8ueGlhb3dlaS5hZ2VudC5BZ2VudE1vZGVsQ29uZmlnEhUKDXByb3ZpZGVyX25hbWUYAyABKAkSEgoKbW9kZWxfbmFtZRgEIAEoCRIZChFtZXRhZGF0YV9yZXZpc2lvbhgFIAEoBCKRAQoeU2Vzc2lvbk1vZGVsSW5mb1dhcm5pbmdVcGRhdGVkEhIKCnNlc3Npb25faWQYASABKAkSMAoHd2FybmluZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZxIVCg1wcm92aWRlcl9uYW1lGAMgASgJEhIKCm1vZGVsX25hbWUYBCABKAkiWAoWU2Vzc2lvbkFyY2hpdmVkVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGFyY2hpdmVkGAIgASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YAyABKAQi5QYKCkFnZW50RXZlbnQSFQoNZW1pdHRlZF9hdF9tcxgBIAEoAxI4Cg9zZXNzaW9uX3N0YXJ0ZWQYAiABKAsyHS54aWFvd2VpLmFnZW50LlNlc3Npb25TdGFydGVkSAASOAoPc2Vzc2lvbl9kZWxldGVkGAMgASgLMh0ueGlhb3dlaS5hZ2VudC5TZXNzaW9uRGVsZXRlZEgAEjAKC3J1bl9zdGFydGVkGAQgASgLMhkueGlhb3dlaS5hZ2VudC5SdW5TdGFydGVkSAASNAoNcnVuX2NvbXBsZXRlZBgFIAEoCzIbLnhpYW93ZWkuYWdlbnQuUnVuQ29tcGxldGVkSAASMgoMaXRlbV9zdGFydGVkGAYgASgLMhoueGlhb3dlaS5hZ2VudC5JdGVtU3RhcnRlZEgAEjYKDml0ZW1fY29tcGxldGVkGAcgASgLMhwueGlhb3dlaS5hZ2VudC5JdGVtQ29tcGxldGVkSAASPwoTYWdlbnRfbWVzc2FnZV9kZWx0YRgIIAEoCzIgLnhpYW93ZWkuYWdlbnQuQWdlbnRNZXNzYWdlRGVsdGFIABI4Cg9yZWFzb25pbmdfZGVsdGEYCSABKAsyHS54aWFvd2VpLmFnZW50LlJlYXNvbmluZ0RlbHRhSAASPgoSc3Vic2NyaXB0aW9uX3JlYWR5GAogASgLMiAueGlhb3dlaS5hZ2VudC5TdWJzY3JpcHRpb25SZWFkeUgAEkMKFXNlc3Npb25fdGl0bGVfdXBkYXRlZBgLIAEoCzIiLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblRpdGxlVXBkYXRlZEgAEkUKFnNlc3Npb25fY29uZmlnX3VwZGF0ZWQYDCABKAsyIy54aWFvd2VpLmFnZW50LlNlc3Npb25Db25maWdVcGRhdGVkSAASWwoic2Vzc2lvbl9tb2RlbF9pbmZvX3dhcm5pbmdfdXBkYXRlZBgNIAEoCzItLnhpYW93ZWkuYWdlbnQuU2Vzc2lvbk1vZGVsSW5mb1dhcm5pbmdVcGRhdGVkSAASSQoYc2Vzc2lvbl9hcmNoaXZlZF91cGRhdGVkGA4gASgLMiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uQXJjaGl2ZWRVcGRhdGVkSABCCQoHcGF5bG9hZCIwChpUcmFja1Nlc3Npb25WaWV3aW5nUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJIhUKE1Nlc3Npb25WaWV3aW5nUmVhZHkiyAEKD1N0YXJ0UnVuUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGlucHV0X2lkGAIgASgJEiwKBWlucHV0GAMgAygLMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFVzZXJJbnB1dBIvCgZjb25maWcYBCABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSHAoPdGl0bGVfbW9kZWxfcmVmGAUgASgJSACIAQFCEgoQX3RpdGxlX21vZGVsX3JlZiI4ChBTdGFydFJ1blJlc3BvbnNlEiQKA3J1bhgBIAEoCzIXLnhpYW93ZWkuYWdlbnQuQWdlbnRSdW4iOQoTSW50ZXJydXB0UnVuUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJFChRJbnRlcnJ1cHRSdW5SZXNwb25zZRINCgVmb3VuZBgBIAEoCBIeChZjYW5jZWxsYXRpb25fcmVxdWVzdGVkGAIgASgIIkUKFlJlZ2VuZXJhdGVUaXRsZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIXCg90aXRsZV9tb2RlbF9yZWYYAiABKAkiQwoXUmVnZW5lcmF0ZVRpdGxlUmVzcG9uc2USDQoFdGl0bGUYASABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YAiABKAQiIgogR2V0U2Vzc2lvblJldGVudGlvblBvbGljeVJlcXVlc3QiWQogU2V0U2Vzc2lvblJldGVudGlvblBvbGljeVJlcXVlc3QSNQoGcG9saWN5GAEgASgLMiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5Kp0BChJBZ2VudFNlc3Npb25TdGF0dXMSJAogQUdFTlRfU0VTU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIdChlBR0VOVF9TRVNTSU9OX1NUQVRVU19JRExFEAESIAocQUdFTlRfU0VTU0lPTl9TVEFUVVNfUlVOTklORxACEiAKHEFHRU5UX1NFU1NJT05fU1RBVFVTX0RFTEVURUQQAyq9AQoUTW9kZWxJbmZvV2FybmluZ0NvZGUSJwojTU9ERUxfSU5GT19XQVJOSU5HX0NPREVfVU5TUEVDSUZJRUQQABIlCiFNT0RFTF9JTkZPX1dBUk5JTkdfQ09ERV9OT1RfRk9VTkQQARInCiNNT0RFTF9JTkZPX1dBUk5JTkdfQ09ERV9VTkFWQUlMQUJMRRACEiwKKE1PREVMX0lORk9fV0FSTklOR19DT0RFX0lOVkFMSURfUkVTUE9OU0UQAyr4AQoPQWdlbnRUb29sU3RhdHVzEiEKHUFHRU5UX1RPT0xfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHQoZQUdFTlRfVE9PTF9TVEFUVVNfUEVORElORxABEh8KG0FHRU5UX1RPT0xfU1RBVFVTX0NPTVBMRVRFRBACEhwKGEFHRU5UX1RPT0xfU1RBVFVTX0ZBSUxFRBADEh8KG0FHRU5UX1RPT0xfU1RBVFVTX0NBTkNFTExFRBAEEh0KGUFHRU5UX1RPT0xfU1RBVFVTX1NLSVBQRUQQBRIkCiBBR0VOVF9UT09MX1NUQVRVU19SRVNVTFRfVU5LTk9XThAGKrMBCg5BZ2VudFJ1blN0YXR1cxIgChxBR0VOVF9SVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIAocQUdFTlRfUlVOX1NUQVRVU19JTl9QUk9HUkVTUxABEh4KGkFHRU5UX1JVTl9TVEFUVVNfQ09NUExFVEVEEAISGwoXQUdFTlRfUlVOX1NUQVRVU19GQUlMRUQQAxIgChxBR0VOVF9SVU5fU1RBVFVTX0lOVEVSUlVQVEVEEAQqzAEKE0RlbGV0ZVNlc3Npb25TdGF0dXMSJQohREVMRVRFX1NFU1NJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodREVMRVRFX1NFU1NJT05fU1RBVFVTX0RFTEVURUQQARIhCh1ERUxFVEVfU0VTU0lPTl9TVEFUVVNfU0tJUFBFRBACEiAKHERFTEVURV9TRVNTSU9OX1NUQVRVU19GQUlMRUQQAxImCiJERUxFVEVfU0VTU0lPTl9TVEFUVVNfTk9UX0VYRUNVVEVEEAQy0woKBUFnZW50EloKDUNyZWF0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkNyZWF0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5DcmVhdGVTZXNzaW9uUmVzcG9uc2USVwoMTGlzdFNlc3Npb25zEiIueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5MaXN0U2Vzc2lvbnNSZXNwb25zZRJUCgtSZWFkU2Vzc2lvbhIhLnhpYW93ZWkuYWdlbnQuUmVhZFNlc3Npb25SZXF1ZXN0GiIueGlhb3dlaS5hZ2VudC5SZWFkU2Vzc2lvblJlc3BvbnNlEmMKEFNldFNlc3Npb25Db25maWcSJi54aWFvd2VpLmFnZW50LlNldFNlc3Npb25Db25maWdSZXF1ZXN0GicueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uQ29uZmlnUmVzcG9uc2USYAoPU2V0U2Vzc2lvblRpdGxlEiUueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXF1ZXN0GiYueGlhb3dlaS5hZ2VudC5TZXRTZXNzaW9uVGl0bGVSZXNwb25zZRJpChJTZXRTZXNzaW9uQXJjaGl2ZWQSKC54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QaKS54aWFvd2VpLmFnZW50LlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEloKDURlbGV0ZVNlc3Npb24SIy54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25SZXF1ZXN0GiQueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzcG9uc2USVwoQU3Vic2NyaWJlU2Vzc2lvbhImLnhpYW93ZWkuYWdlbnQuU3Vic2NyaWJlU2Vzc2lvblJlcXVlc3QaGS54aWFvd2VpLmFnZW50LkFnZW50RXZlbnQwARJmChNUcmFja1Nlc3Npb25WaWV3aW5nEikueGlhb3dlaS5hZ2VudC5UcmFja1Nlc3Npb25WaWV3aW5nUmVxdWVzdBoiLnhpYW93ZWkuYWdlbnQuU2Vzc2lvblZpZXdpbmdSZWFkeTABEksKCFN0YXJ0UnVuEh4ueGlhb3dlaS5hZ2VudC5TdGFydFJ1blJlcXVlc3QaHy54aWFvd2VpLmFnZW50LlN0YXJ0UnVuUmVzcG9uc2USVwoMSW50ZXJydXB0UnVuEiIueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXF1ZXN0GiMueGlhb3dlaS5hZ2VudC5JbnRlcnJ1cHRSdW5SZXNwb25zZRJgCg9SZWdlbmVyYXRlVGl0bGUSJS54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlcXVlc3QaJi54aWFvd2VpLmFnZW50LlJlZ2VuZXJhdGVUaXRsZVJlc3BvbnNlEnMKGUdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LkdldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5EnMKGVNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3kSLy54aWFvd2VpLmFnZW50LlNldFNlc3Npb25SZXRlbnRpb25Qb2xpY3lSZXF1ZXN0GiUueGlhb3dlaS5hZ2VudC5TZXNzaW9uUmV0ZW50aW9uUG9saWN5YgZwcm90bzM");
+  fileDesc("ChN4aWFvd2VpL2FnZW50LnByb3RvEg14aWFvd2VpLmFnZW50IksKEEFnZW50TW9kZWxDb25maWcSEQoJbW9kZWxfcmVmGAEgASgJEhYKCXJlYXNvbmluZxgCIAEoCUgAiAEBQgwKCl9yZWFzb25pbmciWAoQTW9kZWxJbmZvV2FybmluZxIRCgltb2RlbF9yZWYYASABKAkSMQoEY29kZRgCIAEoDjIjLnhpYW93ZWkuYWdlbnQuTW9kZWxJbmZvV2FybmluZ0NvZGUiKwoOQWdlbnRVc2VySW5wdXQSDgoEdGV4dBgBIAEoCUgAQgkKB2NvbnRlbnQiQgoQQWdlbnRVc2VyTWVzc2FnZRIuCgdjb250ZW50GAEgAygLMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFVzZXJJbnB1dCIcCgxBZ2VudE1lc3NhZ2USDAoEdGV4dBgBIAEoCSIeCg5BZ2VudFJlYXNvbmluZxIMCgR0ZXh0GAEgASgJIpkCCg1BZ2VudFRvb2xDYWxsEg8KB3Rvb2xfaWQYASABKAkSDwoHdHVybl9pZBgCIAEoCRIOCgZnZW5faWQYAyABKAkSGAoQcHJvdmlkZXJfY2FsbF9pZBgEIAEoCRIMCgRuYW1lGAUgASgJEhYKDmFyZ3VtZW50c19qc29uGAYgASgJEi4KBnN0YXR1cxgHIAEoDjIeLnhpYW93ZWkuYWdlbnQuQWdlbnRUb29sU3RhdHVzEg4KBm91dHB1dBgIIAEoCRIaCg1tZXRhZGF0YV9qc29uGAkgASgJSACIAQESGAoLZHVyYXRpb25fbXMYCiABKARIAYgBAUIQCg5fbWV0YWRhdGFfanNvbkIOCgxfZHVyYXRpb25fbXMinQIKCUFnZW50SXRlbRIPCgdpdGVtX2lkGAEgASgJEjcKDHVzZXJfbWVzc2FnZRgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRVc2VyTWVzc2FnZUgAEjQKDWFnZW50X21lc3NhZ2UYAyABKAsyGy54aWFvd2VpLmFnZW50LkFnZW50TWVzc2FnZUgAEjIKCXJlYXNvbmluZxgEIAEoCzIdLnhpYW93ZWkuYWdlbnQuQWdlbnRSZWFzb25pbmdIABIxCgl0b29sX2NhbGwYBSABKAsyHC54aWFvd2VpLmFnZW50LkFnZW50VG9vbENhbGxIABITCgZnZW5faWQYBiABKAlIAYgBAUIJCgdjb250ZW50QgkKB19nZW5faWQiggEKD0FnZW50R2VuZXJhdGlvbhIOCgZnZW5faWQYASABKAkSFQoNc3RhcnRlZF9hdF9tcxgCIAEoAxIYChByZWNlaXZlZF9jb250ZW50GAMgASgIEhsKDmFjdGl2ZV9pdGVtX2lkGAQgASgJSACIAQFCEQoPX2FjdGl2ZV9pdGVtX2lkIqcDCghBZ2VudFJ1bhIOCgZydW5faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSLQoGc3RhdHVzGAMgASgOMh0ueGlhb3dlaS5hZ2VudC5BZ2VudFJ1blN0YXR1cxIvCgZjb25maWcYBCABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSJwoFaXRlbXMYBSADKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbRIVCg1zdGFydGVkX2F0X21zGAYgASgDEhwKD2NvbXBsZXRlZF9hdF9tcxgHIAEoA0gAiAEBEhIKBWVycm9yGAggASgJSAGIAQESFQoNcHJvdmlkZXJfbmFtZRgJIAEoCRISCgptb2RlbF9uYW1lGAogASgJEjIKCmdlbmVyYXRpb24YCyABKAsyHi54aWFvd2VpLmFnZW50LkFnZW50R2VuZXJhdGlvbhIZCgxmaW5hbF9nZW5faWQYDCABKAlIAogBAUISChBfY29tcGxldGVkX2F0X21zQggKBl9lcnJvckIPCg1fZmluYWxfZ2VuX2lkIugDCgxBZ2VudFNlc3Npb24SEgoKc2Vzc2lvbl9pZBgBIAEoCRIvCgZjb25maWcYAiABKAsyHy54aWFvd2VpLmFnZW50LkFnZW50TW9kZWxDb25maWcSMQoGc3RhdHVzGAMgASgOMiEueGlhb3dlaS5hZ2VudC5BZ2VudFNlc3Npb25TdGF0dXMSFQoNY3JlYXRlZF9hdF9tcxgEIAEoAxIZChFtZXRhZGF0YV9yZXZpc2lvbhgFIAEoBBIlCgRydW5zGAYgAygLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1bhINCgV0aXRsZRgHIAEoCRIXCg90aXRsZV9tb2RlbF9yZWYYCCABKAkSGgoSYXV0b190aXRsZV9lbmFibGVkGAkgASgIEhUKDXByb3ZpZGVyX25hbWUYCiABKAkSEgoKbW9kZWxfbmFtZRgLIAEoCRI7ChJtb2RlbF9pbmZvX3dhcm5pbmcYDCABKAsyHy54aWFvd2VpLmFnZW50Lk1vZGVsSW5mb1dhcm5pbmcSEAoIYXJjaGl2ZWQYDSABKAgSGAoQYXJjaGl2ZV9yZXZpc2lvbhgOIAEoBBIVCg11cGRhdGVkX2F0X21zGA8gASgDEhAKA2N3ZBgQIAEoCUgAiAEBQgYKBF9jd2QiTwoWU2Vzc2lvblJldGVudGlvblBvbGljeRIaChJhcmNoaXZlX2FmdGVyX2RheXMYASABKA0SGQoRZGVsZXRlX2FmdGVyX2RheXMYAiABKA0ilQEKFENyZWF0ZVNlc3Npb25SZXF1ZXN0EhkKEWNsaWVudF9yZXF1ZXN0X2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIXCg90aXRsZV9tb2RlbF9yZWYYAyABKAkSEAoDY3dkGAQgASgJSACIAQFCBgoEX2N3ZCJFChVDcmVhdGVTZXNzaW9uUmVzcG9uc2USLAoHc2Vzc2lvbhgBIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIl8KE0xpc3RTZXNzaW9uc1JlcXVlc3QSEAoIYXJjaGl2ZWQYASABKAgSEQoJcGFnZV9zaXplGAIgASgNEhQKDGNvbnRpbnVhdGlvbhgDIAEoCRINCgVxdWVyeRgEIAEoCSKXAgoTQWdlbnRTZXNzaW9uU3VtbWFyeRISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEjEKBnN0YXR1cxgEIAEoDjIhLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3RhdHVzEhUKDWNyZWF0ZWRfYXRfbXMYBSABKAMSGQoRbWV0YWRhdGFfcmV2aXNpb24YBiABKAQSGgoSYXV0b190aXRsZV9lbmFibGVkGAcgASgIEhAKCGFyY2hpdmVkGAggASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YCSABKAQSFQoNdXBkYXRlZF9hdF9tcxgKIAEoA0oECAMQBFITZmlyc3RfaW5wdXRfcHJldmlldyJiChRMaXN0U2Vzc2lvbnNSZXNwb25zZRI0CghzZXNzaW9ucxgBIAMoCzIiLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uU3VtbWFyeRIUCgxjb250aW51YXRpb24YAiABKAkiPgoSUmVhZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFAoMaW5jbHVkZV9ydW5zGAIgASgIIlIKE1JlYWRTZXNzaW9uUmVzcG9uc2USDQoFZm91bmQYASABKAgSLAoHc2Vzc2lvbhgCIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIoIBChdTZXRTZXNzaW9uQ29uZmlnUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIiChpleHBlY3RlZF9tZXRhZGF0YV9yZXZpc2lvbhgDIAEoBCI1ChhTZXRTZXNzaW9uQ29uZmlnUmVzcG9uc2USGQoRbWV0YWRhdGFfcmV2aXNpb24YASABKAQiOwoWU2V0U2Vzc2lvblRpdGxlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJIkMKF1NldFNlc3Npb25UaXRsZVJlc3BvbnNlEg0KBXRpdGxlGAEgASgJEhkKEW1ldGFkYXRhX3JldmlzaW9uGAIgASgEImQKGVNldFNlc3Npb25BcmNoaXZlZFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghhcmNoaXZlZBgCIAEoCBIhChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgEIkgKGlNldFNlc3Npb25BcmNoaXZlZFJlc3BvbnNlEhAKCGFyY2hpdmVkGAEgASgIEhgKEGFyY2hpdmVfcmV2aXNpb24YAiABKAQikwEKE0RlbGV0ZVNlc3Npb25UYXJnZXQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIiChpleHBlY3RlZF9tZXRhZGF0YV9yZXZpc2lvbhgCIAEoBBImChlleHBlY3RlZF9hcmNoaXZlX3JldmlzaW9uGAMgASgESACIAQFCHAoaX2V4cGVjdGVkX2FyY2hpdmVfcmV2aXNpb24iSwoURGVsZXRlU2Vzc2lvblJlcXVlc3QSMwoHdGFyZ2V0cxgBIAMoCzIiLnhpYW93ZWkuYWdlbnQuRGVsZXRlU2Vzc2lvblRhcmdldCJsChNEZWxldGVTZXNzaW9uUmVzdWx0EhIKCnNlc3Npb25faWQYASABKAkSMgoGc3RhdHVzGAIgASgOMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uU3RhdHVzEg0KBWVycm9yGAMgASgJIkwKFURlbGV0ZVNlc3Npb25SZXNwb25zZRIzCgdyZXN1bHRzGAEgAygLMiIueGlhb3dlaS5hZ2VudC5EZWxldGVTZXNzaW9uUmVzdWx0Ii0KF1N1YnNjcmliZVNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiQQoRU3Vic2NyaXB0aW9uUmVhZHkSLAoHc2Vzc2lvbhgBIAEoCzIbLnhpYW93ZWkuYWdlbnQuQWdlbnRTZXNzaW9uIj4KDlNlc3Npb25TdGFydGVkEiwKB3Nlc3Npb24YASABKAsyGy54aWFvd2VpLmFnZW50LkFnZW50U2Vzc2lvbiIkCg5TZXNzaW9uRGVsZXRlZBISCgpzZXNzaW9uX2lkGAEgASgJIoIBCgpSdW5TdGFydGVkEhIKCnNlc3Npb25faWQYASABKAkSJAoDcnVuGAIgASgLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1bhIhChlzZXNzaW9uX21ldGFkYXRhX3JldmlzaW9uGAMgASgEEhcKD3RpdGxlX21vZGVsX3JlZhgEIAEoCSJICgxSdW5Db21wbGV0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIkCgNydW4YAiABKAsyFy54aWFvd2VpLmFnZW50LkFnZW50UnVuIlkKC0l0ZW1TdGFydGVkEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEiYKBGl0ZW0YAyABKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbSJbCg1JdGVtQ29tcGxldGVkEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEiYKBGl0ZW0YAyABKAsyGC54aWFvd2VpLmFnZW50LkFnZW50SXRlbSJXChFBZ2VudE1lc3NhZ2VEZWx0YRISCgpzZXNzaW9uX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIPCgdpdGVtX2lkGAMgASgJEg0KBWRlbHRhGAQgASgJIlQKDlJlYXNvbmluZ0RlbHRhEhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg8KB2l0ZW1faWQYAyABKAkSDQoFZGVsdGEYBCABKAkiawoRR2VuZXJhdGlvblVwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSMgoKZ2VuZXJhdGlvbhgDIAEoCzIeLnhpYW93ZWkuYWdlbnQuQWdlbnRHZW5lcmF0aW9uIp8BChNTZXNzaW9uVGl0bGVVcGRhdGVkEhIKCnNlc3Npb25faWQYASABKAkSDQoFdGl0bGUYAiABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YAyABKAQSFwoPdGl0bGVfbW9kZWxfcmVmGAQgASgJEhoKEmF1dG9fdGl0bGVfZW5hYmxlZBgFIAEoCBIVCg11cGRhdGVkX2F0X21zGAYgASgDIqEBChRTZXNzaW9uQ29uZmlnVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEi8KBmNvbmZpZxgCIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIVCg1wcm92aWRlcl9uYW1lGAMgASgJEhIKCm1vZGVsX25hbWUYBCABKAkSGQoRbWV0YWRhdGFfcmV2aXNpb24YBSABKAQikQEKHlNlc3Npb25Nb2RlbEluZm9XYXJuaW5nVXBkYXRlZBISCgpzZXNzaW9uX2lkGAEgASgJEjAKB3dhcm5pbmcYAiABKAsyHy54aWFvd2VpLmFnZW50Lk1vZGVsSW5mb1dhcm5pbmcSFQoNcHJvdmlkZXJfbmFtZRgDIAEoCRISCgptb2RlbF9uYW1lGAQgASgJIlgKFlNlc3Npb25BcmNoaXZlZFVwZGF0ZWQSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghhcmNoaXZlZBgCIAEoCBIYChBhcmNoaXZlX3JldmlzaW9uGAMgASgEIqUHCgpBZ2VudEV2ZW50EhUKDWVtaXR0ZWRfYXRfbXMYASABKAMSOAoPc2Vzc2lvbl9zdGFydGVkGAIgASgLMh0ueGlhb3dlaS5hZ2VudC5TZXNzaW9uU3RhcnRlZEgAEjgKD3Nlc3Npb25fZGVsZXRlZBgDIAEoCzIdLnhpYW93ZWkuYWdlbnQuU2Vzc2lvbkRlbGV0ZWRIABIwCgtydW5fc3RhcnRlZBgEIAEoCzIZLnhpYW93ZWkuYWdlbnQuUnVuU3RhcnRlZEgAEjQKDXJ1bl9jb21wbGV0ZWQYBSABKAsyGy54aWFvd2VpLmFnZW50LlJ1bkNvbXBsZXRlZEgAEjIKDGl0ZW1fc3RhcnRlZBgGIAEoCzIaLnhpYW93ZWkuYWdlbnQuSXRlbVN0YXJ0ZWRIABI2Cg5pdGVtX2NvbXBsZXRlZBgHIAEoCzIcLnhpYW93ZWkuYWdlbnQuSXRlbUNvbXBsZXRlZEgAEj8KE2FnZW50X21lc3NhZ2VfZGVsdGEYCCABKAsyIC54aWFvd2VpLmFnZW50LkFnZW50TWVzc2FnZURlbHRhSAASOAoPcmVhc29uaW5nX2RlbHRhGAkgASgLMh0ueGlhb3dlaS5hZ2VudC5SZWFzb25pbmdEZWx0YUgAEj4KEnN1YnNjcmlwdGlvbl9yZWFkeRgKIAEoCzIgLnhpYW93ZWkuYWdlbnQuU3Vic2NyaXB0aW9uUmVhZHlIABJDChVzZXNzaW9uX3RpdGxlX3VwZGF0ZWQYCyABKAsyIi54aWFvd2VpLmFnZW50LlNlc3Npb25UaXRsZVVwZGF0ZWRIABJFChZzZXNzaW9uX2NvbmZpZ191cGRhdGVkGAwgASgLMiMueGlhb3dlaS5hZ2VudC5TZXNzaW9uQ29uZmlnVXBkYXRlZEgAElsKInNlc3Npb25fbW9kZWxfaW5mb193YXJuaW5nX3VwZGF0ZWQYDSABKAsyLS54aWFvd2VpLmFnZW50LlNlc3Npb25Nb2RlbEluZm9XYXJuaW5nVXBkYXRlZEgAEkkKGHNlc3Npb25fYXJjaGl2ZWRfdXBkYXRlZBgOIAEoCzIlLnhpYW93ZWkuYWdlbnQuU2Vzc2lvbkFyY2hpdmVkVXBkYXRlZEgAEj4KEmdlbmVyYXRpb25fdXBkYXRlZBgPIAEoCzIgLnhpYW93ZWkuYWdlbnQuR2VuZXJhdGlvblVwZGF0ZWRIAEIJCgdwYXlsb2FkIjAKGlRyYWNrU2Vzc2lvblZpZXdpbmdSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiFQoTU2Vzc2lvblZpZXdpbmdSZWFkeSLIAQoPU3RhcnRSdW5SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIaW5wdXRfaWQYAiABKAkSLAoFaW5wdXQYAyADKAsyHS54aWFvd2VpLmFnZW50LkFnZW50VXNlcklucHV0Ei8KBmNvbmZpZxgEIAEoCzIfLnhpYW93ZWkuYWdlbnQuQWdlbnRNb2RlbENvbmZpZxIcCg90aXRsZV9tb2RlbF9yZWYYBSABKAlIAIgBAUISChBfdGl0bGVfbW9kZWxfcmVmIjgKEFN0YXJ0UnVuUmVzcG9uc2USJAoDcnVuGAEgASgLMhcueGlhb3dlaS5hZ2VudC5BZ2VudFJ1biI5ChNJbnRlcnJ1cHRSdW5SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGcnVuX2lkGAIgASgJIkUKFEludGVycnVwdFJ1blJlc3BvbnNlEg0KBWZvdW5kGAEgASgIEh4KFmNhbmNlbGxhdGlvbl9yZXF1ZXN0ZWQYAiABKAgiRQoWUmVnZW5lcmF0ZVRpdGxlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhcKD3RpdGxlX21vZGVsX3JlZhgCIAEoCSJDChdSZWdlbmVyYXRlVGl0bGVSZXNwb25zZRINCgV0aXRsZRgBIAEoCRIZChFtZXRhZGF0YV9yZXZpc2lvbhgCIAEoBCIiCiBHZXRTZXNzaW9uUmV0ZW50aW9uUG9saWN5UmVxdWVzdCJZCiBTZXRTZXNzaW9uUmV0ZW50aW9uUG9saWN5UmVxdWVzdBI1CgZwb2xpY3kYASABKAsyJS54aWFvd2VpLmFnZW50LlNlc3Npb25SZXRlbnRpb25Qb2xpY3kqnQEKEkFnZW50U2Vzc2lvblN0YXR1cxIkCiBBR0VOVF9TRVNTSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEh0KGUFHRU5UX1NFU1NJT05fU1RBVFVTX0lETEUQARIgChxBR0VOVF9TRVNTSU9OX1NUQVRVU19SVU5OSU5HEAISIAocQUdFTlRfU0VTU0lPTl9TVEFUVVNfREVMRVRFRBADKr0BChRNb2RlbEluZm9XYXJuaW5nQ29kZRInCiNNT0RFTF9JTkZPX1dBUk5JTkdfQ09ERV9VTlNQRUNJRklFRBAAEiUKIU1PREVMX0lORk9fV0FSTklOR19DT0RFX05PVF9GT1VORBABEicKI01PREVMX0lORk9fV0FSTklOR19DT0RFX1VOQVZBSUxBQkxFEAISLAooTU9ERUxfSU5GT19XQVJOSU5HX0NPREVfSU5WQUxJRF9SRVNQT05TRRADKvgBCg9BZ2VudFRvb2xTdGF0dXMSIQodQUdFTlRfVE9PTF9TVEFUVVNfVU5TUEVDSUZJRUQQABIdChlBR0VOVF9UT09MX1NUQVRVU19QRU5ESU5HEAESHwobQUdFTlRfVE9PTF9TVEFUVVNfQ09NUExFVEVEEAISHAoYQUdFTlRfVE9PTF9TVEFUVVNfRkFJTEVEEAMSHwobQUdFTlRfVE9PTF9TVEFUVVNfQ0FOQ0VMTEVEEAQSHQoZQUdFTlRfVE9PTF9TVEFUVVNfU0tJUFBFRBAFEiQKIEFHRU5UX1RPT0xfU1RBVFVTX1JFU1VMVF9VTktOT1dOEAYqswEKDkFnZW50UnVuU3RhdHVzEiAKHEFHRU5UX1JVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIgChxBR0VOVF9SVU5fU1RBVFVTX0lOX1BST0dSRVNTEAESHgoaQUdFTlRfUlVOX1NUQVRVU19DT01QTEVURUQQAhIbChdBR0VOVF9SVU5fU1RBVFVTX0ZBSUxFRBADEiAKHEFHRU5UX1JVTl9TVEFUVVNfSU5URVJSVVBURUQQBCrMAQoTRGVsZXRlU2Vzc2lvblN0YXR1cxIlCiFERUxFVEVfU0VTU0lPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIhCh1ERUxFVEVfU0VTU0lPTl9TVEFUVVNfREVMRVRFRBABEiEKHURFTEVURV9TRVNTSU9OX1NUQVRVU19TS0lQUEVEEAISIAocREVMRVRFX1NFU1NJT05fU1RBVFVTX0ZBSUxFRBADEiYKIkRFTEVURV9TRVNTSU9OX1NUQVRVU19OT1RfRVhFQ1VURUQQBDLTCgoFQWdlbnQSWgoNQ3JlYXRlU2Vzc2lvbhIjLnhpYW93ZWkuYWdlbnQuQ3JlYXRlU2Vzc2lvblJlcXVlc3QaJC54aWFvd2VpLmFnZW50LkNyZWF0ZVNlc3Npb25SZXNwb25zZRJXCgxMaXN0U2Vzc2lvbnMSIi54aWFvd2VpLmFnZW50Lkxpc3RTZXNzaW9uc1JlcXVlc3QaIy54aWFvd2VpLmFnZW50Lkxpc3RTZXNzaW9uc1Jlc3BvbnNlElQKC1JlYWRTZXNzaW9uEiEueGlhb3dlaS5hZ2VudC5SZWFkU2Vzc2lvblJlcXVlc3QaIi54aWFvd2VpLmFnZW50LlJlYWRTZXNzaW9uUmVzcG9uc2USYwoQU2V0U2Vzc2lvbkNvbmZpZxImLnhpYW93ZWkuYWdlbnQuU2V0U2Vzc2lvbkNvbmZpZ1JlcXVlc3QaJy54aWFvd2VpLmFnZW50LlNldFNlc3Npb25Db25maWdSZXNwb25zZRJgCg9TZXRTZXNzaW9uVGl0bGUSJS54aWFvd2VpLmFnZW50LlNldFNlc3Npb25UaXRsZVJlcXVlc3QaJi54aWFvd2VpLmFnZW50LlNldFNlc3Npb25UaXRsZVJlc3BvbnNlEmkKElNldFNlc3Npb25BcmNoaXZlZBIoLnhpYW93ZWkuYWdlbnQuU2V0U2Vzc2lvbkFyY2hpdmVkUmVxdWVzdBopLnhpYW93ZWkuYWdlbnQuU2V0U2Vzc2lvbkFyY2hpdmVkUmVzcG9uc2USWgoNRGVsZXRlU2Vzc2lvbhIjLnhpYW93ZWkuYWdlbnQuRGVsZXRlU2Vzc2lvblJlcXVlc3QaJC54aWFvd2VpLmFnZW50LkRlbGV0ZVNlc3Npb25SZXNwb25zZRJXChBTdWJzY3JpYmVTZXNzaW9uEiYueGlhb3dlaS5hZ2VudC5TdWJzY3JpYmVTZXNzaW9uUmVxdWVzdBoZLnhpYW93ZWkuYWdlbnQuQWdlbnRFdmVudDABEmYKE1RyYWNrU2Vzc2lvblZpZXdpbmcSKS54aWFvd2VpLmFnZW50LlRyYWNrU2Vzc2lvblZpZXdpbmdSZXF1ZXN0GiIueGlhb3dlaS5hZ2VudC5TZXNzaW9uVmlld2luZ1JlYWR5MAESSwoIU3RhcnRSdW4SHi54aWFvd2VpLmFnZW50LlN0YXJ0UnVuUmVxdWVzdBofLnhpYW93ZWkuYWdlbnQuU3RhcnRSdW5SZXNwb25zZRJXCgxJbnRlcnJ1cHRSdW4SIi54aWFvd2VpLmFnZW50LkludGVycnVwdFJ1blJlcXVlc3QaIy54aWFvd2VpLmFnZW50LkludGVycnVwdFJ1blJlc3BvbnNlEmAKD1JlZ2VuZXJhdGVUaXRsZRIlLnhpYW93ZWkuYWdlbnQuUmVnZW5lcmF0ZVRpdGxlUmVxdWVzdBomLnhpYW93ZWkuYWdlbnQuUmVnZW5lcmF0ZVRpdGxlUmVzcG9uc2UScwoZR2V0U2Vzc2lvblJldGVudGlvblBvbGljeRIvLnhpYW93ZWkuYWdlbnQuR2V0U2Vzc2lvblJldGVudGlvblBvbGljeVJlcXVlc3QaJS54aWFvd2VpLmFnZW50LlNlc3Npb25SZXRlbnRpb25Qb2xpY3kScwoZU2V0U2Vzc2lvblJldGVudGlvblBvbGljeRIvLnhpYW93ZWkuYWdlbnQuU2V0U2Vzc2lvblJldGVudGlvblBvbGljeVJlcXVlc3QaJS54aWFvd2VpLmFnZW50LlNlc3Npb25SZXRlbnRpb25Qb2xpY3liBnByb3RvMw");
 
 /**
  * @generated from message xiaowei.agent.AgentModelConfig
@@ -239,6 +239,13 @@ export type AgentItem = Message<"xiaowei.agent.AgentItem"> & {
     value: AgentToolCall;
     case: "toolCall";
   } | { case: undefined; value?: undefined };
+
+  /**
+   * Generating response identity for assistant/reasoning/tool items; absent for user input.
+   *
+   * @generated from field: optional string gen_id = 6;
+   */
+  genId?: string | undefined;
 };
 
 /**
@@ -247,6 +254,43 @@ export type AgentItem = Message<"xiaowei.agent.AgentItem"> & {
  */
 export const AgentItemSchema: GenMessage<AgentItem> = /*@__PURE__*/
   messageDesc(file_xiaowei_agent, 7);
+
+/**
+ * Current conversation Generate, including opening/queueing and gaps between content blocks.
+ * Tool declarations count as received content but are not executable tool Items yet.
+ *
+ * @generated from message xiaowei.agent.AgentGeneration
+ */
+export type AgentGeneration = Message<"xiaowei.agent.AgentGeneration"> & {
+  /**
+   * @generated from field: string gen_id = 1;
+   */
+  genId: string;
+
+  /**
+   * @generated from field: int64 started_at_ms = 2;
+   */
+  startedAtMs: bigint;
+
+  /**
+   * @generated from field: bool received_content = 3;
+   */
+  receivedContent: boolean;
+
+  /**
+   * Absent while waiting or emitting a tool declaration; never points to an older Generate.
+   *
+   * @generated from field: optional string active_item_id = 4;
+   */
+  activeItemId?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.AgentGeneration.
+ * Use `create(AgentGenerationSchema)` to create a new message.
+ */
+export const AgentGenerationSchema: GenMessage<AgentGeneration> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 8);
 
 /**
  * @generated from message xiaowei.agent.AgentRun
@@ -305,6 +349,22 @@ export type AgentRun = Message<"xiaowei.agent.AgentRun"> & {
    * @generated from field: string model_name = 10;
    */
   modelName: string;
+
+  /**
+   * Present only while a model Generate is active, not during tool execution.
+   *
+   * @generated from field: xiaowei.agent.AgentGeneration generation = 11;
+   */
+  generation?: AgentGeneration | undefined;
+
+  /**
+   * Successful final response with no tool calls. Absent until normal Run completion;
+   * present even when that response contains no visible text. Select matching Item.gen_id
+   * for the final reply; earlier responses remain process content. Rebuilt from the journal.
+   *
+   * @generated from field: optional string final_gen_id = 12;
+   */
+  finalGenId?: string | undefined;
 };
 
 /**
@@ -312,7 +372,7 @@ export type AgentRun = Message<"xiaowei.agent.AgentRun"> & {
  * Use `create(AgentRunSchema)` to create a new message.
  */
 export const AgentRunSchema: GenMessage<AgentRun> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 8);
+  messageDesc(file_xiaowei_agent, 9);
 
 /**
  * @generated from message xiaowei.agent.AgentSession
@@ -426,7 +486,7 @@ export type AgentSession = Message<"xiaowei.agent.AgentSession"> & {
  * Use `create(AgentSessionSchema)` to create a new message.
  */
 export const AgentSessionSchema: GenMessage<AgentSession> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 9);
+  messageDesc(file_xiaowei_agent, 10);
 
 /**
  * Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
@@ -455,7 +515,7 @@ export type SessionRetentionPolicy = Message<"xiaowei.agent.SessionRetentionPoli
  * Use `create(SessionRetentionPolicySchema)` to create a new message.
  */
 export const SessionRetentionPolicySchema: GenMessage<SessionRetentionPolicy> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 10);
+  messageDesc(file_xiaowei_agent, 11);
 
 /**
  * @generated from message xiaowei.agent.CreateSessionRequest
@@ -498,7 +558,7 @@ export type CreateSessionRequest = Message<"xiaowei.agent.CreateSessionRequest">
  * Use `create(CreateSessionRequestSchema)` to create a new message.
  */
 export const CreateSessionRequestSchema: GenMessage<CreateSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 11);
+  messageDesc(file_xiaowei_agent, 12);
 
 /**
  * @generated from message xiaowei.agent.CreateSessionResponse
@@ -515,7 +575,7 @@ export type CreateSessionResponse = Message<"xiaowei.agent.CreateSessionResponse
  * Use `create(CreateSessionResponseSchema)` to create a new message.
  */
 export const CreateSessionResponseSchema: GenMessage<CreateSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 12);
+  messageDesc(file_xiaowei_agent, 13);
 
 /**
  * @generated from message xiaowei.agent.ListSessionsRequest
@@ -553,7 +613,7 @@ export type ListSessionsRequest = Message<"xiaowei.agent.ListSessionsRequest"> &
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
 export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 13);
+  messageDesc(file_xiaowei_agent, 14);
 
 /**
  * @generated from message xiaowei.agent.AgentSessionSummary
@@ -616,7 +676,7 @@ export type AgentSessionSummary = Message<"xiaowei.agent.AgentSessionSummary"> &
  * Use `create(AgentSessionSummarySchema)` to create a new message.
  */
 export const AgentSessionSummarySchema: GenMessage<AgentSessionSummary> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 14);
+  messageDesc(file_xiaowei_agent, 15);
 
 /**
  * @generated from message xiaowei.agent.ListSessionsResponse
@@ -641,7 +701,7 @@ export type ListSessionsResponse = Message<"xiaowei.agent.ListSessionsResponse">
  * Use `create(ListSessionsResponseSchema)` to create a new message.
  */
 export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 15);
+  messageDesc(file_xiaowei_agent, 16);
 
 /**
  * @generated from message xiaowei.agent.ReadSessionRequest
@@ -667,7 +727,7 @@ export type ReadSessionRequest = Message<"xiaowei.agent.ReadSessionRequest"> & {
  * Use `create(ReadSessionRequestSchema)` to create a new message.
  */
 export const ReadSessionRequestSchema: GenMessage<ReadSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 16);
+  messageDesc(file_xiaowei_agent, 17);
 
 /**
  * @generated from message xiaowei.agent.ReadSessionResponse
@@ -691,7 +751,7 @@ export type ReadSessionResponse = Message<"xiaowei.agent.ReadSessionResponse"> &
  * Use `create(ReadSessionResponseSchema)` to create a new message.
  */
 export const ReadSessionResponseSchema: GenMessage<ReadSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 17);
+  messageDesc(file_xiaowei_agent, 18);
 
 /**
  * @generated from message xiaowei.agent.SetSessionConfigRequest
@@ -720,7 +780,7 @@ export type SetSessionConfigRequest = Message<"xiaowei.agent.SetSessionConfigReq
  * Use `create(SetSessionConfigRequestSchema)` to create a new message.
  */
 export const SetSessionConfigRequestSchema: GenMessage<SetSessionConfigRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 18);
+  messageDesc(file_xiaowei_agent, 19);
 
 /**
  * @generated from message xiaowei.agent.SetSessionConfigResponse
@@ -739,7 +799,7 @@ export type SetSessionConfigResponse = Message<"xiaowei.agent.SetSessionConfigRe
  * Use `create(SetSessionConfigResponseSchema)` to create a new message.
  */
 export const SetSessionConfigResponseSchema: GenMessage<SetSessionConfigResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 19);
+  messageDesc(file_xiaowei_agent, 20);
 
 /**
  * @generated from message xiaowei.agent.SetSessionTitleRequest
@@ -765,7 +825,7 @@ export type SetSessionTitleRequest = Message<"xiaowei.agent.SetSessionTitleReque
  * Use `create(SetSessionTitleRequestSchema)` to create a new message.
  */
 export const SetSessionTitleRequestSchema: GenMessage<SetSessionTitleRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 20);
+  messageDesc(file_xiaowei_agent, 21);
 
 /**
  * @generated from message xiaowei.agent.SetSessionTitleResponse
@@ -790,7 +850,7 @@ export type SetSessionTitleResponse = Message<"xiaowei.agent.SetSessionTitleResp
  * Use `create(SetSessionTitleResponseSchema)` to create a new message.
  */
 export const SetSessionTitleResponseSchema: GenMessage<SetSessionTitleResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 21);
+  messageDesc(file_xiaowei_agent, 22);
 
 /**
  * Archived sessions cannot be opened or mutated until unarchived.
@@ -820,7 +880,7 @@ export type SetSessionArchivedRequest = Message<"xiaowei.agent.SetSessionArchive
  * Use `create(SetSessionArchivedRequestSchema)` to create a new message.
  */
 export const SetSessionArchivedRequestSchema: GenMessage<SetSessionArchivedRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 22);
+  messageDesc(file_xiaowei_agent, 23);
 
 /**
  * @generated from message xiaowei.agent.SetSessionArchivedResponse
@@ -842,7 +902,7 @@ export type SetSessionArchivedResponse = Message<"xiaowei.agent.SetSessionArchiv
  * Use `create(SetSessionArchivedResponseSchema)` to create a new message.
  */
 export const SetSessionArchivedResponseSchema: GenMessage<SetSessionArchivedResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 23);
+  messageDesc(file_xiaowei_agent, 24);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionTarget
@@ -874,7 +934,7 @@ export type DeleteSessionTarget = Message<"xiaowei.agent.DeleteSessionTarget"> &
  * Use `create(DeleteSessionTargetSchema)` to create a new message.
  */
 export const DeleteSessionTargetSchema: GenMessage<DeleteSessionTarget> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 24);
+  messageDesc(file_xiaowei_agent, 25);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionRequest
@@ -894,7 +954,7 @@ export type DeleteSessionRequest = Message<"xiaowei.agent.DeleteSessionRequest">
  * Use `create(DeleteSessionRequestSchema)` to create a new message.
  */
 export const DeleteSessionRequestSchema: GenMessage<DeleteSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 25);
+  messageDesc(file_xiaowei_agent, 26);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionResult
@@ -923,7 +983,7 @@ export type DeleteSessionResult = Message<"xiaowei.agent.DeleteSessionResult"> &
  * Use `create(DeleteSessionResultSchema)` to create a new message.
  */
 export const DeleteSessionResultSchema: GenMessage<DeleteSessionResult> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 26);
+  messageDesc(file_xiaowei_agent, 27);
 
 /**
  * @generated from message xiaowei.agent.DeleteSessionResponse
@@ -943,7 +1003,7 @@ export type DeleteSessionResponse = Message<"xiaowei.agent.DeleteSessionResponse
  * Use `create(DeleteSessionResponseSchema)` to create a new message.
  */
 export const DeleteSessionResponseSchema: GenMessage<DeleteSessionResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 27);
+  messageDesc(file_xiaowei_agent, 28);
 
 /**
  * @generated from message xiaowei.agent.SubscribeSessionRequest
@@ -964,7 +1024,7 @@ export type SubscribeSessionRequest = Message<"xiaowei.agent.SubscribeSessionReq
  * Use `create(SubscribeSessionRequestSchema)` to create a new message.
  */
 export const SubscribeSessionRequestSchema: GenMessage<SubscribeSessionRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 28);
+  messageDesc(file_xiaowei_agent, 29);
 
 /**
  * First frame: full public state of the requested session, including retained
@@ -988,7 +1048,7 @@ export type SubscriptionReady = Message<"xiaowei.agent.SubscriptionReady"> & {
  * Use `create(SubscriptionReadySchema)` to create a new message.
  */
 export const SubscriptionReadySchema: GenMessage<SubscriptionReady> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 29);
+  messageDesc(file_xiaowei_agent, 30);
 
 /**
  * @generated from message xiaowei.agent.SessionStarted
@@ -1005,7 +1065,7 @@ export type SessionStarted = Message<"xiaowei.agent.SessionStarted"> & {
  * Use `create(SessionStartedSchema)` to create a new message.
  */
 export const SessionStartedSchema: GenMessage<SessionStarted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 30);
+  messageDesc(file_xiaowei_agent, 31);
 
 /**
  * @generated from message xiaowei.agent.SessionDeleted
@@ -1022,7 +1082,7 @@ export type SessionDeleted = Message<"xiaowei.agent.SessionDeleted"> & {
  * Use `create(SessionDeletedSchema)` to create a new message.
  */
 export const SessionDeletedSchema: GenMessage<SessionDeleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 31);
+  messageDesc(file_xiaowei_agent, 32);
 
 /**
  * @generated from message xiaowei.agent.RunStarted
@@ -1056,7 +1116,7 @@ export type RunStarted = Message<"xiaowei.agent.RunStarted"> & {
  * Use `create(RunStartedSchema)` to create a new message.
  */
 export const RunStartedSchema: GenMessage<RunStarted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 32);
+  messageDesc(file_xiaowei_agent, 33);
 
 /**
  * @generated from message xiaowei.agent.RunCompleted
@@ -1080,7 +1140,7 @@ export type RunCompleted = Message<"xiaowei.agent.RunCompleted"> & {
  * Use `create(RunCompletedSchema)` to create a new message.
  */
 export const RunCompletedSchema: GenMessage<RunCompleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 33);
+  messageDesc(file_xiaowei_agent, 34);
 
 /**
  * @generated from message xiaowei.agent.ItemStarted
@@ -1107,7 +1167,7 @@ export type ItemStarted = Message<"xiaowei.agent.ItemStarted"> & {
  * Use `create(ItemStartedSchema)` to create a new message.
  */
 export const ItemStartedSchema: GenMessage<ItemStarted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 34);
+  messageDesc(file_xiaowei_agent, 35);
 
 /**
  * @generated from message xiaowei.agent.ItemCompleted
@@ -1137,7 +1197,7 @@ export type ItemCompleted = Message<"xiaowei.agent.ItemCompleted"> & {
  * Use `create(ItemCompletedSchema)` to create a new message.
  */
 export const ItemCompletedSchema: GenMessage<ItemCompleted> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 35);
+  messageDesc(file_xiaowei_agent, 36);
 
 /**
  * @generated from message xiaowei.agent.AgentMessageDelta
@@ -1169,7 +1229,7 @@ export type AgentMessageDelta = Message<"xiaowei.agent.AgentMessageDelta"> & {
  * Use `create(AgentMessageDeltaSchema)` to create a new message.
  */
 export const AgentMessageDeltaSchema: GenMessage<AgentMessageDelta> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 36);
+  messageDesc(file_xiaowei_agent, 37);
 
 /**
  * @generated from message xiaowei.agent.ReasoningDelta
@@ -1201,7 +1261,37 @@ export type ReasoningDelta = Message<"xiaowei.agent.ReasoningDelta"> & {
  * Use `create(ReasoningDeltaSchema)` to create a new message.
  */
 export const ReasoningDeltaSchema: GenMessage<ReasoningDelta> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 37);
+  messageDesc(file_xiaowei_agent, 38);
+
+/**
+ * @generated from message xiaowei.agent.GenerationUpdated
+ */
+export type GenerationUpdated = Message<"xiaowei.agent.GenerationUpdated"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * Absent closes the Generate. Changes follow the same serial boundary as Item events
+   * and SubscriptionReady; do not infer lifecycle from text deltas or Run status alone.
+   *
+   * @generated from field: xiaowei.agent.AgentGeneration generation = 3;
+   */
+  generation?: AgentGeneration | undefined;
+};
+
+/**
+ * Describes the message xiaowei.agent.GenerationUpdated.
+ * Use `create(GenerationUpdatedSchema)` to create a new message.
+ */
+export const GenerationUpdatedSchema: GenMessage<GenerationUpdated> = /*@__PURE__*/
+  messageDesc(file_xiaowei_agent, 39);
 
 /**
  * @generated from message xiaowei.agent.SessionTitleUpdated
@@ -1247,7 +1337,7 @@ export type SessionTitleUpdated = Message<"xiaowei.agent.SessionTitleUpdated"> &
  * Use `create(SessionTitleUpdatedSchema)` to create a new message.
  */
 export const SessionTitleUpdatedSchema: GenMessage<SessionTitleUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 38);
+  messageDesc(file_xiaowei_agent, 40);
 
 /**
  * @generated from message xiaowei.agent.SessionConfigUpdated
@@ -1284,7 +1374,7 @@ export type SessionConfigUpdated = Message<"xiaowei.agent.SessionConfigUpdated">
  * Use `create(SessionConfigUpdatedSchema)` to create a new message.
  */
 export const SessionConfigUpdatedSchema: GenMessage<SessionConfigUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 39);
+  messageDesc(file_xiaowei_agent, 41);
 
 /**
  * @generated from message xiaowei.agent.SessionModelInfoWarningUpdated
@@ -1318,7 +1408,7 @@ export type SessionModelInfoWarningUpdated = Message<"xiaowei.agent.SessionModel
  * Use `create(SessionModelInfoWarningUpdatedSchema)` to create a new message.
  */
 export const SessionModelInfoWarningUpdatedSchema: GenMessage<SessionModelInfoWarningUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 40);
+  messageDesc(file_xiaowei_agent, 42);
 
 /**
  * @generated from message xiaowei.agent.SessionArchivedUpdated
@@ -1345,7 +1435,7 @@ export type SessionArchivedUpdated = Message<"xiaowei.agent.SessionArchivedUpdat
  * Use `create(SessionArchivedUpdatedSchema)` to create a new message.
  */
 export const SessionArchivedUpdatedSchema: GenMessage<SessionArchivedUpdated> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 41);
+  messageDesc(file_xiaowei_agent, 43);
 
 /**
  * Ordered direct notifications. SubscriptionReady contains a snapshot captured
@@ -1443,6 +1533,12 @@ export type AgentEvent = Message<"xiaowei.agent.AgentEvent"> & {
      */
     value: SessionArchivedUpdated;
     case: "sessionArchivedUpdated";
+  } | {
+    /**
+     * @generated from field: xiaowei.agent.GenerationUpdated generation_updated = 15;
+     */
+    value: GenerationUpdated;
+    case: "generationUpdated";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1451,7 +1547,7 @@ export type AgentEvent = Message<"xiaowei.agent.AgentEvent"> & {
  * Use `create(AgentEventSchema)` to create a new message.
  */
 export const AgentEventSchema: GenMessage<AgentEvent> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 42);
+  messageDesc(file_xiaowei_agent, 44);
 
 /**
  * @generated from message xiaowei.agent.TrackSessionViewingRequest
@@ -1470,7 +1566,7 @@ export type TrackSessionViewingRequest = Message<"xiaowei.agent.TrackSessionView
  * Use `create(TrackSessionViewingRequestSchema)` to create a new message.
  */
 export const TrackSessionViewingRequestSchema: GenMessage<TrackSessionViewingRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 43);
+  messageDesc(file_xiaowei_agent, 45);
 
 /**
  * @generated from message xiaowei.agent.SessionViewingReady
@@ -1483,7 +1579,7 @@ export type SessionViewingReady = Message<"xiaowei.agent.SessionViewingReady"> &
  * Use `create(SessionViewingReadySchema)` to create a new message.
  */
 export const SessionViewingReadySchema: GenMessage<SessionViewingReady> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 44);
+  messageDesc(file_xiaowei_agent, 46);
 
 /**
  * @generated from message xiaowei.agent.StartRunRequest
@@ -1530,7 +1626,7 @@ export type StartRunRequest = Message<"xiaowei.agent.StartRunRequest"> & {
  * Use `create(StartRunRequestSchema)` to create a new message.
  */
 export const StartRunRequestSchema: GenMessage<StartRunRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 45);
+  messageDesc(file_xiaowei_agent, 47);
 
 /**
  * @generated from message xiaowei.agent.StartRunResponse
@@ -1549,7 +1645,7 @@ export type StartRunResponse = Message<"xiaowei.agent.StartRunResponse"> & {
  * Use `create(StartRunResponseSchema)` to create a new message.
  */
 export const StartRunResponseSchema: GenMessage<StartRunResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 46);
+  messageDesc(file_xiaowei_agent, 48);
 
 /**
  * @generated from message xiaowei.agent.InterruptRunRequest
@@ -1573,7 +1669,7 @@ export type InterruptRunRequest = Message<"xiaowei.agent.InterruptRunRequest"> &
  * Use `create(InterruptRunRequestSchema)` to create a new message.
  */
 export const InterruptRunRequestSchema: GenMessage<InterruptRunRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 47);
+  messageDesc(file_xiaowei_agent, 49);
 
 /**
  * @generated from message xiaowei.agent.InterruptRunResponse
@@ -1597,7 +1693,7 @@ export type InterruptRunResponse = Message<"xiaowei.agent.InterruptRunResponse">
  * Use `create(InterruptRunResponseSchema)` to create a new message.
  */
 export const InterruptRunResponseSchema: GenMessage<InterruptRunResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 48);
+  messageDesc(file_xiaowei_agent, 50);
 
 /**
  * @generated from message xiaowei.agent.RegenerateTitleRequest
@@ -1621,7 +1717,7 @@ export type RegenerateTitleRequest = Message<"xiaowei.agent.RegenerateTitleReque
  * Use `create(RegenerateTitleRequestSchema)` to create a new message.
  */
 export const RegenerateTitleRequestSchema: GenMessage<RegenerateTitleRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 49);
+  messageDesc(file_xiaowei_agent, 51);
 
 /**
  * @generated from message xiaowei.agent.RegenerateTitleResponse
@@ -1643,7 +1739,7 @@ export type RegenerateTitleResponse = Message<"xiaowei.agent.RegenerateTitleResp
  * Use `create(RegenerateTitleResponseSchema)` to create a new message.
  */
 export const RegenerateTitleResponseSchema: GenMessage<RegenerateTitleResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 50);
+  messageDesc(file_xiaowei_agent, 52);
 
 /**
  * @generated from message xiaowei.agent.GetSessionRetentionPolicyRequest
@@ -1656,7 +1752,7 @@ export type GetSessionRetentionPolicyRequest = Message<"xiaowei.agent.GetSession
  * Use `create(GetSessionRetentionPolicyRequestSchema)` to create a new message.
  */
 export const GetSessionRetentionPolicyRequestSchema: GenMessage<GetSessionRetentionPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 51);
+  messageDesc(file_xiaowei_agent, 53);
 
 /**
  * @generated from message xiaowei.agent.SetSessionRetentionPolicyRequest
@@ -1675,7 +1771,7 @@ export type SetSessionRetentionPolicyRequest = Message<"xiaowei.agent.SetSession
  * Use `create(SetSessionRetentionPolicyRequestSchema)` to create a new message.
  */
 export const SetSessionRetentionPolicyRequestSchema: GenMessage<SetSessionRetentionPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_agent, 52);
+  messageDesc(file_xiaowei_agent, 54);
 
 /**
  * @generated from enum xiaowei.agent.AgentSessionStatus

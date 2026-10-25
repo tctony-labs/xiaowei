@@ -2,6 +2,29 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 有序消息与现有工具 UI（2026-10-25，产品接入与验收）
+
+用户要求在问答／权限工具前，联合实施 03a 的 Markdown／代码／复制和 03c 的现有工具 UI；经本机 Codex app.asar 参考、Storybook 调整和用户确认后，已接实际 Quick Chat。Panel 直接复用 AgentMessage，旧的 Run 正文／思考／工具聚合字段与 renderMessageContent 预览分派已删除。显示规则和参考差异统一维护在 [运行与 UI](runtime-ui.md#codex-桌面参考与本批适配2026-10-25)，当前桌面行为见 [Quick Chat](../../../../desktop/docs/quick-chat.md)。
+
+Harness 将当前 Generate 的身份、开始时间、内容接收状态及活跃 Item 纳入公开快照／有序事件；响应 Item 关联 Gen，正常终态明确最终无工具 response。空最终回复保留为空，不挪用先前说明。终态关联从既有 Journal 重建，不新增存储格式、provider phase 或传输层机制。3 秒首次等待、收到内容后停顿、工具后新 Gen 和终态分别使用真实生命周期；首 SSE／控制事件不算内容，工具声明不提前变成执行中工具 Item。
+
+自动验证通过：`just check`、`pnpm contracts:test`、`pnpm --dir desktop test`、Storybook 构建，以及 xw-agent／runtime 的 112 项测试和 Clippy。renderer 为 25 文件／198 项；正式 Agent 原生模块 → Gateway → worker → Pi provider 的 8 项回归通过，并补断言核对新生成状态、Item 归属与终态字段跨边界传递。原生包已构建；这些 fixture 检查与下述实际 sol 验收分别计入。核心新增测试覆盖工具后新 Gen、原子快照重连、空最终回复与持久重开；renderer／真实 typed Gateway → hook → Panel 测试核对只复制最终 Markdown。
+
+浏览器复用现有 Chrome 的本任务标签，检查已确认的明暗／窄屏、工具标题与展开对齐。360px 下 document 不横向溢出，代码容器支持内部滚动；激活本任务标签并聚焦代码块后，真实方向键使 scrollLeft 从 0 增至 15.5，焦点保持在代码块。此前工具动画、3 秒边界、减少动态效果和空／空白最终回复的检查仍有效；不将后台标签暂停动画判作产品失败。
+
+用户启动当前工作区后，按 manage-dev-instances／inspect-running-app 核对控制器、cwd、父子链和 console，inspect 身份确认为本仓库，初始 Electron PID 8681。以实际 sol 模型新建独立验收会话 `01a17394-c7e2-73b9-a142-2e7e0a164a05`，未向旧测试或用户会话追加任务；通过实际输入框完成：
+
+- 两次 Write → Glob → Grep → Read，共 6 次 Generate。正文将两个写入和后续搜索分开，形成“修改文件”和“读取文件”两组；跨 Gen 无正文的调用仍成组。执行中的展开选择在正常结束后保持；最终 Markdown 标题、表格和 JSON 代码留在外面，整轮折叠入口只显示“用时 23.2 秒”。工具图标在左、箭头在尾，展开后的工具和参数／输出标题不缩进，正常完成没有额外状态标签。
+- 实际点击“复制回复”，再粘贴到输入框，得到原始 Markdown，未混入过程说明、思考或工具结果；“复制代码”粘贴得到 JSON 正文。复制后清空草稿，没有发送这些粘贴内容。相对时间位于复制按钮右侧并按分钟刷新。
+- 前台 Bash 执行时点击实际 Stop，UI 显示停止，日志与结果确认为 Cancelled／Interrupted，没有继续生成。工具结果保留已输出的 `ui-streaming-pending`，未执行末尾输出。
+- Read 一个不存在的本轮路径，工具显示紧邻格式化文件名的“失败”，正常最终回复报告真实错误；缺失文件未被创建，模型没有重试。
+
+随后经已确认的 cmux console 按 r 重建并重启：Electron 由 8681 变为 15359，inspect 实例由 `d979ff33-97c2-4727-bcc6-e980cf628c9b` 变为 `be5d4414-190b-497a-8e7c-8d15eae39daa`，仍属于本工作区。日志 loaded／repaired_bytes=0，实际窗口恢复相同标题、三轮正文／停止／失败、最终回复和过程边界。重启前后新会话的 SQLite 行、两份文件及 JSONL 74 条／47476 字节完全相同，SHA-256 为 `e082e7379189aa39b8773a5e19b6c6055f327e5d221fb102a193013682046ad7`；无新增生成、工具或恢复记录。旧测试会话仍为 142 条／82314 字节，摘要 `8ef7a4f5d3eebe01bec445dea5a9e398018e59e56ac7bb8064327af08c47dd4e` 未变，SQLite 行也未变。
+
+重启后继续补验 Edit → Read：只把本轮 config.json 的 timeout 从 30 改为 31，UI 混合组摘要为“修改文件、读取文件”，Edit 详情实际展示 +1／−1 diff。最后该会话为 4 Run、12 Gen、9 对工具意图／结果，JSONL 97 条／60345 字节，SHA-256 `3c46021be614f4c6f7b42be46e0bfc76a754c8ecbdea96a16b9940233e747ace`；此前三轮前缀摘要仍相同。config.json 最终严格为 `{"timeout":31,"retries":3}\n`，27 字节；README.md 为 `timeline-ui-check\n`，18 字节；missing.txt 不存在。保留独立验收会话和文件供复核。
+
+本批展示与接线已完成，不宣称完整 Agent Chat 或两份 Plan 全部完成。大历史分页／完整长内容读取继续依赖 01f，AskUserQuestion／RequestPermission UI 继续依赖 02f；03a／03c 保留这些剩余范围。空最终 response 和精确 3 秒边界以可控自动测试验证，不声称实际 sol 返回过空回答；其他 provider 联调与真实输入法等原有边界不因本批扩大。
+
 ## Glob 与 Grep 文件搜索（2026-10-25）
 
 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路与 Quick Chat 真实模型验收。当前行为与接口维护在 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)；02g Plan 已删除，下一批为 AskUserQuestion／RequestPermission。

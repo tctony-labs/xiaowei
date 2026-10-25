@@ -8,6 +8,8 @@
 
 每会话模型历史加原始幂等请求的编码字节合计不超过 8 MiB，显示投影不超过 8 MiB，Run／输入关联最多 1024 项；不会静默淘汰身份。ReadSession 完整结果和订阅首帧超出 1 MiB 编码预算时明确 ResourceExhausted；订阅积压受 64 帧／1 MiB 限制。较大历史的分页属于后续工作。生成过程仅记录安全身份、阶段和耗时，不输出正文。
 
+公共视图保留当前 Generate 的身份、开始时间、是否收到内容及活跃 Item，随同一有序订阅同步；工具执行期间没有活跃 Generate。响应 Item 关联其 Gen，正常终态明确最后一次无工具 response 的归属，允许最终回复为空。历史从既有 Journal 重建这些关联，不新增存储格式或模型 phase 要求；renderer 不必根据末块或正文位置猜测等待、流光与最终回答。
+
 ```sh
 cargo test -p xw-agent --locked
 cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings

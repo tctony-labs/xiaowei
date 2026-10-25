@@ -33,6 +33,8 @@
 
 ## 下一批的执行入口
 
+2026-10-25 用户调整：进入第 4 批工具前，先联合实施 [03a](03a-history-ui.md) 的 Markdown／代码／复制与 [03c](03c-tools-interaction-ui.md) 的有序现有工具展示。本批已接产品并移除旧 Run 聚合展示，当前 Generate 与最终回复归属已接线；自动检查、正式原生链路、浏览器和当前工作区真实 sol 窗口、系统复制、停止／失败、Edit diff 及重启不重放均已验收，见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。03a／03c 仅保留依赖 01f 的历史分页／完整长内容及依赖 02f 的问答／权限 UI；下一工具批仍按以下顺序推进。
+
 1. 按 [02f](02f-interactions.md)核对旧版问答／权限实现和当前 core／RPC 接口，将已确认的交互决定与实际文件对齐。
 2. 整批实现并验收 AskUserQuestion／RequestPermission，覆盖逐端 ACK、唯一决定、工具等待与继续、停止失效和持久授权；不重复实施前三批工具，后台工具仍等第 7 批。
 
@@ -53,8 +55,8 @@
 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 02f、02h、02j；文件搜索已交付 |
 | [02l](02l-titles.md) | 辅助标题 Gen 的独立持久记录 | 当前标题与 rollout |
-| [03a](03a-history-ui.md) | Markdown／代码、消息复制与历史分页 UI | 展示可独立推进；分页依赖 01f |
-| [03c](03c-tools-interaction-ui.md) | 工具和问答／权限卡片 | 02f；复用当前消息 UI |
+| [03a](03a-history-ui.md) | 历史分页／完整长内容 UI | 01f；复用已交付 Markdown／代码和消息复制 |
+| [03c](03c-tools-interaction-ui.md) | 问答／权限卡片及完整工具长输出 | 02f／01f；复用已交付工具 UI |
 | [03d](03d-composed-preview.md) | 新工具／压缩／继续状态的组合 UI 验收 | 03a、03c、02j、02k |
 | [04d](04d-final-acceptance.md) | 全部工具批次的生产接线及完整验收 | 02f–02l、03d；Todo／Skill 后续确认范围；01f／03a 的历史边界 |
 

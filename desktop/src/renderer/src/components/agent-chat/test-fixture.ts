@@ -59,6 +59,9 @@ export function agentFixture(host = new GatewayHost()) {
     const run = session.runs.at(-1);
     if (!run) throw new Error("No run");
     run.status = status;
+    const genId = run.generation?.genId ?? agentIdentity();
+    run.finalGenId = status === AgentRunStatus.COMPLETED ? genId : undefined;
+    run.generation = undefined;
     run.completedAtMs = BigInt(Date.now());
     session.updatedAtMs =
       run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
@@ -67,6 +70,7 @@ export function agentFixture(host = new GatewayHost()) {
       {
         $typeName: "xiaowei.agent.AgentItem",
         itemId: agentIdentity(),
+        genId,
         content: {
           case: "reasoning",
           value: { $typeName: "xiaowei.agent.AgentReasoning", text: thinking },
@@ -75,6 +79,7 @@ export function agentFixture(host = new GatewayHost()) {
       {
         $typeName: "xiaowei.agent.AgentItem",
         itemId: agentIdentity(),
+        genId,
         content: { case: "agentMessage", value: { $typeName: "xiaowei.agent.AgentMessage", text } },
       },
     ];
@@ -265,6 +270,7 @@ export function agentFixture(host = new GatewayHost()) {
           status: AgentRunStatus.IN_PROGRESS,
           config: request.config ?? session.config,
           startedAtMs: BigInt(Date.now()),
+          generation: { genId: agentIdentity(), startedAtMs: BigInt(Date.now()) },
           items: [
             {
               itemId: agentIdentity(),
