@@ -265,6 +265,58 @@ async fn polling_deduplicates_and_copy_does_not_count_itself_twice() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn editing_preserves_usage_counts_and_does_not_write_to_clipboard() {
+    let dir = tempfile::tempdir().unwrap();
+    let clipboard = Fake::default();
+    clipboard.set("clipboard stays unchanged");
+    let service = open_service(dir.path(), clipboard.clone(), || {})
+        .await
+        .unwrap();
+
+    service.add_text("source".into()).await.unwrap();
+    let source = service.add_text("source".into()).await.unwrap();
+    service.add_text("target".into()).await.unwrap();
+    service.add_text("target".into()).await.unwrap();
+    let target = service.add_text("target".into()).await.unwrap();
+    let source_id = source.id.parse().unwrap();
+    let target_id = target.id.parse().unwrap();
+    assert_eq!(source.use_count, 1);
+    assert_eq!(target.use_count, 2);
+
+    let edited = service.edit_text(source_id, "edited".into()).await.unwrap();
+    let unchanged = service.edit_text(source_id, "edited".into()).await.unwrap();
+    let merged = service.edit_text(source_id, "target".into()).await.unwrap();
+    assert_eq!(
+        (edited.use_count, unchanged.use_count, merged.use_count),
+        (source.use_count, source.use_count, target.use_count)
+    );
+    assert_eq!(edited.id, source.id);
+    assert_eq!(unchanged.id, source.id);
+    assert_eq!(merged.id, target.id);
+    assert!(service.get(source_id).await.unwrap().is_none());
+    assert_eq!(
+        service.data(target_id).await.unwrap(),
+        ClipboardData::Text("target".into())
+    );
+    {
+        let state = clipboard.0.lock().unwrap();
+        assert_eq!(state.count, 1);
+        assert_eq!(
+            state.data,
+            Some(ClipboardData::Text("clipboard stays unchanged".into()))
+        );
+    }
+
+    drop(service);
+    let store = open_store(dir.path()).await.unwrap();
+    assert_eq!(
+        store.get(target_id).await.unwrap().unwrap().use_count,
+        target.use_count
+    );
+    assert!(store.get(source_id).await.unwrap().is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn capture_retries_failures_and_inconsistent_snapshots() {
     let dir = tempfile::tempdir().unwrap();
     let clipboard = Fake::default();

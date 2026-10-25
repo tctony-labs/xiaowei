@@ -92,7 +92,9 @@ test("native editing, notes and categories round trip through napi", async () =>
   const context = await open(directory);
   const { history } = context;
   try {
+    await history.addText("initial");
     const first = await history.addText("initial");
+    assert.equal(first.useCount, 1);
     const category = await history.saveCategory("工作", "#F5222D");
     await history.setRemark(first.id, "备注关键词");
     await history.setCategory(first.id, category.id);
@@ -104,6 +106,9 @@ test("native editing, notes and categories round trip through napi", async () =>
     assert.equal(edited.id, first.id);
     assert.equal(await history.readText(first.id), "changed");
     assert.equal(edited.remark, "备注关键词");
+    assert.equal(edited.useCount, first.useCount);
+    const unchanged = await history.editText(first.id, "changed");
+    assert.equal(unchanged.useCount, first.useCount);
     await history.saveCategory("归档", "#1677FF", category.id);
     assert.equal((await history.categories())[0].name, "归档");
     await assert.rejects(history.setCategory(first.id, "99999"));
@@ -115,6 +120,16 @@ test("native editing, notes and categories round trip through napi", async () =>
     assert.equal(await history.readText(first.id), "changed");
     await history.setRemark(first.id, "");
     assert.equal((await history.get(first.id)).remark, undefined);
+
+    await history.addText("target");
+    await history.addText("target");
+    const target = await history.addText("target");
+    assert.equal(target.useCount, 2);
+    const merged = await history.editText(first.id, "target");
+    assert.equal(merged.id, target.id);
+    assert.equal(merged.useCount, target.useCount);
+    assert.equal((await history.get(target.id)).useCount, target.useCount);
+    assert.equal(await history.get(first.id), null);
   } finally {
     await context.close();
     rmSync(directory, { recursive: true, force: true });

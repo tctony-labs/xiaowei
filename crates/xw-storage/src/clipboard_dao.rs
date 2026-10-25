@@ -316,7 +316,7 @@ impl ClipboardDao {
                 "UPDATE clipboard_items SET favorite=favorite OR ?1,
                 remark=CASE WHEN ?2 IS NULL THEN remark WHEN remark IS NULL OR remark=?2 THEN ?2
                     ELSE ?2||';'||remark END,
-                category_id=coalesce(?3,category_id),last_used_at=?4,use_count=use_count+1
+                category_id=coalesce(?3,category_id),last_used_at=?4
                 WHERE id=?5 AND id<>?6",
                 vec![
                     reference(0, 0),
@@ -332,7 +332,7 @@ impl ClipboardDao {
                 vec![value(id), reference(1, 0)],
             ),
             statement(
-                "UPDATE clipboard_items SET hash=?1,kind=?2,text=?3,last_used_at=?4,use_count=use_count+1
+                "UPDATE clipboard_items SET hash=?1,kind=?2,text=?3,last_used_at=?4
                 WHERE id=?5 AND id=?6",
                 vec![
                     value(request.hash),
