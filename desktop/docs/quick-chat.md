@@ -44,7 +44,7 @@
 
 ## 预览与产品边界
 
-组件位于 [src/renderer/src/components/quick-chat/](../src/renderer/src/components/quick-chat/)。QuickChatTransition 管视口／滑轨，QuickChatTitleBar 接收 props／回调；QuickChatLauncherPreview 与 QuickChatChatPreview 仅由 Storybook／测试消费，不连接真实会话或模型。产品复用同一展示组件，输入使用 textarea，正文保留换行以纯文本展示，思考内容可折叠。Markdown／代码块等后续展示能力及其验收在 Agent Chat 中推进；预览 mock 不代表工具、权限或持久能力交付。
+组件位于 [src/renderer/src/components/quick-chat/](../src/renderer/src/components/quick-chat/)。QuickChatTransition 管视口／滑轨，QuickChatTitleBar 接收 props／回调；QuickChatLauncherPreview 与 QuickChatChatPreview 仅由组件测试消费，不连接真实会话或模型。产品复用同一展示组件，输入使用 textarea，正文保留换行以纯文本展示，思考内容可折叠。Markdown／代码块等后续展示能力及其验收在 Agent Chat 中推进；预览 mock 不代表工具、权限或持久能力交付。
 
 ## 实现与验证入口
 

@@ -1,4 +1,4 @@
-// Storybook fixture only. Account actions are simulated and never contact a server.
+// Component test fixture. Account actions are simulated and never contact a server.
 import { useEffect, useState } from "react";
 import { AccountCard, type AccountCardProps } from "./AccountCard";
 import { AccountManagementDialog } from "./AccountManagementDialog";
@@ -83,7 +83,7 @@ export function GeneralLoginPreview({
   }
 
   async function addServer(address: string) {
-    // Simulate validation without contacting a real server from Storybook.
+    // Simulate validation without contacting a real server from component tests.
     if (addState === "pending") await new Promise<void>(() => {});
     if (addState === "error") throw new Error("无法连接服务器，请检查地址后重试");
     setServers((current) => [...current, address]);

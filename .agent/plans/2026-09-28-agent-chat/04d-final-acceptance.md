@@ -31,7 +31,7 @@
 
 ## 独立验收
 
-- 受影响 crates cargo test、contracts:test／contracts:check／gateway:check、just check、desktop test、storybook:build、desktop build／package。只改 Gateway 核心才额外 gateway:test。
+- 受影响 crates cargo test、contracts:test／contracts:check／gateway:check、just check、desktop test、desktop build／package。只改 Gateway 核心才额外 gateway:test。
 - Electron：普通多轮、文件／Bash／问答权限、各阶段停止、隐藏切换、renderer 重载、应用重启、继续不重复副作用、压缩／标题／模型。
 - 平台：快捷键、Esc／空输入 ↑、菜单优先级、真实 IME、焦点与搜索末项滚动。未完成的必要人工验收不能当完成；不运行冷启动冒烟脚本。
 

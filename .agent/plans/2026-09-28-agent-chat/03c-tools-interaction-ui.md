@@ -11,7 +11,7 @@
 | 类型 | 路径 | 具体改动 |
 | --- | --- | --- |
 | 新增 | `desktop/src/renderer/src/components/agent-chat/AgentToolCall.tsx、AgentInteraction.tsx、AgentInteraction.test.tsx` | 工具状态／详情、问答选项／自由输入、允许拒绝和已解决／失效 |
-| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatPanel.tsx、quick-chat.css` 与对应 preview／story／测试 | 接工具／交互块展示、长路径／输出和多端解决 mock |
+| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatPanel.tsx、quick-chat.css` 与对应组件测试 fixture／测试 | 接工具／交互块展示、长路径／输出和多端解决 mock |
 
 ## 实施顺序
 
@@ -21,6 +21,6 @@
 
 ## 独立验收
 
-- 组件测试、desktop check／Biome／storybook:build；检查明暗／窄视口并确认新增视觉。
+- 组件测试、desktop check／Biome／desktop build；在现有客户端检查明暗／窄视口及新增视觉。
 
 本片只创建实际需要的文件；生成产物走既有 just gen／napi 构建，不手改。实施完成即回填 record 的实际行为、差异和验证结果，再删除本 Plan，并将后继引用改为 record 中已交付说明。

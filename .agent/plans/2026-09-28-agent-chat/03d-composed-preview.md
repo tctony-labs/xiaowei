@@ -4,14 +4,14 @@
 
 本片结果：在现有 Quick Chat 组合新增工具／交互、压缩与继续状态，确认产品接入所需的新交互；已交付文本与 chip 不重新验收。
 
-范围边界：不改变现有产品 QuickChatPanel／Launcher 的视觉。
+范围边界：仅实现本片新增的状态和交互，不重做已交付文本与 chip。用户已要求移除 Storybook，UI 直接接入现有客户端并验收。
 
 ## 文件与改动
 
 | 类型 | 路径 | 具体改动 |
 | --- | --- | --- |
-| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatChatPreview.tsx、QuickChatLauncherPreview.tsx` | 复用现有面板与 composer，组合新增状态，预览回调不执行业务 |
-| 修改 | `desktop/src/renderer/src/components/quick-chat/` 对应 stories／测试 | 扩充现有 transition／标题栏组合预览，不新增另一套入口 |
+| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatChatPreview.tsx、QuickChatLauncherPreview.tsx` | 仅维护组件测试的内存 fixture；产品复用现有面板与 composer |
+| 修改 | `desktop/src/renderer/src/components/quick-chat/` 对应产品组件／测试 | 直接接入现有 transition／标题栏，保留组件回归，不新增独立预览入口 |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/quick-chat.css` 及 03c 新增组件 | 加入压缩、继续、标题任务与完整异常场景，复用已确认组件 |
 
 ## 实施顺序
@@ -22,7 +22,7 @@
 
 ## 独立验收
 
-- 组件测试、desktop check／Biome／storybook:build；浏览器固定主题／字体／视口检查并由用户确认组合视觉。
-- 记录已确认具体范围，真实输入法、窗口焦点与尺寸留到 04d；新增状态确认后接产品，不重复迁移现有文本链路。
+- 组件测试、desktop check／Biome／desktop build；在现有客户端固定主题／字体／视口检查组合视觉。
+- 记录已确认具体范围，真实输入法、窗口焦点与尺寸留到 04d；新增状态直接接产品并验收，不重复迁移现有文本链路。
 
 本片只创建实际需要的文件；生成产物走既有 just gen／napi 构建，不手改。实施完成即回填 record 的实际行为、差异和验证结果，再删除本 Plan，并将后继引用改为 record 中已交付说明。

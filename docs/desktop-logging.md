@@ -63,7 +63,7 @@ Rust 日志来源为 main，接收器使用 target 过滤，但最终输出不�
 
 业务继续使用 `console.log/info/warn/error/debug/trace(...)`。`@xiaowei/source-log` 在构建时注入工作区相对路径和原始行号，路径使用 `/`；不在运行时抓栈或查询 source map。首参数为字符串时保留 `%s`、`%o`、`%c` 等占位符及后续参数；对象和 Error 仍交给原 console。
 
-main、preload、renderer 和独立 main 构建脚本已接入 Vite 插件，Storybook 未启用。转换覆盖进入该构建链的工作区 JS／TS／JSX／TSX，包括跨包源码；跳过工作区外文件、依赖与构建产物目录、日志包装器，以及局部声明或导入的同名 console。解构、别名、计算属性、可选调用和 `globalThis.console` 不注入。绕过构建链的 Node 脚本、仅 tsc 编译的包、external／预打包依赖不自动获得位置。
+main、preload、renderer 和独立 main 构建脚本已接入 Vite 插件。转换覆盖进入该构建链的工作区 JS／TS／JSX／TSX，包括跨包源码；跳过工作区外文件、依赖与构建产物目录、日志包装器，以及局部声明或导入的同名 console。解构、别名、计算属性、可选调用和 `globalThis.console` 不注入。绕过构建链的 Node 脚本、仅 tsc 编译的包、external／预打包依赖不自动获得位置。
 
 renderer／preload 消息已有源码位置前缀时，main 不再追加产物 URL 和行号；否则使用 Electron 提供的位置兜底。未注入消息若自行使用同样的前缀，也会被识别为已有位置。DevTools 文本包含原始位置，但原生可点击链接仍可能指向包装器或构建产物。
 

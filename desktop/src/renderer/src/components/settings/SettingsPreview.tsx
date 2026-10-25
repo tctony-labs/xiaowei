@@ -1,4 +1,4 @@
-// Storybook fixture adapter. Product code must use the view components with its own data and callbacks.
+// Component test fixture. Product code uses the view components with its own data and callbacks.
 import { type ReactNode, useEffect, useState } from "react";
 import { AboutSettings } from "./AboutSettings";
 import { AgentSettings, type AgentValues } from "./AgentSettings";

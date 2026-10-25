@@ -24,7 +24,6 @@ const outputs = [
   "target",
   "desktop/out",
   "desktop/dist",
-  "desktop/storybook-static",
   "server/bin",
   "gateway/ts/dist",
 ];

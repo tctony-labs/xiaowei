@@ -55,7 +55,7 @@ function initialSessions(state: QuickChatLauncherPreviewProps["initialState"]): 
   return items;
 }
 
-// Only Storybook and component tests import this adapter. All sessions and replies live in memory.
+// Component test fixture. All sessions and replies live in memory.
 export function QuickChatLauncherPreview({
   initialState = "existing",
   initiallyExpanded = false,

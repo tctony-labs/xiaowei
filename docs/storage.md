@@ -59,7 +59,7 @@ Storage 接收 main 传入的数据库路径；剪贴板接收附件目录，数
 
 ## FTS5 与搜索分工
 
-`xw-tokenizer` 提供通用分词和 SQLite 注册，Storage 确保每条池连接可用，具体 DAO 定义业务索引、同步和查询。当前剪贴板面板使用 FTS5；其索引字段、触发器、回填、过滤与召回规则仍维护在 [剪贴板 record](../.agent/records/active/2026-09-17-migrate-local-clipboard.md#剪贴板全文索引与召回)。
+`xw-tokenizer` 提供通用分词和 SQLite 注册，Storage 确保每条池连接可用，具体 DAO 定义业务索引、同步和查询。当前剪贴板面板使用 FTS5；其索引字段、触发器、回填、过滤与召回规则见[剪贴板全文索引与召回](clipboard.md#全文索引与召回)。
 
 全局搜索由 `xw-search` 的内存候选和 nucleo 提供，目前未调用剪贴板的 FTS5 召回接口，未实现对应的结果合并或重排。两种检索方式的边界见 [搜索实现](search.md#与剪贴板搜索的边界)。
 

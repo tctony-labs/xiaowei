@@ -54,7 +54,7 @@ function initialMessages(scenario: QuickChatChatPreviewProps["scenario"]): Quick
   ];
 }
 
-// Storybook-only adapter. Replies are simulated; no Gateway, user configuration or network access.
+// Component test fixture; no Gateway, user configuration or network access.
 export function QuickChatChatPreview({
   scenario = "empty",
   initiallyExpanded = true,

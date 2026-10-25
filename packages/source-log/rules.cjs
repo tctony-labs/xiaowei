@@ -11,9 +11,7 @@ function getSourcePath(file, workspaceRoot) {
     isAbsolute(source) ||
     source.startsWith("../") ||
     file === runtime ||
-    /(?:^|\/)(?:node_modules|dist|out|target|coverage|storybook-static|\.git|\.vite)(?:\/|$)/.test(
-      source,
-    )
+    /(?:^|\/)(?:node_modules|dist|out|target|coverage|\.git|\.vite)(?:\/|$)/.test(source)
   )
     return null;
   return source;

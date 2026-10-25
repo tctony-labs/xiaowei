@@ -79,9 +79,9 @@ Electron main 按调用上下文保存最新一轮 token 和结果 ID → 完整
 
 ## 与剪贴板搜索的边界
 
-当前全局搜索只提供“打开剪贴板”的命令，不召回剪贴板历史内容。剪贴板面板通过 Storage 的 [ClipboardDao::list](../crates/xw-storage/src/clipboard_dao.rs) 对数据库文本／摘要、备注和文件路径进行 FTS5 查询；多词 AND、末词前缀匹配，收藏、类型和分类过滤发生在分页前，按最近使用时间、ID 降序返回。
+当前全局搜索只提供“打开剪贴板”的命令，不召回剪贴板历史内容。剪贴板面板使用 Storage 的 FTS5 查询；Storage 另提供 `ClipboardDao.Search` 内部召回接口，但全局 Search 尚未调用，也没有 nucleo 重排。
 
-Storage 另提供 `ClipboardDao.Search`，默认最多 100 条（允许指定 1–100），按 FTS5 相关性返回 entity 和最多 32 个 FTS token 的无高亮标记片段。此接口已可供内部调用，但全局 Search 尚未调用，也没有 nucleo 重排。长文本仅索引数据库摘要，不扫描完整文件。业务索引、触发器和回填见 [剪贴板全文索引与召回](../.agent/records/active/2026-09-17-migrate-local-clipboard.md#剪贴板全文索引与召回)，底层注册见 [Storage 数据库实现](../crates/xw-storage/docs/database.md#fts5-与分词器注册)，模块分工见 [共享存储接入](storage.md)。
+面板查询、索引字段、触发器、回填及有界召回规则统一见[剪贴板全文索引与召回](clipboard.md#全文索引与召回)，底层注册见 [Storage 数据库实现](../crates/xw-storage/docs/database.md#fts5-与分词器注册)，模块分工见[共享存储接入](storage.md)。
 
 ## 验证入口
 

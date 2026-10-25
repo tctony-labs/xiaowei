@@ -28,7 +28,7 @@
 
 用户于 2026-09-28 确认将生成的统一加粗蓝绿 XW Logo 接入所有使用位置：`logo.png` 保留统一源图，应用内与 Tray 使用其预生成尺寸，`icon.png` 使用同一蓝绿造型加白色圆角底板的 1024px 版本作为各平台打包图标，macOS 开发态显式设置 Dock 图标，使开发态也能展示同一造型；正式包使用打包图标。
 
-透明 Logo 的预生成资源位于 `desktop/resources/logo-sizes/`：Tray 使用 16px 和 `@2x` 32px，Electron 自动加载 Retina representation 并设置模板图，不再运行时 resize；22px／32px／80px 界面图标分别加载 44px／64px／160px 资源，Dock 使用带白色圆角底板的 `icon-512.png`，Storybook 图片示例使用透明的 512px 版本。目录包携带该资源目录，完整源图仅用于资源维护与打包图标生成。菜单每次打开前按当前快捷键重建，并由 Tray 回调保留强引用。
+透明 Logo 的预生成资源位于 `desktop/resources/logo-sizes/`：Tray 使用 16px 和 `@2x` 32px，Electron 自动加载 Retina representation 并设置模板图，不再运行时 resize；22px／32px／80px 界面图标分别加载 44px／64px／160px 资源，Dock 使用带白色圆角底板的 `icon-512.png`。目录包携带该资源目录，完整源图仅用于资源维护与打包图标生成。菜单每次打开前按当前快捷键重建，并由 Tray 回调保留强引用。
 
 PNG／ICNS 图标按传统 macOS 网格保留外部透明留白：1024px 画布中的白色底板主体为居中的 824px，四边各 100px；512px Dock 资源对应 412px 主体与 50px 留白。底板和内部 Logo 等比缩放，不改变内部比例。尺寸参考 [Apple 开发者论坛的传统图标讨论](https://developer.apple.com/forums/thread/670578) 的搜索摘要，并以本机 Calculator 图标的 256px 画布、206px 主体、25px 留白交叉核对；当前 [HIG](https://developer.apple.com/design/human-interface-guidelines/app-icons) 已转向 Icon Composer 分层图标，不将传统留白规则套用到分层输入。
 

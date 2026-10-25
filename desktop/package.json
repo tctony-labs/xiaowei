@@ -13,9 +13,7 @@
     "package:mac": "node ../scripts/release/package-mac.mjs",
     "package:mac:test": "node ../scripts/release/local-update.mjs",
     "update:mac:serve": "node ../scripts/release/local-update-server.mjs",
-    "dev:main": "node ../scripts/dev/build-desktop-main.mjs && electron .",
-    "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open --disable-telemetry",
-    "storybook:build": "storybook build --disable-telemetry"
+    "dev:main": "node ../scripts/dev/build-desktop-main.mjs && electron ."
   },
   "dependencies": {
     "xiaowei-agent": "workspace:*",
@@ -28,7 +26,6 @@
     "remark-gfm": "4.0.1",
     "zustand": "5.0.8",
     "tsx": "4.23.13",
-    "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "^26.0.0",
     "@types/react": "^19.0.0",
@@ -37,7 +34,6 @@
     "electron": "44.3.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
-    "storybook": "10.6.0",
     "tailwindcss": "4.3.3",
     "vite": "7.3.6",
     "@xiaowei/source-log": "workspace:*",

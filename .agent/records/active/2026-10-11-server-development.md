@@ -163,7 +163,7 @@ thirdparty_bind_token 是短期随机凭据，有效期 15 分钟，由服务端
 
 HTTP／Gateway 接入层负责协议适配，账号规则在 `server/internal/auth/`，数据库事务在 `server/internal/db/`；SMTP 拟放 `server/internal/mail/`。依赖方向为接入层 → auth → db／mail；mail 不依赖 auth，db 不依赖 HTTP，通用 Gateway 不依赖账号业务。邀请签发接入已有 server 二进制，不增加公开签发 HTTP 接口。
 
-服务端契约继续位于 `contracts/proto/xiaowei/server/`，桌面账号契约沿用 `xiaowei/account.proto`；按现有生成与 typed client 流程接入，不复制 HTTP 与 Gateway 的同义消息。桌面复用 `services/account/`、xwapi、设置账号区域及 Storybook；preload 不新增业务接口。
+服务端契约继续位于 `contracts/proto/xiaowei/server/`，桌面账号契约沿用 `xiaowei/account.proto`；按现有生成与 typed client 流程接入，不复制 HTTP 与 Gateway 的同义消息。桌面复用 `services/account/`、xwapi 和设置账号区域；preload 不新增业务接口。
 
 TS 远端 transport 归通用 Gateway，Go runtime 位于现有 `server/internal/gateway/`，认证连接适配位于 `server/internal/httpapi/`。不得未经设计新增 npm package 或 Rust crate。微信复用现有用户表和设备会话，不另建账号体系；部署继续复用 `server/deploy/`。
 

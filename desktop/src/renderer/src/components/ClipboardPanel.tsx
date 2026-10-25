@@ -142,6 +142,7 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 export function ClipboardPanel(props: ClipboardPanelProps) {
   const selected = props.items.find((item) => item.id === props.selectedId);
+  const categoryList = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const rows = useRef(new Map<string, HTMLDivElement>());
   const [renderedId, setRenderedId] = useState<string>();
@@ -155,6 +156,22 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [deleteId, setDeleteId] = useState<string>();
   const [menu, setMenu] = useState<{ x: number; y: number; item: ClipboardItem }>();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: view and category order can change
+  useEffect(() => {
+    const container = categoryList.current;
+    const active = container?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
+    if (!container || !active) return;
+
+    const bounds = container.getBoundingClientRect();
+    const chip = active.getBoundingClientRect();
+    if (chip.left < bounds.left + 8) {
+      container.scrollLeft -= bounds.left + 8 - chip.left;
+    } else if (chip.right > bounds.right - 8) {
+      container.scrollLeft += chip.right - (bounds.right - 8);
+    }
+  }, [props.view, props.categories]);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: copying can reorder items without changing the selected ID
   useEffect(() => {
     const scroll = () => {
@@ -362,56 +379,63 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
           </div>
         }
       >
-        <nav
-          aria-label="剪贴板视图"
-          className="relative flex shrink-0 items-center gap-2 overflow-x-auto border-t border-subtle py-3 pl-3 pr-6"
-        >
-          {views.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              tabIndex={-1}
-              aria-pressed={props.view === id}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => props.onViewChange(id)}
-              className={`flex h-8 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-3 outline-none ${
-                props.view === id ? "bg-clipboard-selected" : "hover:bg-hover"
-              }`}
-            >
-              <Icon size={16} />
-              <span className="text-sm leading-[22px]">{label}</span>
-            </button>
-          ))}
-          {props.categories.length > 0 && (
-            <div className="h-5 shrink-0 px-1">
-              <div className="h-full w-px bg-line" />
-            </div>
-          )}
-          {props.categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              tabIndex={-1}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => props.onViewChange(category.id)}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                setCategoryMenu({ x: event.clientX, y: event.clientY, id: category.id });
-              }}
-              aria-pressed={props.view === category.id}
-              className={`flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm ${props.view === category.id ? "bg-clipboard-selected" : "hover:bg-hover"}`}
-            >
-              <TagIcon size={16} color={category.color} />
-              {category.name}
-            </button>
-          ))}
-          <div className="absolute inset-y-0 right-0 flex items-center bg-gradient-to-l from-surface from-70% to-transparent pl-6 pr-6">
+        <nav aria-label="剪贴板视图" className="relative shrink-0 border-t border-subtle pr-10">
+          <div
+            ref={categoryList}
+            className="flex items-center gap-1 overflow-x-auto py-3 pl-3 pr-2"
+          >
+            {views.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                tabIndex={-1}
+                aria-pressed={props.view === id}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => props.onViewChange(id)}
+                className={`flex h-8 cursor-pointer items-center gap-1 whitespace-nowrap
+                  rounded-md px-2 outline-none ${
+                    props.view === id ? "bg-clipboard-selected" : "hover:bg-hover"
+                  }`}
+              >
+                <Icon size={16} />
+                <span className="text-sm leading-[22px]">{label}</span>
+              </button>
+            ))}
+            {props.categories.length > 0 && (
+              <div className="h-5 shrink-0 px-1">
+                <div className="h-full w-px bg-line" />
+              </div>
+            )}
+            {props.categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                tabIndex={-1}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => props.onViewChange(category.id)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setCategoryMenu({ x: event.clientX, y: event.clientY, id: category.id });
+                }}
+                aria-pressed={props.view === category.id}
+                className={`flex h-8 shrink-0 cursor-pointer items-center gap-1.5
+                  whitespace-nowrap rounded-md px-2 text-sm ${
+                    props.view === category.id ? "bg-clipboard-selected" : "hover:bg-hover"
+                  }`}
+              >
+                <TagIcon size={16} color={category.color} />
+                {category.name}
+              </button>
+            ))}
+          </div>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2">
             <button
               type="button"
               onClick={() => setDialog({ type: "category" })}
               title="新建分类"
               aria-label="新建分类"
-              className="flex size-8 items-center justify-center rounded-md text-ink-secondary disabled:opacity-40"
+              className="flex size-8 cursor-pointer items-center justify-center rounded-md
+                text-ink-secondary hover:bg-hover hover:text-ink disabled:opacity-40"
             >
               <AddCircleIcon size={16} />
             </button>

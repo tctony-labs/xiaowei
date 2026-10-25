@@ -13,7 +13,6 @@
     "tests/main/**/*.ts",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
-    "src/shared/**/*.ts",
-    ".storybook/main.ts"
+    "src/shared/**/*.ts"
   ]
 }

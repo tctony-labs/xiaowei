@@ -58,7 +58,7 @@ List 按字面前缀匹配，`%`、`_` 不作 SQL 通配符；结果按 key 的 
 
 [settings/](../src/settings/) 负责默认值、类型校验、逐项保存和变更通知，使用 `setting.` 前缀。更新串行执行：先应用宿主动作，再写入对应 meta key，成功后通知；宿主动作或持久化失败时尝试恢复原宿主状态，失败与恢复失败均向调用方返回。通用 KeyValue 不提供这些设置语义。
 
-[ClipboardDao](../src/clipboard_dao.rs) 在 Storage 内维护业务表与 SQL，包含分页、筛选、去重合并和检索。正文编辑涉及目标查询、条件合并、来源删除和最终结果读取时，在一次原子事务中完成。具体剪贴板规则由 [剪贴板事项](../../../.agent/records/active/2026-09-17-migrate-local-clipboard.md)维护，本篇不重复定义其业务索引和附件行为。
+[ClipboardDao](../src/clipboard_dao.rs) 在 Storage 内维护业务表与 SQL，包含分页、筛选、去重合并和检索。正文编辑涉及目标查询、条件合并、来源删除和最终结果读取时，在一次原子事务中完成。具体业务规则见[剪贴板](../../../docs/clipboard.md)，本篇不重复定义其业务索引和附件行为。
 
 [usage.rs](../src/usage.rs) 计算数据库本体和 `-wal`、`-shm` 普通文件的实际大小，缺失文件按零计，不跟随符号链接，不计目录；通过 typed 存储占用接口提供给宿主。
 
