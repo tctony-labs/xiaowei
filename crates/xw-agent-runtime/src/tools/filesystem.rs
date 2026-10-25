@@ -150,6 +150,11 @@ impl FileTools {
         tools
     }
 
+    /// Called only after the owner has committed a user's permission decision.
+    pub fn set_grants(&mut self, grants: Vec<PermissionTarget>) {
+        self.grants = grants;
+    }
+
     fn path(&self, value: &str) -> Result<PathBuf, String> {
         if value.trim().is_empty() {
             return Err("path 不能为空".into());

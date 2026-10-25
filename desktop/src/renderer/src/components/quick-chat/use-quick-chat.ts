@@ -144,6 +144,10 @@ export function useQuickChat(services: Services, viewing = false) {
   }
 
   async function send() {
+    if (client.pendingQuestion) {
+      await client.respondInteraction(client.pendingQuestion.interactionId);
+      return;
+    }
     if (!configured || !client.draft.trim() || client.busy || client.configuring) return;
     const submitted = client.draft;
     try {
@@ -198,7 +202,26 @@ export function useQuickChat(services: Services, viewing = false) {
     },
     onSwitchSession: (id: string) => void client.switchSession(id).catch(() => {}),
     onDeleteConversation: () => void client.deleteConversation().catch(() => {}),
-    draft: client.draft,
+    draft: client.pendingQuestion
+      ? client.interactionForm(client.pendingQuestion.interactionId).text
+      : client.draft,
+    questionReply: client.pendingQuestion
+      ? {
+          submitting:
+            client.interactionForm(client.pendingQuestion.interactionId).submitting ||
+            client.interactionForm(client.pendingQuestion.interactionId).uncertain,
+          canSubmit:
+            !!client.interactionForm(client.pendingQuestion.interactionId).text.trim() ||
+            client.interactionForm(client.pendingQuestion.interactionId).selectedIndices.length > 0,
+        }
+      : undefined,
+    interactions: {
+      form: (id: string) => client.interactionForm(id),
+      onTextChange: (id: string, text: string) => client.setInteractionText(id, text),
+      onSelectionChange: (id: string, indices: number[]) =>
+        client.setInteractionSelection(id, indices),
+      onRespond: (id: string, allow?: boolean) => void client.respondInteraction(id, allow),
+    },
     generating: client.busy,
     configured,
     modelHint,
@@ -214,7 +237,11 @@ export function useQuickChat(services: Services, viewing = false) {
     noModels: !!snapshot && !modelRef && !snapshot.applicationError && !configError,
     loading: client.initializing || (!client.session && !snapshot && !configError),
     error,
-    onDraftChange: (text: string) => client.setDraft(text),
+    onDraftChange: (text: string) => {
+      if (client.pendingQuestion)
+        client.setInteractionText(client.pendingQuestion.interactionId, text);
+      else client.setDraft(text);
+    },
     onSend: () => void send(),
     onStop: () => void client.stop().catch(() => {}),
     onNewConversation: () => {

@@ -112,9 +112,11 @@ pub fn validate_name(name: &str) -> Result<(), GatewayError> {
 #[derive(Debug, Clone)]
 pub struct CallContext(Arc<Permissions>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Permissions {
     caller: String,
+    #[cfg(feature = "napi")]
+    transport_token: Option<String>,
     trusted: bool,
     invoke: HashSet<String>,
     subscribe: HashSet<String>,
@@ -124,6 +126,8 @@ impl CallContext {
     pub fn trusted(caller: impl Into<String>) -> Self {
         Self(Arc::new(Permissions {
             caller: caller.into(),
+            #[cfg(feature = "napi")]
+            transport_token: None,
             trusted: true,
             invoke: HashSet::new(),
             subscribe: HashSet::new(),
@@ -137,6 +141,8 @@ impl CallContext {
     ) -> Self {
         Self(Arc::new(Permissions {
             caller: caller.into(),
+            #[cfg(feature = "napi")]
+            transport_token: None,
             trusted: false,
             invoke: invoke.into_iter().collect(),
             subscribe: subscribe.into_iter().collect(),
@@ -145,6 +151,17 @@ impl CallContext {
 
     pub fn caller(&self) -> &str {
         &self.0.caller
+    }
+
+    #[cfg(feature = "napi")]
+    pub(crate) fn with_transport_token(mut self, token: String) -> Self {
+        Arc::make_mut(&mut self.0).transport_token = Some(token);
+        self
+    }
+
+    #[cfg(feature = "napi")]
+    pub(crate) fn transport_token(&self) -> &str {
+        self.0.transport_token.as_deref().unwrap_or(&self.0.caller)
     }
 
     pub fn authorize(&self, name: &str, event: bool) -> Result<(), GatewayError> {

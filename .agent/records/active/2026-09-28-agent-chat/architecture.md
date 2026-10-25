@@ -1,6 +1,6 @@
 # 架构、分包与依赖方向
 
-所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已接入持久文本聊天、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash；前三批工具均完成相应产品窗口验收，见[交付结果](implementation-results.md)。其他工具及远程 transport 尚未实现。
+所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已接入持久文本聊天、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash；前三批工具均完成相应产品窗口验收，见[交付结果](implementation-results.md)。问答／权限和对应 UI 已实现，本批功能链路与窗口验收已完成，平台复核边界见交付结果；其他工具及远程 transport 尚未实现。
 
 ## 技术路线与源码参考
 

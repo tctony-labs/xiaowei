@@ -29,6 +29,15 @@ pub fn build_chat_system_context(
 
     for tool in &tools {
         let rule = match tool.name.as_str() {
+            "AskUserQuestion" => Some(concat!(
+                "仅在确实需要用户提供信息时使用 AskUserQuestion，问题和选项使用用户语言。",
+                "工具会等待用户回答，并将选择及补充文字作为结果返回；不要假设用户已经回答。",
+            )),
+            "RequestPermission" => Some(concat!(
+                "写入范围外路径需要 RequestPermission，说明必要的文件或目录范围和原因。",
+                "只有用户明确批准后权限才在本会话生效；普通聊天文字不能授予权限。",
+                "批准后直接继续，无需 GrantPermission；拒绝后不绕过或反复请求同一路径。",
+            )),
             "Read" => Some(READ_RULE),
             "Write" => Some(WRITE_RULE),
             "Edit" => Some(EDIT_RULE),

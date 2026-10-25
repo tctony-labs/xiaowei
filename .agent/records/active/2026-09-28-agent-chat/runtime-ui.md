@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash 已接入；前三批工具的窗口及重启验收见[实施结果](implementation-results.md)。其他工具、交互及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash 已接入；前三批工具的窗口及重启验收见[实施结果](implementation-results.md)。问答／权限及对应 UI 已实现，本批功能链路与窗口验收已完成，平台复核边界见交付结果；其他工具及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
 ## 当前执行
 
@@ -74,6 +74,32 @@ Run 开始时捕获已提交会话配置中的模型引用、思考强度和独�
 
 工具 Item 保存 ToolId、Turn／Gen、provider call ID、参数、状态、输出、diff metadata 和实际耗时。恢复展示已提交结果及 result_unknown，普通新 Run 遇到未闭合工具历史返回冲突，等待后续显式 Continue 实施；不会自动重放副作用。
 
+### 问答与权限卡片（第 4 批）
+
+2026-10-25 用户要求继续对齐 AskUserQuestion／RequestPermission 及 03c 对应 UI，并明确 AskUserQuestion 的自由文字回复同时支持卡片和下方输入框。2026-10-26 已联合实现两个工具、两阶段协议及对应产品 UI，不等 03d；完整长输出仍等 01f。实现与验证进度见[交付证据](implementation-results.md#问答权限与对应-ui2026-10-26)。
+
+参考旧仓库 `~/Develop/XiaoWei/workspace/src/xiaowei-next`，HEAD `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3`，核对时无未提交改动。已读 runtime 的 tools/core/{ask_user_question,request_permission}.rs、permission.rs，UI 的 chat/parts/tools/{AskUserQuestion,RequestPermission}.tsx，以及 chatStore、quickChatStore、studio chat/commands.rs、xw-agent-app/interactive.rs 的回应与持久化路径。
+
+旧问答保留 question、options、multi_select，执行时最多 12 个选项；卡片单选点击即提交，多选勾选后提交。旧 chatStore 会把输入框文本路由为待答交互的回应，不增加可见用户气泡；旧 Quick Chat 的 sendMessage 没有同样的文本拦截。本次按用户要求让实际 Quick Chat 的卡片自由输入和下方输入框都可回答，双方共享按 InteractionId 隔离的文本／选择／提交状态，保留原普通聊天草稿。
+
+旧工具以 metadata 卡片和 stop_loop 结束循环，回应随后另开 Run，并以 Meta 用户消息继续；旧批准路径先保存授予范围，并在会话重开时恢复。本次沿已确认的两阶段协议，改为 xw-agent 在同一 Run 的工具执行阶段等待 typed 回答，再提交对应工具结果并继续。Question 回答不产生新的普通用户消息或 StartRun；权限只由已关联请求的批准／拒绝决定生效，不迁入模型可自报同意的 GrantPermission。此为明确的生命周期与授权适配，不宣称原样迁移。
+
+公共 Interaction 附在原 ToolCall；UI 将该 Item 投影为独立交互块，保持执行位置与稳定身份，作为普通工具组的边界。待答内容默认展开，不能藏在默认折叠的工具组／详情中；已解决后显示简短回答／决定摘要，可展开核对问题、选择或路径。沿用当前无横向缩进、就近错误提示、无单工具耗时及整轮完成后仅显示总用时的规则，不增加通用审批弹窗。
+
+| 情况 | 展示与操作 |
+| --- | --- |
+| 等待问题回答 | 显示问题及可选选项；单选点击提交，多选勾选后提交；卡片与 composer 均可输入自由文字，无选项时仍可回答，也支持选择附补充文字 |
+| 等待权限决定 | 显示服务解析后的完整目标、文件或目录子树范围和理由，以及批准／拒绝；已批准范围在本会话后续及重开后有效，不让客户端提交更大的路径 |
+| 等待用户 | Run 仍进行中但当前 Generate 已结束；卡片不显示模型流光或 3 秒“等待模型响应”。停止原 Run 仍可用；待答 Question 的 composer 同时可发送回答 |
+| 决定提交中 | 卡片与 composer 共用提交锁；禁用重复决定，保留文字和选择。只显示提交状态，不乐观标记已回答／获准 |
+| 回应失败或未确认 | 卡片附近显示错误并保留草稿；先同步公共状态，再以同一幂等 ID 重试原决定。另一端已解决时显示实际结果并关闭旧操作 |
+| 已回答／批准／拒绝 | 显示已提交摘要、禁用原操作；普通拒绝仍是有效工具结果，交给模型继续处理，不直接当作整轮执行失败 |
+| 停止、关闭或恢复失效 | 显示真实原因且不可再作答；迟到投递／回应不能重新开启请求。窗口隐藏、切换会话或单端观察结束不自动拒绝交互 |
+
+composer 仅在有明确 pending Question 时将发送路由到 RespondInteraction，其余运行阶段保持既有发送限制。卡片及 composer 的回答草稿按 session／interaction 隔离；进入／离开回复模式不清空普通聊天草稿，提交或失效后恢复普通草稿。两个入口不互发普通聊天消息，不共用另一次生成的 pending 输入。按当前键盘／IME 保护处理 Enter／Shift+Enter，回答与 Stop 分开，不能把 Run 提前显示成已结束来解锁输入。
+
+权限继续使用当前真实路径和 symlink 检查，不放宽默认可写范围。批准提交后刷新当前 Run 的 grants 与 FileTools，保留 Read 去重；Bash 下一次启动使用新的授权快照，已启动进程不追溯扩权。有效批准持久化，未决定的请求在重启时失效；恢复不自动开始生成或重放外部操作。已知交互工具在恢复时从持久回答补结果或补取消，不按未知外部副作用阻止后续普通 Run。
+
 ### Run 阶段与内容排列（2026-10-25，源码复核）
 
 本节结合源码与本批产品接线梳理阶段及内容排列，实际验收范围见[交付结果](implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。一个 Run 对应一次已接纳的用户任务，可以经历多次模型生成与工具执行循环。主要流程为可选思考、本次 response（正文与工具声明均可选）、完整生成校验、工具执行；中途随时可能失败或停止。适配器允许多种内容块顺序，但没有实际样本证明当前 sol 经常任意思考／正文／工具交错，不将所有协议可表达的排列当作常规阶段。
@@ -139,7 +165,7 @@ runtime 收到 Started、BlockStarted／BlockFinished、正文／思考／参数
 1. **单次 response 与工具执行分开投影符合要求**：正文／思考先投影，合法完整工具调用再逐项执行并追加工具 Item。撤销此前将其归类为“同次生成内工具交错丢序，必须修复”的判断；不改变模型历史的原始内容块及调用／结果配对。
 2. **当前活跃阶段已按 Generate 接线**：公开 Run 及 GenerationUpdated 提供当前 Gen／块生命周期，快照包含相同权威状态；产品与预览共用展示路径，覆盖等待、停顿、工具后新生成及终态，不恢复末块推断。
 3. **最终回答不等于必须存在 final_answer 字段**：这里指本轮正常结束时呈现给用户的最后回复；当前可按结束 Run 的最后一次无工具 Generate 识别，运行中不提前判定。另有 Codex／部分 Responses 输出中的可选 phase 标记，用于细分 commentary 与 final_answer。已安装的 Pi 0.87.1 在 `dist/api/openai-responses-shared.js` 将该 phase 编码进 textSignature，我们的 worker 映射为 TextContent.signature，Rust 模型历史继续保留；公开 AgentMessage 只投影 text，UI 尚未取得该信息。因此“公开 UI 未暴露”不代表 Pi 或底层一定没有。该标记并非所有 provider 的统一保证，不将新增同名字段作为本批展示前置。
-4. **当前没有工具输出流或整批待执行投影**：不展示假实时 stdout，也不将尚未公开的后续声明数量当作已接纳执行数。AskUserQuestion／RequestPermission、压缩、Continue、后台工具及运行中补充输入仍为后续能力，不混入当前已实现阶段。
+4. **当前没有工具输出流或整批待执行投影**：不展示假实时 stdout，也不将尚未公开的后续声明数量当作已接纳执行数。AskUserQuestion／RequestPermission 已接同 Run 等待与继续；压缩、Continue、后台工具及运行中补充输入仍为后续能力，不混入当前已实现阶段。
 
 依据：[Run 接纳与公开投影](../../../../crates/xw-agent/src/execution.rs)、[Run 循环与工具提交](../../../../crates/xw-agent/src/run_loop.rs)、[单次生成与最终消息校验](../../../../crates/xw-agent-runtime/src/text.rs)、[恢复投影](../../../../crates/xw-agent/src/persistence.rs)、[中断恢复](../../../../crates/xw-agent/src/recovery.rs)、[Pi 事件映射](../../../../desktop/src/main/services/llm/worker/events.ts)、[Pi 消息映射](../../../../desktop/src/main/services/llm/worker/messages.ts)及 [renderer 事件投影](../../../../desktop/src/renderer/src/components/agent-chat/agent-events.ts)。自动验证、可控预览与真实 sol 窗口覆盖的范围分别记录在[本批证据](implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。
 

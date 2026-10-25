@@ -2,6 +2,32 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 问答、权限与对应 UI（2026-10-26）
+
+第 4 批已实现 AskUserQuestion／RequestPermission、逐端接收确认、唯一持久决定、同 Run 继续及实际 Quick Chat 卡片。问题支持单选／多选／自由文字，卡片与 composer 共用草稿和提交锁；权限决定只包含 allow，目标取已保存请求，批准后立即更新本 Run 的 FileTools 与后续 Bash。当前行为和旧版适配统一见[运行与 UI](runtime-ui.md#问答与权限卡片第-4-批)、[控制协议](control-api.md#两阶段交互与多客户端送达)和包内 README。本批功能链路、停止／恢复及明暗主题已验收；02f 已删除，03c 只保留依赖 01f 的完整工具长输出。真实输入法组合输入的完整平台复核继续留在 04d，不把合成事件当作真实输入法证据。
+
+自动与正式链路检查已通过：
+
+- `cargo test -p xw-agent -p xw-agent-runtime -p xw-agent-rollout --locked`；新增交互参数、重复选项索引、symlink／目标类型、独立 caller 回执、决定先于 ACK、重复决定与竞争、同 Run 继续、停止失效及真实范围外授权／拒绝。批准后同批 Write、后续 Edit／Bash 和持久重开均实际执行，旁边未授权文件不写入。
+- 写盘失败注入证明失败决定不授予权限、不开始下一 Gen；当前卡片和修复／重开投影失效。实际新 Journal 的 Opened／Resolved 前缀恢复为取消或已提交回答结果，外部工具未知副作用保护保持。
+- 原停止批次用例依赖 400 KB Write 的执行速度，完整回归暴露竞态；已改为在真实交互等待点停止，再核对未启动 Write 无副作用及全部工具结果闭合，未修改产品调度。
+- `pnpm gateway:test` 和 `pnpm --dir desktop test`，后者包含实际桌面构建、LLM、正式 addon／worker 的 9 项、业务原生集成。最新 renderer 为 26 文件／207 项，覆盖 typed Gateway → hook → 产品 Panel 的双入口、草稿恢复、拒绝、断流同步、防重与未确认决定只重试原 ID／原答案。
+- `just check`、`pnpm contracts:test` 及 Agent／runtime／集成包 strict no-deps Clippy。额外 Gateway strict Clippy 有 4 处本批未改文件的既有 `collapsible_if` 告警（event.rs／invoke.rs）；仅允许该 lint 后，含 napi 的 Gateway Clippy 通过。正式两个 addon 均已构建。
+
+正式双 caller 联调暴露并修复 napi caller 身份与临时 transport token 混用：业务现使用宿主已有逻辑 caller，路由／取消仍保留原 token，权限来源不变；测试核对跨 caller ACK 被拒绝、正确 ACK、迟到 ACK 及决定竞争。送达打开、首次接收和关闭使用安全身份 debug 日志，不记录问题／答案正文或路径，也不逐心跳刷日志。
+
+窗口验收使用当前工作区 console 的 r 重建；Electron 从 15359 变为 23961，inspect 实例为 `40c69ee4-0923-4035-aa18-f3f238e377a4`，cwd／父子链仍属于本仓库。以实际 sol 模型新建独立会话 `01a173d3-bcd7-76a5-9749-91f124136ac2`，未向旧验收会话追加。已通过实际窗口验证：单选点击即提交并显示回答摘要；连续多选卡片保持可见；选择文件／恢复后，从卡片填写文字、在 composer 补第二行，两个入口双向同步；Shift+Enter 换行、Enter 提交后继续原 Run；等待用户时无模型流光或等待模型标签。
+
+00:10:55 的 Enter 已持久提交第二个回答；随后 macOS 前台变为锁屏进程 loginwindow，CUA 返回 cgWindowNotFound。inspect 仍确认同一实例、可见窗口与正常运行；未冷启动或改连其他工作区。只读 SQLite／JSONL 核对为 1 次 InputAccepted／RunStarted、3 次 Gen、3 个 Opened、2 个 Resolved／ToolOutcome，两个回应的可信来源均为 `frame:1:1`，无额外普通输入。当时停在第三个“请填写验收备注”，隔离 approved／denied 目录仍为空；以下为用户解锁后续验及 Agent 补验结果。
+
+07:42 至 07:43 用户在同一会话手动续验：自由文字回答“好的”；批准 approved 目录后，在原 Run 中 Write／Read 完成，持久参数和读取结果严格为 `interaction-ui-ok\n`（末尾字节为 10）。首轮 denied 目录实际也被批准，用户随后另起一轮“重新验证denied”，提交 allow=false，模型收到拒绝结果后正常结束，没有写入或重复请求。后一次拒绝不撤销先前有效批准，不能将此样本当作“该目录当前没有权限”的证据；范围外拒绝后 Write 失败的验证使用前述隔离核心测试。最终为 2 个 Run／10 个 Gen、8 对工具意图／结果和 6 个已解决交互，两个 Run 均 Completed。当前原隔离目录已不存在，文件结果以当时的持久 Write／Read 记录为据，未重建目录或补写文件。
+
+Agent 新建补验会话 `01a17574-57b8-774f-9763-5d2ad7fab0bb`，没有向用户手动验收会话追加任务。实际窗口确认等待问题时 Stop 使卡片失效、恢复普通聊天草稿，未提交的交互回答没有进入模型历史；再从问题卡片提交中文纯文字，保持同 Run 继续。随后在第二个真实待答问题处通过同一 console 的 r 重建并重启，加载最新 Agent addon：Electron 从 23961 变为 47648，inspect 实例变为 `4e78891b-414a-4d13-80cf-e1e801eeb21f`，cwd／父子链仍属于本仓库。窗口显示“重启后已失效”，没有遗留可操作按钮；恢复仅追加 InteractionExpired(recovery)、Cancelled 工具结果、TurnEnded 和 RunEnd 共 4 条，没有新增 Gen／工具意图。随后明确发送新一轮，模型正常回复“重启恢复验收通过”，未重放旧问题。
+
+用户手动验收会话在上述重启前后 SQLite 行与 JSONL 完全一致：89 条／52517 字节，SHA-256 为 `3e99d05eb76bf6bf85cedde7f0b780128835e9adafa92957724e90d50fd625e5`。补验会话重启前为 34 条／29032 字节，恢复后 38 条／30035 字节；在显式新一轮前 Gen／ToolIntent 数量未变。深色主题下另请求从未批准的 `/Users/changtang/.xiaowei-interaction-reject-20261026-new/never.txt` 文件权限，完整路径、文件范围、理由及按钮可读，拒绝后正常显示只读决定并回复“已拒绝，未写入”，该目录未创建。当前补验会话为 4 Run／6 Gen、4 对工具意图／结果，65 条／49262 字节，SHA-256 为 `54982d516b673847021fa13a82ca0572a78411c009805c888876c7a6bbb130e7`。
+
+明暗主题均在实际窗口检查，结束后恢复原浅色设置并切回用户手动验收会话。当前 Launcher 固定宽 800px 且不可调整大小，本批按该真实视口验收，不将浏览器窄屏当作支持的原生窗口形态。真实输入法尝试未取得组合态证据，不能声称已通过真实 IME；现有 Enter／Shift+Enter 与合成组合输入保护已通过，平台人工复核随 04d 保留。
+
 ## 有序消息与现有工具 UI（2026-10-25，产品接入与验收）
 
 用户要求在问答／权限工具前，联合实施 03a 的 Markdown／代码／复制和 03c 的现有工具 UI；经本机 Codex app.asar 参考、Storybook 调整和用户确认后，已接实际 Quick Chat。Panel 直接复用 AgentMessage，旧的 Run 正文／思考／工具聚合字段与 renderMessageContent 预览分派已删除。显示规则和参考差异统一维护在 [运行与 UI](runtime-ui.md#codex-桌面参考与本批适配2026-10-25)，当前桌面行为见 [Quick Chat](../../../../desktop/docs/quick-chat.md)。
@@ -135,8 +161,8 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 - 采用旧 Rust 路线，但模型调用适配当前 Pi／LLM 契约，不搬入旧 xw-llm；领域消息保留当前契约全部已知回放字段。PB 转换在 xiaowei-agent，types 不依赖外部业务协议。
 - xw-agent 充当可嵌入的 App Server，使用 Agent proto 而不依赖 Gateway；请求／响应及直接业务事件参考 Codex App Server 的边界，不承诺 wire 兼容。不采用旧 cursor／ReadChanges 草案。
 - SQLite 会话目录由核心自管，不接 Storage Gateway DAO；标题及管理状态不是可丢弃重建的索引缓存。只使用最终 session／meta 结构，不保留开发期中间表或运行时迁移。
-- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit、Glob／Grep 和 macOS 前台 Bash 已有实际执行能力及相应窗口验收；其他工具、交互和压缩仍待实施，不能宣称已全面迁移旧 Agent。
-- 后续交互采用 pending Interaction、逐端 ACK 与唯一决定，同 Run 等待／恢复；旧版 stop_loop 后另开 Run 的方式不沿用。此设计尚未实施。
+- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit、Glob／Grep 和 macOS 前台 Bash 已有实际执行能力及相应窗口验收；问答／权限及对应窗口链路已验收，真实 IME 平台复核仍随 04d 保留；其他工具和压缩仍待实施，不能宣称已全面迁移旧 Agent。
+- 问答／权限已采用 pending Interaction、逐端 ACK 与唯一决定，同 Run 等待并继续；旧版 stop_loop 后另开 Run 的方式不沿用。实际验证范围见本批结果。
 
 ## 自动验证
 
@@ -168,6 +194,6 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 
 人工复验仍包括模型／思考选择重开及重启后的显示、会话归档页搜索／恢复／删除、维护设置保存与可见查看保护、系统剪贴板复制、原生拖动，以及从 Quick Chat 入口事项转入的搜索高亮闪动和首次设置跳转。保留这些限制，不把日志或自动测试写成全部视觉验收通过；不再为已实现能力保留重复的代码实施计划。
 
-当前正文与思考只做纯文本展示，思考可折叠；Markdown 解析、代码块渲染及消息复制尚未实现，不能列为已交付 UI 能力。
+正文 Markdown、代码块、原文复制和有序工具展示已于 2026-10-25 接产品并验收；问答／权限本批的窗口链路和已知平台验收边界见上文。
 
-剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)：Markdown／代码与历史分页 UI、大历史读取、其他基础工具／审批、自动压缩、显式继续、辅助标题 Gen 记录及对应 UI／完整产品验收。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 仅保留已确认设计边界。
+剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)：历史分页 UI／大历史读取、后续工具批次、自动压缩、显式继续、辅助标题 Gen 记录及对应 UI／完整产品验收。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 仅保留已确认设计边界。

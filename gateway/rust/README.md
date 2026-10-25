@@ -36,6 +36,8 @@ remote transport 替换时先使旧 delivery 闭包失效，再重建 persistent
 
 业务服务可通过 Arc 保持独立生命周期，但每个 endpoint 对应自己的 owner 实例；manifest 与原子发布约定见 [共同协议](../../docs/gateway.md#ts-与-rust-的-napi-通信协议)。
 
+`CallContext::caller()` 保留宿主验证的逻辑 caller，同一客户端的独立调用／流使用同一来源身份。napi 内部另存每次调用的 transport token，用于回调路由、取消和权限继承；业务不可把该临时 token 当作客户端身份。两者均来自宿主上下文，不接受业务 PB 自报。
+
 ## 实现易错点
 
 Rust 执行任务不因等待方超时而 abort；已启动并等待中的 `spawn_blocking` 工作继续持有并发许可，直到真实完成。

@@ -23,6 +23,8 @@ pub(crate) struct State {
     pub(crate) creations: BTreeMap<ClientRequestId, (SessionId, AgentModelConfig, Option<String>)>,
     pub(crate) observers: Vec<Weak<Observer>>,
     pub(crate) viewers: BTreeMap<SessionId, Vec<Weak<()>>>,
+    pub(crate) interaction_instance: String,
+    pub(crate) interaction_observers: Vec<Arc<crate::interaction_delivery::DeliveryObserver>>,
 }
 
 /// Owns memory state and public protocol methods, without a transport registry.
@@ -48,6 +50,8 @@ impl AgentService {
                 creations: BTreeMap::new(),
                 observers: Vec::new(),
                 viewers: BTreeMap::new(),
+                interaction_instance: uuid::Uuid::now_v7().to_string(),
+                interaction_observers: Vec::new(),
             })),
             maintenance: Mutex::new(None),
         }
@@ -411,11 +415,26 @@ impl AgentService {
         state.sessions.clear();
         state.creations.clear();
         state.viewers.clear();
+        for observer in state.interaction_observers.drain(..) {
+            observer.close();
+        }
         log::debug!("Agent service closed");
         Ok(())
     }
 
     pub(crate) fn publish(state: &mut State, event: AgentEvent) {
+        if matches!(
+            &event.payload,
+            Some(
+                agent_event::Payload::InteractionUpdated(_)
+                    | agent_event::Payload::SessionDeleted(_)
+                    | agent_event::Payload::SessionArchivedUpdated(_)
+            )
+        ) {
+            for observer in &state.interaction_observers {
+                observer.wake.notify_one();
+            }
+        }
         state.observers.retain(|observer| {
             if let Some(observer) = observer.upgrade() {
                 observer.publish(event.clone());

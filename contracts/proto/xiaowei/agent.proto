@@ -31,6 +31,15 @@ service Agent {
   // Accepts one run per session; returns immediately, completion follows on SubscribeSession.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   rpc InterruptRun(InterruptRunRequest) returns (InterruptRunResponse);
+  // Per-caller delivery, independent of the shared session observation. Ready first,
+  // then current pending requests and 20-second heartbeats. Closing never stops a run.
+  rpc ObserveInteractions(ObserveInteractionsRequest) returns (stream InteractionDeliveryEvent);
+  // Confirms receipt only; caller, instance, observer and delivery must all match.
+  rpc AcknowledgeInteraction(AcknowledgeInteractionRequest)
+      returns (AcknowledgeInteractionResponse);
+  // First persisted valid decision wins. Same caller/request ID/answer retries are
+  // idempotent; other decisions conflict. Never waits for subsequent model generation.
+  rpc RespondInteraction(RespondInteractionRequest) returns (RespondInteractionResponse);
   // Waits for a complete title. Also publishes SessionTitleUpdated on success.
   // Failure leaves the previous title unchanged; never starts a chat run.
   rpc RegenerateTitle(RegenerateTitleRequest) returns (RegenerateTitleResponse);
@@ -114,6 +123,9 @@ message AgentToolCall {
   string output = 8;
   optional string metadata_json = 9;
   optional uint64 duration_ms = 10;
+  // Absent for ordinary tools and invalid interactive arguments. Shared business state,
+  // never per-device delivery status. Retained with this tool through completion/reopen.
+  AgentInteraction interaction = 11;
 }
 
 message AgentItem {
@@ -482,6 +494,7 @@ message AgentEvent {
     SessionModelInfoWarningUpdated session_model_info_warning_updated = 13;
     SessionArchivedUpdated session_archived_updated = 14;
     GenerationUpdated generation_updated = 15;
+    InteractionUpdated interaction_updated = 16;
   }
 }
 
@@ -539,4 +552,121 @@ message GetSessionRetentionPolicyRequest {}
 message SetSessionRetentionPolicyRequest {
   // Required full policy. Invalid/missing values leave the old policy unchanged.
   SessionRetentionPolicy policy = 1;
+}
+
+message AgentQuestion {
+  string question = 1;
+  // Ordered, at most 12. Duplicate labels remain distinct by index.
+  repeated string options = 2;
+  bool multi_select = 3;
+}
+
+message AgentPermissionRequest {
+  // Server-resolved absolute target. Clients cannot change this when approving.
+  string path = 1;
+  bool is_directory = 2;
+  string reason = 3;
+}
+
+message AgentQuestionAnswer {
+  // Unique, in-range indices; at most one unless multi_select. Selection or nonblank
+  // text is required. Text and selections may be supplied together, total <= 64 KiB.
+  repeated uint32 selected_indices = 1;
+  optional string text = 2;
+}
+
+message AgentPermissionAnswer {
+  bool allow = 1;
+}
+
+message AgentInteractionAnswer {
+  oneof answer {
+    AgentQuestionAnswer question = 1;
+    AgentPermissionAnswer permission = 2;
+  }
+}
+
+enum AgentInteractionStatus {
+  AGENT_INTERACTION_STATUS_UNSPECIFIED = 0;
+  AGENT_INTERACTION_STATUS_PENDING = 1;
+  AGENT_INTERACTION_STATUS_RESOLVED = 2;
+  AGENT_INTERACTION_STATUS_EXPIRED = 3;
+}
+
+enum AgentInteractionExpireReason {
+  AGENT_INTERACTION_EXPIRE_REASON_UNSPECIFIED = 0;
+  AGENT_INTERACTION_EXPIRE_REASON_STOPPED = 1;
+  AGENT_INTERACTION_EXPIRE_REASON_SESSION_CLOSING = 2;
+  AGENT_INTERACTION_EXPIRE_REASON_RECOVERY = 3;
+}
+
+message AgentInteraction {
+  string interaction_id = 1;
+  // 1 while pending, 2 after exactly one terminal transition. ACK never changes this.
+  uint64 revision = 2;
+  oneof request {
+    AgentQuestion question = 3;
+    AgentPermissionRequest permission = 4;
+  }
+  AgentInteractionStatus status = 5;
+  // Present only when resolved. Permission refusal is a valid resolved answer.
+  AgentInteractionAnswer answer = 6;
+  // Present only when resolved; correlates the winning business command.
+  optional string client_request_id = 7;
+  // Present only when expired; pending/resolved have no expiry reason.
+  optional AgentInteractionExpireReason expire_reason = 8;
+}
+
+message InteractionUpdated {
+  string session_id = 1;
+  string run_id = 2;
+  string tool_id = 3;
+  AgentInteraction interaction = 4;
+}
+
+message ObserveInteractionsRequest {
+  string session_id = 1;
+}
+
+message InteractionObserverReady {
+  string instance_id = 1;
+  string observer_id = 2;
+}
+
+message InteractionDelivery {
+  string delivery_id = 1;
+  // Cache before ACK. A late pending delivery must never overwrite a public terminal.
+  AgentInteraction interaction = 2;
+}
+
+message InteractionHeartbeat {}
+
+message InteractionDeliveryEvent {
+  oneof payload {
+    InteractionObserverReady ready = 1;
+    InteractionDelivery delivery = 2;
+    InteractionHeartbeat heartbeat = 3;
+  }
+}
+
+message AcknowledgeInteractionRequest {
+  string instance_id = 1;
+  string observer_id = 2;
+  string delivery_id = 3;
+  string interaction_id = 4;
+}
+
+message AcknowledgeInteractionResponse {}
+
+message RespondInteractionRequest {
+  string session_id = 1;
+  string interaction_id = 2;
+  uint64 expected_revision = 3;
+  string client_request_id = 4;
+  AgentInteractionAnswer answer = 5;
+}
+
+message RespondInteractionResponse {
+  // Command acknowledgement only; shared state follows on SubscribeSession.
+  AgentInteraction interaction = 1;
 }

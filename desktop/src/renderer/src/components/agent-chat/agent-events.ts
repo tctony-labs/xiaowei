@@ -64,6 +64,16 @@ export function applyAgentEvent(
     if (final.completedAtMs !== undefined && final.completedAtMs > session.updatedAtMs) {
       session.updatedAtMs = final.completedAtMs;
     }
+  } else if (payload.case === "interactionUpdated") {
+    const run = session.runs.find((run) => run.runId === payload.value.runId);
+    const item = run?.items.find(
+      (item) =>
+        item.content.case === "toolCall" && item.content.value.toolId === payload.value.toolId,
+    );
+    if (item?.content.case !== "toolCall" || !payload.value.interaction) {
+      throw new Error("Unknown interaction tool");
+    }
+    item.content.value.interaction = payload.value.interaction;
   } else if (payload.case === "generationUpdated") {
     const run = session.runs.find((run) => run.runId === payload.value.runId);
     if (!run) throw new Error("Unknown generation run");

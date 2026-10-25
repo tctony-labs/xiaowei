@@ -28,6 +28,20 @@ function id() {
 const live = process.env.XIAOWEI_AGENT_LIVE === "1";
 const scenarios = [
   {
+    name: "interactive decisions",
+    interactive: true,
+    file: "interactive-acceptance.txt",
+    calls: [
+      ["AskUserQuestion", { question: "选择内容", options: ["A", "B"], multi_select: true }],
+      ["RequestPermission", { path: "fixture-target", is_directory: false, reason: "验收" }],
+      ["Write", { path: "interactive-acceptance.txt", contents: "hello\nxiaowei\n" }],
+      ["Read", { path: "interactive-acceptance.txt" }],
+    ],
+    prompt:
+      "依次调用 AskUserQuestion（选项 A、B）、RequestPermission 申请文件 {target} 的写权限，" +
+      "各自等真实回答后，用 Write 写入 hello\\nxiaowei\\n（真实换行），最后 Read 并确认。",
+  },
+  {
     name: "real files",
     file: "acceptance.txt",
     calls: [
@@ -96,7 +110,7 @@ async function exerciseScenario(scenario) {
   const { GatewayHost } = await import("xiaowei-gateway/host");
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const { attachWorker } = await import("xiaowei-gateway/worker-host");
-  const calls = scenario.calls;
+  const calls = scenario.calls.map(([name, args]) => [name, { ...args }]);
   const requests = [];
   const server = createServer(async (incoming, outgoing) => {
     const chunks = [];
@@ -181,12 +195,16 @@ async function exerciseScenario(scenario) {
   let llm;
   let endpoint;
   let observer;
+  const deliveries = [];
   try {
     llm = await attachWorker(host, "llm", worker);
     endpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     const client = host.client({ caller: "file-acceptance", trusted: true });
     const api = bindClient(pb.Agent, client);
     const stream = bindStreamClient(pb.Agent, client);
+    const otherClient = host.client({ caller: "other-interaction-device", trusted: true });
+    const otherApi = bindClient(pb.Agent, otherClient);
+    const otherStream = bindStreamClient(pb.Agent, otherClient);
     const session = (
       await api.createSession(
         create(pb.CreateSessionRequestSchema, {
@@ -196,6 +214,20 @@ async function exerciseScenario(scenario) {
       )
     ).session;
     assert.ok(session.cwd.endsWith(`/quick-chat/${session.sessionId}`));
+    const permissionTarget = join(session.cwd, scenario.file);
+    if (scenario.interactive) {
+      calls.find(([name]) => name === "RequestPermission")[1].path = permissionTarget;
+      for (const streamApi of [stream, otherStream]) {
+        const source = await streamApi.observeInteractions(
+          create(pb.ObserveInteractionsRequestSchema, {
+            sessionId: session.sessionId,
+          }),
+        );
+        const ready = (await source.next()).value;
+        assert.equal(ready.payload.case, "ready");
+        deliveries.push({ source, ready: ready.payload.value });
+      }
+    }
     observer = await stream.subscribeSession(
       create(pb.SubscribeSessionRequestSchema, {
         sessionId: session.sessionId,
@@ -211,7 +243,7 @@ async function exerciseScenario(scenario) {
           {
             content: {
               case: "text",
-              value: `工具验收 ${nonce}：${scenario.prompt}`,
+              value: `工具验收 ${nonce}：${scenario.prompt.replace("{target}", permissionTarget)}`,
             },
           },
         ],
@@ -219,6 +251,67 @@ async function exerciseScenario(scenario) {
     );
     let completed;
     for await (const event of observer) {
+      if (
+        event.payload.case === "interactionUpdated" &&
+        event.payload.value.interaction.status === pb.AgentInteractionStatus.PENDING
+      ) {
+        const interaction = event.payload.value.interaction;
+        assert.equal(scenario.interactive, true);
+        const receipts = [];
+        for (const { source, ready } of deliveries) {
+          const frame = (await source.next()).value;
+          assert.equal(frame.payload.case, "delivery");
+          assert.equal(frame.payload.value.interaction.interactionId, interaction.interactionId);
+          receipts.push(
+            create(pb.AcknowledgeInteractionRequestSchema, {
+              instanceId: ready.instanceId,
+              observerId: ready.observerId,
+              deliveryId: frame.payload.value.deliveryId,
+              interactionId: interaction.interactionId,
+            }),
+          );
+        }
+        await assert.rejects(api.acknowledgeInteraction(receipts[1]));
+        await api.acknowledgeInteraction(receipts[0]);
+        const snapshot = (
+          await api.readSession(
+            create(pb.ReadSessionRequestSchema, {
+              sessionId: session.sessionId,
+              includeRuns: true,
+            }),
+          )
+        ).session;
+        assert.equal(snapshot.runs.length, 1);
+        assert.equal(snapshot.runs[0].generation, undefined);
+        if (interaction.request.case === "permission") {
+          assert.equal(interaction.request.value.path, permissionTarget);
+          assert.equal(interaction.request.value.isDirectory, false);
+        }
+        const command = create(pb.RespondInteractionRequestSchema, {
+          sessionId: session.sessionId,
+          interactionId: interaction.interactionId,
+          clientRequestId: id(),
+          expectedRevision: 1n,
+          answer: {
+            answer:
+              interaction.request.case === "question"
+                ? { case: "question", value: { selectedIndices: [1], text: "补充说明" } }
+                : { case: "permission", value: { allow: true } },
+          },
+        });
+        // This caller decides before its ACK. Retry succeeds, a competing caller cannot win.
+        await otherApi.respondInteraction(command);
+        await otherApi.respondInteraction(command);
+        await assert.rejects(
+          api.respondInteraction(
+            create(pb.RespondInteractionRequestSchema, {
+              ...command,
+              clientRequestId: id(),
+            }),
+          ),
+        );
+        await otherApi.acknowledgeInteraction(receipts[1]);
+      }
       if (event.payload.case === "runCompleted") {
         completed = event.payload.value.run;
         break;
@@ -255,7 +348,15 @@ async function exerciseScenario(scenario) {
     );
     if (!live) {
       assert.equal(requests.length, calls.length + 1);
-      const expected = ["Edit", "Read", "Write", "Glob", "Grep"];
+      const expected = [
+        "Edit",
+        "Read",
+        "Write",
+        "Glob",
+        "Grep",
+        "AskUserQuestion",
+        "RequestPermission",
+      ];
       if (process.platform === "darwin") expected.push("Bash");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
@@ -279,6 +380,7 @@ async function exerciseScenario(scenario) {
     );
   } finally {
     await observer?.cancel();
+    for (const delivery of deliveries) await delivery.source.cancel();
     await agent.close();
     await endpoint?.close();
     await llm?.close();

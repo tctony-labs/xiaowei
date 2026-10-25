@@ -2,6 +2,8 @@ import { EditIcon, FilesIcon } from "../ClipboardIcons";
 import type { AgentToolIconKind } from "./tool-presentation";
 
 const paths = {
+  question: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6 6a2 2 0 1 1 3 2c-1 .5-1 1-1 1M8 11h.01",
+  permission: "M8 1.5 13 4v4c0 3-5 6.5-5 6.5S3 11 3 8V4l5-2.5ZM6 8l1.5 1.5L10 6",
   search: "M7 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm3-1 3 3",
   terminal: "M2 3h12v10H2zM4 6l2 2-2 2M8 10h3",
   tools: "m8 2 6 3-6 3-6-3 6-3ZM2 8l6 3 6-3M2 11l6 3 6-3",

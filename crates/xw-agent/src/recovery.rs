@@ -119,6 +119,59 @@ pub fn settle_interrupted(
             recovered_at_ms,
         )?;
     }
+    // Interactive tools have no unknown external side effect. Rebuild their result
+    // from a durable answer, or cancel them; never resume a model or replay an action.
+    for id in &state.tools {
+        let Some(intent) = entries
+            .iter()
+            .find_map(|entry| match &entry.payload {
+                EntryPayload::ToolIntent(intent) if intent.tool_id == *id => Some(intent),
+                _ => None,
+            })
+            .filter(|intent| {
+                matches!(
+                    intent.tool_name.as_str(),
+                    "AskUserQuestion" | "RequestPermission"
+                )
+            })
+        else {
+            continue;
+        };
+        let opened = entries.iter().find_map(|entry| match &entry.payload {
+            EntryPayload::InteractionOpened(opened) if opened.tool_id == *id => Some(opened),
+            _ => None,
+        });
+        let answer = opened.and_then(|opened| {
+            entries
+                .iter()
+                .find_map(|entry| match &entry.payload {
+                    EntryPayload::InteractionResolved(resolved)
+                        if resolved.interaction_id == opened.interaction_id =>
+                    {
+                        Some(&resolved.answer)
+                    }
+                    _ => None,
+                })
+                .and_then(|answer| {
+                    xw_agent_runtime::tools::interactive::result(&opened.request, answer).ok()
+                })
+        });
+        let (status, text) = match answer {
+            Some(output) => (ToolStatus::Completed, output.text),
+            None => (ToolStatus::Cancelled, "交互因运行中断而失效".into()),
+        };
+        journal.append(
+            EntryPayload::ToolOutcome(crate::run_loop::tool_outcome(
+                intent,
+                status,
+                text,
+                None,
+                None,
+                recovered_at_ms,
+            )),
+            recovered_at_ms,
+        )?;
+    }
     for id in &state.gens {
         let failed = gens[id].run_id.is_some() && gens[id].run_id == known_failed_run;
         let message = entries.iter().find_map(|entry| match &entry.payload {

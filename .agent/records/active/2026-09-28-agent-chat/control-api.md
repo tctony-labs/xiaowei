@@ -69,7 +69,7 @@ StartRun 返回接纳的 Run，不等待模型。同 input ID／同原始请求�
 
 会话维护策略与可见查看流的持久化、定时调度和取消规则见[设置归档管理](runtime-ui.md#设置归档管理)。TrackSessionViewing 不替代事件订阅、不修改消息历史；策略变更独立于模型 Host 注入，所有方法仍由 xiaowei-agent 的 Agent handler 适配 core。
 
-### 两阶段交互与多客户端送达（已确认，待实施）
+### 两阶段交互与多客户端送达
 
 2026-10-03 用户明确“送达”是收到客户端回复，该回复只确认收到，不表达授权或拒绝。第一阶段完成不解决 Interaction，也不恢复工具执行；第二阶段才提交和接纳用户决定。多个客户端分别确认接收，但共享一个 Interaction 和唯一最终决定。
 
@@ -84,9 +84,9 @@ StartRun 返回接纳的 Run，不等待模型。同 input ID／同原始请求�
 服务端 → 所有观察者：A 已解决
 ```
 
-当前 Gateway 的 Client 只提供 invoke／stream／subscribe，不支持注册 renderer owner 或服务端直接调用客户端 handler；事件 sink 完成也不是可传回服务的业务确认。实现复用现有 Gateway，而不改通信核心：客户端打开 `Agent.ObserveInteractions` 响应流，服务端逐客户端发送逻辑交互请求；客户端解码并放入本地交互缓存后，立即调用 `Agent.AcknowledgeInteraction` 返回接收确认。这里的确认 RPC 承载第一阶段的回复，不等待用户操作；`Agent.RespondInteraction` 独立承载第二阶段。所有消息仍在同一 `agent.proto` 和同一连接上，不新增手机专属协议。交互请求 stream 仅承担定向投递与接收跟踪，公共审批状态及其解决结果仍复用快照／直接业务事件，不再维护一份同步状态。
+当前 Gateway 的 Client 只提供 invoke／stream／subscribe，不支持注册 renderer owner 或服务端直接调用客户端 handler；事件 sink 完成也不是可传回服务的业务确认。客户端打开 `Agent.ObserveInteractions` 响应流，服务端逐客户端发送逻辑交互请求；客户端解码并放入本地交互缓存后，立即调用 `Agent.AcknowledgeInteraction` 返回接收确认。这里的确认 RPC 承载第一阶段的回复，不等待用户操作；`Agent.RespondInteraction` 独立承载第二阶段。所有消息仍在同一 `agent.proto` 和同一连接上，不新增手机专属协议。交互请求 stream 仅承担定向投递与接收跟踪，公共审批状态及其解决结果仍复用快照／直接业务事件，不再维护一份同步状态。
 
-快照和公共事件 提供 observer 对应的送达状态；instance／observer／delivery 的投递请求关联经对应 stream 返回。设备显示名称后续由可信宿主提供，本期不让 caller 自报手机／桌面身份。
+快照和公共事件提供共享 Interaction 业务状态；逐 observer 的投递／接收事实留在对应送达流与 ACK 响应中，不写进共享会话快照。instance／observer／delivery 的投递请求关联经对应 stream 返回。设备显示名称后续由可信宿主提供，本期不让 caller 自报手机／桌面身份。
 
 模块归属：`xw-agent/src/interactive.rs` 管理审批／问答业务状态、决定校验和持久化；`interaction_delivery.rs` 管理 observer、投递请求、接收事实及关闭；`xiaowei-agent/src/gateway.rs` 注册 stream 和两个 unary 方法。Gateway 管理 transport 请求／流关联，App Server 管理业务 delivery 与 Interaction。napi／main 只适配，renderer 页面适配层消费流并回复，展示组件不执行接收确认或业务 RPC。
 
@@ -105,11 +105,17 @@ StartRun 返回接纳的 Run，不等待模型。同 input ID／同原始请求�
 
 Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到投递或回执只能确认历史接收事实，不重新打开交互或执行工具。重连只补仍 pending 的请求，已解决交互通过快照／变化同步。流结束时旧 observer 不再活跃，旧 observer／服务实例的确认不得记到新观察流；服务在保留的投递记录上幂等处理迟到回执，记录已清理则返回明确过期结果。接收事实是当前实例的有界投递状态，不进入模型历史、不增加每端 JSONL 记录；服务重启清除投递状态并使遗留交互按既有恢复规则失效。稳定设备身份、离线设备清单与跨重启送达审计留到远程控制事项，本期用两个独立逻辑 caller 验证语义。
 
+第 4 批已将结构化 Interaction 附在原 AgentToolCall 上，沿用原 ItemId／ToolId，并以 InteractionUpdated 同步 pending／resolved／expired；SubscribeSession 首帧包含相同状态。回应携带 session_id、interaction_id、expected_revision、client_request_id 和 typed answer；Question 为选项索引与可选文字，Permission 只允许 allow，目标和范围取服务已保存的 request。可信 caller 复用 Gateway `client.context().caller()`，不由业务 payload 自报。
+
+正式双 caller 联调发现 napi 原先把每次 RPC／stream 的临时 token 用作 Rust caller，使后续独立 ACK 无法匹配 observer。本批修正为保留宿主已有的逻辑 caller，另存 transport token 继续承担回调路由、取消和权限继承；未改变权限来源或业务 PB。语义见 [Gateway Rust](../../../../gateway/rust/README.md#napi-通信接入与关闭)。活跃及保留的已关闭 observer 各最多 64 个，每 observer 最多保留 64 条回执；旧实例、未保留 observer 或关联不匹配均明确冲突。
+
+等待用户时原 Run 仍 InProgress，当前 generation 为空；模型流已经结束，等待不占用 Generate 或长时间 unary RPC。有效回答／批准／拒绝提交后成为原工具的结果，再继续同一 Run，不发送新的 StartRun。停止与决定在现有串行边界竞争：停止已生效则不再接纳决定；决定先提交则保留真实结果。展示保留已解决卡片的回答摘要，不再保留可操作按钮。
+
 内部历史类型已明确 InputMode（Send／FollowUp／Steering／Preempt）、expected_run_id、按接纳 sequence 的 FIFO、消费 Run／Turn 和 boundary；公共 queue／steer 方法和状态仍等功能实际实现时加入。其来源、排序和消费由服务确认；不能只加 UI 标志。本期公共 API 只接纳普通发送，不提前生成后续 RPC 或空调度实现。
 
 ### 后续能力（未实现）
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。Fork／Rewind、ContinueRun、辅助标题 Gen 持久记录，以及 ObserveInteractions／AcknowledgeInteraction／RespondInteraction 随实际生产者加入。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind、ContinueRun 和辅助标题 Gen 持久记录仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
 
 大历史分页由 01f 在现有 Run／Item 框架上扩展，不采用旧 GetMessages／ReadChanges 方案，不继续细拆。持久内容不能截断，读取需要明确有界；公共 snapshot／分页规则届时与存储实现一起确定。MVP 的 ReadSession 完整响应／订阅首帧受 1 MiB 编码预算约束，超额明确失败；没有增大通用上限或截断历史。
 

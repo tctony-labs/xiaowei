@@ -113,23 +113,14 @@ async fn drive(
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, history, grants) = {
+    let (cwd, history, mut grants) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
-        let grants = if let Some(journal) = &session.journal {
-            crate::rebuild_context(
-                journal.entries(),
-                &domain::ContextBoundary {
-                    through_entry_id: journal.entries().last().map(|entry| entry.entry_id),
-                    after_turn_id: None,
-                },
-            )
-            .map_err(|_| AgentError::Persistence)?
-            .granted_paths
-        } else {
-            vec![]
-        };
-        (session.view.cwd.clone(), session.history.clone(), grants)
+        (
+            session.view.cwd.clone(),
+            session.history.clone(),
+            session.granted_paths.clone(),
+        )
     };
     let tools = cwd.as_ref().map(|cwd| {
         Arc::new(Mutex::new(FileTools::new(
@@ -320,6 +311,36 @@ async fn drive(
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
+                } else if matches!(name.as_str(), "AskUserQuestion" | "RequestPermission") {
+                    match xw_agent_runtime::tools::interactive::parse(name, &intent.arguments_json)
+                    {
+                        Err(error) => Err(error),
+                        Ok(question) => {
+                            match crate::interactive::wait(
+                                shared,
+                                request.session_id,
+                                &intent,
+                                question.clone(),
+                                cancellation,
+                            )
+                            .await?
+                            {
+                                Some(answer) => {
+                                    grants = shared.lock().unwrap().sessions[&request.session_id]
+                                        .granted_paths
+                                        .clone();
+                                    if let Some(tools) = &tools {
+                                        tools.lock().unwrap().set_grants(grants.clone());
+                                    }
+                                    xw_agent_runtime::tools::interactive::result(&question, &answer)
+                                }
+                                None => {
+                                    execution_cancelled = true;
+                                    Err("运行已停止，交互已失效".into())
+                                }
+                            }
+                        }
+                    }
                 } else if name == "Bash"
                     && let Some(cwd) = &cwd
                 {
@@ -377,7 +398,9 @@ async fn drive(
                         output.metadata_json,
                     ),
                     Err(error) => (
-                        if skipped {
+                        if execution_cancelled {
+                            domain::ToolStatus::Cancelled
+                        } else if skipped {
                             domain::ToolStatus::Skipped
                         } else if matches!(name.as_str(), "Bash" | "Glob" | "Grep")
                             && cancellation.is_cancelled()
@@ -495,7 +518,64 @@ fn commit_result(
     duration_ms: Option<u64>,
 ) -> Result<(), AgentError> {
     let at = now_ms()?;
-    let outcome = domain::ToolOutcome {
+    let outcome = tool_outcome(intent, status, text, metadata_json, duration_ms, at);
+    let mut state = shared.lock().unwrap();
+    let (session_id, session) = state
+        .sessions
+        .iter_mut()
+        .find(|(_, s)| {
+            s.active
+                .as_ref()
+                .is_some_and(|r| r.run_id == intent.key.run_id)
+        })
+        .ok_or(AgentError::Internal)?;
+    let session_id = *session_id;
+    session.append(domain::EntryPayload::ToolOutcome(outcome.clone()), at)?;
+    session.history.push(outcome.result.message.clone());
+    let mut item = tool_item(intent, Some(&outcome));
+    if let Some(agent_item::Content::ToolCall(tool)) = &mut item.content {
+        tool.interaction = session
+            .interactions
+            .values()
+            .find(|record| record.opened.tool_id == intent.tool_id)
+            .map(|record| record.view());
+    }
+    let current = session
+        .view
+        .runs
+        .last_mut()
+        .unwrap()
+        .items
+        .iter_mut()
+        .find(|item| item.item_id == intent.block_id.to_string())
+        .ok_or(AgentError::Internal)?;
+    *current = item.clone();
+    AgentService::publish(
+        &mut state,
+        event(agent_event::Payload::ItemCompleted(ItemCompleted {
+            session_id: session_id.to_string(),
+            run_id: intent.key.run_id.to_string(),
+            item: Some(item),
+        })),
+    );
+    log::debug!(
+        "Agent tool settled session={session_id} tool={} name={} \
+         status={status:?} duration_ms={duration_ms:?}",
+        intent.tool_id,
+        intent.tool_name
+    );
+    Ok(())
+}
+
+pub(crate) fn tool_outcome(
+    intent: &domain::ToolIntent,
+    status: domain::ToolStatus,
+    text: String,
+    metadata_json: Option<String>,
+    duration_ms: Option<u64>,
+    at: i64,
+) -> domain::ToolOutcome {
+    domain::ToolOutcome {
         tool_id: intent.tool_id,
         key: intent.key.clone(),
         status,
@@ -527,46 +607,7 @@ fn commit_result(
         queue_duration_ms: None,
         error: None,
         settled_by_run_id: None,
-    };
-    let mut state = shared.lock().unwrap();
-    let (session_id, session) = state
-        .sessions
-        .iter_mut()
-        .find(|(_, s)| {
-            s.active
-                .as_ref()
-                .is_some_and(|r| r.run_id == intent.key.run_id)
-        })
-        .ok_or(AgentError::Internal)?;
-    let session_id = *session_id;
-    session.append(domain::EntryPayload::ToolOutcome(outcome.clone()), at)?;
-    session.history.push(outcome.result.message.clone());
-    let item = tool_item(intent, Some(&outcome));
-    let current = session
-        .view
-        .runs
-        .last_mut()
-        .unwrap()
-        .items
-        .iter_mut()
-        .find(|item| item.item_id == intent.block_id.to_string())
-        .ok_or(AgentError::Internal)?;
-    *current = item.clone();
-    AgentService::publish(
-        &mut state,
-        event(agent_event::Payload::ItemCompleted(ItemCompleted {
-            session_id: session_id.to_string(),
-            run_id: intent.key.run_id.to_string(),
-            item: Some(item),
-        })),
-    );
-    log::debug!(
-        "Agent tool settled session={session_id} tool={} name={} \
-         status={status:?} duration_ms={duration_ms:?}",
-        intent.tool_id,
-        intent.tool_name
-    );
-    Ok(())
+    }
 }
 
 pub(crate) fn tool_item(
@@ -615,6 +656,7 @@ pub(crate) fn tool_item(
             output,
             metadata_json: outcome.and_then(|o| o.metadata_json.clone()),
             duration_ms: outcome.and_then(|o| o.duration_ms),
+            interaction: None,
         })),
     }
 }

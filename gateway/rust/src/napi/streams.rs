@@ -219,7 +219,7 @@ impl Endpoint {
         let lease = StreamLease {
             endpoint: Arc::downgrade(self),
             id,
-            token: context.caller().into(),
+            token: context.transport_token().into(),
         };
         let control = lease.control("stream.open", Some(route));
         let policy = tokio::time::timeout(

@@ -1,8 +1,13 @@
 import { clone, create } from "@bufbuild/protobuf";
 import {
+  type AcknowledgeInteractionRequest,
+  AcknowledgeInteractionResponseSchema,
   Agent,
   type AgentEvent,
   AgentEventSchema,
+  type AgentInteraction,
+  AgentInteractionSchema,
+  AgentInteractionStatus,
   AgentRunSchema,
   AgentRunStatus,
   type AgentSession,
@@ -11,10 +16,14 @@ import {
   AgentSessionSummarySchema,
   CreateSessionResponseSchema,
   DeleteSessionResponseSchema,
+  type InteractionDeliveryEvent,
+  InteractionDeliveryEventSchema,
   InterruptRunResponseSchema,
   ListSessionsResponseSchema,
   ReadSessionResponseSchema,
   RegenerateTitleResponseSchema,
+  type RespondInteractionRequest,
+  RespondInteractionResponseSchema,
   SessionRetentionPolicySchema,
   SessionViewingReadySchema,
   SetSessionArchivedResponseSchema,
@@ -42,11 +51,17 @@ export function agentFixture(host = new GatewayHost()) {
   const disconnectors = new Set<() => void>();
   const requests: StartRunRequest[] = [];
   const titleRequests: string[] = [];
+  const interactionRequests: RespondInteractionRequest[] = [];
+  const receipts: AcknowledgeInteractionRequest[] = [];
+  let failInteractionResponse = false;
+  let failInteractionBeforeAcceptance = false;
   let auxiliaryAvailable = true;
   const setTitleRequests: { sessionId: string; title: string }[] = [];
   const observers = new Set<(event: AgentEvent) => void>();
+  const interactionObservers = new Set<() => void>();
   function emit(event: AgentEvent) {
     for (const observer of observers) observer(clone(AgentEventSchema, event));
+    for (const observer of interactionObservers) observer();
   }
   function finish(
     status = AgentRunStatus.COMPLETED,
@@ -67,6 +82,7 @@ export function agentFixture(host = new GatewayHost()) {
       run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
     run.items = [
       run.items[0],
+      ...run.items.filter((item) => item.content.case === "toolCall"),
       {
         $typeName: "xiaowei.agent.AgentItem",
         itemId: agentIdentity(),
@@ -92,6 +108,52 @@ export function agentFixture(host = new GatewayHost()) {
   }
   const owner = host.registerOwner("agent-fixture", [
     ...bindHandlers(Agent, {
+      acknowledgeInteraction(request) {
+        receipts.push(request);
+        return create(AcknowledgeInteractionResponseSchema);
+      },
+      respondInteraction(request) {
+        interactionRequests.push(request);
+        if (failInteractionBeforeAcceptance) {
+          failInteractionBeforeAcceptance = false;
+          throw new GatewayFailure({ code: "TIMEOUT", message: "Not accepted" });
+        }
+        const target = sessions.get(request.sessionId);
+        const run = target?.runs.at(-1);
+        const tool = run?.items
+          .flatMap((item) => (item.content.case === "toolCall" ? [item.content.value] : []))
+          .find((tool) => tool.interaction?.interactionId === request.interactionId);
+        if (!target || !run || !tool?.interaction) throw new Error("Missing interaction");
+        const view = tool.interaction;
+        if (view.status !== AgentInteractionStatus.PENDING) {
+          if (view.clientRequestId === request.clientRequestId) {
+            return create(RespondInteractionResponseSchema, { interaction: view });
+          }
+          throw new GatewayFailure({ code: "CONFLICT", message: "Already answered" });
+        }
+        view.status = AgentInteractionStatus.RESOLVED;
+        view.revision = 2n;
+        view.answer = request.answer;
+        view.clientRequestId = request.clientRequestId;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "interactionUpdated",
+              value: {
+                sessionId: target.sessionId,
+                runId: run.runId,
+                toolId: tool.toolId,
+                interaction: view,
+              },
+            },
+          }),
+        );
+        if (failInteractionResponse) {
+          failInteractionResponse = false;
+          throw new GatewayFailure({ code: "TIMEOUT", message: "Response lost" });
+        }
+        return create(RespondInteractionResponseSchema, { interaction: view });
+      },
       getSessionRetentionPolicy() {
         return create(SessionRetentionPolicySchema, { archiveAfterDays: 3 });
       },
@@ -305,6 +367,62 @@ export function agentFixture(host = new GatewayHost()) {
       },
     }),
     ...bindStreamHandlers(Agent, {
+      observeInteractions(request, client) {
+        const signal = client.cancellation();
+        const seen = new Set<string>();
+        const queue: InteractionDeliveryEvent[] = [
+          create(InteractionDeliveryEventSchema, {
+            payload: {
+              case: "ready",
+              value: {
+                instanceId: "fixture-instance",
+                observerId: agentIdentity(),
+              },
+            },
+          }),
+        ];
+        let wake: (() => void) | undefined;
+        function scan() {
+          const target = sessions.get(request.sessionId);
+          for (const item of target?.runs.flatMap((run) => run.items) ?? []) {
+            const view =
+              item.content.case === "toolCall" ? item.content.value.interaction : undefined;
+            if (
+              !view ||
+              seen.has(view.interactionId) ||
+              view.status !== AgentInteractionStatus.PENDING
+            )
+              continue;
+            seen.add(view.interactionId);
+            queue.push(
+              create(InteractionDeliveryEventSchema, {
+                payload: {
+                  case: "delivery",
+                  value: { deliveryId: agentIdentity(), interaction: view },
+                },
+              }),
+            );
+          }
+          wake?.();
+        }
+        scan();
+        interactionObservers.add(scan);
+        signal.addEventListener("abort", () => wake?.(), { once: true });
+        return (async function* () {
+          try {
+            while (!signal.aborted) {
+              const event = queue.shift();
+              if (event) yield event;
+              else
+                await new Promise<void>((resolve) => {
+                  wake = resolve;
+                });
+            }
+          } finally {
+            interactionObservers.delete(scan);
+          }
+        })();
+      },
       trackSessionViewing(_request, client) {
         const signal = client.cancellation();
         return (async function* () {
@@ -398,6 +516,71 @@ export function agentFixture(host = new GatewayHost()) {
     );
   }
   return {
+    interactionRequests,
+    receipts,
+    openInteraction(request: AgentInteraction["request"]) {
+      const run = session?.runs.at(-1);
+      if (!session || !run) throw new Error("No active run");
+      const genId = run.generation?.genId;
+      run.generation = undefined;
+      emit(
+        create(AgentEventSchema, {
+          payload: {
+            case: "generationUpdated",
+            value: {
+              sessionId: session.sessionId,
+              runId: run.runId,
+            },
+          },
+        }),
+      );
+      const view = create(AgentInteractionSchema, {
+        interactionId: agentIdentity(),
+        revision: 1n,
+        request,
+        status: AgentInteractionStatus.PENDING,
+      });
+      const item = {
+        $typeName: "xiaowei.agent.AgentItem" as const,
+        itemId: agentIdentity(),
+        genId,
+        content: {
+          case: "toolCall" as const,
+          value: {
+            $typeName: "xiaowei.agent.AgentToolCall" as const,
+            toolId: agentIdentity(),
+            turnId: agentIdentity(),
+            genId: genId ?? "",
+            providerCallId: agentIdentity(),
+            name: request.case === "question" ? "AskUserQuestion" : "RequestPermission",
+            argumentsJson: "{}",
+            status: 1,
+            output: "",
+            interaction: view,
+          },
+        },
+      };
+      run.items.push(item);
+      emit(
+        create(AgentEventSchema, {
+          payload: {
+            case: "itemStarted",
+            value: {
+              sessionId: session.sessionId,
+              runId: run.runId,
+              item,
+            },
+          },
+        }),
+      );
+      return view;
+    },
+    loseNextInteractionResponse() {
+      failInteractionResponse = true;
+    },
+    failNextInteractionBeforeAcceptance() {
+      failInteractionBeforeAcceptance = true;
+    },
     host,
     requests,
     sessions,
@@ -413,7 +596,14 @@ export function agentFixture(host = new GatewayHost()) {
       return session;
     },
     get counts() {
-      return { created, interrupted, deleted, disconnected, observing: observers.size };
+      return {
+        created,
+        interrupted,
+        deleted,
+        disconnected,
+        observing: observers.size,
+        interactionsObserving: interactionObservers.size,
+      };
     },
     loseResponse() {
       lostResponse = true;

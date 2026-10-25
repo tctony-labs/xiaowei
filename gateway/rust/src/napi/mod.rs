@@ -30,6 +30,9 @@ pub type Callback = ThreadsafeFunction<
 #[serde(rename_all = "camelCase")]
 pub struct Context {
     pub token: String,
+    // Supplied by the authenticated host adapter, never by a business payload.
+    #[serde(default)]
+    pub caller: Option<String>,
     pub trusted: bool,
     #[serde(default)]
     pub invoke: Vec<String>,
@@ -38,11 +41,13 @@ pub struct Context {
 }
 impl Context {
     fn core(&self) -> CallContext {
-        if self.trusted {
-            CallContext::trusted(&self.token)
+        let caller = self.caller.as_deref().unwrap_or(&self.token);
+        let context = if self.trusted {
+            CallContext::trusted(caller)
         } else {
-            CallContext::restricted(&self.token, self.invoke.clone(), self.subscribe.clone())
-        }
+            CallContext::restricted(caller, self.invoke.clone(), self.subscribe.clone())
+        };
+        context.with_transport_token(self.token.clone())
     }
 }
 
@@ -350,14 +355,14 @@ impl Endpoint {
         let lease = Arc::new(RemoteLease {
             endpoint: Arc::downgrade(self),
             id: id.clone(),
-            token: context.caller().into(),
+            token: context.transport_token().into(),
         });
         let bytes = self
             .outbound(
                 Control {
                     version: CONTROL_VERSION,
                     operation: "subscribe".into(),
-                    context_token: context.caller().into(),
+                    context_token: context.transport_token().into(),
                     route: None,
                     event: Some(event),
                     subscription_id: Some(id),

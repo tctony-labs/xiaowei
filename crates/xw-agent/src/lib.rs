@@ -8,6 +8,8 @@ mod execution;
 mod host;
 mod index;
 mod input;
+mod interaction_delivery;
+mod interactive;
 mod model;
 mod persistence;
 #[cfg(test)]
@@ -21,6 +23,7 @@ mod title;
 
 pub use error::AgentError;
 pub use events::{EventSubscription, SubscriptionError};
+pub use interaction_delivery::InteractionSubscription;
 pub use service::AgentService;
 pub use xw_agent_runtime::{
     CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest,

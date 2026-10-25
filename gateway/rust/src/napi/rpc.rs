@@ -150,7 +150,7 @@ impl Endpoint {
         let mut lease = RpcLease {
             endpoint: Arc::downgrade(self),
             id,
-            token: context.caller().into(),
+            token: context.transport_token().into(),
             completed: false,
         };
         let result = self

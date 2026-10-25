@@ -48,6 +48,24 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
     let set_policy = agent.clone();
     let viewing = agent.clone();
     let subscribe = agent.clone();
+    let interaction_observe = agent.clone();
+    let interaction_ack = agent.clone();
+    let interaction_respond = agent.clone();
+    let interaction_stream = api::OBSERVE_INTERACTIONS.handler(move |request, client| {
+        let agent = interaction_observe.clone();
+        async move {
+            ready(&agent)?;
+            let subscription = agent
+                .service
+                .observe_interactions(request, client.context().caller().to_owned())
+                .await
+                .map_err(error)?;
+            Ok(stream::unfold(subscription, |mut subscription| async {
+                let frame = subscription.recv().await?;
+                Some((Ok(frame), subscription))
+            }))
+        }
+    });
     let mut subscription = api::SUBSCRIBE_SESSION.handler(move |request, _| {
         let agent = subscribe.clone();
         async move {
@@ -174,6 +192,34 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
             }
         }),
         subscription,
+        interaction_stream,
+        api::ACKNOWLEDGE_INTERACTION.handler(move |request, client| {
+            let agent = interaction_ack.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .acknowledge_interaction(request, client.context().caller())
+                    .map_err(error)
+            }
+        }),
+        api::RESPOND_INTERACTION.handler(move |request, client| {
+            let agent = interaction_respond.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .respond_interaction(
+                        request,
+                        InputSource {
+                            kind: SourceKind::Desktop,
+                            principal_id: client.context().caller().to_owned(),
+                        },
+                    )
+                    .await
+                    .map_err(error)
+            }
+        }),
         viewing,
         api::GET_SESSION_RETENTION_POLICY.handler(move |_, _| {
             let agent = get_policy.clone();

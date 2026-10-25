@@ -7,6 +7,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import {
@@ -32,6 +33,125 @@ import { QuickChatPanel } from "./QuickChatPanel";
 import { useQuickChat } from "./use-quick-chat";
 
 afterEach(cleanup);
+
+test.each(["card", "composer"])(
+  "question replies through %s share one typed decision",
+  async (entry) => {
+    const app = fixture();
+    function Chat() {
+      return (
+        <QuickChatPanel
+          {...useQuickChat(app.services)}
+          expanded
+          search={<div />}
+          onCollapse={() => {}}
+        />
+      );
+    }
+    render(<Chat />);
+    const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+    fireEvent.change(composer, { target: { value: "ask me" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() => expect(app.requests).toHaveLength(1));
+    fireEvent.change(composer, { target: { value: "原聊天草稿" } });
+    let interactionId = "";
+    act(() => {
+      interactionId = app.openInteraction({
+        case: "question",
+        value: {
+          $typeName: "xiaowei.agent.AgentQuestion",
+          question: "请选择并补充",
+          options: ["A", "B"],
+          multiSelect: true,
+        },
+      }).interactionId;
+    });
+    const card = await screen.findByLabelText("待回答问题");
+    expect(screen.queryByLabelText("模型正在生成")).toBeNull();
+    expect(screen.getByRole("button", { name: "停止生成" })).toBeEnabled();
+    await waitFor(() => expect(app.receipts).toHaveLength(1));
+    expect(app.interactionRequests).toHaveLength(0);
+    fireEvent.click(within(card).getByRole("button", { name: /A/ }));
+    fireEvent.change(within(card).getByRole("textbox", { name: "补充回答" }), {
+      target: { value: "补充说明" },
+    });
+    expect(composer).toHaveValue("补充说明");
+    fireEvent.compositionStart(composer);
+    fireEvent.keyDown(composer, { key: "Enter" });
+    expect(app.interactionRequests).toHaveLength(0);
+    fireEvent.compositionEnd(composer);
+    fireEvent.keyDown(composer, { key: "Enter", shiftKey: true });
+    expect(app.interactionRequests).toHaveLength(0);
+    if (entry === "composer") fireEvent.keyDown(composer, { key: "Enter" });
+    else fireEvent.click(within(card).getByRole("button", { name: "提交回答" }));
+    await waitFor(() => expect(app.interactionRequests).toHaveLength(1));
+    expect(app.interactionRequests[0]).toMatchObject({
+      interactionId,
+      expectedRevision: 1n,
+      answer: {
+        answer: {
+          case: "question",
+          value: {
+            selectedIndices: [0],
+            text: "补充说明",
+          },
+        },
+      },
+    });
+    await waitFor(() => expect(composer).toHaveValue("原聊天草稿"));
+    expect(app.requests).toHaveLength(1);
+    expect(screen.getAllByLabelText("用户消息")).toHaveLength(1);
+    act(() => app.finish());
+    expect(await screen.findByText("answer")).toBeVisible();
+  },
+);
+
+test("permission decisions require the card and a lost response follows public state", async () => {
+  const app = fixture();
+  function Chat() {
+    return (
+      <QuickChatPanel
+        {...useQuickChat(app.services)}
+        expanded
+        search={<div />}
+        onCollapse={() => {}}
+      />
+    );
+  }
+  render(<Chat />);
+  const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+  fireEvent.change(composer, { target: { value: "request permission" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  act(() =>
+    app.openInteraction({
+      case: "permission",
+      value: {
+        $typeName: "xiaowei.agent.AgentPermissionRequest",
+        path: "/controlled/file.txt",
+        isDirectory: false,
+        reason: "写入测试文件",
+      },
+    }),
+  );
+  const card = await screen.findByLabelText("待授权请求");
+  fireEvent.change(composer, { target: { value: "同意" } });
+  fireEvent.keyDown(composer, { key: "Enter" });
+  expect(app.interactionRequests).toHaveLength(0);
+  app.loseNextInteractionResponse();
+  fireEvent.click(within(card).getByRole("button", { name: "拒绝" }));
+  await waitFor(() => expect(screen.getByText(/已拒绝/)).toBeVisible());
+  expect(app.interactionRequests).toHaveLength(1);
+  expect(app.interactionRequests[0].answer?.answer).toMatchObject({
+    case: "permission",
+    value: { allow: false },
+  });
+  expect(app.requests).toHaveLength(1);
+  expect(composer).toHaveValue("同意");
+  act(() => app.finish());
+});
 
 function fixture(
   defaultModel = "model",

@@ -2,7 +2,10 @@ import { create } from "@bufbuild/protobuf";
 import { waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import {
+  AgentInteractionStatus,
   AgentModelConfigSchema,
+  AgentPermissionRequestSchema,
+  AgentQuestionSchema,
   AgentRunStatus,
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
@@ -236,6 +239,7 @@ test("a disconnected observation resubscribes once using a fresh authoritative s
   const client = new AgentChatClient(services);
   const close = client.observe(() => {});
   await client.send("hello", config);
+  await waitFor(() => expect(fixture.counts.interactionsObserving).toBe(1));
   fixture.disconnectObservers();
   fixture.finish(AgentRunStatus.COMPLETED, "settled during reconnection");
   await waitFor(() => expect(fixture.counts.disconnected).toBe(1));
@@ -250,6 +254,61 @@ test("a disconnected observation resubscribes once using a fresh authoritative s
   await waitFor(() => expect(fixture.counts.disconnected).toBe(2));
   await waitFor(() => expect(client.error).toContain("请重试操作"));
   expect(fixture.counts.observing).toBe(0);
+  await waitFor(() => expect(fixture.counts.interactionsObserving).toBe(0));
+  close();
+});
+
+test("answers after observation failure reconnect before submitting", async () => {
+  const fixture = agentFixture();
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("ask", config);
+  const question = fixture.openInteraction({
+    case: "question",
+    value: create(AgentQuestionSchema, { question: "如何继续？" }),
+  });
+  await waitFor(() => expect(client.pendingQuestion?.interactionId).toBe(question.interactionId));
+  client.setInteractionText(question.interactionId, "继续");
+  fixture.disconnectObservers();
+  await waitFor(() => expect(fixture.counts.disconnected).toBe(1));
+  await waitFor(() => expect(fixture.counts.observing).toBe(1));
+  fixture.disconnectObservers();
+  await waitFor(() => expect(client.error).toContain("请重试操作"));
+  await client.respondInteraction(question.interactionId);
+  await waitFor(() =>
+    expect(client.interaction(question.interactionId)?.status).toBe(
+      AgentInteractionStatus.RESOLVED,
+    ),
+  );
+  expect(fixture.interactionRequests).toHaveLength(1);
+  expect(fixture.requests).toHaveLength(1);
+  close();
+});
+
+test("uncertain permission retries retain the request ID and original decision", async () => {
+  const fixture = agentFixture();
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("permission", config);
+  const permission = fixture.openInteraction({
+    case: "permission",
+    value: create(AgentPermissionRequestSchema, { path: "/test-only/file", reason: "test" }),
+  });
+  await waitFor(() => expect(client.interaction(permission.interactionId)).toBeDefined());
+  fixture.failNextInteractionBeforeAcceptance();
+  await client.respondInteraction(permission.interactionId, true);
+  expect(client.interactionForm(permission.interactionId).uncertain).toBe(true);
+  await client.respondInteraction(permission.interactionId, false);
+  expect(fixture.interactionRequests).toHaveLength(2);
+  expect(fixture.interactionRequests[1]).toEqual(fixture.interactionRequests[0]);
+  await waitFor(() =>
+    expect(client.interaction(permission.interactionId)?.answer?.answer).toMatchObject({
+      case: "permission",
+      value: { allow: true },
+    }),
+  );
   close();
 });
 

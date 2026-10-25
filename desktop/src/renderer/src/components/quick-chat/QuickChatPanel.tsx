@@ -1,6 +1,10 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { AgentMessage } from "../agent-chat/AgentMessage";
-import type { AgentGenerationState, AgentMessageBlock } from "../agent-chat/message-blocks";
+import type {
+  AgentGenerationState,
+  AgentMessageBlock,
+  InteractionControls,
+} from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
 import QuickChatTitleBar, { type QuickChatSessionItem } from "./QuickChatTitleBar";
@@ -54,6 +58,8 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   onStop: () => void;
   onNewConversation: () => void;
   onCollapse: () => void;
+  interactions?: InteractionControls;
+  questionReply?: { submitting: boolean; canSubmit: boolean };
 }
 
 // No sessions, persistence or Gateway connection here: the page adapter owns the conversation.
@@ -66,12 +72,13 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const sessionScroll = useRef(new Map<string, { position: number; follow: boolean }>());
   const scrollSession = useRef(props.sessionId ?? "");
   const [composerHeight, setComposerHeight] = useState(65);
-  const canSend =
-    props.configured &&
-    !!props.draft.trim() &&
-    !props.generating &&
-    !props.loading &&
-    !props.configSaving;
+  const canSend = props.questionReply
+    ? !props.loading && !props.questionReply.submitting && props.questionReply.canSubmit
+    : props.configured &&
+      !!props.draft.trim() &&
+      !props.generating &&
+      !props.loading &&
+      !props.configSaving;
   const title =
     props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
@@ -131,7 +138,8 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         <textarea
           ref={composer}
           aria-label="快速对话输入"
-          placeholder="输入消息，Enter 发送"
+          placeholder={props.questionReply ? "回复上面的问题，Enter 提交" : "输入消息，Enter 发送"}
+          disabled={props.questionReply?.submitting}
           rows={1}
           value={props.draft}
           className="min-w-0 flex-1 resize-none bg-transparent text-sm leading-[21px] text-ink placeholder:text-muted"
@@ -152,13 +160,13 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         />
         <button
           type="button"
-          aria-label={props.generating ? "停止生成" : "发送消息"}
-          disabled={!props.generating && !canSend}
-          onClick={props.generating ? props.onStop : send}
+          aria-label={props.questionReply ? "提交回答" : props.generating ? "停止生成" : "发送消息"}
+          disabled={props.questionReply ? !canSend : !props.generating && !canSend}
+          onClick={props.generating && !props.questionReply ? props.onStop : send}
           className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primary
             text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {props.generating ? (
+          {props.generating && !props.questionReply ? (
             <span className="size-3 rounded-sm bg-current" />
           ) : (
             <svg
@@ -178,6 +186,17 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
             </svg>
           )}
         </button>
+        {props.generating && props.questionReply && (
+          <button
+            type="button"
+            aria-label="停止生成"
+            onClick={props.onStop}
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg
+              text-muted hover:bg-hover"
+          >
+            <span className="size-3 rounded-sm bg-current" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -289,6 +308,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         finalResponseBlockIds={message.finalResponseBlockIds}
                         onCopy={props.onCopyMessageText}
                         onOpenUrl={props.onOpenMessageUrl}
+                        interactions={props.interactions}
                       />
                     </article>
                   ))}

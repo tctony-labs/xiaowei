@@ -1,9 +1,25 @@
-import type { AgentItem, AgentToolCall } from "xiaowei-contracts";
+import type { AgentInteraction, AgentItem, AgentToolCall } from "xiaowei-contracts";
+
+export interface InteractionForm {
+  text: string;
+  selectedIndices: number[];
+  submitting: boolean;
+  uncertain: boolean;
+  error: string;
+}
+
+export interface InteractionControls {
+  form: (id: string) => InteractionForm;
+  onTextChange: (id: string, text: string) => void;
+  onSelectionChange: (id: string, indices: number[]) => void;
+  onRespond: (id: string, allow?: boolean) => void;
+}
 
 export type AgentMessageBlock =
   | { id: string; kind: "text"; text: string }
   | { id: string; kind: "reasoning"; text: string }
-  | { id: string; kind: "tool"; call: AgentToolCall };
+  | { id: string; kind: "tool"; call: AgentToolCall }
+  | { id: string; kind: "interaction"; interaction: AgentInteraction };
 
 export type AgentToolBlock = Extract<AgentMessageBlock, { kind: "tool" }>;
 
@@ -24,7 +40,7 @@ export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGro
 
   for (const block of blocks) {
     if (block.kind !== "tool") {
-      if (block.text.trim()) groups.push(block);
+      if (block.kind === "interaction" || block.text.trim()) groups.push(block);
       continue;
     }
 
@@ -60,6 +76,11 @@ export function messageBlocks(items: AgentItem[]): AgentMessageBlock[] {
       case "reasoning":
         return [{ id: item.itemId, kind: "reasoning", text: item.content.value.text }];
       case "toolCall":
+        if (item.content.value.interaction?.request.case) {
+          return [
+            { id: item.itemId, kind: "interaction", interaction: item.content.value.interaction },
+          ];
+        }
         return [{ id: item.itemId, kind: "tool", call: item.content.value }];
       default:
         return [];

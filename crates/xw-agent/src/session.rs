@@ -25,6 +25,11 @@ pub(crate) struct Session {
     pub failed_run: Option<xw_agent_types::RunId>,
     pub deletion_announced: bool,
     pub history: Vec<xw_agent_types::AgentMessage>,
+    pub granted_paths: Vec<xw_agent_types::PermissionTarget>,
+    pub interactions: std::collections::BTreeMap<
+        xw_agent_types::InteractionId,
+        crate::interactive::InteractionRecord,
+    >,
     pub requests: std::collections::BTreeMap<xw_agent_types::InputId, StartRunRequest>,
     pub active: Option<ActiveRun>,
     pub title_tasks: std::collections::BTreeMap<xw_agent_types::GenId, TitleTask>,
@@ -60,6 +65,8 @@ impl Session {
             current_title_task: None,
             deletion_announced: false,
             history: Vec::new(),
+            granted_paths: Vec::new(),
+            interactions: Default::default(),
             requests: Default::default(),
             active: None,
         }

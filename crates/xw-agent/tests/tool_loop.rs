@@ -283,7 +283,7 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
         if cfg!(target_os = "macos") {
             expected.push("Bash");
         }
-        expected.extend(["Glob", "Grep"]);
+        expected.extend(["Glob", "Grep", "AskUserQuestion", "RequestPermission"]);
         assert_eq!(
             context
                 .tools
@@ -436,11 +436,10 @@ async fn tool_limit_settles_run_and_never_executes_call_fifty_one() {
 #[tokio::test]
 async fn stopping_a_tool_batch_closes_results_without_starting_another_generation() {
     let root = tempfile::tempdir().unwrap();
-    let contents = "x".repeat(400_000);
-    let write = serde_json::json!({"path":"first","contents": contents}).to_string();
+    // The first tool waits for a decision, so stopping cannot race a fast file write.
     let host = Host::new(vec![message(
         &[
-            ("Write", &write),
+            ("AskUserQuestion", r#"{"question":"继续吗？"}"#),
             ("Write", r#"{"path":"must-not-run","contents":"bad"}"#),
         ],
         "",
@@ -476,15 +475,11 @@ async fn stopping_a_tool_batch_closes_results_without_starting_another_generatio
         loop {
             let event = events.recv().await.unwrap().unwrap();
             match event.payload {
-                Some(agent_event::Payload::ItemStarted(started))
-                    if started.item.as_ref().is_some_and(|item| {
-                        matches!(item.content, Some(agent_item::Content::ToolCall(_)))
-                    }) =>
-                {
+                Some(agent_event::Payload::InteractionUpdated(opened)) => {
                     service
                         .interrupt_run(InterruptRunRequest {
                             session_id: session.session_id.clone(),
-                            run_id: started.run_id,
+                            run_id: opened.run_id,
                         })
                         .unwrap();
                 }

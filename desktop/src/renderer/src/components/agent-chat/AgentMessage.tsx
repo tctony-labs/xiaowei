@@ -1,11 +1,16 @@
 import { type ReactNode, useEffect, useId, useState } from "react";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
 import { AgentCopyButton } from "./AgentCopyButton";
+import { AgentInteraction } from "./AgentInteraction";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentMessageTime } from "./AgentMessageTime";
 import { AgentReasoning } from "./AgentReasoning";
 import { AgentToolGroup } from "./AgentToolGroup";
-import { type AgentGenerationState, groupMessageBlocks } from "./message-blocks";
+import {
+  type AgentGenerationState,
+  groupMessageBlocks,
+  type InteractionControls,
+} from "./message-blocks";
 
 interface AgentMessageProps {
   message: QuickChatMessage;
@@ -13,6 +18,7 @@ interface AgentMessageProps {
   finalResponseBlockIds?: string[];
   onCopy: (text: string) => Promise<void>;
   onOpenUrl: (url: string) => Promise<void>;
+  interactions?: InteractionControls;
 }
 
 export function AgentMessage({
@@ -21,6 +27,7 @@ export function AgentMessage({
   finalResponseBlockIds,
   onCopy,
   onOpenUrl,
+  interactions,
 }: AgentMessageProps) {
   const activityId = useId();
   const [expanded, setExpanded] = useState(false);
@@ -55,7 +62,9 @@ export function AgentMessage({
   const hasFinalResponse = message.status === "complete" && finalResponseBlockIds !== undefined;
   const answerIds = new Set(finalResponseBlockIds);
   const activity = hasFinalResponse ? blocks.filter((block) => !answerIds.has(block.id)) : [];
-  const hasActivity = activity.some((block) => block.kind === "tool" || !!block.text.trim());
+  const hasActivity = activity.some(
+    (block) => block.kind === "tool" || block.kind === "interaction" || !!block.text.trim(),
+  );
   const activityIds = new Set(activity.map((block) => block.id));
   const elapsedSeconds =
     message.durationMs === undefined
@@ -100,6 +109,8 @@ export function AgentMessage({
           let content: ReactNode;
           if (group.kind === "tools") {
             content = <AgentToolGroup blocks={group.blocks} />;
+          } else if (group.kind === "interaction") {
+            content = <AgentInteraction view={group.interaction} controls={interactions} />;
           } else if (group.kind === "reasoning") {
             content = <AgentReasoning text={group.text} active={group.id === activeBlockId} />;
           } else {

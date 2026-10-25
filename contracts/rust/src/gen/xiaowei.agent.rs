@@ -129,6 +129,10 @@ pub struct AgentToolCall {
     pub metadata_json: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(uint64, optional, tag = "10")]
     pub duration_ms: ::core::option::Option<u64>,
+    /// Absent for ordinary tools and invalid interactive arguments. Shared business state,
+    /// never per-device delivery status. Retained with this tool through completion/reopen.
+    #[prost(message, optional, tag = "11")]
+    pub interaction: ::core::option::Option<AgentInteraction>,
 }
 impl ::prost::Name for AgentToolCall {
     const NAME: &'static str = "AgentToolCall";
@@ -982,7 +986,7 @@ pub struct AgentEvent {
     pub emitted_at_ms: i64,
     #[prost(
         oneof = "agent_event::Payload",
-        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
+        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
     )]
     pub payload: ::core::option::Option<agent_event::Payload>,
 }
@@ -1018,6 +1022,8 @@ pub mod agent_event {
         SessionArchivedUpdated(super::SessionArchivedUpdated),
         #[prost(message, tag = "15")]
         GenerationUpdated(super::GenerationUpdated),
+        #[prost(message, tag = "16")]
+        InteractionUpdated(super::InteractionUpdated),
     }
 }
 impl ::prost::Name for AgentEvent {
@@ -1202,6 +1208,328 @@ impl ::prost::Name for SetSessionRetentionPolicyRequest {
         "/xiaowei.agent.SetSessionRetentionPolicyRequest".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentQuestion {
+    #[prost(string, tag = "1")]
+    pub question: ::prost::alloc::string::String,
+    /// Ordered, at most 12. Duplicate labels remain distinct by index.
+    #[prost(string, repeated, tag = "2")]
+    pub options: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(bool, tag = "3")]
+    pub multi_select: bool,
+}
+impl ::prost::Name for AgentQuestion {
+    const NAME: &'static str = "AgentQuestion";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentQuestion".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentQuestion".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentPermissionRequest {
+    /// Server-resolved absolute target. Clients cannot change this when approving.
+    #[prost(string, tag = "1")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub is_directory: bool,
+    #[prost(string, tag = "3")]
+    pub reason: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AgentPermissionRequest {
+    const NAME: &'static str = "AgentPermissionRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentPermissionRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentPermissionRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentQuestionAnswer {
+    /// Unique, in-range indices; at most one unless multi_select. Selection or nonblank
+    /// text is required. Text and selections may be supplied together, total <= 64 KiB.
+    #[prost(uint32, repeated, tag = "1")]
+    pub selected_indices: ::prost::alloc::vec::Vec<u32>,
+    #[prost(string, optional, tag = "2")]
+    pub text: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for AgentQuestionAnswer {
+    const NAME: &'static str = "AgentQuestionAnswer";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentQuestionAnswer".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentQuestionAnswer".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentPermissionAnswer {
+    #[prost(bool, tag = "1")]
+    pub allow: bool,
+}
+impl ::prost::Name for AgentPermissionAnswer {
+    const NAME: &'static str = "AgentPermissionAnswer";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentPermissionAnswer".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentPermissionAnswer".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentInteractionAnswer {
+    #[prost(oneof = "agent_interaction_answer::Answer", tags = "1, 2")]
+    pub answer: ::core::option::Option<agent_interaction_answer::Answer>,
+}
+/// Nested message and enum types in `AgentInteractionAnswer`.
+pub mod agent_interaction_answer {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Answer {
+        #[prost(message, tag = "1")]
+        Question(super::AgentQuestionAnswer),
+        #[prost(message, tag = "2")]
+        Permission(super::AgentPermissionAnswer),
+    }
+}
+impl ::prost::Name for AgentInteractionAnswer {
+    const NAME: &'static str = "AgentInteractionAnswer";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentInteractionAnswer".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentInteractionAnswer".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentInteraction {
+    #[prost(string, tag = "1")]
+    pub interaction_id: ::prost::alloc::string::String,
+    /// 1 while pending, 2 after exactly one terminal transition. ACK never changes this.
+    #[prost(uint64, tag = "2")]
+    pub revision: u64,
+    #[prost(enumeration = "AgentInteractionStatus", tag = "5")]
+    pub status: i32,
+    /// Present only when resolved. Permission refusal is a valid resolved answer.
+    #[prost(message, optional, tag = "6")]
+    pub answer: ::core::option::Option<AgentInteractionAnswer>,
+    /// Present only when resolved; correlates the winning business command.
+    #[prost(string, optional, tag = "7")]
+    pub client_request_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// Present only when expired; pending/resolved have no expiry reason.
+    #[prost(enumeration = "AgentInteractionExpireReason", optional, tag = "8")]
+    pub expire_reason: ::core::option::Option<i32>,
+    #[prost(oneof = "agent_interaction::Request", tags = "3, 4")]
+    pub request: ::core::option::Option<agent_interaction::Request>,
+}
+/// Nested message and enum types in `AgentInteraction`.
+pub mod agent_interaction {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Request {
+        #[prost(message, tag = "3")]
+        Question(super::AgentQuestion),
+        #[prost(message, tag = "4")]
+        Permission(super::AgentPermissionRequest),
+    }
+}
+impl ::prost::Name for AgentInteraction {
+    const NAME: &'static str = "AgentInteraction";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentInteraction".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentInteraction".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InteractionUpdated {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub run_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub tool_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "4")]
+    pub interaction: ::core::option::Option<AgentInteraction>,
+}
+impl ::prost::Name for InteractionUpdated {
+    const NAME: &'static str = "InteractionUpdated";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InteractionUpdated".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InteractionUpdated".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ObserveInteractionsRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ObserveInteractionsRequest {
+    const NAME: &'static str = "ObserveInteractionsRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ObserveInteractionsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ObserveInteractionsRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InteractionObserverReady {
+    #[prost(string, tag = "1")]
+    pub instance_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub observer_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for InteractionObserverReady {
+    const NAME: &'static str = "InteractionObserverReady";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InteractionObserverReady".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InteractionObserverReady".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InteractionDelivery {
+    #[prost(string, tag = "1")]
+    pub delivery_id: ::prost::alloc::string::String,
+    /// Cache before ACK. A late pending delivery must never overwrite a public terminal.
+    #[prost(message, optional, tag = "2")]
+    pub interaction: ::core::option::Option<AgentInteraction>,
+}
+impl ::prost::Name for InteractionDelivery {
+    const NAME: &'static str = "InteractionDelivery";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InteractionDelivery".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InteractionDelivery".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InteractionHeartbeat {}
+impl ::prost::Name for InteractionHeartbeat {
+    const NAME: &'static str = "InteractionHeartbeat";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InteractionHeartbeat".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InteractionHeartbeat".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct InteractionDeliveryEvent {
+    #[prost(oneof = "interaction_delivery_event::Payload", tags = "1, 2, 3")]
+    pub payload: ::core::option::Option<interaction_delivery_event::Payload>,
+}
+/// Nested message and enum types in `InteractionDeliveryEvent`.
+pub mod interaction_delivery_event {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Payload {
+        #[prost(message, tag = "1")]
+        Ready(super::InteractionObserverReady),
+        #[prost(message, tag = "2")]
+        Delivery(super::InteractionDelivery),
+        #[prost(message, tag = "3")]
+        Heartbeat(super::InteractionHeartbeat),
+    }
+}
+impl ::prost::Name for InteractionDeliveryEvent {
+    const NAME: &'static str = "InteractionDeliveryEvent";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.InteractionDeliveryEvent".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.InteractionDeliveryEvent".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AcknowledgeInteractionRequest {
+    #[prost(string, tag = "1")]
+    pub instance_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub observer_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub delivery_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub interaction_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AcknowledgeInteractionRequest {
+    const NAME: &'static str = "AcknowledgeInteractionRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AcknowledgeInteractionRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AcknowledgeInteractionRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AcknowledgeInteractionResponse {}
+impl ::prost::Name for AcknowledgeInteractionResponse {
+    const NAME: &'static str = "AcknowledgeInteractionResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AcknowledgeInteractionResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AcknowledgeInteractionResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RespondInteractionRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub interaction_id: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub expected_revision: u64,
+    #[prost(string, tag = "4")]
+    pub client_request_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "5")]
+    pub answer: ::core::option::Option<AgentInteractionAnswer>,
+}
+impl ::prost::Name for RespondInteractionRequest {
+    const NAME: &'static str = "RespondInteractionRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.RespondInteractionRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.RespondInteractionRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RespondInteractionResponse {
+    /// Command acknowledgement only; shared state follows on SubscribeSession.
+    #[prost(message, optional, tag = "1")]
+    pub interaction: ::core::option::Option<AgentInteraction>,
+}
+impl ::prost::Name for RespondInteractionResponse {
+    const NAME: &'static str = "RespondInteractionResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.RespondInteractionResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.RespondInteractionResponse".into()
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum AgentSessionStatus {
@@ -1374,6 +1702,72 @@ impl DeleteSessionStatus {
             "DELETE_SESSION_STATUS_SKIPPED" => Some(Self::Skipped),
             "DELETE_SESSION_STATUS_FAILED" => Some(Self::Failed),
             "DELETE_SESSION_STATUS_NOT_EXECUTED" => Some(Self::NotExecuted),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum AgentInteractionStatus {
+    Unspecified = 0,
+    Pending = 1,
+    Resolved = 2,
+    Expired = 3,
+}
+impl AgentInteractionStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_INTERACTION_STATUS_UNSPECIFIED",
+            Self::Pending => "AGENT_INTERACTION_STATUS_PENDING",
+            Self::Resolved => "AGENT_INTERACTION_STATUS_RESOLVED",
+            Self::Expired => "AGENT_INTERACTION_STATUS_EXPIRED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_INTERACTION_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_INTERACTION_STATUS_PENDING" => Some(Self::Pending),
+            "AGENT_INTERACTION_STATUS_RESOLVED" => Some(Self::Resolved),
+            "AGENT_INTERACTION_STATUS_EXPIRED" => Some(Self::Expired),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum AgentInteractionExpireReason {
+    Unspecified = 0,
+    Stopped = 1,
+    SessionClosing = 2,
+    Recovery = 3,
+}
+impl AgentInteractionExpireReason {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_INTERACTION_EXPIRE_REASON_UNSPECIFIED",
+            Self::Stopped => "AGENT_INTERACTION_EXPIRE_REASON_STOPPED",
+            Self::SessionClosing => "AGENT_INTERACTION_EXPIRE_REASON_SESSION_CLOSING",
+            Self::Recovery => "AGENT_INTERACTION_EXPIRE_REASON_RECOVERY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_INTERACTION_EXPIRE_REASON_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_INTERACTION_EXPIRE_REASON_STOPPED" => Some(Self::Stopped),
+            "AGENT_INTERACTION_EXPIRE_REASON_SESSION_CLOSING" => {
+                Some(Self::SessionClosing)
+            }
+            "AGENT_INTERACTION_EXPIRE_REASON_RECOVERY" => Some(Self::Recovery),
             _ => None,
         }
     }

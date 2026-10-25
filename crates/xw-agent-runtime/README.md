@@ -14,6 +14,8 @@ cargo test -p xw-agent-runtime --locked
 
 `tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。写操作先按实际路径与 symlink 检查 cwd／临时目录／已有有效授权；cwd 为 home 或其祖先时不获得整棵目录写权限。读取保留操作系统权限约束；工作区内 `.git` 不额外禁写。
 
+`tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重，Bash 下一次启动使用新的授权快照。
+
 `tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 使用 globset／walkdir，自动补 `**/`，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore；只保留修改时间最新的 500 个文件，返回绝对路径，不跟随目录 symlink。Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行；目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 沿用旧版文件类型筛选解释，适用于 `*.rs`、`*.{ts,tsx}` 等表达式；显式文件目标不应用目录忽略或 include 筛选。Grep 不对文件顺序额外排序，最多返回 5000 个匹配行。
 
 两种搜索的文本输出不超过 64 KiB；数量或字节超限时明确提示缩小范围，单行超长按 UTF-8 边界截断。遍历／文件读取错误按旧版跳过，结果正文与 metadata 标明跳过数量和可能不完整，不能把此时的无匹配当作完整检查。非法参数／模式返回工具错误。`execute_cancellable(name, arguments, cancellation)` 在阻塞池中执行；搜索在遍历及流式读取阶段检查取消，调用方等待实际结束再提交 Cancelled，不在取消后继续生成。原有 execute 入口保留，Read／Write／Edit 已开始的操作仍按实际结果结算。搜索 metadata 包含 matches／shown、truncated 与 skipped_errors；Grep 截断时 matches 是已显示的下界，不是完整匹配总数。

@@ -1,6 +1,13 @@
 import { type AgentToolCall, AgentToolStatus } from "xiaowei-contracts";
 
-export type AgentToolIconKind = "file" | "search" | "edit" | "terminal" | "tools";
+export type AgentToolIconKind =
+  | "file"
+  | "search"
+  | "edit"
+  | "terminal"
+  | "tools"
+  | "question"
+  | "permission";
 
 // Keep completed summaries in the reference app's category order, not call order.
 const toolActivities = {
@@ -19,6 +26,13 @@ const toolActions: Record<
     activity: keyof typeof toolActivities;
   }
 > = {
+  AskUserQuestion: { action: "向你提问", summary: "向你提问", icon: "question", activity: "tools" },
+  RequestPermission: {
+    action: "请求写入权限",
+    summary: "请求写入权限",
+    icon: "permission",
+    activity: "tools",
+  },
   Read: { action: "读取", summary: "读取文件", icon: "file", activity: "exploration" },
   Glob: { action: "查找文件", summary: "查找文件", icon: "search", activity: "exploration" },
   Grep: { action: "搜索", summary: "搜索内容", icon: "search", activity: "exploration" },

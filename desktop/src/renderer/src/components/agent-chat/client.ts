@@ -1,5 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import {
+  AcknowledgeInteractionRequestSchema,
+  type AgentInteraction,
+  AgentInteractionAnswerSchema,
+  AgentInteractionStatus,
   type AgentModelConfig,
   type AgentSession,
   type AgentSessionSummary,
@@ -9,8 +13,11 @@ import {
   DeleteSessionStatus,
   InterruptRunRequestSchema,
   ListSessionsRequestSchema,
+  ObserveInteractionsRequestSchema,
   ReadSessionRequestSchema,
   RegenerateTitleRequestSchema,
+  type RespondInteractionRequest,
+  RespondInteractionRequestSchema,
   SetSessionArchivedRequestSchema,
   SetSessionConfigRequestSchema,
   SetSessionTitleRequestSchema,
@@ -21,6 +28,7 @@ import { GatewayFailure } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { applyAgentEvent, chatMessages } from "./agent-events";
 import { agentIdentity } from "./identity";
+import type { InteractionForm } from "./message-blocks";
 
 type Observer = () => void;
 const clients = new WeakMap<Services, AgentChatClient>();
@@ -40,6 +48,13 @@ export class AgentChatClient {
   private listeners = new Set<Observer>();
   private generation = 0;
   private stream?: Awaited<ReturnType<ReturnType<Services["getAgentStream"]>["subscribeSession"]>>;
+  private interactionStream?: Awaited<
+    ReturnType<ReturnType<Services["getAgentStream"]>["observeInteractions"]>
+  >;
+  private interactionForms = new Map<
+    string,
+    InteractionForm & { command?: RespondInteractionRequest }
+  >();
   private connecting?: Promise<void>;
   private sending?: Promise<void>;
   private changing?: Promise<void>;
@@ -112,6 +127,135 @@ export class AgentChatClient {
     );
   }
 
+  get pendingQuestion() {
+    return this.session?.runs
+      .flatMap((run) => (run.status === 1 ? run.items : []))
+      .flatMap((item) =>
+        item.content.case === "toolCall" && item.content.value.interaction
+          ? [item.content.value.interaction]
+          : [],
+      )
+      .find(
+        (view) =>
+          view.status === AgentInteractionStatus.PENDING && view.request.case === "question",
+      );
+  }
+
+  interaction(id: string) {
+    return this.session?.runs
+      .flatMap((run) => run.items)
+      .flatMap((item) =>
+        item.content.case === "toolCall" && item.content.value.interaction
+          ? [item.content.value.interaction]
+          : [],
+      )
+      .find((view) => view.interactionId === id);
+  }
+
+  interactionForm(id: string): InteractionForm {
+    return (
+      this.interactionForms.get(id) ?? {
+        text: "",
+        selectedIndices: [],
+        submitting: false,
+        uncertain: false,
+        error: "",
+      }
+    );
+  }
+
+  private changeInteraction(id: string, change: Partial<InteractionForm>) {
+    const view = this.interaction(id);
+    const current = this.interactionForms.get(id);
+    if (
+      view?.status !== AgentInteractionStatus.PENDING ||
+      current?.submitting ||
+      current?.uncertain
+    )
+      return;
+    this.interactionForms.set(id, { ...this.interactionForm(id), ...change });
+    this.notify();
+  }
+
+  setInteractionText(id: string, text: string) {
+    this.changeInteraction(id, { text });
+  }
+  setInteractionSelection(id: string, selectedIndices: number[]) {
+    this.changeInteraction(id, { selectedIndices });
+  }
+
+  async respondInteraction(id: string, allow?: boolean) {
+    const view = this.interaction(id);
+    const sessionId = this.session?.sessionId;
+    const previous = this.interactionForms.get(id);
+    if (
+      !sessionId ||
+      this.changing ||
+      view?.status !== AgentInteractionStatus.PENDING ||
+      previous?.submitting
+    )
+      return;
+    const form = { ...this.interactionForm(id), command: previous?.command };
+    const answer =
+      view.request.case === "question"
+        ? create(AgentInteractionAnswerSchema, {
+            answer: {
+              case: "question",
+              value: {
+                selectedIndices: form.selectedIndices,
+                text: form.text || undefined,
+              },
+            },
+          })
+        : create(AgentInteractionAnswerSchema, {
+            answer: {
+              case: "permission",
+              value: {
+                allow: allow === true,
+              },
+            },
+          });
+    form.command ??= create(RespondInteractionRequestSchema, {
+      sessionId,
+      interactionId: id,
+      expectedRevision: view.revision,
+      clientRequestId: agentIdentity(),
+      answer,
+    });
+    form.submitting = true;
+    form.error = "";
+    this.interactionForms.set(id, form);
+    this.notify();
+    let accepted = false;
+    try {
+      if (!this.stream) await this.connect(false, sessionId);
+      if (
+        this.session?.sessionId !== sessionId ||
+        this.interaction(id)?.status !== AgentInteractionStatus.PENDING
+      )
+        return;
+      await this.services.getAgent().respondInteraction(form.command);
+      accepted = true;
+      // Only public events/snapshots mark the card resolved.
+    } catch (error) {
+      const definite =
+        error instanceof GatewayFailure &&
+        ["INVALID_ARGUMENT", "CONFLICT", "NOT_FOUND", "RESOURCE_EXHAUSTED"].includes(
+          error.detail.code,
+        );
+      form.uncertain = !definite;
+      if (definite) form.command = undefined;
+      form.error = definite ? "回应未接纳，请同步后重试。" : "回应结果未确认，请重试提交。";
+      if (this.session?.sessionId === sessionId) {
+        this.disconnect();
+        await this.connect(false, sessionId).catch(() => {});
+      }
+    } finally {
+      form.submitting = accepted;
+      this.notify();
+    }
+  }
+
   get draft() {
     return this.drafts.get(this.session?.sessionId ?? "") ?? "";
   }
@@ -146,6 +290,10 @@ export class AgentChatClient {
   }
 
   private notify() {
+    for (const [id] of this.interactionForms) {
+      const view = this.interaction(id);
+      if (view && view.status !== AgentInteractionStatus.PENDING) this.interactionForms.delete(id);
+    }
     if (
       this.acceptedRun &&
       this.session?.sessionId === this.acceptedRun.sessionId &&
@@ -195,6 +343,13 @@ export class AgentChatClient {
     this.stream = undefined;
     this.connecting = undefined;
     void stream?.cancel().catch(() => {});
+    this.disconnectInteractions();
+  }
+
+  private disconnectInteractions() {
+    const interactionStream = this.interactionStream;
+    this.interactionStream = undefined;
+    void interactionStream?.cancel().catch(() => {});
   }
 
   private connect(recover = true, sessionId = this.session?.sessionId): Promise<void> {
@@ -225,6 +380,7 @@ export class AgentChatClient {
         this.error = this.feedback.get(sessionId)?.error ?? "";
       }
       this.session = first.value.payload.value.session;
+      void this.connectInteractions(generation, sessionId, true);
       if (!this.pending || this.session.runs.some((run) => run.inputId === this.pending?.inputId))
         this.error = "";
       this.notify();
@@ -248,6 +404,7 @@ export class AgentChatClient {
         } catch {
           if (generation === this.generation) {
             this.stream = undefined;
+            this.disconnectInteractions();
             this.error = "会话连接已断开，正在同步状态。";
             this.notify();
             await stream.cancel().catch(() => {});
@@ -285,6 +442,56 @@ export class AgentChatClient {
       .finally(() => {
         if (this.connecting === opening) this.connecting = undefined;
       });
+  }
+
+  private async connectInteractions(generation: number, sessionId: string, recover: boolean) {
+    let stream: typeof this.interactionStream;
+    try {
+      stream = await this.services
+        .getAgentStream()
+        .observeInteractions(create(ObserveInteractionsRequestSchema, { sessionId }));
+      if (generation !== this.generation || !this.stream) return;
+      this.interactionStream = stream;
+      const first = await stream.next();
+      if (first.done || first.value.payload.case !== "ready") {
+        throw new Error("Missing interaction observer ready");
+      }
+      const ready = first.value.payload.value;
+      const deliveries = new Map<string, AgentInteraction>();
+      for await (const frame of stream) {
+        if (generation !== this.generation || !this.stream) return;
+        if (frame.payload.case !== "delivery") continue;
+        const delivery = frame.payload.value;
+        const view = delivery.interaction;
+        if (!view) throw new Error("Missing delivered interaction");
+        const current = this.interaction(view.interactionId);
+        if (!current || current.revision <= view.revision) deliveries.set(view.interactionId, view);
+        if (deliveries.size > 64) deliveries.delete(deliveries.keys().next().value ?? "");
+        const receipt = create(AcknowledgeInteractionRequestSchema, {
+          instanceId: ready.instanceId,
+          observerId: ready.observerId,
+          deliveryId: delivery.deliveryId,
+          interactionId: view.interactionId,
+        });
+        // Cache before acknowledging. A receipt never resolves the visible card.
+        await this.services
+          .getAgent()
+          .acknowledgeInteraction(receipt)
+          .catch(() => this.services.getAgent().acknowledgeInteraction(receipt));
+      }
+      if (generation === this.generation) throw new Error("Interaction observation ended");
+    } catch {
+      if (generation !== this.generation || !this.stream) return;
+      if (recover && this.listeners.size) {
+        void this.connectInteractions(generation, sessionId, false);
+      } else {
+        this.error = "交互接收连接已断开，请重新打开会话。";
+        this.notify();
+      }
+    } finally {
+      await stream?.cancel().catch(() => {});
+      if (this.interactionStream === stream) this.interactionStream = undefined;
+    }
   }
 
   async send(text: string, config: AgentModelConfig) {

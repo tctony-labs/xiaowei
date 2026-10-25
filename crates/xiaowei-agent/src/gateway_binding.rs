@@ -23,6 +23,12 @@ pub mod xiaowei_agent_agent_service {
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.StartRun", xw_gateway::MethodKind::Unary);
     pub const INTERRUPT_RUN: xw_gateway::binding::Method<xw_contracts::xiaowei::agent::InterruptRunRequest, xw_contracts::xiaowei::agent::InterruptRunResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.InterruptRun", xw_gateway::MethodKind::Unary);
+    pub const OBSERVE_INTERACTIONS: xw_gateway::binding::StreamMethod<xw_contracts::xiaowei::agent::ObserveInteractionsRequest, xw_contracts::xiaowei::agent::InteractionDeliveryEvent> =
+        xw_gateway::binding::StreamMethod::new("xiaowei.agent.Agent.ObserveInteractions");
+    pub const ACKNOWLEDGE_INTERACTION: xw_gateway::binding::Method<xw_contracts::xiaowei::agent::AcknowledgeInteractionRequest, xw_contracts::xiaowei::agent::AcknowledgeInteractionResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.AcknowledgeInteraction", xw_gateway::MethodKind::Unary);
+    pub const RESPOND_INTERACTION: xw_gateway::binding::Method<xw_contracts::xiaowei::agent::RespondInteractionRequest, xw_contracts::xiaowei::agent::RespondInteractionResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.RespondInteraction", xw_gateway::MethodKind::Unary);
     pub const REGENERATE_TITLE: xw_gateway::binding::Method<xw_contracts::xiaowei::agent::RegenerateTitleRequest, xw_contracts::xiaowei::agent::RegenerateTitleResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.RegenerateTitle", xw_gateway::MethodKind::Unary);
     pub const GET_SESSION_RETENTION_POLICY: xw_gateway::binding::Method<xw_contracts::xiaowei::agent::GetSessionRetentionPolicyRequest, xw_contracts::xiaowei::agent::SessionRetentionPolicy> =

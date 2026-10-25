@@ -73,6 +73,9 @@ impl Observer {
             Some(agent_event::Payload::AgentMessageDelta(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ReasoningDelta(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::GenerationUpdated(event)) => Some(event.session_id.as_str()),
+            Some(agent_event::Payload::InteractionUpdated(event)) => {
+                Some(event.session_id.as_str())
+            }
             Some(agent_event::Payload::SubscriptionReady(event)) => event
                 .session
                 .as_ref()

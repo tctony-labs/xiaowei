@@ -103,6 +103,8 @@ impl Session {
         let restored = project(self.journal.as_ref().expect("journal exists"))?;
         self.history = restored.history;
         self.requests = restored.requests;
+        self.interactions = restored.interactions;
+        self.granted_paths = restored.granted_paths;
         for run in restored.view.runs {
             if !self
                 .view
@@ -112,6 +114,9 @@ impl Session {
             {
                 self.view.runs.push(run);
             }
+        }
+        for id in self.interactions.keys().copied().collect::<Vec<_>>() {
+            crate::interactive::project(self, id);
         }
         Ok(())
     }
@@ -303,6 +308,22 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     }
                 }
             }
+            domain::EntryPayload::InteractionOpened(opened) => {
+                session.interactions.insert(
+                    opened.interaction_id,
+                    crate::interactive::InteractionRecord::new(opened.clone()),
+                );
+            }
+            domain::EntryPayload::InteractionResolved(resolved) => {
+                if let Some(record) = session.interactions.get_mut(&resolved.interaction_id) {
+                    record.resolved = Some(resolved.clone());
+                }
+            }
+            domain::EntryPayload::InteractionExpired(expired) => {
+                if let Some(record) = session.interactions.get_mut(&expired.interaction_id) {
+                    record.expired = Some(expired.clone());
+                }
+            }
             _ => {}
         }
     }
@@ -336,6 +357,10 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
             },
         );
     }
+    for id in session.interactions.keys().copied().collect::<Vec<_>>() {
+        crate::interactive::project(&mut session, id);
+    }
+    session.granted_paths = rebuilt.granted_paths;
     session.history = rebuilt.messages;
     session.meta = Some(rebuilt.meta);
     Ok(session)

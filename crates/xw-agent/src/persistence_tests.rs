@@ -320,3 +320,137 @@ async fn failed_acceptance_reserves_input_and_next_query_repairs_without_executi
                 .starts_with("tail-"))
     );
 }
+
+#[tokio::test]
+async fn a_failed_permission_decision_never_grants_or_resumes_and_recovery_closes_the_card() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                reasoning: None,
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let id: domain::SessionId = session.session_id.parse().unwrap();
+    let mut events = service
+        .subscribe_session(SubscribeSessionRequest {
+            session_id: session.session_id.clone(),
+        })
+        .await
+        .unwrap();
+    send(&service, request(&session.session_id)).await.unwrap();
+    while host.pending.lock().unwrap().is_none() {
+        tokio::task::yield_now().await;
+    }
+    let fixture = domain::decode_history(include_str!("../tests/fixtures/tools.jsonl")).unwrap();
+    let mut message = fixture
+        .iter()
+        .find_map(|entry| match &entry.payload {
+            domain::EntryPayload::Message(recorded) => match &recorded.message {
+                domain::AgentMessage::Assistant(message) => Some(message.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .unwrap();
+    message.stop_reason = domain::FinishReason::ToolUse;
+    message.content = vec![domain::ContentBlock::ToolCall {
+        id: "permission-call".into(),
+        name: "RequestPermission".into(),
+        arguments_json: Some(
+            serde_json::json!({
+                "path": root.path().join("target"), "is_directory": false, "reason": "test",
+            })
+            .to_string(),
+        ),
+        thought_signature: None,
+        namespace: None,
+    }];
+    host.pending
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .send(GenerationEvent::Finished(message))
+        .unwrap();
+    let view = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if let Some(agent_event::Payload::InteractionUpdated(update)) =
+                events.recv().await.unwrap().unwrap().payload
+            {
+                return update.interaction.unwrap();
+            }
+        }
+    })
+    .await
+    .unwrap();
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&id)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_next_append(TestFault::Partial);
+    let result = service
+        .respond_interaction(
+            RespondInteractionRequest {
+                session_id: session.session_id.clone(),
+                interaction_id: view.interaction_id,
+                expected_revision: 1,
+                client_request_id: domain::ClientRequestId::new().to_string(),
+                answer: Some(AgentInteractionAnswer {
+                    answer: Some(agent_interaction_answer::Answer::Permission(
+                        AgentPermissionAnswer { allow: true },
+                    )),
+                }),
+            },
+            InputSource {
+                kind: SourceKind::Desktop,
+                principal_id: "desktop".into(),
+            },
+        )
+        .await;
+    assert_eq!(result.unwrap_err(), AgentError::Persistence);
+    idle(&service, id).await;
+    assert!(
+        service.state().unwrap().sessions[&id]
+            .granted_paths
+            .is_empty()
+    );
+    assert_eq!(host.calls.lock().unwrap().len(), 1);
+    {
+        let mut state = service.state().unwrap();
+        let session = state.sessions.get_mut(&id).unwrap();
+        session.prepare_writer().unwrap();
+        for item in &session.view.runs[0].items {
+            if let Some(agent_item::Content::ToolCall(tool)) = &item.content {
+                assert_eq!(
+                    tool.interaction.as_ref().unwrap().status,
+                    AgentInteractionStatus::Expired as i32
+                );
+            }
+        }
+    }
+    service.close().await.unwrap();
+    let restored = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let state = restored.state().unwrap();
+    assert!(state.sessions[&id].granted_paths.is_empty());
+    assert!(
+        state.sessions[&id]
+            .interactions
+            .values()
+            .all(|record| !record.pending())
+    );
+    assert_eq!(host.calls.lock().unwrap().len(), 1);
+}

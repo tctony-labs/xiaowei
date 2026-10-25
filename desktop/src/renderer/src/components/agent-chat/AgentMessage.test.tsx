@@ -1,7 +1,12 @@
 import { create } from "@bufbuild/protobuf";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { AgentToolCallSchema, AgentToolStatus } from "xiaowei-contracts";
+import {
+  AgentInteractionStatus,
+  AgentItemSchema,
+  AgentToolCallSchema,
+  AgentToolStatus,
+} from "xiaowei-contracts";
 import { messagePreview } from "../quick-chat/message-preview-fixtures";
 import { QuickChatMessagesPreview } from "../quick-chat/QuickChatMessagesPreview";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
@@ -9,6 +14,7 @@ import { AgentMessage } from "./AgentMessage";
 import { AgentReasoning } from "./AgentReasoning";
 import { AgentToolCall } from "./AgentToolCall";
 import { chatMessages } from "./agent-events";
+import { messageBlocks } from "./message-blocks";
 
 afterEach(() => {
   cleanup();
@@ -25,6 +31,54 @@ function textMessage(text: string, status: QuickChatMessage["status"] = "complet
     status,
   };
 }
+
+test("consecutive questions stay visible between collapsed tool groups", () => {
+  const items = ["Read", "Read", "AskUserQuestion", "AskUserQuestion", "Write"].map((name, index) =>
+    create(AgentItemSchema, {
+      itemId: `item-${index}`,
+      content: {
+        case: "toolCall",
+        value: {
+          toolId: `tool-${index}`,
+          name,
+          status: AgentToolStatus.COMPLETED,
+          interaction:
+            name === "AskUserQuestion"
+              ? {
+                  interactionId: `question-${index}`,
+                  revision: 1n,
+                  status: AgentInteractionStatus.PENDING,
+                  request: {
+                    case: "question",
+                    value: { question: `问题 ${index}` },
+                  },
+                }
+              : undefined,
+        },
+      },
+    }),
+  );
+  const { container } = render(
+    <AgentMessage
+      message={{
+        id: "run",
+        role: "assistant",
+        status: "generating",
+        blocks: messageBlocks(items),
+      }}
+      onCopy={vi.fn()}
+      onOpenUrl={vi.fn()}
+    />,
+  );
+  for (const card of screen.getAllByRole("region", { name: "待回答问题" })) {
+    expect(card).toBeVisible();
+    expect(card.closest(".agent-tool-group")).toBeNull();
+  }
+  expect(screen.getByRole("button", { name: "展开工具调用" })).toHaveTextContent("读取文件");
+  expect(screen.getByText("问题 2")).toBeVisible();
+  expect(screen.getByText("问题 3")).toBeVisible();
+  expect(container.querySelector(".agent-shimmer")).toBeNull();
+});
 
 test("the first-data waiting label appears at 3 seconds and is cleared by output", () => {
   vi.useFakeTimers();
