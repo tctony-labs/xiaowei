@@ -140,6 +140,9 @@ async function fixture(t) {
   const asar = join(app, "Contents/Resources/app.asar");
   mkdirSync(dirname(asar), { recursive: true });
   await createPackageWithOptions(source, asar, { unpack: "**/*.node" });
+  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
+  mkdirSync(dirname(inspect), { recursive: true });
+  writeFileSync(inspect, "native CLI fixture", { mode: 0o755 });
   return { app, desktop, files };
 }
 
