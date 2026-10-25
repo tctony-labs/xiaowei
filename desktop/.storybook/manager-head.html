@@ -1,0 +1,13 @@
+<style>
+  /* Center fixed viewports; keep their real size and allow scrolling when space is limited. */
+  #storybook-preview-wrapper div[style*="height: calc("]:has(> div > #storybook-preview-iframe) {
+    flex-shrink: 0;
+    margin: auto;
+    border-radius: 12px;
+  }
+
+  /* Clip the whole preview, including dialogs portaled to its body, to the window corners. */
+  #storybook-preview-wrapper div[style*="height: calc("] #storybook-preview-iframe {
+    border-radius: 12px;
+  }
+</style>

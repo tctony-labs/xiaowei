@@ -6,7 +6,7 @@
 
 ## What
 
-用户已确认制作除扩展外的全部页面及相关弹窗 Storybook；扩展不实施。以下保留完整旧版源码清单供对照。Storybook 复用纯展示组件和模拟数据，逐项确认后才能接入实际页面与业务。2026-09-23 用户要求将后续产品接入拆成两部分：通用／快捷键／剪贴板／关于，以及模型／智能体／对话归档，并开始实施第一部分。账号登录／云连接、快速对话、图片内容提取及自动更新暂缓，保留其 Storybook UI，产品第一阶段跳过对应入口与业务；快速对话快捷键于 2026-09-28 获用户确认后补充接入。
+用户已确认制作除扩展外的全部页面及相关弹窗 Storybook；扩展不实施。以下保留完整旧版源码清单供对照。Storybook 复用纯展示组件和模拟数据，初期按用户要求逐项确认后接入实际页面与业务。2026-09-23 用户要求将后续产品接入拆成两部分：通用／快捷键／剪贴板／关于，以及模型／智能体／对话归档，并开始实施第一部分。账号登录／云连接、快速对话、图片内容提取及自动更新暂缓，保留其 Storybook UI，产品第一阶段跳过对应入口与业务；快速对话快捷键于 2026-09-28 获用户确认后补充接入。
 
 参考仓库：`~/Develop/XiaoWei/workspace/src/xiaowei-next`。入口为 `xiaowei/src/pages/SettingsPage.tsx`，下表源码均相对该仓库的 `xiaowei/src/components/settings/`。
 
@@ -27,17 +27,17 @@
 
 ## How
 
-2026-10-25 用户要求移除 Storybook 并直接修改产品 UI。场景、配置、依赖和构建入口已移除，组件测试及其内存 adapter 保留；当前开发与验收遵循 [Renderer UI 开发](../../../desktop/src/renderer/README.md)。以下 Storybook 清单与预览方案保留为当时的实施背景，不再作为当前接入或验收前置要求。
+2026-10-25 用户澄清此前只要求删除当次 UI 修改新增的预览，并要求恢复误删的原有 Storybook。配置、依赖、构建入口与原有场景从误删提交的父版本恢复；当前开发与验收遵循 [Renderer UI 开发](../../../desktop/src/renderer/README.md)，预览不作为默认接入前置要求。
 
-Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与必要状态；主题使用工具栏切换，次要变体使用 Controls。30 个原交互检查迁入 settings 同目录的 8 个 `*.test.tsx`，通过 Vitest / Testing Library 独立运行。Storybook `play` 只做视觉状态初始化。
+初期 Storybook 菜单曾精简为 30 个展示场景，保留默认页、关键弹窗与必要状态；主题使用工具栏切换，次要变体使用 Controls。30 个原交互检查迁入 settings 同目录的 8 个 `*.test.tsx`，通过 Vitest / Testing Library 独立运行。Storybook `play` 只做视觉状态初始化。
 
-每个选定页面先核对旧版样式及交互，按 [Renderer UI 开发](../../../desktop/src/renderer/README.md) 制作预览。现有公开／本地组件优先复用，不引入旧版私有 `@tencent` UI 依赖。登录、模型下载、联网测试、系统设置和文件操作在预览中仅模拟。
+初期每个选定页面先核对旧版样式及交互，再制作预览；后续改动按上述通用流程执行。现有公开／本地组件优先复用，不引入旧版私有 `@tencent` UI 依赖。登录、模型下载、联网测试、系统设置和文件操作在预览中仅模拟。
 
 当前预览位于 `desktop/src/renderer/src/components/settings/`：
 
 - `SettingsLayout`、`SettingsTabLayout`、`SettingCard`、`SettingRow` 与选择器、开关、快捷键录制沿用旧版结构。侧栏 207px，菜单项间距按用户反馈由 2px 调整为 6px，分隔选中与 hover 背景；标题栏最小 44px，内容左右 24px，卡片圆角 12px，设置行最小 42px。旧版窗口尺寸参考 `xiaowei/studio/src/window/config.rs`，为 800 × 600，可调整大小。Storybook 的所有 Settings 场景使用 800 × 600 viewport；窗口在画布内水平、垂直居中，视口外框与弹窗遮罩统一按 12px 圆角裁切，空间不足时保持尺寸并滚动查看，弹窗也限制在该视口内。
 - 左上角红黄绿窗口按钮仅在 `SettingsPreview` 中模拟外观，不执行关闭、最小化或全屏操作。产品独立设置窗口在 macOS 使用 `hiddenInset` 原生标题栏按钮，不渲染这些模拟元素。
-- 七个页面组件接收 props 和回调；`SettingsPreview.tsx` 只供 Storybook 组合展示，提供内存数据、模拟异步返回与错误，不连接 Electron／Rust／网络，不写配置或系统剪贴板。
+- 七个页面组件接收 props 和回调；`SettingsPreview.tsx` 供 Storybook 与组件测试使用，提供内存数据、模拟异步返回与错误，不连接 Electron／Rust／网络，不写配置或系统剪贴板。
 - 相邻 `*.stories.tsx` 按 Window、General、Shortcuts、Clipboard、Models、Agent、Archive、About 分组。Storybook 可切页，也可直接选择弹窗或状态；明暗沿用当前项目主题变量，背景等设置专用样式放在 `settings.css`。产品与预览复用共享展示组件，业务容器与模拟 adapter 分开。
 - 模型配置于 2026-09-22 按用户要求参考本机 dsh web（`http://127.0.0.1:3080/`）调整；已通过现有 Chrome 核对添加预设／自定义提供方的交互，保留本项目弹窗与视觉样式。提供统一的“添加”入口，弹窗内提供方下拉首项为“自定义”且默认选中，列表标记类型。预设提供方的地址、协议只读，自定义提供方可以编辑；预览包含 DeepSeek、OpenAI、Anthropic 三个预设，不复制 dsh 的全部提供方目录。
 - 协议标识及显示统一为 `openai-completions`、`openai-responses`、`anthropic-messages`；Responses 保留自动／仅 HTTP 传输选项。获取模型后在弹窗中搜索、多选或全选当前搜索结果，点击添加合入配置列表；重复模型标为已添加，不覆盖已有配置。列表行展开编辑图片支持、上下文窗口、最大输出 token，文本支持默认开启且不显示开关。最大输出 token 提供 4K／8K／16K／32K／64K／128K 快捷档位与自定义正整数，不用原生数字步进框；档位不代表各模型支持的上限。右侧删除，底部支持手动添加模型 ID。产品修改连接信息或 Key 保留已添加模型配置；导入候选每次重新获取，当前模型保存规则统一见 [LLM provider](../../../docs/llm-provider.md#settings-模型配置与持久化)。获取中禁用保存；获取失败、空结果、取消选择不会清空已有列表。
@@ -63,7 +63,7 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 
 ## Current work
 
-后续 UI 直接在产品实现，并在当前工作区已运行的客户端中验收；组件回归独立运行，不再创建或恢复 Storybook。
+后续 UI 的实现与验收遵循上述通用流程；组件回归独立运行。
 
 通用／快捷键／剪贴板／关于已接真实设置窗口；第一部分的登录项、真实自动粘贴与多显示器等必要人工复验仍按[第一部分计划](../../plans/2026-09-18-settings-ui-inventory/01-general-shortcuts-clipboard-about.md)跟进，不因 Agent 里程碑自动结束。
 
@@ -75,7 +75,9 @@ Storybook 菜单精简为 30 个展示场景，保留默认页、关键弹窗与
 
 ## Outcome
 
-2026-10-25 按用户要求移除 Storybook：删除 14 个场景文件、配置、预览产物和构建入口，由 pnpm 移除依赖并同步锁文件；其余依赖版本保持不变。设置与 Quick Chat 的内存 adapter 继续供独立组件测试使用，UI 直接在产品中实施和验收。移除间接 Node 类型后，为共享 Gateway 事件调度显式声明可选宿主能力，保留 Node／浏览器两种调度行为。148 项 renderer 测试、20 项 Gateway 核心测试、10 项日志测试、桌面源码解析／构建回归及 `just check` 通过；相关计划与 Renderer 开发说明已同步，原有产品验收范围不因此自动完成。
+2026-10-25 的 `cd7bd58` 误删了整套 Storybook；用户随后澄清只要求删除当次新增预览，并要求恢复原有内容。本次恢复删除前已有的 14 个场景文件及配套工具链，pnpm 校验并同步原有锁文件；产品 UI、业务修复与归档结果保持有效。设置与 Quick Chat 的内存 adapter 由 Storybook 和组件测试共用。当前通用流程见上述 Renderer 说明，原有产品验收范围不因此自动完成。
+
+恢复的 14 个场景文件、4 个配置文件及锁文件与 `cd7bd58^` 一致，静态索引包含 98 个场景。`just check`、22 个文件中的 148 项 renderer 测试、桌面源码解析／构建回归、10 项日志测试和 Storybook 静态构建通过。通过 `just storybook` 在现有 Chrome 验证管理页、800 × 600 设置深色主题和 Quick Chat 预览，`Clipboard/Page/NewItemSelection` 交互脚本显示 PASS。首次依赖预优化期间曾出现搜索模拟输入未生效，预览稳定后在独立及嵌入视图复跑通过，未修改原场景。
 
 已交付设置共享框架、七个页面及对应模拟预览，Storybook 按关键展示场景组织，交互回归在同目录组件测试中维护。明暗主题、800 × 600 预览、窗口居中及静态标题栏按钮已验证；产品使用 macOS 原生标题栏，预览不执行系统操作。不宣称完成旧版运行画面的逐像素核对。
 

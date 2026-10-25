@@ -126,6 +126,10 @@ inspect *args:
     cargo run --quiet --locked --manifest-path "{{justfile_directory()}}/Cargo.toml" \
         -p xiaowei-inspect -- --workspace "{{justfile_directory()}}" "$@"
 
+# Preview UI components independently of Electron.
+storybook:
+    pnpm --dir desktop storybook
+
 # Start the interactive Go development server.
 server:
     node scripts/dev/server.mjs
