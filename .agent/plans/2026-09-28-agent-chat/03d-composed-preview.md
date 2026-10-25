@@ -4,13 +4,13 @@
 
 本片结果：在现有 Quick Chat 组合新增工具／交互、压缩与继续状态，确认产品接入所需的新交互；已交付文本与 chip 不重新验收。
 
-范围边界：仅实现本片新增的状态和交互，不重做已交付文本与 chip。用户已要求移除 Storybook，UI 直接接入现有客户端并验收。
+范围边界：仅实现本片新增的状态和交互，不重做已交付文本与 chip。UI 默认直接接入现有客户端并验收；Storybook 的使用遵循 [Renderer UI 开发](../../../desktop/src/renderer/README.md)。
 
 ## 文件与改动
 
 | 类型 | 路径 | 具体改动 |
 | --- | --- | --- |
-| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatChatPreview.tsx、QuickChatLauncherPreview.tsx` | 仅维护组件测试的内存 fixture；产品复用现有面板与 composer |
+| 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatChatPreview.tsx、QuickChatLauncherPreview.tsx` | 维护 Storybook 与组件测试共用的内存 fixture；产品复用现有面板与 composer |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/` 对应产品组件／测试 | 直接接入现有 transition／标题栏，保留组件回归，不新增独立预览入口 |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/quick-chat.css` 及 03c 新增组件 | 加入压缩、继续、标题任务与完整异常场景，复用已确认组件 |
 

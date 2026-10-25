@@ -27,7 +27,7 @@
   },
   "overrides": [
     {
-      "includes": ["desktop/src/renderer/src/**/*.tsx", "!**/*.test.tsx"],
+      "includes": ["desktop/src/renderer/src/**/*.tsx", "!**/*.stories.tsx", "!**/*.test.tsx"],
       "linter": {
         "rules": {
           "style": {

@@ -35,7 +35,7 @@ Gateway 的协议、权限、transport 与通用 worker 测试由 `pnpm gateway:
 
 ## Renderer 的虚拟时钟测试
 
-组件测试中，模拟请求延迟、toast 自动消失和临时高亮等由 JavaScript 计时器驱动的行为，使用 Vitest 虚拟时钟验证，避免测试真的等待几百毫秒或几秒。只在需要的测试或阶段启用，不改变产品的计时逻辑，不在全局 `setup.ts` 中启用。
+组件测试中，模拟请求延迟、toast 自动消失和临时高亮等由 JavaScript 计时器驱动的行为，使用 Vitest 虚拟时钟验证，避免测试真的等待几百毫秒或几秒。只在需要的测试或阶段启用，不改变产品及 Storybook 的计时逻辑，不在全局 `setup.ts` 中启用。
 
 优先用 `vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })` 接管所需计时器。Gateway 测试的事件投递使用 `setImmediate`，应保留它的真实调度，避免只推进 timeout 时事件无法送达。
 

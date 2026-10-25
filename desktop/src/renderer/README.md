@@ -5,20 +5,21 @@
 ## 组件与业务边界
 
 - 展示组件通过 props 接收数据，通过回调通知外层；Electron IPC、Rust 调用和网络请求留在页面适配层。
-- UI 直接在产品组件与页面中实现，组件与相邻 `*.test.tsx` 共用全局样式；不维护独立预览站点。
-- 模拟 adapter 仅供组件测试使用，不连接真实业务，不将测试数据或空操作接入产品。
+- UI 直接在产品组件与页面中实现，组件与相邻 `*.test.tsx` 共用全局样式。
+- 使用 Storybook 时，产品与预览复用展示组件和全局样式，`.stories.tsx` 与组件相邻放置。
+- 模拟 adapter 仅供 Storybook 和组件测试使用，不连接真实业务，不将测试数据或空操作接入产品。
 
 ## React 热更新边界
 
 - 产品组件模块只导出 React 组件和 TypeScript 类型。共享函数、hooks、数组及对象数据放到职责明确的普通 `.ts` 模块；不要从组件文件重新导出这些值。Vite 支持的字符串／数字等常量可保留。
 - `src/main.tsx` 只负责一次性入口副作用和 `createRoot(...).render(<App />)`，不在入口声明 React 组件。根组件放在 `src/App.tsx`，主题操作放在 `src/theme.ts`。
-- 根 Biome 配置对产品 TSX 启用 `useComponentExportOnlyModules`（error，允许 Vite 常量导出），由常规 check／提交检查拦截混合导出。测试不作为产品 Fast Refresh 边界，排除此规则。
+- 根 Biome 配置对产品 TSX 启用 `useComponentExportOnlyModules`（error，允许 Vite 常量导出），由常规 check／提交检查拦截混合导出。Storybook 场景和测试不作为产品 Fast Refresh 边界，排除此规则。
 - 修改组件应由 Fast Refresh 更新现有树，不应再次输出 `Renderer starting` 或出现重复 `createRoot()`。普通模块或入口变化可以退回整页重载；重载后须验证设置加载、事件订阅和存储统计，而不只看页面是否显示。
 - 热更新不等于新建 document，不能通过重新连接 Gateway 或无限重试掩盖生命周期错误。窗口的开发重载策略见 [main README](../main/README.md#开发重载与导航)，会话清理时机见 [Gateway TS](../../../gateway/ts/README.md#electron-接入)。
 
 ## 样式与主题
 
-- 设计变量统一维护在 renderer 全局样式中，产品与组件测试使用同一份定义。
+- 设计变量统一维护在 renderer 全局样式中，产品、Storybook 与组件测试使用同一份定义。
 - 组件使用语义颜色变量及对应类名，不自行硬编码品牌色或另选颜色。品牌主色与普通文字的可读性用色分开，例如普通字号的绿色文字使用 `text-primary-text`；具体色值以样式源码为准。
 - 全局样式移除默认 focus outline，但保留焦点行为；组件负责选中与焦点的视觉表达，并覆盖键盘操作场景。
 
@@ -26,7 +27,7 @@
 
 默认直接修改并验证产品 UI，包括新增视觉设计、布局样式、视觉状态或交互模式。仅在用户明确要求时使用 Storybook；用户明确要求先预览并确认时，才在确认后接入产品。
 
-项目已移除 Storybook 配置、场景、依赖及构建入口。
+Storybook 通过 `just storybook` 独立启动，通过 `pnpm --dir desktop storybook:build` 生成静态预览，配置位于 [`.storybook/`](../../.storybook/)。它不创建桌面应用实例，预览使用模拟数据，不替代真实业务或 Electron 平台验收。
 
 1. 明确本次 UI 范围、交互状态和可观察的完成标准；复用既有组件、主题变量与业务接口。用户已明确要求的布局、样式和交互调整直接在现有 UI 中实施。
 2. 保持展示组件与业务容器的边界。按实际需求检查空内容、长内容、加载、错误与明暗主题，不用模拟成功替代真实能力。
@@ -38,14 +39,14 @@
 
 - 构建或组件测试通过不能代替实际 UI 验收；测试中的系统操作回调只证明交互通知正确，真实副作用仍需在客户端验证。
 - 普通键盘模拟或合成组合输入事件不能替代真实输入法验收；需要人工检查的输入法和平台行为应明确记录。
-- 组件测试中的 Settings／Quick Chat 内存 adapter 仅用于可控交互回归，不连接真实会话或模型，也不代表对应业务已交付。
+- Storybook 和组件测试中的 Settings／Quick Chat 内存 adapter 使用模拟数据，不连接真实会话或模型，也不代表对应业务已交付。
 - 共享组件的修改可能影响多个产品页面，需检查相关页面的实际效果。
 
 ## Gateway 业务调用
 
 - 业务调用统一使用 [services.ts](src/services.ts) 的 typed service 入口，通过 preload 暴露的 `window.gateway` 连接；展示组件不直接建立连接或新增业务 IPC。
 - 每个 renderer 按需创建一个共享 client，每个 service 首次使用时绑定并缓存；导入模块不建立 Electron 连接。
-- 测试通过 `createServices(connect)` 注入独立 client，避免使用真实桌面连接或在不同用例之间共享业务状态。
+- Storybook 和测试通过 `createServices(connect)` 注入独立 client，避免使用真实桌面连接或在不同预览和用例之间共享业务状态。
 
 ### 异步调用易错点
 

@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolveConfig } from "electron-vite";
 import { build } from "vite";
+import storybook from "../../desktop/.storybook/main.ts";
 
 test("desktop release minifies and bundles source; development keeps readable output", async () => {
   process.chdir(fileURLToPath(new URL("../../desktop", import.meta.url)));
@@ -112,4 +113,7 @@ test("desktop release minifies and bundles source; development keeps readable ou
   for (const target of ["main", "preload", "renderer"]) {
     assert.equal(development[target].build.sourcemap, false);
   }
+
+  const configWithSource = await storybook.viteFinal({});
+  assert.ok(configWithSource.resolve.conditions.includes("source"));
 });
