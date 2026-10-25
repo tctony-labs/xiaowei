@@ -59,6 +59,8 @@ macOS 正式包的更新由 `services/update/service.ts` 持有，通过平台 n
 
 更新 service 将 Sparkle 的原生 UI 生命周期通知转交 `windows/ordinary-windows.ts`，与 Electron 普通窗口共同决定 Dock 显隐。交互式检查发起时登记其检查窗口，发起失败则恢复之前状态；会话结束或 service 关闭时清除原生窗口状态。Dock 管理器仅管理可见策略，不接管原生更新窗口。
 
+Launcher owner 按当前模式与实际显隐，将可见 Quick Chat 登记到同一个普通窗口追踪器，隐藏或切出聊天时显式移出，并同步搜索／剪贴板弹层的可见状态。追踪器也接受已经显示／聚焦的窗口；窗口是否参与由 owner 决定，Dock 协调与激活轮换仍由追踪器统一负责。可见弹层只延后已有 Dock 图标的隐藏，不触发 Dock 显示或参与普通窗口轮换。产品交互见 [Quick Chat](../../docs/quick-chat.md#产品入口与窗口交互)。
+
 ## Host 与 worker 的代码组织
 
 service 使用 worker 执行业务时，按执行位置划分目录，让路径直接表达运行边界。位于 `src/main/` 下只表示由 main 装配，不表示全部在主线程执行。

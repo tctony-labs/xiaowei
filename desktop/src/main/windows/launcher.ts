@@ -9,12 +9,17 @@ import {
   showLauncherWindow,
 } from "./launcher-shortcuts";
 import { restrictNavigation } from "./navigation";
+import type { createOrdinaryWindows } from "./ordinary-windows";
 
 export function createLauncherWindow(options: {
   moduleDir: string;
   register(window: BrowserWindow): void;
   opened(window: BrowserWindow, mode: LauncherMode): void;
   focus?: ReturnType<typeof createFocusSession>;
+  ordinaryWindows?: Pick<
+    ReturnType<typeof createOrdinaryWindows>,
+    "register" | "unregister" | "setTransientWindowVisible"
+  >;
 }) {
   let launcher: BrowserWindow | undefined;
   let launcherMode: LauncherMode = "search";
@@ -25,6 +30,29 @@ export function createLauncherWindow(options: {
   let requestedShow = false;
   let requestedMode: LauncherMode | "toggle" | undefined;
   let generation = 0;
+
+  function updateOrdinaryWindow(): void {
+    if (!launcher || launcher.isDestroyed()) return;
+    const visible = launcher.isVisible();
+    const ordinary = visible && launcherMode === "quick-chat";
+    if (ordinary) {
+      options.ordinaryWindows?.register(launcher);
+      options.ordinaryWindows?.setTransientWindowVisible(false);
+    } else {
+      options.ordinaryWindows?.setTransientWindowVisible(visible);
+      options.ordinaryWindows?.unregister(launcher);
+    }
+    console.debug("Launcher window state changed", { mode: launcherMode, visible, ordinary });
+  }
+
+  function modeChanged(mode: LauncherMode): void {
+    if (launcherMode === mode) return;
+    launcherMode = mode;
+    if (launcher && !launcher.isDestroyed()) {
+      launcher.setAlwaysOnTop(mode !== "quick-chat");
+    }
+    updateOrdinaryWindow();
+  }
 
   async function dismiss(restore: boolean): Promise<boolean> {
     if (!launcher || launcher.isDestroyed()) return false;
@@ -45,12 +73,15 @@ export function createLauncherWindow(options: {
       requestedMode = mode;
       return;
     }
-    launcherMode = activateLauncherShortcut(
+    activateLauncherShortcut(
       launcher,
       launcherMode,
       mode,
       showLauncher,
-      (window, openedMode) => options.opened(window, openedMode),
+      (window, openedMode) => {
+        modeChanged(openedMode);
+        options.opened(window, openedMode);
+      },
       () => {
         void dismiss(true).catch((error) => console.error("Focus restore failed", error));
       },
@@ -93,7 +124,7 @@ export function createLauncherWindow(options: {
       maximizable: false,
       minimizable: false,
       fullscreenable: false,
-      alwaysOnTop: true,
+      alwaysOnTop: launcherMode !== "quick-chat",
       show: false,
       transparent: true,
       hasShadow: false,
@@ -109,6 +140,8 @@ export function createLauncherWindow(options: {
     configureLauncherWorkspaces(window);
     launcher = window;
     options.register(window);
+    window.on("show", updateOrdinaryWindow);
+    window.on("hide", updateOrdinaryWindow);
     window.once("ready-to-show", () => {
       ready = true;
       resetLauncherPosition();
@@ -118,7 +151,19 @@ export function createLauncherWindow(options: {
       requestedShow = false;
     });
     window.on("blur", () => {
-      if (!restoring && !window.webContents.isDevToolsOpened()) void dismiss(false);
+      if (restoring || window.webContents.isDevToolsOpened()) return;
+
+      // macOS main-window changes can emit blur while a floating window stays key.
+      const focused = window.isFocused();
+      const retained = focused || launcherMode === "quick-chat";
+
+      console.debug("Launcher window blurred", {
+        mode: launcherMode,
+        focused,
+        retained,
+      });
+
+      if (!retained) void dismiss(false);
     });
     window.on("close", (event) => {
       if (!quitting) {
@@ -150,9 +195,7 @@ export function createLauncherWindow(options: {
     owns: (window: object) => window === launcher,
     generation: () => generation,
     dismiss,
-    modeChanged(mode: LauncherMode) {
-      launcherMode = mode;
-    },
+    modeChanged,
     prepareQuit() {
       quitting = true;
       options.focus?.abandon();

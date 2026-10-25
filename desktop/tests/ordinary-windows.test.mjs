@@ -6,6 +6,8 @@ import { createOrdinaryWindows } from "../src/main/windows/ordinary-windows.ts";
 class Window extends EventEmitter {
   minimized = false;
   destroyed = false;
+  visible = false;
+  focused = false;
   focuses = 0;
 
   isDestroyed() {
@@ -14,17 +16,72 @@ class Window extends EventEmitter {
   isMinimized() {
     return this.minimized;
   }
+
+  isVisible() {
+    return this.visible;
+  }
+
+  isFocused() {
+    return this.focused;
+  }
+
   restore() {
     this.minimized = false;
   }
   show() {
+    this.visible = true;
     this.emit("show");
   }
   focus() {
+    this.focused = true;
     this.focuses++;
     this.emit("focus");
   }
 }
+
+test("registering an already visible and focused window includes it immediately", async () => {
+  let visible = false;
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    async show() {
+      visible = true;
+    },
+    hide() {
+      visible = false;
+    },
+  });
+  const window = new Window();
+  window.show();
+  window.focus();
+  manager.register(window);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+  assert.equal(manager.focused(), window);
+  manager.activate();
+  assert.equal(window.focuses, 2);
+  manager.close();
+});
+
+test("unregistering a reusable window removes its activation state and listeners", () => {
+  const manager = createOrdinaryWindows();
+  const settings = new Window();
+  const chat = new Window();
+  manager.register(settings);
+  settings.show();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    chat.show();
+    chat.focus();
+    manager.register(chat);
+    assert.equal(manager.focused(), chat);
+    manager.unregister(chat);
+    assert.equal(manager.focused(), undefined);
+    assert.equal(chat.eventNames().length, 0);
+    manager.activate();
+    assert.equal(manager.focused(), settings);
+  }
+  assert.equal(chat.focuses, 3);
+  manager.close();
+});
 
 test("only registered and shown windows cycle; minimized windows remain candidates", () => {
   const manager = createOrdinaryWindows();
@@ -265,4 +322,102 @@ test("quitting cancels a pending Dock hide retry", async (t) => {
   t.mock.timers.tick(1000);
   await new Promise(setImmediate);
   assert.equal(dock.hides(), 1);
+});
+
+test("a transient popup defers hiding an existing Dock icon without showing one", async () => {
+  let visible = false;
+  let shows = 0;
+  let hides = 0;
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    async show() {
+      shows++;
+      visible = true;
+    },
+    hide() {
+      hides++;
+      visible = false;
+    },
+  });
+
+  manager.setTransientWindowVisible(true);
+  await new Promise(setImmediate);
+  assert.equal(shows, 0);
+  assert.equal(visible, false);
+
+  const chat = new Window();
+  chat.show();
+  manager.register(chat);
+  await new Promise(setImmediate);
+  manager.unregister(chat);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+  assert.equal(hides, 0);
+  manager.activate();
+  assert.equal(chat.focuses, 0);
+
+  manager.setTransientWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+  assert.equal(hides, 1);
+  manager.close();
+});
+
+test("a visible transient popup cancels the one-second Dock hide retry", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const dock = guardedDock();
+  const manager = createOrdinaryWindows(dock);
+  t.after(() => manager.close());
+  const settings = new Window();
+  manager.register(settings);
+  settings.show();
+  await new Promise(setImmediate);
+  settings.emit("closed");
+  await new Promise(setImmediate);
+  assert.equal(dock.hides(), 1);
+
+  manager.setTransientWindowVisible(true);
+  await new Promise(setImmediate);
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), true);
+  assert.equal(dock.hides(), 1);
+
+  manager.setTransientWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(dock.isVisible(), false);
+  assert.equal(dock.hides(), 2);
+});
+
+test("dismissing a transient popup preserves Dock for settings and native windows", async () => {
+  let visible = false;
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    async show() {
+      visible = true;
+    },
+    hide() {
+      visible = false;
+    },
+  });
+  const settings = new Window();
+  manager.register(settings);
+  settings.show();
+  manager.setTransientWindowVisible(true);
+  await new Promise(setImmediate);
+
+  manager.setTransientWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+  manager.setTransientWindowVisible(true);
+  manager.setNativeWindowVisible(true);
+  settings.emit("closed");
+  manager.setTransientWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, true);
+
+  manager.setNativeWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(visible, false);
+  manager.close();
 });

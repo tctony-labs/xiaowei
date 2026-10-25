@@ -66,6 +66,7 @@ export function startApplication(moduleDir: string): void {
   );
   const launcher = createLauncherWindow({
     moduleDir,
+    ordinaryWindows,
     focus: process.platform === "darwin" ? createSystemFocus() : undefined,
     register: (window) => gateway?.register(window),
     opened: (window, mode) => gateway?.opened(window, mode),

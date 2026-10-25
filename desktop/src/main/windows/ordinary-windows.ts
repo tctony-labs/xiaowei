@@ -2,7 +2,15 @@ import type { BrowserWindow, Dock } from "electron";
 
 type OrdinaryWindow = Pick<
   BrowserWindow,
-  "on" | "removeListener" | "isDestroyed" | "isMinimized" | "restore" | "show" | "focus"
+  | "on"
+  | "removeListener"
+  | "isDestroyed"
+  | "isMinimized"
+  | "isVisible"
+  | "isFocused"
+  | "restore"
+  | "show"
+  | "focus"
 >;
 
 export function createOrdinaryWindows(
@@ -13,6 +21,7 @@ export function createOrdinaryWindows(
   let recent: OrdinaryWindow | undefined;
   let focused: OrdinaryWindow | undefined;
   let nativeWindowVisible = false;
+  let transientWindowVisible = false;
   let closed = false;
   let dockUpdate: Promise<void> | undefined;
   let dockDirty = false;
@@ -35,6 +44,14 @@ export function createOrdinaryWindows(
         dockDirty = false;
         const visible = nativeWindowVisible || candidates().length > 0;
         if (dock.isVisible() === visible) break;
+
+        // Transforming to an accessory app can deactivate its focused popup.
+        // Keep an existing Dock icon until the transient window is dismissed.
+        if (!visible && transientWindowVisible) {
+          console.debug("Dock hide deferred while a transient window is visible");
+          break;
+        }
+
         if (visible) {
           await dock.show();
           if (!closed) dockShown?.();
@@ -59,6 +76,11 @@ export function createOrdinaryWindows(
 
   return {
     initialize: updateDock,
+    setTransientWindowVisible(visible: boolean) {
+      if (closed || transientWindowVisible === visible) return;
+      transientWindowVisible = visible;
+      updateDock();
+    },
     setNativeWindowVisible(visible: boolean) {
       if (closed || nativeWindowVisible === visible) return;
       nativeWindowVisible = visible;
@@ -88,11 +110,19 @@ export function createOrdinaryWindows(
         if (recent === window) recent = undefined;
         updateDock();
       };
-      windows.set(window, { shown: false, unregister });
+      const alreadyShown = window.isVisible() || window.isMinimized();
+      windows.set(window, { shown: alreadyShown, unregister });
       window.on("show", shown);
       window.on("focus", focus);
       window.on("blur", blur);
       window.on("closed", unregister);
+      if (alreadyShown) {
+        if (window.isFocused()) focus();
+        updateDock();
+      }
+    },
+    unregister(window: OrdinaryWindow) {
+      windows.get(window)?.unregister();
     },
     activate() {
       const available = candidates();
