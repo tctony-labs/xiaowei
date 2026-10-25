@@ -61,7 +61,15 @@ impl Store {
         if data.is_empty() {
             return Err("Empty clipboard content".into());
         }
-        let hash = data.hash();
+
+        self.capture_with_hash(data, data.hash()).await
+    }
+
+    pub(crate) async fn capture_with_hash(
+        &self,
+        data: &ClipboardData,
+        hash: String,
+    ) -> Result<ClipboardItem> {
         let (text, paths, width, height) = match data {
             ClipboardData::Text(text) => {
                 if data.kind() == "largeText" {

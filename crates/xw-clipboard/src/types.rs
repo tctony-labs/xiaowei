@@ -4,6 +4,13 @@ use sha2::{Digest, Sha256};
 // Migrated from xw-domain/clipboard/types.rs.
 pub const LARGE_TEXT_THRESHOLD: usize = 9999;
 
+#[cfg(test)]
+thread_local! {
+    pub(crate) static HASH_COMPUTATIONS: std::cell::Cell<usize> = const {
+        std::cell::Cell::new(0)
+    };
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardData {
     Text(String),
@@ -26,6 +33,9 @@ impl ClipboardData {
     }
 
     pub fn hash(&self) -> String {
+        #[cfg(test)]
+        HASH_COMPUTATIONS.with(|count| count.set(count.get() + 1));
+
         let mut hash = Sha256::new();
         hash.update(self.kind());
         match self {

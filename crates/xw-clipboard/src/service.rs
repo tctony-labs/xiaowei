@@ -518,7 +518,7 @@ async fn poll(state: &Mutex<State>) -> std::result::Result<bool, PollError> {
 
     let item = state
         .store
-        .capture(&change.data)
+        .capture_with_hash(&change.data, change.hash.clone())
         .await
         .map_err(PollError::Save)?;
     state.last_count = Some(change.count);
@@ -539,6 +539,7 @@ async fn cleanup(service: &Service, days: i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::HASH_COMPUTATIONS;
     use crate::{ClipboardBackend, ClipboardData};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use xw_contracts::xiaowei::{clipboard::DeletedClipboardEntities, storage::SettingsSnapshot};
@@ -555,6 +556,77 @@ mod tests {
         fn write(&mut self, _: &ClipboardData) -> Result<()> {
             Ok(())
         }
+    }
+
+    struct ObservedBackend {
+        version: Arc<AtomicUsize>,
+        reads: Arc<AtomicUsize>,
+    }
+
+    impl ClipboardBackend for ObservedBackend {
+        fn change_count(&mut self) -> Result<i64> {
+            Ok(self.version.load(Ordering::SeqCst) as i64)
+        }
+
+        fn read(&mut self) -> Result<Option<ClipboardData>> {
+            self.reads.fetch_add(1, Ordering::SeqCst);
+            Ok(Some(ClipboardData::Text("x".repeat(10_000))))
+        }
+
+        fn write(&mut self, _: &ClipboardData) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn polling_hashes_changed_content_once_and_skips_unchanged_versions() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = Arc::new(
+            xw_storage::Database::open(&directory.path().join("storage.sqlite"))
+                .await
+                .unwrap(),
+        );
+        let registry = XwInvokeRegistry::new();
+        registry
+            .register_owner(
+                "clipboard-dao",
+                xw_storage::clipboard_dao::gateway::registrations(&Arc::new(
+                    xw_storage::clipboard_dao::ClipboardDao::new(database),
+                )),
+                vec![],
+            )
+            .unwrap();
+        let version = Arc::new(AtomicUsize::new(1));
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = Service::open(
+            directory.path(),
+            directory.path(),
+            registry.client(CallContext::trusted("clipboard-tests")),
+            ObservedBackend {
+                version: version.clone(),
+                reads: reads.clone(),
+            },
+            || {},
+        )
+        .unwrap();
+        service.initialize().await.unwrap();
+
+        HASH_COMPUTATIONS.set(0);
+        assert!(service.poll_once().await.unwrap());
+        assert_eq!(HASH_COMPUTATIONS.get(), 1);
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+
+        HASH_COMPUTATIONS.set(0);
+        for _ in 0..3 {
+            assert!(!service.poll_once().await.unwrap());
+        }
+        assert_eq!(HASH_COMPUTATIONS.get(), 0);
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+
+        version.store(2, Ordering::SeqCst);
+        assert!(!service.poll_once().await.unwrap());
+        assert_eq!(HASH_COMPUTATIONS.get(), 1);
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test(start_paused = true)]

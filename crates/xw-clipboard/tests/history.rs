@@ -49,6 +49,27 @@ async fn full_content_hashes_do_not_confuse_same_prefixes_or_comma_paths() {
     assert_eq!(store.data(item.id.parse().unwrap()).await.unwrap(), a);
 }
 
+#[test]
+fn image_hash_includes_bytes_outside_legacy_samples() {
+    let mut data = vec![0; 2 * 1024 * 1024];
+    let original = ClipboardData::Image {
+        data: data.clone(),
+        width: 1024,
+        height: 512,
+    }
+    .hash();
+
+    data[128 * 1024] = 1;
+    let changed = ClipboardData::Image {
+        data,
+        width: 1024,
+        height: 512,
+    }
+    .hash();
+
+    assert_ne!(original, changed);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn images_and_file_paths_persist_without_loading_image_bytes_in_lists() {
     let dir = tempfile::tempdir().unwrap();
