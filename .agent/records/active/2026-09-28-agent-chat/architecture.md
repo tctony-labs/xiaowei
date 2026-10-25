@@ -1,6 +1,6 @@
 # 架构、分包与依赖方向
 
-所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已接入持久文本聊天及 Read／Write／Edit 工具循环；其他工具及远程 transport 尚未实现。
+所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。当前已接入持久文本聊天、Read／Write／Edit 及 macOS 前台 Bash；前台 Bash 已完成产品窗口验收，见[交付结果](implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。其他工具及远程 transport 尚未实现。
 
 ## 技术路线与源码参考
 
@@ -24,7 +24,8 @@ Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目�
 | --- | --- |
 | `xw-agent-types` | 领域身份、消息、生成纯数据、模型选择／说明、RunContext、rollout 和严格 compact codec／校验。lib.rs 显式导出，内部模块私有；不是公共 RPC 协议，不依赖 contracts |
 | `xw-agent-rollout` | JSONL 读写、提交边界、跨进程 writer 锁、尾部修复及文件生命周期；不管理 SQLite，不决定业务 Run 如何恢复 |
-| `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具及基础写权限；消费 types，不接受 UI RPC、不依赖 Gateway |
+| `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具与 Bash 进程执行及基础写权限；消费 types，不接受 UI RPC、不依赖 Gateway |
+| `xw-sandboxed-exec` | macOS Seatbelt 策略与 sandbox-exec 参数；不持有进程、会话或运行，调用方负责路径解析及进程生命周期 |
 | `xw-agent` | App Server：顺序工具循环与提交、会话／输入／运行所有权、上下文重建、公共 Run／Item 投影、直接事件、标题、SQLite 目录和自动维护；定义统一 AgentHost。公开服务使用 Agent proto，不依赖 Gateway 或外部业务 service |
 | `contracts/proto/xiaowei/agent.proto` | Request／Response、Session／Run／Item 与公共事件；由 xw-contracts／xiaowei-contracts 生成消息和 service descriptor，不包含 Rust trait 或宿主运行对象 |
 | `xiaowei-agent` | 薄集成层：实现 AgentHost、LLM 消息 codec、Gateway handler 和 consumer binding；不保存第二份会话／运行状态 |

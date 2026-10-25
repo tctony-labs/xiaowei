@@ -2,11 +2,11 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer 与 Read／Write／Edit 工具循环已接入；其他工具、交互及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer、Read／Write／Edit 及 macOS 前台 Bash 已接入；前台 Bash 已完成窗口及重启验收，具体见[实施结果](implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。其他工具、交互及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
 ## 当前执行
 
-Quick Chat 已经 Agent typed client → xiaowei-agent → xw-agent → runtime → 注入的 Llm.Generate adapter 执行。每个 Run 可包含多个 Turn／Gen，顺序执行文件工具，无自动重试。完整合法 TOOL_USE 结束 Gen 后提交工具意图并执行，结果提交并闭合 Turn 后才继续生成；STOP／LENGTH 的完整有效文本消息结束 Run。完整成功消息与已提交结果进入后续模型历史；EOF、模型失败、非法／不支持输出为 Failed，取消为 Interrupted。失败／取消的用户输入保留，部分回复只用于显示。
+Quick Chat 已经 Agent typed client → xiaowei-agent → xw-agent → runtime → 注入的 Llm.Generate adapter 执行。每个 Run 可包含多个 Turn／Gen，顺序执行文件工具和前台 Bash，无自动重试。完整合法 TOOL_USE 结束 Gen 后提交工具意图并执行，结果提交并闭合 Turn 后才继续生成；STOP／LENGTH 的完整有效文本消息结束 Run。完整成功消息与已提交结果进入后续模型历史；EOF、模型失败、非法／不支持输出为 Failed，取消为 Interrupted。失败／取消的用户输入保留，部分回复只用于显示。
 
 聊天 runtime 在 adapter 的流读取返回后复核取消 token；读取过程中已发生的取消优先于同时返回的 EOF、错误或最终消息，避免停止被误判为 Failed，或把取消后的最终消息写入模型历史。
 

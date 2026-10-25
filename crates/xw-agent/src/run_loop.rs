@@ -125,10 +125,10 @@ async fn drive(
         };
         (session.view.cwd.clone(), session.history.clone(), grants)
     };
-    let tools = cwd.map(|cwd| {
+    let tools = cwd.as_ref().map(|cwd| {
         Arc::new(Mutex::new(FileTools::new(
             PathBuf::from(cwd),
-            grants,
+            grants.clone(),
             &history,
         )))
     });
@@ -300,10 +300,40 @@ async fn drive(
                 used += 1;
                 let began = Instant::now();
                 let skipped = cancellation.is_cancelled();
+                let mut execution_cancelled = false;
+                let mut execution_failed = false;
                 let result = if skipped {
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
+                } else if name == "Bash"
+                    && let Some(cwd) = &cwd
+                {
+                    match xw_agent_runtime::tools::bash::execute(
+                        std::path::Path::new(cwd),
+                        &grants,
+                        &intent.arguments_json,
+                        cancellation.clone(),
+                    )
+                    .await
+                    {
+                        Ok(outcome) => {
+                            execution_cancelled = outcome.cancelled;
+                            execution_failed = outcome.is_error;
+                            Ok(outcome.output)
+                        }
+                        Err(xw_agent_runtime::tools::bash::BashError::NotStarted(error)) => {
+                            Err(error)
+                        }
+                        Err(xw_agent_runtime::tools::bash::BashError::ResultUnknown(error)) => {
+                            log::error!(
+                                "Agent Bash outcome unknown run={} tool={}: {error}",
+                                request.run_id,
+                                intent.tool_id
+                            );
+                            return Err(AgentError::Conflict("Bash outcome unknown"));
+                        }
+                    }
                 } else if let Some(tools) = &tools {
                     let tools = tools.clone();
                     let name = name.clone();
@@ -314,17 +344,25 @@ async fn drive(
                     .await
                     .map_err(|_| AgentError::Internal)?
                 } else {
-                    Err("当前会话未开放文件工具".into())
+                    Err("当前会话未开放工具".into())
                 };
                 let (tool_status, text, metadata) = match result {
                     Ok(output) => (
-                        domain::ToolStatus::Completed,
+                        if execution_cancelled {
+                            domain::ToolStatus::Cancelled
+                        } else if execution_failed {
+                            domain::ToolStatus::Failed
+                        } else {
+                            domain::ToolStatus::Completed
+                        },
                         output.text,
                         output.metadata_json,
                     ),
                     Err(error) => (
                         if skipped {
                             domain::ToolStatus::Skipped
+                        } else if name == "Bash" && cancellation.is_cancelled() {
+                            domain::ToolStatus::Cancelled
                         } else {
                             domain::ToolStatus::Failed
                         },
@@ -503,8 +541,10 @@ fn commit_result(
         })),
     );
     log::debug!(
-        "Agent tool settled session={session_id} tool={} status={status:?}",
-        intent.tool_id
+        "Agent tool settled session={session_id} tool={} name={} \
+         status={status:?} duration_ms={duration_ms:?}",
+        intent.tool_id,
+        intent.tool_name
     );
     Ok(())
 }

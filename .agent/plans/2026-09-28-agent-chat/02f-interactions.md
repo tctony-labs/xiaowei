@@ -14,8 +14,8 @@
 | 新增 | `crates/xw-agent/src/interactive.rs、interaction_delivery.rs` | 持久审批／问答状态和决定，与逐 caller observer／delivery 接收状态分开 |
 | 修改 | `crates/xw-agent-runtime/src/permission.rs` | 在已有基础检查上接入有效权限决定消费；不从普通聊天文本获得授权 |
 | 新增 | `crates/xw-agent-runtime/src/tools/core/mod.rs、ask_user_question.rs、request_permission.rs` | 迁移结构化问题与权限请求，保留选项／自由文本 |
-| 修改 | `crates/xw-agent-runtime/src/lib.rs、text.rs、tools/mod.rs、agent_loop/tool_execution.rs` | 通过实际交互接口等待决定，模型流释放后等待；取消使请求失效 |
-| 修改 | `crates/xw-agent/src/lib.rs、execution.rs、service.rs、tool_registry.rs、events.rs、persistence.rs`、`crates/xiaowei-agent/src/gateway.rs` | 接同一实例、注册 stream／unary，交互／送达变化共享投影 |
+| 修改 | `crates/xw-agent-runtime/src/tools/mod.rs` | 导出问答／权限的声明和参数校验，纯工具原语不回调 core 写盘，也不依赖 Gateway |
+| 修改 | `crates/xw-agent/src/lib.rs、run_loop.rs、service.rs、tool_registry.rs、prompts/mod.rs、events.rs、persistence.rs`、`crates/xiaowei-agent/src/gateway.rs` | 在当前 core 工具分派中提交 Interaction 并异步等待决定，模型流释放后等待、取消使请求失效；接同一实例和实际声明／规则，注册 stream／unary，共享投影 |
 | 修改 | `crates/xw-agent/src/recovery.rs` | 消费 01a 的 InteractionOpened／Resolved／Expired，接重启结算；类型在 01a 已定义，接收事实不进入 journal |
 | 新增 | `crates/xw-agent/tests/interactive.rs、interaction_delivery.rs` | 真实 typed RPC／响应流测试两端送达、乱序、竞争与生命周期 |
 

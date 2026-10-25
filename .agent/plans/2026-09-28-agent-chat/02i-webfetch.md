@@ -11,8 +11,8 @@
 | 类型 | 路径 | 具体改动 |
 | --- | --- | --- |
 | 新增 | `crates/xw-agent-runtime/src/tools/web/mod.rs、fetch.rs` | 迁移 URL／重定向／大小限制、内容分类、HTML 转 Markdown 与二次提取；用 01a 的 GenPurpose::ToolExtraction { tool_id } 标识调用，不新定义历史格式 |
-| 修改 | `crates/xw-agent-runtime/Cargo.toml、src/tools/mod.rs`、`crates/xw-agent/src/context.rs` | 声明实际网页依赖和工具说明 |
-| 修改 | `crates/xw-agent/src/model.rs、tool_registry.rs` | 通过 AgentHost 查询当次辅助引用、桥接内部生成接口给 WebFetch；传递取消，不读取 ModelSettings 或调用外部 PB client |
+| 修改 | `crates/xw-agent-runtime/Cargo.toml、src/tools/mod.rs` | 声明实际网页依赖与工具原语，复用已有 ToolOutput 表达，不回调 core 写 journal |
+| 修改 | `crates/xw-agent/src/model.rs、tool_registry.rs、prompts/mod.rs、run_loop.rs、persistence.rs` | 装配实际声明与规则；在当前 core 工具分派中通过 AgentHost 查询辅助引用、生成并记录提取 Gen，传递取消；不读取 ModelSettings 或调用外部 PB client |
 | 新增 | `crates/xw-agent-runtime/tests/webfetch.rs` | 本地 HTTP fixture + 确定性提取 provider 的网页边界测试 |
 | 修改 | `Cargo.lock` | 由 Cargo 更新依赖 |
 

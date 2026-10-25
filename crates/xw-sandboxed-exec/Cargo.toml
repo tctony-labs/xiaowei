@@ -1,0 +1,12 @@
+[package]
+name = "xw-sandboxed-exec"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Seatbelt policy generation for isolated Agent processes"
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

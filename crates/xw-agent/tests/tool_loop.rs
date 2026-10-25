@@ -131,23 +131,7 @@ async fn run(service: &AgentService, session: &AgentSession) -> AgentRun {
         })
         .await
         .unwrap();
-    service
-        .start_run(
-            StartRunRequest {
-                session_id: session.session_id.clone(),
-                input_id: InputId::new().to_string(),
-                input: vec![AgentUserInput {
-                    content: Some(agent_user_input::Content::Text("执行文件任务".into())),
-                }],
-                ..Default::default()
-            },
-            InputSource {
-                kind: SourceKind::Internal,
-                principal_id: "test".into(),
-            },
-        )
-        .await
-        .unwrap();
+    start(service, session).await;
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
             let update = events.recv().await.unwrap().unwrap();
@@ -160,7 +144,33 @@ async fn run(service: &AgentService, session: &AgentSession) -> AgentRun {
     .unwrap()
 }
 
+async fn start(service: &AgentService, session: &AgentSession) -> AgentRun {
+    service
+        .start_run(
+            StartRunRequest {
+                session_id: session.session_id.clone(),
+                input_id: InputId::new().to_string(),
+                input: vec![AgentUserInput {
+                    content: Some(agent_user_input::Content::Text("执行工具任务".into())),
+                }],
+                ..Default::default()
+            },
+            InputSource {
+                kind: SourceKind::Internal,
+                principal_id: "test".into(),
+            },
+        )
+        .await
+        .unwrap()
+        .run
+        .unwrap()
+}
+
 fn entries(root: &std::path::Path) -> Vec<xw_agent_types::JournalEntry> {
+    xw_agent_types::decode_history(&std::fs::read_to_string(journal_path(root)).unwrap()).unwrap()
+}
+
+fn journal_path(root: &std::path::Path) -> std::path::PathBuf {
     fn find(root: &std::path::Path) -> Option<std::path::PathBuf> {
         for entry in std::fs::read_dir(root).ok()?.flatten() {
             let path = entry.path();
@@ -175,7 +185,7 @@ fn entries(root: &std::path::Path) -> Vec<xw_agent_types::JournalEntry> {
         }
         None
     }
-    xw_agent_types::decode_history(&std::fs::read_to_string(find(root).unwrap()).unwrap()).unwrap()
+    find(root).unwrap()
 }
 
 #[tokio::test]
@@ -269,7 +279,18 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
         else {
             panic!("missing baseline");
         };
-        assert_eq!(context.tools.len(), 3);
+        let mut expected = vec!["Read", "Write", "Edit"];
+        if cfg!(target_os = "macos") {
+            expected.push("Bash");
+        }
+        assert_eq!(
+            context
+                .tools
+                .iter()
+                .map(|tool| tool.name.as_str())
+                .collect::<Vec<_>>(),
+            expected
+        );
         assert!(context.instructions["environment.cwd"].contains(cwd.to_str().unwrap()));
     }
     service.close().await.unwrap();
@@ -537,4 +558,369 @@ async fn legacy_header_gets_a_stable_workspace_without_rewriting_the_header() {
     assert!(view.cwd.unwrap().ends_with(&format!("quick-chat/{id}")));
     assert_eq!(std::fs::read(path).unwrap(), before);
     service.close().await.unwrap();
+}
+
+#[cfg(target_os = "macos")]
+mod bash {
+    use super::*;
+    use std::{path::Path, process::Stdio};
+    use xw_agent_types::{SystemContextUpdate, encode_history};
+
+    fn tools(run: &AgentRun) -> Vec<&AgentToolCall> {
+        run.items
+            .iter()
+            .filter_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool)) => Some(tool),
+                _ => None,
+            })
+            .collect()
+    }
+
+    async fn child_pid(cwd: &Path) -> String {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Ok(pid) = std::fs::read_to_string(cwd.join("child.pid"))
+                    && pid.trim().parse::<u32>().is_ok()
+                {
+                    return pid.trim().into();
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap()
+    }
+
+    fn assert_child_gone(pid: &str) {
+        assert!(
+            !std::process::Command::new("/bin/kill")
+                .args(["-0", pid])
+                .stderr(Stdio::null())
+                .status()
+                .unwrap()
+                .success(),
+            "child is still alive: {pid}"
+        );
+    }
+
+    #[tokio::test]
+    async fn bash_result_feeds_read_and_survives_reopen_without_reexecution() {
+        let root = tempfile::tempdir().unwrap();
+        let arguments = serde_json::json!({
+            "description": "create fixture",
+            "command": "printf created > bash.txt; printf stdout; printf stderr >&2; exit 7",
+        })
+        .to_string();
+        let host = Host::new(vec![
+            message(&[("Bash", &arguments)], ""),
+            message(&[("Read", r#"{"path":"bash.txt"}"#)], ""),
+            message(&[], "已读取命令产物"),
+            message(&[], "继续对话"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let result = run(&service, &session).await;
+        assert_eq!(
+            result.status,
+            AgentRunStatus::Completed as i32,
+            "{result:?}"
+        );
+        let calls = tools(&result);
+        assert_eq!(
+            calls.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(),
+            ["Bash", "Read"]
+        );
+        assert!(
+            calls
+                .iter()
+                .all(|t| t.status == AgentToolStatus::Completed as i32)
+        );
+        assert!(calls[0].output.contains("stdout\nstderr"));
+        let metadata: serde_json::Value =
+            serde_json::from_str(calls[0].metadata_json.as_ref().unwrap()).unwrap();
+        assert_eq!(metadata["bash"]["exit_code"], 7);
+        assert!(calls[1].output.contains("created"));
+        {
+            let requests = host.requests.lock().unwrap();
+            assert_eq!(requests.len(), 3);
+            assert!(requests[1].messages.iter().any(|m| {
+                matches!(m, History::ToolResult(r) if !r.is_error && r.tool_name == "Bash")
+            }));
+        }
+        service.close().await.unwrap();
+        let file = Path::new(session.cwd.as_ref().unwrap()).join("bash.txt");
+        std::fs::write(&file, "sentinel").unwrap();
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let restored = service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        assert_eq!(restored.runs[0].items, result.items);
+        run(&service, &restored).await;
+        assert_eq!(std::fs::read_to_string(file).unwrap(), "sentinel");
+        service.close().await.unwrap();
+        let saved = entries(root.path());
+        assert_eq!(
+            saved
+                .iter()
+                .filter(|e| matches!(e.payload, EntryPayload::ToolIntent(_)))
+                .count(),
+            2
+        );
+        assert!(xw_agent::inspect_recovery(&saved).unwrap().tools.is_empty());
+    }
+
+    #[tokio::test]
+    async fn invalid_parameters_and_timeout_are_committed_as_errors_before_continuing() {
+        let root = tempfile::tempdir().unwrap();
+        let arguments = serde_json::json!({
+            "description": "timeout",
+            "command": "printf partial; sleep 30",
+            "timeout_ms": 1000,
+        })
+        .to_string();
+        let host = Host::new(vec![
+            message(
+                &[
+                    ("Bash", r#"{"command":"touch must-not-run"}"#),
+                    ("Bash", &arguments),
+                ],
+                "",
+            ),
+            message(&[], "已说明错误"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let result = run(&service, &session).await;
+        assert_eq!(
+            result.status,
+            AgentRunStatus::Completed as i32,
+            "{result:?}"
+        );
+        let calls = tools(&result);
+        assert_eq!(calls.len(), 2);
+        assert!(
+            calls
+                .iter()
+                .all(|t| t.status == AgentToolStatus::Failed as i32)
+        );
+        assert!(calls[1].output.contains("partial"));
+        let metadata: serde_json::Value =
+            serde_json::from_str(calls[1].metadata_json.as_ref().unwrap()).unwrap();
+        assert_eq!(metadata["bash"]["timed_out"], true);
+        assert!(
+            !Path::new(session.cwd.as_ref().unwrap())
+                .join("must-not-run")
+                .exists()
+        );
+        assert_eq!(
+            host.requests.lock().unwrap()[1]
+                .messages
+                .iter()
+                .filter(|m| matches!(m, History::ToolResult(r) if r.is_error))
+                .count(),
+            2
+        );
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn stop_delete_and_close_wait_for_bash_cleanup_and_skip_unstarted_tools() {
+        for action in ["stop", "delete", "close"] {
+            let root = tempfile::tempdir().unwrap();
+            let cwd = tempfile::tempdir().unwrap();
+            let arguments = serde_json::json!({
+                "description": "wait for cancellation",
+                "command": "trap '' TERM; sleep 30 & echo $! > child.pid; printf partial; wait",
+            })
+            .to_string();
+            let host = Host::new(vec![message(
+                &[
+                    ("Bash", &arguments),
+                    ("Write", r#"{"path":"must-not-run","contents":"bad"}"#),
+                ],
+                "",
+            )]);
+            let service = AgentService::open(host.clone(), root.path().into())
+                .await
+                .unwrap();
+            let session = create(&service, Some(cwd.path().to_str().unwrap().into())).await;
+            let mut events = service
+                .subscribe_session(SubscribeSessionRequest {
+                    session_id: session.session_id.clone(),
+                })
+                .await
+                .unwrap();
+            let accepted = start(&service, &session).await;
+            let pid = child_pid(cwd.path()).await;
+            match action {
+                "stop" => {
+                    service
+                        .interrupt_run(InterruptRunRequest {
+                            session_id: session.session_id.clone(),
+                            run_id: accepted.run_id,
+                        })
+                        .unwrap();
+                    let result = tokio::time::timeout(Duration::from_secs(5), async {
+                        loop {
+                            if let Some(agent_event::Payload::RunCompleted(end)) =
+                                events.recv().await.unwrap().unwrap().payload
+                            {
+                                break end.run.unwrap();
+                            }
+                        }
+                    })
+                    .await
+                    .unwrap();
+                    assert_eq!(result.status, AgentRunStatus::Interrupted as i32);
+                    assert_eq!(tools(&result)[0].status, AgentToolStatus::Cancelled as i32);
+                    assert!(tools(&result)[0].output.contains("partial"));
+                    assert_eq!(tools(&result)[1].status, AgentToolStatus::Skipped as i32);
+                }
+                "delete" => {
+                    let current = service
+                        .read_session(ReadSessionRequest {
+                            session_id: session.session_id.clone(),
+                            include_runs: false,
+                        })
+                        .await
+                        .unwrap()
+                        .session
+                        .unwrap();
+                    let response = service
+                        .delete_session(DeleteSessionRequest {
+                            targets: vec![DeleteSessionTarget {
+                                session_id: session.session_id.clone(),
+                                expected_metadata_revision: current.metadata_revision,
+                                expected_archive_revision: None,
+                            }],
+                        })
+                        .await
+                        .unwrap();
+                    assert_eq!(
+                        response.results[0].status,
+                        DeleteSessionStatus::Deleted as i32,
+                        "{response:?}"
+                    );
+                }
+                "close" => service.close().await.unwrap(),
+                _ => unreachable!(),
+            }
+            assert_child_gone(&pid);
+            assert!(!cwd.path().join("must-not-run").exists());
+            assert_eq!(host.requests.lock().unwrap().len(), 1);
+            service.close().await.unwrap();
+            if action != "delete" {
+                let saved = entries(root.path());
+                assert!(xw_agent::inspect_recovery(&saved).unwrap().tools.is_empty());
+                assert_eq!(
+                    saved
+                        .iter()
+                        .filter(|e| matches!(&e.payload,
+                            EntryPayload::ToolOutcome(o)
+                                if o.status == xw_agent_types::ToolStatus::Cancelled
+                        ))
+                        .count(),
+                    1
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn file_only_sessions_receive_only_the_bash_addition_once() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(vec![message(&[], "first"); 4]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        let path = journal_path(root.path());
+        let mut saved = entries(root.path());
+        // Model a session written by the previous file-only registry.
+        for entry in &mut saved {
+            if let EntryPayload::SystemContext(SystemContextUpdate::Baseline(context)) =
+                &mut entry.payload
+            {
+                context.tools.retain(|t| t.name != "Bash");
+                context.instructions.remove("tool.Bash");
+            }
+        }
+        let original = encode_history(&saved).unwrap();
+        std::fs::write(&path, &original).unwrap();
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        run(&service, &session).await;
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        assert!(
+            std::fs::read_to_string(path)
+                .unwrap()
+                .starts_with(&original)
+        );
+        let saved = entries(root.path());
+        let updates: Vec<_> = saved
+            .iter()
+            .filter_map(|e| match &e.payload {
+                EntryPayload::SystemContext(update) => Some(update),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(updates.len(), 2);
+        let SystemContextUpdate::Delta(delta) = updates[1] else {
+            panic!("missing delta")
+        };
+        assert_eq!(
+            delta
+                .tools_added
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Bash"]
+        );
+        assert_eq!(
+            delta
+                .instructions
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["tool.Bash"]
+        );
+        assert!(delta.tools_removed.is_empty());
+        assert!(delta.instructions_removed.is_empty());
+        let requests = host.requests.lock().unwrap();
+        assert!(requests[1].system_prompt.is_empty());
+        assert_eq!(
+            requests[1]
+                .messages
+                .iter()
+                .filter(|m| matches!(
+                    m,
+                    History::SystemContext {
+                        update: SystemContextUpdate::Delta(_)
+                    }
+                ))
+                .count(),
+            1
+        );
+    }
 }

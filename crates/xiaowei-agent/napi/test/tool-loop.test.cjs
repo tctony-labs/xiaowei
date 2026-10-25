@@ -26,21 +26,62 @@ function id() {
 }
 
 const live = process.env.XIAOWEI_AGENT_LIVE === "1";
-test(`formal Agent → Gateway → worker → ${live ? "live model" : "Pi provider"} → real files`, {
-  timeout: live ? 180000 : 30000,
-}, async () => {
+const scenarios = [
+  {
+    name: "real files",
+    file: "acceptance.txt",
+    calls: [
+      ["Write", { path: "acceptance.txt", contents: "hello\nworld\n" }],
+      ["Read", { path: "acceptance.txt" }],
+      ["Edit", { path: "acceptance.txt", old_string: "world", new_string: "xiaowei" }],
+      ["Read", { path: "acceptance.txt" }],
+    ],
+    prompt:
+      "严格依次调用 Write、Read、Edit、Read。\n" +
+      "先在当前工作目录的 acceptance.txt 写入 hello\\nworld\\n（真实换行），读取，" +
+      "然后把 world 替换成 xiaowei，再读取确认。最终用中文说明结果。只操作这个临时文件。",
+  },
+];
+if (process.platform === "darwin") {
+  scenarios.push({
+    name: "sandboxed Bash",
+    file: "bash-acceptance.txt",
+    calls: [
+      [
+        "Bash",
+        {
+          description: "Create the temporary acceptance file",
+          command: "printf 'hello\\nxiaowei\\n' > bash-acceptance.txt; printf shell-output",
+        },
+      ],
+      ["Read", { path: "bash-acceptance.txt" }],
+    ],
+    prompt:
+      "严格依次调用 Bash、Read。Bash command 必须是：\n" +
+      "printf 'hello\\nxiaowei\\n' > bash-acceptance.txt; printf shell-output\n" +
+      "随后 Read bash-acceptance.txt 确认真实内容，最终用中文说明结果。只操作这个临时文件。",
+  });
+}
+
+for (const scenario of scenarios) {
+  const provider = live ? "live model" : "Pi provider";
+  test(
+    `formal Agent → Gateway → worker → ${provider} → ${scenario.name}`,
+    {
+      timeout: live ? 180000 : 30000,
+    },
+    () => exerciseScenario(scenario),
+  );
+}
+
+async function exerciseScenario(scenario) {
   const pb = await import("xiaowei-contracts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const { attachWorker } = await import("xiaowei-gateway/worker-host");
-  const calls = [
-    ["Write", { path: "acceptance.txt", contents: "hello\nworld\n" }],
-    ["Read", { path: "acceptance.txt" }],
-    ["Edit", { path: "acceptance.txt", old_string: "world", new_string: "xiaowei" }],
-    ["Read", { path: "acceptance.txt" }],
-  ];
+  const calls = scenario.calls;
   const requests = [];
   const server = createServer(async (incoming, outgoing) => {
     const chunks = [];
@@ -155,10 +196,7 @@ test(`formal Agent → Gateway → worker → ${live ? "live model" : "Pi provid
           {
             content: {
               case: "text",
-              value:
-                `工具验收 ${nonce}：严格依次调用 Write、Read、Edit、Read。\n` +
-                "先在当前工作目录的 acceptance.txt 写入 hello\\nworld\\n（真实换行），读取，" +
-                "然后把 world 替换成 xiaowei，再读取确认。最终用中文说明结果。只操作这个临时文件。",
+              value: `工具验收 ${nonce}：${scenario.prompt}`,
             },
           },
         ],
@@ -172,34 +210,43 @@ test(`formal Agent → Gateway → worker → ${live ? "live model" : "Pi provid
       }
     }
     assert.equal(completed?.status, pb.AgentRunStatus.COMPLETED, completed?.error);
-    assert.equal(await readFile(join(session.cwd, "acceptance.txt"), "utf8"), "hello\nxiaowei\n");
+    assert.equal(await readFile(join(session.cwd, scenario.file), "utf8"), "hello\nxiaowei\n");
     const tools = completed.items
       .filter((item) => item.content.case === "toolCall")
       .map((item) => item.content.value);
     assert.deepEqual(
       tools.map((tool) => tool.name),
-      ["Write", "Read", "Edit", "Read"],
+      calls.map(([name]) => name),
     );
     assert.ok(tools.every((tool) => tool.status === pb.AgentToolStatus.COMPLETED));
-    assert.ok(tools[3].output.includes("xiaowei"));
+    assert.ok(tools.at(-1).output.includes("xiaowei"));
+    if (scenario.name === "sandboxed Bash") {
+      assert.ok(tools[0].output.includes("shell-output"));
+      const metadata = JSON.parse(tools[0].metadataJson);
+      assert.equal(metadata.bash.exit_code, 0);
+      assert.equal(metadata.bash.is_background, false);
+      assert.equal(metadata.bash.cancelled, false);
+    }
     assert.ok(
       completed.items.some(
         (item) => item.content.case === "agentMessage" && item.content.value.text,
       ),
     );
     if (!live) {
-      assert.equal(requests.length, 5);
-      assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), [
-        "Edit",
-        "Read",
-        "Write",
-      ]);
+      assert.equal(requests.length, calls.length + 1);
+      const expected = ["Edit", "Read", "Write"];
+      if (process.platform === "darwin") expected.push("Bash");
+      assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
-      assert.ok(requests[4].messages.at(-1).content.includes("xiaowei"));
+      assert.ok(requests.at(-1).messages.at(-1).content.includes("xiaowei"));
+      if (scenario.name === "sandboxed Bash") {
+        assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
+      }
     }
     console.log(
       JSON.stringify({
         acceptance: live ? "live" : "fixture",
+        scenario: scenario.name,
         modelRef,
         toolCalls: tools.map((tool) => tool.name),
         finalStatus: "completed",
@@ -215,4 +262,4 @@ test(`formal Agent → Gateway → worker → ${live ? "live model" : "Pi provid
     if (server.listening) await new Promise((resolve) => server.close(resolve));
     await rm(root, { recursive: true, force: true });
   }
-});
+}

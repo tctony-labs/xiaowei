@@ -19,6 +19,33 @@ struct Host {
 
 #[tokio::test]
 async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() {
+    failed_tool_commit(
+        "Write",
+        r#"{"path":"committed-side-effect","contents":"once"}"#,
+        3,
+        true,
+    )
+    .await;
+}
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn failed_bash_intent_and_result_commits_never_replay_side_effects() {
+    for (after, executed) in [(2, false), (3, true)] {
+        failed_tool_commit(
+            "Bash",
+            concat!(
+                r#"{"description":"commit failure test","#,
+                r#""command":"printf once > committed-side-effect"}"#,
+            ),
+            after,
+            executed,
+        )
+        .await;
+    }
+}
+
+async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed: bool) {
     let root = tempfile::tempdir().unwrap();
     let host = Arc::new(Host::default());
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
@@ -53,9 +80,9 @@ async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() 
         .unwrap();
     message.stop_reason = domain::FinishReason::ToolUse;
     message.content = vec![domain::ContentBlock::ToolCall {
-        id: "write-call".into(),
-        name: "Write".into(),
-        arguments_json: Some(r#"{"path":"committed-side-effect","contents":"once"}"#.into()),
+        id: "side-effect-call".into(),
+        name: name.into(),
+        arguments_json: Some(arguments.into()),
         thought_signature: None,
         namespace: None,
     }];
@@ -68,7 +95,7 @@ async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() 
         .journal
         .as_mut()
         .unwrap()
-        .fail_append_after(3, TestFault::Partial);
+        .fail_append_after(after, TestFault::Partial);
     host.pending
         .lock()
         .unwrap()
@@ -79,7 +106,11 @@ async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() 
     idle(&service, id).await;
     assert_eq!(host.calls.lock().unwrap().len(), 1);
     let file = std::path::Path::new(session.cwd.as_ref().unwrap()).join("committed-side-effect");
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), "once");
+    if executed {
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "once");
+    } else {
+        assert!(!file.exists());
+    }
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();

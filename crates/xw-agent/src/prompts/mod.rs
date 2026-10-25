@@ -32,6 +32,12 @@ pub fn build_chat_system_context(
             "Read" => Some(READ_RULE),
             "Write" => Some(WRITE_RULE),
             "Edit" => Some(EDIT_RULE),
+            "Bash" => Some(concat!(
+                "Bash 仅用于前台命令，不支持交互输入或后台模式。",
+                "文件读写优先使用专用工具；命令退出码以工具实际返回为准。",
+                "遵守沙箱写入边界，权限不足时如实说明，不尝试绕过。",
+                "长任务按需设置超时，停止后不自动重做可能已产生副作用的命令。",
+            )),
             _ => None,
         };
         if let Some(rule) = rule {

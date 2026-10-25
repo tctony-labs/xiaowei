@@ -33,26 +33,42 @@ pub(crate) fn check_write(
     grants: &[PermissionTarget],
 ) -> Result<PathBuf, String> {
     let target = resolve(path)?;
-    let cwd = resolve(cwd)?;
-    let home = dirs::home_dir().and_then(|p| resolve(&p).ok());
-    let broad = home.as_ref().is_some_and(|home| home.starts_with(&cwd));
-    let temporary = [PathBuf::from("/tmp"), PathBuf::from("/private/tmp")]
-        .into_iter()
-        .chain(home.as_ref().map(|home| home.join("tmp")))
-        .filter_map(|path| resolve(&path).ok())
-        .any(|path| target.starts_with(path));
-    let granted = grants.iter().any(|grant| {
-        resolve(Path::new(&grant.path)).is_ok_and(|path| {
-            if grant.is_directory {
+    let allowed = writable_paths(cwd, grants)?
+        .iter()
+        .any(|(path, directory)| {
+            if *directory {
                 target.starts_with(path)
             } else {
-                target == path
+                target == *path
             }
-        })
-    });
-    if temporary || (!broad && target.starts_with(cwd)) || granted {
+        });
+    if allowed {
         Ok(target)
     } else {
         Err("权限不足：目标路径不在当前可写范围内，操作未执行".into())
     }
+}
+
+/// One shared set of resolved write targets for file tools and the shell sandbox.
+pub(crate) fn writable_paths(
+    cwd: &Path,
+    grants: &[PermissionTarget],
+) -> Result<Vec<(PathBuf, bool)>, String> {
+    let cwd = resolve(cwd)?;
+    let home = dirs::home_dir().and_then(|p| resolve(&p).ok());
+    let broad = home.as_ref().is_some_and(|home| home.starts_with(&cwd));
+    let mut paths: Vec<_> = [PathBuf::from("/tmp"), PathBuf::from("/private/tmp")]
+        .into_iter()
+        .chain(home.as_ref().map(|home| home.join("tmp")))
+        .filter_map(|path| resolve(&path).ok().map(|path| (path, true)))
+        .collect();
+    if !broad {
+        paths.push((cwd, true));
+    }
+    paths.extend(grants.iter().filter_map(|grant| {
+        resolve(Path::new(&grant.path))
+            .ok()
+            .map(|path| (path, grant.is_directory))
+    }));
+    Ok(paths)
 }

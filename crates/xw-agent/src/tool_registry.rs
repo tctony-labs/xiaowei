@@ -4,7 +4,11 @@ use crate::{AgentError, session::Session};
 
 pub(crate) fn context(session: &Session) -> Result<SystemContext, AgentError> {
     let tools = if session.view.cwd.is_some() {
-        xw_agent_runtime::tools::declarations()
+        let mut tools = xw_agent_runtime::tools::declarations();
+        if let Some(bash) = xw_agent_runtime::tools::bash::declaration() {
+            tools.push(bash);
+        }
+        tools
     } else {
         vec![]
     };

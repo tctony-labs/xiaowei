@@ -1,0 +1,4 @@
+; Network access policy for macOS Seatbelt
+; Include this when network_access is enabled
+
+(allow network*)

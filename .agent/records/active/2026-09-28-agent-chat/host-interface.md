@@ -1,10 +1,10 @@
 # 宿主接口与会话持久化
 
-所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、文本及文件工具循环、JSONL 恢复与 composer 模型／思考切换；SQLite 会话目录已由核心接入；其他工具、压缩生产及远程 transport 仍后续实施。历史交付事实见[实施结果](implementation-results.md)。
+所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、文本／文件工具／macOS 前台 Bash 循环、JSONL 恢复与 composer 模型／思考切换；SQLite 会话目录已由核心接入；其他工具、压缩生产及远程 transport 仍后续实施。前台 Bash 已完成窗口及重启验收，具体状态见[实施结果](implementation-results.md)。
 
 ## 会话选择与 Run 快照
 
-Run 固定 model_ref／reasoning 及实际采用的预算；不追踪 worker 内同引用的配置变化，不保存外部配置 token。ModelDescriptor 保留独立展示名称、可选能力及预算来源。当前聊天执行由 xw-agent 传入空系统指令，Host 只转交生成请求；必要执行参数在 RunContext 中记录。[Preset 已暂缓](agent-presets.md)；提示词与工具先由 xw-agent 集中装配，不增加 Host 定义回调。配置生命周期、历史记录和网络传输分别按实际需求处理。
+Run 固定 model_ref／reasoning 及实际采用的预算；不追踪 worker 内同引用的配置变化，不保存外部配置 token。ModelDescriptor 保留独立展示名称、可选能力及预算来源。当前聊天的指令与工具由 xw-agent 装配、提交为独立系统上下文记录，再经 GenerationRequest.messages 交给 Host；顶层 system_prompt 保持空值，避免重复注入，这不表示聊天没有系统指令。必要执行参数在 RunContext 中记录。[Preset 已暂缓](agent-presets.md)，不增加 Host 定义回调。配置生命周期、历史记录和网络传输分别按实际需求处理。
 
 Meta 保存会话模型选择及 provider_name／model_name；标题与 auto_title_enabled 只存 SQLite。主 UI 最终组合 `tctony/sol`，中间层原样保留两个名称。名称变化不重写历史 Run；凭据、地址和完整 provider 配置不落盘。CreateSession 先查询模型信息并提交 Header／初始 Meta，普通发送继承会话选择；StartRun.config 仅为该 Run 覆盖。用户选择通过独立 SetSessionConfig 立即持久化，运行中修改只影响后续 Run。
 

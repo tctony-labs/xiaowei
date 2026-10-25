@@ -11,8 +11,8 @@
 | 类型 | 路径 | 具体改动 |
 | --- | --- | --- |
 | 新增 | `crates/xw-agent-runtime/src/context_budget.rs、compact.rs` | 迁移预算与 prepare／commit 压缩阶段，适配 Pi token／模型能力 |
-| 修改 | `crates/xw-agent-runtime/src/lib.rs、text.rs、agent_loop/run.rs` | 已结算 Turn 之间的预算、压缩和取消检查；压缩不使用工具 |
-| 修改 | `crates/xw-agent/src/execution.rs、events.rs、persistence.rs、recovery.rs` | 通过注入领域 provider 生成，提交检查点后再切上下文，发布真实压缩状态／错误；外部 PB adapter 留在 xiaowei-agent |
+| 修改 | `crates/xw-agent-runtime/src/lib.rs` | 导出实际预算／摘要生成入口，保持纯计算和单次生成职责，压缩不使用工具，不新增 runtime 工具循环 |
+| 修改 | `crates/xw-agent/src/run_loop.rs、execution.rs、events.rs、persistence.rs、recovery.rs` | 在 Run 前或已结算且工具闭合的 Turn 之间检查预算，经统一 Host 生成；提交检查点后再切上下文，发布真实状态／错误；循环归 core，外部 PB adapter 留在 xiaowei-agent |
 | 修改 | `crates/xw-agent/src/context.rs` | 消费 01a 已定的 Compacted 边界／替换前缀／保留后缀／来源字段，确保指定历史边界可重建；利用 02e 系统上下文记录在压缩后重建一份当前完整基线，后续仅追加变化 |
 | 新增 | `crates/xw-agent-runtime/tests/compaction.rs` | 预算边界、失败／取消／空摘要／超限与 commit 顺序 |
 | 修改 | `crates/xw-agent/tests/recovery.rs`、`crates/xw-agent/tests/compaction.rs`（新增） | 压缩前后重开、写入失败和完整原历史可读 |

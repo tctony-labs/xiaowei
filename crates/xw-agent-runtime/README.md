@@ -1,6 +1,6 @@
 # xw-agent-runtime
 
-提供 Agent 内部生成执行边界、单次生成收集与文件工具原语，独立于 App Server 公共协议、Gateway、napi 和具体 LLM provider。生成请求／事件／错误、消息、身份和用量复用 `xw-agent-types`；对外统一 AgentHost 定义于 xw-agent，核心将其桥接为本包内部 LlmGeneration。
+提供 Agent 内部生成执行边界、单次生成收集、文件工具与沙箱 Bash 原语，独立于 App Server 公共协议、Gateway、napi 和具体 LLM provider。生成请求／事件／错误、消息、身份和用量复用 `xw-agent-types`；对外统一 AgentHost 定义于 xw-agent，核心将其桥接为本包内部 LlmGeneration。
 
 包根导出 `LlmGeneration`、`GenerationRequest`、`GenerationEvent`、`GenerationError`、异步流／future 别名和取消 token。实现方必须在开流与消费阶段响应取消，并在 future／stream 被释放时取消上游工作。错误不得携带原始响应正文或凭据。
 
@@ -13,3 +13,9 @@ cargo test -p xw-agent-runtime --locked
 ```
 
 `tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。写操作先按实际路径与 symlink 检查 cwd／临时目录／已有有效授权；cwd 为 home 或其祖先时不获得整棵目录写权限。读取保留操作系统权限约束；工作区内 `.git` 不额外禁写。
+
+`tools::bash::declaration()` 仅在 macOS 提供 Bash 声明，异步 `execute(cwd, grants, arguments, cancellation)` 返回 `BashOutcome`。参数为必填 description／command 与可选 timeout_ms，默认 30 秒，限制到 100 毫秒至 600 秒。命令通过绝对路径 `/usr/bin/sandbox-exec` 启动 `/bin/bash -c`，继承宿主环境，stdin 关闭；不提供后台参数或超时转后台。
+
+Bash 复用文件工具解析后的可写路径，通过 [xw-sandboxed-exec](../xw-sandboxed-exec/README.md) 生成 Seatbelt 策略。允许读取与网络，写入限制为 cwd、`/tmp`／`/private/tmp`／`~/tmp` 与已有有效授权；home 或其祖先不自动获得目录写权限，文件级授权只允许精确文件。子进程继承策略，`.git` 沿用普通写入规则，不为 `.bsk` 增加例外。命令正则拦截是补充防护，写入边界由系统沙箱执行。其他平台不注册 Bash，直接执行入口也返回不支持错误。
+
+stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。取消与超时对独立进程组发送 SIGTERM，500 毫秒后回收已退出 shell 并发送 SIGKILL；正常 shell 退出也清理同组残留子进程，确认进程组消失并收完输出后才返回。无法确认回收或输出结果时返回 `BashError::ResultUnknown`，由 core 保留未知副作用保护并停止生成。进程组清理不承诺管理主动脱离进程组的 daemon。

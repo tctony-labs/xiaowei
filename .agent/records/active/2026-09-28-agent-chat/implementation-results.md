@@ -2,9 +2,51 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 前台 Bash 与 macOS 沙箱（2026-10-25）
+
+第 2 批前台 Bash 已完成代码接入、自动／真实模型验证及 Quick Chat 产品窗口验收。02h 第一阶段实施与验收步骤已移除，后台工具仍保持第 7 批。实现入口和完整行为分别见 [runtime](../../../../crates/xw-agent-runtime/README.md)、[core](../../../../crates/xw-agent/README.md) 和 [Seatbelt 包](../../../../crates/xw-sandboxed-exec/README.md)，不在 record 重复维护 API 说明。
+
+迁移前在 `~/Develop/XiaoWei/workspace/src/xiaowei-next` 核实旧仓库 HEAD 为 `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3`，相关文件没有未提交改动。已完整核对 Bash 的 mod／sandbox／session、sandboxed-exec 的 policy／seatbelt、两个 SBPL 和 Cargo.toml；旧包声明 MIT，没有发现独立许可证文件。迁入的新包按当前命名为 xw-sandboxed-exec，仅生成策略和命令参数，异步执行、取消和进程所有权仍归 runtime。Cargo workspace 已用 `crates/xw-*` 纳入新包，不重复增加显式 member。
+
+- 保留旧写入限制、读取／网络开放、继承宿主环境、关闭 stdin、30 秒默认超时及 100 毫秒至 600 秒范围、双流各 32 KiB 捕获和 30000 字符输出限制；超限后继续排空。正文和 metadata 均能表明截断，metadata 字节数记录实际读到的总量。
+- 不迁移旧后台参数、自动转后台、无沙箱分支或非 macOS 裸 shell 回退；其他平台不注册 Bash。按用户决定忽略 `.bsk` 专用例外，该路径仍服从普通 cwd／临时目录／有效授权规则。补充命令拦截不作为权限边界。
+- 文件工具和 Bash 共享解析后的可写路径；将旧 extra_paths 一律 subpath 的行为收敛为精确文件／目录授权，避免单文件授权扩大。cwd 为 home 或祖先时不自动授权整棵目录；symlink 不扩大范围。
+- 沿用 core 的意图先提交、执行后提交结果、结果落盘后继续模型。普通非零退出保留真实 exit_code 并视为已完成，参数／启动失败、检测到沙箱拒绝和超时为失败，停止为 Cancelled；未开始调用为 Skipped。回收／输出状态无法确认时保留未结算意图及 ResultUnknown，停止生成并阻止自动重放。
+- Bash 使用独立进程组：SIGTERM 后等待 500 毫秒，先回收已退出 shell，再 SIGKILL；确认同组进程消失并收完输出后才返回。先回收 shell 避免 Darwin 对只剩未回收 zombie 的组报告 EPERM。正常 shell 退出也清理同组残留，不承诺追踪主动脱离组的 daemon。既有 delete／close 的取消和 done 等待足够复用，没有新增后台任务表或生命周期 RPC。
+- 注册和提示词只增加 Bash 与 tool.Bash，不改基础正文及 Read／Write／Edit schema。文件工具旧会话通过单个增量升级，旧字节前缀保留，未变化的后续 Run 和重开不重复写入基线或增量。安全诊断复用既有工具日志，并增加 PID、退出／取消／超时／截断结果，不记录命令、输出或完整环境。
+
+自动验证：
+
+- `cargo test -p xw-agent -p xw-agent-runtime -p xw-sandboxed-exec --locked` 通过；覆盖真实命令、普通非零退出、非法／后台参数拒绝、双流大输出、中文截断、路径与精确授权、symlink、取消前／执行中、超时、同组残留清理、Bash → Read → 后续模型、停止／删除／关闭、重开不重放、旧基线升级，以及 Bash 意图／结果提交故障。最终输出提示补充后另复验 runtime／sandbox 与 core 工具循环。
+- 正式 Agent addon `build:debug` 和 desktop worker 构建通过；`pnpm --filter xiaowei-agent test:runtime` 7 项通过。扩展现有 `tool-loop.test.cjs` 的场景复用同一 fixture，没有另建重复接线；确定性请求经过正式 Pi provider、真实 Seatbelt Bash 写入临时文件、Read 读取，再生成最终回复，检查退出码与 metadata。
+- `XIAOWEI_AGENT_LIVE=1` 下同一正式链路的 Bash → Read 场景通过，使用本机配置的真实模型，最终文件严格为 `hello\nxiaowei\n`。只操作临时 Agent 根目录，结束后自动清理。
+- 严格 no-deps Clippy、`just check`、renderer 22 文件／147 项通过；LLM 回归 93 项通过，另 1 项显式 live 上下文实验按默认条件跳过，不将其计为本次通过。
+
+rebase 到 develop（`a4836e9`）后，`cargo check -p xw-agent -p xw-agent-runtime -p xw-sandboxed-exec --locked` 与 `git diff --check` 通过。用户启动当前工作区实例后，使用配对的 `just inspect identify／status／capabilities` 核实工作区、PID 和实际能力，再以 `show quick-chat` 显示窗口；结合实际 Electron 路径连接原生自动化，完成以下产品验收。inspect 只用于身份、窗口状态与显示，输入任务、展开详情和 Stop 均经实际窗口操作。此次窗口可以持续操作，不再保留此前 noWindowsAvailable／timeoutReached 作为当前阻塞。
+
+独立验收会话为 `01a17289-afc2-740c-b87b-a347f01c1b07`，模型使用配置中的 sol。Header cwd 为 `~/.xiaowei/quick-chat/<session-id>/`。从输入框要求 Bash 写入 `ui-bash-20261025.txt` 并输出 pwd／bash-ok，再调用 Read；两个工具均显示已完成，展开 Bash 显示 `Exit: 0`，展开 Read 显示带行号的 hello／xiaowei，模型正常回复。只读核对最终文件严格为 `hello\nxiaowei\n`，14 字节，SHA-256 为 `b12fb575fd0ee83b437f656df135e27a24bb59d985bfa9f98970f7a680810ad5`。
+
+同一会话分别运行普通 `exit 7` 和向预先确认不存在的 cwd／临时目录外路径写入。前者显示已完成并保留 `Exit: 7`；后者显示失败，详情含 `Operation not permitted` 和权限不足说明，metadata 保留实际 `exit_code=1`。目标 `~/.xiaowei/ui-bash-denied-20261025-1810.txt` 始终不存在，模型没有重试或绕过。
+
+执行中 Stop 使用前台 shell 等待 sleep 子进程，先输出 `partial-before-stop`／`child-started`，向 `ui-bash-stop-effects.txt` 追加一次 started，并记录两个 PID。点击前核实 shell `12605` 和子进程 `12606` 均存活、PGID 同为 `12605`；点击实际停止按钮后，工具显示已停止，详情保留两行部分输出及 `Cancelled`，metadata 为 `cancelled=true`、`timed_out=false`。只读核对两个 PID 和进程组均已消失，副作用文件仅为 `started\n`，没有 after-wait；工具结果为 cancelled、RunEnd 为 aborted，其后没有新的 GenStarted。
+
+按开发实例流程核对控制器 cwd／完整父子链及 stdin 对应的 cmux console 后，发送单个 r 重建原生模块和 main／preload。旧 Electron `8422` 退出，新 Electron `13858` 仍属于同一控制器；inspect 实例 ID 从 `74afceb2-a277-475a-85c6-edc0ea44271e` 变为 `237b040e-e681-4c2c-b544-c20a87063c5e`。启动日志确认同一会话 loaded、`repaired_bytes=0`；重新显示 Quick Chat，成功、普通非零退出、沙箱失败及停止详情均恢复，展开后输出和状态一致。
+
+重启前后会话 JSONL 均为 60 条／39479 字节，SHA-256 同为 `34392f51a1a00429b6d5cbbb924b44804b86e8bcd83832b447bfc3cb449594a4`，包含 3 个 Run、7 次模型生成、5 对工具意图／结果。SQLite 会话行、正文文件、停止副作用文件和两个 PID 文件均未变化，没有追加记录或自动重放。验收会话与四个文件保留供复核，未改动已有用户会话内容。此前自动检查不因本次补验而重新计数；后台执行、RequestPermission、其他平台沙箱和 preset 仍未交付。
+
 ## 工具循环与文件工具（2026-10-18）
 
 02e 与第一批 Read／Write／Edit 已完成代码接入及核心链路验收，2026-10-19 补齐实际 Quick Chat 窗口验收。系统正文、实际文件工具、cwd 和基础写入权限共同进入生产路径，后续批次未提前开放。
+
+2026-10-25 按 Git 核对，本批已提交并合入 develop，不再是未提交工作：
+
+| 提交 | 交付范围 |
+| --- | --- |
+| `347f0dd` | 上下文同步讨论／工具批次计划及 provider 实验脚本、刻画测试 |
+| `39b7bb5` | 系统上下文基线／增量的领域状态、持久提交、恢复与失败边界 |
+| `cc2f049` | 基础提示词、cwd、生产工具循环、Read／Write／Edit、PB／worker／最小 UI 接线及验收 |
+
+三项通过 `cd91fa6` 合入 develop；当次提交核对基线为 `4ec62bf`。以下检查与窗口证据属于当时实施验收，本次文档整理未重跑。
 
 - xw-agent 持有多 Turn 的顺序工具循环，runtime 收集单次合法完整生成并执行文件原语。每 Run 50 次工具调用，工具意图先提交、文件操作后执行，结果提交后才继续模型；非法参数／未知工具形成配对错误，截断调用不执行。
 - 会话默认目录为 `<Agent root>/quick-chat/<session-id>/`；可指定已有外部 cwd，Header 持久化并稳定恢复。归档保留文件，删除仅清理自有目录；兼容无 cwd 的旧 v2 Header，不改写旧记录或回退进程 cwd。
@@ -27,7 +69,7 @@
 
 随后从同一输入框发送仅反复 Read 的停止任务：首个 Read 已完成后点击实际停止按钮，界面显示已停止；已启动的后续生成结算 aborted，没有继续工具循环。通过当前 cmux 控制台重启已有实例，重新用快捷键拉起窗口，同一会话的四个成功工具详情、最终回复及停止任务恢复，展开最终 Read 仍显示相同两行。重启前后 JSONL 共 55 条，SHA-256 相同，文件字节未变，没有新增 Run、工具或恢复终态，证明该验收会话未自动重放。测试会话与文件保留供复核，未改动已有用户会话内容。
 
-本批代码及约定验收已完成，删除 02e 临时计划；其他未交付工具和动态工具适配限制仍按既有 record／后续批次推进。此轮只补充产品验收与文档，未改业务代码、未提交。
+本批代码及约定验收已完成并包含在上述提交中，02e 临时计划已删除；其他未交付工具和动态工具适配限制仍按既有 record／后续批次推进。
 
 ## 持久文本聊天里程碑
 
@@ -44,14 +86,16 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 - 采用旧 Rust 路线，但模型调用适配当前 Pi／LLM 契约，不搬入旧 xw-llm；领域消息保留当前契约全部已知回放字段。PB 转换在 xiaowei-agent，types 不依赖外部业务协议。
 - xw-agent 充当可嵌入的 App Server，使用 Agent proto 而不依赖 Gateway；请求／响应及直接业务事件参考 Codex App Server 的边界，不承诺 wire 兼容。不采用旧 cursor／ReadChanges 草案。
 - SQLite 会话目录由核心自管，不接 Storage Gateway DAO；标题及管理状态不是可丢弃重建的索引缓存。只使用最终 session／meta 结构，不保留开发期中间表或运行时迁移。
-- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit 已有实际执行能力，其他工具、交互和压缩仍待实施；不能宣称已全面迁移旧 Agent。
+- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit 和 macOS 前台 Bash 已有实际执行能力并通过本批窗口验收；其他工具、交互和压缩仍待实施，不能宣称已全面迁移旧 Agent。
 - 后续交互采用 pending Interaction、逐端 ACK 与唯一决定，同 Run 等待／恢复；旧版 stop_loop 后另开 Run 的方式不沿用。此设计尚未实施。
 
 ## 自动验证
 
+本节保留 2026-10-07 文本里程碑的检查范围；后续文件工具批次的验证数量和范围以上文为准，不能将这里的旧数量称为当前最新结果。
+
 | 层次 | 已完成的验证 |
 | --- | --- |
-| Rust 领域／文件／运行／服务／集成 | 最新 Header／Meta 调整后共 122 项通过；覆盖格式与合法前缀、引用／生命周期、写失败、跨进程锁、尾部修复、恢复不重复结算、模型查询失败、初始 Meta、SQLite 管理及任务生命周期 |
+| Rust 领域／文件／运行／服务／集成 | 当时 Header／Meta 调整后共 122 项通过；覆盖格式与合法前缀、引用／生命周期、写失败、跨进程锁、尾部修复、恢复不重复结算、模型查询失败、初始 Meta、SQLite 管理及任务生命周期 |
 | 静态检查 | strict no-deps Clippy、just check 通过；契约 codec 和 Rust／TS／descriptor 生成一致性已验证 |
 | 正式 napi／Gateway／worker | 当前 addon 重建后 5 项通过；包含实际 worker 生成、取消、多观察者、持久重开、标题只写 SQL、归档删除及维护策略 |
 | Desktop 回归 | 此前完整回归通过，renderer 20 文件／139 项；覆盖启动恢复、会话隔离、模型选择、标题、列表、归档及设置交互。最新 Header 调整未重跑整套 desktop，仅运行相关原生边界及 just check |
@@ -71,7 +115,7 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 
 ## 验收限制与后续工作
 
-用户已确认 chip 样式，并将当前成果视为可提交里程碑。此前文本 MVP 的真实模型多轮、思考、停止后再发送、新对话和错误恢复经 Electron 验证。最新持久化的数据／正式调用入口及运行恢复已验证，但桌面控制工具报 `Sky Computer Use native pipe startup failed`，未直接确认窗口内容及全部菜单操作。
+用户已确认 chip 样式。2026-10-07 文本 MVP 的真实模型多轮、思考、停止后再发送、新对话和错误恢复经 Electron 验证；当时另一次桌面控制尝试报 `Sky Computer Use native pipe startup failed`，未覆盖全部菜单操作。2026-10-19 的文件工具、停止及重启恢复已补齐窗口证据，见上文；该旧错误不作为当前自动化服务不可用的结论。
 
 人工复验仍包括模型／思考选择重开及重启后的显示、会话归档页搜索／恢复／删除、维护设置保存与可见查看保护、系统剪贴板复制、原生拖动，以及从 Quick Chat 入口事项转入的搜索高亮闪动和首次设置跳转。保留这些限制，不把日志或自动测试写成全部视觉验收通过；不再为已实现能力保留重复的代码实施计划。
 
