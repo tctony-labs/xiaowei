@@ -108,15 +108,20 @@ async fn category_timestamp_upgrade_preserves_existing_categories_and_assignment
     let path = directory.path().join("storage.sqlite");
     let database = Database::open(&path).await.unwrap();
     let registry = clipboard_migrations::registry();
-    let migration = registry.migrations.last().unwrap().name.clone();
-    assert_eq!(migration, "20261025000000_clipboard_category_updated_at");
-    database
-        .rollback(DatabaseRollback {
-            name: migration,
-            migrations: registry.migrations,
-        })
-        .await
+    let category_index = registry
+        .migrations
+        .iter()
+        .position(|migration| migration.name == "20261025000000_clipboard_category_updated_at")
         .unwrap();
+    for migration in registry.migrations[category_index..].iter().rev() {
+        database
+            .rollback(DatabaseRollback {
+                name: migration.name.clone(),
+                migrations: registry.migrations.clone(),
+            })
+            .await
+            .unwrap();
+    }
     sqlx::query("INSERT INTO clipboard_categories(id,name,color) VALUES(7,'existing','#123456')")
         .execute(&database.pool)
         .await

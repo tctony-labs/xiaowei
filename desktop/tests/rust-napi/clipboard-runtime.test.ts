@@ -7,8 +7,10 @@ import { test } from "node:test";
 import { create, toBinary } from "@bufbuild/protobuf";
 import {
   CaptureClipboardEntityRequestSchema,
+  ClipboardBiz,
   ClipboardDao,
   ClipboardItemRequestSchema,
+  EditTextRequestSchema,
   EmptySchema,
   FavoriteRequestSchema,
   Settings,
@@ -70,11 +72,27 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
     await history.startServices();
     await history.startServices();
     const old = await capture("expired");
+    const original = await capture("original");
+    const biz = bindClient(ClipboardBiz, host.client({ caller: "test", trusted: true }));
+    const edited = await biz.editText(
+      create(EditTextRequestSchema, { id: original.id, text: "recently edited" }),
+    );
+    assert.ok(edited.updatedAtMs > original.updatedAtMs);
+    assert.equal(edited.lastUsedAtMs, original.lastUsedAtMs);
+    assert.equal(edited.useCount, original.useCount);
+    assert.deepEqual(
+      (await biz.get(create(ClipboardItemRequestSchema, { id: original.id }))).item,
+      edited,
+    );
     const favorite = await capture("favorite");
     await dao.setFavorite(create(FavoriteRequestSchema, { id: favorite.id, favorite: true }));
     update(1);
     await waitFor(
       async () => !(await dao.get(create(ClipboardItemRequestSchema, { id: old.id }))).entity,
+    );
+    assert.equal(
+      (await dao.get(create(ClipboardItemRequestSchema, { id: edited.id }))).entity?.updatedAtMs,
+      edited.updatedAtMs,
     );
     assert.ok((await dao.get(create(ClipboardItemRequestSchema, { id: favorite.id }))).entity);
     update(-1);

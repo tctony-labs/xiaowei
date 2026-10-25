@@ -20,8 +20,14 @@ pub struct ClipboardItem {
     pub height: ::core::option::Option<u32>,
     #[prost(int64, tag = "15")]
     pub created_at_ms: i64,
+    /// Last capture or successful copy, in Unix milliseconds. Edits do not change it.
     #[prost(int64, tag = "16")]
     pub last_used_at_ms: i64,
+    /// Last content or metadata change, in Unix milliseconds; initially the creation time.
+    /// Unchanged saves, copies and repeated captures do not change it.
+    /// Existing records use their last usage time at upgrade as an approximation.
+    #[prost(int64, tag = "19")]
+    pub updated_at_ms: i64,
     #[prost(uint32, tag = "10")]
     pub use_count: u32,
     #[prost(bool, tag = "11")]
@@ -287,6 +293,7 @@ pub struct ClipboardEntity {
     pub height: ::core::option::Option<u32>,
     #[prost(int64, tag = "7")]
     pub created_at_ms: i64,
+    /// Last capture or successful copy, in Unix milliseconds. Edits do not change it.
     #[prost(int64, tag = "8")]
     pub last_used_at_ms: i64,
     #[prost(uint32, tag = "9")]
@@ -299,6 +306,9 @@ pub struct ClipboardEntity {
     pub category_id: ::core::option::Option<u64>,
     #[prost(string, tag = "13")]
     pub hash: ::prost::alloc::string::String,
+    /// Same modification-time semantics as ClipboardItem.updated_at_ms.
+    #[prost(int64, tag = "14")]
+    pub updated_at_ms: i64,
 }
 impl ::prost::Name for ClipboardEntity {
     const NAME: &'static str = "ClipboardEntity";
@@ -678,6 +688,8 @@ impl ::prost::Name for EditClipboardEntityTextResponse {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PurgeClipboardEntitiesRequest {
+    /// Unix milliseconds. Only ordinary records whose last use and modification
+    /// are both before this instant are removed.
     #[prost(int64, tag = "1")]
     pub cutoff_ms: i64,
 }

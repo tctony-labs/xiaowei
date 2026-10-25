@@ -85,6 +85,7 @@ pub struct ClipboardItem {
     pub height: Option<u32>,
     pub created_at: i64,
     pub last_used_at: i64,
+    pub updated_at: i64,
     pub use_count: u32,
     pub favorite: bool,
     pub remark: Option<String>,

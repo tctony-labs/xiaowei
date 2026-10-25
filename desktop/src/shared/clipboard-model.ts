@@ -9,6 +9,7 @@ export type ClipboardItem = Omit<
   | "previewText"
   | "createdAtMs"
   | "lastUsedAtMs"
+  | "updatedAtMs"
   | "previewTruncated"
 > & {
   id: string;
@@ -18,6 +19,7 @@ export type ClipboardItem = Omit<
   previewTruncated?: boolean;
   createdAt: number;
   lastUsedAt: number;
+  updatedAt: number;
 };
 export type ClipboardCategory = Omit<Category, "$typeName" | "id"> & { id: string };
 

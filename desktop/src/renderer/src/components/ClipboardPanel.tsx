@@ -742,6 +742,10 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                         label="上次使用"
                         value={new Date(selected.lastUsedAt).toLocaleString("sv-SE")}
                       />
+                      <MetaRow
+                        label="修改时间"
+                        value={new Date(selected.updatedAt).toLocaleString("sv-SE")}
+                      />
                       <MetaRow label="使用次数" value={String(selected.useCount)} />
                       {selected.kind === "text" && (
                         <MetaRow label="文本长度" value={`${text.length} 字符`} />

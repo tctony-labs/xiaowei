@@ -17,6 +17,7 @@ mod validation;
 mod tests {
     mod clipboard_categories;
     mod clipboard_search;
+    mod clipboard_timestamps;
     mod db;
     mod meta;
     mod migration;

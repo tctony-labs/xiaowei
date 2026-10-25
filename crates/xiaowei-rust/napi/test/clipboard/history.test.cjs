@@ -89,12 +89,13 @@ test("regular and Agent native libraries install independent log callbacks", asy
 
 test("native editing, notes and categories round trip through napi", async () => {
   const directory = mkdtempSync(join(tmpdir(), "xiaowei-clipboard-edit-"));
-  const context = await open(directory);
+  let context = await open(directory);
   const { history } = context;
   try {
     await history.addText("initial");
     const first = await history.addText("initial");
     assert.equal(first.useCount, 1);
+    assert.equal(first.updatedAt, first.createdAt);
     const category = await history.saveCategory("工作", "#F5222D");
     await history.setRemark(first.id, "备注关键词");
     await history.setCategory(first.id, category.id);
@@ -102,13 +103,17 @@ test("native editing, notes and categories round trip through napi", async () =>
       (await history.list({ categoryId: category.id, query: "备注关键词" }))[0].id,
       first.id,
     );
+    await new Promise((resolve) => setTimeout(resolve, 2));
     const edited = await history.editText(first.id, "changed");
     assert.equal(edited.id, first.id);
     assert.equal(await history.readText(first.id), "changed");
     assert.equal(edited.remark, "备注关键词");
     assert.equal(edited.useCount, first.useCount);
+    assert.equal(edited.createdAt, first.createdAt);
+    assert.equal(edited.lastUsedAt, first.lastUsedAt);
+    assert.ok(edited.updatedAt > first.updatedAt);
     const unchanged = await history.editText(first.id, "changed");
-    assert.equal(unchanged.useCount, first.useCount);
+    assert.deepEqual(unchanged, edited);
     await history.saveCategory("归档", "#1677FF", category.id);
     assert.equal((await history.categories())[0].name, "归档");
     await assert.rejects(history.setCategory(first.id, "99999"));
@@ -126,10 +131,12 @@ test("native editing, notes and categories round trip through napi", async () =>
     const target = await history.addText("target");
     assert.equal(target.useCount, 2);
     const merged = await history.editText(first.id, "target");
-    assert.equal(merged.id, target.id);
-    assert.equal(merged.useCount, target.useCount);
-    assert.equal((await history.get(target.id)).useCount, target.useCount);
+    assert.deepEqual(merged, target);
+    assert.deepEqual(await history.get(target.id), target);
     assert.equal(await history.get(first.id), null);
+    await context.close();
+    context = await open(directory);
+    assert.deepEqual(await context.history.get(target.id), target);
   } finally {
     await context.close();
     rmSync(directory, { recursive: true, force: true });

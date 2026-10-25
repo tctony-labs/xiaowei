@@ -22,9 +22,11 @@ async fn dedup_preserves_identity_favorites_and_survives_reopen() {
         let first = store.capture(&data).await.unwrap();
         id = first.id.parse().unwrap();
         store.set_favorite(id, true).await.unwrap();
+        let favorite = store.get(id).await.unwrap().unwrap();
         let again = store.capture(&data).await.unwrap();
         assert_eq!(first.id, again.id);
         assert_eq!(again.use_count, 1);
+        assert_eq!(again.updated_at, favorite.updated_at);
         assert!(again.favorite);
     }
     let store = open_store(dir.path()).await.unwrap();
@@ -246,6 +248,7 @@ async fn polling_deduplicates_and_copy_does_not_count_itself_twice() {
     assert!(service.poll_once().await.unwrap());
     let item = service.list(&options()).await.unwrap().remove(0);
     let id = item.id.parse().unwrap();
+    assert_eq!(item.updated_at, item.created_at);
     assert!(!service.poll_once().await.unwrap());
     clipboard.set("one");
     assert!(!service.poll_once().await.unwrap());
@@ -258,6 +261,10 @@ async fn polling_deduplicates_and_copy_does_not_count_itself_twice() {
     );
     assert!(!service.poll_once().await.unwrap());
     assert_eq!(service.get(id).await.unwrap().unwrap().use_count, 1);
+    assert_eq!(
+        service.get(id).await.unwrap().unwrap().updated_at,
+        item.updated_at
+    );
     clipboard.0.lock().unwrap().fail_write = true;
     assert!(service.copy(id).await.is_err());
     assert_eq!(service.get(id).await.unwrap().unwrap().use_count, 1);
@@ -265,7 +272,7 @@ async fn polling_deduplicates_and_copy_does_not_count_itself_twice() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn editing_preserves_usage_counts_and_does_not_write_to_clipboard() {
+async fn editing_preserves_usage_and_does_not_write_to_clipboard() {
     let dir = tempfile::tempdir().unwrap();
     let clipboard = Fake::default();
     clipboard.set("clipboard stays unchanged");
@@ -283,6 +290,7 @@ async fn editing_preserves_usage_counts_and_does_not_write_to_clipboard() {
     assert_eq!(source.use_count, 1);
     assert_eq!(target.use_count, 2);
 
+    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     let edited = service.edit_text(source_id, "edited".into()).await.unwrap();
     let unchanged = service.edit_text(source_id, "edited".into()).await.unwrap();
     let merged = service.edit_text(source_id, "target".into()).await.unwrap();
@@ -290,6 +298,21 @@ async fn editing_preserves_usage_counts_and_does_not_write_to_clipboard() {
         (edited.use_count, unchanged.use_count, merged.use_count),
         (source.use_count, source.use_count, target.use_count)
     );
+    assert_eq!(
+        (
+            edited.last_used_at,
+            unchanged.last_used_at,
+            merged.last_used_at
+        ),
+        (
+            source.last_used_at,
+            source.last_used_at,
+            target.last_used_at
+        )
+    );
+    assert!(edited.updated_at > source.updated_at);
+    assert_eq!(unchanged.updated_at, edited.updated_at);
+    assert_eq!(merged.updated_at, target.updated_at);
     assert_eq!(edited.id, source.id);
     assert_eq!(unchanged.id, source.id);
     assert_eq!(merged.id, target.id);
@@ -312,6 +335,10 @@ async fn editing_preserves_usage_counts_and_does_not_write_to_clipboard() {
     assert_eq!(
         store.get(target_id).await.unwrap().unwrap().use_count,
         target.use_count
+    );
+    assert_eq!(
+        store.get(target_id).await.unwrap().unwrap().updated_at,
+        target.updated_at
     );
     assert!(store.get(source_id).await.unwrap().is_none());
 }

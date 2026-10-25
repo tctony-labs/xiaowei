@@ -129,6 +129,7 @@ export function ClipboardPage({
             previewText,
             createdAtMs,
             lastUsedAtMs,
+            updatedAtMs,
             ...item
           }): ClipboardItem => ({
             ...item,
@@ -142,6 +143,7 @@ export function ClipboardPage({
             text: previewText,
             createdAt: Number(createdAtMs),
             lastUsedAt: Number(lastUsedAtMs),
+            updatedAt: Number(updatedAtMs),
             categoryId: categoryId === undefined ? undefined : String(categoryId),
           }),
         );

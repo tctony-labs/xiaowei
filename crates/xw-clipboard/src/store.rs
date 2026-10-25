@@ -293,6 +293,7 @@ impl Store {
             height: record.height,
             created_at: record.created_at_ms,
             last_used_at: record.last_used_at_ms,
+            updated_at: record.updated_at_ms,
             use_count: record.use_count,
             favorite: record.favorite,
             remark: record.remark,

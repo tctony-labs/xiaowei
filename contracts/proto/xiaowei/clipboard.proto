@@ -15,8 +15,10 @@ service ClipboardBiz {
   rpc Delete(ClipboardItemRequest) returns (DeleteResponse);
   rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
   rpc ClearHistory(xiaowei.common.Empty) returns (ClearHistoryResponse);
-  // Captures the current instant on the owner, then removes only ordinary records last used before it.
+  // Captures the owner's current instant, then removes ordinary records
+  // whose last use and modification times are both before it.
   rpc PurgeOrdinary(xiaowei.common.Empty) returns (PurgeOrdinaryResponse);
+  // Uses the later of last use and modification times to determine expiration.
   rpc PurgeExpired(PurgeExpiredRequest) returns (PurgeOrdinaryResponse);
   rpc StorageUsage(xiaowei.common.Empty) returns (ClipboardStorageUsage);
   // Most recently saved categories first; equal modification times use descending IDs.
@@ -25,6 +27,8 @@ service ClipboardBiz {
   rpc SaveCategory(SaveCategoryRequest) returns (ClipboardCategory);
   rpc DeleteCategory(ClipboardCategoryRequest) returns (xiaowei.common.Empty);
   rpc SetRemark(SetRemarkRequest) returns (xiaowei.common.Empty);
+  // Changes content or merges into an existing item without counting a use or changing recency.
+  // Unchanged content is a no-op; merging refreshes modification time only if metadata changes.
   rpc EditText(EditTextRequest) returns (ClipboardItem);
   rpc SetCategory(SetCategoryRequest) returns (xiaowei.common.Empty);
   rpc OpenResource(ClipboardResourceRequest) returns (xiaowei.common.Empty);
@@ -77,7 +81,12 @@ message ClipboardItem {
   optional uint32 width = 6;
   optional uint32 height = 7;
   int64 created_at_ms = 15;
+  // Last capture or successful copy, in Unix milliseconds. Edits do not change it.
   int64 last_used_at_ms = 16;
+  // Last content or metadata change, in Unix milliseconds; initially the creation time.
+  // Unchanged saves, copies and repeated captures do not change it.
+  // Existing records use their last usage time at upgrade as an approximation.
+  int64 updated_at_ms = 19;
   uint32 use_count = 10;
   bool favorite = 11;
   optional string remark = 12;
@@ -168,12 +177,15 @@ message ClipboardEntity {
   optional uint32 width = 5;
   optional uint32 height = 6;
   int64 created_at_ms = 7;
+  // Last capture or successful copy, in Unix milliseconds. Edits do not change it.
   int64 last_used_at_ms = 8;
   uint32 use_count = 9;
   bool favorite = 10;
   optional string remark = 11;
   optional uint64 category_id = 12;
   string hash = 13;
+  // Same modification-time semantics as ClipboardItem.updated_at_ms.
+  int64 updated_at_ms = 14;
 }
 
 message AttachmentReference {
@@ -293,6 +305,8 @@ message EditClipboardEntityTextResponse {
 }
 
 message PurgeClipboardEntitiesRequest {
+  // Unix milliseconds. Only ordinary records whose last use and modification
+  // are both before this instant are removed.
   int64 cutoff_ms = 1;
 }
 

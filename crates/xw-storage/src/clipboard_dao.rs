@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
 
 const COLUMNS: &str = "id,kind,text,paths,width,height,created_at,last_used_at,
-    use_count,favorite,remark,category_id,hash";
+    use_count,favorite,remark,category_id,hash,updated_at";
 
 pub struct ClipboardDao {
     database: Arc<Database>,
@@ -28,8 +28,9 @@ impl ClipboardDao {
             .transaction(storage_pb::SqlTransaction {
                 steps: vec![statement(
                     &format!(
-                        "INSERT INTO clipboard_items(hash,kind,text,paths,width,height,created_at,last_used_at)
-                        VALUES(?1,?2,?3,?4,?5,?6,?7,?7)
+                        "INSERT INTO clipboard_items(
+                            hash,kind,text,paths,width,height,created_at,last_used_at,updated_at)
+                        VALUES(?1,?2,?3,?4,?5,?6,?7,?7,?7)
                         ON CONFLICT(hash) DO UPDATE SET last_used_at=excluded.last_used_at,
                             use_count=clipboard_items.use_count+1 RETURNING {COLUMNS}"
                     ),
@@ -127,7 +128,7 @@ impl ClipboardDao {
             .map(|row| {
                 Ok(pb::ClipboardEntityHit {
                     entity: Some(record(row)?),
-                    snippet: Row(row).get(13)?,
+                    snippet: Row(row).get(14)?,
                 })
             })
             .collect::<Result<_>>()?;
@@ -167,8 +168,13 @@ impl ClipboardDao {
         let result = self
             .database
             .execute(statement(
-                "UPDATE clipboard_items SET favorite=?1 WHERE id=?2",
-                vec![value(request.favorite), value(as_id(request.id)?)],
+                "UPDATE clipboard_items SET favorite=?1,
+                updated_at=CASE WHEN favorite<>?1 THEN ?2 ELSE updated_at END WHERE id=?3",
+                vec![
+                    value(request.favorite),
+                    value(current_time_ms()?),
+                    value(as_id(request.id)?),
+                ],
             ))
             .await?;
         Ok(pb::SetFavoriteResponse {
@@ -185,8 +191,13 @@ impl ClipboardDao {
         let result = self
             .database
             .execute(statement(
-                "UPDATE clipboard_items SET remark=?1 WHERE id=?2",
-                vec![value(remark), value(as_id(request.id)?)],
+                "UPDATE clipboard_items SET remark=?1,
+                updated_at=CASE WHEN remark IS NOT ?1 THEN ?2 ELSE updated_at END WHERE id=?3",
+                vec![
+                    value(remark),
+                    value(current_time_ms()?),
+                    value(as_id(request.id)?),
+                ],
             ))
             .await?;
         if result.affected_rows == 0 {
@@ -199,9 +210,11 @@ impl ClipboardDao {
         let result = self
             .database
             .execute(statement(
-                "UPDATE clipboard_items SET category_id=?1 WHERE id=?2",
+                "UPDATE clipboard_items SET category_id=?1,
+                updated_at=CASE WHEN category_id IS NOT ?1 THEN ?2 ELSE updated_at END WHERE id=?3",
                 vec![
                     value(request.category_id.map(as_id).transpose()?),
+                    value(current_time_ms()?),
                     value(as_id(request.id)?),
                 ],
             ))
@@ -241,10 +254,7 @@ impl ClipboardDao {
             return Err(invalid("Invalid category name or color"));
         }
 
-        let updated_at = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|_| invalid("Clock precedes epoch"))?
-            .as_millis() as i64;
+        let updated_at = current_time_ms()?;
 
         let step = if let Some(id) = request.id {
             statement(
@@ -277,14 +287,23 @@ impl ClipboardDao {
     }
 
     pub async fn delete_category(&self, request: pb::ClipboardCategoryRequest) -> Result<Empty> {
+        let id = as_id(request.id)?;
         let result = self
             .database
-            .execute(statement(
-                "DELETE FROM clipboard_categories WHERE id=?",
-                vec![value(as_id(request.id)?)],
-            ))
+            .transaction(storage_pb::SqlTransaction {
+                steps: vec![
+                    statement(
+                        "UPDATE clipboard_items SET updated_at=?1 WHERE category_id=?2",
+                        vec![value(current_time_ms()?), value(id)],
+                    ),
+                    statement(
+                        "DELETE FROM clipboard_categories WHERE id=?",
+                        vec![value(id)],
+                    ),
+                ],
+            })
             .await?;
-        if result.affected_rows == 0 {
+        if result.results[1].affected_rows == 0 {
             return Err(invalid("Category not found"));
         }
         Ok(Empty {})
@@ -316,8 +335,10 @@ impl ClipboardDao {
                 "UPDATE clipboard_items SET favorite=favorite OR ?1,
                 remark=CASE WHEN ?2 IS NULL THEN remark WHEN remark IS NULL OR remark=?2 THEN ?2
                     ELSE ?2||';'||remark END,
-                category_id=coalesce(?3,category_id),last_used_at=?4
-                WHERE id=?5 AND id<>?6",
+                category_id=coalesce(?3,category_id),updated_at=?4
+                WHERE id=?5 AND id<>?6 AND (
+                    (favorite=0 AND ?1=1) OR (?2 IS NOT NULL AND remark IS NOT ?2)
+                    OR (?3 IS NOT NULL AND category_id IS NOT ?3))",
                 vec![
                     reference(0, 0),
                     reference(0, 1),
@@ -332,8 +353,8 @@ impl ClipboardDao {
                 vec![value(id), reference(1, 0)],
             ),
             statement(
-                "UPDATE clipboard_items SET hash=?1,kind=?2,text=?3,last_used_at=?4
-                WHERE id=?5 AND id=?6",
+                "UPDATE clipboard_items SET hash=?1,kind=?2,text=?3,updated_at=?4
+                WHERE id=?5 AND id=?6 AND hash<>?1",
                 vec![
                     value(request.hash),
                     value(request.kind),
@@ -393,7 +414,8 @@ impl ClipboardDao {
                 steps: vec![statement(
                     "DELETE FROM clipboard_items WHERE id IN
                     (SELECT id FROM clipboard_items WHERE favorite=0 AND category_id IS NULL
-                    AND (remark IS NULL OR trim(remark)='') AND last_used_at<?1 LIMIT 100)
+                    AND (remark IS NULL OR trim(remark)='')
+                    AND last_used_at<?1 AND updated_at<?1 LIMIT 100)
                     RETURNING kind,hash",
                     vec![value(request.cutoff_ms)],
                 )],
@@ -431,6 +453,13 @@ impl ClipboardDao {
             referenced: !result.rows.is_empty(),
         })
     }
+}
+
+fn current_time_ms() -> Result<i64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| invalid("Clock precedes epoch"))?
+        .as_millis() as i64)
 }
 
 fn deleted(rows: &[storage_pb::SqlRow]) -> Result<pb::DeletedClipboardEntities> {
@@ -598,6 +627,7 @@ fn record(row: &storage_pb::SqlRow) -> Result<pb::ClipboardEntity> {
         height: row.get(5)?,
         created_at_ms: row.get(6)?,
         last_used_at_ms: row.get(7)?,
+        updated_at_ms: row.get(13)?,
         use_count: row.get(8)?,
         favorite: row.get(9)?,
         remark: row.get(10)?,

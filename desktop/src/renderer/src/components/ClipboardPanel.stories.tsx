@@ -8,6 +8,7 @@ import { ClipboardPanel } from "./ClipboardPanel";
 const base = {
   createdAt: 1726502400000,
   lastUsedAt: 1726502400000,
+  updatedAt: 1726502400000,
   useCount: 2,
   favorite: false,
   paths: [],
@@ -146,6 +147,7 @@ export const CategoriesAndContextMenu: Story = {
     await expect(args.onActivate).not.toHaveBeenCalled();
     await userEvent.click(canvas.getByRole("button", { name: "展开" }));
     await expect(canvas.getByText("使用次数")).toBeVisible();
+    await expect(canvas.getByText("修改时间")).toBeVisible();
     await userEvent.click(canvas.getByRole("button", { name: "收起" }));
     await expect(canvas.queryByText("使用次数")).toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "删除" }));

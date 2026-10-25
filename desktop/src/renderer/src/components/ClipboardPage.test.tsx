@@ -33,6 +33,7 @@ function setup() {
       favorite: true,
       categoryId: 7n,
       lastUsedAtMs: 1n,
+      updatedAtMs: 1n,
     }),
   ];
   const host = new GatewayHost();
@@ -59,6 +60,15 @@ function setup() {
           create(ReadTextResponseSchema, {
             text: rows.find((item) => item.id === id)?.previewText,
           }),
+        editText: ({ id, text }) => {
+          const item = rows.find((row) => row.id === id);
+          if (!item) throw new Error("Missing clipboard item");
+          if (item.previewText !== text) {
+            item.previewText = text;
+            item.updatedAtMs = 1726502400000n;
+          }
+          return item;
+        },
       },
       { partial: true },
     ),
@@ -102,6 +112,7 @@ function setup() {
     },
     async metadata() {
       rows[1].remark = "备注";
+      rows[1].updatedAtMs = 1726502400000n;
       await publish();
     },
   };
@@ -156,4 +167,38 @@ test("metadata refresh preserves manual selection in all", async () => {
       "true",
     ),
   );
+});
+
+test("editing preserves selection and order and displays the modification time", async () => {
+  const page = setup();
+  await page.findByRole("option", { name: "收藏文本" });
+  const navigation = within(page.getByRole("navigation"));
+  await userEvent.click(navigation.getByRole("button", { name: "收藏" }));
+  await page.findByRole("option", { name: "收藏文本" });
+  await userEvent.click(page.getByRole("button", { name: "编辑" }));
+  const dialog = within(await page.findByRole("dialog", { name: "编辑文本" }));
+  const text = dialog.getByRole("textbox", { name: "编辑文本" });
+  await waitFor(() => expect(text).toHaveValue("收藏文本"));
+  await userEvent.clear(text);
+  await userEvent.type(text, "修改后的文本");
+  await userEvent.click(dialog.getByRole("button", { name: "保存" }));
+  await waitFor(() => expect(page.queryByRole("dialog")).toBeNull());
+  expect(page.getByRole("option", { name: "修改后的文本" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  expect(navigation.getByRole("button", { name: "收藏" })).toHaveAttribute("aria-pressed", "true");
+
+  await userEvent.click(page.getByRole("button", { name: "展开" }));
+  const modified = page.getByText("修改时间").parentElement;
+  const lastUsed = page.getByText("上次使用").parentElement;
+  expect(modified).toHaveTextContent(new Date(1726502400000).toLocaleString("sv-SE"));
+  expect(lastUsed).toHaveTextContent(new Date(1).toLocaleString("sv-SE"));
+
+  await userEvent.click(page.getByRole("button", { name: "剪贴板" }));
+  await page.findByRole("option", { name: "最新文本" });
+  expect(page.getAllByRole("option").map((row) => row.textContent)).toEqual([
+    "最新文本",
+    "修改后的文本",
+  ]);
 });

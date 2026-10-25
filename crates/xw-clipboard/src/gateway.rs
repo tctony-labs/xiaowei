@@ -38,6 +38,7 @@ fn item(value: crate::ClipboardItem) -> crate::Result<pb::ClipboardItem> {
         height: value.height,
         created_at_ms: value.created_at,
         last_used_at_ms: value.last_used_at,
+        updated_at_ms: value.updated_at,
         use_count: value.use_count,
         favorite: value.favorite,
         remark: value.remark,

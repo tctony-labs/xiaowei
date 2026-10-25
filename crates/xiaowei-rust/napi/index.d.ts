@@ -88,6 +88,7 @@ export interface ClipboardItem {
   height?: number
   createdAt: number
   lastUsedAt: number
+  updatedAt: number
   useCount: number
   favorite: boolean
   remark?: string
