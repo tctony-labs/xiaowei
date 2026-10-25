@@ -37,6 +37,7 @@ desktop/src/main/
 │   ├── navigation.ts      # 导航限制
 │   └── settings.ts
 ├── services/
+│   ├── inspect/           # 配套 CLI 的本地检查与窗口操作入口
 │   ├── account/           # 服务器选择、邮箱登录、会话保存与恢复
 │   ├── xwapi/             # 服务器强类型 API、HTTP／WebSocket 传输与本地鉴权
 │   ├── llm/               # worker 内的 Pi provider 与宿主接线
@@ -60,6 +61,8 @@ macOS 正式包的更新由 `services/update/service.ts` 持有，通过平台 n
 更新 service 将 Sparkle 的原生 UI 生命周期通知转交 `windows/ordinary-windows.ts`，与 Electron 普通窗口共同决定 Dock 显隐。交互式检查发起时登记其检查窗口，发起失败则恢复之前状态；会话结束或 service 关闭时清除原生窗口状态。Dock 管理器仅管理可见策略，不接管原生更新窗口。
 
 Launcher owner 按当前模式与实际显隐，将可见 Quick Chat 登记到同一个普通窗口追踪器，隐藏或切出聊天时显式移出，并同步搜索／剪贴板弹层的可见状态。追踪器也接受已经显示／聚焦的窗口；窗口是否参与由 owner 决定，Dock 协调与激活轮换仍由追踪器统一负责。可见弹层只延后已有 Dock 图标的隐藏，不触发 Dock 显示或参与普通窗口轮换。产品交互见 [Quick Chat](../../docs/quick-chat.md#产品入口与窗口交互)。
+
+`services/inspect/` 为工作区开发实例和 macOS 正式包提供按代码来源定位的本地 Unix socket，CLI 查询不会激活窗口；显式窗口操作复用 `windows/` owner。bootstrap 负责启动和退出清理，窗口状态读取归 `windows/snapshots.ts`，焦点、Dock 与实际快捷键注册由各自 owner 提供只读快照。接口不修改数据路径、单实例或开发运行规则，业务调用继续经 typed Gateway。接入边界见 [运行实例检查](../../docs/inspect.md)，配套 Rust CLI 位于 [`desktop/inspect/`](../../inspect/README.md)。
 
 ## Host 与 worker 的代码组织
 

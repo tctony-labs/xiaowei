@@ -26,6 +26,10 @@ module.exports = {
   forceCodeSigning: signed,
   extraResources: [
     ...base.extraResources,
+    {
+      from: process.env.XIAOWEI_INSPECT_BINARY ?? "../target/release/xiaowei-inspect",
+      to: "bin/xiaowei-inspect",
+    },
     { from: `${sparkleDirectory}/LICENSE`, to: "Sparkle-LICENSE" },
   ],
   extraFiles: [
@@ -34,6 +38,7 @@ module.exports = {
   dmg: { writeUpdateInfo: false, sign: signed },
   mac: {
     ...base.mac,
+    binaries: ["Contents/Resources/bin/xiaowei-inspect"],
     electronLanguages: ["zh_CN", "en"],
     type: "distribution",
     target: [
@@ -46,9 +51,9 @@ module.exports = {
     notarize: false,
     entitlements: "resources/entitlements.mac.plist",
     entitlementsInherit: "resources/entitlements.mac.plist",
-    // Parent signatures seal resources; native modules and Squirrel's ShipIt need signing.
+    // Parent signatures seal resources; native modules, inspect and ShipIt need signing.
     // Signing binary data separately stores signatures in xattrs that Sparkle cannot diff.
-    signIgnore: ["/Resources/(?!.*\\.node$|ShipIt$)"],
+    signIgnore: ["/Resources/(?!.*\\.node$|ShipIt$|bin/xiaowei-inspect$)"],
     extendInfo: {
       SUFeedURL: feedUrl,
       SUPublicEDKey: publicKey(process.env.SPARKLE_ED_PUBLIC_KEY),

@@ -102,6 +102,18 @@ function mockPackaging(t, submission, staplerResult = () => ({ status: 0 }), com
   const result = mockNotarization(t, staplerResult, submission, (command, args) => {
     const override = commandResult?.(command, args);
     if (override) return override;
+    if (command === "cargo") {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          target: { name: "xiaowei-inspect" },
+          executable: "/build/target/release/xiaowei-inspect",
+        }),
+      };
+    }
+    if (command.endsWith("/bin/xiaowei-inspect")) {
+      return { status: 0, stdout: "xiaowei-inspect 0.1.0 (protocol 1)" };
+    }
     if (command.endsWith("PlistBuddy"))
       return { status: 0, stdout: info[args[1].slice("Print :".length)] };
     if (command === "otool") return { status: 0, stdout: "" };
@@ -191,6 +203,39 @@ test("signed packaging rejects ad-hoc ShipIt before creating the DMG", macOnly, 
   );
   assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
   assert.ok(!calls.some((call) => call[1] === "notarytool" || call[0] === "ditto"));
+});
+
+test("signed packaging rejects an ad-hoc inspect CLI before distribution", macOnly, (t) => {
+  const { calls } = mockPackaging(t, undefined, undefined, (command, args) => {
+    if (
+      command === "codesign" &&
+      args.includes("--display") &&
+      args.at(-1).endsWith("/bin/xiaowei-inspect")
+    ) {
+      return { status: 0, stderr: "Signature=adhoc\nTeamIdentifier=not set" };
+    }
+  });
+  assert.throws(
+    () => packageMac({ signed: true, build: false }),
+    /Developer ID Application.*bin\/xiaowei-inspect/,
+  );
+  assert.equal(calls.filter((call) => call.includes("electron-builder")).length, 1);
+  assert.ok(!calls.some((call) => call[1] === "notarytool" || call[0] === "ditto"));
+});
+
+test("packaging refuses a missing Cargo CLI artifact before invoking builder", macOnly, (t) => {
+  const { calls } = mockPackaging(t, undefined, undefined, (command) => {
+    if (command === "cargo") return { status: 0, stdout: '{"reason":"build-finished"}' };
+  });
+  assert.throws(() => packageMac({ build: false }), /did not report the inspect CLI/);
+  assert.ok(!calls.some((call) => call.includes("electron-builder")));
+});
+
+test("ZIP staging reuses the inspected CLI without rebuilding it", macOnly, (t) => {
+  const { calls } = mockPackaging(t);
+  packageMac({ signed: true, build: false, stage: "zip" });
+  assert.ok(calls.some((call) => call[0].endsWith("/bin/xiaowei-inspect")));
+  assert.ok(!calls.some((call) => call[0] === "cargo" || call.includes("electron-builder")));
 });
 
 test(
@@ -729,6 +774,8 @@ test("packaging keeps local HTTP and test identity out of production and enables
     assert.ok(ignored("App.app/Contents/Resources/app.asar"));
     assert.ok(ignored("App.app/Contents/Frameworks/Electron.framework/Resources/MainMenu.nib"));
     assert.ok(!ignored("App.app/Contents/Resources/app.asar.unpacked/node_modules/rust/rust.node"));
+    assert.ok(!ignored("App.app/Contents/Resources/bin/xiaowei-inspect"));
+    assert.ok(config.mac.binaries.includes("Contents/Resources/bin/xiaowei-inspect"));
     assert.ok(!ignored("App.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"));
     assert.ok(
       !ignored("App.app/Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt"),

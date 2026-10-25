@@ -77,5 +77,5 @@ export function createSettingsWindow(options: {
     }
   }
 
-  return { open: openSettings };
+  return { open: openSettings, owns: (window: object) => window === settingsWindow };
 }

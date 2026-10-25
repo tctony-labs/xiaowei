@@ -35,6 +35,10 @@ let received: unknown;
 let receivedAgentRoot: unknown;
 let modelDefaultPath: unknown;
 let modelEnv: unknown;
+const inspected: unknown[] = [];
+let inspectFailure = false;
+let inspectCloseFailure = false;
+let gatewaysClosed = 0;
 const models = {
   path: join(directory, "models.json"),
   document: { version: 1, providers: [], defaults: {} },
@@ -48,6 +52,7 @@ const beforeRejection = process.listeners("unhandledRejection");
 mock.module(require.resolve("electron"), {
   exports: {
     app,
+    BrowserWindow: { getAllWindows: () => [] },
     clipboard: {},
     globalShortcut: { unregisterAll: noop },
     protocol: { registerSchemesAsPrivileged: noop },
@@ -117,11 +122,27 @@ replace("services/llm/config", {
     return models;
   },
 });
+replace("services/inspect/host", {
+  startApplicationInspect: async (options: unknown) => {
+    inspected.push(options);
+    if (inspectFailure) throw new Error("inspect socket unavailable");
+    return {
+      async close() {
+        if (inspectCloseFailure) throw new Error("inspect shutdown unavailable");
+      },
+    };
+  },
+});
 replace("app/gateway", {
   createApplicationGateway: async (...args: unknown[]) => {
     receivedAgentRoot = args[3];
     received = args[6];
-    return { settings: { get: async () => ({ shortcuts: {} }) }, close: async () => {} };
+    return {
+      settings: { get: async () => ({ shortcuts: {} }) },
+      async close() {
+        gatewaysClosed++;
+      },
+    };
   },
 });
 const { startApplication } = await import("../../src/main/app/bootstrap.ts");
@@ -152,11 +173,16 @@ test("bootstrap explains single-instance rejection and validates models before g
     Object.defineProperty(process, "resourcesPath", { value: directory, configurable: true });
     process.env.XIAOWEI_AGENT_HOME = join(directory, "module-root");
     try {
-      for (const [fail, local] of [
-        [false, false],
-        [true, false],
-        [false, true],
+      for (const [fail, local, failInspect, failInspectClose] of [
+        [false, false, false, false],
+        [true, false, false, false],
+        [false, true, false, false],
+        [false, false, true, false],
+        [false, false, false, true],
       ]) {
+        inspectFailure = failInspect;
+        inspectCloseFailure = failInspectClose;
+        const beforeClose = gatewaysClosed;
         failed = fail;
         localPackage = local;
         app.isPackaged = local;
@@ -166,7 +192,7 @@ test("bootstrap explains single-instance rejection and validates models before g
         quit = false;
         startApplication(directory);
         await new Promise((resolve) => setTimeout(resolve, 20));
-        assert.equal(quit, fail);
+        assert.equal(quit, fail, `models=${fail} packaged=${local} inspect=${failInspect}`);
         assert.equal(created, !fail);
         assert.equal(received, fail ? undefined : models);
         const expectedAgentRoot = local
@@ -181,8 +207,24 @@ test("bootstrap explains single-instance rejection and validates models before g
         if (local) assert.deepEqual(modelEnv, {});
         app.emit("before-quit", { preventDefault: noop });
         app.emit("will-quit");
+        await new Promise(setImmediate);
+        assert.equal(gatewaysClosed, beforeClose + (fail ? 0 : 1));
         app.removeAllListeners();
       }
+      const connections = inspected as { source: { kind: string }; dataPath: string }[];
+      assert.deepEqual(
+        connections.map(({ source }) => source.kind),
+        ["workspace", "app", "workspace", "workspace"],
+      );
+      assert.deepEqual(
+        connections.map(({ dataPath }) => dataPath),
+        [
+          join(directory, "com.tctony.xiaowei"),
+          join(directory, "com.tctony.xiaowei.local-update"),
+          join(directory, "com.tctony.xiaowei"),
+          join(directory, "com.tctony.xiaowei"),
+        ],
+      );
     } finally {
       if (resourcesDescriptor) Object.defineProperty(process, "resourcesPath", resourcesDescriptor);
       else Reflect.deleteProperty(process, "resourcesPath");

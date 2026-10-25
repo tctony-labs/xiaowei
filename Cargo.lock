@@ -2686,6 +2686,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "xiaowei-inspect"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "socket2",
+ "tempfile",
+]
+
+[[package]]
 name = "xiaowei-rust-napi"
 version = "0.1.0"
 dependencies = [

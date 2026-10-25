@@ -29,6 +29,22 @@ function fixture() {
   return { state, target, session };
 }
 
+test("focus inspection reads the existing session without capturing or restoring", async () => {
+  const { state, session } = fixture();
+  assert.equal(session.snapshot().active, false);
+  assert.equal(state.captures, 0);
+  await session.begin();
+  state.foreground = 1;
+  const snapshot = session.snapshot();
+  assert.equal(snapshot.sourceProcessId, 2);
+  assert.equal(snapshot.frontmostProcessId, 1);
+  assert.equal(state.captures, 1);
+  assert.equal(state.restores, 0);
+  assert.equal(state.releases, 0);
+  await session.restore();
+  assert.equal(session.snapshot().sourceProcessId, null);
+});
+
 test("mode changes preserve one source and restoring releases it", async () => {
   const { state, session } = fixture();
   assert.equal(await session.begin(), true);

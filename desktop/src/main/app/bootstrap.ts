@@ -1,11 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { open, utimes } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { create } from "@bufbuild/protobuf";
-import { app, clipboard, globalShortcut, protocol, screen, shell } from "electron";
+import { app, BrowserWindow, clipboard, globalShortcut, protocol, screen, shell } from "electron";
 import { initializeLogging as initializeAgentLogging } from "xiaowei-agent";
 import { EmptySchema } from "xiaowei-contracts";
 import { initializeLogging, initializeSearch, SparkleUpdater } from "xiaowei-rust";
+import { startApplicationInspect } from "../services/inspect/host";
 import { loadConfig } from "../services/llm/config";
 import { createShortcutRegistry } from "../services/shortcuts/registry";
 import { createSettingsShortcuts, shortcutConfig } from "../services/shortcuts/shortcuts";
@@ -14,6 +15,7 @@ import { createLauncherWindow } from "../windows/launcher";
 import { positionLauncher } from "../windows/launcher-shortcuts";
 import { createOrdinaryWindows } from "../windows/ordinary-windows";
 import { createSettingsWindow } from "../windows/settings";
+import { windowSnapshots } from "../windows/snapshots";
 import { createSystemFocus } from "../windows/system-focus";
 import { createApplicationGateway } from "./gateway";
 import { attachRendererLogging, createLoggers, createNativeLogSink } from "./logging";
@@ -28,6 +30,7 @@ export function startApplication(moduleDir: string): void {
 
   let gateway: Awaited<ReturnType<typeof createApplicationGateway>> | undefined;
   let tray: ReturnType<typeof createTray> | undefined;
+  let inspect: Awaited<ReturnType<typeof startApplicationInspect>> | undefined;
   let shutdownComplete = false;
   let shutdown: Promise<void> | undefined;
   const updates = createUpdateService({
@@ -47,6 +50,9 @@ export function startApplication(moduleDir: string): void {
   function closeApplication(): Promise<void> {
     shutdown ??= (async () => {
       launcher.prepareQuit();
+      await inspect
+        ?.close()
+        .catch((error: unknown) => console.error("Inspect shutdown failed", error));
       ordinaryWindows.close();
       tray?.close();
       await gateway?.close();
@@ -204,6 +210,33 @@ export function startApplication(moduleDir: string): void {
         shortcuts.registerInitial(
           shortcutConfig((await gateway.settings.get(create(EmptySchema))).shortcuts),
         );
+        if (process.platform === "darwin" || (!app.isPackaged && process.platform === "linux")) {
+          inspect = await startApplicationInspect({
+            source: app.isPackaged
+              ? { kind: "app", path: join(dirname(process.execPath), "../..") }
+              : { kind: "workspace", path: join(app.getAppPath(), "..") },
+            version: app.getVersion(),
+            appPath: app.getAppPath(),
+            dataPath: paths.electronRootDir,
+            status: () => ({
+              applicationActive: process.platform === "darwin" ? app.isActive() : undefined,
+              launcher: launcher.snapshot(),
+              dock: ordinaryWindows.snapshot(),
+            }),
+            windows: () =>
+              windowSnapshots(BrowserWindow.getAllWindows(), (window) => {
+                if (launcher.owns(window)) return "launcher";
+                if (settingsWindow.owns(window)) return "settings";
+                return "other";
+              }),
+            shortcuts: shortcuts.snapshot,
+            showLauncher: launcher.showMode,
+            hideLauncher: launcher.hideAndRestore,
+          }).catch((error: unknown) => {
+            console.error("Inspect startup failed", error);
+            return undefined;
+          });
+        }
         app.on("activate", ordinaryWindows.activate);
         updates.start();
       })

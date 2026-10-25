@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createShortcutRegistry } from "../src/main/services/shortcuts/registry.ts";
 import {
   accelerator,
   createSettingsShortcuts,
@@ -17,6 +18,43 @@ test("KeyboardEvent codes convert into platform accelerators", () => {
   assert.equal(accelerator(["Control", "Shift", "ArrowUp"], "linux"), "Control+Shift+Up");
   assert.equal(accelerator(["Meta", "Shift", "KeyX"], "win32"), "Super+Shift+X");
   assert.equal(accelerator(null, "darwin"), null);
+});
+
+test("inspection separates configured bindings from failed and suspended registrations", () => {
+  const native = new Map();
+  const blocked = new Set(["Command+Space"]);
+  let changes = 0;
+  const registry = createShortcutRegistry({
+    isRegistered: (key) => native.has(key),
+    register(key, action) {
+      changes++;
+      if (blocked.has(key)) return false;
+      native.set(key, action);
+      return true;
+    },
+    unregister(key) {
+      changes++;
+      native.delete(key);
+    },
+  });
+  const shortcuts = createSettingsShortcuts(registry, "darwin", {
+    main() {},
+    clipboard() {},
+  });
+  shortcuts.registerInitial(initial);
+  const before = changes;
+  assert.deepEqual(
+    shortcuts.snapshot().map(({ state }) => state),
+    ["unavailable", "registered", "disabled"],
+  );
+  assert.equal(changes, before, "querying must not re-register shortcuts");
+  const handoff = registry.suspendForMenu();
+  assert.equal(shortcuts.snapshot()[1].state, "suspended");
+  blocked.add("Command+Shift+X");
+  handoff.restore();
+  assert.equal(shortcuts.snapshot()[1].state, "unavailable");
+  shortcuts.close();
+  registry.close();
 });
 
 test("failed registration restores the prior shortcuts", () => {

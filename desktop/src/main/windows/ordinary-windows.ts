@@ -138,6 +138,21 @@ export function createOrdinaryWindows(
       recent = target;
     },
     focused: () => focused,
+    snapshot() {
+      const ordinaryWindowCount = candidates().length;
+      const desiredVisible = nativeWindowVisible || ordinaryWindowCount > 0;
+      const visible = dock?.isVisible() ?? null;
+      return {
+        visible,
+        desiredVisible,
+        hideDeferred: visible === true && !desiredVisible && transientWindowVisible,
+        ordinaryWindowCount,
+        nativeWindowVisible,
+        transientWindowVisible,
+        updatePending: Boolean(dockUpdate),
+        retryPending: Boolean(dockRetry),
+      };
+    },
     close() {
       closed = true;
       clearTimeout(dockRetry);

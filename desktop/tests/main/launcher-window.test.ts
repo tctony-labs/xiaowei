@@ -137,6 +137,12 @@ test("Launcher starts hidden on macOS; repeated Tray calls preserve presentation
       opened++;
     },
     focus: {
+      snapshot: () => ({
+        active: true,
+        sourceProcessId: null,
+        frontmostProcessId: null,
+        generation: 0,
+      }),
       async begin() {
         captures++;
         return true;
@@ -187,6 +193,12 @@ for (const selection of ["before-create", "before-ready", "shortcut", "renderer"
       },
       opened() {},
       focus: {
+        snapshot: () => ({
+          active: true,
+          sourceProcessId: null,
+          frontmostProcessId: null,
+          generation: 0,
+        }),
         async begin() {
           return true;
         },
@@ -293,6 +305,117 @@ for (const source of ["shortcut", "renderer"]) {
     }
   });
 }
+
+test("explicit Launcher show waits for focus capture and repeated calls stay visible", async () => {
+  let finishCapture!: (value: boolean) => void;
+  let captures = 0;
+  const launcher = createLauncherWindow({
+    moduleDir: "/unused",
+    register() {},
+    opened() {},
+    focus: {
+      snapshot: () => ({
+        active: true,
+        sourceProcessId: null,
+        frontmostProcessId: null,
+        generation: 0,
+      }),
+      begin() {
+        captures++;
+        return new Promise<boolean>((resolve) => {
+          finishCapture = resolve;
+        });
+      },
+      async restore() {
+        return true;
+      },
+      abandon() {},
+    },
+  });
+  await launcher.create();
+  const showing = launcher.showMode("quick-chat");
+  assert.equal(window.visible, false);
+  assert.equal(launcher.snapshot().showPending, true);
+  finishCapture(true);
+  await showing;
+  assert.equal(window.visible, true);
+  assert.equal(window.focused, true);
+  assert.equal(launcher.snapshot().mode, "quick-chat");
+  const shows = window.shows;
+  await launcher.showMode("quick-chat");
+  assert.equal(window.visible, true);
+  assert.equal(window.shows, shows);
+  assert.equal(captures, 1);
+  await launcher.showMode("search");
+  assert.equal(window.visible, true);
+  assert.equal(window.alwaysOnTop, true);
+  assert.equal(launcher.snapshot().mode, "search");
+  launcher.prepareQuit();
+});
+
+test("initial and repeated shows wait for native visibility and focus", async (t) => {
+  const { launcher } = trackedLauncher(t);
+  await launcher.create();
+  const launcherWindow = window;
+  const nativeShow = launcherWindow.show.bind(launcherWindow);
+  const nativeFocus = launcherWindow.focus.bind(launcherWindow);
+  launcherWindow.show = () => {
+    setImmediate(nativeShow);
+  };
+  launcherWindow.focus = () => {
+    setImmediate(nativeFocus);
+  };
+
+  await launcher.showMode("quick-chat");
+  assert.equal(launcherWindow.visible, true);
+  assert.equal(launcherWindow.focused, true);
+  const shows = launcherWindow.shows;
+
+  launcherWindow.focused = false;
+  await launcher.showMode("quick-chat");
+  assert.equal(launcherWindow.visible, true);
+  assert.equal(launcherWindow.focused, true);
+  assert.equal(launcherWindow.shows, shows);
+});
+
+test("explicit show stops waiting when the presentation is dismissed", async (t) => {
+  const { launcher } = trackedLauncher(t);
+  await launcher.create();
+  const launcherWindow = window;
+  launcherWindow.focus = () => {};
+
+  const showing = assert.rejects(launcher.showMode("quick-chat"), /did not become visible/);
+  await new Promise(setImmediate);
+  launcher.hide();
+  await showing;
+  assert.equal(launcherWindow.visible, false);
+  assert.equal(launcherWindow.focused, false);
+});
+
+test("explicit show rejects unready windows and cancelled focus capture", async () => {
+  const launcher = createLauncherWindow({
+    moduleDir: "/unused",
+    register() {},
+    opened() {},
+    focus: {
+      snapshot: () => ({
+        active: false,
+        sourceProcessId: null,
+        frontmostProcessId: null,
+        generation: 0,
+      }),
+      begin: async () => false,
+      restore: async () => false,
+      abandon() {},
+    },
+  });
+  await assert.rejects(launcher.showMode("quick-chat"), /not ready/);
+  await launcher.create();
+  await assert.rejects(launcher.showMode("quick-chat"), /did not become visible/);
+  assert.equal(window.visible, false);
+  assert.equal(await launcher.hideAndRestore(), null);
+  launcher.prepareQuit();
+});
 
 test("Quick Chat requested before creation joins Dock tracking on its first show", async (t) => {
   const { launcher, dock } = trackedLauncher(t);

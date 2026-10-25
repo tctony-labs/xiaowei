@@ -60,9 +60,22 @@ export function packageMac({
   const dmg = join(output, `${name}-${version}-arm64.dmg`);
   const archive = join(output, `${name}-${version}-arm64.zip`);
   const verification = { app, version, key, localTest, signed, signingTeam };
+  let inspectBinary;
 
   if (steps.includes("app")) {
     ensureSparkle();
+    const built = run(
+      "cargo",
+      ["build", "--locked", "--release", "-p", "xiaowei-inspect", "--message-format=json"],
+      { cwd: join(desktopDirectory, ".."), encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+    );
+    inspectBinary = (built.stdout ?? "")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .find((entry) => entry.target?.name === "xiaowei-inspect" && entry.executable)?.executable;
+    if (!inspectBinary) throw new Error("Cargo did not report the inspect CLI executable");
     if (build) {
       run("pnpm", ["--filter", "./crates/*/napi", "--workspace-concurrency=1", "run", "build"], {
         cwd: join(desktopDirectory, ".."),
@@ -78,6 +91,7 @@ export function packageMac({
     SPARKLE_ED_PUBLIC_KEY: key,
     XIAOWEI_MAC_SIGNED: signed ? "1" : "0",
     XIAOWEI_LOCAL_UPDATE_VERSION: localVersion ?? "",
+    ...(inspectBinary ? { XIAOWEI_INSPECT_BINARY: inspectBinary } : {}),
     CSC_IDENTITY_AUTO_DISCOVERY: signed ? "true" : "false",
   };
   if (!signed) {
@@ -171,6 +185,20 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
       throw new Error(`Packaged ${key} mismatch`);
   }
   const require = createRequire(import.meta.url);
+  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
+  run("lipo", [inspect, "-verify_arch", "arm64"]);
+  run("codesign", ["--verify", "--strict", inspect]);
+  if (signed) verifySignedCode(inspect, signingTeam);
+  verifySystemDependencies(inspect, "xiaowei-inspect");
+  for (const option of ["--help", "--version"]) {
+    const probe = run(inspect, [option], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    if (!probe.stdout.includes("xiaowei-inspect")) {
+      throw new Error(`Packaged inspect CLI failed ${option} acceptance`);
+    }
+  }
   for (const name of ["xiaowei-agent", "xiaowei-rust"]) {
     const binary = join(
       app,
@@ -180,21 +208,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
     );
     run("lipo", [binary, "-verify_arch", "arm64"]);
     if (signed) verifySignedCode(binary, signingTeam);
-    const dependencies = spawnSync("otool", ["-l", binary], { encoding: "utf8" });
-    if (dependencies.status !== 0) throw new Error(`Cannot inspect native dependencies: ${name}`);
-    for (const command of dependencies.stdout.split("Load command ")) {
-      // LC_ID_DYLIB names the addon itself; it is not a dependency to load from the build machine.
-      if (!/cmd LC_(?:LOAD|LOAD_WEAK|REEXPORT|LAZY_LOAD|LOAD_UPWARD)_DYLIB\n/.test(command))
-        continue;
-      const dependency = command.match(/\bname (.+?) \(offset \d+\)/)?.[1];
-      if (
-        dependency &&
-        !dependency.startsWith("/usr/lib/") &&
-        !dependency.startsWith("/System/Library/")
-      ) {
-        throw new Error(`Unexpected non-system native dependency in ${name}: ${dependency}`);
-      }
-    }
+    verifySystemDependencies(binary, name);
     const addon = require(binary);
     if (name === "xiaowei-rust" && typeof addon.SparkleUpdater !== "function") {
       throw new Error("Packaged platform addon does not export SparkleUpdater");
@@ -216,9 +230,24 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
     }
     console.info(`Developer ID signatures and hardened runtime verified: team=${signingTeam}`);
   }
-  console.info(
-    "Packaged app signature, version, update configuration and arm64 native modules verified",
-  );
+  console.info("Packaged app and inspect CLI signatures, version and native runtime verified");
+}
+
+function verifySystemDependencies(binary, name) {
+  const dependencies = spawnSync("otool", ["-l", binary], { encoding: "utf8" });
+  if (dependencies.status !== 0) throw new Error(`Cannot inspect native dependencies: ${name}`);
+  for (const command of dependencies.stdout.split("Load command ")) {
+    // LC_ID_DYLIB names the addon itself; it is not a dependency from the build machine.
+    if (!/cmd LC_(?:LOAD|LOAD_WEAK|REEXPORT|LAZY_LOAD|LOAD_UPWARD)_DYLIB\n/.test(command)) continue;
+    const dependency = command.match(/\bname (.+?) \(offset \d+\)/)?.[1];
+    if (
+      dependency &&
+      !dependency.startsWith("/usr/lib/") &&
+      !dependency.startsWith("/System/Library/")
+    ) {
+      throw new Error(`Unexpected non-system native dependency in ${name}: ${dependency}`);
+    }
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

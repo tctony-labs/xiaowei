@@ -23,6 +23,12 @@ export function createFocusSession(options: {
 
   return {
     abandon,
+    snapshot: () => ({
+      active,
+      sourceProcessId: target?.processId ?? null,
+      frontmostProcessId: options.frontmostProcess() ?? null,
+      generation,
+    }),
     async begin(): Promise<boolean> {
       if (active) return true;
       const current = ++generation;

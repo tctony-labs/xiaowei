@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
@@ -88,6 +88,13 @@ test("Rust changes rotate snapshots, flags isolate fallbacks and renderer change
   assert.ok(second.slice("key=".length).startsWith(prefix.slice("restore-key=".length)));
   const [, differentPrefix] = run("key", { RUSTFLAGS: "-C opt-level=1" }).trim().split("\n");
   assert.notEqual(differentPrefix, prefix);
+  const inspect = join(workspace, "desktop/inspect/src/main.rs");
+  mkdirSync(dirname(inspect), { recursive: true });
+  writeFileSync(inspect, "fn main() {}\n");
+  execFileSync("git", ["add", "desktop/inspect"], { cwd: workspace });
+  const withInspect = run("key").split("\n")[0];
+  writeFileSync(inspect, 'fn main() { println!("inspect"); }\n');
+  assert.notEqual(run("key").split("\n")[0], withInspect);
 });
 
 test("workflow changes rotate Cargo snapshots without isolating tags", (context) => {

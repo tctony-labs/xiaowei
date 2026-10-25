@@ -189,6 +189,50 @@ export function createLauncherWindow(options: {
     create: createWindow,
     show: showLauncher,
     openMode: openLauncherMode,
+    async showMode(mode: LauncherMode = launcherMode): Promise<void> {
+      if (!ready || quitting || !launcher || launcher.isDestroyed()) {
+        throw new Error("Launcher is not ready");
+      }
+      if (mode !== launcherMode || !launcher?.isVisible()) openLauncherMode(mode);
+      else showLauncher();
+      const current = generation;
+      await pendingShow;
+
+      // Native show/focus can settle after Electron returns from the presentation calls.
+      const deadline = Date.now() + 1000;
+      while (
+        !quitting &&
+        !launcher.isDestroyed() &&
+        current === generation &&
+        launcherMode === mode
+      ) {
+        if (launcher.isVisible() && launcher.isFocused()) return;
+        if (Date.now() >= deadline) break;
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }
+
+      console.warn("Launcher presentation did not settle", {
+        requestedMode: mode,
+        mode: launcherMode,
+        expectedGeneration: current,
+        generation,
+        visible: !launcher.isDestroyed() && launcher.isVisible(),
+        focused: !launcher.isDestroyed() && launcher.isFocused(),
+        quitting,
+      });
+      throw new Error("Launcher did not become visible and focused in the requested mode");
+    },
+    async hideAndRestore(): Promise<boolean | null> {
+      if (!launcher || launcher.isDestroyed() || !launcher.isVisible()) return null;
+      return dismiss(true);
+    },
+    snapshot: () => ({
+      mode: launcherMode,
+      ready,
+      showPending: Boolean(pendingShow),
+      generation,
+      focus: options.focus?.snapshot() ?? null,
+    }),
     hide() {
       void dismiss(false);
     },

@@ -51,7 +51,9 @@ cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --scrol
 
 ## 窗口验收
 
-开发客户端默认可在后台运行且窗口隐藏。需要窗口操作时，先按上述流程确认当前工作区实例，按[查询快捷键并唤起窗口](references/window-activation.md)读取当前实例的有效快捷键，再发送对应组合键，窗口可见后连接原生窗口自动化。`⌘⇧C` 只是 macOS 新设置的默认 Quick Chat 绑定，不能未经查询就假定它仍有效；只激活应用进程不等于显示 Launcher／Quick Chat。
+需要读取当前实例的实际窗口、焦点、Dock、Launcher 模式或有效快捷键时，优先使用 [inspect-running-app](../inspect-running-app/SKILL.md) 的 `just inspect` 入口。读取隐藏窗口不需要先唤起；用户任务授权的显示／收起操作也可直接调用。连接失败时继续按本技能核对进程与 console，不切换到其他工作区实例。
+
+开发客户端默认可在后台运行且窗口隐藏。inspect 接口不可用时，先按上述流程确认当前工作区实例，再按[查询快捷键并唤起窗口](references/window-activation.md)读取当前实例的有效快捷键并发送对应组合键，窗口可见后连接原生窗口自动化。`⌘⇧C` 只是 macOS 新设置的默认 Quick Chat 绑定，不能未经查询就假定它仍有效；只激活应用进程不等于显示 Launcher／Quick Chat。
 
 隐藏时取窗可能返回 timeoutReached 或 cgWindowNotFound，不能仅凭这些错误认定自动化服务不可用或冷启动另一个应用。先确认窗口确已可见，再判断连接是否异常。
 

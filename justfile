@@ -120,6 +120,12 @@ start:
 rs:
     touch desktop/.rs
 
+# Inspect or operate this workspace's running app through the paired Rust CLI.
+[positional-arguments]
+inspect *args:
+    cargo run --quiet --locked --manifest-path "{{justfile_directory()}}/Cargo.toml" \
+        -p xiaowei-inspect -- --workspace "{{justfile_directory()}}" "$@"
+
 # Preview UI components independently of Electron.
 storybook:
     pnpm --dir desktop storybook
@@ -149,6 +155,7 @@ format:
 check:
     cargo fmt --all --check
     cargo check -p xw-gateway --no-default-features --locked
+    cargo check -p xiaowei-inspect --locked
     pnpm check
     cd server && test -z "$(gofmt -l .)"
     cd server && go vet ./...

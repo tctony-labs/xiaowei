@@ -1,0 +1,34 @@
+[
+  {
+    "source": {
+      "kind": "workspace",
+      "path": "/Users/example/Develop/xiaowei/worktrees/oracle"
+    },
+    "uid": 501,
+    "socket": "/tmp/xiaowei-501/4ea7a3fa915f544be3640586c865e063e76dfc843d701c540c096f830cc85581.sock"
+  },
+  {
+    "source": {
+      "kind": "workspace",
+      "path": "/Users/example/开发/带 空格"
+    },
+    "uid": 501,
+    "socket": "/tmp/xiaowei-501/e65fa106a12487b8e1fa4099ddc04f58245f19e615d78d13c0d550337d07dcbf.sock"
+  },
+  {
+    "source": {
+      "kind": "app",
+      "path": "/Applications/XiaoWei.app"
+    },
+    "uid": 501,
+    "socket": "/tmp/xiaowei-501/229fc3066d39bbb0188183281cd81f5025cc458d196e269865fe1af5db0d8057.sock"
+  },
+  {
+    "source": {
+      "kind": "app",
+      "path": "/Users/example/Applications/XiaoWei Local Update.app"
+    },
+    "uid": 502,
+    "socket": "/tmp/xiaowei-502/d43411e729217becf3ec12f50b046238cb3bdeca292f888b94b68d6625e70115.sock"
+  }
+]

@@ -4,15 +4,17 @@ import { createShortcutRegistry } from "../src/main/services/shortcuts/registry.
 
 function fixture() {
   const native = new Map();
+  const blocked = new Set();
   const registry = createShortcutRegistry({
+    isRegistered: (key) => native.has(key),
     register(key, action) {
-      if (native.has(key)) return false;
+      if (native.has(key) || blocked.has(key)) return false;
       native.set(key, action);
       return true;
     },
     unregister: (key) => native.delete(key),
   });
-  return { native, registry };
+  return { native, registry, blocked };
 }
 
 test("menu handoff covers arbitrary registered actions and restores them once", () => {
@@ -32,6 +34,18 @@ test("menu handoff covers arbitrary registered actions and restores them once", 
   assert.equal(native.size, 3);
   native.get("Command+Space")();
   assert.deepEqual(invoked, ["Control+Alt+F9", "Command+Space"]);
+});
+
+test("status reflects menu suspension and a failed native restoration", () => {
+  const { registry, blocked } = fixture();
+  registry.register("Command+Space", () => {});
+  assert.deepEqual(registry.status("Command+Space"), { registered: true, suspended: false });
+  const handoff = registry.suspendForMenu();
+  assert.deepEqual(registry.status("Command+Space"), { registered: false, suspended: true });
+  blocked.add("Command+Space");
+  handoff.restore();
+  assert.deepEqual(registry.status("Command+Space"), { registered: false, suspended: false });
+  registry.close();
 });
 
 test("menu restoration uses current registrations and ignores removed actions", () => {

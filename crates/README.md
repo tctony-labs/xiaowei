@@ -1,5 +1,7 @@
 # Rust 原生模块开发
 
+桌面 App 的配套检查 CLI 是独立可执行 crate，位于 [`desktop/inspect/`](../desktop/inspect/README.md)，包名和二进制名均为 `xiaowei-inspect`。它加入根 Cargo workspace，共用 `Cargo.lock`，不经 napi 加载；`just inspect` 按当前工作区调用，macOS 正式包携带 release 产物。CLI 只通过本地 socket 访问现有 App owner，不持有业务数据或修改 App 运行规则。
+
 ## 模块索引
 
 | 模块 | 职责 |

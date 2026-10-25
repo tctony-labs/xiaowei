@@ -1,10 +1,18 @@
 import type { GlobalShortcut } from "electron";
 
-export function createShortcutRegistry(native: Pick<GlobalShortcut, "register" | "unregister">) {
+export function createShortcutRegistry(
+  native: Pick<GlobalShortcut, "register" | "unregister" | "isRegistered">,
+) {
   const bindings = new Map<string, () => void>();
   let menuActive = false;
 
   return {
+    status(accelerator: string) {
+      return {
+        registered: native.isRegistered(accelerator),
+        suspended: menuActive && bindings.has(accelerator),
+      };
+    },
     register(accelerator: string, action: () => void): boolean {
       if (bindings.has(accelerator) || !native.register(accelerator, action)) return false;
       bindings.set(accelerator, action);

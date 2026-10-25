@@ -1,5 +1,5 @@
-import type { GlobalShortcut } from "electron";
 import type { ShortcutConfiguration } from "xiaowei-contracts";
+import type { createShortcutRegistry } from "./registry";
 
 export type ShortcutValue = string[] | null;
 export interface ShortcutConfig {
@@ -50,11 +50,12 @@ export function accelerator(keys: ShortcutValue, platform: string): string | nul
 }
 
 export function createSettingsShortcuts(
-  registry: Pick<GlobalShortcut, "register" | "unregister">,
+  registry: Pick<ReturnType<typeof createShortcutRegistry>, "register" | "unregister" | "status">,
   platform: string,
   actions: Partial<Record<Action, () => void>>,
 ) {
   let registered: { shortcut: string; action: Action }[] = [];
+  let configured: Partial<Record<Action, string>> = {};
 
   function replace(config: ShortcutConfig): void {
     const desired = (Object.entries(config) as [Action, ShortcutValue][]).flatMap(
@@ -78,6 +79,7 @@ export function createSettingsShortcuts(
         }
         registered.push(entry);
       }
+      configured = Object.fromEntries(desired.map(({ action, shortcut }) => [action, shortcut]));
     } catch (error) {
       for (const { shortcut } of registered) registry.unregister(shortcut);
       registered = [];
@@ -95,11 +97,31 @@ export function createSettingsShortcuts(
     getAccelerators(): Partial<Record<Action, string>> {
       return Object.fromEntries(registered.map(({ action, shortcut }) => [action, shortcut]));
     },
+    snapshot() {
+      return (["main", "clipboard", "quickChat"] as const).map((action) => {
+        const shortcut = configured[action] ?? null;
+        const status = shortcut ? registry.status(shortcut) : undefined;
+        return {
+          action,
+          accelerator: shortcut,
+          registered: status?.registered ?? false,
+          state: !shortcut
+            ? "disabled"
+            : status?.registered
+              ? "registered"
+              : status?.suspended
+                ? "suspended"
+                : "unavailable",
+        };
+      });
+    },
     registerInitial(config: ShortcutConfig) {
       if (registered.length) throw new Error("Shortcuts already registered");
+      configured = {};
       for (const [action, keys] of Object.entries(config) as [Action, ShortcutValue][]) {
         const shortcut = accelerator(keys, platform);
         if (!shortcut) continue;
+        configured[action] = shortcut;
         const handler = actions[action];
         if (handler && registry.register(shortcut, handler)) registered.push({ shortcut, action });
         else console.error(`Launcher shortcut unavailable: ${shortcut} (${action})`);
@@ -108,6 +130,7 @@ export function createSettingsShortcuts(
     close() {
       for (const { shortcut } of registered) registry.unregister(shortcut);
       registered = [];
+      configured = {};
     },
   };
 }

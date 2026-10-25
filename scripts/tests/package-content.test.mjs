@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -42,12 +42,28 @@ async function fixture(
   }
   await mkdir(dirname(archive), { recursive: true });
   await createPackageWithOptions(source, archive, unpack ? { unpack: "**/*.node" } : {});
+  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
+  await mkdir(dirname(inspect), { recursive: true });
+  await writeFile(inspect, "native CLI fixture", { mode: 0o755 });
   return { app, archive, files };
 }
 
 test("real ASAR accepts only built outputs, metadata and native runtime files", async (t) => {
   const { app, files } = await fixture(t);
   assert.deepEqual(verifyPackageContent(app).sort(), Object.keys(files).sort());
+});
+
+test("missing, non-executable or linked inspect CLI fails package acceptance", async (t) => {
+  const { app } = await fixture(t);
+  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
+  await chmod(inspect, 0o644);
+  assert.throws(() => verifyPackageContent(app), /Missing executable inspect CLI/);
+  await rm(inspect);
+  assert.throws(() => verifyPackageContent(app), /Missing executable inspect CLI/);
+  const external = `${inspect}-external`;
+  await writeFile(external, "external", { mode: 0o755 });
+  await symlink(external, inspect);
+  assert.throws(() => verifyPackageContent(app), /Missing executable inspect CLI/);
 });
 
 for (const path of [

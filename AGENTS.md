@@ -27,6 +27,7 @@
 仓库开发与排障流程位于 `.agent/skills/`，约定见 [`.agent/skills/README.md`](.agent/skills/README.md)。命中对应任务时，先完整读取该 `SKILL.md`。
 
 - [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)：检查、查询日志或重启当前工作区的客户端与 Go 服务端开发实例时使用；优先通过 cmux 定位并操作 console，无法实现时回退到进程检查、客户端日志文件和既有重启入口。
+- [inspect-running-app](.agent/skills/inspect-running-app/SKILL.md)：通过配套 CLI 和本地 socket 检查工作区或 macOS App 实例的窗口、焦点、Dock、模式和快捷键，或执行任务授权的显示／收起；隐藏窗口也可查询。
 - [maintain-gateway-contract](.agent/skills/maintain-gateway-contract/SKILL.md)：修改业务 proto service／消息、Rust 模块依赖的 service、Gateway handler 或 typed client 调用时使用；覆盖生成、接入和验证。
 - [maintain-agent-session](.agent/skills/maintain-agent-session/SKILL.md)：用户要求查看或清理 Agent 会话数据时使用；`Workflow Inpsect` 按 session ID 定位 SQLite／JSONL 数据，`Workflow Clean` 离线清理会话历史。
 - [release-desktop-app](.agent/skills/release-desktop-app/SKILL.md)：准备或发布桌面 App 时使用；处理代码、版本与更新说明，合回 develop，确认发布范围后推送分支与 tag，触发 CI。

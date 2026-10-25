@@ -39,6 +39,36 @@ class Window extends EventEmitter {
   }
 }
 
+test("Dock snapshots show deferred visibility without applying it", async () => {
+  let visible = true;
+  const changes = [];
+  const manager = createOrdinaryWindows({
+    isVisible: () => visible,
+    async show() {
+      changes.push("show");
+      visible = true;
+    },
+    hide() {
+      changes.push("hide");
+      visible = false;
+    },
+  });
+  manager.setNativeWindowVisible(true);
+  manager.setTransientWindowVisible(true);
+  manager.setNativeWindowVisible(false);
+  await new Promise(setImmediate);
+  const snapshot = manager.snapshot();
+  assert.equal(snapshot.visible, true);
+  assert.equal(snapshot.desiredVisible, false);
+  assert.equal(snapshot.hideDeferred, true);
+  assert.deepEqual(changes, []);
+  manager.setTransientWindowVisible(false);
+  await new Promise(setImmediate);
+  assert.equal(manager.snapshot().visible, false);
+  assert.deepEqual(changes, ["hide"]);
+  manager.close();
+});
+
 test("registering an already visible and focused window includes it immediately", async () => {
   let visible = false;
   const manager = createOrdinaryWindows({

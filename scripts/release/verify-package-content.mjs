@@ -6,6 +6,11 @@ import { extractFile, listPackage, statFile } from "@electron/asar";
 export const nativePackages = ["xiaowei-agent", "xiaowei-rust"];
 
 export function verifyPackageContent(app) {
+  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
+  const binary = lstatSync(inspect, { throwIfNoEntry: false });
+  if (!binary?.isFile() || (binary.mode & 0o100) === 0) {
+    throw new Error("Missing executable inspect CLI in App Resources/bin");
+  }
   const archive = join(app, "Contents/Resources/app.asar");
   const required = new Set([
     "package.json",
@@ -79,7 +84,7 @@ export function verifyPackageContent(app) {
   verifyUnpacked(`${archive}.unpacked`);
   if (unpacked.size) throw new Error(`Missing unpacked files: ${[...unpacked].join(", ")}`);
   console.info(
-    `Packaged content verified: ${files.length} files, two native packages, no source maps or source directories`,
+    `Packaged content verified: ${files.length} ASAR files, two native packages and inspect CLI`,
   );
   return files;
 }

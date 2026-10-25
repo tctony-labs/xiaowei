@@ -6,6 +6,10 @@
 
 可用本地 fixture 稳定验证的行为应加入 `desktop/tests/`，包括这些工具自身的参数、退出码和清理行为。工作区共用的开发／构建／测试编排工具继续放在根目录 `scripts/`。
 
+## 当前开发实例
+
+配套 Rust CLI 位于 [`desktop/inspect/`](../inspect/README.md)，通过当前工作区的 Unix socket 查询宿主状态或执行明确的显示／收起操作。统一入口为 `just inspect`，不会启动应用；本目录不再维护一份 Node CLI。
+
 ## 真实 LLM 调用
 
 先构建 desktop 自身 worker；Gateway 通过源码条件加载：
