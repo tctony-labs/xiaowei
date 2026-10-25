@@ -41,6 +41,21 @@ const scenarios = [
       "先在当前工作目录的 acceptance.txt 写入 hello\\nworld\\n（真实换行），读取，" +
       "然后把 world 替换成 xiaowei，再读取确认。最终用中文说明结果。只操作这个临时文件。",
   },
+  {
+    name: "file search",
+    file: "fixtures/search-acceptance.txt",
+    calls: [
+      ["Write", { path: "fixtures/search-acceptance.txt", contents: "hello\nxiaowei\n" }],
+      ["Glob", { pattern: "search-*.txt" }],
+      ["Grep", { pattern: "^xiaowei$", include: "*.txt" }],
+      ["Read", { path: "fixtures/search-acceptance.txt" }],
+    ],
+    prompt:
+      "严格依次调用 Write、Glob、Grep、Read。先用 Write 在当前工作目录创建 " +
+      "fixtures/search-acceptance.txt，内容为 hello\\nxiaowei\\n（真实换行）。" +
+      "然后 Glob pattern 为 search-*.txt；Grep pattern 为 ^xiaowei$，include 为 *.txt；" +
+      "最后 Read 找到的文件，说明匹配行号和最终内容。只操作这个临时文件。",
+  },
 ];
 if (process.platform === "darwin") {
   scenarios.push({
@@ -227,6 +242,12 @@ async function exerciseScenario(scenario) {
       assert.equal(metadata.bash.is_background, false);
       assert.equal(metadata.bash.cancelled, false);
     }
+    if (scenario.name === "file search") {
+      assert.ok(tools[1].output.includes("fixtures/search-acceptance.txt"));
+      assert.ok(tools[2].output.includes("search-acceptance.txt:2:xiaowei"));
+      assert.equal(JSON.parse(tools[1].metadataJson).search.truncated, false);
+      assert.equal(JSON.parse(tools[2].metadataJson).search.truncated, false);
+    }
     assert.ok(
       completed.items.some(
         (item) => item.content.case === "agentMessage" && item.content.value.text,
@@ -234,13 +255,17 @@ async function exerciseScenario(scenario) {
     );
     if (!live) {
       assert.equal(requests.length, calls.length + 1);
-      const expected = ["Edit", "Read", "Write"];
+      const expected = ["Edit", "Read", "Write", "Glob", "Grep"];
       if (process.platform === "darwin") expected.push("Bash");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
       assert.ok(requests.at(-1).messages.at(-1).content.includes("xiaowei"));
       if (scenario.name === "sandboxed Bash") {
         assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
+      }
+      if (scenario.name === "file search") {
+        assert.ok(requests[2].messages.at(-1).content.includes("search-acceptance.txt"));
+        assert.ok(requests[3].messages.at(-1).content.includes("search-acceptance.txt:2:xiaowei"));
       }
     }
     console.log(

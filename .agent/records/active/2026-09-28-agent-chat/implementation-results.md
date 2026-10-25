@@ -2,6 +2,32 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## Glob 与 Grep 文件搜索（2026-10-25）
+
+第 3 批 Glob／Grep 已完成实现、自动检查、正式链路与 Quick Chat 真实模型验收。当前行为与接口维护在 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)；02g Plan 已删除，下一批为 AskUserQuestion／RequestPermission。
+
+迁移依据为 `xiaowei-next` HEAD `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3` 的 filesystem/file.rs、runtime Cargo.toml 及生产 filesystem bundle，核对时无未提交改动。沿用 globset／walkdir 与 grep-regex／grep-searcher／ignore，没有改成 shell 命令或另一套搜索实现。搜索集中放在现有 filesystem.rs 的子模块 search.rs，FileTools 复用 cwd／路径解析和 ToolOutput，core 仍持有原工具循环及提交边界。
+
+保留旧版两种搜索的差异，包括 Glob 的递归补前缀、隐藏字面量例外、固定目录排除、mtime 排序及最新 500 项；Grep 的忽略规则、类型筛选、显式单文件行为及 5000 匹配行限制。实际验证确认 include 类型白名单可以放行匹配的隐藏文件，但不会覆盖 gitignore，未把它改成 Glob 的过滤策略。include 仍按旧版文件类型解释，不扩展为任意路径 glob。
+
+本批适配增加 64 KiB 文本输出预算和 UTF-8 安全截断；旧版忽略的遍历／读取错误仍跳过，但现在通过正文、metadata 和安全计数日志说明结果可能不完整。Grep 到数量／字节上限后结束读取；流式 reader 在没有正则匹配时也能响应取消。core 将 Run token 传给搜索，等待阻塞操作退出后提交 Cancelled，再将未开始调用结算为 Skipped；不新增调度、存储或授权通道。Read／Write／Edit 的已有 schema 和执行语义不变。
+
+验证：
+
+- `cargo test -p xw-agent -p xw-agent-runtime --locked` 共 109 项通过。覆盖真实临时目录、隐藏／忽略规则、include、mtime 最新 500 项、无匹配、非法参数／模式、中文长行及大量输出、symlink／cwd 外只读、真实文件搜索取消、结果进入后续 Read／生成、重开不执行和旧会话增量升级。补充错误计数提示和规则后复验 runtime 的 lib／filesystem 及 core prompts；最终等价排序调整后复验 mtime 用例。
+- runtime／core／集成层／正式 napi 的 all-targets、no-deps 严格 Clippy 通过。正式 Agent addon `build:debug`、desktop 生产 worker／bundle 构建通过；`pnpm --filter xiaowei-agent test:runtime` 8 项通过，扩展原 fixture 的 Write → Glob → Grep → Read 场景，检查真实工具输出、metadata 和进入后续 Pi 请求的结果。
+- 当前工作区通过 cmux console 的 r 重建并加载最新原生模块；原生重建结束后串行运行 `just check` 通过。手写代码显示宽度与 diff 空白检查通过。未改 LLM 适配、PB 或 renderer 实现，不将上一批 renderer／LLM 测试数量重复计入本批。
+
+窗口验收复用本 Agent 创建的测试会话 `01a17289-afc2-740c-b87b-a347f01c1b07`，模型为实际配置中的 sol。原有 Bash 验收的 60 条／39479 字节前缀 SHA-256 仍为 `34392f51a1a00429b6d5cbbb924b44804b86e8bcd83832b447bfc3cb449594a4`，没有改写。只追加一条包含 Glob／Grep 和 tool.Glob／tool.Grep 的系统增量，没有重复 base、Bash 或已有文件工具定义，随后第二个 Run 也没有重复同步。
+
+通过实际输入框依次执行两次 Write → Glob → Grep → Read，五个工具均显示已完成。展开 Glob 得到唯一 notes.txt 路径，展开 Grep 得到 `notes.txt:2:search-needle-20261025`，Read 与正常回复确认三行内容。新增文件位于该会话 cwd 的 `ui-search-20261025/`；notes.txt 严格为 `alpha\nsearch-needle-20261025\nomega\n`，35 字节，SHA-256 为 `b271662f9e6934ef548f770042ac1581afc7e109658efc46eb6eb38f15a38d29`，另一个 unrelated.md 为 12 字节。没有调用 Bash 或修改其他文件。
+
+第二个窗口任务依次执行无匹配 Glob、无匹配 Grep、非法 `[` Glob 和非法 `(` Grep。前两个工具显示已完成并返回 No files／No matches；后两个显示失败，持久结果分别为 Invalid glob pattern／Invalid regex。模型正确区分无匹配与非法模式，没有重试或扩大范围。执行中搜索取消由上述真实文件 Rust 集成测试覆盖，本次窗口验收没有用模型生成阶段的停止冒充搜索执行中的停止。
+
+再次核对控制器、cwd、完整父子链、stdin 与 cmux console 后发送 r。Electron 从 `47526` 更换为 `55552`，inspect 实例 ID 从 `98faeb79-17db-4581-afeb-3c4cc2d08866` 更换为 `33ffb2c1-3431-47c3-86d7-1f4659b927e1`，仍属于当前工作区；日志确认同一会话 loaded、`repaired_bytes=0`。通过 inspect 显示窗口并核对实际截图，同一会话标题、工具终态和错误分类回复正确恢复。
+
+重启前后 JSONL 均为 142 条／82314 字节，SHA-256 同为 `8ef7a4f5d3eebe01bec445dea5a9e398018e59e56ac7bb8064327af08c47dd4e`，共 5 个 Run、18 次生成、14 对工具意图／结果和两条系统记录。SQLite 会话行及该测试 cwd 的六个文件摘要完全相同，没有新增记录、自动搜索或重放；新增搜索验收共两个 Run、九次工具调用。保留测试会话与文件供复核，未操作已有用户任务。
+
 ## 前台 Bash 与 macOS 沙箱（2026-10-25）
 
 第 2 批前台 Bash 已完成代码接入、自动／真实模型验证及 Quick Chat 产品窗口验收。02h 第一阶段实施与验收步骤已移除，后台工具仍保持第 7 批。实现入口和完整行为分别见 [runtime](../../../../crates/xw-agent-runtime/README.md)、[core](../../../../crates/xw-agent/README.md) 和 [Seatbelt 包](../../../../crates/xw-sandboxed-exec/README.md)，不在 record 重复维护 API 说明。
@@ -86,7 +112,7 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 - 采用旧 Rust 路线，但模型调用适配当前 Pi／LLM 契约，不搬入旧 xw-llm；领域消息保留当前契约全部已知回放字段。PB 转换在 xiaowei-agent，types 不依赖外部业务协议。
 - xw-agent 充当可嵌入的 App Server，使用 Agent proto 而不依赖 Gateway；请求／响应及直接业务事件参考 Codex App Server 的边界，不承诺 wire 兼容。不采用旧 cursor／ReadChanges 草案。
 - SQLite 会话目录由核心自管，不接 Storage Gateway DAO；标题及管理状态不是可丢弃重建的索引缓存。只使用最终 session／meta 结构，不保留开发期中间表或运行时迁移。
-- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit 和 macOS 前台 Bash 已有实际执行能力并通过本批窗口验收；其他工具、交互和压缩仍待实施，不能宣称已全面迁移旧 Agent。
+- 首期输入仍为 textarea，没有附件／图片输入、富文本、Skills／命令资源或旧会话导入。Read／Write／Edit、Glob／Grep 和 macOS 前台 Bash 已有实际执行能力及相应窗口验收；其他工具、交互和压缩仍待实施，不能宣称已全面迁移旧 Agent。
 - 后续交互采用 pending Interaction、逐端 ACK 与唯一决定，同 Run 等待／恢复；旧版 stop_loop 后另开 Run 的方式不沿用。此设计尚未实施。
 
 ## 自动验证

@@ -1,6 +1,6 @@
 # 宿主接口与会话持久化
 
-所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、文本／文件工具／macOS 前台 Bash 循环、JSONL 恢复与 composer 模型／思考切换；SQLite 会话目录已由核心接入；其他工具、压缩生产及远程 transport 仍后续实施。前台 Bash 已完成窗口及重启验收，具体状态见[实施结果](implementation-results.md)。
+所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、文本／文件读写与搜索／macOS 前台 Bash 循环、JSONL 恢复与 composer 模型／思考切换；SQLite 会话目录已由核心接入；其他工具、压缩生产及远程 transport 仍后续实施。前三批工具的窗口及重启验收见[实施结果](implementation-results.md)。
 
 ## 会话选择与 Run 快照
 

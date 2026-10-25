@@ -1,4 +1,4 @@
 pub mod bash;
 mod filesystem;
 
-pub use filesystem::{FileTools, ToolOutput, declarations};
+pub use filesystem::{FileTools, ToolOutput, declarations, search_declarations};

@@ -3,9 +3,14 @@ use std::{collections::HashMap, io::Read, path::PathBuf};
 use serde::Deserialize;
 use serde_json::json;
 use similar::{ChangeTag, TextDiff};
+use tokio_util::sync::CancellationToken;
 use xw_agent_types::{AgentMessage, ContentBlock, PermissionTarget, ToolDeclaration};
 
 use crate::permission;
+
+mod search;
+
+pub use search::declarations as search_declarations;
 
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_OUTPUT_BYTES: usize = 64 * 1024;
@@ -154,10 +159,21 @@ impl FileTools {
 
     /// Runs on the blocking pool; the caller awaits settlement even after cancellation.
     pub fn execute(&mut self, name: &str, arguments: &str) -> Result<ToolOutput, String> {
+        self.execute_cancellable(name, arguments, &CancellationToken::new())
+    }
+
+    /// Searches observe cancellation; writes and edits still settle their actual operation.
+    pub fn execute_cancellable(
+        &mut self,
+        name: &str,
+        arguments: &str,
+        cancellation: &CancellationToken,
+    ) -> Result<ToolOutput, String> {
         if !self.cwd.is_dir() {
             return Err("会话工作目录不存在".into());
         }
         match name {
+            "Glob" | "Grep" => search::execute(self, name, arguments, cancellation),
             "Read" => self.read(parse(arguments)?),
             "Write" => {
                 let args: WriteArgs = parse(arguments)?;

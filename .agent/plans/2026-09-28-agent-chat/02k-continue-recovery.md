@@ -1,6 +1,6 @@
 # 02k：中断继续与副作用保护
 
-前置：[02f](02f-interactions.md)、[02g](02g-filesystem-tools.md)、[02h](02h-bash-sandbox.md)、[02j](02j-compaction.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[02f](02f-interactions.md)、[02h](02h-bash-sandbox.md)、[02j](02j-compaction.md)；文件搜索已完成，见[交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：ContinueRun 从已提交边界恢复，不重复用户输入、已完成工具或未知结果副作用。
 

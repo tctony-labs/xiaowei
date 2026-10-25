@@ -1,6 +1,6 @@
 # 02f：两阶段交互与权限决定
 
-前置：第 3 批 [Glob／Grep](02g-filesystem-tools.md)完成。作为第 4 批，AskUserQuestion／RequestPermission 一起实现与验收。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
+前置：第 3 批 [Glob／Grep 已完成验收](../../records/active/2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。作为第 4 批，AskUserQuestion／RequestPermission 一起实现与验收。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
 
 本片结果：AskUserQuestion／RequestPermission 经同一 App Server 完成逐端接收确认、唯一决定和运行继续。
 

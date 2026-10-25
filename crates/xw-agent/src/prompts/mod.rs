@@ -32,6 +32,17 @@ pub fn build_chat_system_context(
             "Read" => Some(READ_RULE),
             "Write" => Some(WRITE_RULE),
             "Edit" => Some(EDIT_RULE),
+            "Glob" => Some(concat!(
+                "按文件名或路径查找时优先使用 Glob。默认递归搜索，结果按修改时间从新到旧。",
+                "隐藏项需在 pattern 中点名字面量段；node_modules 与 target 默认跳过。",
+                "结果截断时缩小 pattern 或 path，不将已显示部分当成完整结果。",
+            )),
+            "Grep" => Some(concat!(
+                "搜索文本内容时优先使用 Grep，使用正则和 include 文件类型筛选缩小范围。",
+                "目录搜索遵循忽略规则；include 类型筛选可能放行匹配的隐藏文件。",
+                "需要完整内容时再调用 Read。",
+                "结果截断时缩小 pattern 或 path；跳过读取错误不表示文件中一定没有匹配。",
+            )),
             "Bash" => Some(concat!(
                 "Bash 仅用于前台命令，不支持交互输入或后台模式。",
                 "文件读写优先使用专用工具；命令退出码以工具实际返回为准。",

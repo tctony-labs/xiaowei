@@ -46,7 +46,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 ## How
 
-采用旧版 Rust Agent 迁移路线，复用现有 LLM worker 与 Gateway。当前已交付持久文本聊天和第一批文件工具，并接入 macOS 前台 Bash：Quick Chat 通过 Agent 控制 API 调用 xiaowei-agent／xw-agent；xw-agent 是 App Server，持有权威会话、运行与投影，直接管理 SQLite 会话目录；JSONL 保存模型配置与执行历史。宿主通过统一 AgentHost 提供模型能力，核心不依赖外部业务 service。
+采用旧版 Rust Agent 迁移路线，复用现有 LLM worker 与 Gateway。当前已交付持久文本聊天、文件读写／搜索及 macOS 前台 Bash：Quick Chat 通过 Agent 控制 API 调用 xiaowei-agent／xw-agent；xw-agent 是 App Server，持有权威会话、运行与投影，直接管理 SQLite 会话目录；JSONL 保存模型配置与执行历史。宿主通过统一 AgentHost 提供模型能力，核心不依赖外部业务 service。
 
 详细说明按主题维护在同名目录中，都是本 record 的附属部分，共享同一事项范围与生命周期。字段、协议和行为只在对应专题维护，未实现设计明确标注。
 
@@ -76,13 +76,17 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 系统上下文核心支持完整基线／增量，正式 Responses 的工具新增及指令更新已联调；工具删除／同名替换在适配入口明确拒绝，动态工具开放前仍须解决。固定集合上的 Bash 新增不涉及删除／替换，不为此回退全量工具声明；具体边界见[正式生成接线](2026-09-28-agent-chat/model-types.md#正式生成接线与适配边界2026-10-18)。
 
-下一批进入 [Glob／Grep](../../plans/2026-09-28-agent-chat/02g-filesystem-tools.md)，之后依次为问答／权限、Todo、WebFetch、后台三工具、Skill；其中 Todo／Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环。动态工具删除／替换和其他 provider 联调作为独立限制跟踪，不静默改成全量工具重注入。
+2026-10-25 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路和产品窗口验收。旧会话只追加两个工具与对应规则，既有记录前缀不变；真实搜索、无匹配、非法模式及重启不重放证据见 [搜索交付结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。02g 临时计划已删除。
+
+下一批进入 [AskUserQuestion／RequestPermission](../../plans/2026-09-28-agent-chat/02f-interactions.md)，之后依次为 Todo、WebFetch、后台三工具、Skill；其中 Todo／Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环。动态工具删除／替换和其他 provider 联调作为独立限制跟踪，不静默改成全量工具重注入。
 
 PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历史、Markdown／完整工具卡片、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
 
 ## Outcome
 
-2026-10-25 前台 Bash 已完成代码接入、自动／真实模型与产品窗口验收；迁移边界、测试和窗口／重启证据见 [Bash 结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。第一阶段计划已收尾，下一批为 Glob／Grep。没有引入后台接口、执行策略 UI、RequestPermission 或 preset。
+2026-10-25 Glob／Grep 整批已完成实现与验收；旧版搜索语义、当前输出／取消边界、旧会话增量、正式链路及窗口／重启证据见 [搜索结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。下一批为问答／权限。
+
+2026-10-25 前台 Bash 已完成代码接入、自动／真实模型与产品窗口验收；迁移边界、测试和窗口／重启证据见 [Bash 结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。第一阶段计划已收尾。没有引入后台接口、执行策略 UI、RequestPermission 或 preset。
 
 2026-10-18 至 2026-10-19 已完成系统上下文记录／恢复、基础提示词片段装配和生产文件工具闭环。默认 cwd 为 `<root>/quick-chat/<session-id>/`，指令和工具声明经已提交的有序系统记录进入模型；正式 addon／Gateway／worker／真实模型和 Quick Chat 产品入口均有验收。工具删除／同名替换在核心可记录、恢复，但当前模型适配明确拒绝，未以全量重写降级。已提交并合入 develop 的结果、验证范围与迁移差异统一维护在[本批交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。
 

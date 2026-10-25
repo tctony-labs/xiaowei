@@ -8,6 +8,7 @@ pub(crate) fn context(session: &Session) -> Result<SystemContext, AgentError> {
         if let Some(bash) = xw_agent_runtime::tools::bash::declaration() {
             tools.push(bash);
         }
+        tools.extend(xw_agent_runtime::tools::search_declarations());
         tools
     } else {
         vec![]

@@ -338,8 +338,12 @@ async fn drive(
                     let tools = tools.clone();
                     let name = name.clone();
                     let arguments = intent.arguments_json.clone();
+                    let cancellation = cancellation.clone();
                     tokio::task::spawn_blocking(move || {
-                        tools.lock().unwrap().execute(&name, &arguments)
+                        tools
+                            .lock()
+                            .unwrap()
+                            .execute_cancellable(&name, &arguments, &cancellation)
                     })
                     .await
                     .map_err(|_| AgentError::Internal)?
@@ -361,7 +365,9 @@ async fn drive(
                     Err(error) => (
                         if skipped {
                             domain::ToolStatus::Skipped
-                        } else if name == "Bash" && cancellation.is_cancelled() {
+                        } else if matches!(name.as_str(), "Bash" | "Glob" | "Grep")
+                            && cancellation.is_cancelled()
+                        {
                             domain::ToolStatus::Cancelled
                         } else {
                             domain::ToolStatus::Failed

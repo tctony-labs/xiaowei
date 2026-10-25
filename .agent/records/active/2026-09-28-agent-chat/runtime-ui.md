@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer、Read／Write／Edit 及 macOS 前台 Bash 已接入；前台 Bash 已完成窗口及重启验收，具体见[实施结果](implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。其他工具、交互及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash 已接入；前三批工具的窗口及重启验收见[实施结果](implementation-results.md)。其他工具、交互及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
 ## 当前执行
 

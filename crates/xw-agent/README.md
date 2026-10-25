@@ -21,8 +21,8 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。生产 `start_run` 已在生成前提交同步结果，`rebuild_context` 将独立系统记录按历史顺序投影进模型请求；跨 Run 无变化不追加，重开不重复基线。
 
-`build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和与实际传入声明对应的 Read／Write／Edit／Bash 使用规则，返回经过校验的 SystemContext；不会注册工具或改变执行权限。正文与工具 schema 分别维护，规则随工具增删一起经过已有差异／持久化入口。`tool_registry` 按实际 cwd 装配文件工具、macOS Bash 及环境片段，再用于生产模型请求。旧文件工具会话只追加 Bash 声明和 tool.Bash 规则，保留旧基线及文件工具 schema；未变化的后续 Run／重开不重复配置。
+`build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和与实际传入声明对应的 Read／Write／Edit／Bash／Glob／Grep 使用规则，返回经过校验的 SystemContext；不会注册工具或改变执行权限。正文与工具 schema 分别维护，规则随工具增删一起经过已有差异／持久化入口。`tool_registry` 按实际 cwd 装配文件工具、macOS Bash、Glob／Grep 及环境片段，再用于生产模型请求。新增工具只追加相应声明和 tool 规则，保留旧基线及已有 schema；未变化的后续 Run／重开不重复配置。
 
 创建持久会话时，默认使用 `<root>/quick-chat/<session-id>/`，可显式指定已有绝对目录。cwd 创建时写入 Header，重开保持稳定；无 cwd 的旧 Header 按固定自有目录回退而不改写。归档保留文件；删除只清理自有目录，外部 cwd 保留。无根目录的内存会话没有 cwd 时只提供文本聊天。
 
-工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集、文件原语及 Bash 的进程／沙箱生命周期。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止等待已启动的阻塞文件操作结算或异步 Bash 回收，余下调用补 skipped，不再生成；删除和关闭等待相同清理。Bash 保留真实退出结果与部分输出，取消显示 Cancelled，超时显示 Failed，普通非零退出仍显示 Completed。结果提交失败或 Bash 返回 ResultUnknown 时保留未结算意图，阻止普通新 Run，不自动重放。公共工具 Item 可由历史重建。
+工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集、文件原语及 Bash 的进程／沙箱生命周期。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止会向 Glob／Grep 传递取消并等待阻塞搜索退出，等待已开始的文件写入实际结算或异步 Bash 回收，余下调用补 skipped，不再生成；删除和关闭等待相同清理。Bash 保留真实退出结果与部分输出，取消显示 Cancelled，超时显示 Failed，普通非零退出仍显示 Completed。结果提交失败或 Bash 返回 ResultUnknown 时保留未结算意图，阻止普通新 Run，不自动重放。公共工具 Item 可由历史重建。

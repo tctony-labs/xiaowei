@@ -94,7 +94,7 @@ XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复�
 
 #### 正式生成接线与适配边界（2026-10-18）
 
-`tool_registry` 根据会话实际 cwd 装配 Read／Write／Edit、macOS Bash 声明、基础正文、对应工具规则及环境片段。生成前先提交独立系统记录，恢复得到按时间排列的 `AgentMessage::SystemContext { update }`；有检查点时由快照建立新基线。领域 JSON 将 update 嵌套保存，避免与消息角色的 type 标签冲突；PB codec 覆盖基线和增量往返。普通持久 Message 仍不能写入这一角色。
+`tool_registry` 根据会话实际 cwd 装配 Read／Write／Edit、macOS Bash、Glob／Grep 声明、基础正文、对应工具规则及环境片段。生成前先提交独立系统记录，恢复得到按时间排列的 `AgentMessage::SystemContext { update }`；有检查点时由快照建立新基线。领域 JSON 将 update 嵌套保存，避免与消息角色的 type 标签冲突；PB codec 覆盖基线和增量往返。普通持久 Message 仍不能写入这一角色。
 
 正式 LLM PB 增加 `ChatMessage.system_context`，worker 校验基线位置、具名片段和工具变更，并拒绝同时重复传入顶层 systemPrompt／tools。Responses、Completions 的适配开关由 worker 设置；Anthropic 的已知编码会移动增量位置，故与其他未验证 API 一样，遇到实际增量明确拒绝。各 API 的单次基线不受此门禁影响。Responses 的基线、工具新增、指令更新、无变化及重建基线已通过真实配置模型的五次正式 provider 调用；HTTP 捕获确认旧基线和新增项的历史位置。
 
