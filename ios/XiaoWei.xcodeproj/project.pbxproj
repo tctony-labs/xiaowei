@@ -1,0 +1,722 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0004AE28CCD6719506237010 /* ConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5ED683F1679F35945677BC /* ConnectionView.swift */; };
+		00992D87E2039B96EE82B935 /* MobileRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FA287BB048482EC41E4873 /* MobileRuntimeTests.swift */; };
+		03066C7E7AC8CAE9EC5919C8 /* XiaoweiMobile.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E6BA85E9456D4386F121232D /* XiaoweiMobile.framework */; };
+		19AE9191D28FA014D6F30378 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C39C30449E484A6685450BA6 /* Foundation.framework */; };
+		2C838357EF66CA12694416AF /* XiaoweiMobile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B43D61935124C0C45BB5CF /* XiaoweiMobile.swift */; };
+		2F4A027A79B07D2CAC4FE4E7 /* XiaoweiMobileFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = AB75760C7F828D17DE4C60FD /* XiaoweiMobileFFI.xcframework */; };
+		4A8CD3122E4765DF6B211382 /* XiaoweiMobile.h in Headers */ = {isa = PBXBuildFile; fileRef = 91F07A1AF5CDB407F860AE1F /* XiaoweiMobile.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		5B57B0B1897507FBA787F17C /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C39C30449E484A6685450BA6 /* Foundation.framework */; };
+		877504C33E91EABE810CB4FA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C39C30449E484A6685450BA6 /* Foundation.framework */; };
+		9207C700F5CC4A5561FBFE4D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8464EDA6B9894A25FB4A211A /* AppModel.swift */; };
+		C6542C45A140B3A05363F132 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C39C30449E484A6685450BA6 /* Foundation.framework */; };
+		D803041340D72B2E5BBE787D /* AppLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D11BF958B3D7C13531969EB /* AppLaunchTests.swift */; };
+		F2AD604BCC773846DF330ABD /* XiaoWeiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 091FADFD92F34125299ADA00 /* XiaoWeiApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		01D39CFE8EABD85AA0C5E3F9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3AC452F96B8DCEAFE8AB25C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48F0CCAC6EF16A9788C8BF24;
+			remoteInfo = XiaoWei;
+		};
+		956BA6A066FED8EEF3D40189 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3AC452F96B8DCEAFE8AB25C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 48F0CCAC6EF16A9788C8BF24;
+			remoteInfo = XiaoWei;
+		};
+		F863EA7AE35C5EE22A9E9EBA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3AC452F96B8DCEAFE8AB25C4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 083287EC5905A75C7AEB83A7;
+			remoteInfo = XiaoweiMobile;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		091FADFD92F34125299ADA00 /* XiaoWeiApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = XiaoWeiApp.swift; sourceTree = "<group>"; };
+		2D11BF958B3D7C13531969EB /* AppLaunchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppLaunchTests.swift; sourceTree = "<group>"; };
+		37269B5F8E17EB7882D84649 /* RuntimeTests-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "RuntimeTests-Info.plist"; sourceTree = "<group>"; };
+		44553F90E9CDE24E680EBB68 /* Debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		585BD11DC9EA446EE8A6EB5D /* Local.xcconfig.example */ = {isa = PBXFileReference; includeInIndex = 1; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		63FA287BB048482EC41E4873 /* MobileRuntimeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MobileRuntimeTests.swift; sourceTree = "<group>"; };
+		76EF3104F20B894098D4C667 /* XiaoWei.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = XiaoWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8464EDA6B9894A25FB4A211A /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		8E48C37BFB18114550FC6DE1 /* Release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		91F07A1AF5CDB407F860AE1F /* XiaoweiMobile.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = XiaoweiMobile.h; sourceTree = "<group>"; };
+		A9D646F08925CB5D41353DFA /* XiaoWeiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XiaoWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AACA948E325C8C80D8FC3DB7 /* XiaoWeiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XiaoWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB75760C7F828D17DE4C60FD /* XiaoweiMobileFFI.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; path = XiaoweiMobileFFI.xcframework; sourceTree = XIAOWEI_NATIVE_ROOT; };
+		B4B43D61935124C0C45BB5CF /* XiaoweiMobile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = XiaoweiMobile.swift; sourceTree = XIAOWEI_NATIVE_ROOT; };
+		C39C30449E484A6685450BA6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		DB5ED683F1679F35945677BC /* ConnectionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConnectionView.swift; sourceTree = "<group>"; };
+		E6BA85E9456D4386F121232D /* XiaoweiMobile.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = XiaoweiMobile.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB4613CA3EB20985287A7789 /* Base.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		29809B980CCA15EFDA0D3600 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5B57B0B1897507FBA787F17C /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A56A46842BB2C13B1A06585B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				19AE9191D28FA014D6F30378 /* Foundation.framework in Frameworks */,
+				03066C7E7AC8CAE9EC5919C8 /* XiaoweiMobile.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B72BD6FCEF5538655EA130EB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				877504C33E91EABE810CB4FA /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FEC74C8346902B238B839E5D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C6542C45A140B3A05363F132 /* Foundation.framework in Frameworks */,
+				2F4A027A79B07D2CAC4FE4E7 /* XiaoweiMobileFFI.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		47637DA987DDC2428AED5B9D /* XiaoweiMobile */ = {
+			isa = PBXGroup;
+			children = (
+				91F07A1AF5CDB407F860AE1F /* XiaoweiMobile.h */,
+			);
+			name = XiaoweiMobile;
+			path = XiaoweiMobile;
+			sourceTree = "<group>";
+		};
+		4FA68FCD424760E084C9A36B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EAEB2760BDD00D6304129516 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8A2164C88B839B56C7BEFE6A /* XiaoWeiTests */ = {
+			isa = PBXGroup;
+			children = (
+				63FA287BB048482EC41E4873 /* MobileRuntimeTests.swift */,
+			);
+			name = XiaoWeiTests;
+			path = XiaoWeiTests;
+			sourceTree = "<group>";
+		};
+		8E6CBB8C9252510E895E4666 /* XiaoWeiUITests */ = {
+			isa = PBXGroup;
+			children = (
+				2D11BF958B3D7C13531969EB /* AppLaunchTests.swift */,
+			);
+			name = XiaoWeiUITests;
+			path = XiaoWeiUITests;
+			sourceTree = "<group>";
+		};
+		A817D16CFA19ED3FC2A9BB55 = {
+			isa = PBXGroup;
+			children = (
+				B04CD21E096533F34EDBD9BD /* Products */,
+				4FA68FCD424760E084C9A36B /* Frameworks */,
+				ECE7EE35087E2A4443A826C9 /* Config */,
+				F9A86F1BC252BAB7B0AC5B40 /* XiaoWei */,
+				CC02637AB729C41E3D0C8BA4 /* Generated native dependencies */,
+				8A2164C88B839B56C7BEFE6A /* XiaoWeiTests */,
+				8E6CBB8C9252510E895E4666 /* XiaoWeiUITests */,
+				47637DA987DDC2428AED5B9D /* XiaoweiMobile */,
+			);
+			sourceTree = "<group>";
+		};
+		B04CD21E096533F34EDBD9BD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				76EF3104F20B894098D4C667 /* XiaoWei.app */,
+				E6BA85E9456D4386F121232D /* XiaoweiMobile.framework */,
+				AACA948E325C8C80D8FC3DB7 /* XiaoWeiTests.xctest */,
+				A9D646F08925CB5D41353DFA /* XiaoWeiUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BD2F44545012F7C0C0F02EAC /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				DB5ED683F1679F35945677BC /* ConnectionView.swift */,
+			);
+			name = Connection;
+			path = Connection;
+			sourceTree = "<group>";
+		};
+		C486FF66AE41BEA140E920CD /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				BD2F44545012F7C0C0F02EAC /* Connection */,
+			);
+			name = Features;
+			path = Features;
+			sourceTree = "<group>";
+		};
+		CC02637AB729C41E3D0C8BA4 /* Generated native dependencies */ = {
+			isa = PBXGroup;
+			children = (
+				B4B43D61935124C0C45BB5CF /* XiaoweiMobile.swift */,
+				AB75760C7F828D17DE4C60FD /* XiaoweiMobileFFI.xcframework */,
+			);
+			name = "Generated native dependencies";
+			sourceTree = "<group>";
+		};
+		EAEB2760BDD00D6304129516 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				C39C30449E484A6685450BA6 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		ECE7EE35087E2A4443A826C9 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				44553F90E9CDE24E680EBB68 /* Debug.xcconfig */,
+				8E48C37BFB18114550FC6DE1 /* Release.xcconfig */,
+				EB4613CA3EB20985287A7789 /* Base.xcconfig */,
+				585BD11DC9EA446EE8A6EB5D /* Local.xcconfig.example */,
+				37269B5F8E17EB7882D84649 /* RuntimeTests-Info.plist */,
+			);
+			name = Config;
+			path = Config;
+			sourceTree = "<group>";
+		};
+		F885F89C6E8D2765E20F75E0 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				091FADFD92F34125299ADA00 /* XiaoWeiApp.swift */,
+				8464EDA6B9894A25FB4A211A /* AppModel.swift */,
+			);
+			name = App;
+			path = App;
+			sourceTree = "<group>";
+		};
+		F9A86F1BC252BAB7B0AC5B40 /* XiaoWei */ = {
+			isa = PBXGroup;
+			children = (
+				F885F89C6E8D2765E20F75E0 /* App */,
+				C486FF66AE41BEA140E920CD /* Features */,
+			);
+			name = XiaoWei;
+			path = XiaoWei;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		EC9408E0F90DA5184515862D /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A8CD3122E4765DF6B211382 /* XiaoweiMobile.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		083287EC5905A75C7AEB83A7 /* XiaoweiMobile */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0F93DEF146386FF3C51989EE /* Build configuration list for PBXNativeTarget "XiaoweiMobile" */;
+			buildPhases = (
+				EC9408E0F90DA5184515862D /* Headers */,
+				841F4AD5CE0E4ABEB9DAB54B /* Sources */,
+				FEC74C8346902B238B839E5D /* Frameworks */,
+				7461378163AC180ABA0486C4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = XiaoweiMobile;
+			productName = XiaoweiMobile;
+			productReference = E6BA85E9456D4386F121232D /* XiaoweiMobile.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		48F0CCAC6EF16A9788C8BF24 /* XiaoWei */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E88A7FBF438F513348B7537 /* Build configuration list for PBXNativeTarget "XiaoWei" */;
+			buildPhases = (
+				2A49A6969C5B60C880BAC0A8 /* Sources */,
+				A56A46842BB2C13B1A06585B /* Frameworks */,
+				9CA80908926B8EF26CF152ED /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1205FD649CC2877C92A15D60 /* PBXTargetDependency */,
+			);
+			name = XiaoWei;
+			productName = XiaoWei;
+			productReference = 76EF3104F20B894098D4C667 /* XiaoWei.app */;
+			productType = "com.apple.product-type.application";
+		};
+		54AE3D29E14C730518536154 /* XiaoWeiUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 41665C08E5229136522BA239 /* Build configuration list for PBXNativeTarget "XiaoWeiUITests" */;
+			buildPhases = (
+				D9EE62D2D08CE5BFD40B97FA /* Sources */,
+				29809B980CCA15EFDA0D3600 /* Frameworks */,
+				C0035E4E2581A1FD168E4DCC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A6390DB2466A35B7E40F6885 /* PBXTargetDependency */,
+			);
+			name = XiaoWeiUITests;
+			productName = XiaoWeiUITests;
+			productReference = A9D646F08925CB5D41353DFA /* XiaoWeiUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		E4264D80EE48CC29189BEE28 /* XiaoWeiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A31CF1E14EDEBDE89F27E904 /* Build configuration list for PBXNativeTarget "XiaoWeiTests" */;
+			buildPhases = (
+				1405B768A810D0467199127D /* Sources */,
+				B72BD6FCEF5538655EA130EB /* Frameworks */,
+				837093B570F39BF2EC034690 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2C11A79FDEB5EC3FC5A7FBB /* PBXTargetDependency */,
+			);
+			name = XiaoWeiTests;
+			productName = XiaoWeiTests;
+			productReference = AACA948E325C8C80D8FC3DB7 /* XiaoWeiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3AC452F96B8DCEAFE8AB25C4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+			};
+			buildConfigurationList = D91B4FF0DCCF7EEC340F62C1 /* Build configuration list for PBXProject "XiaoWei" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A817D16CFA19ED3FC2A9BB55;
+			minimizedProjectReferenceProxies = 0;
+			preferredProjectObjectVersion = 100;
+			productRefGroup = B04CD21E096533F34EDBD9BD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				48F0CCAC6EF16A9788C8BF24 /* XiaoWei */,
+				083287EC5905A75C7AEB83A7 /* XiaoweiMobile */,
+				E4264D80EE48CC29189BEE28 /* XiaoWeiTests */,
+				54AE3D29E14C730518536154 /* XiaoWeiUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7461378163AC180ABA0486C4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		837093B570F39BF2EC034690 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9CA80908926B8EF26CF152ED /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0035E4E2581A1FD168E4DCC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1405B768A810D0467199127D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00992D87E2039B96EE82B935 /* MobileRuntimeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A49A6969C5B60C880BAC0A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F2AD604BCC773846DF330ABD /* XiaoWeiApp.swift in Sources */,
+				9207C700F5CC4A5561FBFE4D /* AppModel.swift in Sources */,
+				0004AE28CCD6719506237010 /* ConnectionView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		841F4AD5CE0E4ABEB9DAB54B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C838357EF66CA12694416AF /* XiaoweiMobile.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9EE62D2D08CE5BFD40B97FA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D803041340D72B2E5BBE787D /* AppLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1205FD649CC2877C92A15D60 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = XiaoweiMobile;
+			target = 083287EC5905A75C7AEB83A7 /* XiaoweiMobile */;
+			targetProxy = F863EA7AE35C5EE22A9E9EBA /* PBXContainerItemProxy */;
+		};
+		A6390DB2466A35B7E40F6885 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = XiaoWei;
+			target = 48F0CCAC6EF16A9788C8BF24 /* XiaoWei */;
+			targetProxy = 01D39CFE8EABD85AA0C5E3F9 /* PBXContainerItemProxy */;
+		};
+		B2C11A79FDEB5EC3FC5A7FBB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = XiaoWei;
+			target = 48F0CCAC6EF16A9788C8BF24 /* XiaoWei */;
+			targetProxy = 956BA6A066FED8EEF3D40189 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		029017363C6A4FF7A59839CB /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8E48C37BFB18114550FC6DE1 /* Release.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		05E0063A5EE5D4A06F3D37E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RuntimeTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/XiaoWei.app/XiaoWei";
+				TEST_TARGET_NAME = XiaoWei;
+			};
+			name = Debug;
+		};
+		0DD9ACA248E5B34E7FC6B94F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 44553F90E9CDE24E680EBB68 /* Debug.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		7D93FD2FEB26942C940B5966 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/XiaoWei.app/XiaoWei";
+				TEST_TARGET_NAME = XiaoWei;
+			};
+			name = Release;
+		};
+		ADCF7F52B6F30F884C909B9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).mobile";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = "$(inherited)";
+			};
+			name = Release;
+		};
+		B346BA2862BAA0C725B68416 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				DEFINES_MODULE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).mobile";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = "$(inherited)";
+			};
+			name = Debug;
+		};
+		B535158EABE08CA96CBAB9D7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RuntimeTests-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "小微";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+			};
+			name = Debug;
+		};
+		CB9A595ADF82B14AB4135FF6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "小微";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+			};
+			name = Release;
+		};
+		D0DEE175F62B2815306A7750 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/RuntimeTests-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+				TEST_TARGET_NAME = XiaoWei;
+			};
+			name = Debug;
+		};
+		DAB5AD6E43877728F1C87D80 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-Wl,-fatal_warnings",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(XIAOWEI_APP_IDENTIFIER).uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = "$(inherited)";
+				TEST_TARGET_NAME = XiaoWei;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0F93DEF146386FF3C51989EE /* Build configuration list for PBXNativeTarget "XiaoweiMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ADCF7F52B6F30F884C909B9F /* Release */,
+				B346BA2862BAA0C725B68416 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		41665C08E5229136522BA239 /* Build configuration list for PBXNativeTarget "XiaoWeiUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DAB5AD6E43877728F1C87D80 /* Release */,
+				D0DEE175F62B2815306A7750 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7E88A7FBF438F513348B7537 /* Build configuration list for PBXNativeTarget "XiaoWei" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB9A595ADF82B14AB4135FF6 /* Release */,
+				B535158EABE08CA96CBAB9D7 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A31CF1E14EDEBDE89F27E904 /* Build configuration list for PBXNativeTarget "XiaoWeiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7D93FD2FEB26942C940B5966 /* Release */,
+				05E0063A5EE5D4A06F3D37E3 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D91B4FF0DCCF7EEC340F62C1 /* Build configuration list for PBXProject "XiaoWei" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0DD9ACA248E5B34E7FC6B94F /* Debug */,
+				029017363C6A4FF7A59839CB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3AC452F96B8DCEAFE8AB25C4 /* Project object */;
+}

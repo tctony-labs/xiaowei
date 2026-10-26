@@ -41,4 +41,4 @@ iOS arm64 真机与模拟器目标的 Rust 库交叉编译、Swift SDK 模块及
 
 当前接口、接入和工具命令已沉淀到包内文档，独立实施 Plan 收尾删除。此前的 proposed 主事项已由用户明确要求转入 active，后续进展以主 record 为准；此前前置切片没有启动或重启桌面／移动 App。
 
-尚未交付完整 iOS／Android App、Android ABI／JNA 平台验收、Keychain／Keystore、系统前后台产品行为或生成的移动业务消息包。宿主验证不代替上述平台验收；iOS 授权与同步的安全边界继续按主提案讨论。
+上述前置切片未交付完整 iOS／Android App、Android ABI／JNA 平台验收、Keychain／Keystore、系统前后台产品行为或生成的移动业务消息包。其宿主验证不代替平台验收；后续 iOS 工程与实际运行结果见主 record，授权与同步的安全边界继续按主事项讨论。

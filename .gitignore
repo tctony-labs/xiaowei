@@ -44,3 +44,7 @@ gateway/ts/dist/
 
 # Runtime server configuration
 server/config/server.yaml
+
+# Local iOS signing and Xcode user state
+ios/Config/Local.xcconfig
+ios/**/xcuserdata/

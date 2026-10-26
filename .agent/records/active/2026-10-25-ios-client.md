@@ -6,7 +6,7 @@
 
 用户无法让两台桌面设备同时在场，但可以携带手机。因此引入 iOS 客户端作为随身授权设备：手机先从首台已初始化客户端获得授权，以后由手机授权新电脑，不要求旧电脑同时参与。设备配对不能只按“两台桌面同时在线”设计。
 
-用户于 2026-10-25 明确要求启动本 record，随后确认采用 SwiftUI，并要求评估将 TS 的 xwapi 和 WebSocket 迁往 Rust，以便桌面与 iOS 共用。共享核心与移动 Rust 模块已按独立前置任务实施；2026-10-26 用户明确要求本事项进入 active 并拆分任务，开始按 record + Plans 推进完整 iOS 接入。移动端工程尚未创建。
+用户于 2026-10-25 明确要求启动本 record，随后确认采用 SwiftUI，并要求评估将 TS 的 xwapi 和 WebSocket 迁往 Rust，以便桌面与 iOS 共用。共享核心与移动 Rust 模块已按独立前置任务实施；2026-10-26 用户明确要求本事项进入 active 并拆分任务，开始按 record + Plans 推进完整 iOS 接入。iOS 工程与运行基线的结果见 Outcome。
 
 ## What
 
@@ -33,7 +33,7 @@
 
 ## How
 
-共享 Rust 核心及桌面接入已完成，验证结果见下述迁移方案。移动 Rust 功能模块与 Swift／Kotlin 绑定也已作为独立前置切片实现，当前行为见[模块文档](../../../crates/xiaowei-mobile/README.md)，决策与验证见[移动接入结果](2026-10-25-ios-client/mobile-module-interface.md)。完整移动工程、平台存储、设备配对及加密同步尚未实施。
+共享 Rust 核心及桌面接入已完成，验证结果见下述迁移方案。移动 Rust 功能模块与 Swift／Kotlin 绑定也已作为独立前置切片实现，当前行为见[模块文档](../../../crates/xiaowei-mobile/README.md)，决策与验证见[移动接入结果](2026-10-25-ios-client/mobile-module-interface.md)。[iOS App](../../../ios/README.md) 已接入最小连接与生命周期；产品账号、平台存储、设备配对及加密同步尚未实施。
 
 ### 现有基础与 React Native 的实际状态
 
@@ -56,9 +56,9 @@
 | 扫码与确认 | iOS 原生相机能力 | 处理相机权限、取消与返回前台，具体 API 随最低系统版本决定 |
 | 加密与配对 | 成熟协议与库，系统密码能力按协议适配 | CryptoKit 不等于完整配对协议；不自行拼装认证和密钥交换流程 |
 
-原生客户端无法直接复用 Electron main、Node WS 实现、React DOM 组件或 napi 入口。可共用的业务实现位于不依赖宿主的 xw-* 核心；桌面由现有 xiaowei-rust 接入，移动端已建立 xiaowei-mobile 组合能力并管理运行资源，其 ffi 子层生成 Swift／Kotlin 绑定。模块职责、统一 API 与验证入口维护在[包内文档](../../../crates/xiaowei-mobile/README.md)，本轮前置实现未建立完整移动工程。
+原生客户端无法直接复用 Electron main、Node WS 实现、React DOM 组件或 napi 入口。可共用的业务实现位于不依赖宿主的 xw-* 核心；桌面由现有 xiaowei-rust 接入，移动端由 xiaowei-mobile 组合能力并管理运行资源，其 ffi 子层生成 Swift／Kotlin 绑定。模块职责、统一 API 与验证入口维护在[包内文档](../../../crates/xiaowei-mobile/README.md)，iOS 宿主接入见 [iOS 开发与验证](../../../ios/docs/development.md)。
 
-移动 App 拟放仓库根 `ios/`，与 `desktop/`、`server/` 按宿主分开；共享功能继续放 `crates/xiaowei-mobile/`。首个切片先确定最低 iOS 版本、Swift／Xcode 基线、开发签名及验收设备，再建立最小 App 并完成平台运行验证。库验收的 iOS 15.0 测试目标不代表 App 最低系统版本已决定；App Store 发布不在首期范围。
+移动 App 位于仓库根 `ios/`，与 `desktop/`、`server/` 按宿主分开；共享功能继续放 `crates/xiaowei-mobile/`。01 按建议默认采用 iOS 17，并建立 Swift 6 严格并发、静态绑定 framework 与 Rust XCFramework 接入。打包、签名、系统生命周期及运行方式统一维护在 [iOS 开发说明](../../../ios/docs/development.md)，库检查的 iOS 15.0 不改变 App 基线；App Store 发布不在首期范围。
 
 ### xwapi 与 Account 的 Rust 迁移
 
@@ -76,14 +76,14 @@ Rust 业务核心可由 Swift 和 Android 共用，但需要显式的外部接�
 
 | 调用端 | 候选接入方式 | 需要承担的接入工作 |
 | --- | --- | --- |
-| Swift | UniFFI 生成 Swift／C FFI 绑定，链接 Rust 静态库 | 已验证 Swift 6 严格并发及库层 SDK 编译；正式 App 的 XCFramework、UI 与生命周期仍待接入 |
+| Swift | UniFFI 生成 Swift／C FFI 绑定，链接 Rust 静态库 | 已接入 iOS App 的静态 framework／XCFramework、最小 UI 与生命周期；运行范围及未验证边界见 Outcome |
 | Kotlin | UniFFI 生成 Kotlin 绑定，加载 Android Rust `.so` | 当前官方后端依赖 JNA；集成 NDK、目标 ABI、Gradle、协程和资源关闭 |
 | Java | 优先通过薄 Kotlin facade 调用相同绑定 | 对外提供 Java 易用的 callback／future，避免直接暴露 suspend；若要求纯 Java 则另外评估 JNI，不把 Java 视为官方 Kotlin 后端的同等直接支持 |
 | 桌面 TS | 既有 napi 薄适配 | 继续调用同一纯 Rust 核心，不为统一绑定而替换桌面本地通信 |
 
 移动功能模块组合 xw-api 网络与 account 会话模块的操作、结果和必要通知，管理自己的运行时与资源；FFI 仅适配该模块的公开 API。Rust 的泛型、借用、锁和内部 Tokio future 不原样暴露给 Swift／JVM；边界转换为受支持的数据类型和拥有明确生命周期的句柄。移动绑定不暴露 App 内部 Gateway 的 registry、owner 或调用上下文，业务消息仍以 proto 为唯一声明来源；具体接口与资源语义见[统一接口](../../../crates/xiaowei-mobile/docs/interfaces.md)，未来移动端自身的 Gateway 接入另按内部通信需求设计。
 
-绑定前置已验证下列库层语义，完整 App 仍需复核其平台行为：
+绑定前置已验证下列库层语义，App 的平台验证结果与边界另见 Outcome：
 
 - **异步与取消**：[UniFFI async 文档](https://mozilla.github.io/uniffi-rs/latest/futures.html)支持 Rust async 到 Swift async／Kotlin suspend 的映射，但明确要求库自行提供取消通道。将 Swift Task／Kotlin coroutine 取消桥接到 xwapi 自己的请求生命周期，并区分取消等待与已提交的远端副作用；网络核心所需 Tokio runtime 要独立管理，不能依赖 napi、桌面 Gateway 或仅依靠生成的异步语法。
 - **线程与事件流**：Rust 后台通知不直接更新 UI，由 Swift actor／Kotlin dispatcher 切回正确上下文；明确订阅关闭、队列上限及迟到回调处理。事件接口不会因使用绑定生成器就自动具有 AsyncStream／Flow 的完整语义。
@@ -92,7 +92,7 @@ Rust 业务核心可由 Swift 和 Android 共用，但需要显式的外部接�
 - **错误与拷贝成本**：预期错误使用结构化结果，panic 不作为业务错误跨语言传播；区分业务非零 code、传输失败与取消。字符串和字节缓冲可能经过复制，优先在 Rust 内完成网络收发与协议处理，外部传操作及批量结果，附件使用有界分块，避免每个 WS 帧跨 FFI 往返。
 - **交付与升级**：UniFFI 不代替跨平台编译和打包。固定生成器与运行库版本，绑定和 Rust 二进制同步交付；分别验证 iOS 架构／平台与 Android ABI 的加载、TLS、取消和关闭行为，不能以桌面构建通过推定移动端可用。
 
-最小跨端验证已按独立前置执行，Swift／Kotlin 均通过真实 fixture 请求、取消、状态与关闭，并覆盖账号检查点和凭据收取。UniFFI 已是本模块的实际绑定方案；完整 App 的前后台恢复、系统存储及 Android 平台加载仍需在各自工程接入时验收，不能用宿主验证替代。
+最小跨端验证已按独立前置执行，Swift／Kotlin 均通过真实 fixture 请求、取消、状态与关闭，并覆盖账号检查点和凭据收取。UniFFI 已是本模块的实际绑定方案；iOS 的前后台与网络基线另做实际平台验证，系统存储和 Android 平台加载仍待各自工程接入，不能用 macOS 宿主验证替代。
 
 ### 手机授权的目标流程
 
@@ -152,14 +152,30 @@ sequenceDiagram
 
 2026-10-26 用户明确要求本 record 从 proposed 进入 active。整体方向与首期完成标准沿用上述约定；未决的 App 配置、安全策略和跨服务器归属分别作为相关切片的前置决策，不因状态迁移而视为已经确定。
 
-剩余任务、依赖及各片验收统一维护在[实施顺序与任务拆分](../../plans/2026-10-25-ios-client/00-implementation-order.md)。下一片为 [01 iOS 工程与运行基线](../../plans/2026-10-25-ios-client/01-ios-app-baseline.md)，先将现有模块接入实际 iOS App，区分库编译、模拟器运行和真机运行三层结果。后续账号与平台存储、协议决策、密钥与配对、桌面和服务端接入、通用密文同步及整体验收依次按依赖推进；不重新实施已完成的 Rust 迁移与绑定。
+剩余任务、依赖及各片验收统一维护在[实施顺序与任务拆分](../../plans/2026-10-25-ios-client/00-implementation-order.md)。01 已按下述收窄后的真机验收范围完成；下一片是 02 Swift 契约、账号与平台登录态，开工前明确服务器入口、会话 Keychain 可访问条件及 SwiftProtobuf 版本，再展开实施 Plan。
 
-目前只创建任务索引与首片详细 Plan。其余切片开工前，在前置决策明确后再展开具体文件与步骤；完成一片立即回填结果并删除该片 Plan。协议设计可以先行对齐，但在算法、密钥生命周期和同步库边界明确前不实现配对或加密协议。
+后续账号与平台存储、协议决策、密钥与配对、桌面和服务端接入、通用密文同步及整体验收依次按依赖推进；不重新实施已完成的 Rust 迁移与绑定。协议设计可以先行对齐，但在算法、密钥生命周期和同步库边界明确前不实现配对或加密协议。
 
 ## Outcome
 
 已交付的前置成果为纯 Rust xw-api 及 account 会话模块、桌面既有 Gateway／napi 接入、xiaowei-mobile 功能模块与 Swift／Kotlin 绑定。迁移与验证证据分别见[客户端 Rust 迁移](2026-10-25-ios-client/client-rust-migration.md#outcome)和[移动接入结果](2026-10-25-ios-client/mobile-module-interface.md#outcome)。
 
-iOS 现有验证仅覆盖 arm64 真机／模拟器目标的 Rust 库交叉编译、Swift SDK 编译与实际链接；请求、WS、取消和关闭的跨语言运行测试在 macOS 命令行程序中完成。尚未在 iPhone 或 iOS 模拟器中安装、启动或运行 App，不能记为平台运行验收通过。
+2026-10-26 按用户要求执行 br-merge：前置模块、record 状态迁移与初始任务计划提交为 `c0f3363`，合入含 WebSocket／账号修复的 develop，合并结果为 `1ea785d`；atlas 保留并恢复至该结果。01 基于该版本继续实施，本片代码与文档保持未提交。
 
-完整 iOS 工程、Keychain、前后台恢复、设备授权及通用加密同步仍待实施，属于本 active 事项的剩余范围。Android App、收藏业务同步、上架与生产部署继续留在首期范围之外。
+### 01 iOS 工程与运行基线
+
+已交付原生 SwiftUI App、共享 scheme、静态 Swift 绑定 framework、Rust XCFramework 打包与统一准备／运行验证入口。AppModel 按同一串行任务链交接前台、后台及 shutdown，取消请求、停止订阅、等待 Rust 清理并隔离迟到结果；关闭后的客户端可以重建。当前说明见 [iOS 开发与验证](../../../ios/docs/development.md)，本片 Plan 已删除。
+
+用户于本轮明确允许跳过真机到 Mac 的局域网 fixture。因此本片真机范围收窄为签名／安装／启动、公开 HTTPS、前后台与停止后重建；隔离 HTTP／WS、取消、账号检查点和连接关闭仍由模拟器实际验证。真机局域网权限允许／拒绝、认证 WS 和实际请求取消没有通过验收，不能由模拟器结果替代。
+
+| 层次 | 实际结果与证据 |
+| --- | --- |
+| 构建与配置 | Xcode 26.3（17C529）、Swift 6.2.4、SDK 26.2；arm64 真机／模拟器 Debug 与 Release 构建通过，Release 产物不含 fixture-control、调试加载方法或本地网络测试 plist |
+| iOS 26.3.1 模拟器 | iPhone 16 Plus 实际安装／启动，1 个 UI 测试及 2 个宿主测试通过；UI 完成 3 次健康请求、3 次 WS 建连、前后台断开／重连及停止后重建，最终 0 个 WS；报告 `target/ios/runs/2026-10-26T04-25-23.824Z/` |
+| iOS 18.3.1 模拟器 | 同组 3 个测试与 fixture 断言通过；报告 `target/ios/runs/2026-10-26T04-26-51.275Z/` |
+| iOS 26.5 真机 | iPhone 15 Plus 经个人开发签名安装并运行；`--public-only` 的 UI 与宿主测试各 1 个通过，覆盖真实 Rust HTTPS、前后台、停止和重建；报告 `target/ios/runs/2026-10-26T04-24-56.197Z/` |
+| 原入口与仓库检查 | xiaowei-mobile Rust 测试、macOS Swift／Kotlin fixture、两个 iOS 15.0 库层编译／链接和完整 `just check` 通过；fixture 启动失败能传播错误并退出，无服务残留 |
+
+各运行报告包含源码基线与未提交内容哈希、实际工具链／destination、范围和安全断言，不保存凭据。模拟器与真机截图均已从实际 UI 测试核对。最低 iOS 17 当前没有安装 runtime，仅完成 deployment 编译基线，不宣称 17 已运行验证。
+
+Keychain、产品账号与重启恢复、设备授权及通用加密同步仍属于本 active 事项的剩余范围。Android App、收藏业务同步、上架与生产部署继续留在首期范围之外。

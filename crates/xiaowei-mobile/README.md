@@ -2,7 +2,7 @@
 
 iOS 与 Android 共用的 Rust 功能入口。当前组合 `xw-api` 的网络与账号会话能力，提供统一客户端、账号操作句柄、普通 API 调用、连接订阅、取消和关闭。模块负责运行时与资源生命周期；可复用业务规则仍在 `xw-*`，不依赖 UniFFI、Swift、JVM、Gateway 或桌面。
 
-平台宿主经 [`ffi/`](ffi/README.md) 使用生成的 Swift／Kotlin 绑定，自行维护产品登录态、系统存储、设备信息与平台生命周期。当前没有移动 App、Keychain／Keystore 接入或设备配对实现。
+平台宿主经 [`ffi/`](ffi/README.md) 使用生成的 Swift／Kotlin 绑定，自行维护产品登录态、系统存储、设备信息与平台生命周期。[iOS App](../../ios/README.md) 已接入最小连接与前后台生命周期；Keychain／Keystore、产品账号和设备配对尚未实现。
 
 ## 准备与验证
 

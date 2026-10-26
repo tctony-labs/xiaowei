@@ -43,6 +43,8 @@
 
 移动功能入口为 `xiaowei-mobile`，独立承担能力组合、运行时和资源生命周期；`xiaowei-mobile/ffi` 的 Cargo 包名为 `xiaowei-mobile-ffi`，只适配功能模块的公开 API 并生成 Swift／Kotlin 绑定。共享业务实现继续属于 xw-*，不依赖 UniFFI 或平台 UI；移动入口不经桌面 napi 或 Gateway 使用共享核心。
 
+[iOS App](../ios/README.md) 通过静态 Swift framework 消费同次生成的绑定和 Rust XCFramework。打开 Xcode 前执行 `node ios/scripts/prepare.mjs --configuration Debug`；该入口与独立库检查共用 SDK 构建规则，原生产物归 Cargo target_directory，不复制到 App 源目录。平台工程与运行验证见 [iOS 开发与验证](../ios/docs/development.md)。
+
 ## 目录与职责
 
 当前 npm 入口保留在所属模块的 `napi/` 下。常规业务聚合包没有额外的空转发 crate，直接依赖内部业务核心：

@@ -1,19 +1,106 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { connect } from "node:net";
 import { createInterface } from "node:readline";
 
-export async function createFixture(binary, now, businessCode) {
+async function within(promise, milliseconds, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function createFixture(binary, now, businessCode, options = {}) {
+  const listenHost = options.listenHost ?? "127.0.0.1";
+  const advertisedHost = options.advertisedHost ?? listenHost;
+  const controlPrefix = options.samples ? `/__test/${randomUUID()}` : null;
   let child;
+  let failed;
+  let publicUrl;
+  let completed = false;
+  let connections = 0;
   const counts = { health: 0, refresh: 0, user: 0, wsUser: 0, login: 0, logout: 0, never: 0 };
   const sockets = new Set();
-  const closed = new Map();
-  const disconnects = new Map();
-  for (const label of ["cancel", "close", "timeout"]) {
-    closed.set(label, new Promise((resolve) => disconnects.set(label, resolve)));
+  const webSockets = new Set();
+  const events = new Set();
+  const waiters = new Map();
+  for (const event of [
+    "request-cancel",
+    "request-close",
+    "request-timeout",
+    "closed-cancel",
+    "closed-close",
+    "closed-timeout",
+  ]) {
+    let resolve;
+    const promise = new Promise((finish) => {
+      resolve = finish;
+    });
+    waiters.set(event, { promise, resolve });
   }
+  const mark = (event) => {
+    events.add(event);
+    waiters.get(event)?.resolve();
+  };
+  const summary = () => ({
+    counts: { ...counts },
+    connections,
+    openWebSockets: webSockets.size,
+    events: [...events],
+    completed,
+    failed: Boolean(failed),
+  });
+  const ensureHealthy = () => {
+    if (failed) throw new Error(`Fixture request validation failed (${failed.name})`);
+  };
+  const assertComplete = async (kind = "runtime") => {
+    ensureHealthy();
+    if (kind === "runtime") {
+      await within(
+        Promise.all(
+          ["cancel", "close", "timeout"].map((label) => waiters.get(`closed-${label}`).promise),
+        ),
+        5000,
+        "cancelled sockets remained open",
+      );
+      assert.deepEqual(counts, {
+        health: 1,
+        refresh: 2,
+        user: 3,
+        wsUser: 1,
+        login: 1,
+        logout: 1,
+        never: 0,
+      });
+    } else if (kind === "ui") {
+      assert.deepEqual(counts, {
+        health: 3,
+        refresh: 0,
+        user: 0,
+        wsUser: 0,
+        login: 0,
+        logout: 0,
+        never: 0,
+      });
+      assert.ok(connections >= 3, "foreground resume or client recreation did not reconnect");
+    } else {
+      throw new Error("Unknown fixture scenario");
+    }
+    assert.equal(webSockets.size, 0, "client WebSocket remained open");
+    ensureHealthy();
+    completed = true;
+    return summary();
+  };
   const tokens = (index) => ({
     session_id: "fixture-session",
     access_token: `access_${index}`,
@@ -32,12 +119,44 @@ export async function createFixture(binary, now, businessCode) {
   };
   const server = createServer(async (request, response) => {
     try {
+      response.setHeader("content-type", "application/json");
+      response.setHeader("cache-control", "no-store");
+      const path = request.url;
+      if (controlPrefix && path.startsWith(`${controlPrefix}/`)) {
+        ensureHealthy();
+        assert.equal(request.method, "GET");
+        const command = path.slice(controlPrefix.length + 1);
+        if (command === "bootstrap") {
+          response.end(
+            JSON.stringify({
+              server: publicUrl,
+              samples: Object.fromEntries(
+                Object.entries(options.samples)
+                  .filter(([, value]) => Array.isArray(value))
+                  .map(([key, value]) => [key, Buffer.from(value).toString("base64")]),
+              ),
+            }),
+          );
+        } else if (command === "state") {
+          response.end(JSON.stringify(summary()));
+        } else if (command.startsWith("wait/")) {
+          const waiter = waiters.get(command.slice(5));
+          assert.ok(waiter, "Unknown fixture event");
+          await within(waiter.promise, 15_000, "fixture event did not arrive");
+          ensureHealthy();
+          response.end(JSON.stringify(summary()));
+        } else if (command === "complete" || command === "ui-complete") {
+          const kind = command === "complete" ? "runtime" : "ui";
+          response.end(JSON.stringify(await assertComplete(kind)));
+        } else {
+          throw new Error("Unknown fixture control request");
+        }
+        return;
+      }
       const chunks = [];
       for await (const chunk of request) chunks.push(chunk);
       const body = JSON.parse(Buffer.concat(chunks).toString() || "{}");
-      const path = request.url;
       assert.equal(request.method, "POST");
-      response.setHeader("content-type", "application/json");
       const reply = (data) => response.end(JSON.stringify({ code: 0, msg: "ok", data }));
       if (path === "/fixture/authenticate") {
         assert.match(request.headers.authorization, /^Bearer access_[01]$/);
@@ -46,8 +165,9 @@ export async function createFixture(binary, now, businessCode) {
         assert.equal(request.headers.authorization, undefined);
         const label = path.split("/")[1];
         if (["cancel", "close", "timeout"].includes(label)) {
-          response.on("close", () => disconnects.get(label)());
-          if (label !== "timeout") child.stdin.write(`${label}\n`);
+          response.on("close", () => mark(`closed-${label}`));
+          mark(`request-${label}`);
+          if (label !== "timeout") child?.stdin.write(`${label}\n`);
         } else if (label === "never") {
           counts.never += 1;
           reply({});
@@ -73,11 +193,13 @@ export async function createFixture(binary, now, businessCode) {
         assert.equal(body.password.password, " synthetic fixture password ");
         reply({ authenticated: { user: user(false), device, tokens: tokens(0) } });
       } else {
-        throw new Error(`Unexpected fixture route: ${path}`);
+        throw new Error("Unexpected fixture business route");
       }
     } catch (error) {
-      console.error(error);
-      response.destroy(error);
+      failed = error;
+      console.error(`[binding-fixture] request failed (${error.name})`);
+      response.statusCode = 500;
+      response.end(JSON.stringify({ error: "fixture validation failed" }));
       child?.kill("SIGTERM");
     }
   });
@@ -85,19 +207,42 @@ export async function createFixture(binary, now, businessCode) {
     sockets.add(socket);
     socket.once("close", () => sockets.delete(socket));
   });
-  server.listen(0, "127.0.0.1");
+  server.listen(0, listenHost);
   await once(server, "listening");
-  const url = `http://127.0.0.1:${server.address().port}`;
+  const port = server.address().port;
+  publicUrl = `http://${advertisedHost}:${port}`;
+  const internalHost = listenHost === "0.0.0.0" ? "127.0.0.1" : listenHost;
   const gateway = spawn(binary, [], {
-    env: { XIAOWEI_AUTH_FIXTURE_TARGET: url },
+    env: { XIAOWEI_AUTH_FIXTURE_TARGET: `http://${internalHost}:${port}` },
     stdio: ["pipe", "pipe", "inherit"],
   });
   const gatewayExit = once(gateway, "exit");
   const reader = createInterface({ input: gateway.stdout });
-  const [line] = await once(reader, "line");
-  reader.close();
-  const address = new URL(line);
+  let address;
+  try {
+    const [line] = await within(
+      Promise.race([
+        once(reader, "line"),
+        gatewayExit.then(() => {
+          throw new Error("Go fixture exited before becoming ready");
+        }),
+      ]),
+      15_000,
+      "Go fixture did not become ready",
+    );
+    address = new URL(line);
+  } catch (error) {
+    gateway.kill("SIGKILL");
+    await gatewayExit.catch(() => {});
+    await new Promise((resolve) => server.close(resolve));
+    throw error;
+  } finally {
+    reader.close();
+  }
   server.on("upgrade", (request, downstream, head) => {
+    connections += 1;
+    webSockets.add(downstream);
+    downstream.once("close", () => webSockets.delete(downstream));
     const upstream = connect(Number(address.port), address.hostname, () => {
       upstream.write(`${request.method} ${request.url} HTTP/1.1\r\n`);
       for (let index = 0; index < request.rawHeaders.length; index += 2) {
@@ -118,39 +263,36 @@ export async function createFixture(binary, now, businessCode) {
   });
 
   return {
-    url,
+    url: publicUrl,
+    controlUrl: controlPrefix ? publicUrl + controlPrefix : null,
+    summary,
+    assertComplete,
     async run(command, arguments_, env) {
       child = spawn(command, arguments_, { env, stdio: ["pipe", "inherit", "inherit"] });
-      const timer = setTimeout(() => child.kill("SIGKILL"), 45_000);
       try {
-        const [code, signal] = await once(child, "exit");
-        assert.equal(signal, null, "binding verification timed out or crashed");
+        const [code, signal] = await within(once(child, "exit"), 45_000, "binding test timed out");
+        assert.equal(signal, null, "binding verification crashed");
         assert.equal(code, 0, "binding verification failed");
-        await Promise.race([
-          Promise.all(closed.values()),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("cancelled sockets remained open")), 5000).unref(),
-          ),
-        ]);
-        assert.deepEqual(counts, {
-          health: 1,
-          refresh: 2,
-          user: 3,
-          wsUser: 1,
-          login: 1,
-          logout: 1,
-          never: 0,
-        });
+        await assertComplete();
       } finally {
-        clearTimeout(timer);
+        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
       }
     },
     async close() {
       for (const socket of sockets) socket.destroy();
       gateway.stdin.end();
-      const [code] = await gatewayExit;
+      let result;
+      try {
+        result = await within(gatewayExit, 5000, "Go fixture did not close");
+      } finally {
+        if (gateway.exitCode === null && gateway.signalCode === null) {
+          gateway.kill("SIGKILL");
+          await gatewayExit;
+        }
+        await new Promise((resolve) => server.close(resolve));
+      }
+      const [code] = result;
       assert.equal(code, 0, "Go fixture or race detector failed");
-      await new Promise((resolve) => server.close(resolve));
     },
   };
 }
