@@ -165,7 +165,7 @@ HTTP／WebSocket 接入层负责协议适配，账号规则在 `server/internal/
 
 服务端契约位于 `contracts/proto/xiaowei/server/`，桌面账号契约位于 `xiaowei/desktop/account.proto`；前者定义服务器接口，后者定义桌面产品登录态与展示消息，由 AccountService 适配，不互相 import。按现有生成与 typed client 流程接入；桌面复用 `services/account/`、Rust xw-api 和设置账号区域，preload 不新增业务接口。
 
-客户端 HTTP／WS 访问层归 `crates/xw-api/`，服务端 HTTP／WS 接口及认证连接接入归 `server/internal/httpapi/`，WS 协议实现放在其 `ws/` 子目录。App 内部 Gateway 通过桌面原生 owner 代理客户端 API，不持有服务器网络协议。迁移方案见 [客户端 Rust 迁移](../proposed/2026-10-25-ios-client/client-rust-migration.md)。不得未经设计新增 npm package 或 Rust crate。微信复用现有用户表和设备会话，不另建账号体系；部署继续复用 `server/deploy/`。
+客户端 HTTP／WS 访问层归 `crates/xw-api/`，服务端 HTTP／WS 接口及认证连接接入归 `server/internal/httpapi/`，WS 协议实现放在其 `ws/` 子目录。App 内部 Gateway 通过桌面原生 owner 代理客户端 API，不持有服务器网络协议。迁移方案见 [客户端 Rust 迁移](2026-10-25-ios-client/client-rust-migration.md)。不得未经设计新增 npm package 或 Rust crate。微信复用现有用户表和设备会话，不另建账号体系；部署继续复用 `server/deploy/`。
 
 时间、随机源和邮件投递在自动测试中可替换；事务、唯一约束和并发消费使用隔离真实 PostgreSQL 验证，不用内存假实现代替。自动测试不发送真实邮件；真实 SMTP 投递验收需要实际凭据及用户明确的发送指令。桌面现场验收遵守用户冷启动规则，生产登录默认由用户验证。
 
@@ -185,7 +185,7 @@ HTTP／WebSocket 接入层负责协议适配，账号规则在 `server/internal/
 
 已通过真实 PostgreSQL 的完整 `go test -race ./...`、WS 协议 race 测试、18 项 Rust 共享核心测试、完整 desktop 回归和最终 `just check`。Go 认证集成覆盖连接身份及会话隔离、凭据过期、数据库故障拒绝调用、Logout 响应先写出再关闭对应连接；Rust／Go 回归覆盖调用、服务端通知及响应流、取消和资源限制。桌面为 93 项 main、147 项 renderer 及其他原生／worker 链路，既有外部 live provider 测试按设计跳过。相关源码、fixture 构建路径及当前职责说明已同步，Go 源码无旧 xwapi 包或反向调用引用。未启动或重启其他工作区服务，未部署线上；代码未提交。
 
-2026-10-26 在用户启动的 Hermes 完成迁移清理及契约重组的现场收尾：08:12:44 重载本工作区后，正式原生模块加载、保存会话恢复、WS 建连与用户 HTTP 校验成功；08:13:10／08:13:15 通过实际账号管理界面完成线上／本地往返，线上刷新成功、两项保存会话保持，最终恢复本地选择。旧服务端的 Empty 类型声明与新版契约不同，相关方法在发送前回退 HTTP；未把该结果记作新版 WS 方法验收，未重启其他工作区服务或部署线上。Rebase 到 develop `efccd63` 后的自动回归与详细接入结果见[客户端迁移 Outcome](../proposed/2026-10-25-ios-client/client-rust-migration.md#outcome)。
+2026-10-26 在用户启动的 Hermes 完成迁移清理及契约重组的现场收尾：08:12:44 重载本工作区后，正式原生模块加载、保存会话恢复、WS 建连与用户 HTTP 校验成功；08:13:10／08:13:15 通过实际账号管理界面完成线上／本地往返，线上刷新成功、两项保存会话保持，最终恢复本地选择。旧服务端的 Empty 类型声明与新版契约不同，相关方法在发送前回退 HTTP；未把该结果记作新版 WS 方法验收，未重启其他工作区服务或部署线上。Rebase 到 develop `efccd63` 后的自动回归与详细接入结果见[客户端迁移 Outcome](2026-10-25-ios-client/client-rust-migration.md#outcome)。
 
 2026-10-18 切片 06D 已完成。`just check`、完整 `pnpm --dir desktop test` 通过，主进程回归含连接真实 WS fixture、刷新拒绝／过期、HTTP 回退及原权限检查；renderer 为 22 个文件、145 个测试。review 报告 `/tmp/review-server-account-management.md` 的 R001／R002 均已解决。14:49:51 经核实 cwd 与进程关系后通过 cmux 重载当前工作区客户端，真实启动日志先出现 WS connected，再通过 WS 调用一次 GetCurrentUser，code 为 0，没有前置 HTTP 用户校验。14:50:32／14:50:42 实际管理弹窗完成远程／本地往返切换，各自同样先建连再通过 WS 获取用户，均 code 0；两个已保存账号保持，最终恢复本轮开始时的本地选择。未读取真实凭据，未操作真实账号退出。06D Plan 已删除。
 

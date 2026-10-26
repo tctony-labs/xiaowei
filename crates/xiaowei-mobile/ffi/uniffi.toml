@@ -1,0 +1,7 @@
+[bindings.swift]
+module_name = "XiaoweiMobile"
+ffi_module_name = "XiaoweiMobileFFI"
+
+[bindings.kotlin]
+package_name = "xiaowei.mobile"
+cdylib_name = "xiaowei_mobile_ffi"

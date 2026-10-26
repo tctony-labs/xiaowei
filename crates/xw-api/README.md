@@ -24,7 +24,7 @@
 
 桌面适配位于 `xiaowei-rust/napi/src/xwapi/` 和 `xiaowei-rust/napi/src/account/`，由 Rust 集成层创建具体 Client 并组合会话核心，TS 无需创建或传入 api 原生实例。同一个 GatewayEndpoint 注册 Auth／Health 和安全连接事件；AccountService 经固定 napi 方法调用会话核心。普通服务器调用读取 Rust 持有的当前宿主上下文，临时目标从独立宿主操作取得。凭据不广播到事件或 AccountSnapshot。隔离操作有独立的短生命周期核心，退出未激活服务器不会替换当前连接。TS AccountService／AccountStore 继续唯一维护桌面登录态与持久化。
 
-[account.proto](../../contracts/proto/xiaowei/desktop/account.proto) 仅是桌面内部的产品契约，使用自己的展示与表单消息；共享会话能力使用本 crate 的普通 Rust 接口，不定义 account-session 或 xwapi proto。认证消息和业务错误码来自服务器契约，调用选项为普通 Rust `RequestOptions`／`Transport`。移动端后续通过自己的 FFI 出口使用本 crate；移动绑定、系统存储和前后台行为尚未接入。HTTP／WS 的生产线协议说明见 [服务端 WebSocket](../../server/docs/websocket.md)。
+[account.proto](../../contracts/proto/xiaowei/desktop/account.proto) 仅是桌面内部的产品契约，使用自己的展示与表单消息；共享会话能力使用本 crate 的普通 Rust 接口，不定义 account-session 或 xwapi proto。认证消息和业务错误码来自服务器契约，调用选项为普通 Rust `RequestOptions`／`Transport`。移动端由 [xiaowei-mobile](../xiaowei-mobile/README.md) 组合本 crate，通过其 ffi 子层提供 Swift／Kotlin 绑定；实际 App、系统存储和平台前后台行为仍待接入。HTTP／WS 的生产线协议说明见 [服务端 WebSocket](../../server/docs/websocket.md)。
 
 ```sh
 cargo test --locked -p xw-api

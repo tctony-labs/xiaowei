@@ -11,6 +11,7 @@
 | [xw-clipboard](xw-clipboard/) | 本地剪贴板业务核心 |
 | [xw-storage](xw-storage/README.md) | 存储、设置核心 |
 | [xiaowei-rust](xiaowei-rust/README.md) | Storage／Clipboard／Search／Platform／xwapi／Account 聚合 napi 入口 |
+| [xiaowei-mobile](xiaowei-mobile/README.md) | iOS／Android 共用的 Rust 功能入口、网络与账号操作、运行资源和 UniFFI 绑定 |
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
 | [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |
 | [xw-agent](xw-agent/README.md) | 传输无关的 Agent App Server、SQLite 会话目录、投影与业务恢复 |
@@ -39,6 +40,8 @@
 - `xw-*`：供其他 Rust 包使用的业务实现、支撑模块或通用能力，不由主 App 直接依赖，例如 `xw-app`、`xw-bookmark`、`xw-platform`。
 
 内部 crate 的目录与 Cargo 包名一致；`napi/` 目录中的 Cargo 包使用所属入口名加 `-napi`。App 通过 `xiaowei-*` 的公开接口使用能力，功能入口依赖 `xw-*`，业务实现与支撑模块不反向依赖 App 或功能入口。`xw-platform` 是通用平台能力，任意有需要的 Rust 模块均可直接依赖。
+
+移动功能入口为 `xiaowei-mobile`，独立承担能力组合、运行时和资源生命周期；`xiaowei-mobile/ffi` 的 Cargo 包名为 `xiaowei-mobile-ffi`，只适配功能模块的公开 API 并生成 Swift／Kotlin 绑定。共享业务实现继续属于 xw-*，不依赖 UniFFI 或平台 UI；移动入口不经桌面 napi 或 Gateway 使用共享核心。
 
 ## 目录与职责
 
@@ -79,7 +82,7 @@ Electron 主进程依赖 npm 入口包，由 preload 向 renderer 暴露受限 A
 
 ## 两套 workspace
 
-Cargo workspace 通过 `crates/xw-*` 纳入内部核心，显式登记 Agent 集成入口和两个 `napi` 子 crate；新增模块时在根 `Cargo.toml` 中登记相应路径。pnpm workspace 通过 `crates/*/napi` 纳入含有 `package.json` 的 napi 入口目录，统一管理依赖和锁文件。
+Cargo workspace 通过 `crates/xw-*` 纳入内部核心，显式登记 Agent、移动功能入口及其绑定 crate 和两个 `napi` 子 crate；新增模块时在根 `Cargo.toml` 中登记相应路径。pnpm workspace 通过 `crates/*/napi` 纳入含有 `package.json` 的 napi 入口目录，统一管理依赖和锁文件；移动功能模块不新增 npm 入口。
 
 Electron 通过 `workspace:*` 引用本地 npm 入口包，当前为 `"xiaowei-rust": "workspace:*"` 与 `"xiaowei-agent": "workspace:*"`。pnpm workspace 不递归纳入 `napi/npm/*` 平台包，也不在安装时自动编译 Rust。具体工作区成员以根目录配置为准。
 
