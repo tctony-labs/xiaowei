@@ -1,57 +1,17 @@
-import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { buildTargets, generateSwift, run, targetDirectory } from "./ios-build.mjs";
 
-const execute = promisify(execFile);
-const root = fileURLToPath(new URL("../../../../", import.meta.url));
+const target = await targetDirectory();
+const generated = join(target, "mobile-bindings/ios-generated");
+await generateSwift(target, generated);
 
-async function run(command, arguments_, env = process.env) {
-  const result = await execute(command, arguments_, {
-    cwd: root,
-    env,
-    timeout: 300_000,
-    maxBuffer: 8 * 1024 * 1024,
-  });
-  if (result.stderr) process.stderr.write(result.stderr);
-  return result.stdout.trim();
-}
-
-const metadata = JSON.parse(await run("cargo", ["metadata", "--format-version", "1", "--no-deps"]));
-const targetDirectory = metadata.target_directory;
-const generated = join(targetDirectory, "mobile-bindings/ios-generated");
-await mkdir(generated, { recursive: true });
-await run("cargo", ["build", "--locked", "-p", "xiaowei-mobile-ffi", "--features", "bindgen"]);
-await run("cargo", ["build", "--locked", "-p", "xiaowei-mobile-ffi", "--lib"]);
-await run(join(targetDirectory, "debug/generate-mobile-bindings"), [
-  "generate",
-  join(targetDirectory, "debug/libxiaowei_mobile_ffi.dylib"),
-  "--language",
-  "swift",
-  "--out-dir",
-  generated,
-  "--no-format",
-]);
-
-// A library verification target; the eventual application's deployment policy is separate.
-const deploymentTarget = "15.0";
-for (const [sdk, triple, target] of [
-  ["iphoneos", `arm64-apple-ios${deploymentTarget}`, "aarch64-apple-ios"],
-  ["iphonesimulator", `arm64-apple-ios${deploymentTarget}-simulator`, "aarch64-apple-ios-sim"],
-]) {
-  const sdkPath = await run("xcrun", ["--sdk", sdk, "--show-sdk-path"]);
-  const env = {
-    ...process.env,
-    SDKROOT: sdkPath,
-    IPHONEOS_DEPLOYMENT_TARGET: deploymentTarget,
-  };
-  await run(
-    "cargo",
-    ["build", "--locked", "-p", "xiaowei-mobile-ffi", "--lib", "--target", target],
-    env,
-  );
-  const output = join(targetDirectory, target, "mobile-swift");
+// Library verification does not choose the application's minimum supported iOS version.
+for (const { sdkPath, swiftTarget, rustTarget, library, env } of await buildTargets(
+  target,
+  "15.0",
+)) {
+  const output = join(target, rustTarget, "mobile-swift");
   await mkdir(output, { recursive: true });
   await run(
     "swiftc",
@@ -59,7 +19,7 @@ for (const [sdk, triple, target] of [
       "-sdk",
       sdkPath,
       "-target",
-      triple,
+      swiftTarget,
       "-swift-version",
       "6",
       "-strict-concurrency=complete",
@@ -76,7 +36,7 @@ for (const [sdk, triple, target] of [
       "-emit-module-path",
       join(output, "XiaoweiMobile.swiftmodule"),
       join(generated, "XiaoweiMobile.swift"),
-      join(targetDirectory, target, "debug/libxiaowei_mobile_ffi.a"),
+      library,
       "-framework",
       "Security",
       "-framework",
@@ -86,7 +46,7 @@ for (const [sdk, triple, target] of [
       "-o",
       join(output, "libXiaoweiMobile.dylib"),
     ],
-    env,
+    { env },
   );
-  console.log(`${target}: Rust static library and Swift SDK compilation/link passed`);
+  console.log(`${rustTarget}: Rust static library and Swift SDK compilation/link passed`);
 }

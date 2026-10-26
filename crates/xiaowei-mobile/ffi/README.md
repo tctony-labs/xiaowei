@@ -60,4 +60,23 @@ node crates/xiaowei-mobile/ffi/scripts/verify-ios.mjs
 
 该入口为真机与模拟器分别设置 SDKROOT 和测试用 iOS 15.0 deployment target，保证 Rust 的 C／汇编依赖与 Swift 使用一致的 SDK 和版本；Swift 严格并发检查及 linker warnings 均作为失败处理。此配置只用于库验收，不代替正式 App 的最低系统版本决定。
 
-iOS 使用各自 target 下的 `libxiaowei_mobile_ffi.a` 与同次生成的 Swift／C 绑定；正式工程接入时再组合 XCFramework、确定最低系统版本及签名。Android 接入时为目标 ABI 构建 `.so` 并验证 JNA 加载与平台生命周期。macOS 的 Kotlin/JVM 成功不表示 Android 已验收，静态库与 SDK 编译不表示移动 App 已完成真机验收。
+iOS App 的打包入口见下节。Android 接入时为目标 ABI 构建 `.so` 并验证 JNA 加载与平台生命周期。macOS 的 Kotlin/JVM 成功不表示 Android 已验收，静态库与 SDK 编译不表示移动 App 已完成真机验收。
+
+## iOS App 打包
+
+根 [ios/](../../../ios/README.md) 消费 Rust 静态 XCFramework 与同次生成的 Swift／C 绑定。App 开发先使用其准备入口，由 `ios/Config/Base.xcconfig` 传入最低系统版本：
+
+```sh
+node ios/scripts/prepare.mjs --configuration Debug
+```
+
+FFI 层也提供独立打包命令，必须显式指定 deployment target：
+
+```sh
+node crates/xiaowei-mobile/ffi/scripts/build-ios.mjs \
+  --deployment-target 17.0 --configuration Debug
+```
+
+支持 Debug／Release，输出到 Cargo metadata 的 target_directory 下的 `mobile-ios/<debug|release>/`，尊重 `CARGO_TARGET_DIR`。arm64 真机与 arm64 模拟器分别设置 SDKROOT 后构建，组合为不同平台的 `XiaoweiMobileFFI.xcframework`，不能用 lipo 混成同一平台。Headers 中保留生成的 C 头与标准 `module.modulemap`；Swift module 为 XiaoweiMobile。
+
+`build-ios` 与原 `verify-ios` 共用底层生成／SDK 构建规则。前者交付 App 原生产物，后者保留独立 iOS 15.0 库检查；两者均不能替代实际 App 安装与运行。iOS 工程、签名、设备 fixture 与运行验证见 [iOS 开发与验证](../../../ios/docs/development.md)。
