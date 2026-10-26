@@ -47,8 +47,10 @@ export function AgentMessage({
 
   if (message.role === "user") {
     return (
-      <div className="agent-message">
-        <p className="whitespace-pre-wrap break-words">{message.text}</p>
+      <div className="agent-message items-end">
+        <p className="max-w-full rounded-xl bg-hover px-3 py-2 whitespace-pre-wrap break-words">
+          {message.text}
+        </p>
         <div className="agent-message-actions">
           <AgentCopyButton text={message.text ?? ""} label="复制消息" onCopy={onCopy} />
           <AgentMessageTime timestampMs={message.timestampMs} />

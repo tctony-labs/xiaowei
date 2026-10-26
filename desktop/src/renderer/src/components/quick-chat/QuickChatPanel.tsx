@@ -298,7 +298,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                       aria-label={message.role === "user" ? "用户消息" : "助手消息"}
                       className={
                         message.role === "user"
-                          ? "ml-auto max-w-[85%] rounded-xl bg-hover px-3 py-2 text-sm text-ink"
+                          ? "ml-auto max-w-[85%] text-sm text-ink"
                           : "text-sm leading-6 text-ink"
                       }
                     >
