@@ -3,11 +3,13 @@ import { EventEmitter } from "node:events";
 import { createRequire } from "node:module";
 import { mock, type TestContext, test } from "node:test";
 import type { BrowserWindow } from "electron";
+import { createFocusSession } from "../../src/main/windows/focus-session";
 import { createOrdinaryWindows } from "../../src/main/windows/ordinary-windows";
 
 const require = createRequire(new URL("../../package.json", import.meta.url));
 let window: FakeWindow;
 let applicationActive = false;
+let foreground = process.pid;
 
 class FakeWindow extends EventEmitter {
   alwaysOnTop: boolean;
@@ -21,7 +23,7 @@ class FakeWindow extends EventEmitter {
     isDevToolsOpened: () => false,
   };
 
-  constructor(options: { alwaysOnTop?: boolean } = {}) {
+  constructor(private readonly options: { alwaysOnTop?: boolean; type?: string } = {}) {
     super();
     this.alwaysOnTop = options.alwaysOnTop ?? false;
     window = this;
@@ -66,6 +68,8 @@ class FakeWindow extends EventEmitter {
     this.show();
   }
   focus() {
+    // Electron's macOS panels take key focus without activating their application.
+    if (process.platform !== "darwin" || this.options.type !== "panel") foreground = process.pid;
     applicationActive = true;
     this.focused = true;
     this.emit("focus");
@@ -87,7 +91,13 @@ class FakeWindow extends EventEmitter {
 const display = { id: 1, workArea: { x: 0, y: 0, width: 1440, height: 900 } };
 mock.module(require.resolve("electron"), {
   exports: {
-    app: { isPackaged: true },
+    app: {
+      isPackaged: true,
+      focus() {
+        applicationActive = true;
+        foreground = process.pid;
+      },
+    },
     BrowserWindow: FakeWindow,
     screen: {
       getCursorScreenPoint: () => ({ x: 0, y: 0 }),
@@ -182,8 +192,63 @@ test("Launcher starts hidden on macOS; repeated Tray calls preserve presentation
   launcher.prepareQuit();
 });
 
+test("macOS shortcut toggles take input focus without activating background settings", {
+  skip: process.platform !== "darwin",
+}, async () => {
+  const sourceProcess = process.pid + 1;
+  applicationActive = false;
+  foreground = sourceProcess;
+  let restores = 0;
+  let releases = 0;
+  const launcher = createLauncherWindow({
+    moduleDir: "/unused",
+    register() {},
+    opened() {},
+    focus: createFocusSession({
+      ownProcess: process.pid,
+      frontmostProcess: () => foreground,
+      async capture() {
+        return {
+          processId: sourceProcess,
+          async restore() {
+            restores++;
+            applicationActive = false;
+            foreground = sourceProcess;
+            return true;
+          },
+          async isFrontmost() {
+            return foreground === sourceProcess;
+          },
+          release() {
+            releases++;
+          },
+        };
+      },
+    }),
+  });
+  await launcher.create();
+
+  for (let invocation = 0; invocation < 3; invocation++) {
+    launcher.openMode("toggle");
+    await new Promise(setImmediate);
+    assert.equal(window.visible, true);
+    assert.equal(window.focused, true);
+    assert.equal(foreground, sourceProcess);
+
+    launcher.openMode("toggle");
+    await new Promise(setImmediate);
+    assert.equal(window.visible, false);
+    assert.equal(foreground, sourceProcess);
+    assert.equal(restores, invocation + 1);
+    assert.equal(releases, invocation + 1);
+  }
+
+  launcher.prepareQuit();
+});
+
 for (const selection of ["before-create", "before-ready", "shortcut", "renderer"]) {
   test(`Quick Chat (${selection}) survives blur and preserves its focus source`, async () => {
+    applicationActive = false;
     let restores = 0;
     let abandoned = 0;
     const launcher = createLauncherWindow({
@@ -220,6 +285,7 @@ for (const selection of ["before-create", "before-ready", "shortcut", "renderer"
     }
     await new Promise(setImmediate);
     assert.equal(window.alwaysOnTop, false);
+    assert.equal(applicationActive, true);
     window.focused = false;
     window.emit("blur");
     assert.equal(window.visible, true);
