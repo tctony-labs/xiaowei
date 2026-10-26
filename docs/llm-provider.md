@@ -34,7 +34,7 @@ Rust Agent 负责动态 system prompt、历史、工具声明与执行、权限�
 
 ## Gateway 接口
 
-字段定义与接口注释以 [llm.proto](../contracts/proto/xiaowei/llm.proto) 和 [model-settings.proto](../contracts/proto/xiaowei/model-settings.proto) 为准。
+字段定义与接口注释以 [llm.proto](../contracts/proto/xiaowei/llm/llm.proto) 和 [model-settings.proto](../contracts/proto/xiaowei/llm/model-settings.proto) 为准。
 
 | 接口／事件 | owner 与行为 |
 | --- | --- |

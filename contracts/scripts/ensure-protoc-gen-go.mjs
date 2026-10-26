@@ -4,9 +4,9 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const goMod = resolve(dirname(fileURLToPath(import.meta.url)), "../go/go.mod");
+const goMod = resolve(dirname(fileURLToPath(import.meta.url)), "../out/proto-server-go/go.mod");
 
-// protoc-gen-go ships in google.golang.org/protobuf, so the runtime required by contracts/go pins the
+// protoc-gen-go ships with google.golang.org/protobuf. The Go output package runtime pins the
 // generator too.
 export function ensureProtocGenGo() {
   const version = goProtobufVersion(goMod);

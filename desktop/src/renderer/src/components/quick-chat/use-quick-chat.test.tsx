@@ -1,4 +1,5 @@
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   act,
   cleanup,
@@ -9,13 +10,11 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
 import {
   AgentEventSchema,
   AgentModelConfigSchema,
   AgentRunStatus,
   CreateSessionRequestSchema,
-  EmptySchema,
   ModelDefaultsSchema,
   ModelInfoWarningCode,
   ModelSettings,
@@ -23,7 +22,8 @@ import {
   type ModelSettingsSnapshot,
   ModelSettingsSnapshotSchema,
   System,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test } from "vitest";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { createServices } from "../../services";
 import { AgentChatClient } from "../agent-chat/client";

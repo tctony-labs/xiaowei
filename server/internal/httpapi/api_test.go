@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	fixture "github.com/tctony-labs/xiaowei/contracts/go/gen/testing"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	fixture "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/testing"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"

@@ -1,4 +1,4 @@
-import { type AgentToolCall, AgentToolStatus } from "xiaowei-contracts";
+import { type AgentToolCall, AgentToolStatus } from "proto-desktop-ts";
 
 export type AgentToolIconKind =
   | "file"

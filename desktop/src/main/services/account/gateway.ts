@@ -1,5 +1,6 @@
 import { create, toBinary } from "@bufbuild/protobuf";
-import { Account, AccountChangedSchema, EmptySchema } from "xiaowei-contracts";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
+import { Account, AccountChangedSchema } from "proto-desktop-ts";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 import type { AccountService } from "./service";

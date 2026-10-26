@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import type { BrowserWindow } from "electron";
-import { Launcher, LauncherMode, UpdateLayoutRequestSchema } from "xiaowei-contracts";
+import { Launcher, LauncherMode, UpdateLayoutRequestSchema } from "proto-desktop-ts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { registerSearch } from "../../src/main/services/launcher/gateway";

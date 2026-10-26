@@ -11,10 +11,10 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	common "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestAuthJSONBoundaries(t *testing.T) {
@@ -49,7 +49,7 @@ func TestAuthJSONBoundaries(t *testing.T) {
 	for _, body := range []string{"", "{}"} {
 		r := httptest.NewRequest("POST", "/api/auth.Auth/Logout", strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		if !readAPIRequest(httptest.NewRecorder(), r, new(common.Empty), true) {
+		if !readAPIRequest(httptest.NewRecorder(), r, new(emptypb.Empty), true) {
 			t.Fatal("valid empty logout request rejected")
 		}
 	}

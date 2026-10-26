@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
 import { test } from "node:test";
-import { ErrorCode, LogoutResponseSchema } from "xiaowei-contracts";
-import { HttpRequestError, ServerHttpClient } from "../../src/main/services/xwapi/http";
-import { XwapiError, XwapiService } from "../../src/main/services/xwapi/service";
+import { setTimeout as delay } from "node:timers/promises";
+import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
+import { Health } from "proto-desktop-ts";
+import { bindClient, GatewayFailure } from "xiaowei-gateway";
+import { GatewayHost } from "xiaowei-gateway/host";
+import { initializeLogging, type NativeLogEntry } from "xiaowei-rust";
+import { authServer } from "./account-fixture";
+import { attachServerApiFixture } from "./server-api-fixture";
 
 const secrets = [
   "secret-password",
@@ -12,234 +17,79 @@ const secrets = [
   "private@example.com",
   "secret-message",
 ];
-const success = JSON.stringify({ code: 0, msg: secrets[4], data: {} });
 
-test("shared HTTP logging uses metadata for arbitrary routes and keeps secrets out at every level", async (t) => {
-  const cases = [
-    { name: "success", body: success, level: "debug", outcome: "success", code: 0 },
-    {
-      name: "rejected",
-      body: JSON.stringify({ code: 10100, msg: secrets[4] }),
-      level: "warn",
-      outcome: "business_error",
-      code: 10100,
-    },
-    {
-      name: "unavailable",
-      body: JSON.stringify({ code: ErrorCode.UNAVAILABLE, msg: secrets[4] }),
-      level: "error",
-      outcome: "business_error",
-      code: ErrorCode.UNAVAILABLE,
-    },
-    {
-      name: "internal",
-      body: JSON.stringify({ code: ErrorCode.INTERNAL_ERROR, msg: secrets[4] }),
-      level: "error",
-      outcome: "business_error",
-      code: ErrorCode.INTERNAL_ERROR,
-    },
-    { name: "http400", body: secrets.join(" "), status: 400, level: "warn", outcome: "http_error" },
-    {
-      name: "http500",
-      body: secrets.join(" "),
-      status: 500,
-      level: "error",
-      outcome: "http_error",
-    },
-    { name: "json", body: secrets.join(" "), level: "error", outcome: "protocol_error" },
-    { name: "null", body: "null", level: "error", outcome: "protocol_error" },
-    {
-      name: "envelope",
-      body: JSON.stringify({ foo: secrets }),
-      level: "error",
-      outcome: "protocol_error",
-    },
-    {
-      name: "missing data",
-      body: JSON.stringify({ code: 0, msg: secrets[4] }),
-      level: "error",
-      outcome: "protocol_error",
-      code: 0,
-    },
+test("real native HTTP logs retain severity, metadata and omit private content", async (t) => {
+  const entries: NativeLogEntry[] = [];
+  initializeLogging(true, (entry) => {
+    if (entry.target === "xw_api::http") entries.push(entry);
+  });
+  const server = await authServer();
+  const host = new GatewayHost();
+  const owner = await attachServerApiFixture(host, () => ({ server: server.url }));
+  const health = bindClient(Health, host.client({ caller: "logging", trusted: true }));
+  t.after(async () => {
+    await owner.close();
+    await server.close();
+  });
+  for (const item of [
+    { name: "success", body: { code: 0, msg: secrets[4], data: {} }, level: "debug", code: 0 },
+    { name: "business", body: { code: 10100, msg: secrets[4] }, level: "warn", code: 10100 },
+    { name: "unavailable", body: { code: 10008, msg: secrets[4] }, level: "error", code: 10008 },
+    { name: "internal", body: { code: 10009, msg: secrets[4] }, level: "error", code: 10009 },
+    { name: "http400", body: secrets, status: 400, level: "warn", code: 10008 },
+    { name: "http500", body: secrets, status: 500, level: "error", code: 10008 },
+    { name: "json", body: "invalid JSON", level: "error", code: 10008 },
+    { name: "null", body: "null", level: "error", code: 10008 },
+    { name: "envelope", body: { foo: secrets }, level: "error", code: 10008 },
+    { name: "missing data", body: { code: 0, msg: secrets[4] }, level: "error", code: 10008 },
     {
       name: "proto",
-      body: JSON.stringify({ code: 0, msg: secrets[4], data: { foo: secrets } }),
+      body: { code: 0, msg: secrets[4], data: { foo: secrets } },
       level: "error",
-      outcome: "protocol_error",
-      code: 0,
+      code: 10008,
     },
-    {
-      name: "large",
-      body: success + " ".repeat(65_537),
-      level: "error",
-      outcome: "response_too_large",
-    },
-    { name: "network", network: true, level: "error", outcome: "network_error" },
-    { name: "cancelled", cancelled: true, level: "debug", outcome: "cancelled" },
-  ];
-  for (const tc of cases) {
-    await t.test(tc.name, async (t) => {
-      const calls: { level: string; args: unknown[] }[] = [];
-      for (const level of ["debug", "info", "warn", "error"] as const) {
-        t.mock.method(console, level, (...args: unknown[]) => calls.push({ level, args }));
-      }
-      const caller = new AbortController();
-      if (tc.cancelled) caller.abort(new Error(secrets.join(" ")));
-      const client = new ServerHttpClient(async (_url, options) => {
-        assert.equal(calls.length, 1);
-        assert.equal(calls[0].level, "debug");
-        assert.ok(String(calls[0].args[0]).startsWith("HTTP request started "));
-        assert.equal(options?.redirect, "error");
-        assert.equal(options?.method, "POST");
-        assert.equal(new Headers(options?.headers).get("Authorization"), `Bearer ${secrets[1]}`);
-        if (tc.cancelled) options?.signal?.throwIfAborted();
-        if (tc.network) throw new Error(secrets.join(" "), { cause: secrets });
-        return new Response(tc.body, {
-          status: tc.status ?? 200,
-          headers: { "Set-Cookie": secrets[2] },
-        });
-      });
-      const request = client.request(
-        "https://secret-user:secret-url-password@example.test:10001/secret-base/" +
-          "secret-path?foo=secret-query#secret-fragment",
-        LogoutResponseSchema,
-        {
-          method: "POST",
-          logPath: "/api/another/:id",
-          signal: caller.signal,
-          timeoutMs: 15_000,
-          body: JSON.stringify({ foo: secrets }),
-          token: secrets[1],
-        },
-      );
-      if (tc.outcome === "success") {
-        assert.equal((await request).code, 0);
-      } else {
-        await assert.rejects(request, (error: unknown) => {
-          assert.ok(error instanceof HttpRequestError);
-          assert.equal(error.outcome, tc.outcome);
-          if (tc.outcome === "business_error") assert.equal(error.message, secrets[4]);
-          return true;
-        });
-      }
-      assert.equal(calls.length, 2);
-      assert.equal(calls[1].level, tc.level);
-      assert.ok(String(calls[1].args[0]).startsWith("HTTP request completed "));
-      const started = logFields(calls[0].args);
-      assert.deepEqual(started, {
-        method: "POST",
-        path: "/api/another/:id",
-        timeout_ms: 15_000,
-        server: "https://example.test:10001",
-      });
-      const metadata = logFields(calls[1].args);
-      assert.ok(!Object.hasOwn(metadata, "outcome"));
-      assert.equal(metadata.path, "/api/another/:id");
-      assert.equal(metadata.server, "https://example.test:10001");
-      assert.equal(typeof metadata.duration_ms, "number");
-      assert.ok(Number(metadata.duration_ms) >= 0);
-      assert.equal(metadata.code, tc.code);
-      assert.equal(
-        metadata.http_status,
-        tc.network || tc.cancelled ? undefined : (tc.status ?? 200),
-      );
-      if (tc.code === undefined) assert.ok(!Object.hasOwn(metadata, "code"));
-      const serialized = JSON.stringify(calls);
-      for (const secret of [
-        ...secrets,
-        "secret-user",
-        "secret-url-password",
-        "secret-base",
-        "secret-path",
-        "secret-query",
-        "secret-fragment",
-      ]) {
-        assert.ok(!serialized.includes(secret), "request metadata exposed private content");
-      }
+    { name: "large", body: " ".repeat(65537), level: "error", code: 10008 },
+  ]) {
+    await t.test(item.name, async () => {
+      entries.length = 0;
+      server.state.healthStatus = item.status ?? 200;
+      server.state.healthResponse =
+        typeof item.body === "string" ? item.body : JSON.stringify(item.body);
+      assert.equal((await health.check(create(EmptySchema))).code, item.code);
+      const deadline = Date.now() + 1000;
+      while (entries.length < 2 && Date.now() < deadline) await delay(1);
+      assert.equal(entries.length, 2);
+      assert.equal(entries[0].level, "debug");
+      assert.ok(entries[0].message.startsWith("HTTP request started "));
+      assert.ok(entries[0].message.includes("timeout_ms=15000"));
+      assert.equal(entries[1].level, item.level);
+      assert.ok(entries[1].message.includes("path=/api/common.Health/Check"));
+      assert.ok(entries[1].message.includes(`http_status=${item.status ?? 200}`));
+      assert.match(entries[1].message, /duration_ms=\d+/u);
+      for (const secret of secrets) assert.ok(!JSON.stringify(entries).includes(secret));
+      assert.ok(!JSON.stringify(entries).includes("/xiaowei"), "never log the user-supplied path");
     });
   }
-});
-
-test("a real stalled HTTP request times out with one safe error log", async (t) => {
-  const logs: unknown[][] = [];
-  t.mock.method(console, "debug", (...args: unknown[]) => logs.push(args));
-  t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
-  const server = createServer(() => {
-    assert.equal(logs.length, 1);
-    assert.ok(String(logs[0][0]).startsWith("HTTP request started "));
+  entries.length = 0;
+  let arrived!: () => void;
+  const started = new Promise<void>((resolve) => {
+    arrived = resolve;
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => {
-    server.closeAllConnections();
-    server.close();
-  });
-  const address = server.address();
-  assert.ok(address && typeof address !== "string");
-  await assert.rejects(
-    new ServerHttpClient().request(`http://127.0.0.1:${address.port}/never`, LogoutResponseSchema, {
-      method: "GET",
-      logPath: "/api/never",
-      signal: new AbortController().signal,
-      timeoutMs: 50,
-    }),
-    (error: unknown) => error instanceof HttpRequestError && error.outcome === "timeout",
+  server.state.beforeHealth = () => {
+    arrived();
+    return new Promise(() => {});
+  };
+  const request = health.check(create(EmptySchema));
+  const cancelled = assert.rejects(
+    request,
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "CANCELLED",
   );
-  assert.equal(logs.length, 2);
-  assert.ok(String(logs[1][0]).startsWith("HTTP request completed "));
-  const metadata = logFields(logs[1]);
-  assert.ok(!Object.hasOwn(metadata, "outcome"));
-  assert.ok(Number(metadata.duration_ms) >= 40 && Number(metadata.duration_ms) < 1000);
-  assert.ok(!Object.hasOwn(metadata, "code") && !Object.hasOwn(metadata, "http_status"));
+  await started;
+  request.cancel();
+  await cancelled;
+  const deadline = Date.now() + 1000;
+  while (entries.length < 2 && Date.now() < deadline) await delay(1);
+  assert.equal(entries.length, 2);
+  assert.equal(entries[1].level, "debug");
+  assert.match(entries[1].message, /duration_ms=\d+/u);
 });
-
-test("authentication wrappers preserve business messages and transport error mapping", async (t) => {
-  t.mock.method(console, "debug", () => {});
-  t.mock.method(console, "warn", () => {});
-  t.mock.method(console, "error", () => {});
-  const cases = [
-    { response: '{"code":10100,"msg":"邮箱或密码错误"}', code: 10100, msg: "邮箱或密码错误" },
-    { response: "null", code: ErrorCode.UNAVAILABLE, msg: "服务器返回了无效的响应" },
-    {
-      response: " ".repeat(65_537),
-      code: ErrorCode.UNAVAILABLE,
-      msg: "无法连接服务器，请稍后重试",
-    },
-    { response: "", status: 502, code: ErrorCode.UNAVAILABLE, msg: "无法连接服务器，请稍后重试" },
-  ];
-  for (const tc of cases) {
-    const client = new XwapiService(
-      async () => new Response(tc.response, { status: tc.status ?? 200 }),
-    );
-    await assert.rejects(
-      client.getCurrentUser({
-        server: "https://example.test",
-        signal: new AbortController().signal,
-        session: {
-          server: "https://example.test",
-          sessionId: "session",
-          accessToken: secrets[1],
-          accessExpiresAtMs: 2n ** 60n,
-        },
-      }),
-      (error: unknown) =>
-        error instanceof XwapiError && error.code === tc.code && error.message === tc.msg,
-    );
-  }
-});
-
-function logFields(args: unknown[]): Record<string, string | number> {
-  assert.equal(args.length, 1);
-  const text = args[0];
-  assert.equal(typeof text, "string");
-  assert.ok(!/[\r\n{}]/u.test(text as string), "HTTP logs must be single-line key=value text");
-  const fields: Record<string, string | number> = {};
-  for (const match of (text as string).matchAll(/([a-z_]+)=("(?:\\.|[^"])*"|\S+)/gu)) {
-    const value = match[2];
-    fields[match[1]] = value.startsWith('"')
-      ? JSON.parse(value)
-      : /^\d+$/u.test(value)
-        ? Number(value)
-        : value;
-  }
-  return fields;
-}

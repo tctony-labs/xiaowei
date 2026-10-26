@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   CaptureClipboardEntityRequestSchema,
   ClipboardBiz,
@@ -13,9 +14,8 @@ import {
   ClipboardResourceRequestSchema,
   CopyResourcePathRequestSchema,
   EditTextRequestSchema,
-  EmptySchema,
   System,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient, bindHandlers, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";

@@ -1,17 +1,17 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   type ConfiguredProvider,
   ConfiguredProviderSchema,
   DeleteProviderRequestSchema,
   DiscoverModelsRequestSchema,
-  EmptySchema,
   ModelInput,
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
   SaveProviderRequestSchema,
   UpdateModelDefaultsRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { ModelSettings, type ModelValues, type Provider } from "./ModelSettings";

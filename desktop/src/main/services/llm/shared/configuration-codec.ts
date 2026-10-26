@@ -4,7 +4,7 @@ import {
   ModelInput,
   ModelTransport,
   SetModelsRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { configureModels, invalidConfig, type ResolvedModelConfig } from "./models";
 
 export function encodeModels(entries: readonly ResolvedModelConfig[]) {

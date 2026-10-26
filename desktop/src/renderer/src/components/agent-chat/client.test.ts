@@ -1,6 +1,5 @@
 import { create } from "@bufbuild/protobuf";
 import { waitFor } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   AgentInteractionStatus,
   AgentModelConfigSchema,
@@ -9,7 +8,8 @@ import {
   AgentRunStatus,
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test, vi } from "vitest";
 import { createServices } from "../../services";
 import { AgentChatClient, agentChatClient } from "./client";
 import { agentIdentity } from "./identity";

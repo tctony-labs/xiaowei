@@ -7,7 +7,8 @@
 !server/internal/
 !server/internal/**
 !contracts/
-!contracts/go/
-!contracts/go/**
+!contracts/out/
+!contracts/out/proto-server-go/
+!contracts/out/proto-server-go/**
 **/.env
 **/.env.*

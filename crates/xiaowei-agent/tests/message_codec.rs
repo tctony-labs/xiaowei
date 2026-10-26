@@ -1,6 +1,6 @@
+use proto_llm_rs::xiaowei::llm as pb;
 use xiaowei_agent::message_codec::*;
 use xw_agent_types::{AgentMessage, ContentBlock, UsageCost};
-use xw_contracts::xiaowei::llm as pb;
 
 fn block(content: pb::content_block::Content) -> pb::ContentBlock {
     pb::ContentBlock {

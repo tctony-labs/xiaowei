@@ -3,9 +3,9 @@
 pub mod gateway;
 
 use crate::{invalid, sql as storage_pb, Database, Result};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
 
 const COLUMNS: &str = "id,kind,text,paths,width,height,created_at,last_used_at,
     use_count,favorite,remark,category_id,hash,updated_at";
@@ -151,14 +151,14 @@ impl ClipboardDao {
         })
     }
 
-    pub async fn touch(&self, request: pb::TouchClipboardEntityRequest) -> Result<Empty> {
+    pub async fn touch(&self, request: pb::TouchClipboardEntityRequest) -> Result<()> {
         self.database
             .execute(statement(
                 "UPDATE clipboard_items SET last_used_at=?1,use_count=use_count+1 WHERE id=?2",
                 vec![value(request.used_at_ms), value(as_id(request.id)?)],
             ))
             .await?;
-        Ok(Empty {})
+        Ok(())
     }
 
     pub async fn set_favorite(
@@ -182,7 +182,7 @@ impl ClipboardDao {
         })
     }
 
-    pub async fn set_remark(&self, request: pb::SetRemarkRequest) -> Result<Empty> {
+    pub async fn set_remark(&self, request: pb::SetRemarkRequest) -> Result<()> {
         if request.remark.len() > 65536 {
             return Err(invalid("Remark is too long"));
         }
@@ -203,10 +203,10 @@ impl ClipboardDao {
         if result.affected_rows == 0 {
             return Err(invalid("Clipboard item not found"));
         }
-        Ok(Empty {})
+        Ok(())
     }
 
-    pub async fn set_category(&self, request: pb::SetCategoryRequest) -> Result<Empty> {
+    pub async fn set_category(&self, request: pb::SetCategoryRequest) -> Result<()> {
         let result = self
             .database
             .execute(statement(
@@ -222,10 +222,10 @@ impl ClipboardDao {
         if result.affected_rows == 0 {
             return Err(invalid("Clipboard item not found"));
         }
-        Ok(Empty {})
+        Ok(())
     }
 
-    pub async fn categories(&self, _: Empty) -> Result<pb::ClipboardCategories> {
+    pub async fn categories(&self, _: ()) -> Result<pb::ClipboardCategories> {
         let result = self
             .database
             .query(statement(
@@ -286,7 +286,7 @@ impl ClipboardDao {
         )
     }
 
-    pub async fn delete_category(&self, request: pb::ClipboardCategoryRequest) -> Result<Empty> {
+    pub async fn delete_category(&self, request: pb::ClipboardCategoryRequest) -> Result<()> {
         let id = as_id(request.id)?;
         let result = self
             .database
@@ -306,7 +306,7 @@ impl ClipboardDao {
         if result.results[1].affected_rows == 0 {
             return Err(invalid("Category not found"));
         }
-        Ok(Empty {})
+        Ok(())
     }
 
     pub async fn edit_text(
@@ -424,7 +424,7 @@ impl ClipboardDao {
         deleted(&result.results[0].rows)
     }
 
-    pub async fn clear_history_batch(&self, _: Empty) -> Result<pb::DeletedClipboardEntities> {
+    pub async fn clear_history_batch(&self, _: ()) -> Result<pb::DeletedClipboardEntities> {
         let result = self
             .database
             .transaction(storage_pb::SqlTransaction {
@@ -552,7 +552,7 @@ impl IntoValue for &str {
 impl<T: IntoValue> IntoValue for Option<T> {
     fn into_value(self) -> storage_pb::sql_value::Kind {
         self.map(IntoValue::into_value)
-            .unwrap_or_else(|| storage_pb::sql_value::Kind::Null(Empty {}))
+            .unwrap_or_else(|| storage_pb::sql_value::Kind::Null(()))
     }
 }
 

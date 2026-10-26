@@ -1,4 +1,4 @@
-import type { ClipboardCategory as Category, ClipboardItem as Item } from "xiaowei-contracts";
+import type { ClipboardCategory as Category, ClipboardItem as Item } from "proto-desktop-ts";
 // UI view model; protocol IDs/timestamps are converted once at the page boundary.
 export type ClipboardItem = Omit<
   Item,

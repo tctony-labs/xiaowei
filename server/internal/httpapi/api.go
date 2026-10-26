@@ -6,21 +6,21 @@ import (
 	"strings"
 	"time"
 
-	common "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
-	"github.com/tctony-labs/xiaowei/server/internal/gateway"
+	"github.com/tctony-labs/xiaowei/server/internal/httpapi/ws"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type apiCall struct {
 	identity db.SessionUser
 	ip       string
-	peer     *gateway.Peer
+	peer     *ws.Peer
 }
 
 type apiHandler func(context.Context, proto.Message, apiCall) (proto.Message, error)
@@ -61,7 +61,7 @@ func NewAPI(checkDatabase func(context.Context) error, service *auth.Service,
 		{method: healthMethods.ByName("Check"), probe: true, handler: func(
 			context.Context, proto.Message, apiCall,
 		) (proto.Message, error) {
-			return &pb.BaseResponse{Msg: "成功", Data: new(common.Empty)}, nil
+			return &pb.BaseResponse{Msg: "成功", Data: new(emptypb.Empty)}, nil
 		}},
 		{method: healthMethods.ByName("Ready"), probe: true, handler: func(
 			ctx context.Context, _ proto.Message, _ apiCall,
@@ -73,7 +73,7 @@ func NewAPI(checkDatabase func(context.Context) error, service *auth.Service,
 					code: int32(pb.ErrorCode_ERROR_CODE_UNAVAILABLE), msg: "服务暂不可用",
 				}
 			}
-			return &pb.BaseResponse{Msg: "成功", Data: new(common.Empty)}, nil
+			return &pb.BaseResponse{Msg: "成功", Data: new(emptypb.Empty)}, nil
 		}},
 	}
 	api, err := newAPI(a, registrations)

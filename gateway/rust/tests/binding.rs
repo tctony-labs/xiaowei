@@ -5,18 +5,18 @@ mod fixture_bindings;
 #[test]
 fn gateway_bindings_match_contract_descriptor() {
     let mut descriptor =
-        prost_types::FileDescriptorSet::decode(xw_contracts::FILE_DESCRIPTOR_SET).unwrap();
+        prost_types::FileDescriptorSet::decode(proto_testing_rs::FILE_DESCRIPTOR_SET).unwrap();
     descriptor
         .file
         .retain(|file| file.package.as_deref() == Some("testing"));
     let types = [
         (
             "testing.Envelope".into(),
-            "xw_contracts::testing::Envelope".into(),
+            "proto_testing_rs::testing::Envelope".into(),
         ),
         (
             "testing.Changed".into(),
-            "xw_contracts::testing::Changed".into(),
+            "proto_testing_rs::testing::Changed".into(),
         ),
     ]
     .into_iter()

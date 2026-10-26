@@ -1,7 +1,7 @@
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { create } from "@bufbuild/protobuf";
-import { GenerateRequestSchema, Llm } from "xiaowei-contracts";
+import { GenerateRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachLlm } from "../../src/main/services/llm/host.ts";

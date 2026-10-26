@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import type { BrowserWindow } from "electron";
 import {
   ClipboardBiz,
   ClipboardItemRequestSchema,
   ClipboardResourceRequestSchema,
-  EmptySchema,
   Launcher,
   LauncherMode,
   LauncherQueryRequestSchema,
@@ -18,7 +18,7 @@ import {
   Theme,
   ToggleThemeResponseSchema,
   UpdateLayoutRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient, bindHandlers, createClient } from "xiaowei-gateway";
 import { createContext, GatewayHost } from "xiaowei-gateway/host";
 import { createIconResources } from "../../../desktop/src/main/resources/app-icons/protocol.js";

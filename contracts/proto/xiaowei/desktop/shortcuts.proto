@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package xiaowei.desktop.shortcuts;
+
+import "google/protobuf/empty.proto";
+import "xiaowei/desktop/settings.proto";
+
+// Host global shortcut registration, independent of settings persistence.
+service Shortcuts {
+  // Replace all bindings. Missing bindings disable actions. Unavailable or duplicate
+  // shortcuts fail; the host restores its previous registrations on failure.
+  rpc Apply(xiaowei.desktop.settings.ShortcutConfiguration) returns (google.protobuf.Empty);
+}

@@ -5,6 +5,9 @@ const runtime = require.resolve("./runtime.ts");
 
 function getSourcePath(file, workspaceRoot) {
   const source = relative(workspaceRoot, file).replaceAll("\\", "/");
+  // Contract packages contain workspace source despite their out/ location.
+  const packageSource = source.replace(/^contracts\/out\/proto-[a-z0-9-]+\//, "");
+
   if (
     !isAbsolute(file) ||
     !/\.[cm]?[jt]sx?$/.test(file) ||
@@ -12,7 +15,7 @@ function getSourcePath(file, workspaceRoot) {
     source.startsWith("../") ||
     file === runtime ||
     /(?:^|\/)(?:node_modules|dist|out|target|coverage|storybook-static|\.git|\.vite)(?:\/|$)/.test(
-      source,
+      packageSource,
     )
   )
     return null;

@@ -1,13 +1,14 @@
 //! One lazily initialized engine shared by lifecycle calls and Gateway handlers.
 
 use crate::{Action, SearchEngine};
+use proto_desktop_rs::xiaowei::desktop::{applications as app, host as system, search as pb};
 use std::sync::{Arc, Mutex, OnceLock};
-use xw_contracts::xiaowei::{app, common as c, search as pb, system};
 use xw_gateway::{ErrorCode, GatewayError, InvokeRegistration};
 
 use crate::gateway_binding::{
-    xiaowei_app_app_service as app_methods, xiaowei_search_search_service as methods,
-    xiaowei_system_system_service as system_methods,
+    xiaowei_desktop_applications_app_service as app_methods,
+    xiaowei_desktop_host_system_service as system_methods,
+    xiaowei_desktop_search_search_service as methods,
 };
 
 #[derive(Default)]
@@ -124,7 +125,7 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
             async move {
                 tokio::task::spawn_blocking(move || {
                     service.record_usage(&r.recency_key)?;
-                    Ok(c::Empty {})
+                    Ok(())
                 })
                 .await
                 .map_err(|_| error("Usage task failed"))?

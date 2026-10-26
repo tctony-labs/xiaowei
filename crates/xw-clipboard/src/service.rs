@@ -1,12 +1,12 @@
-use crate::gateway_binding::xiaowei_storage_settings_service as settings;
+use crate::gateway_binding::xiaowei_desktop_settings_settings_service as settings;
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result, Store};
 use prost::{Message, Name};
+use proto_desktop_rs::xiaowei::desktop::settings::SettingsChanged;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{oneshot, watch, Mutex};
 use tokio::task::JoinHandle;
-use xw_contracts::xiaowei::{common::Empty, storage::SettingsChanged};
 use xw_gateway::{event::EventSubscription, invoke::Client};
 
 pub trait ClipboardBackend: Send + 'static {
@@ -113,7 +113,7 @@ impl Service {
                 }
             })
             .await?;
-        let snapshot = match settings::GET.call(&client, Empty {}).await {
+        let snapshot = match settings::GET.call(&client, ()).await {
             Ok(snapshot) => snapshot,
             Err(error) => {
                 subscription.close();
@@ -162,7 +162,7 @@ impl Service {
                         let Some(service) = service.upgrade() else {
                             break;
                         };
-                        match settings::GET.call(&client, Empty {}).await {
+                        match settings::GET.call(&client, ()).await {
                             Ok(snapshot) => cleanup(&service, snapshot.clipboard_retention_days).await,
                             Err(error) => log::error!("Clipboard retention settings failed: {error}"),
                         }
@@ -541,8 +541,10 @@ mod tests {
     use super::*;
     use crate::types::HASH_COMPUTATIONS;
     use crate::{ClipboardBackend, ClipboardData};
+    use proto_desktop_rs::xiaowei::desktop::{
+        clipboard::DeletedClipboardEntities, settings::SettingsSnapshot,
+    };
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use xw_contracts::xiaowei::{clipboard::DeletedClipboardEntities, storage::SettingsSnapshot};
     use xw_gateway::{CallContext, XwInvokeRegistry};
 
     struct Backend;
@@ -631,7 +633,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn cleanup_waits_thirty_seconds_repeats_hourly_and_stops_with_lifecycle() {
-        use crate::gateway_binding::xiaowei_clipboard_clipboard_dao_service as dao;
+        use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as dao;
         let directory = tempfile::tempdir().unwrap();
         let registry = XwInvokeRegistry::new();
         registry

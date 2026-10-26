@@ -12,7 +12,7 @@
 | `internal/db/` | PostgreSQL 连接、迁移及用户、身份与会话存储 |
 | `internal/auth/` | 密码校验、随机登录凭据与设备会话规则 |
 | `internal/httpapi/` | 共享 API 注册、HTTP／认证 WS 接入、限流与健康检查 |
-| `internal/gateway/` | 与账号无关的双向 WebSocket Gateway、显式路由、事件及响应流 |
+| `internal/httpapi/ws/` | WebSocket 接口协议、请求执行、服务端通知及响应流 |
 | `internal/scheduler/` | 后台定时任务、执行超时与退出取消 |
 | `config/` | YAML、`.env` 及模板 |
 | `deploy/` | Dockerfile、独立生产 Compose、部署模板与隔离容器验收 |

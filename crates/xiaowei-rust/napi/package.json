@@ -24,6 +24,6 @@
     "xiaowei-gateway": "workspace:*",
     "@bufbuild/protobuf": "catalog:",
     "xiaowei-agent": "workspace:*",
-    "xiaowei-contracts": "workspace:*"
+    "proto-desktop-ts": "workspace:*"
   }
 }

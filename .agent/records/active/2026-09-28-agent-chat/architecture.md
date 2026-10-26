@@ -27,7 +27,7 @@ Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目�
 | `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具与 Bash 进程执行及基础写权限；消费 types，不接受 UI RPC、不依赖 Gateway |
 | `xw-sandboxed-exec` | macOS Seatbelt 策略与 sandbox-exec 参数；不持有进程、会话或运行，调用方负责路径解析及进程生命周期 |
 | `xw-agent` | App Server：顺序工具循环与提交、会话／输入／运行所有权、上下文重建、公共 Run／Item 投影、直接事件、标题、SQLite 目录和自动维护；定义统一 AgentHost。公开服务使用 Agent proto，不依赖 Gateway 或外部业务 service |
-| `contracts/proto/xiaowei/agent.proto` | Request／Response、Session／Run／Item 与公共事件；由 xw-contracts／xiaowei-contracts 生成消息和 service descriptor，不包含 Rust trait 或宿主运行对象 |
+| `contracts/proto/xiaowei/agent.proto` | Request／Response、Session／Run／Item 与公共事件；由 proto-agent-rs／proto-desktop-ts 生成消息和 service descriptor，不包含 Rust trait 或宿主运行对象 |
 | `xiaowei-agent` | 薄集成层：实现 AgentHost、LLM 消息 codec、Gateway handler 和 consumer binding；不保存第二份会话／运行状态 |
 | `xiaowei-agent/napi` | Rust xiaowei-agent-napi／npm xiaowei-agent：Node 生命周期、endpoint 与日志适配；main 传目录并装配依赖 |
 | `desktop` main／LLM worker | main 装配同一服务及关闭顺序；worker 提供生成和模型说明，ModelSettings owner 提供辅助引用与全局偏好 |

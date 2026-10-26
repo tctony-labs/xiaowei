@@ -38,22 +38,36 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn generate(services: &[&str]) -> Result<String, Box<dyn Error>> {
-    let mut descriptor = prost_types::FileDescriptorSet::decode(xw_contracts::FILE_DESCRIPTOR_SET)?;
+    let sources = [
+        ("proto_server_rs", proto_server_rs::FILE_DESCRIPTOR_SET),
+        ("proto_desktop_rs", proto_desktop_rs::FILE_DESCRIPTOR_SET),
+        ("proto_agent_rs", proto_agent_rs::FILE_DESCRIPTOR_SET),
+        ("proto_llm_rs", proto_llm_rs::FILE_DESCRIPTOR_SET),
+    ];
+    let mut descriptor = prost_types::FileDescriptorSet::default();
+    let mut files = HashSet::new();
     let mut types = HashMap::new();
     let selected: HashSet<&str> = services.iter().copied().collect();
     if selected.len() != services.len() {
         return Err("duplicate Gateway service in configuration".into());
     }
 
-    for file in &descriptor.file {
-        let package = file.package.as_deref().unwrap_or_default();
-        if package.starts_with("xiaowei.") {
-            for message in &file.message_type {
-                let name = message.name.as_deref().ok_or("message has no name")?;
-                types.insert(
-                    format!("{package}.{name}"),
-                    format!("xw_contracts::{}::{name}", package.replace('.', "::")),
-                );
+    for (provider, bytes) in sources {
+        for file in prost_types::FileDescriptorSet::decode(bytes)?.file {
+            let package = file.package.as_deref().unwrap_or_default();
+            if package.starts_with("xiaowei.") {
+                for message in &file.message_type {
+                    let name = message.name.as_deref().ok_or("message has no name")?;
+                    let full_name = format!("{package}.{name}");
+                    let rust_path = format!("{provider}::{}::{name}", package.replace('.', "::"));
+                    if types.insert(full_name.clone(), rust_path).is_some() {
+                        return Err(format!("duplicate Rust type provider: {full_name}").into());
+                    }
+                }
+            }
+            // Standard imports occur in several independent descriptors.
+            if files.insert(file.name.clone()) {
+                descriptor.file.push(file);
             }
         }
     }

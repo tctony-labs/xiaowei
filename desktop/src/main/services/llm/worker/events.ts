@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
-import { GenerateEventSchema } from "xiaowei-contracts";
+import { GenerateEventSchema } from "proto-desktop-ts";
 import { encodeAssistant, encodeBlock, encodeUsage, finishReason } from "./messages";
 
 export function mapEvent(event: AssistantMessageEvent, full: boolean) {

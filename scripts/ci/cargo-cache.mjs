@@ -35,7 +35,8 @@ if (mode === "key") {
   );
   const inputs = files.filter(
     (path) =>
-      /^(crates|desktop\/inspect|contracts\/(rust|tools)|gateway\/rust|\.cargo)\//.test(path) ||
+      /^(crates|desktop\/inspect|contracts\/tools|gateway\/rust|\.cargo)\//.test(path) ||
+      /^contracts\/out\/[^/]+-rs\//.test(path) ||
       [
         "Cargo.toml",
         "Cargo.lock",

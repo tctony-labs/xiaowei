@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import { EmptySchema, Llm, ModelInfoSchema, ModelInput } from "xiaowei-contracts";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
+import { Llm, ModelInfoSchema, ModelInput } from "proto-desktop-ts";
 import { bindHandlers, bindStreamHandlers, GatewayFailure } from "xiaowei-gateway";
 import { decodeModels } from "../shared/configuration-codec";
 import { configureModels, type ResolvedModelConfig } from "../shared/models";

@@ -1,4 +1,4 @@
-use xw_contracts::xiaowei::llm as pb;
+use proto_llm_rs::xiaowei::llm as pb;
 
 use xw_agent_types::*;
 

@@ -39,11 +39,6 @@
       "source": "./src/renderer/index.ts",
       "import": "./dist/renderer/index.js"
     },
-    "./websocket": {
-      "types": "./src/websocket/peer.ts",
-      "source": "./src/websocket/peer.ts",
-      "import": "./dist/websocket/peer.js"
-    },
     "./worker-host": {
       "types": "./src/main/worker.ts",
       "source": "./src/main/worker.ts",
@@ -64,7 +59,7 @@
     "@bufbuild/protobuf": "catalog:"
   },
   "devDependencies": {
-    "xiaowei-contracts": "workspace:*",
+    "proto-desktop-ts": "workspace:*",
     "@types/node": "26.5.1",
     "tsx": "4.23.13",
     "electron": "44.3.0"

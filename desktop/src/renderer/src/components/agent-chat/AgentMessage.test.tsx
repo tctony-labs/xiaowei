@@ -1,12 +1,12 @@
 import { create } from "@bufbuild/protobuf";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   AgentInteractionStatus,
   AgentItemSchema,
   AgentToolCallSchema,
   AgentToolStatus,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test, vi } from "vitest";
 import { messagePreview } from "../quick-chat/message-preview-fixtures";
 import { QuickChatMessagesPreview } from "../quick-chat/QuickChatMessagesPreview";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";

@@ -18,7 +18,7 @@ import {
   type GenerateRequest,
   type TokenUsage,
   TokenUsageSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 
 export function invalid(message: string): never {

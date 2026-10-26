@@ -1,8 +1,8 @@
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
+use proto_desktop_rs::xiaowei::desktop::clipboard::ClipboardChanged;
 use std::sync::{Arc, Mutex, Weak};
 use xw_clipboard::{ClipboardData, Service, SystemClipboard};
-use xw_contracts::xiaowei::clipboard::ClipboardChanged;
 use xw_gateway::{invoke::Owner, XwInvokeRegistry};
 
 pub mod gateway;

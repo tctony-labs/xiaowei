@@ -5,32 +5,107 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   AccountLoginRequestSchema,
   AccountStatus,
   Auth,
-  EmptySchema,
   ErrorCode,
   Health,
   LoginRequestSchema,
   RefreshRequestSchema,
-  XwApiOptionsSchema,
-} from "xiaowei-contracts";
-import { bindClient, GatewayFailure } from "xiaowei-gateway";
+} from "proto-desktop-ts";
+import { bindClient, GatewayFailure, methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import { registerAccountSession, type SessionInput } from "../../src/main/services/account/session";
 import { AccountStore } from "../../src/main/services/account/store";
-import { registerXwapi } from "../../src/main/services/xwapi/gateway";
-import { type XwapiContext, XwapiService } from "../../src/main/services/xwapi/service";
 import { accountMeta, authServer, openAccount } from "./account-fixture";
+import type { ServerApiContext } from "./server-api-fixture";
+import { attachServerApiFixture } from "./server-api-fixture";
 
 const empty = create(EmptySchema);
 
-test("Gateway checks access locally, and explicitly public methods never attach a bearer", async (t) => {
+test("native API uses current context during a concurrent target check", async (t) => {
+  const server = await authServer();
+  const other = await authServer();
+  const host = new GatewayHost();
+  const sessions = await registerAccountSession(host);
+  let context: SessionInput = { server: server.url };
+  let update = () => {};
+  sessions.start(
+    () => context,
+    (listener) => {
+      update = listener;
+      return () => {};
+    },
+  );
+  t.after(async () => {
+    await sessions.close();
+    await server.close();
+    await other.close();
+  });
+  const client = host.client({ caller: "ordinary-api-caller", trusted: true });
+  const auth = bindClient(Auth, client);
+  const health = bindClient(Health, client);
+  assert.equal((await health.check(empty)).code, 0);
+  const login = await auth.login(
+    create(LoginRequestSchema, {
+      deviceId: randomUUID(),
+      credential: {
+        case: "password",
+        value: { email: "user@example.test", password: "  sample  " },
+      },
+    }),
+  );
+  assert.equal(login.data?.result.case, "authenticated");
+  assert.equal((await auth.getCurrentUser(empty)).code, ErrorCode.UNAUTHENTICATED);
+  if (login.data?.result.case !== "authenticated") throw new Error("Expected authenticated login");
+  context = {
+    server: server.url,
+    session: { server: server.url, authenticated: login.data.result.value },
+  };
+  update();
+  assert.equal((await auth.getCurrentUser(empty)).code, 0);
+
+  let started = () => {};
+  let release = () => {};
+  const requested = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  other.state.beforeHealth = async () => {
+    started();
+    await blocked;
+  };
+  const probe = sessions.withServerContext(client, { server: other.url }, async (scoped) => {
+    assert.equal((await bindClient(Health, scoped).check(empty)).code, 0);
+  });
+  try {
+    await requested;
+    assert.equal((await auth.getCurrentUser(empty)).code, 0);
+    assert.equal(server.state.requests.at(-1)?.bearer, `Bearer ${server.state.tokens.accessToken}`);
+    assert.equal(other.state.requests.length, 1);
+  } finally {
+    release();
+    await probe;
+  }
+  assert.equal(other.state.requests.length, 1);
+  assert.equal(other.state.requests[0].bearer, undefined);
+  assert.equal((await auth.getCurrentUser(empty)).code, 0);
+});
+
+test("Gateway rejects missing access and keeps public requests unauthenticated", async (t) => {
   const server = await authServer();
   let now = server.state.now;
-  let context: Omit<XwapiContext, "signal"> = { server: server.url };
+  let context: ServerApiContext = { server: server.url };
   const host = new GatewayHost();
-  const owner = registerXwapi(host, new XwapiService(fetch, () => now), () => context);
+  const owner = await attachServerApiFixture(
+    host,
+    () => context,
+    () => now,
+  );
   const client = host.client({ caller: "xwapi-test", trusted: true });
   const auth = bindClient(Auth, client);
   const health = bindClient(Health, client);
@@ -119,18 +194,16 @@ test("Gateway checks access locally, and explicitly public methods never attach 
   assert.equal(server.state.refreshes, 1, "xwapi must not automatically refresh expired access");
 });
 
-test("raw authentication responses leave Account state and persisted credentials with the caller", async (t) => {
+test("raw Auth results leave Account state and persistence with the caller", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "xwapi-account-"));
   const server = await authServer();
   const path = join(directory, "auth.json");
-  const api = new XwapiService();
   const host = new GatewayHost();
   const account = await openAccount(
     t,
     {
       store: new AccountStore(path, await accountMeta(t, directory)),
       deviceName: "test",
-      api,
     },
     host,
   );
@@ -197,7 +270,7 @@ test("health validates JSON business results; HTTP 200 alone does not mean ready
   const server = await authServer();
   let context = { server: server.url };
   const host = new GatewayHost();
-  const owner = registerXwapi(host, new XwapiService(), () => context);
+  const owner = await attachServerApiFixture(host, () => context);
   const client = host.client({ caller: "health-test", trusted: true });
   const health = bindClient(Health, client);
   const auth = bindClient(Auth, client);
@@ -232,24 +305,16 @@ test("health validates JSON business results; HTTP 200 alone does not mean ready
   assert.equal(server.state.requests.length, count);
 });
 
-test("login forwards credential fields and preserves binding results without establishing a session", async (t) => {
+test("Login preserves credential fields and binding results without a session", async (t) => {
   const host = new GatewayHost();
-  const api = new XwapiService(async (_url, options) => {
-    assert.deepEqual(JSON.parse(String(options?.body)), {
-      device_id: "device",
-      thirdparty_bind_token: "binding-proof",
-      password: { email: "user@example.test", password: "  sample  " },
-    });
-    assert.equal(new Headers(options?.headers).get("Authorization"), null);
-    return new Response(
-      JSON.stringify({
-        code: 0,
-        msg: "continue",
-        data: { binding_required: { thirdparty_bind_token: "next-proof", expires_at_ms: "123" } },
-      }),
-    );
+  const server = await authServer();
+  server.state.loginResponse = JSON.stringify({
+    code: 0,
+    msg: "continue",
+    data: { binding_required: { thirdparty_bind_token: "next-proof", expires_at_ms: "123" } },
   });
-  const owner = registerXwapi(host, api, () => ({ server: "https://example.test" }));
+  const owner = await attachServerApiFixture(host, () => ({ server: server.url }));
+  t.after(() => server.close());
   t.after(() => owner.close());
   const auth = bindClient(Auth, host.client({ caller: "binding-test", trusted: true }));
   const response = await auth.login(
@@ -262,11 +327,17 @@ test("login forwards credential fields and preserves binding results without est
       },
     }),
   );
+  assert.deepEqual(server.state.requests[0].body, {
+    device_id: "device",
+    thirdparty_bind_token: "binding-proof",
+    password: { email: "user@example.test", password: "  sample  " },
+  });
+  assert.equal(server.state.requests[0].bearer, undefined);
   assert.equal(response.data?.result.case, "bindingRequired");
   assert.equal((await auth.getCurrentUser(empty)).code, ErrorCode.UNAUTHENTICATED);
 });
 
-test("owner close aborts and drains a real request, is idempotent, and removes routes", async () => {
+test("owner close drains requests, removes routes and is idempotent", async () => {
   const server = await authServer();
   let arrived!: () => void;
   const requestStarted = new Promise<void>((resolve) => {
@@ -281,7 +352,7 @@ test("owner close aborts and drains a real request, is idempotent, and removes r
     await paused;
   };
   const host = new GatewayHost();
-  const owner = registerXwapi(host, new XwapiService(), () => ({ server: server.url }));
+  const owner = await attachServerApiFixture(host, () => ({ server: server.url }));
   const auth = bindClient(Auth, host.client({ caller: "closing-test", trusted: true }));
   const pending = auth.login(create(LoginRequestSchema, { deviceId: randomUUID() }));
   const failed = assert.rejects(
@@ -292,8 +363,7 @@ test("owner close aborts and drains a real request, is idempotent, and removes r
   try {
     await requestStarted;
     const closing = owner.close();
-    assert.equal(owner.close(), closing);
-    await closing;
+    await Promise.all([closing, owner.close()]);
     await failed;
     await assert.rejects(
       auth.getCurrentUser(empty),
@@ -306,71 +376,62 @@ test("owner close aborts and drains a real request, is idempotent, and removes r
   }
 });
 
-test("xwapi applies a small timeout from independent Gateway options", async (t) => {
+test("Gateway cancellation stops waiting for an in-flight HTTP request", async (t) => {
   const server = await authServer();
   const host = new GatewayHost();
-  const owner = registerXwapi(host, new XwapiService(), () => ({ server: server.url }));
-  const auth = bindClient(Auth, host.client({ caller: "timeout-test", trusted: true }), {
-    optionsSchema: XwApiOptionsSchema,
-  });
+  const owner = await attachServerApiFixture(host, () => ({ server: server.url }));
+  const auth = bindClient(Auth, host.client({ caller: "cancel-test", trusted: true }));
+  let arrived!: () => void;
   let release!: () => void;
-  server.state.beforeLogin = () =>
-    new Promise<void>((resolve) => {
-      release = resolve;
-    });
-  const logs: string[] = [];
-  t.mock.method(console, "debug", (text: string) => logs.push(text));
-  t.mock.method(console, "error", (text: string) => logs.push(text));
-  try {
-    const result = await auth.login(
-      create(LoginRequestSchema, {
-        deviceId: randomUUID(),
-        credential: {
-          case: "password",
-          value: { email: "user@example.test", password: "  sample  " },
-        },
-      }),
-      { timeoutMs: 50 },
-    );
-    assert.equal(result.code, ErrorCode.UNAVAILABLE);
-    assert.equal(result.data, undefined);
-    assert.ok(logs.some((text) => text.includes("timeout_ms=50")));
-    assert.equal(server.state.requests.length, 1);
-    const completed = logs.find((text) => text.includes("HTTP request completed"));
-    assert.ok(Number(completed?.match(/duration_ms=(\d+)/)?.[1]) >= 40);
-  } finally {
-    release?.();
+  const started = new Promise<void>((resolve) => {
+    arrived = resolve;
+  });
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.state.beforeLogin = async () => {
+    arrived();
+    await blocked;
+  };
+  t.after(async () => {
+    release();
     await owner.close();
     await server.close();
-  }
+  });
+  const request = auth.login(create(LoginRequestSchema, { deviceId: randomUUID() }));
+  const rejected = assert.rejects(
+    request,
+    (error: unknown) => error instanceof GatewayFailure && error.detail.code === "CANCELLED",
+  );
+  await started;
+  request.cancel();
+  await rejected;
+  assert.equal(server.state.requests.length, 1);
 });
 
-test("xwapi defaults to 15000 and zero omits the HTTP timeout signal", async (t) => {
-  const durations: number[] = [];
-  const original = AbortSignal.timeout;
-  t.mock.method(AbortSignal, "timeout", (duration: number) => {
-    durations.push(duration);
-    return original(duration);
-  });
+test("ordinary Gateway callers cannot inject or retrieve shared session credentials", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-host-context-"));
   const host = new GatewayHost();
-  const owner = registerXwapi(
+  await openAccount(
+    t,
+    {
+      store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
+      deviceName: "test",
+    },
     host,
-    new XwapiService(async () => new Response(JSON.stringify({ code: 0, msg: "ok", data: {} }))),
-    () => ({ server: "https://example.test" }),
   );
-  const health = bindClient(Health, host.client({ caller: "default-timeout", trusted: true }), {
-    optionsSchema: XwApiOptionsSchema,
-  });
-  try {
-    assert.equal((await health.check(empty)).code, 0);
-    assert.deepEqual(durations, [15_000]);
-    assert.equal((await health.check(empty, { timeoutMs: 0 })).code, 0);
-    assert.deepEqual(durations, [15_000]);
-    assert.equal(
-      (await health.check(empty, { timeoutMs: 2_147_483_648 })).code,
-      ErrorCode.INVALID_ARGUMENT,
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const caller = host.client({ caller: "ordinary-ui", trusted: true });
+  for (const method of ["ReadResult", "Restore", "Release"]) {
+    const route = {
+      ...methodRoute(Auth.method.login),
+      name: `xiaowei.account.session.AccountSession.${method}`,
+      input: EmptySchema.typeName,
+      output: EmptySchema.typeName,
+    };
+    await assert.rejects(
+      caller.invoke(route, new Uint8Array()),
+      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "UNKNOWN_ROUTE",
     );
-  } finally {
-    await owner.close();
   }
 });

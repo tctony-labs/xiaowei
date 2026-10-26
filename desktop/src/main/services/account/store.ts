@@ -9,7 +9,7 @@ import {
   type KeyValue,
   KvEntrySchema,
   KvKeySchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import type { ServiceClient } from "xiaowei-gateway";
 import { normalizeServerAddress } from "../../../shared/server-address";
 import { AccountError } from "./errors";

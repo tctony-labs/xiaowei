@@ -1,6 +1,6 @@
 use crate::{clipboard_dao::ClipboardDao, clipboard_migrations, sql::DatabaseRollback, Database};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use std::sync::Arc;
-use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
 
 async fn capture(dao: &ClipboardDao, text: &str, time: i64) -> u64 {
     dao.capture(pb::CaptureClipboardEntityRequest {
@@ -178,7 +178,7 @@ async fn remarks_edits_merges_and_deletes_keep_the_index_in_sync() {
         .unwrap();
     assert!(search(&dao, "destination").await.is_empty());
     capture(&dao, "temporary", 5).await;
-    dao.clear_history_batch(Empty {}).await.unwrap();
+    dao.clear_history_batch(()).await.unwrap();
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM clipboard_fts")
         .fetch_one(&db.pool)
         .await
@@ -225,7 +225,7 @@ async fn baseline_database_is_backfilled_and_reopen_does_not_duplicate_index() {
 
 #[tokio::test]
 async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
-    use crate::gateway_binding::xiaowei_clipboard_clipboard_dao_service as methods;
+    use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as methods;
     use xw_gateway::{CallContext, ErrorCode, XwInvokeRegistry};
 
     let temp = tempfile::tempdir().unwrap();

@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { create } from "@bufbuild/protobuf";
-import { EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import { bindStreamClient } from "../../src/binding/index.js";
 import { GatewayFailure } from "../../src/core/protocol.js";
 import { GatewayHost } from "../../src/core/registry.js";

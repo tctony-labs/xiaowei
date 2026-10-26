@@ -1,7 +1,6 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
-  EmptySchema,
   LauncherMode,
   LauncherOpenedSchema,
   LauncherQueryRequestSchema,
@@ -9,7 +8,8 @@ import {
   ResultRequestSchema,
   SettingsAnchor,
   UpdateLayoutRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import { launcherHeight, type SearchResponse } from "../../../shared/launcher-model";
 import { services as defaultServices, type Services } from "../services";

@@ -1,12 +1,16 @@
 # 业务契约的创建与维护
 
-这里的 proto 是 TS／Rust 业务通信的唯一手写契约来源。生成方式见 [契约工程](../../README.md)，路由、权限和生命周期见 [Gateway](../../../gateway/README.md)，具体维护步骤见 [maintain-gateway-contract](../../../.agent/skills/maintain-gateway-contract/SKILL.md)。具体接口语义写在 proto 注释中，模块实现与设计取舍写在对应 record 或 docs 中。
+这里的 proto 是 TS／Rust／Go 业务通信的唯一手写契约来源。生成方式见 [契约工程](../../README.md)，路由、权限和生命周期见 [Gateway](../../../gateway/README.md)，具体维护步骤见 [maintain-gateway-contract](../../../.agent/skills/maintain-gateway-contract/SKILL.md)。具体接口语义写在 proto 注释中，模块实现与设计取舍写在对应 record 或 docs 中。
 
 ## 按业务职责划分
 
 先明确调用方要完成什么、需要哪些信息、结果代表什么，再设计 service 和消息。package 按业务边界命名，同一 package 可以包含多个 proto 文件；service 使用 PascalCase。
 
-不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约。只定义当前需要的能力，真正共用的消息才放入 `common`。
+桌面使用 `xiaowei.desktop.<职责>`，服务器使用 `xiaowei.server.<职责>`；Agent 和 LLM 按能力独立。单文件 package 直接放职责名 proto，同包多文件才使用目录归组。不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约，只定义当前需要的通信能力。普通 Rust 库共享接口不因此需要定义 proto。
+
+不同业务通过相同通信 package 交互；只在含义与生命周期一致时复用消息。桌面 Account 的展示和表单消息由桌面定义，AccountService 负责适配服务器认证数据；保存格式继续使用服务器类型。空消息使用标准 `google.protobuf.Empty`，不另建自定义 Empty 或 common 输出包。
+
+输出映射在 `contracts/generate.config.json` 维护，同一语言的同一项目类型只生成到一个包。输出包之间不直接依赖；import 的项目类型必须在该输出中完整生成。业务实现可以同时使用多个输出包，不能重复生成同一个 proto 类型来解除依赖。
 
 ## 消息语义
 

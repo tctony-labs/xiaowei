@@ -2,9 +2,10 @@ import { mkdirSync } from "node:fs";
 import { open, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { app, BrowserWindow, clipboard, globalShortcut, protocol, screen, shell } from "electron";
 import { initializeLogging as initializeAgentLogging } from "xiaowei-agent";
-import { EmptySchema } from "xiaowei-contracts";
+
 import { initializeLogging, initializeSearch, SparkleUpdater } from "xiaowei-rust";
 import { startApplicationInspect } from "../services/inspect/host";
 import { loadConfig } from "../services/llm/config";

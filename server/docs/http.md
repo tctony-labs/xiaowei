@@ -19,7 +19,7 @@ HTTP 接入遵循以下约定：
 
 反向代理生成的非 200 响应、损坏 HTTP 报文在进入 handler 前被 net/http 拒绝，以及网络中断，都不保证带有业务响应。进入 WS 后，连接和协议错误也不套用 HTTP 200／JSON 约定。
 
-桌面 [HTTP client](../../desktop/src/main/services/xwapi/http.ts) 禁止重定向，只接受 HTTP 200，并在完整读取后按 UTF-8 字节检查 64 KiB 响应上限；这不是流式读取限额。响应必须能按契约解码，预期失败向本地 Gateway 的映射见 [xwapi](../../docs/xwapi.md#http-与-websocket-选择)。
+共享 Rust [HTTP client](../../crates/xw-api/src/http.rs) 禁止重定向，只接受 HTTP 200；读取响应流时累计字节，超过 64 KiB 立即拒绝，不先缓存完整响应。响应必须能按契约解码，预期失败向本地 Gateway 的映射见 [xwapi](../../docs/xwapi.md#http-与-websocket-选择)。
 
 ## 健康检查
 

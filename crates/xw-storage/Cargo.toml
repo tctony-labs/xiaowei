@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 xw-tokenizer = { path = "../xw-tokenizer" }
 xw-gateway = { path = "../../gateway/rust" }
-xw-contracts = { path = "../../contracts/rust" }
+proto-desktop-rs = { path = "../../contracts/out/proto-desktop-rs" }
 prost = { workspace = true }
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 libsqlite3-sys = "=0.30.1"

@@ -95,6 +95,14 @@ test("Rust changes rotate snapshots, flags isolate fallbacks and renderer change
   const withInspect = run("key").split("\n")[0];
   writeFileSync(inspect, 'fn main() { println!("inspect"); }\n');
   assert.notEqual(run("key").split("\n")[0], withInspect);
+
+  const contract = join(workspace, "contracts/out/proto-desktop-rs/src/gen/example.rs");
+  mkdirSync(dirname(contract), { recursive: true });
+  writeFileSync(contract, "pub struct Example;\n");
+  execFileSync("git", ["add", "contracts/out"], { cwd: workspace });
+  const withContract = run("key").split("\n")[0];
+  writeFileSync(contract, "pub struct Updated;\n");
+  assert.notEqual(run("key").split("\n")[0], withContract);
 });
 
 test("workflow changes rotate Cargo snapshots without isolating tags", (context) => {

@@ -40,7 +40,7 @@ test("covers workspace packages and rejects external paths and build output", ()
   const root = new URL("../../../", import.meta.url);
   for (const path of [
     "packages/utils/src/index.ts",
-    "contracts/ts/src/log.ts",
+    "contracts/out/proto-desktop-ts/src/log.ts",
     "scripts/task.mjs",
   ]) {
     const result = transform(
@@ -56,6 +56,9 @@ test("covers workspace packages and rejects external paths and build output", ()
     "../prometheus-extra/index.ts",
     "packages/utils/dist/index.js",
     "desktop/out/main/index.js",
+    "contracts/out/proto-desktop-ts/node_modules/example/index.ts",
+    "contracts/out/proto-desktop-ts/dist/index.js",
+    "contracts/out/unrecognized/src/index.ts",
     "target/generated.js",
     "node_modules/example/index.ts",
     "packages/source-log/runtime.ts",

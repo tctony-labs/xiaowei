@@ -9,7 +9,7 @@ import {
   Fixture,
   GenerateEventSchema,
   GenerateRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";

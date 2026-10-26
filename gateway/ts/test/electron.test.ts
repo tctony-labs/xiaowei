@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import type { IpcMain, IpcMainInvokeEvent, IpcRenderer, WebContents } from "electron";
-import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import {
   bindClient,
   bindHandlers,

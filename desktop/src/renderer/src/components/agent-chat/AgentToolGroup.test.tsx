@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { AgentToolCallSchema, AgentToolStatus } from "proto-desktop-ts";
 import { afterEach, expect, test } from "vitest";
-import { AgentToolCallSchema, AgentToolStatus } from "xiaowei-contracts";
 import { AgentToolGroup } from "./AgentToolGroup";
 import type { AgentToolBlock } from "./message-blocks";
 

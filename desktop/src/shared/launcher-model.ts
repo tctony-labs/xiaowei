@@ -1,4 +1,4 @@
-import type { LauncherHit as Hit } from "xiaowei-contracts";
+import type { LauncherHit as Hit } from "proto-desktop-ts";
 
 export type LauncherHit = Omit<Hit, "$typeName" | "ranges"> & {
   ranges: { start: number; end: number }[];

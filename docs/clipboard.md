@@ -153,7 +153,7 @@ INSERT、UPDATE OF `text`／`remark`／`paths`、DELETE 触发器与业务变更
 
 ## 范围与验证入口
 
-普通历史保存在本机，收藏目前为本地标记，数据库未加密；收藏同步由独立事项推进。OCR、图片描述和图片语义检索由[图片理解 proposal](../.agent/records/proposed/2026-10-25-clipboard-image-understanding.md)承接，当前不展示图片理解入口。
+普通历史保存在本机，收藏目前为本地标记，数据库未加密；收藏同步由独立事项推进；手机授权入口的前置设计见 [iOS 客户端与设备授权](../.agent/records/proposed/2026-10-25-ios-client.md)，通用同步机制先于收藏业务接入。OCR、图片描述和图片语义检索由[图片理解 proposal](../.agent/records/proposed/2026-10-25-clipboard-image-understanding.md)承接，当前不展示图片理解入口。
 
 全局搜索召回接入、容量上限、来源排除规则、文件失效检查、来源应用元数据、富文本／HTML 格式保真，以及 Windows／Linux 系统剪贴板接入尚未实现，后续独立处理。
 

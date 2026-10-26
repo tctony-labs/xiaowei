@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { GetModelInfoRequestSchema, Llm, SetModelsRequestSchema } from "xiaowei-contracts";
+import { GetModelInfoRequestSchema, Llm, SetModelsRequestSchema } from "proto-desktop-ts";
 import { bindClient } from "xiaowei-gateway";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 

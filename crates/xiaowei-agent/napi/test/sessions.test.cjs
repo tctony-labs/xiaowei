@@ -40,7 +40,7 @@ async function ageSession(root, sessionId, timestamp) {
 }
 
 test("formal Agent owns SQLite and archive/delete; titles never append JSONL", async () => {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");
@@ -217,7 +217,7 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
 });
 
 test("formal Agent batch delete respects searched page targets, restoration and partial SQL failure", async () => {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");
@@ -338,7 +338,7 @@ test("formal Agent batch delete respects searched page targets, restoration and 
 });
 
 test("formal Agent persists retention policy and automatically archives/deletes on activation", async () => {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");
@@ -460,7 +460,7 @@ test("formal Agent persists retention policy and automatically archives/deletes 
 });
 
 test("saving policy through Gateway restarts live maintenance; failed KV save preserves the policy", async () => {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");

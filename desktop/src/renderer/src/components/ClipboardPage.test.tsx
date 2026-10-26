@@ -1,7 +1,6 @@
 import { create, toBinary } from "@bufbuild/protobuf";
 import { act, cleanup, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   ClipboardBiz,
   ClipboardCategoriesSchema,
@@ -10,7 +9,8 @@ import {
   ClipboardItemsSchema,
   ClipboardKind,
   ReadTextResponseSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test, vi } from "vitest";
 import { bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";

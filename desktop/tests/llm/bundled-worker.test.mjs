@@ -9,7 +9,7 @@ import { after, before, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { create } from "@bufbuild/protobuf";
-import { GenerateRequestSchema, Llm } from "xiaowei-contracts";
+import { GenerateRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { textEvents, until, websocketFixture } from "../../../patches/tests/fixtures/websocket.mjs";

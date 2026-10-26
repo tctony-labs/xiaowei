@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package xiaowei.server.auth;
 
-import "xiaowei/common.proto";
+import "google/protobuf/empty.proto";
 import "xiaowei/server/common.proto";
 
 service Auth {
@@ -17,10 +17,10 @@ service Auth {
   }
 
   // Identity comes from the transport's verified bearer token, never from the payload.
-  rpc GetCurrentUser(xiaowei.common.Empty) returns (GetCurrentUserResponse);
+  rpc GetCurrentUser(google.protobuf.Empty) returns (GetCurrentUserResponse);
 
   // Revokes only the authenticated session, including all its access tokens.
-  rpc Logout(xiaowei.common.Empty) returns (LogoutResponse);
+  rpc Logout(google.protobuf.Empty) returns (LogoutResponse);
 }
 
 // Authentication error codes occupy 10100-10199.
@@ -131,5 +131,5 @@ message GetCurrentUserResponse {
 message LogoutResponse {
   int32 code = 1;
   string msg = 2;
-  xiaowei.common.Empty data = 3;
+  google.protobuf.Empty data = 3;
 }

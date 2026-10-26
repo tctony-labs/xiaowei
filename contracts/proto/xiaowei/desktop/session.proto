@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package xiaowei.desktop.session;
+
+enum ConnectionAuthentication {
+  CONNECTION_AUTHENTICATION_UNSPECIFIED = 0;
+  CONNECTION_AUTHENTICATION_AUTHENTICATED = 1;
+  CONNECTION_AUTHENTICATION_REJECTED = 2;
+  CONNECTION_AUTHENTICATION_UNAVAILABLE = 3;
+}
+
+enum ConnectionStatus {
+  CONNECTION_STATUS_DISCONNECTED = 0;
+  CONNECTION_STATUS_CONNECTING = 1;
+  CONNECTION_STATUS_CONNECTED = 2;
+  CONNECTION_STATUS_RECONNECTING = 3;
+}
+
+// App-local connection observation. No credentials are exported through this event.
+message ConnectionChanged {
+  // Opaque local generation, used to ignore events from replaced credentials.
+  uint64 generation = 1;
+  ConnectionStatus status = 2;
+  ConnectionAuthentication authentication = 3;
+}

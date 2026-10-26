@@ -4,7 +4,8 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { create, fromBinary, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
+import { create, fromBinary, toJsonString } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   Account,
   AccountChangedSchema,
@@ -16,19 +17,18 @@ import {
   Auth,
   CancelAccountLoginRequestSchema,
   CloudConnectionStatus,
-  EmptySchema,
   ErrorCode,
   KvEntrySchema,
   KvKeySchema,
   SelectServerRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { AccountError } from "../../src/main/services/account/errors";
 import { registerAccount } from "../../src/main/services/account/gateway";
 import { type AccountDocument, AccountStore } from "../../src/main/services/account/store";
-import { XwapiService } from "../../src/main/services/xwapi/service";
 import { accountMeta, authServer, openAccount } from "./account-fixture";
+import { attachServerApiFixture } from "./server-api-fixture";
 
 test("Gateway login saves JSON credentials, omits the password and restores the same device", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "account-runtime-"));
@@ -345,9 +345,9 @@ test("switching retains server sessions across restarts, failures and logout", a
   assert.notEqual(firstToken, secondToken);
   assert.equal((await select(first.url)).code, 0);
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal(service.serverContext().session?.accessToken, firstToken);
+  assert.equal(service.sessionContext().session?.authenticated.tokens?.accessToken, firstToken);
   assert.equal((await select(second.url)).code, 0);
-  assert.equal(service.serverContext().session?.accessToken, secondToken);
+  assert.equal(service.sessionContext().session?.authenticated.tokens?.accessToken, secondToken);
   let received!: () => void;
   let release!: () => void;
   const arrived = new Promise<void>((resolve) => {
@@ -374,13 +374,13 @@ test("switching retains server sessions across restarts, failures and logout", a
   assert.equal((await select(first.url)).code, 0);
   assert.equal((await select(second.url)).code, 0);
   assert.equal(service.snapshot().status, AccountStatus.OFFLINE);
-  assert.equal(service.serverContext().session?.accessToken, secondToken);
+  assert.equal(service.sessionContext().session?.authenticated.tokens?.accessToken, secondToken);
   second.state.offline = false;
   second.state.revoked = true;
   assert.equal((await select(first.url)).code, 0);
   assert.equal((await select(second.url)).code, 0);
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_OUT);
-  assert.equal(service.serverContext().session, undefined);
+  assert.equal(service.sessionContext().session, undefined);
   assert.equal((await new AccountStore(path, meta).load()).sessions.length, 1);
   assert.equal(first.state.revoked, false);
   assert.equal((await login(second.url)).code, 0);
@@ -522,7 +522,7 @@ test("inactive logout refreshes in isolation; logout-all retains failed sessions
       0,
     );
   }
-  const currentSession = service.serverContext().session;
+  const currentSession = service.sessionContext().session;
   now += 7_200_000;
   first.state.now = now;
   second.state.now = now;
@@ -531,7 +531,7 @@ test("inactive logout refreshes in isolation; logout-all retains failed sessions
   assert.equal((await api.logout(logoutFirst)).code, ErrorCode.INTERNAL_ERROR);
   assert.equal(first.state.refreshes, 1);
   assert.equal(service.snapshot().selectedServer, second.url);
-  assert.deepEqual(service.serverContext().session, currentSession);
+  assert.deepEqual(service.sessionContext().session, currentSession);
   store.fail = false;
   assert.equal((await api.logout(logoutFirst)).code, 0);
   assert.equal(
@@ -588,45 +588,15 @@ test("default WS Logout clears the account before queued connection revalidation
   const directory = await mkdtemp(join(tmpdir(), "account-ws-logout-"));
   const server = await authServer();
   const path = join(directory, "auth.json");
-  let ready = false;
+  await server.enableWebsocket();
   let revalidate = () => Promise.resolve();
   let revalidation: Promise<void> | undefined;
-  const wsMethods: string[] = [];
-  const httpMethods: string[] = [];
-  // Bridge PB replies to the isolated auth fixture; the real socket lifecycle is tested separately.
-  const api = new XwapiService(
-    (url, options) => {
-      httpMethods.push(String(url).split("/").at(-1) ?? "");
-      return fetch(url, options);
-    },
-    Date.now,
-    {
-      canInvoke: () => ready,
-      async invoke(route, _payload, context) {
-        wsMethods.push(route.name);
-        const method =
-          route.name === "auth.Auth/Logout" ? Auth.method.logout : Auth.method.getCurrentUser;
-        const response = await fetch(`${server.url}/api/${route.name}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${context.session?.accessToken}`,
-          },
-          body: "{}",
-        });
-        const bytes = toBinary(method.output, fromJsonString(method.output, await response.text()));
-        if (method === Auth.method.logout) {
-          ready = false;
-          revalidation = revalidate();
-        }
-        return bytes;
-      },
-    },
-  );
+  server.state.beforeLogout = async () => {
+    revalidation = revalidate();
+  };
   const service = await openAccount(t, {
     store: new AccountStore(path, await accountMeta(t, directory)),
     deviceName: "test",
-    api,
   });
   revalidate = () => service.restore();
   t.after(async () => {
@@ -648,19 +618,24 @@ test("default WS Logout clears the account before queued connection revalidation
     ).code,
     0,
   );
-  ready = true;
   await service.restore();
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
   assert.equal((await service.logout()).code, 0);
   assert.ok(revalidation);
   await revalidation;
-  assert.deepEqual(wsMethods, ["auth.Auth/Logout"]);
-  assert.equal(httpMethods.includes("GetCurrentUser"), true);
+  const wsMethods = server.state.requests
+    .filter((entry) => entry.transport === "websocket")
+    .map((entry) => entry.path.split("/").at(-1));
+  const httpMethods = server.state.requests
+    .filter((entry) => !entry.transport)
+    .map((entry) => entry.path.split("/").at(-1));
+  assert.ok(wsMethods.includes("Logout"));
+  assert.ok(wsMethods.includes("GetCurrentUser"));
   assert.equal(httpMethods.includes("Logout"), false);
   assert.equal(server.state.logouts, 1);
   assert.equal(server.state.revoked, true);
   assert.equal(service.snapshot().user, undefined);
-  assert.equal(service.serverContext().session, undefined);
+  assert.equal(service.sessionContext().session, undefined);
   await assert.rejects(readFile(path, "utf8"), { code: "ENOENT" });
 });
 
@@ -774,90 +749,66 @@ test("WS authentication precedes user lookup and refreshes rejected access", asy
   );
   await initial.close();
 
+  await server.enableWebsocket();
   let now = server.state.now;
-  let attempts = 0;
-  let unavailable = false;
-  let rejectNext = false;
-  let alwaysReject = false;
-  let wsQueries = 0;
-  let httpQueries = 0;
-  const api = new XwapiService(
-    (url, options) => {
-      if (String(url).endsWith("/GetCurrentUser")) httpQueries++;
-      return fetch(url, options);
-    },
-    () => now,
-    {
-      canInvoke: () => !unavailable,
-      async invoke(route, _payload, context) {
-        assert.equal(route.name, "auth.Auth/GetCurrentUser");
-        wsQueries++;
-        const response = await fetch(`${server.url}/api/${route.name}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${context.session?.accessToken}`,
-          },
-          body: "{}",
-        });
-        return toBinary(
-          Auth.method.getCurrentUser.output,
-          fromJsonString(Auth.method.getCurrentUser.output, await response.text()),
-        );
-      },
-    },
-  );
+  const wsQueries = () =>
+    server.state.requests.filter(
+      (entry) => entry.path.endsWith("/GetCurrentUser") && entry.transport === "websocket",
+    ).length;
+  const httpQueries = () =>
+    server.state.requests.filter(
+      (entry) => entry.path.endsWith("/GetCurrentUser") && !entry.transport,
+    ).length;
   const restored = await openAccount(t, {
     store: new AccountStore(path, meta),
     deviceName: "test",
     now: () => now,
-    api,
-    authenticateConnection: async (_client, signal) => {
-      signal.throwIfAborted();
-      attempts++;
-      assert.equal(restored.serverContext().session?.accessToken, server.state.tokens.accessToken);
-      if (unavailable) return "unavailable";
-      if (rejectNext || alwaysReject) {
-        rejectNext = false;
-        return "rejected";
-      }
-      return "authenticated";
-    },
   });
+  const reconnect = async () => {
+    const before = server.state.wsAttempts;
+    server.disconnectWebsocket();
+    const deadline = Date.now() + 3000;
+    while (server.state.wsAttempts === before && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.ok(server.state.wsAttempts > before);
+  };
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal(wsQueries, 1);
-  assert.equal(httpQueries, 0);
-  assert.equal(attempts, 1);
+  assert.equal(wsQueries(), 1);
+  assert.equal(httpQueries(), 0);
+  assert.equal(server.state.wsAttempts, 1);
 
   restored.setCloudConnection(CloudConnectionStatus.CONNECTED);
   await restored.restore();
-  assert.equal(wsQueries, 2, "connection ready merges with an existing restore");
+  assert.equal(wsQueries(), 2, "connection ready merges with an existing restore");
   restored.setCloudConnection(CloudConnectionStatus.CONNECTED);
   await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(wsQueries, 2, "repeated ready status does not poll the user again");
+  assert.equal(wsQueries(), 2, "repeated ready status does not poll the user again");
 
   now += 7_200_000;
   server.state.now = now;
   await restored.restore();
   assert.equal(server.state.refreshes, 1);
-  assert.equal(wsQueries, 3);
-  assert.equal(httpQueries, 0);
+  assert.equal(wsQueries(), 3);
+  assert.equal(httpQueries(), 0);
   const oldAccess = server.state.tokens.accessToken;
-  rejectNext = true;
+  server.state.wsRejectNext = 1;
+  await reconnect();
   await restored.restore();
   assert.equal(server.state.refreshes, 2);
   assert.notEqual(server.state.tokens.accessToken, oldAccess);
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal(wsQueries, 4);
-  assert.equal(httpQueries, 0);
+  assert.equal(wsQueries(), 4);
+  assert.equal(httpQueries(), 0);
   await restored.restore(oldAccess);
   assert.equal(server.state.refreshes, 2, "stale rejection cannot refresh the new token");
 
-  unavailable = true;
+  server.state.wsAuthentication = "unavailable";
+  await reconnect();
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal(httpQueries, 1, "WS unavailable falls back to HTTP");
+  assert.equal(httpQueries(), 1, "WS unavailable falls back to HTTP");
   server.state.offline = true;
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.OFFLINE);
@@ -870,19 +821,21 @@ test("WS authentication precedes user lookup and refreshes rejected access", asy
     "refresh network failure retains credentials",
   );
   server.state.offline = false;
-  unavailable = false;
+  server.state.wsAuthentication = "authenticated";
+  await reconnect();
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_IN);
 
-  alwaysReject = true;
-  const beforeConfirmation = httpQueries;
+  server.state.wsAuthentication = "rejected";
+  await reconnect();
+  const beforeConfirmation = httpQueries();
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_IN);
-  assert.equal(httpQueries, beforeConfirmation + 1, "confirm repeated WS rejection through HTTP");
-  alwaysReject = false;
+  assert.equal(httpQueries(), beforeConfirmation + 1, "confirm repeated WS rejection through HTTP");
+  server.state.wsAuthentication = "authenticated";
   const valid = await store.load();
   server.state.revoked = true;
-  rejectNext = true;
+  server.state.wsRejectNext = 1;
   await restored.restore();
   assert.equal(restored.snapshot().status, AccountStatus.SIGNED_OUT);
   assert.equal((await store.load()).sessions.length, 0);
@@ -894,7 +847,6 @@ test("WS authentication precedes user lookup and refreshes rejected access", asy
     store: new AccountStore(path, meta),
     deviceName: "test",
     now: () => Number(valid.sessions[0].authenticated.tokens?.refreshExpiresAtMs) + 1,
-    authenticateConnection: async () => assert.fail("Expired refresh must not attempt WS"),
   });
   await expired.restore();
   assert.equal(expired.snapshot().status, AccountStatus.SIGNED_OUT);
@@ -969,19 +921,11 @@ test("switching servers discards cancelled login results; stale cancellation can
     received?.();
     await paused;
   };
-  // Deliberately ignore network cancellation. The local RPC still discards the late result.
-  const http = new XwapiService((url, options) =>
-    fetch(url, {
-      ...options,
-      signal: String(url).endsWith("/Login") ? undefined : options?.signal,
-    }),
-  );
   const host = new GatewayHost();
   const service = await openAccount(
     t,
     {
       store: new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory)),
-      api: http,
       deviceName: "test",
     },
     host,
@@ -1049,20 +993,22 @@ test("redirect never forwards credentials", async (t) => {
   const otherServer = await authServer();
   t.after(() => otherServer.close());
   server.state.redirectTo = `${otherServer.url}/api/auth.Auth/GetCurrentUser`;
-  const http = new XwapiService();
-  await assert.rejects(
-    http.getCurrentUser({
+  const host = new GatewayHost();
+  const owner = await attachServerApiFixture(host, () => ({
+    server: server.url,
+    session: {
       server: server.url,
-      signal: new AbortController().signal,
-      session: {
-        server: server.url,
-        sessionId: "session",
-        accessToken: "private-token",
-        accessExpiresAtMs: 2n ** 60n,
-      },
-    }),
-    /无法连接服务器/,
-  );
+      sessionId: "session",
+      accessToken: "private-token",
+      accessExpiresAtMs: 2n ** 60n,
+    },
+  }));
+  t.after(() => owner.close());
+  const response = await bindClient(
+    Auth,
+    host.client({ caller: "redirect", trusted: true }),
+  ).getCurrentUser(create(EmptySchema));
+  assert.equal(response.code, ErrorCode.UNAVAILABLE);
   assert.equal(otherServer.state.requests.length, 0);
   assert.equal(server.state.requests.at(-1)?.bearer, "Bearer private-token");
 });
@@ -1134,21 +1080,17 @@ test("received login credentials are revoked through Gateway when saving fails, 
     }
   }
   const publicAuth = bindClient(Auth, host.client({ caller: "public-auth", trusted: true }));
-  const http = new XwapiService(async (url, options) => {
-    if (String(url).endsWith("/Logout")) {
-      assert.equal(
-        (await publicAuth.getCurrentUser(create(EmptySchema))).code,
-        ErrorCode.UNAUTHENTICATED,
-      );
-    }
-    return fetch(url, options);
-  });
+  server.state.beforeLogout = async () => {
+    assert.equal(
+      (await publicAuth.getCurrentUser(create(EmptySchema))).code,
+      ErrorCode.UNAUTHENTICATED,
+    );
+  };
   const service = await openAccount(
     t,
     {
       store: new RejectSessionStore(join(directory, "auth.json"), await accountMeta(t, directory)),
       deviceName: "test",
-      api: http,
     },
     host,
   );
@@ -1269,4 +1211,64 @@ test("Account nested authentication preserves the caller's Gateway permissions",
   );
   assert.deepEqual(service.snapshot(), beforeLogout);
   assert.equal(server.state.requests.length, requests);
+});
+
+test("rotation is persisted before validation; cancelling validation retains the new pair", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-checkpoint-"));
+  const server = await authServer();
+  const other = await authServer();
+  const path = join(directory, "auth.json");
+  const store = new AccountStore(path, await accountMeta(t, directory));
+  let now = server.state.now;
+  const service = await openAccount(t, { store, deviceName: "test", now: () => now });
+  t.after(async () => {
+    await service.close();
+    await server.close();
+    await other.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.addServer(server.url);
+  await service.addServer(other.url);
+  assert.equal(
+    (
+      await service.login(
+        create(AccountLoginRequestSchema, {
+          serverAddress: server.url,
+          password: { email: "user@example.test", password: "  sample  " },
+          attemptId: randomUUID(),
+        }),
+      )
+    ).code,
+    0,
+  );
+  now += 7_200_000;
+  server.state.now = now;
+  let arrived!: () => void;
+  const validating = new Promise<void>((resolve) => {
+    arrived = resolve;
+  });
+  let release!: () => void;
+  const pause = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.state.beforeCurrentUser = async () => {
+    const saved = (await store.load()).sessions.find((entry) => entry.server === server.url);
+    assert.equal(saved?.authenticated.tokens?.refreshToken, server.state.tokens.refreshToken);
+    arrived();
+    await pause;
+  };
+  const restoring = service.restore();
+  await validating;
+  const switching = service.selectServer(other.url);
+  release();
+  await restoring;
+  assert.equal((await switching).code, 0);
+  assert.equal(server.state.refreshes, 1);
+  const saved = (await store.load()).sessions.find((entry) => entry.server === server.url);
+  assert.equal(saved?.authenticated.tokens?.refreshToken, server.state.tokens.refreshToken);
+  assert.equal(service.snapshot().selectedServer, other.url);
+  server.state.beforeCurrentUser = undefined;
+  assert.equal((await service.selectServer(server.url)).code, 0);
+  assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
+  assert.equal(server.state.refreshes, 1);
 });

@@ -49,7 +49,7 @@
     "@earendil-works/pi-ai": "0.87.1",
     "electron-log": "5.4.4",
     "xiaowei-gateway": "workspace:*",
-    "xiaowei-contracts": "workspace:*",
+    "proto-desktop-ts": "workspace:*",
     "@bufbuild/protobuf": "catalog:"
   },
   "description": "XiaoWei desktop client"

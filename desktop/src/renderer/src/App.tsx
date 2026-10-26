@@ -1,6 +1,7 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
+import { SettingsChangedSchema } from "proto-desktop-ts";
 import { useEffect, useState } from "react";
-import { EmptySchema, SettingsChangedSchema } from "xiaowei-contracts";
 import { Launcher } from "./components/Launcher";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { services } from "./services";

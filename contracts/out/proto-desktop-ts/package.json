@@ -1,0 +1,20 @@
+{
+  "name": "proto-desktop-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "catalog:"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "catalog:",
+    "@types/node": "26.5.1",
+    "tsx": "4.23.13"
+  }
+}

@@ -1,8 +1,8 @@
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use std::{path::Path, time::Duration};
 
+use proto_agent_rs::xiaowei::agent::*;
 use sqlx::{Row, sqlite::SqliteRow};
-use xw_contracts::xiaowei::agent::*;
 
 use crate::AgentError;
 

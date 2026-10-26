@@ -1,8 +1,9 @@
 import { hostname } from "node:os";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { App, KeyValue, ReadIconRequestSchema, Settings } from "proto-desktop-ts";
 import { Agent } from "xiaowei-agent";
-import { App, EmptySchema, KeyValue, ReadIconRequestSchema, Settings } from "xiaowei-contracts";
 import { bindClient } from "xiaowei-gateway";
 import { attachElectron } from "xiaowei-gateway/electron";
 import { type CallContext, GatewayHost } from "xiaowei-gateway/host";
@@ -12,6 +13,7 @@ import { createAppIconCache } from "../resources/app-icons/cache";
 import { createIconResources, ICON_SCHEME } from "../resources/app-icons/protocol";
 import { registerAccount } from "../services/account/gateway";
 import { AccountService } from "../services/account/service";
+import { registerAccountSession } from "../services/account/session";
 import { AccountStore } from "../services/account/store";
 import { type LauncherActions, registerSearch } from "../services/launcher/gateway";
 import { emptyConfig, type ModelConfigDocument, resolveModels } from "../services/llm/config";
@@ -21,9 +23,6 @@ import type { ResolvedModelConfig } from "../services/llm/shared/models";
 import { registerShortcuts } from "../services/shortcuts/gateway";
 import type { ShortcutConfig } from "../services/shortcuts/shortcuts";
 import { registerSystem } from "../services/system/gateway";
-import { ServerConnection } from "../services/xwapi/connection";
-import { registerXwapi } from "../services/xwapi/gateway";
-import { XwapiService } from "../services/xwapi/service";
 
 export async function createApplicationGateway(
   directory: string,
@@ -57,8 +56,7 @@ export async function createApplicationGateway(
   }
   let modelSettings: ReturnType<typeof registerModelSettings> | undefined;
   let account: ReturnType<typeof registerAccount> | undefined;
-  let xwapi: ReturnType<typeof registerXwapi> | undefined;
-  let connection: ServerConnection | undefined;
+  let sessions: Awaited<ReturnType<typeof registerAccountSession>> | undefined;
   let llm: Awaited<ReturnType<typeof attachLlm>> | undefined;
   let shortcuts: ReturnType<typeof registerShortcuts> | undefined;
   let system: ReturnType<typeof registerSystem> | undefined;
@@ -104,22 +102,17 @@ export async function createApplicationGateway(
     const database = await Storage.open(databasePath);
     storage = await attachRustNapi(host, "storage", database.createKeyValueGatewayEndpoint());
     let accountService: AccountService | undefined;
-    connection = new ServerConnection(
-      host,
-      () => accountService?.serverContext() ?? { server: "" },
-      (status) => accountService?.setCloudConnection(status),
-      (accessToken) => {
+    sessions = await registerAccountSession(host, {
+      changed: (status) => accountService?.setCloudConnection(status),
+      unauthorized: (accessToken) => {
         void accountService
           ?.restore(accessToken)
           .catch(() => console.warn("Account revalidation failed"));
       },
-    );
-    const serverApi = new XwapiService(fetch, Date.now, connection);
-    xwapi = registerXwapi(host, serverApi, () => accountService?.serverContext() ?? { server: "" });
+    });
     accountService = await AccountService.open({
       client: host.client({ caller: "account-main", trusted: true }),
-      withServerContext: xwapi.withContext,
-      authenticateConnection: connection.authenticate.bind(connection),
+      sessions,
       store: new AccountStore(
         authPath,
         bindClient(KeyValue, host.client({ caller: "account-main", trusted: true })),
@@ -127,7 +120,10 @@ export async function createApplicationGateway(
       deviceName: hostname().slice(0, 64),
     });
     account = registerAccount(host, accountService);
-    connection.start((listener) => accountService.subscribe(listener));
+    sessions.start(
+      () => accountService.sessionContext(),
+      (listener) => accountService.subscribe(listener),
+    );
     void accountService.restore().catch(() => console.warn("Initial account restore failed"));
     clipboardDao = await attachRustNapi(
       host,
@@ -158,8 +154,7 @@ export async function createApplicationGateway(
     if (iconProtocolHandled) protocol.unhandle(ICON_SCHEME);
     icons.close();
     await account?.close().catch(() => console.warn("Account shutdown failed"));
-    connection?.close();
-    await xwapi?.close();
+    await sessions?.close();
     await modelSettings?.close();
     await closeAgent().catch((error) => console.error("Agent shutdown failed", error));
     await Promise.allSettled([closeClipboard(), search?.close(), llm?.close()]);
@@ -186,8 +181,7 @@ export async function createApplicationGateway(
         icons.close();
         launcher.close();
         await account?.close().catch(() => console.warn("Account shutdown failed"));
-        connection?.close();
-        await xwapi?.close();
+        await sessions?.close();
         await modelSettings?.close();
         const agentResults = await Promise.allSettled([closeAgent()]);
         const results = [

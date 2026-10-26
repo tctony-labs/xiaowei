@@ -1,6 +1,6 @@
 # 工作区详情
 
-XiaoWei 包含 Electron 桌面应用、Rust 原生模块和独立 Go 服务端。桌面使用 TypeScript、React 和 Tailwind CSS，通过 napi 使用 Rust 能力，通过 Gateway 连接本地业务模块，通过 HTTP 访问 Go 服务端。
+XiaoWei 包含 Electron 桌面应用、Rust 原生模块和独立 Go 服务端。桌面使用 TypeScript、React 和 Tailwind CSS，通过 napi 使用 Rust 能力，通过 Gateway 连接本地业务模块，通过 Rust xw-api 的 HTTP／WebSocket 访问 Go 服务端。
 
 工作区组织、依赖同步与源码消费见 [包和依赖管理](package-management.md)。
 
@@ -17,13 +17,13 @@ XiaoWei 包含 Electron 桌面应用、Rust 原生模块和独立 Go 服务端�
 
 ### 共享契约与通信
 
-`contracts/` 定义跨语言消息与接口，`gateway/` 提供调用、事件、响应流及传输适配。业务 handler 和状态由所属业务模块持有。
+`contracts/proto/` 定义跨语言消息与接口，`contracts/out/` 按业务输出固定契约包，`gateway/` 提供调用、事件、响应流及传输适配。业务 handler 和状态由所属业务模块持有。
 
 | 包 | 职责 |
 | --- | --- |
-| `contracts/ts/`：`xiaowei-contracts` | TypeScript 消息与 service descriptor |
-| `contracts/rust/`：`xw-contracts` | Rust 消息与接口描述 |
-| `contracts/go/` | Go 消息与接口描述，供独立服务端消费 |
+| `contracts/out/proto-desktop-ts/` | 桌面所需 TypeScript 消息与 service descriptor |
+| `contracts/out/proto-{server,desktop,agent,llm,testing}-rs/` | 各自独立的 Rust 消息与 descriptor；业务模块按需组合 |
+| `contracts/out/proto-server-go/` | Go 服务器及测试契约 |
 | `contracts/tools/`：`xw-contracts-codegen` | 契约生成使用的 Rust 工具 |
 | `gateway/ts/`：`xiaowei-gateway` | TS client、host 与 Node／Electron／worker 接入 |
 | `gateway/rust/`：`xw-gateway` | Rust registry、typed binding 与 napi 通信适配 |
@@ -42,6 +42,7 @@ flowchart TB
 
     Main --> RustNapi
     Main --> AgentNapi
+    RustNapi --> Api["xw-api<br/>HTTP / WS 与 account 会话"]
     RustNapi --> Search["xw-search"]
     RustNapi --> Clipboard["xw-clipboard"]
     RustNapi --> Storage["xw-storage"]
@@ -63,12 +64,13 @@ flowchart TB
     Bookmarks -.-> PlatformCore
 ```
 
-实线表示当前主要使用或依赖关系，虚线表示可按需使用的通用平台能力。图中的两个 napi 节点分别对应真实二进制。常规 addon 内的服务仍各自持有 registry、owner 和业务状态，继续通过既有 Gateway 通信；合并不自动合并数据库或服务生命周期。契约、Gateway、Tokio 与日志等公共依赖未逐一连线，跨两个 `.node` 仍分别链接。
+实线表示当前主要使用或依赖关系，虚线表示可按需使用的通用平台能力。图中的两个 napi 节点分别对应真实二进制。常规 addon 按功能持有 registry、owner 和业务状态；xw-api 的网络客户端与 account 会话核心由 xiaowei-rust 在 Rust 内创建，共用一个 endpoint 和 api 实例，桌面不另建 xwapi 模块。其余业务继续通过既有 Gateway 通信；聚合不自动合并数据库或服务生命周期。契约、Gateway、Tokio 与日志等公共依赖未逐一连线，跨两个 `.node` 仍分别链接。
 
 应用、书签等具体业务由各自的纯 Rust 模块实现。`xw-platform` 提供通用平台能力，可由 `xiaowei-rust-napi` 及其他 Rust 模块按需使用；`xw-tokenizer` 是 Storage 的单独依赖。
 
 | 包 | 职责 |
 | --- | --- |
+| `xw-api` | 客户端 HTTP／WebSocket、连接与无存储的单服务器会话维护 |
 | `xw-search` | 全局搜索、排序与使用记录 |
 | `xw-clipboard` | 剪贴板采集、历史、资源与粘贴 |
 | `xw-storage` | SQLite 存储、迁移、设置与数据访问 |
@@ -85,7 +87,7 @@ flowchart TB
 | `xw-tokenizer` | Storage 使用的 SQLite FTS5 分词 |
 | `xw-napi-log` | 原生模块日志接收 |
 
-另有 `contracts/` 下的 `xw-contracts`、`xw-contracts-codegen` 和 `gateway/rust/` 下的 `xw-gateway`，Cargo workspace 共 18 个包。
+契约输出位于 `contracts/out/*-rs/`，生成工具为 `contracts/tools/` 的 `xw-contracts-codegen`，Gateway 核心为 `gateway/rust/` 的 `xw-gateway`；具体 workspace 成员以根 Cargo.toml 为准。输出包之间没有直接依赖，同语言同一项目类型只有一个生成来源。
 
 各包的详细说明、依赖方向及原生构建约定见 [Rust 模块索引](../crates/README.md)。
 

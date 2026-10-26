@@ -1,9 +1,14 @@
+import { execFileSync } from "node:child_process";
 import {
   assertProduction,
   runPnpm,
   rustNapiPrepared,
   withRustNapiFixtures,
 } from "../../scripts/tests/rust-napi-fixtures.mjs";
+
+execFileSync("cargo", ["test", "--locked", "-p", "xw-api"], {
+  stdio: "inherit",
+});
 
 if (!rustNapiPrepared) {
   runPnpm(["--filter", "./crates/*/napi", "--workspace-concurrency=1", "run", "build:debug"]);

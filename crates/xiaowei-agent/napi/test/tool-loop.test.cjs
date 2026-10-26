@@ -104,7 +104,7 @@ for (const scenario of scenarios) {
 }
 
 async function exerciseScenario(scenario) {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");

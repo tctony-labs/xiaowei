@@ -31,12 +31,14 @@ if (mode === "version") {
     const absolute = join(workspace, path);
     return existsSync(absolute) && lstatSync(absolute).isFile();
   });
-  const modules = files.filter((path) => /^(server|contracts\/go)\/go\.(mod|sum)$/.test(path));
+  const modules = files.filter((path) =>
+    /^(server|contracts\/out\/proto-server-go)\/go\.(mod|sum)$/.test(path),
+  );
   const builds = files.filter(
     (path) =>
       modules.includes(path) ||
       /^server\/.*\.(go|sql)$/.test(path) ||
-      /^contracts\/go\/.*\.go$/.test(path) ||
+      /^contracts\/out\/proto-server-go\/.*\.go$/.test(path) ||
       [
         ".github/workflows/test.yml",
         ".github/workflows/macos-release.yml",

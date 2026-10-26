@@ -41,3 +41,5 @@ cargo run -q -p xw-gateway --example generate_fixture > gateway/rust/tests/fixtu
 `electron/` 保存真实 contextBridge 验收脚本及 preload／renderer 测试资产。依赖由本目录的私有 workspace 包 `@xiaowei/gateway-tests` 声明。
 
 `pnpm --filter @xiaowei/gateway-tests build:electron` 只构建测试资产并输出临时目录。main／preload／renderer 均内联 Gateway 源码，无需 Gateway dist。在已有 Electron 主进程的调试会话中导入输出目录的 `main.mjs` 并调用 `run(directory)`；执行前构建原生 fixture 和正式 Storage addon。main 资产中的原生包与 fixture 路径固定到生成它的 checkout，移动 checkout 后需重新构建。它创建隔离测试窗口，结束后清理，不属于 `pnpm test` 自动执行范围。
+
+服务器网络测试已迁至 [xw-api](../../crates/xw-api/README.md)，由 desktop runner 执行。旧 TS 网络的反向 App handler 导出已移除，其用例不计为迁移覆盖。

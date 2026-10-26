@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

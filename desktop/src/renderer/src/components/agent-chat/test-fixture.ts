@@ -31,7 +31,7 @@ import {
   SetSessionTitleResponseSchema,
   type StartRunRequest,
   StartRunResponseSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindHandlers, bindStreamHandlers, GatewayFailure } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { agentIdentity } from "./identity";

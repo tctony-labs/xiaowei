@@ -40,7 +40,7 @@ Metro 必须能访问工作区共享包和被引用的源码；按未来 RN/Expo
 
 ## 范围与输出
 
-所有进入已接入构建链的工作区 JS/TS/JSX/TSX 源码均可转换，例如 `packages/utils/src/index.ts`、`contracts/ts/src/index.ts` 和未来移动端源码。不自动处理绕过构建链的 Node 脚本、仅 tsc 编译的包、external 包或预打包依赖。排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录以及日志包装器本身。
+所有进入已接入构建链的工作区 JS/TS/JSX/TSX 源码均可转换，例如 `packages/utils/src/index.ts`、`contracts/out/proto-desktop-ts/src/index.ts` 和未来移动端源码。不自动处理绕过构建链的 Node 脚本、仅 tsc 编译的包、external 包或预打包依赖。排除工作区外文件、node_modules、dist/out/target/coverage/storybook-static/.git/.vite 目录以及日志包装器本身；`contracts/out/proto-*` 包根属于源码入口，不按构建目录排除，包内的依赖和构建目录仍排除。
 
 只转换全局 console 的直接方法调用，跳过局部声明／导入的 console、解构和别名调用、计算属性、可选调用及 `globalThis.console`。关闭后保留原始调用，不自动抓栈。
 

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "proto-desktop-ts";
 import {
   bindClient,
   bindHandlers,

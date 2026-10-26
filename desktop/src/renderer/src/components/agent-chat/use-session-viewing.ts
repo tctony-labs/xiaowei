@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
+import { TrackSessionViewingRequestSchema } from "proto-desktop-ts";
 import { useEffect, useState } from "react";
-import { TrackSessionViewingRequestSchema } from "xiaowei-contracts";
 import type { Services } from "../../services";
 
 // Electron changes document visibility when its window hides or minimizes.

@@ -3,7 +3,7 @@ ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src/server
 COPY server/go.mod server/go.sum ./
-COPY contracts/go /src/contracts/go
+COPY contracts/out/proto-server-go /src/contracts/out/proto-server-go
 RUN go mod download
 COPY server/cmd ./cmd
 COPY server/internal ./internal

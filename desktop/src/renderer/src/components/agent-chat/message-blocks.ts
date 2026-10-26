@@ -1,4 +1,4 @@
-import type { AgentInteraction, AgentItem, AgentToolCall } from "xiaowei-contracts";
+import type { AgentInteraction, AgentItem, AgentToolCall } from "proto-desktop-ts";
 
 export interface InteractionForm {
   text: string;

@@ -1,4 +1,4 @@
-import { ThemeMode } from "xiaowei-contracts";
+import { ThemeMode } from "proto-desktop-ts";
 
 export function themeValue(mode: ThemeMode): "system" | "light" | "dark" {
   if (mode === ThemeMode.LIGHT) return "light";

@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "desktop/inspect",
-    "contracts/rust",
+    "contracts/out/*-rs",
     "contracts/tools",
     "gateway/rust",
     "crates/xw-*",

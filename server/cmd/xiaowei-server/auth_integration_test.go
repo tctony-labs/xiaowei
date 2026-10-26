@@ -22,7 +22,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
 	"google.golang.org/protobuf/encoding/protojson"

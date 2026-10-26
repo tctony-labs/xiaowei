@@ -1,4 +1,4 @@
-import type { ShortcutConfiguration } from "xiaowei-contracts";
+import type { ShortcutConfiguration } from "proto-desktop-ts";
 import type { createShortcutRegistry } from "./registry";
 
 export type ShortcutValue = string[] | null;

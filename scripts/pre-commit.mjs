@@ -38,11 +38,9 @@ if (partial.length > 0) {
 
 const before = new Map(staged.map((path) => [path, hash(path)]));
 // Proto outputs retain their generator's formatting; just check verifies generation drift.
-const generatedRoots = ["contracts/rust/src/gen/", "contracts/ts/src/gen/", "contracts/go/gen/"];
+const generatedPath = /^contracts\/out\/proto-[a-z0-9-]+\/(?:src\/)?gen\//;
 const files = staged
-  .filter(
-    (path) => lstatSync(path).isFile() && !generatedRoots.some((root) => path.startsWith(root)),
-  )
+  .filter((path) => lstatSync(path).isFile() && !generatedPath.test(path))
   .map((path) => `./${path}`);
 
 if (files.length > 0) {

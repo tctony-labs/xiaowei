@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
 function fixture(context) {
-  const directory = mkdtempSync(join(tmpdir(), "xiaowei-contracts-check-"));
+  const directory = mkdtempSync(join(tmpdir(), "proto-desktop-ts-check-"));
   context.after(() => rmSync(directory, { recursive: true, force: true }));
   const write = (path, contents) => {
     mkdirSync(dirname(join(directory, path)), { recursive: true });
@@ -45,10 +45,9 @@ function fixture(context) {
   for (const path of [
     "contracts/scripts",
     "contracts/tools",
-    "contracts/ts/proto-selection.mjs",
-    "contracts/ts/package.json",
-    "contracts/go/go.mod",
-    "contracts/go/go.sum",
+    "contracts/out/proto-desktop-ts/package.json",
+    "contracts/out/proto-server-go/go.mod",
+    "contracts/out/proto-server-go/go.sum",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
@@ -66,14 +65,15 @@ function fixture(context) {
   );
   write(
     "contracts/generate.config.json",
-    JSON.stringify({ ts: ["*.proto"], rust: [], go: ["*.proto"] }),
+    JSON.stringify({ sources: { "*.proto": ["proto-desktop-ts", "proto-server-go"] } }),
   );
   // The real TS and Go generators exercise caching without rebuilding Rust in each fixture.
   symlinkSync(
-    join(root, "contracts/ts/node_modules"),
-    join(directory, "contracts/ts/node_modules"),
+    join(root, "contracts/out/proto-desktop-ts/node_modules"),
+    join(directory, "contracts/out/proto-desktop-ts/node_modules"),
     "dir",
   );
+  symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "dir");
   const generated = run(false);
   assert.equal(generated.status, 0, generated.stderr);
   assert.equal(existsSync(join(directory, "target/contracts-check.sha256")), false);
@@ -108,13 +108,13 @@ test("generator, configuration and dependency changes invalidate a successful ca
   for (const path of [
     "contracts/scripts/generate.mjs",
     "contracts/scripts/ensure-protoc.mjs",
-    "contracts/ts/proto-selection.mjs",
+    "contracts/scripts/proto-selection.mjs",
     "contracts/tools/src/main.rs",
     "contracts/tools/Cargo.toml",
     "contracts/generate.config.json",
-    "contracts/ts/package.json",
-    "contracts/go/go.mod",
-    "contracts/go/go.sum",
+    "contracts/out/proto-desktop-ts/package.json",
+    "contracts/out/proto-server-go/go.mod",
+    "contracts/out/proto-server-go/go.sum",
     "pnpm-workspace.yaml",
     "pnpm-lock.yaml",
     "Cargo.toml",
@@ -162,7 +162,10 @@ test("edited, missing and extra generated outputs force drift checks even with u
     assert.match(result.stderr, /Stale contracts/);
     assert.equal(read("target/contracts-check.sha256"), cached);
   };
-  for (const path of ["contracts/ts/src/gen/example_pb.ts", "contracts/go/gen/example.pb.go"]) {
+  for (const path of [
+    "contracts/out/proto-desktop-ts/src/gen/example_pb.ts",
+    "contracts/out/proto-server-go/gen/example.pb.go",
+  ]) {
     const original = read(path);
     write(path, `${original}\n// edited\n`);
     fail();
@@ -172,9 +175,8 @@ test("edited, missing and extra generated outputs force drift checks even with u
     success(true);
   }
   for (const path of [
-    "contracts/ts/src/gen/extra.ts",
-    "contracts/rust/src/gen/extra.rs",
-    "contracts/go/gen/extra.go",
+    "contracts/out/proto-desktop-ts/src/gen/extra.ts",
+    "contracts/out/proto-server-go/gen/extra.go",
   ]) {
     write(path, "// extra\n");
     fail();

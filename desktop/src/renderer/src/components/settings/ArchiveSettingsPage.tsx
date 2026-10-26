@@ -1,5 +1,4 @@
 import { create } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AgentSessionSummary,
   DeleteSessionRequestSchema,
@@ -9,7 +8,8 @@ import {
   type SessionRetentionPolicy,
   SetSessionArchivedRequestSchema,
   SetSessionRetentionPolicyRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { services as defaultServices, type Services } from "../../services";
 import { type ArchivedSession, ArchiveSettings } from "./ArchiveSettings";
 

@@ -7,7 +7,8 @@ edition = "2024"
 xw-agent = { path = "../xw-agent" }
 xw-agent-types = { path = "../xw-agent-types" }
 xw-gateway = { path = "../../gateway/rust" }
-xw-contracts = { path = "../../contracts/rust" }
+proto-agent-rs = { path = "../../contracts/out/proto-agent-rs" }
+proto-llm-rs = { path = "../../contracts/out/proto-llm-rs" }
 futures-util = "0.3"
 prost = { workspace = true }
 tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }

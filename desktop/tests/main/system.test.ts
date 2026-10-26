@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
-  EmptySchema,
   LocalPathRequestSchema,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
@@ -18,7 +18,7 @@ import {
   Theme,
   ToggleThemeResponseSchema,
   WriteClipboardTextRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient, bindHandlers, createClient } from "xiaowei-gateway";
 import { createContext, GatewayHost } from "xiaowei-gateway/host";
 

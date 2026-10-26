@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { GenerateEventSchema, GenerateRequestSchema } from "xiaowei-contracts";
+import { GenerateEventSchema, GenerateRequestSchema } from "proto-desktop-ts";
 import { mapEvent } from "../../src/main/services/llm/worker/events.ts";
 import { toContext } from "../../src/main/services/llm/worker/messages.ts";
 

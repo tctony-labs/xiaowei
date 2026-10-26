@@ -1,0 +1,23 @@
+[package]
+name = "xw-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+proto-server-rs = { path = "../../contracts/out/proto-server-rs" }
+prost = { workspace = true }
+prost-reflect = { version = "0.16", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros", "net"] }
+tokio-util = "0.7"
+futures-util = "0.3"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+log = "0.4"
+
+[dev-dependencies]
+proto-testing-rs = { path = "../../contracts/out/proto-testing-rs" }
+tokio = { version = "1", features = ["rt-multi-thread", "test-util", "io-util"] }

@@ -1,12 +1,12 @@
 use crate::Result;
-use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use xw_gateway::invoke::Client;
 
 tokio::task_local! {
     pub(crate) static CALLER: Client;
 }
 
-use crate::gateway_binding::xiaowei_clipboard_clipboard_dao_service as methods;
+use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as methods;
 
 #[derive(Clone)]
 pub struct DaoClient(pub Client);
@@ -71,10 +71,7 @@ impl DaoClient {
     }
 
     pub async fn categories(&self) -> Result<Vec<pb::ClipboardCategory>> {
-        Ok(methods::CATEGORIES
-            .call(&self.client(), Empty {})
-            .await?
-            .items)
+        Ok(methods::CATEGORIES.call(&self.client(), ()).await?.items)
     }
 
     pub async fn save_category(
@@ -118,7 +115,7 @@ impl DaoClient {
 
     pub async fn clear_history_batch(&self) -> Result<pb::DeletedClipboardEntities> {
         Ok(methods::CLEAR_HISTORY_BATCH
-            .call(&self.client(), Empty {})
+            .call(&self.client(), ())
             .await?)
     }
 

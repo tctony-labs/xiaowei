@@ -1,16 +1,16 @@
 # 桌面账号与会话
 
-桌面端已实现服务器选择、邮箱密码登录、设备身份、登录态保存、启动恢复、刷新和退出。账号 owner 位于 [services/account](../src/main/services/account/service.ts)，经本地 Gateway 向 renderer 提供 [Account 契约](../../contracts/proto/xiaowei/account.proto)；网络请求通过 [xwapi](../../docs/xwapi.md) 的 typed Auth client 执行。已接入独立的云连接状态；注册、找回密码及微信授权尚未接入。
+桌面端已实现服务器选择、邮箱密码登录、设备身份、登录态保存、启动恢复、刷新和退出。账号 owner 位于 [services/account](../src/main/services/account/service.ts)，经本地 Gateway 向 renderer 提供 [桌面 Account 契约](../../contracts/proto/xiaowei/desktop/account.proto)；AccountService 内部的认证维护经固定 napi 方法交给 [xw-api::account](../../crates/xw-api/README.md#账号会话)，由其直接调用同一 crate 的网络能力。共享会话能力提供普通 Rust 接口，移动端后续使用自己的 FFI 适配。桌面 Account 的用户展示和密码输入由自身契约定义，AccountService 适配服务器认证类型；持久化继续使用原服务器消息与文件格式。已接入独立的云连接状态；注册、找回密码及微信授权尚未接入。
 
 已按确认的 Storybook 交互接入账号管理弹窗，支持逐服务器登录、切换、单独退出和退出全部。添加服务器与登录相互独立，成功登录另一服务器后才切换当前账号。
 
 ## 模块与凭据边界
 
-AccountService 持有服务器选择和会话生命周期；AccountStore 负责 Storage meta 与登录态文件；app/gateway.ts 负责装配。renderer 使用 Account typed client 和快照，不通过 preload 新增业务接口，不直接读取登录态文件。账号快照包含 revision、服务器列表、选择、公开用户和状态消息，不包含 token。
+AccountService 持有桌面产品登录态、服务器选择、保存／提交／回滚、故障重试及 UI 聚合；AccountStore 负责 Storage meta 与登录态文件；app/gateway.ts 负责装配。Rust xw-api::account 只持有单会话执行上下文与操作代次，不读取或保存桌面文件。renderer 使用 Account typed client 和快照，不通过 preload 新增业务接口，不直接读取登录态文件。账号快照包含 revision、服务器列表、选择、公开用户和状态消息，不包含 token。
 
 xwapi 负责网络协议、响应解码和本地鉴权前置检查，不管理 Account 会话。直接调用原始 Login／Refresh／Logout 不会自动保存凭据或发出 Account 状态变更；AccountService 校验业务 code 及 authenticated 结果后才提交产品登录态。取消补偿和关闭顺序见 [xwapi 会话边界](../../docs/xwapi.md#模块职责与会话边界)，不在这里维护另一份传输实现说明。
 
-xwapi 的网络路由和 API 方法日志统一使用 `serverApiMethod()` 生成的短标识，例如 `auth.Auth/GetCurrentUser`。本地 Gateway 注册与权限检查仍使用完整方法身份；HTTP 日志中的 `method=POST` 表示请求动词，API 标识体现在 `path` 中。
+xwapi 的网络路由和 API 方法日志从原始 descriptor 生成短标识，例如 `auth.Auth/GetCurrentUser`。本地 Gateway 注册与权限检查仍使用完整方法身份；HTTP 日志中的 `method=POST` 表示请求动词，API 标识体现在 `path` 中。
 
 ## 服务器与设备
 
@@ -53,7 +53,7 @@ stateDiagram-v2
 
 启动时只恢复已选服务器的会话，不阻塞桌面启动。切服时取消当前账号请求，先持久化轮换后尚未保存的凭据；成功切换后验证目标会话，连接层据当前快照关闭旧 WS 并连接目标服务器。切换不撤销旧服务器会话，旧请求的取消或迟到结果不能覆盖新选择。恢复请求合并并经账号操作队列串行执行，避免并发消费同一个 refresh token。
 
-恢复先保证 access 可用，再复用或等待当前 WS 鉴权结果。建连后调用一次 `Auth.GetCurrentUser` 更新资料并核对 user、device 和 session ID，默认通过已就绪且导出兼容方法的 WS 调用，不再与握手并行发送 HTTP 校验。每次重连成功触发或合并同一恢复流程；调用方原有的 GetCurrentUser 权限检查仍保留。WS 暂不可用时显式通过 HTTP 校验；已发出的 WS 调用失败不通过 HTTP 重放，保留会话等待下一轮恢复。
+上述认证与有限恢复流程由 Rust 会话核心执行，TS 不再直接解释连接鉴权结果。恢复先保证 access 可用，再复用或等待当前 WS 鉴权结果。建连后调用一次 `Auth.GetCurrentUser` 更新资料并核对 user、device 和 session ID，默认通过已就绪且导出兼容方法的 WS 调用，不再与握手并行发送 HTTP 校验。每次重连成功触发或合并同一恢复流程；调用方原有的 GetCurrentUser 权限检查仍保留。WS 暂不可用时显式通过 HTTP 校验；已发出的 WS 调用失败不通过 HTTP 重放，保留会话等待下一轮恢复。
 
 token 处理规则：
 
@@ -78,15 +78,17 @@ flowchart TD
 
 没有独立 HTTP 心跳，正常状态不额外轮询在线状态；启动校验、刷新后的校验及离线恢复复用上述流程。当前离线状态反映会话验证可用性，与独立的 WebSocket 云连接状态分开展示，其他服务器的记录不受影响。
 
-刷新轮换后若保存失败，内存保留新凭据并按服务器标记待持久化，先重试保存，不再使用已消费的旧 refresh token；用户主动退出未激活服务器时发生的刷新也遵循此规则。刷新响应丢失，或新凭据尚未持久化进程就退出时，可能需要重新登录，不能承诺自动恢复所有网络歧义。
+刷新成功时核心返回凭据检查点，先停止后续网络动作，由 TS 接受并保存后 Continue。普通 UI 调用方不能注入该宿主上下文或读取凭据；取消／失败后会等待同一操作清理并收取核心已保留的最新结果，再释放操作。刷新轮换后若保存失败，内存保留新凭据并按服务器标记待持久化，先重试保存，不再使用已消费的旧 refresh token；用户主动退出未激活服务器时发生的刷新也遵循此规则。刷新响应丢失，或新凭据尚未持久化进程就退出时，可能需要重新登录，不能承诺自动恢复所有网络歧义。
 
-关闭登录浮层会取消对应 attempt；切服取消在途请求，迟到结果不写入新状态。已经取得但未提交的登录凭据会尝试在原服务器撤销；取消先于 Gateway 接受响应时可能拿不到凭据，不能保证撤销服务器已发生的登录副作用。
+关闭登录浮层会取消对应 attempt；切服取消在途请求，迟到结果不写入新状态。已经取得但未提交的登录凭据会尝试在原服务器撤销；取消发生在核心接受服务器响应前时可能拿不到凭据，不能保证撤销服务器已发生的登录副作用。
 
 `Account.Logout` 支持指定服务器或本客户端保存的全部服务器会话；未指定目标时处理当前服务器。退出先确保该服务器 access 可用，再请求撤销，成功或明确失效后删除对应本地会话。未激活服务器通过隔离上下文刷新和撤销，不临时激活、不替换当前连接。退出全部逐项提交成功结果；失败条目保留并返回错误，允许重试。退出不修改设备 UUID、地址列表或当前选择，退出全部后不自动选择其他服务器。其他设备的会话不受本客户端操作影响，普通离线业务不依赖账号服务可用。
 
 ## 云连接
 
-`services/xwapi/connection.ts` 持有当前已提交会话的唯一认证连接。Account 提供服务器和会话只读快照，连接层只回填 `cloud_connection`，不保存／刷新 token。登录或恢复出有效凭据后建立连接；服务器、session 或 access token 变化时先取消旧握手和连接，再创建新连接。过期凭据不用于新建连接，凭据刷新仍由 Account 调度。
+[xw-api connection](../../crates/xw-api/src/connection.rs) 持有当前已提交会话的唯一认证连接。Account 提供服务器和会话只读快照，连接层只回填 `cloud_connection`，不保存／刷新 token。登录或恢复出有效凭据后建立连接；服务器、session 或 access token 变化时先取消旧握手和连接，再创建新连接。过期凭据不用于新建连接，凭据刷新仍由 Account 调度。
+
+api 实例创建与会话组合由 xiaowei-rust 在 Rust 内完成，desktop 不保留 xwapi 模块。桌面账号接入只交付宿主会话并将原生连接事件转成现有 Account 状态；普通 API 调用通过既有 Gateway 进入 Rust。添加服务器仍调用 Health.Check，临时目标与当前会话隔离。
 
 临时断线保留账号，连接层从 500 毫秒开始指数退避，基础等待最多 30 秒并附加最多 1 秒抖动；在线时每 15 秒发送心跳，5 秒无响应则关闭重连。服务端明确拒绝认证或撤销会话时，连接层停止重试该 token，交给上述 Account 刷新与恢复流程处理；数据库故障或断网继续保留凭据。旧连接响应不能覆盖新会话，不自动重放请求、事件或流。
 

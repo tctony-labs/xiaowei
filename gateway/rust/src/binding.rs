@@ -12,14 +12,14 @@ use crate::protocol::*;
 ///
 /// ```compile_fail
 /// use xw_gateway::{binding::Method, MethodKind};
-/// use xw_contracts::testing::{Envelope, Changed};
+/// use proto_testing_rs::testing::{Envelope, Changed};
 /// let echo = Method::<Envelope, Envelope>::new("testing.Fixture.Echo", MethodKind::Unary);
 /// echo.handler(|_: Changed, _| async { Ok(Envelope::default()) });
 /// ```
 ///
 /// ```compile_fail
 /// use xw_gateway::{binding::Method, MethodKind};
-/// use xw_contracts::testing::{Envelope, Changed};
+/// use proto_testing_rs::testing::{Envelope, Changed};
 /// let echo = Method::<Envelope, Envelope>::new("testing.Fixture.Echo", MethodKind::Unary);
 /// echo.handler(|_: Envelope, _| async { Ok(Changed::default()) });
 /// ```
@@ -136,7 +136,7 @@ where
 ///
 /// ```compile_fail
 /// use xw_gateway::binding::StreamMethod;
-/// use xw_contracts::testing::{Envelope, Changed};
+/// use proto_testing_rs::testing::{Envelope, Changed};
 /// let watch = StreamMethod::<Envelope, Changed>::new("testing.Fixture.Watch");
 /// watch.handler(|_: Changed, _| async { Ok(futures_util::stream::empty::<Result<Changed, _>>()) });
 /// ```
@@ -270,6 +270,13 @@ pub fn generate_methods(
 ) -> Result<String, GatewayError> {
     let descriptor = prost_types::FileDescriptorSet::decode(descriptor)
         .map_err(|_| GatewayError::new(ErrorCode::InvalidArgument, "invalid descriptor"))?;
+    let rust_type = |name: &str| {
+        if name == "google.protobuf.Empty" {
+            Some("()")
+        } else {
+            types.get(name).map(String::as_str)
+        }
+    };
     let mut output = String::from("// Generated Gateway bindings. Do not edit.\n");
     let mut modules = std::collections::HashSet::new();
     for file in descriptor.file {
@@ -297,14 +304,14 @@ pub fn generate_methods(
                         "client streaming is unsupported",
                     ));
                 }
-                let input = types.get(
+                let input = rust_type(
                     method
                         .input_type
                         .as_deref()
                         .unwrap_or("")
                         .trim_start_matches('.'),
                 );
-                let output_type = types.get(
+                let output_type = rust_type(
                     method
                         .output_type
                         .as_deref()

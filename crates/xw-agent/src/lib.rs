@@ -24,13 +24,13 @@ mod title;
 pub use error::AgentError;
 pub use events::{EventSubscription, SubscriptionError};
 pub use interaction_delivery::InteractionSubscription;
+pub use proto_agent_rs::xiaowei::agent as protocol;
 pub use service::AgentService;
 pub use xw_agent_runtime::{
     CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest,
     GenerationStream, LlmGeneration,
 };
 pub use xw_agent_types::{InputSource, SourceKind};
-pub use xw_contracts::xiaowei::agent as protocol;
 
 pub use host::{AgentHost, AuxiliaryModelRefFuture, ModelInfoFuture};
 pub use xw_agent_types::{AuxiliaryModelError, ModelInfo, ModelInfoError, ModelSelection};

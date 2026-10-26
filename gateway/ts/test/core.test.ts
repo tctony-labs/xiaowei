@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setImmediate as tick } from "node:timers/promises";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import { bindClient, bindEvent, bindHandlers, methodRoute, parseId } from "../src/binding/index.js";
 import { type Backpressure, GatewayFailure, type Result } from "../src/core/protocol.js";
 import { type CallContext, createContext, GatewayHost } from "../src/core/registry.js";

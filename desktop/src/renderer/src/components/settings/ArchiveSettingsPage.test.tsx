@@ -1,7 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   Agent,
   AgentSessionSummarySchema,
@@ -10,7 +9,8 @@ import {
   ListSessionsResponseSchema,
   SessionRetentionPolicySchema,
   SetSessionArchivedResponseSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test, vi } from "vitest";
 import { bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../../services";

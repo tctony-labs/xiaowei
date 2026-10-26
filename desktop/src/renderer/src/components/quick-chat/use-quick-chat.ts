@@ -1,15 +1,15 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useEffect, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   AgentModelConfigSchema,
-  EmptySchema,
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
   SettingsAnchor,
   WriteClipboardTextRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useEffect, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import { thinkingLevels } from "../../../../shared/llm-models";
 import type { Services } from "../../services";

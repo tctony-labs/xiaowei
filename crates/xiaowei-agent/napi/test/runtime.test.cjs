@@ -29,7 +29,7 @@ async function until(predicate) {
 test("formal Agent addon reaches production worker; history, dual observers, failure, stop and close settle", {
   timeout: 30000,
 }, async () => {
-  const pb = await import("xiaowei-contracts");
+  const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient, bindHandlers } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");

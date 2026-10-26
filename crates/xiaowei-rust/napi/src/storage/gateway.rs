@@ -72,7 +72,7 @@ pub(crate) fn create_settings_endpoint(
         if let Some(registry) = publisher.upgrade() {
             let _ = registry.publish(
                 &publisher_owner,
-                &xw_contracts::xiaowei::storage::SettingsChanged::full_name(),
+                &proto_desktop_rs::xiaowei::desktop::settings::SettingsChanged::full_name(),
                 change.encode_to_vec(),
             );
         }

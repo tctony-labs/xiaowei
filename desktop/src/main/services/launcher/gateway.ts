@@ -1,7 +1,7 @@
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import type { BrowserWindow, WebContents } from "electron";
 import {
-  EmptySchema,
   ExecuteResponseSchema,
   Launcher,
   LauncherOpenedSchema,
@@ -15,7 +15,7 @@ import {
   SearchRequestSchema,
   System,
   LauncherMode as WireMode,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient, bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { type LauncherMode, launcherHeight } from "../../../shared/launcher-model";

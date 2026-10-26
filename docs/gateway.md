@@ -136,31 +136,13 @@ Worker MessagePort 通信适配层通过专用 Node Worker 的 parentPort 连接
 
 service handler、执行配额、执行超时、AbortController、iterator 和实际清理归 worker；main 保留全局路由、授权、owner 生命周期及通信等待。worker 与 main 本地 handler 复用环境无关的 `ExecutionScope`，远端流通过独立 `StreamDispatcher` 接口挂载，main 不重复执行流 admission 或 producer 状态机。通信关闭并不提前释放仍在执行的 worker 任务许可。
 
-## 远端服务与双向 WebSocket
+## 与服务器通信的边界
 
-同一套 Gateway 调用方式可以覆盖远端 server。client／server 建立已认证的 WS 连接后，双方均可作为调用方和服务提供方，使用同一份 contracts 生成的 typed client 与 handler 接口。上层调用方式与本地服务一致，网络不可用、超时等结果仍明确返回，不伪装成本地调用必然成功。
+Gateway 只在同一个 App 内连接模块、进程和线程。客户端访问层 [xwapi](xwapi.md) 由纯 Rust [xw-api](../crates/xw-api/README.md) 实现；服务端的 `server/internal/httpapi/` 提供契约约定的 HTTP／WebSocket 接口。网络连接独立验证用户、设备和会话，App 内的 caller／trusted 不能作为服务端账号身份。服务端不调用客户端的本地方法或订阅客户端事件。
 
-```mermaid
-flowchart LR
-    Client["客户端 Gateway／typed client 与 handler"] <-->|"已认证的双向 WebSocket"| Server["服务端 Gateway／typed client 与 handler"]
-```
+桌面通过 `xiaowei-rust` 的 Gateway owner 代理服务器 API，使业务调用方保持解耦；Gateway 核心不持有网络连接，不向服务器导出本机 handler。共享 Rust 内部的 xw-api::account 直接调用同一 crate 的网络能力；xiaowei-rust 在 Rust 内创建客户端与会话核心，把网络 API、连接观察与单会话操作注册到同一个 endpoint。desktop 不创建 xwapi 实例或维护专用代理模块，只使用通用 Gateway 接入和现有账号宿主接线。
 
-职责分层：
-
-- Contracts：接口、消息、event payload 和 stream chunk 的共同定义及语言产物。
-- Gateway：owner／route 注册、寻址、invoke／event／stream 和服务生命周期。
-- WS transport／连接管理层：认证、连接状态、请求／响应关联、超时、断线清理，以及订阅、流取消和背压的跨网络传播。
-- 业务 handler：业务处理，不各自建立 WS 或维护连接状态；依赖业务在线状态时通过连接层接口获知。
-
-连接建立且完成认证、契约及服务发布协商后，通过绑定该连接的 `peer.client` 调用远端显式导出的服务；不把远端 manifest 注册或覆盖到本地 host，也不把本地未命中请求自动转发到网络。断线结束该实例的在途请求、订阅和流；重连使用新的 generation，业务重新建立订阅，不自动重试写操作、重放事件或恢复 LLM 流，可靠恢复仍由业务设计。
-
-WS transport 已提供双向 unary、独立取消、事件应答和逐条 pull 的响应流。每条连接有独立 generation 和双向请求 ID、有界业务／控制表、事件队列与发送字节预算。取消和超时不承诺撤销已经发生的副作用，不合作的实际执行仍占用许可；资源限制与帧格式见 [服务端 WebSocket](../server/docs/websocket.md#传输与资源限制)。
-
-本地自有模块默认可信的约定不延伸为网络免认证。远端导出的 route／event 应显式声明并进行会话授权，不能因为共享契约或建立 WS 就把本机所有服务暴露给服务器，或把 Storage 原始数据库接口公开给任意客户端。反向调用同样受导出范围和会话权限约束。
-
-本地与远端的路由作用域分开：本地调用仍通过宿主 GatewayHost，网络调用通过连接的独立 typed client。桌面 xwapi owner 只注册服务端契约；本地使用完整方法名，xwapi 从 descriptor 推导短网络标识，HTTP 和 WS 共用该标识，PB 类型全名保留。方法的 session 要求决定网络导出范围，调用选项决定本次使用 HTTP 或认证 WS，普通业务不能通过 payload 选择服务器或替换凭据。
-
-当前已实现 Electron IPC、napi、Worker MessagePort 和 TS／Go WebSocket。Go 对端位于现有 server module 的 `internal/gateway/`，认证适配归 `internal/httpapi/`；TS 接入见 [Gateway TS](../gateway/ts/README.md#websocket-接入)，业务传输选择见 [xwapi](xwapi.md#http-与-websocket-选择)。这不表示已经实现收藏同步、密码重置或生产部署验收。
+WS 保持既有二进制帧和控制／契约版本，具体资源限制见 [服务端 WebSocket](../server/docs/websocket.md)。网络断线不替换本地 owner，不回放写请求，也不提供收藏同步或跨服务器同步语义。iOS／Android 后续可以在自己的 App 内接入 Gateway；跨应用调用不属于 Gateway。
 
 ## 本地 socket 接入（尚未实现）
 

@@ -1,6 +1,6 @@
 //! JSON framing exists only in this fake transport test process, never in product Gateway.
+use proto_testing_rs::testing::Envelope;
 use std::io::{self, BufRead, Write};
-use xw_contracts::testing::Envelope;
 use xw_gateway::{protocol::Route, *};
 #[path = "../tests/fixture_bindings.rs"]
 #[allow(dead_code)]

@@ -69,6 +69,47 @@ export declare class Storage {
   createSettingsGatewayEndpoint(platform: string): GatewayEndpoint
 }
 
+export declare class XwAccount {
+  constructor()
+  createGatewayEndpoint(): GatewayEndpoint
+  /** Host lifecycle/configuration; session operations use the fixed methods below. */
+  setSession(input: string): number
+  login(context: AccountOperationContext, request: Buffer, access: AccountOperationAccess): Promise<AccountOperationResult>
+  restore(context: AccountOperationContext, force: boolean, access: AccountOperationAccess): Promise<AccountOperationResult>
+  logout(context: AccountOperationContext, access: AccountOperationAccess): Promise<AccountOperationResult>
+  revoke(context: AccountOperationContext, access: AccountOperationAccess): Promise<AccountOperationResult>
+  continueOperation(id: string, nowMs: number): Promise<AccountOperationResult>
+  readResult(id: string, nowMs: number): Promise<AccountOperationResult>
+  cancelOperation(id: string): void
+  releaseOperation(id: string): void
+  connectionGeneration(): number
+}
+
+export interface AccountOperationAccess {
+  login: boolean
+  refresh: boolean
+  currentUser: boolean
+  logout: boolean
+}
+
+export interface AccountOperationContext {
+  operationId: string
+  server: string
+  sessionServer?: string
+  authenticated?: Buffer
+  connect: boolean
+  nowMs: number
+}
+
+export interface AccountOperationResult {
+  code: number
+  msg: string
+  authenticated?: Buffer
+  credentialVersion: bigint
+  checkpoint: boolean
+  nextMaintenanceAtMs: number
+}
+
 export declare function captureFocus(): Promise<FocusSnapshot | null>
 
 export interface ClipboardCategory {

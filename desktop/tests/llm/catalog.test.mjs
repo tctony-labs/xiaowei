@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ListModelsRequestSchema, Llm } from "xiaowei-contracts";
+import { ListModelsRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { llmFixture, waitFor } from "../fixtures/llm.mjs";
 

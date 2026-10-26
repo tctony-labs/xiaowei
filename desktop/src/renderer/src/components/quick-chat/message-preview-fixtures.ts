@@ -6,7 +6,7 @@ import {
   AgentRunStatus,
   AgentSessionSchema,
   AgentToolStatus,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import type { AgentGenerationState } from "../agent-chat/message-blocks";
 
 export interface MessagePreviewOptions {

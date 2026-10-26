@@ -9,20 +9,20 @@ import {
   type MessageShape,
   toBinary,
 } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   Auth,
-  EmptySchema,
   ErrorCode,
   Health,
   LoginRequestSchema,
   RefreshRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { methodRoute } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi, type RustNapiEndpoint } from "xiaowei-gateway/rust-napi";
-import { registerXwapi } from "../../src/main/services/xwapi/gateway";
-import { type XwapiContext, XwapiService } from "../../src/main/services/xwapi/service";
 import { authServer } from "../main/account-fixture";
+import type { ServerApiContext } from "../main/server-api-fixture";
+import { attachServerApiFixture } from "../main/server-api-fixture";
 
 const require = createRequire(import.meta.url);
 const peer = require("../../../target/rust-napi-tests/rust") as {
@@ -34,8 +34,8 @@ const peer = require("../../../target/rust-napi-tests/rust") as {
 test("Rust napi caller reaches all xwapi methods with PB and rejects missing access before HTTP", async () => {
   const server = await authServer();
   const host = new GatewayHost();
-  let context: Omit<XwapiContext, "signal"> = { server: server.url };
-  const owner = registerXwapi(host, new XwapiService(), () => context);
+  let context: ServerApiContext = { server: server.url };
+  const owner = await attachServerApiFixture(host, () => context);
   const endpoint = peer.createGatewayFixture();
   const remote = await attachRustNapi(host, "xwapi-peer", endpoint);
 

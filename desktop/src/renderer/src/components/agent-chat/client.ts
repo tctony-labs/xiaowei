@@ -23,7 +23,7 @@ import {
   SetSessionTitleRequestSchema,
   StartRunRequestSchema,
   SubscribeSessionRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { applyAgentEvent, chatMessages } from "./agent-events";

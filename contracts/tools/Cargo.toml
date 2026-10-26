@@ -6,3 +6,9 @@ publish = false
 
 [dependencies]
 prost-build = { workspace = true }
+
+[dev-dependencies]
+prost = { workspace = true }
+prost-types = { workspace = true }
+proto-testing-rs = { path = "../out/proto-testing-rs" }
+proto-server-rs = { path = "../out/proto-server-rs" }

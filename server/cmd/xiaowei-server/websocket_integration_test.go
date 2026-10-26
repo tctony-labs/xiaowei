@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
-	"github.com/tctony-labs/xiaowei/server/internal/gateway"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
+	"github.com/tctony-labs/xiaowei/server/internal/httpapi/ws"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -66,10 +66,10 @@ func wsLogin(t *testing.T, fixture authFixture, token string) (*websocket.Conn, 
 	}
 	t.Cleanup(func() { _ = socket.CloseNow() })
 	wsWrite(t, socket, map[string]any{"v": 1, "generation": "", "op": "authenticate", "token": token,
-		"manifest": gateway.Manifest{Routes: []gateway.Route{}, Events: []gateway.Event{}}, "optionsBytes": 0}, nil)
+		"manifest": ws.Manifest{Routes: []ws.Route{}, Events: []ws.Event{}}, "optionsBytes": 0}, nil)
 	header, _ := wsRead(t, socket)
 	if len(header["manifest"]) > 0 {
-		var manifest gateway.Manifest
+		var manifest ws.Manifest
 		if json.Unmarshal(header["manifest"], &manifest) != nil || len(manifest.Routes) != 2 {
 			t.Fatal("WS must export exactly the two session-required API methods")
 		}
@@ -87,8 +87,8 @@ func wsLogin(t *testing.T, fixture authFixture, token string) (*websocket.Conn, 
 func wsMe(t *testing.T, socket *websocket.Conn, generation string) *pb.GetCurrentUserResponse {
 	t.Helper()
 	wsWrite(t, socket, map[string]any{"v": 1, "generation": generation, "op": "invoke", "id": fmt.Sprintf("c:me:%d", wsSequence.Add(1)),
-		"optionsBytes": 0, "route": gateway.Route{Name: "auth.Auth/GetCurrentUser", Kind: "unary",
-			ControlVersion: 3, ContractVersion: 1, Input: "xiaowei.common.Empty",
+		"optionsBytes": 0, "route": ws.Route{Name: "auth.Auth/GetCurrentUser", Kind: "unary",
+			ControlVersion: 3, ContractVersion: 1, Input: "google.protobuf.Empty",
 			Output: "xiaowei.server.auth.GetCurrentUserResponse"}}, nil)
 	header, payload := wsRead(t, socket)
 	if len(header["error"]) != 0 {
@@ -128,10 +128,10 @@ func TestWebSocketAuthenticationSessionIsolationAndShutdown(t *testing.T) {
 		"common.Health/Check", "common.Health/Ready", "xiaowei.server.auth.Auth.GetCurrentUser"} {
 		wsWrite(t, first, map[string]any{"v": 1, "generation": firstGeneration,
 			"op": "invoke", "id": fmt.Sprintf("c:public:%d", wsSequence.Add(1)), "optionsBytes": 0,
-			"route": gateway.Route{Name: name, Kind: "unary", ControlVersion: 3, ContractVersion: 1,
-				Input: "xiaowei.common.Empty", Output: "xiaowei.server.common.BaseResponse"}}, nil)
+			"route": ws.Route{Name: name, Kind: "unary", ControlVersion: 3, ContractVersion: 1,
+				Input: "google.protobuf.Empty", Output: "xiaowei.server.common.BaseResponse"}}, nil)
 		header, _ := wsRead(t, first)
-		var failure gateway.Error
+		var failure ws.Error
 		if json.Unmarshal(header["error"], &failure) != nil || failure.Code != "UNAUTHORIZED" {
 			t.Fatal("unexported or old full-name method accepted over WS")
 		}
@@ -205,7 +205,7 @@ func TestWebSocketDatabaseFailureDoesNotAuthorizeRequests(t *testing.T) {
 		"v": 1, "generation": generation, "op": "ping", "id": "c:database", "optionsBytes": 0,
 	}, nil)
 	header, _ := wsRead(t, socket)
-	var failure gateway.Error
+	var failure ws.Error
 	if json.Unmarshal(header["error"], &failure) != nil || failure.Code != "OWNER_UNAVAILABLE" {
 		t.Fatal("database failure was not reported as temporary unavailability")
 	}
@@ -230,8 +230,8 @@ func TestWebSocketLogoutReturnsSuccessBeforeSessionConnectionsClose(t *testing.T
 		}
 		wsWrite(t, socket, map[string]any{"v": 1, "generation": generation,
 			"op": "invoke", "id": "c:logout", "optionsBytes": 0,
-			"route": gateway.Route{Name: "auth.Auth/Logout", Kind: "unary", ControlVersion: 3,
-				ContractVersion: 1, Input: "xiaowei.common.Empty", Output: "xiaowei.server.auth.LogoutResponse"}}, nil)
+			"route": ws.Route{Name: "auth.Auth/Logout", Kind: "unary", ControlVersion: 3,
+				ContractVersion: 1, Input: "google.protobuf.Empty", Output: "xiaowei.server.auth.LogoutResponse"}}, nil)
 		header, payload := wsRead(t, socket)
 		response := new(pb.LogoutResponse)
 		var id string

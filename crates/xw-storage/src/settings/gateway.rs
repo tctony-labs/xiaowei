@@ -1,23 +1,24 @@
 use super::{SettingsError, SettingsService};
+use proto_desktop_rs::xiaowei::desktop::settings::SettingsChanged;
 use std::sync::Arc;
-use xw_contracts::xiaowei::{common::Empty, storage::SettingsChanged};
 use xw_gateway::{
     event::{EventBackpressure, EventExportRegistration},
     ErrorCode, GatewayError, InvokeRegistration,
 };
 
-use crate::gateway_binding::xiaowei_storage_settings_service as methods;
+use crate::gateway_binding::xiaowei_desktop_settings_settings_service as methods;
 
 tokio::task_local! {
     pub(super) static CALLER: xw_gateway::invoke::Client;
 }
 
 pub(super) async fn apply(
-    previous: xw_contracts::xiaowei::storage::SettingsSnapshot,
-    next: xw_contracts::xiaowei::storage::SettingsSnapshot,
+    previous: proto_desktop_rs::xiaowei::desktop::settings::SettingsSnapshot,
+    next: proto_desktop_rs::xiaowei::desktop::settings::SettingsSnapshot,
 ) -> Result<(), String> {
     use crate::gateway_binding::{
-        xiaowei_shortcuts_shortcuts_service as shortcuts, xiaowei_system_system_service as system,
+        xiaowei_desktop_host_system_service as system,
+        xiaowei_desktop_shortcuts_shortcuts_service as shortcuts,
     };
     let client = CALLER
         .try_with(Clone::clone)
@@ -32,7 +33,7 @@ pub(super) async fn apply(
         system::SET_AUTOSTART
             .call(
                 &client,
-                xw_contracts::xiaowei::system::SetAutostartRequest {
+                proto_desktop_rs::xiaowei::desktop::host::SetAutostartRequest {
                     enabled: next.autostart,
                 },
             )
@@ -75,7 +76,7 @@ pub fn registrations(service: &Arc<SettingsService>) -> Vec<InvokeRegistration> 
 }
 
 pub fn events() -> Vec<EventExportRegistration> {
-    vec![EventExportRegistration::typed::<SettingsChanged, Empty, _>(
+    vec![EventExportRegistration::typed::<SettingsChanged, (), _>(
         EventBackpressure::Coalesce,
         |_, _| true,
     )]

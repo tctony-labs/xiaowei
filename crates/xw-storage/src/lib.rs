@@ -25,7 +25,10 @@ mod tests {
 }
 
 pub use db::Database;
-pub use xw_contracts::xiaowei::storage as pb;
+pub mod pb {
+    pub use proto_desktop_rs::xiaowei::desktop::settings::*;
+    pub use proto_desktop_rs::xiaowei::desktop::storage::*;
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

@@ -1,18 +1,15 @@
 //! Internal SQL request and result types. These are never sent through Gateway.
 
-use xw_contracts::xiaowei::common::Empty;
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SqlValue {
     pub kind: Option<sql_value::Kind>,
 }
 
 pub mod sql_value {
-    use super::Empty;
 
     #[derive(Clone, Debug, PartialEq)]
     pub enum Kind {
-        Null(Empty),
+        Null(()),
         Integer(i64),
         Real(f64),
         Text(String),

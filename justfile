@@ -10,7 +10,7 @@ prepare:
     stamp=".prepare-ts"
     changed=false
     for file in pnpm-lock.yaml pnpm-workspace.yaml package.json \
-        contracts/ts/package.json gateway/ts/package.json gateway/tests/package.json desktop/package.json \
+        contracts/out/proto-desktop-ts/package.json gateway/ts/package.json gateway/tests/package.json desktop/package.json \
         packages/*/package.json crates/*/napi/package.json; do
         if [ ! -f "$stamp" ] || [ "$file" -nt "$stamp" ]; then
             changed=true
@@ -149,7 +149,7 @@ format:
     pnpm exec biome check --write .
     cargo fmt --all
     cd server && go fmt ./...
-    cd contracts/go && go fmt ./...
+    cd contracts/out/proto-server-go && go fmt ./...
 
 # Check without changing source or the Git index.
 check:
@@ -159,8 +159,8 @@ check:
     pnpm check
     cd server && test -z "$(gofmt -l .)"
     cd server && go vet ./...
-    cd contracts/go && test -z "$(gofmt -l .)"
-    cd contracts/go && go vet ./...
+    cd contracts/out/proto-server-go && test -z "$(gofmt -l .)"
+    cd contracts/out/proto-server-go && go vet ./...
 
 # Run regression tests.
 test:

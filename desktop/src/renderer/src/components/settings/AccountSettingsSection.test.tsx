@@ -1,8 +1,7 @@
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StrictMode } from "react";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   Account,
   AccountChangedSchema,
@@ -10,11 +9,12 @@ import {
   AccountOperationResponseSchema,
   AccountSnapshotSchema,
   AccountStatus,
+  AccountUserSchema,
   CloudConnectionStatus,
-  EmptySchema,
   ServerAccountSchema,
-  UserSnapshotSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { StrictMode } from "react";
+import { afterEach, expect, test, vi } from "vitest";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../../services";
@@ -219,11 +219,11 @@ test("real typed client logs in, shows the public UID and restores the selector 
             ...snapshot,
             revision: 2n,
             status: AccountStatus.SIGNED_IN,
-            user: create(UserSnapshotSchema, { userId: "u_public_identity" }),
+            user: create(AccountUserSchema, { userId: "u_public_identity" }),
             serverAccounts: [
               create(ServerAccountSchema, {
                 serverAddress: snapshot.selectedServer,
-                user: create(UserSnapshotSchema, { userId: "u_public_identity" }),
+                user: create(AccountUserSchema, { userId: "u_public_identity" }),
               }),
             ],
           });
@@ -302,14 +302,14 @@ test("management connects typed switching, adding, login and partial logout-all"
   const saved = (serverAddress: string, userId: string) =>
     create(ServerAccountSchema, {
       serverAddress,
-      user: create(UserSnapshotSchema, { userId }),
+      user: create(AccountUserSchema, { userId }),
     });
   let snapshot = create(AccountSnapshotSchema, {
     revision: 1n,
     servers: [first, second],
     selectedServer: first,
     status: AccountStatus.SIGNED_IN,
-    user: create(UserSnapshotSchema, { userId: "u_first" }),
+    user: create(AccountUserSchema, { userId: "u_first" }),
     serverAccounts: [saved(first, "u_first"), saved(second, "u_second")],
   });
   let logoutAllAttempts = 0;
@@ -352,7 +352,7 @@ test("management connects typed switching, adding, login and partial logout-all"
             ...snapshot,
             revision: snapshot.revision + 1n,
             selectedServer: third,
-            user: create(UserSnapshotSchema, { userId: "u_third" }),
+            user: create(AccountUserSchema, { userId: "u_third" }),
             serverAccounts: [...snapshot.serverAccounts, saved(third, "u_third")],
           });
           owner.publish(
@@ -483,7 +483,7 @@ test("subscription precedes the initial snapshot and stale replies cannot overwr
       ...initial,
       revision: 2n,
       status: AccountStatus.SIGNED_IN,
-      user: create(UserSnapshotSchema, { userId: "u_newer" }),
+      user: create(AccountUserSchema, { userId: "u_newer" }),
     });
     act(() =>
       owner.publish(
@@ -561,7 +561,7 @@ test("cloud reconnect state changes without removing the signed-in account", asy
     status: AccountStatus.SIGNED_IN,
     servers: ["https://example.test"],
     selectedServer: "https://example.test",
-    user: create(UserSnapshotSchema, { userId: "u_still_signed_in" }),
+    user: create(AccountUserSchema, { userId: "u_still_signed_in" }),
     cloudConnection: CloudConnectionStatus.CONNECTED,
   });
   const owner = host.registerOwner(

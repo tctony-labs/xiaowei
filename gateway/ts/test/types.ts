@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import {
   bindClient,
   bindHandlers,

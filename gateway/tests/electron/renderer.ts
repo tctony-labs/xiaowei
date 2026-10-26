@@ -6,7 +6,7 @@ import {
   KeyValue,
   KvEntrySchema,
   KvKeySchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient, bindStreamClient } from "xiaowei-gateway";
 import { createRendererClient, type GatewayBridge } from "xiaowei-gateway/renderer";
 

@@ -1,4 +1,4 @@
-import { AgentToolStatus, type AgentToolCall as ToolCall } from "xiaowei-contracts";
+import { AgentToolStatus, type AgentToolCall as ToolCall } from "proto-desktop-ts";
 import { AgentToolIcon } from "./AgentToolIcon";
 import { isToolObject, parseToolJson, toolPresentation } from "./tool-presentation";
 

@@ -1,5 +1,5 @@
+import { AgentRunStatus, AgentToolStatus } from "proto-desktop-ts";
 import { useEffect, useState } from "react";
-import { AgentRunStatus, AgentToolStatus } from "xiaowei-contracts";
 import { chatMessages } from "../agent-chat/agent-events";
 import {
   type MessagePreviewOptions,

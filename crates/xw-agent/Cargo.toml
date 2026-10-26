@@ -7,7 +7,7 @@ edition = "2024"
 xw-agent-rollout = { path = "../xw-agent-rollout" }
 xw-agent-types = { path = "../xw-agent-types" }
 xw-agent-runtime = { path = "../xw-agent-runtime" }
-xw-contracts = { path = "../../contracts/rust" }
+proto-agent-rs = { path = "../../contracts/out/proto-agent-rs" }
 sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite"] }
 uuid = { version = "1", features = ["v7"] }
 prost = { workspace = true }

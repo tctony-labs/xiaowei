@@ -3,6 +3,11 @@
 pub mod gateway;
 
 use crate::Database;
+use proto_desktop_rs::xiaowei::desktop::settings::{
+    update_settings_request::Change, SettingsChanged, SettingsSnapshot, ShortcutBinding,
+    ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
+};
+use proto_desktop_rs::xiaowei::desktop::storage::{KvEntry, KvPrefix};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fmt;
@@ -10,10 +15,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Mutex as AsyncMutex;
-use xw_contracts::xiaowei::storage::{
-    update_settings_request::Change, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot,
-    ShortcutBinding, ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
-};
 
 const PREFIX: &str = "setting.";
 

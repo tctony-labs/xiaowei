@@ -2,14 +2,14 @@ import { access } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { app, type BrowserWindow, clipboard, shell } from "electron";
 import {
-  EmptySchema,
   SettingsAnchor,
   SettingsNavigationRequestedSchema,
   System,
   TakeSettingsNavigationResponseSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 

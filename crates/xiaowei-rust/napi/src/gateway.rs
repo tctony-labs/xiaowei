@@ -12,6 +12,7 @@ pub(crate) enum Resources {
         close_database: bool,
     },
     Clipboard(Arc<xw_clipboard::Service>),
+    Account(Arc<crate::account::Service>),
 }
 
 #[napi]
@@ -86,10 +87,15 @@ impl GatewayEndpoint {
         payload: Buffer,
         context: String,
     ) -> napi::Result<PromiseRaw<'env, Reply>> {
+        let account_lease = match &self.resources {
+            Resources::Account(service) => service.prepare(&control, &context),
+            _ => None,
+        };
         let prepared = self.inner.prepare_rpc(&control, &context);
         let inner = self.inner.clone();
         let payload = payload.to_vec();
         env.spawn_future(async move {
+            let _account_lease = account_lease;
             Ok(reply(match prepared {
                 Ok(()) => inner.rpc_control(&control, payload, &context).await,
                 Err(error) => Err(error),
@@ -166,6 +172,7 @@ impl GatewayEndpoint {
             }
             let result = inner.close().await;
             match resources {
+                Resources::Account(service) => service.close().await,
                 Resources::Storage {
                     database,
                     close_database: true,

@@ -10,15 +10,20 @@ crate-type = ["cdylib"]
 gateway-fixtures = ["xw-gateway/test-fixtures"]
 
 [dependencies]
+xw-api = { path = "../../xw-api" }
 xw-search = { path = "../../xw-search" }
 xw-clipboard = { path = "../../xw-clipboard" }
 xw-storage = { path = "../../xw-storage" }
 xw-platform = { path = "../../xw-platform" }
 xw-gateway = { path = "../../../gateway/rust", features = ["napi"] }
-xw-contracts = { path = "../../../contracts/rust" }
+proto-server-rs = { path = "../../../contracts/out/proto-server-rs" }
+proto-desktop-rs = { path = "../../../contracts/out/proto-desktop-rs" }
 xw-napi-log = { path = "../../xw-napi-log" }
 prost = { workspace = true }
 tokio = { version = "1", features = ["rt"] }
+tokio-util = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 napi = { version = "3", features = ["napi8", "async"] }
 napi-derive = "3"
 

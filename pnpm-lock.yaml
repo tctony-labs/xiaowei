@@ -184,6 +184,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.13
         version: 2.5.13
+      '@bufbuild/protobuf':
+        specifier: 'catalog:'
+        version: 2.15.0
       '@electron/asar':
         specifier: 3.4.1
         version: 3.4.1
@@ -209,7 +212,7 @@ importers:
         specifier: 7.3.6
         version: 7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
 
-  contracts/ts:
+  contracts/out/proto-desktop-ts:
     dependencies:
       '@bufbuild/protobuf':
         specifier: 'catalog:'
@@ -217,7 +220,7 @@ importers:
     devDependencies:
       '@bufbuild/protoc-gen-es':
         specifier: 'catalog:'
-        version: 2.15.0(@bufbuild/protobuf@2.15.0)(supports-color@5.5.0)
+        version: 2.15.0(@bufbuild/protobuf@2.15.0)(supports-color@7.2.0)
       '@types/node':
         specifier: 26.5.1
         version: 26.5.1
@@ -233,12 +236,12 @@ importers:
       '@napi-rs/cli':
         specifier: 3.10.1
         version: 3.10.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.5.1)(supports-color@7.2.0)
+      proto-desktop-ts:
+        specifier: workspace:*
+        version: link:../../../contracts/out/proto-desktop-ts
       tsx:
         specifier: 4.23.13
         version: 4.23.13
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../../../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../../../gateway/ts
@@ -251,15 +254,15 @@ importers:
       '@napi-rs/cli':
         specifier: 3.10.1
         version: 3.10.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@26.5.1)(supports-color@7.2.0)
+      proto-desktop-ts:
+        specifier: workspace:*
+        version: link:../../../contracts/out/proto-desktop-ts
       tsx:
         specifier: 4.23.13
         version: 4.23.13
       xiaowei-agent:
         specifier: workspace:*
         version: link:../../xiaowei-agent/napi
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../../../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../../../gateway/ts
@@ -324,6 +327,9 @@ importers:
       jsdom:
         specifier: ^30.1.0
         version: 30.1.0(@noble/hashes@2.4.0)
+      proto-desktop-ts:
+        specifier: workspace:*
+        version: link:../contracts/out/proto-desktop-ts
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -351,9 +357,6 @@ importers:
       vitest:
         specifier: 5.0.1
         version: 5.0.1(@types/node@26.5.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../gateway/ts
@@ -369,12 +372,12 @@ importers:
       electron:
         specifier: 44.3.0
         version: 44.3.0(supports-color@7.2.0)
+      proto-desktop-ts:
+        specifier: workspace:*
+        version: link:../../contracts/out/proto-desktop-ts
       vite:
         specifier: 7.3.6
         version: 7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../../contracts/ts
       xiaowei-gateway:
         specifier: workspace:*
         version: link:../ts
@@ -394,12 +397,12 @@ importers:
       electron:
         specifier: 44.3.0
         version: 44.3.0(supports-color@7.2.0)
+      proto-desktop-ts:
+        specifier: workspace:*
+        version: link:../../contracts/out/proto-desktop-ts
       tsx:
         specifier: 4.23.13
         version: 4.23.13
-      xiaowei-contracts:
-        specifier: workspace:*
-        version: link:../../contracts/ts
 
   packages/source-log:
     dependencies:
@@ -5164,18 +5167,18 @@ snapshots:
 
   '@bufbuild/protobuf@2.15.0': {}
 
-  '@bufbuild/protoc-gen-es@2.15.0(@bufbuild/protobuf@2.15.0)(supports-color@5.5.0)':
+  '@bufbuild/protoc-gen-es@2.15.0(@bufbuild/protobuf@2.15.0)(supports-color@7.2.0)':
     dependencies:
-      '@bufbuild/protoplugin': 2.15.0(supports-color@5.5.0)
+      '@bufbuild/protoplugin': 2.15.0(supports-color@7.2.0)
     optionalDependencies:
       '@bufbuild/protobuf': 2.15.0
     transitivePeerDependencies:
       - supports-color
 
-  '@bufbuild/protoplugin@2.15.0(supports-color@5.5.0)':
+  '@bufbuild/protoplugin@2.15.0(supports-color@7.2.0)':
     dependencies:
       '@bufbuild/protobuf': 2.15.0
-      '@typescript/vfs': 1.6.4(supports-color@5.5.0)(typescript@5.4.5)
+      '@typescript/vfs': 1.6.4(supports-color@7.2.0)(typescript@5.4.5)
       typescript: 5.4.5
     transitivePeerDependencies:
       - supports-color
@@ -6682,9 +6685,9 @@ snapshots:
       '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260707.2
       '@typescript/native-preview-win32-x64': 7.0.0-dev.20260707.2
 
-  '@typescript/vfs@1.6.4(supports-color@5.5.0)(typescript@5.4.5)':
+  '@typescript/vfs@1.6.4(supports-color@7.2.0)(typescript@5.4.5)':
     dependencies:
-      debug: 4.4.3(supports-color@5.5.0)
+      debug: 4.4.3(supports-color@7.2.0)
       typescript: 5.4.5
     transitivePeerDependencies:
       - supports-color

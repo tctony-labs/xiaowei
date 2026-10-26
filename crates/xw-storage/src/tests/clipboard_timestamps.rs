@@ -1,6 +1,6 @@
 use crate::{clipboard_dao::ClipboardDao, clipboard_migrations, sql::DatabaseRollback, Database};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use std::sync::Arc;
-use xw_contracts::xiaowei::clipboard as pb;
 
 async fn capture(dao: &ClipboardDao, text: &str, time: i64) -> pb::ClipboardEntity {
     dao.capture(pb::CaptureClipboardEntityRequest {

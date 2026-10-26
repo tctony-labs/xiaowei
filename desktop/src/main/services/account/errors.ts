@@ -1,4 +1,4 @@
-import { ErrorCode } from "xiaowei-contracts";
+import { ErrorCode } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 
 export class AccountError extends Error {

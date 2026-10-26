@@ -1,6 +1,6 @@
+import type { ConfiguredModel } from "proto-desktop-ts";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { ConfiguredModel } from "xiaowei-contracts";
 import Modal, { ModalButton } from "../Modal";
 import ModelCatalog from "./ModelCatalog";
 import { modelDisplayName } from "./model-display-name";

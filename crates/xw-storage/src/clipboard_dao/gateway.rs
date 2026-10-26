@@ -4,7 +4,7 @@ use std::future::Future;
 use std::sync::Arc;
 use xw_gateway::{binding::Method, ErrorCode, GatewayError, InvokeRegistration};
 
-use crate::gateway_binding::xiaowei_clipboard_clipboard_dao_service as methods;
+use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as methods;
 
 pub fn registrations(dao: &Arc<ClipboardDao>) -> Vec<InvokeRegistration> {
     vec![

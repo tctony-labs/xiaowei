@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const contracts = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(contracts, "..");
-const tsPackage = join(contracts, "ts");
+const tsPackage = join(workspace, "contracts/out/proto-desktop-ts");
 
 // protoc-gen-es is pinned by the workspace lockfile; reuse pnpm instead of keeping a separate cache.
 // Its version comes from the workspace catalog, which also pins the runtime; Protobuf-ES requires both

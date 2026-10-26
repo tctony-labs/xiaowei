@@ -12,7 +12,7 @@ const {
 } = require("../..");
 
 test("merged endpoints share a type and business owners close independently", async () => {
-  const { KeyValue, KvEntrySchema, KvKeySchema } = await import("xiaowei-contracts");
+  const { KeyValue, KvEntrySchema, KvKeySchema } = await import("proto-desktop-ts");
   const { bindClient } = await import("xiaowei-gateway");
   const { GatewayHost } = await import("xiaowei-gateway/host");
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");

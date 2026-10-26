@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import { bindStreamClient, bindStreamHandlers, methodRoute } from "../src/binding/index.js";
 import { createContext, GatewayHost } from "../src/core/registry.js";
 import { boundedByteQueue, openStream, streamPolicy } from "../src/core/stream.js";

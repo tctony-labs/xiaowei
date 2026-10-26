@@ -13,7 +13,7 @@ import {
   ModelSettingsSnapshotSchema,
   type ConfiguredModel as WireModel,
   type ConfiguredProvider as WireProvider,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import {
   bindHandlers,
   bindStreamClient,

@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { create } from "@bufbuild/protobuf";
-import { GenerateRequestSchema, ListModelsRequestSchema, Llm } from "xiaowei-contracts";
+import { GenerateRequestSchema, ListModelsRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { loadConfig, resolveModels } from "../src/main/services/llm/config.ts";

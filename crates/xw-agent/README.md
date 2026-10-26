@@ -1,6 +1,6 @@
 # xw-agent
 
-传输无关的 Agent App Server，使用 `xw-contracts` 的 Agent 请求／响应与公共视图。内部复用 `xw-agent-types`，通过本包的统一 `AgentHost` 接收生成、模型信息与辅助模型引用；不依赖 Gateway、napi、ModelSettings 或 Storage。
+传输无关的 Agent App Server，使用 `proto-agent-rs` 的 Agent 请求／响应与公共视图。内部复用 `xw-agent-types`，通过本包的统一 `AgentHost` 接收生成、模型信息与辅助模型引用；不依赖 Gateway、napi、ModelSettings 或 Storage。
 
 从包根使用 `AgentService`、`AgentError`、`EventSubscription`、`SubscriptionError` 与 `protocol`。先创建会话，再以必填 `session_id` 调用 `subscribe_session`；第一帧 `SubscriptionReady` 已携带该单个会话完整快照，并与观察者登记原子完成；随后顺序消费快照之后的直接业务事件。未知／已删除会话返回 `AgentError::NotFound`。订阅过载明确返回 `Lagged` 并结束，需要重新订阅并用新首帧替换缓存。独立 `read_session` 只用于查询，不能覆盖活跃事件缓存。关闭观察者不关闭服务，宿主通过 `close().await` 释放服务并唤醒观察者。
 

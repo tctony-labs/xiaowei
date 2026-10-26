@@ -7,8 +7,8 @@ use std::sync::{
 use std::time::Duration;
 
 use prost::Message;
+use proto_testing_rs::testing::{Changed, Envelope};
 use tokio::sync::{Notify, mpsc};
-use xw_contracts::testing::{Changed, Envelope};
 use xw_gateway::{
     binding::Method,
     event::{EventBackpressure, EventExportRegistration},
@@ -108,10 +108,10 @@ async fn typed_adapter_enforces_payload() {
         text: "测试🦀".into(),
         id: u64::MAX,
         label: Some(String::new()),
-        blobs: vec![xw_contracts::testing::envelope::Blob {
+        blobs: vec![proto_testing_rs::testing::envelope::Blob {
             data: vec![0, 255, 1],
         }],
-        value: Some(xw_contracts::testing::envelope::Value::NullValue(0)),
+        value: Some(proto_testing_rs::testing::envelope::Value::NullValue(0)),
     };
     assert_eq!(ECHO.call(&client, payload.clone()).await.unwrap(), payload);
     assert_eq!(

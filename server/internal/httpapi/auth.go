@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	common "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei"
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/config"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
-	"github.com/tctony-labs/xiaowei/server/internal/gateway"
+	"github.com/tctony-labs/xiaowei/server/internal/httpapi/ws"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type authAPI struct {
@@ -118,7 +118,7 @@ func (a *authAPI) logout(
 			return nil, err
 		}
 		ctx = auth.WithSessionChangeDelivery(ctx, func(notify func()) {
-			gateway.AfterReply(ctx, notify)
+			ws.AfterReply(ctx, notify)
 		})
 	}
 	if err := a.service.Logout(ctx, call.identity); err != nil {
@@ -126,7 +126,7 @@ func (a *authAPI) logout(
 	}
 	slog.Info("session logged out", "user_id", call.identity.User.PublicID,
 		"session_id", call.identity.SessionID)
-	return &pb.LogoutResponse{Msg: "成功", Data: new(common.Empty)}, nil
+	return &pb.LogoutResponse{Msg: "成功", Data: new(emptypb.Empty)}, nil
 }
 
 func readAPIRequest(w http.ResponseWriter, r *http.Request, message proto.Message, allowEmpty bool) bool {

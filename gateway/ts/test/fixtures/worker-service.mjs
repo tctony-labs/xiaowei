@@ -1,6 +1,6 @@
 import { parentPort, threadId, workerData } from "node:worker_threads";
 import { create } from "@bufbuild/protobuf";
-import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "xiaowei-contracts";
+import { ChangedSchema, EnvelopeSchema, Fixture, PeerFixture } from "proto-desktop-ts";
 import {
   bindClient,
   bindHandlers,

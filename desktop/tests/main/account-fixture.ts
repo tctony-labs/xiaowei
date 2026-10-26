@@ -12,16 +12,15 @@ import {
   LogoutResponseSchema,
   RefreshResponseSchema,
   TokenPairSchema,
-} from "xiaowei-contracts";
-import { bindClient, type Client } from "xiaowei-gateway";
+} from "proto-desktop-ts";
+import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { attachRustNapi } from "xiaowei-gateway/rust-napi";
 import { Storage } from "xiaowei-rust";
 import { AccountService } from "../../src/main/services/account/service";
+import { registerAccountSession } from "../../src/main/services/account/session";
 import type { AccountStore } from "../../src/main/services/account/store";
-import type { ConnectionAuthentication } from "../../src/main/services/xwapi/connection";
-import { registerXwapi } from "../../src/main/services/xwapi/gateway";
-import { XwapiService } from "../../src/main/services/xwapi/service";
+import { attachAuthWebsocket } from "./auth-websocket-fixture";
 
 export async function accountMeta(t: TestContext, directory: string) {
   const database = await Storage.open(join(directory, "storage.sqlite"));
@@ -34,6 +33,15 @@ export async function accountMeta(t: TestContext, directory: string) {
 export async function authServer() {
   const state = {
     offline: false,
+    wsAuthentication: "authenticated" as "authenticated" | "rejected" | "unavailable",
+    wsAttempts: 0,
+    wsRejectNext: 0,
+    beforeAuthentication: undefined as (() => Promise<void>) | undefined,
+    beforeLogout: undefined as (() => Promise<void>) | undefined,
+    loginResponse: undefined as string | undefined,
+    currentUserResponse: undefined as string | undefined,
+    logoutResponse: undefined as string | undefined,
+    healthStatus: 200,
     healthResponse: undefined as string | undefined,
     ready: true,
     revoked: false,
@@ -45,7 +53,12 @@ export async function authServer() {
     beforeHealth: undefined as (() => Promise<void>) | undefined,
     beforeCurrentUser: undefined as (() => Promise<void>) | undefined,
     redirectTo: undefined as string | undefined,
-    requests: [] as { path: string; bearer?: string; body: Record<string, unknown> }[],
+    requests: [] as {
+      path: string;
+      bearer?: string;
+      body: Record<string, unknown>;
+      transport?: string;
+    }[],
     tokens: create(TokenPairSchema),
     now: Date.now(),
   };
@@ -65,13 +78,36 @@ export async function authServer() {
 
   const server = createServer(async (request, response) => {
     const path = request.url ?? "";
+    if (request.method === "GET") {
+      response.writeHead(426);
+      response.end();
+      return;
+    }
     let bodyText = "";
     for await (const chunk of request) bodyText += chunk;
     const body = bodyText ? JSON.parse(bodyText) : {};
     assert.equal(request.method, "POST");
     assert.equal(request.headers["content-type"], "application/json");
     const bearer = request.headers.authorization;
-    state.requests.push({ path, bearer, body });
+    if (path === "/xiaowei/fixture/authenticate") {
+      state.wsAttempts++;
+      await state.beforeAuthentication?.();
+      response.writeHead(200, { "Content-Type": "application/json" });
+      const code = state.offline
+        ? "unavailable"
+        : state.wsRejectNext > 0
+          ? "rejected"
+          : state.wsAuthentication;
+      if (state.wsRejectNext > 0) state.wsRejectNext--;
+      response.end(JSON.stringify({ code }));
+      return;
+    }
+    state.requests.push({
+      path,
+      bearer,
+      body,
+      ...(request.headers["x-fixture-transport"] ? { transport: "websocket" } : {}),
+    });
     if (state.redirectTo) {
       response.writeHead(302, { Location: state.redirectTo });
       response.end();
@@ -98,7 +134,7 @@ export async function authServer() {
     ) {
       await state.beforeHealth?.();
       if (state.healthResponse !== undefined) {
-        response.writeHead(200, { "Content-Type": "application/json" });
+        response.writeHead(state.healthStatus, { "Content-Type": "application/json" });
         response.end(state.healthResponse);
       } else if (path.endsWith("/api/common.Health/Ready") && !state.ready) {
         fail(10008, "数据库暂不可用");
@@ -108,6 +144,11 @@ export async function authServer() {
       }
     } else if (path === "/xiaowei/api/auth.Auth/Login") {
       await state.beforeLogin?.();
+      if (state.loginResponse !== undefined) {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(state.loginResponse);
+        return;
+      }
       const password = body.password as { email?: string; password?: string } | undefined;
       if (password?.email !== user.email || password.password !== "  sample  ") {
         fail(10100, "邮箱或密码错误");
@@ -153,6 +194,11 @@ export async function authServer() {
       }
       if (path.endsWith("/GetCurrentUser")) {
         await state.beforeCurrentUser?.();
+        if (state.currentUserResponse !== undefined) {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(state.currentUserResponse);
+          return;
+        }
         send(
           GetCurrentUserResponseSchema,
           create(GetCurrentUserResponseSchema, {
@@ -165,6 +211,12 @@ export async function authServer() {
           }),
         );
       } else {
+        await state.beforeLogout?.();
+        if (state.logoutResponse !== undefined) {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(state.logoutResponse);
+          return;
+        }
         state.logouts++;
         state.revoked = true;
         send(LogoutResponseSchema, create(LogoutResponseSchema, { msg: "ok", data: {} }));
@@ -176,14 +228,21 @@ export async function authServer() {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Missing HTTP port");
+  let websocket: Awaited<ReturnType<typeof attachAuthWebsocket>> | undefined;
   return {
     state,
+    enableWebsocket: async () => {
+      websocket = await attachAuthWebsocket(server, `http://127.0.0.1:${address.port}/xiaowei`);
+    },
+    disconnectWebsocket: () => websocket?.disconnect(),
     url: `http://127.0.0.1:${address.port}/xiaowei`,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
+    close: async () => {
+      await websocket?.close();
+      await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
         server.closeAllConnections();
-      }),
+      });
+    },
   };
 }
 
@@ -192,41 +251,37 @@ export async function openAccount(
   options: {
     store: AccountStore;
     deviceName: string;
-    api?: XwapiService;
     now?: () => number;
-    authenticateConnection?: (
-      client: Client,
-      signal: AbortSignal,
-    ) => Promise<ConnectionAuthentication>;
   },
   host = new GatewayHost(),
 ) {
-  let service: AccountService | undefined;
-  const xwapi = registerXwapi(
-    host,
-    options.api ?? new XwapiService(fetch, options.now),
-    () => service?.serverContext() ?? { server: "" },
-  );
+  let service: AccountService;
+  const sessions = await registerAccountSession(host, {}, options.now);
   try {
     service = await AccountService.open({
       store: options.store,
       deviceName: options.deviceName,
       now: options.now,
       client: host.client({ caller: "account-main", trusted: true }),
-      withServerContext: xwapi.withContext,
-      authenticateConnection: options.authenticateConnection ?? (async () => "unavailable"),
+      sessions,
     });
   } catch (error) {
-    await xwapi.close();
+    await sessions.close();
     throw error;
   }
   const account = service;
-  t.after(async () => {
-    try {
-      await account.close();
-    } finally {
-      await xwapi.close();
-    }
-  });
+  sessions.start(
+    () => account.sessionContext(),
+    (listener) => account.subscribe(listener),
+  );
+  const closeAccount = account.close.bind(account);
+  let closing: Promise<void> | undefined;
+  account.close = () => {
+    closing ??= closeAccount().finally(async () => {
+      await sessions.close();
+    });
+    return closing;
+  };
+  t.after(() => account.close());
   return account;
 }

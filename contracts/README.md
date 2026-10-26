@@ -7,10 +7,22 @@
 - [`proto/xiaowei/`](proto/xiaowei/README.md)：业务契约与设计规则；具体字段、方法语义写在 proto 注释中。
 - [`proto/xiaowei/server/`](proto/xiaowei/server/README.md)：服务端契约与客户端错误处理约定。
 - [`proto/testing/`](proto/testing/)：生成、编解码和传输验证使用的独立测试契约，不向产品注册。
-- [`ts/`](ts/)：npm 包 `xiaowei-contracts`，workspace 消费者添加 `"xiaowei-contracts": "workspace:*"`。入口导出消息和 service descriptor；使用方须支持 TS 源码及 enum 转译。
-- [`rust/`](rust/)：crate `xw-contracts`，通过 Cargo path 依赖消费。`FILE_DESCRIPTOR_SET` 提供文件／服务／方法描述，`prost::Name` 提供消息全名。消费已入库产物无需 protoc。
-- [`go/`](go/)：module `github.com/tctony-labs/xiaowei/contracts/go`。本地消费者在自己的 go.mod 中 require，并用 replace 指向该目录；不复制生成文件，不要求根 go.work。
+- [`out/`](out/)：固定位置的契约产物包，名称以 `proto-` 开头；业务实现通过包入口消费，不复制生成文件。
 - [`tools/`](tools/)：生成时使用的 Rust codegen，不是契约运行依赖。
+
+| 输出包 | 内容与消费者 |
+| --- | --- |
+| `proto-server-rs` | 全部服务器协议，供 xw-api 与桌面原生适配使用 |
+| `proto-desktop-rs` | 桌面协议，供 Storage、Clipboard、Search 与桌面原生适配使用 |
+| `proto-agent-rs` | Agent 契约，供 xw-agent 与 xiaowei-agent 使用 |
+| `proto-llm-rs` | LLM 契约，供 Agent 的 LLM 接入使用 |
+| `proto-testing-rs` | 独立测试契约，不注册到产品 |
+| `proto-desktop-ts` | 桌面所需的桌面、服务器、Agent、LLM 与测试契约 |
+| `proto-server-go` | 服务器及测试契约，供 Go 服务端与协议测试使用 |
+
+Rust 包的消息和 `FILE_DESCRIPTOR_SET` 位于 `src/gen/`，公共模块入口为 `src/lib.rs`；消费已入库产物不需要 protoc。TS 包直接导出源码和 service descriptor，workspace 消费者声明 `"proto-desktop-ts": "workspace:*"`。Go module 为 `github.com/tctony-labs/xiaowei/contracts/out/proto-server-go`，本地消费者使用 require 与 replace，不要求根 go.work。
+
+同一种语言的同一项目 proto 类型只生成一次；输出包之间没有直接依赖。业务模块可以组合多个独立输出包。项目 proto 的 import 必须在各自产物包内闭合，不通过重复生成或产物包互相依赖来补齐。`xw-api` 是普通 Rust 实现库，直接消费服务器契约，不另定义 xwapi 或会话 RPC 契约。
 
 ## 书写顺序
 
@@ -37,21 +49,39 @@ pnpm contracts:test
 
 codec 测试记录每次原生调用的 case、语言顺序、模式、输入字节数、退出码和耗时，不输出输入内容。单次原生调用最多等待 10 秒，超时强制结束并使测试失败；无效 wire 只接受正常退出后的非零码，超时、信号终止和启动失败均不能算作正确拒绝。测试入口中的构建及测试阶段设 10 分钟上限，Cargo target 查询设 30 秒上限；入口还验证子进程超时终止与异常判定。
 
-本地业务默认生成 TS／Rust。服务端业务契约集中在 `proto/xiaowei/server/`，Go 通过 `xiaowei/server/**/*.proto` 自动选择整个目录；引用的公共消息仍通过 import 依赖自动纳入生成。目录组织不替代 proto 中的 package 声明。
+输出范围以 [generate.config.json](generate.config.json) 为准。源码按业务 package 组织；桌面协议位于 `proto/xiaowei/desktop/`，服务器协议位于 `proto/xiaowei/server/`。单文件 package 直接使用职责名，多文件 package 才归入同名子目录。
 
-产物 `ts/src/gen/`、`rust/src/gen/` 和 `go/gen/` 全部入库，禁止手改。新增 TS 文件或 Rust package 时同步维护公共入口导出。具体修改步骤见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
+产物 `out/*/src/gen/` 和 `out/*/gen/` 全部入库，禁止手改。新增 TS 文件或 Rust 消息 package 时同步维护所属输出包的公共入口；仅含 service 的 package 可能没有 prost 消息源码，其服务仍在 descriptor 中。具体修改步骤见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
 
 生成需要 curl、unzip、Node／pnpm、Cargo 和 Go，首次下载需要网络。
 
 ## 文件选择与语言映射
 
-[generate.config.json](generate.config.json) 按语言选择入口，规则相对于 `proto/`，支持文件名和 glob。生成器通过 protoc 的 `FileDescriptorSet` 解析依赖，再为每种语言展开入口及其递归依赖的项目内 proto，包括 public import；结果排序去重。官方 well-known types 使用语言运行库，不额外生成。
+[generate.config.json](generate.config.json) 的 `sources` 按源码路径选择输出包。规则相对于 `contracts/proto/`，目录统一使用递归 `**`，也可以指定单个文件：
 
-三个语言键必须显式配置。空数组关闭该语言的生成；非空规则匹配不到文件时失败，避免规则拼写错误导致产物被清空。缩小范围或关闭某语言前，需要同步检查消费者和测试；三语言 codec 测试依赖测试契约在三端均有产物。
+```json
+{
+  "sources": {
+    "xiaowei/server/**": [
+      "proto-server-rs",
+      "proto-server-go",
+      "proto-desktop-ts"
+    ],
+    "xiaowei/desktop/**": [
+      "proto-desktop-rs",
+      "proto-desktop-ts"
+    ]
+  }
+}
+```
 
-Go 产物按 proto 相对目录组织。生成器读取 [go/go.mod](go/go.mod) 的 module，统一映射所有选中项目 proto 的 Go import 路径，覆盖 proto 内的 `go_package`；跨文件引用使用相同映射，官方 well-known types 保持运行库路径。
+上述为格式示例，实际配置覆盖全部项目 proto。target 名称末尾的 `-rs`、`-ts`、`-go` 决定语言，位置固定为 `contracts/out/<target>/`；没有独立 targets 配置。各包 manifest 与手写入口随包维护。
 
-实现见 [generate.mjs](scripts/generate.mjs) 和 [proto-selection.mjs](ts/proto-selection.mjs)。
+同一 package 的所有文件必须使用相同输出列表。精确文件规则覆盖目录规则，与配置顺序无关；冲突的 glob、没有匹配文件的规则、没有输出映射的文件和同语言重复提供方均报错。生成器通过 protoc descriptor 核对 package 与 import，要求项目依赖处于同一输出；官方 well-known types 使用语言运行库，不额外生成。空消息使用 `google.protobuf.Empty`，prost 映射为 `()`。
+
+Go 产物按 proto 相对目录组织。生成器读取对应输出包的 `go.mod`，为所有选中文件设置一致的 Go import 路径并覆盖 `go_package`；官方 well-known types 保持运行库路径。
+
+实现见 [generate.mjs](scripts/generate.mjs) 和 [proto-selection.mjs](scripts/proto-selection.mjs)。
 
 ## 生成与漂移检查的边界
 
@@ -62,7 +92,7 @@ Go 产物按 proto 相对目录组织。生成器读取 [go/go.mod](go/go.mod) �
 
 检查成功后将内容指纹保存在 `target/contracts-check.sha256`，覆盖 proto、生成脚本与配置、依赖清单与锁文件、工具链配置及三语言产物。新增、删除或修改这些文件均使缓存失效；检查失败不写入缓存。删除此缓存文件可强制重新检查。
 
-漂移检查只证明当前源码与产物一致，不证明历史兼容性或业务正确性。文件选择、递归依赖和配置边界由 [选择规则测试](ts/test/proto-selection.test.mjs) 覆盖，跨语言编解码由 [codec 测试](tests/codec.mjs) 覆盖。
+漂移检查只证明当前源码与产物一致，不证明历史兼容性或业务正确性。文件选择、递归依赖和配置边界由 [选择规则测试](tests/proto-selection.test.mjs) 覆盖，跨语言编解码由 [codec 测试](tests/codec.mjs) 覆盖。
 
 ## 工具隔离与缓存
 

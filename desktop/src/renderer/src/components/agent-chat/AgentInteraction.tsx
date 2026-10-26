@@ -2,7 +2,7 @@ import {
   AgentInteractionExpireReason,
   AgentInteractionStatus,
   type AgentInteraction as View,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { AgentToolIcon } from "./AgentToolIcon";
 import type { InteractionControls } from "./message-blocks";
 

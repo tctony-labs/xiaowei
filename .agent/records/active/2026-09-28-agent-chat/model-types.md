@@ -178,7 +178,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 
 ### 当前消息字段逐项对齐
 
-下表的领域目标是 src/message.rs；当前 PB 转换在 xiaowei-agent/src/message_codec.rs，types 的 xw-contracts 依赖及 TryFrom 出口已移除。字段与原无损往返不变，不为存储 schema 改写 LLM 契约。
+下表的领域目标是 src/message.rs；当前 PB 转换在 xiaowei-agent/src/message_codec.rs，types 对通信契约的依赖及 TryFrom 出口已移除。字段与原无损往返不变，不为存储 schema 改写 LLM 契约。
 
 | 领域实体／字段 | 当前 PB 对应 | Pi／旧版对齐与处理 |
 | --- | --- | --- |

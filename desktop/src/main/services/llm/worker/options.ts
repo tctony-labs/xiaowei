@@ -1,5 +1,5 @@
 import type { SimpleStreamOptions, StreamOptions } from "@earendil-works/pi-ai";
-import type { GenerateRequest } from "xiaowei-contracts";
+import type { GenerateRequest } from "proto-desktop-ts";
 import type { ResolvedModelConfig } from "../shared/models";
 import { invalid, json } from "./messages";
 

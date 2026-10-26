@@ -1,5 +1,5 @@
 packages:
-  - contracts/ts
+  - contracts/out/proto-desktop-ts
   - gateway/ts
   - gateway/tests
   - desktop

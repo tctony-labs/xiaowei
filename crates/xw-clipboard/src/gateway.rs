@@ -2,18 +2,18 @@
 
 use crate::{ClipboardData, Service};
 use prost::{Message, Name};
+use proto_desktop_rs::xiaowei::desktop::{clipboard as pb, host as sys};
 use std::sync::Arc;
-use xw_contracts::xiaowei::{clipboard as pb, common as c, system as sys};
 use xw_gateway::{
     binding::Method,
     event::{EventBackpressure, EventExportRegistration},
     ErrorCode, GatewayError, InvokeRegistration,
 };
 
-use crate::gateway_binding::xiaowei_clipboard_clipboard_biz_service as methods;
-use crate::gateway_binding::xiaowei_storage_settings_service as settings;
-use crate::gateway_binding::xiaowei_storage_storage_service as storage;
-use crate::gateway_binding::xiaowei_system_system_service as system;
+use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_biz_service as methods;
+use crate::gateway_binding::xiaowei_desktop_host_system_service as system;
+use crate::gateway_binding::xiaowei_desktop_settings_settings_service as settings;
+use crate::gateway_binding::xiaowei_desktop_storage_storage_service as storage;
 
 fn id(value: u64) -> crate::Result<i64> {
     i64::try_from(value)
@@ -83,22 +83,19 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             let client = crate::dao::CALLER.with(Clone::clone);
             s.copy(id(request.id)?).await?;
             let auto_paste = if cfg!(target_os = "macos") {
-                settings::GET
-                    .call(&client, c::Empty {})
-                    .await?
-                    .clipboard_auto_paste
+                settings::GET.call(&client, ()).await?.clipboard_auto_paste
             } else {
                 false
             };
-            system::HIDE_WINDOW.call(&client, c::Empty {}).await?;
+            system::HIDE_WINDOW.call(&client, ()).await?;
             if auto_paste {
                 s.paste().await?;
             }
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::STORAGE_USAGE, |s, _| async move {
             let client = crate::dao::CALLER.with(Clone::clone);
-            let database = storage::DATABASE_USAGE.call(&client, c::Empty {}).await?;
+            let database = storage::DATABASE_USAGE.call(&client, ()).await?;
             Ok(pb::ClipboardStorageUsage {
                 used_bytes: database.used_bytes + s.attachment_usage().await?,
             })
@@ -149,7 +146,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         }),
         handler(service, &methods::COPY, |s, r| async move {
             s.copy(id(r.id)?).await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::OPEN_RESOURCE, |s, r| async move {
             let paths = s.resource_paths(id(r.id)?, r.index).await?;
@@ -165,7 +162,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
                     },
                 )
                 .await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::REVEAL_RESOURCE, |s, r| async move {
             let paths = s.resource_paths(id(r.id)?, r.index).await?;
@@ -175,7 +172,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
                     .call(&client, sys::LocalPathRequest { path })
                     .await?;
             }
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::COPY_RESOURCE_PATH, |s, r| async move {
             let paths = s.resource_paths(id(r.id)?, r.index).await?;
@@ -184,7 +181,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             system::WRITE_CLIPBOARD_TEXT
                 .call(&client, sys::WriteClipboardTextRequest { text })
                 .await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::DELETE, |s, r| async move {
             Ok(pb::DeleteResponse {
@@ -229,11 +226,11 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         }),
         handler(service, &methods::DELETE_CATEGORY, |s, r| async move {
             s.delete_category(id(r.id)?).await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::SET_REMARK, |s, r| async move {
             s.set_remark(id(r.id)?, &r.remark).await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
         handler(service, &methods::EDIT_TEXT, |s, r| async move {
             item(s.edit_text(id(r.id)?, r.text).await?)
@@ -241,15 +238,16 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
         handler(service, &methods::SET_CATEGORY, |s, r| async move {
             s.set_category(id(r.id)?, r.category_id.map(id).transpose()?)
                 .await?;
-            Ok(c::Empty {})
+            Ok(())
         }),
     ]
 }
 
 pub fn events() -> Vec<EventExportRegistration> {
-    vec![EventExportRegistration::typed::<
-        pb::ClipboardChanged,
-        c::Empty,
-        _,
-    >(EventBackpressure::Coalesce, |_, _| true)]
+    vec![
+        EventExportRegistration::typed::<pb::ClipboardChanged, (), _>(
+            EventBackpressure::Coalesce,
+            |_, _| true,
+        ),
+    ]
 }

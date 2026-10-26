@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { create } from "@bufbuild/protobuf";
-import { EnvelopeSchema, Fixture } from "xiaowei-contracts";
+import { EnvelopeSchema, Fixture } from "proto-desktop-ts";
 import { bindClient, bindHandlers, methodRoute } from "../src/binding/index.js";
 import { createClient } from "../src/core/client.js";
 import { GatewayFailure, type Result } from "../src/core/protocol.js";

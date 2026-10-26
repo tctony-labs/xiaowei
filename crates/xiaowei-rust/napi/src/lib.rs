@@ -1,6 +1,9 @@
+mod account;
 mod clipboard;
 mod gateway;
+mod gateway_binding;
 mod logging;
 mod platform;
 mod search;
 mod storage;
+mod xwapi;

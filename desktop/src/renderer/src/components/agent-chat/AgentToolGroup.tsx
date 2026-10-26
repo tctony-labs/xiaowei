@@ -1,5 +1,5 @@
+import { AgentToolStatus } from "proto-desktop-ts";
 import { useId, useState } from "react";
-import { AgentToolStatus } from "xiaowei-contracts";
 import { AgentToolCall } from "./AgentToolCall";
 import { AgentToolIcon } from "./AgentToolIcon";
 import type { AgentToolBlock } from "./message-blocks";

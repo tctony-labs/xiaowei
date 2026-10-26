@@ -1,5 +1,5 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   AccountChangedSchema,
   AccountLoginRequestSchema,
@@ -10,10 +10,10 @@ import {
   AddServerRequestSchema,
   CancelAccountLoginRequestSchema,
   CloudConnectionStatus,
-  EmptySchema,
   SelectServerRequestSchema,
   WriteClipboardTextRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Rpc, Subscription } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { AccountCard } from "./AccountCard";

@@ -1,13 +1,13 @@
 use std::sync::Mutex;
 
 use futures_util::{StreamExt, stream};
+use proto_llm_rs::xiaowei::llm as pb;
 use xw_agent::{
     AgentHost, AuxiliaryModelError, AuxiliaryModelRefFuture, CancellationToken, GenerationError,
     GenerationEvent, GenerationFuture, GenerationRequest, GenerationStream, ModelInfo,
     ModelInfoError, ModelInfoFuture,
 };
 use xw_agent_types::AgentMessage;
-use xw_contracts::xiaowei::llm as pb;
 use xw_gateway::Client;
 
 use crate::{gateway_binding::xiaowei_llm_llm_service as llm, message_codec as codec};
@@ -88,7 +88,7 @@ impl AgentHost for GatewayGeneration {
             let client = client.ok_or(AuxiliaryModelError::Unavailable)?;
             let response =
                 crate::gateway_binding::xiaowei_llm_model_settings_service::GET_AUXILIARY_MODEL_REF
-                    .call(&client, xw_contracts::xiaowei::common::Empty {})
+                    .call(&client, ())
                     .await
                     .map_err(|_| AuxiliaryModelError::Unavailable)?;
             if response

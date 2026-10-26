@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { type ListModelsRequest, ListModelsResponseSchema, ModelInput } from "xiaowei-contracts";
+import { type ListModelsRequest, ListModelsResponseSchema, ModelInput } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 import { thinkingLevels } from "../../../../shared/llm-models";
 import type { ResolvedModelConfig } from "../shared/models";

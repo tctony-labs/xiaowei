@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { AgentInteractionSchema, AgentInteractionStatus } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
-import { AgentInteractionSchema, AgentInteractionStatus } from "xiaowei-contracts";
 import { AgentInteraction } from "./AgentInteraction";
 import type { InteractionControls, InteractionForm } from "./message-blocks";
 

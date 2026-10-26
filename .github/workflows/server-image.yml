@@ -63,7 +63,7 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: |
             server/go.sum
-            contracts/go/go.sum
+            contracts/out/proto-server-go/go.sum
 
       - name: Set up Node.js for deployment acceptance
         uses: actions/setup-node@v7
@@ -71,7 +71,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Test Go contracts
-        working-directory: contracts/go
+        working-directory: contracts/out/proto-server-go
         run: go test ./... && go vet ./...
 
       - name: Test server against real PostgreSQL

@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { Agent, SessionViewingReadySchema } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
-import { Agent, SessionViewingReadySchema } from "xiaowei-contracts";
 import { bindStreamHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices, type Services } from "../../services";

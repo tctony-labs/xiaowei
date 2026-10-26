@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   ClipboardCategoryRequestSchema,
   ClipboardChangedSchema,
@@ -9,13 +9,13 @@ import {
   ClipboardResourceRequestSchema,
   CopyResourcePathRequestSchema,
   EditTextRequestSchema,
-  EmptySchema,
   FavoriteRequestSchema,
   OpenUrlRequestSchema,
   SaveCategoryRequestSchema,
   SetCategoryRequestSchema,
   SetRemarkRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GatewayFailure, type Subscription } from "xiaowei-gateway";
 import type { ClipboardCategory, ClipboardItem } from "../../../shared/clipboard-model";
 import { services as defaultServices, type Services } from "../services";

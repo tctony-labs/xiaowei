@@ -11,7 +11,7 @@
       "!**/pnpm-lock.yaml",
       "!crates/*/napi/index.js",
       "!crates/*/napi/index.d.ts",
-      "!contracts/ts/src/gen"
+      "!contracts/out/proto-desktop-ts/src/gen"
     ]
   },
   "formatter": {

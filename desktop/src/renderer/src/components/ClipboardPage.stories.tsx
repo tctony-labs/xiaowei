@@ -1,7 +1,6 @@
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState } from "react";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import {
   ClipboardBiz,
   ClipboardCategoriesSchema,
@@ -9,10 +8,11 @@ import {
   ClipboardItemSchema,
   ClipboardItemsSchema,
   ClipboardKind,
-  EmptySchema,
   ReadTextResponseSchema,
   SetFavoriteResponseSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useState } from "react";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";

@@ -1,429 +1,197 @@
 import assert from "node:assert/strict";
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createInterface } from "node:readline";
-import { after, before, test } from "node:test";
+import { randomUUID } from "node:crypto";
+import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   Auth,
   CloudConnectionStatus,
-  EmptySchema,
-  EnvelopeSchema,
   ErrorCode,
-  Fixture,
-  XwApiOptionsSchema,
-  XwApiTransport,
-} from "xiaowei-contracts";
-import { GatewayFailure, methodRoute } from "xiaowei-gateway";
+  Health,
+  LoginRequestSchema,
+  RefreshRequestSchema,
+  type TokenPair,
+} from "proto-desktop-ts";
+import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
-import { ServerConnection } from "../../src/main/services/xwapi/connection";
-import { type XwapiContext, XwapiError, XwapiService } from "../../src/main/services/xwapi/service";
+import { registerAccountSession, type SessionInput } from "../../src/main/services/account/session";
+import { authServer } from "./account-fixture";
 
-const directory = mkdtempSync(join(tmpdir(), "xw-connection-"));
-let fixture: ChildProcess;
-let server: string;
-before(async () => {
-  execFileSync(
-    "go",
-    ["build", "-o", join(directory, "fixture"), "./internal/gateway/testfixture"],
-    { cwd: new URL("../../../server", import.meta.url), stdio: "inherit", timeout: 120_000 },
-  );
-  fixture = spawn(join(directory, "fixture"), [], { stdio: ["pipe", "pipe", "inherit"] });
-  const stdout = fixture.stdout;
-  assert.ok(stdout);
-  server = await new Promise<string>((resolve, reject) => {
-    const reader = createInterface({ input: stdout });
-    const timer = setTimeout(() => reject(new Error("fixture startup timed out")), 5000);
-    reader.once("line", (line) => {
-      clearTimeout(timer);
-      reader.close();
-      resolve(line.replace("ws:", "http:"));
-    });
-    fixture.once("error", reject);
-  });
-});
-after(() => {
-  fixture?.stdin?.end();
-  fixture?.kill();
-  rmSync(directory, { recursive: true, force: true });
-});
+const empty = create(EmptySchema);
 
-test("committed session connects; rotation, logout and retry isolate old connections", {
-  timeout: 10_000,
-}, async () => {
-  let context: Omit<XwapiContext, "signal"> = { server };
+async function fixture() {
+  const server = await authServer();
+  await server.enableWebsocket();
+  const host = new GatewayHost();
+  let context: SessionInput = { server: server.url };
   let changed: (() => void) | undefined;
   let status = CloudConnectionStatus.DISCONNECTED;
   let revalidations = 0;
-  let connected!: () => void;
-  const host = new GatewayHost();
-  const client = host.client({ caller: "connection-test", trusted: true });
-  const nextConnection = () =>
-    new Promise<void>((resolve) => {
-      connected = resolve;
-    });
-  const manager = new ServerConnection(
-    host,
-    () => context,
-    (next) => {
+  let connectionRevision = 0;
+  let configuredRevision = 0;
+  const provider = await registerAccountSession(host, {
+    changed: (next) => {
       status = next;
-      if (next === CloudConnectionStatus.CONNECTED) connected?.();
+      connectionRevision++;
     },
-    () => {
+    unauthorized: () => {
       revalidations++;
     },
-  );
-  manager.start((listener) => {
-    changed = listener;
-    return () => {
-      changed = undefined;
-    };
   });
-  try {
-    const echo = methodRoute(Fixture.method.echo);
-    assert.equal(manager.canInvoke(echo, { ...context, signal: AbortSignal.timeout(5000) }), false);
-    const first = nextConnection();
-    context = {
-      server,
-      session: {
-        server,
-        sessionId: "first",
-        accessToken: "fixture",
-        accessExpiresAtMs: BigInt(Date.now() + 60_000),
-      },
-    };
-    changed?.();
-    assert.equal(manager.canInvoke(echo, { ...context, signal: AbortSignal.timeout(5000) }), false);
-    const cancelled = new AbortController();
-    const cancelledValidation = manager.authenticate(client, cancelled.signal);
-    cancelled.abort();
-    await assert.rejects(cancelledValidation, /cancelled|aborted/i);
-    const authentication = manager.authenticate(client, AbortSignal.timeout(5000));
-    await first;
-    assert.equal(await authentication, "authenticated");
-    await assert.rejects(
-      manager.authenticate(
-        host.client({ caller: "limited", trusted: false, invoke: [] }),
-        AbortSignal.timeout(5000),
-      ),
-      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "UNAUTHORIZED",
-    );
-    const request = toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "roundtrip", id: 7n }));
-    const callContext = () => ({ ...context, signal: new AbortController().signal });
-    assert.equal(manager.canInvoke(echo, callContext()), true);
-    assert.equal(manager.canInvoke({ ...echo, name: "missing.Method" }, callContext()), false);
-    assert.equal(manager.canInvoke({ ...echo, output: "wrong.Output" }, callContext()), false);
-    const currentSession = context.session;
-    assert.ok(currentSession);
-    for (const session of [
-      undefined,
-      { ...currentSession, server: "http://other.test" },
-      { ...currentSession, sessionId: "other" },
-      { ...currentSession, accessToken: "other" },
-      { ...currentSession, accessExpiresAtMs: 1n },
-    ]) {
-      assert.equal(manager.canInvoke(echo, { ...callContext(), session }), false);
-    }
-    const response = await manager.invoke(methodRoute(Fixture.method.echo), request, callContext());
-    assert.equal(fromBinary(EnvelopeSchema, response).id, 7n);
-
-    const reconnected = nextConnection();
-    await assert.rejects(
-      manager.invoke(
-        methodRoute(Fixture.method.echo),
-        toBinary(EnvelopeSchema, create(EnvelopeSchema, { text: "disconnect" })),
-        callContext(),
-      ),
-    );
-    await reconnected;
-    assert.equal(status, CloudConnectionStatus.CONNECTED);
-    assert.equal(revalidations, 0);
-
-    const previous = callContext();
-    const rotated = nextConnection();
-    context = {
-      ...context,
-      session: {
-        ...(context.session ??
-          (() => {
-            throw new Error("missing session");
-          })()),
-        sessionId: "second",
-      },
-    };
-    changed?.();
-    assert.equal(manager.canInvoke(echo, previous), false);
-    await assert.rejects(manager.invoke(methodRoute(Fixture.method.echo), request, previous));
-    await rotated;
-    assert.equal(
-      fromBinary(
-        EnvelopeSchema,
-        await manager.invoke(methodRoute(Fixture.method.echo), request, callContext()),
-      ).id,
-      7n,
-    );
-
-    // Pause rejected credentials until Account refreshes them; never loop on the same token.
-    context = {
-      ...context,
-      session: {
-        ...(context.session ??
-          (() => {
-            throw new Error("missing session");
-          })()),
-        accessToken: "rejected",
-      },
-    };
-    changed?.();
-    const deadline = Date.now() + 2000;
-    while (
-      (status !== CloudConnectionStatus.DISCONNECTED || revalidations === 0) &&
-      Date.now() < deadline
-    ) {
-      await delay(10);
-    }
-    assert.equal(status, CloudConnectionStatus.DISCONNECTED);
-    assert.equal(await manager.authenticate(client, AbortSignal.timeout(5000)), "rejected");
-    await delay(700);
-    assert.equal(manager.canInvoke(echo, callContext()), false);
-    assert.equal(revalidations, 1);
-    assert.ok(context.session);
-    const restored = nextConnection();
-    context = {
-      ...context,
-      session: {
-        ...(context.session ??
-          (() => {
-            throw new Error("missing session");
-          })()),
-        accessToken: "fixture",
-      },
-    };
-    changed?.();
-    await restored;
-    assert.ok(context.session);
-    context = { ...context, session: { ...context.session, accessExpiresAtMs: 1n } };
-    changed?.();
-    assert.equal(await manager.authenticate(client, AbortSignal.timeout(5000)), "unavailable");
-    context = { server };
-    changed?.();
-    assert.equal(status, CloudConnectionStatus.DISCONNECTED);
-    assert.equal(manager.canInvoke(echo, callContext()), false);
-    await assert.rejects(manager.invoke(methodRoute(Fixture.method.echo), request, callContext()));
-    manager.close();
-    assert.equal(changed, undefined);
-  } finally {
-    manager.close();
-  }
-});
-
-test("explicit WS requires login and readiness, preserves PB errors, and never falls back to HTTP", {
-  timeout: 10_000,
-}, async () => {
-  let http = 0;
-  let ws = 0;
-  const service = new XwapiService(
-    async () => {
-      http++;
-      throw new Error("HTTP should not run");
-    },
-    Date.now,
-    {
-      canInvoke: () => true,
-      async invoke(route) {
-        ws++;
-        const method =
-          route.name === "auth.Auth/Logout" ? Auth.method.logout : Auth.method.getCurrentUser;
-        assert.equal(route.name, `auth.Auth/${method.name}`);
-        assert.equal(route.input, "xiaowei.common.Empty");
-        assert.equal(route.output, method.output.typeName);
-        return toBinary(
-          method.output,
-          create(method.output, {
-            code: ErrorCode.UNAVAILABLE,
-            msg: "not ready",
-          }),
-        );
-      },
+  provider.start(
+    () => context,
+    (listener) => {
+      changed = listener;
+      return () => {
+        changed = undefined;
+      };
     },
   );
-  const context: XwapiContext = {
-    server,
-    signal: new AbortController().signal,
-    options: create(XwApiOptionsSchema, { transport: XwApiTransport.WEBSOCKET }),
-  };
-  await assert.rejects(
-    service.getCurrentUser(context),
-    (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.UNAUTHENTICATED,
-  );
-  context.session = {
-    server,
-    sessionId: "session",
-    accessToken: "fixture",
-    accessExpiresAtMs: BigInt(Date.now() + 60_000),
-  };
-  const response = await service.getCurrentUser(context);
-  assert.equal(response.code, ErrorCode.UNAVAILABLE);
-  await assert.rejects(
-    service.checkHealth(context),
-    (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.INVALID_ARGUMENT,
-  );
-  assert.equal((await service.logout(context)).code, ErrorCode.UNAVAILABLE);
-  for (const call of [
-    () => service.login(create(Auth.method.login.input), context),
-    () => service.refresh(create(Auth.method.refresh.input, { refreshToken: "test" }), context),
-    () => service.checkHealth(context),
-    () => service.checkReady(context),
-  ]) {
-    await assert.rejects(
-      call(),
-      (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.INVALID_ARGUMENT,
-    );
-  }
-  assert.equal(http, 0);
-  assert.equal(ws, 2);
-  const disconnected = new XwapiService();
-  await assert.rejects(
-    disconnected.getCurrentUser(context),
-    (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.UNAVAILABLE,
-  );
-  const malformed = new XwapiService(undefined, Date.now, {
-    canInvoke: () => true,
-    async invoke() {
-      return toBinary(Auth.method.logout.output, create(Auth.method.logout.output, { msg: "ok" }));
-    },
-  });
-  await assert.rejects(
-    malformed.logout(context),
-    (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.UNAVAILABLE,
-  );
-  assert.equal(Auth.method.getCurrentUser.input, EmptySchema);
-});
-
-test("default prefers ready WS; HTTP and public methods bypass selection", async () => {
-  let available = true;
-  let probes = 0;
-  let http = 0;
-  let ws = 0;
-  const service = new XwapiService(
-    async (_url, init) => {
-      http++;
-      assert.equal(init?.method, "POST");
-      return Response.json({ code: ErrorCode.UNAVAILABLE, msg: "HTTP response" });
-    },
-    Date.now,
-    {
-      canInvoke(route) {
-        probes++;
-        assert.equal(route.name, "auth.Auth/GetCurrentUser");
-        return available;
+  const client = host.client({ caller: "connection-test", trusted: true });
+  const auth = bindClient(Auth, client);
+  const health = bindClient(Health, client);
+  const login = await auth.login(
+    create(LoginRequestSchema, {
+      deviceId: randomUUID(),
+      credential: {
+        case: "password",
+        value: { email: "user@example.test", password: "  sample  " },
       },
-      async invoke(route) {
-        ws++;
-        assert.equal(route.name, "auth.Auth/GetCurrentUser");
-        return toBinary(
-          Auth.method.getCurrentUser.output,
-          create(Auth.method.getCurrentUser.output, {
-            code: ErrorCode.UNAVAILABLE,
-            msg: "WS response",
-          }),
-        );
-      },
-    },
-  );
-  const context: XwapiContext = {
-    server,
-    session: {
-      server,
-      sessionId: "session",
-      accessToken: "fixture",
-      accessExpiresAtMs: BigInt(Date.now() + 60_000),
-    },
-    signal: new AbortController().signal,
-  };
-  for (const options of [
-    undefined,
-    create(XwApiOptionsSchema),
-    create(XwApiOptionsSchema, { transport: XwApiTransport.UNSPECIFIED }),
-  ]) {
-    assert.equal((await service.getCurrentUser({ ...context, options })).msg, "WS response");
-  }
-  assert.equal(ws, 3);
-  assert.equal(http, 0);
-
-  available = false;
-  await assert.rejects(
-    service.getCurrentUser(context),
-    (error: unknown) => error instanceof XwapiError && error.message === "HTTP response",
-  );
-  assert.equal(http, 1);
-  available = true;
-  const previousProbes = probes;
-  await assert.rejects(
-    service.getCurrentUser({
-      ...context,
-      options: create(XwApiOptionsSchema, { transport: XwApiTransport.HTTP }),
     }),
   );
-  for (const call of [
-    () => service.login(create(Auth.method.login.input), context),
-    () => service.refresh(create(Auth.method.refresh.input, { refreshToken: "test" }), context),
-    () => service.checkHealth(context),
-    () => service.checkReady(context),
-  ]) {
-    await assert.rejects(call());
+  assert.equal(login.code, 0);
+  if (login.data?.result.case !== "authenticated") throw new Error("Expected authenticated login");
+  const authenticated = login.data.result.value;
+  context = { server: server.url, session: { server: server.url, authenticated } };
+  configuredRevision = connectionRevision;
+  changed?.();
+  async function waitForStatus(expected: CloudConnectionStatus) {
+    const signal = AbortSignal.timeout(5000);
+    while (status !== expected || connectionRevision <= configuredRevision) {
+      await delay(10, undefined, { signal });
+    }
   }
-  assert.equal(probes, previousProbes);
-  assert.equal(http, 6);
-  assert.equal(ws, 3);
-  const aborted = new AbortController();
-  aborted.abort();
-  await assert.rejects(service.getCurrentUser({ ...context, signal: aborted.signal }));
-  await assert.rejects(service.getCurrentUser({ ...context, session: undefined }));
-  assert.equal(probes, previousProbes);
-  assert.equal(http, 6);
-  assert.equal(ws, 3);
+  return {
+    server,
+    host,
+    auth,
+    health,
+    provider,
+    get status() {
+      return status;
+    },
+    get revalidations() {
+      return revalidations;
+    },
+    update(tokens?: TokenPair) {
+      context = {
+        server: server.url,
+        session: tokens && { server: server.url, authenticated: { ...authenticated, tokens } },
+      };
+      configuredRevision = connectionRevision;
+      changed?.();
+    },
+    waitForStatus,
+    ready: () => waitForStatus(CloudConnectionStatus.CONNECTED),
+    async close() {
+      await provider.close();
+      await server.close();
+    },
+  };
+}
+
+test("native connection authenticates, isolates rotations, pauses rejection and closes", {
+  timeout: 20_000,
+}, async () => {
+  const f = await fixture();
+  try {
+    await f.ready();
+    await assert.rejects(
+      bindClient(
+        Auth,
+        f.host.client({ caller: "limited", trusted: false, invoke: [] }),
+      ).getCurrentUser(empty),
+      (error: unknown) => error instanceof GatewayFailure && error.detail.code === "UNAUTHORIZED",
+    );
+    const request = await f.auth.getCurrentUser(empty);
+    assert.equal(request.data?.sessionId, f.server.state.tokens.sessionId);
+    assert.equal(f.server.state.requests.at(-1)?.transport, "websocket");
+    const refreshed = await f.auth.refresh(
+      create(RefreshRequestSchema, {
+        refreshToken: f.server.state.tokens.refreshToken,
+      }),
+    );
+    assert.equal(refreshed.code, 0);
+    f.update(f.server.state.tokens);
+    await f.ready();
+    f.server.state.wsAuthentication = "rejected";
+    f.update({
+      ...f.server.state.tokens,
+      accessToken: "rejected",
+    });
+    await f.waitForStatus(CloudConnectionStatus.DISCONNECTED);
+    const attempts = f.server.state.wsAttempts;
+    await delay(700);
+    assert.equal(f.status, CloudConnectionStatus.DISCONNECTED);
+    assert.equal(f.revalidations, 1);
+    assert.equal(f.server.state.wsAttempts, attempts);
+    f.server.state.wsAuthentication = "authenticated";
+    f.update(f.server.state.tokens);
+    await f.ready();
+    f.update();
+    await f.waitForStatus(CloudConnectionStatus.DISCONNECTED);
+    await f.provider.close();
+  } finally {
+    await f.close();
+  }
 });
 
-test("default WS failures and malformed responses never replay Logout over HTTP", async () => {
-  let http = 0;
-  let ws = 0;
-  let malformed = false;
-  const service = new XwapiService(
-    async () => {
-      http++;
-      throw new Error("HTTP must not replay Logout");
-    },
-    Date.now,
-    {
-      canInvoke: () => true,
-      async invoke() {
-        ws++;
-        if (!malformed) throw new Error("connection lost after dispatch");
-        return toBinary(Auth.method.logout.output, create(Auth.method.logout.output));
-      },
-    },
-  );
-  const context: XwapiContext = {
-    server,
-    session: {
-      server,
-      sessionId: "session",
-      accessToken: "fixture",
-      accessExpiresAtMs: BigInt(Date.now() + 60_000),
-    },
-    signal: new AbortController().signal,
-  };
-  for (const invalidResponse of [false, true]) {
-    malformed = invalidResponse;
-    await assert.rejects(
-      service.logout(context),
-      (error: unknown) => error instanceof XwapiError && error.code === ErrorCode.UNAVAILABLE,
+test("native Gateway selects authenticated WS and keeps public methods on HTTP", async () => {
+  const f = await fixture();
+  try {
+    await f.ready();
+    f.server.state.currentUserResponse = JSON.stringify({
+      code: ErrorCode.UNAVAILABLE,
+      msg: "WS response",
+    });
+    assert.equal((await f.auth.getCurrentUser(empty)).msg, "WS response");
+    assert.equal(f.server.state.requests.at(-1)?.transport, "websocket");
+    for (const call of [() => f.health.check(empty), () => f.health.ready(empty)]) {
+      assert.equal((await call()).code, 0);
+      assert.equal(f.server.state.requests.at(-1)?.transport, undefined);
+    }
+    const refreshed = await f.auth.refresh(
+      create(RefreshRequestSchema, { refreshToken: f.server.state.tokens.refreshToken }),
     );
+    assert.equal(refreshed.code, 0);
+    assert.equal(f.server.state.requests.at(-1)?.transport, undefined);
+    f.update();
+    assert.equal((await f.auth.getCurrentUser(empty)).code, ErrorCode.UNAUTHENTICATED);
+  } finally {
+    await f.close();
   }
-  assert.equal(ws, 2);
-  assert.equal(http, 0);
+});
+
+test("WS Logout errors and malformed successes never replay over HTTP", async () => {
+  const f = await fixture();
+  try {
+    await f.ready();
+    for (const body of [
+      { code: ErrorCode.UNAVAILABLE, msg: "not ready" },
+      { code: 0, msg: "missing data" },
+    ]) {
+      f.server.state.logoutResponse = JSON.stringify(body);
+      const before = f.server.state.requests.length;
+      assert.equal((await f.auth.logout(empty)).code, ErrorCode.UNAVAILABLE);
+      const sent = f.server.state.requests.slice(before);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].transport, "websocket");
+      // The fixture intentionally ends each Logout socket after writing its reply.
+      await delay(800);
+      await f.ready();
+    }
+  } finally {
+    await f.close();
+  }
 });

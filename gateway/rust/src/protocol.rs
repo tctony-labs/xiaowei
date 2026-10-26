@@ -159,8 +159,9 @@ impl CallContext {
         self
     }
 
+    /// Correlates napi host metadata with this call; use `caller()` for identity.
     #[cfg(feature = "napi")]
-    pub(crate) fn transport_token(&self) -> &str {
+    pub fn transport_token(&self) -> &str {
         self.0.transport_token.as_deref().unwrap_or(&self.0.caller)
     }
 

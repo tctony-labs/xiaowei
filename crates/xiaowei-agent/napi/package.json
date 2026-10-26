@@ -22,7 +22,7 @@
     "@napi-rs/cli": "3.10.1",
     "tsx": "4.23.13",
     "xiaowei-gateway": "workspace:*",
-    "xiaowei-contracts": "workspace:*",
+    "proto-desktop-ts": "workspace:*",
     "@bufbuild/protobuf": "catalog:"
   },
   "exports": {

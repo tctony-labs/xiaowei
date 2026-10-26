@@ -1,10 +1,10 @@
 use crate::{clipboard_dao::ClipboardDao, clipboard_migrations, sql::DatabaseRollback, Database};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use xw_contracts::xiaowei::{clipboard as pb, common::Empty};
 
 async fn category_ids(dao: &ClipboardDao) -> Vec<u64> {
-    dao.categories(Empty {})
+    dao.categories(())
         .await
         .unwrap()
         .items
@@ -92,7 +92,7 @@ async fn categories_follow_modified_time_and_preserve_order_after_reopen() {
         .await
         .is_err());
     assert_eq!(updated_at(&database, created.id as i64).await, saved);
-    assert_eq!(dao.categories(Empty {}).await.unwrap().items[0], created);
+    assert_eq!(dao.categories(()).await.unwrap().items[0], created);
     database.close().await;
 
     let reopened = Arc::new(Database::open(&path).await.unwrap());
@@ -138,7 +138,7 @@ async fn category_timestamp_upgrade_preserves_existing_categories_and_assignment
     for _ in 0..2 {
         let reopened = Arc::new(Database::open(&path).await.unwrap());
         let dao = ClipboardDao::new(reopened.clone());
-        let category = dao.categories(Empty {}).await.unwrap().items.remove(0);
+        let category = dao.categories(()).await.unwrap().items.remove(0);
         assert_eq!((category.id, category.name.as_str()), (7, "existing"));
         assert_eq!(category.color, "#123456");
         assert_eq!(updated_at(&reopened, 7).await, 0);

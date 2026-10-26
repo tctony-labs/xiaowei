@@ -2,7 +2,7 @@
 
 ## Why
 
-原[用户、注册与登录事项](../archived/2026-09-25-user-authentication.md)已交付服务端配置与存储基础、密码登录与设备会话、首次管理员初始化、桌面账号及当前密码登录版本的部署能力。剩余工作涉及 SMTP、网页注册、远端 Gateway／WebSocket、管理能力和微信，原名称已不能表达实际范围。
+原[用户、注册与登录事项](../archived/2026-09-25-user-authentication.md)已交付服务端配置与存储基础、密码登录与设备会话、首次管理员初始化、桌面账号及当前密码登录版本的部署能力。剩余工作涉及 SMTP、网页注册、认证后的 WebSocket 接口、管理能力和微信，原名称已不能表达实际范围。
 
 用户于 2026-10-11 明确要求归档原事项，将已完成内容沉淀到包内文档，并由本 record 承接所有未完成范围和已确认的取舍。这里跟进后续服务端建设及其必要的桌面、网页、契约集成，不重复维护已交付能力，也不记录例行部署流水。
 
@@ -15,7 +15,7 @@
 | 03 SMTP、邀请与邮箱注册 | SMTP 投递、验证码、三种注册策略、默认邀请、部署端邀请签发入口；邮箱验证与设密后建立会话 | 01；注册完成时复用 02 | 邀请过期／重复使用／并发抢用，验证码过期／错误次数／重复消费，重复邮箱并发注册，发信失败；从空部署获得首个可登录用户 |
 | 04 找回密码 | 发送重置验证码、设置新密码、撤销账号全部设备会话 | 02 + 03 | 注册码不能重置密码，验证码单次消费，旧密码与全部旧 token 失效，失败事务不留下部分重置状态 |
 | 05 桌面注册与找回密码 | 复用 02A 的账号模块，补充能力发现、注册与找回密码 UI，并衔接已有登录会话 | 02A + 03 + 04 | 真实 HTTP 流程、重启恢复、服务端失效处理；切服取消在途操作，迟到响应不覆盖新状态，旧凭据不发给新服务器；UI 区分已登录与云连接状态 |
-| 06 远端 Gateway 与 WS | TS 远端 transport、Go Gateway 接入、认证握手、远端路由隔离、心跳与重连、撤销断连；桌面接入云连接状态 | 02；产品集成复用 02A 的账号状态和服务器选择 | TS／Go 真实调用及响应、权限边界、断线清理、旧连接响应隔离；多设备下重置密码关闭全部连接，退出只关闭当前会话连接；不自动重放写操作 |
+| 06 WebSocket 接口接入 | Go 接口协议与设备会话认证；客户端 Rust 连接、心跳与重连、撤销断连；桌面云连接状态 | 02；产品集成复用 02A 的账号状态和服务器选择 | Rust／Go 真实调用及响应、身份隔离、断线清理、旧连接响应隔离；多设备下重置密码关闭全部连接，退出只关闭当前会话连接；不自动重放写操作 |
 | 06B 统一服务端 API | proto 元信息、HTTP／WS 统一短路由、POST 迁移、默认传输选择与文档收敛 | 02 + 06；复用 02A 与 xwapi | 默认登录要求、免登录 HTTP、WS 退出响应顺序、默认优先 WS／不可用时使用 HTTP、已发出请求不重放；探针与部署调用同步迁移 |
 | 07 单机 Docker 交付验收 | 复用已交付镜像发布、配置检查、备份回滚流程，补齐完整邮箱版本端到端验收 | 01–06 | 从 CI 发布镜像在无源码环境部署，默认邀请开户，真实 SMTP 验证，客户端登录并通过 WSS 调用；应用容器重建后数据仍在，备份恢复可用 |
 | 08 微信绑定与登录 | 微信配置、授权回调、已登录主动绑定、已绑定身份登录、未绑定身份衔接邮箱注册或密码登录、解绑；复用设备会话与 WS 链路 | 邮箱版本交付；微信产品与接入条件核验 | 未配置不显示入口，未绑定不自动开户；重复绑定、伪造／过期／重复回调、事务被他端领取被拒绝；登录同一公开 user_id，解绑需近期验证 |
@@ -89,17 +89,17 @@ Vite／React 网页工程、注册页面承载和网页完成注册后的桌面�
 
 切服必须取消在途注册、验证码和授权操作，迟到结果不能覆盖新服务器状态；旧服务器 token、验证码和微信授权结果不得发送给新服务器。邮箱唯一约束和会话隔离继续由服务端保证，展示名称不能代替实际地址及 TLS 校验。
 
-### 远端 Gateway 与 WebSocket（06，已完成）
+### WebSocket 接口接入（06，已完成）
 
-用户于 2026-10-16 确认优先实施完整通用远端 Gateway，不收窄为仅提供收藏同步通知。当前已实现 TS／Go 双向 unary、事件、响应流与取消，以及真实设备会话绑定、撤销断连、桌面心跳重连和独立云连接状态；当前行为与边界见 [服务端 WebSocket](../../../server/docs/websocket.md)、[TS 接入](../../../gateway/ts/README.md#websocket-接入)和[桌面云连接](../../../desktop/docs/account.md#云连接)。原事项中的邮箱注册、找回密码和收藏同步不被这一切片替代。
+用户于 2026-10-16 曾选择通用远端 Gateway，原切片交付 TS／Go 网络通道。2026-10-25 用户进一步明确：Gateway 仅用于 App 内协作，xwapi 是客户端访问层，服务器只实现对应接口与 HTTP／WebSocket 规范；App 内 caller／trusted 不作为服务端账号身份。该边界取代原双向通用网络调用方案。客户端执行归入 Rust xw-api，服务端保留接口处理、通知、响应流、取消与设备会话绑定；客户端不导出本机服务，服务器不反向调用或订阅客户端接口。当前行为见 [服务端 WebSocket](../../../server/docs/websocket.md)、[Rust 客户端](../../../crates/xw-api/README.md)和[桌面云连接](../../../desktop/docs/account.md#云连接)。邮箱注册、找回密码和收藏同步仍属于后续范围。
 
-通用 Go runtime 放在现有 server module 的 `internal/gateway/`，不依赖 auth 或 db，不新增 Go module、npm package 或 Rust crate。TS 增加既有 Gateway 包的 `/websocket` 入口，使用 Node 内置 WebSocket；Go 标准库没有 WebSocket，使用公开的 coder/websocket。服务端业务依然按 proto descriptor 显式注册，网络 client 与本地 host 分开寻址，不暴露 Storage 或本机全部路由。
+服务端 WebSocket 协议当前位于既有 server module 的 `internal/httpapi/ws/`，使用公开的 coder/websocket；`internal/httpapi/` 将接口接到 auth，并按每条连接验证 user、device 和 session。客户端执行位于纯 Rust `xw-api`，桌面原生 Gateway owner 仅在 App 内代理客户端访问能力。服务端业务按 proto descriptor 显式注册，认证握手拒绝任何客户端方法或事件声明。已发布帧、版本、服务端接口 manifest 与短网络地址保持兼容。
 
 产品统一 API 已在切片 06B 中完成，方法注册、HTTP／WS 寻址、登录态要求和传输选择的当前规则见 [xwapi](../../../docs/xwapi.md#方法与登录要求)。本地 Gateway 保留完整方法名，网络边界使用短标识；未指定传输时优先使用当前会话可调用该方法的 WS，否则在发出请求前选择 HTTP；显式指定传输不变，WS 请求一旦发起便不通过 HTTP 重放。WS 连接必须先认证；服务器地址、user、device 和 session 不能由业务 payload 覆盖，token 不进入 URL。
 
 ConnectionHub 在认证成功后登记连接，并再次核验以覆盖并发撤销。退出只关闭当前会话连接，同设备重新登录关闭旧会话连接，其他设备保持在线。每次调用／心跳及后台周期检查 access 有效性；密码重置与禁用用户没有入口，其断连验收仍属后续。临时网络失败保留本地账号，认证明确失效时触发既有 Account 恢复核验，连接实例和迟到结果隔离。
 
-原有“事件、流取消、背压、心跳、重连、默认传输和未就绪行为”已在实现与包内说明中具体化，验收以真实 PB 调用及资源清理为准。用户于 2026-10-16 明确授权后，已同步根 [Gateway](../../../docs/gateway.md#远端服务与双向-websocket) 和 [xwapi](../../../docs/xwapi.md#http-与-websocket-选择) 中的实现状态、传输选择及生命周期说明。
+原有“事件、流取消、背压、心跳、重连、默认传输和未就绪行为”已在实现与包内说明中具体化，验收以真实 PB 调用及资源清理为准。用户于 2026-10-16 明确授权后，已同步根 [Gateway](../../../docs/gateway.md#与服务器通信的边界) 和 [xwapi](../../../docs/xwapi.md#http-与-websocket-选择) 中的实现状态、传输选择及生命周期说明。
 
 ### 统一服务端 API（06B，已完成）
 
@@ -107,7 +107,7 @@ ConnectionHub 在认证成功后登记连接，并再次核验以覆盖并发撤
 
 用户进一步确认健康检查的调用方全部由我们控制，因此 Check／Ready 同样统一为 POST 短路由，移除 `/healthz`／`/readyz`。容器探针直连 Go，部署验收经 Nginx／HTTPS，二者复用同一 API，不按开发／部署环境保留不同入口。当前仅 WS 升级入口保持 GET。服务端、部署脚本、Nginx 模板和文档已同步；未来网站注册／找回密码可复用契约和纯 TS helper，本轮未实现网站或邮件业务。
 
-WS Logout 撤销数据库会话后，在最终响应实际写出或交付失败时释放会话通知。终止期间禁止新业务调用，周期复验不抢先关闭调用连接；取消、超时、关闭、写失败和迟到回调均执行一次性收尾。实现不修改帧格式，不让通用 Gateway 依赖账号或数据库。
+WS Logout 撤销数据库会话后，在最终响应实际写出或交付失败时释放会话通知。终止期间禁止新业务调用，周期复验不抢先关闭调用连接；取消、超时、关闭、写失败和迟到回调均执行一次性收尾。帧格式保持兼容，请求完成机制位于 WS 接入层，账号与数据库规则仍分别归 auth 和 db。
 
 用户后续将访问策略简化为 `common.proto` 中的布尔选项 `api.no_login`：false 或未声明均要求登录，仅 true 允许未登录 HTTP 调用。原 api.proto 和三态枚举合并／移除；客户端与服务端同步解析默认值。此前要求逐方法显式声明 session 的决定已由此规则取代。
 
@@ -161,17 +161,17 @@ thirdparty_bind_token 是短期随机凭据，有效期 15 分钟，由服务端
 
 ### 模块与依赖边界
 
-HTTP／Gateway 接入层负责协议适配，账号规则在 `server/internal/auth/`，数据库事务在 `server/internal/db/`；SMTP 拟放 `server/internal/mail/`。依赖方向为接入层 → auth → db／mail；mail 不依赖 auth，db 不依赖 HTTP，通用 Gateway 不依赖账号业务。邀请签发接入已有 server 二进制，不增加公开签发 HTTP 接口。
+HTTP／WebSocket 接入层负责协议适配，账号规则在 `server/internal/auth/`，数据库事务在 `server/internal/db/`；SMTP 拟放 `server/internal/mail/`。依赖方向为接入层 → auth → db／mail；mail 不依赖 auth，db 不依赖 HTTP，WS 帧与请求执行不承载账号规则。邀请签发接入已有 server 二进制，不增加公开签发 HTTP 接口。
 
-服务端契约继续位于 `contracts/proto/xiaowei/server/`，桌面账号契约沿用 `xiaowei/account.proto`；按现有生成与 typed client 流程接入，不复制 HTTP 与 Gateway 的同义消息。桌面复用 `services/account/`、xwapi 和设置账号区域；preload 不新增业务接口。
+服务端契约位于 `contracts/proto/xiaowei/server/`，桌面账号契约位于 `xiaowei/desktop/account.proto`；前者定义服务器接口，后者定义桌面产品登录态与展示消息，由 AccountService 适配，不互相 import。按现有生成与 typed client 流程接入；桌面复用 `services/account/`、Rust xw-api 和设置账号区域，preload 不新增业务接口。
 
-TS 远端 transport 归通用 Gateway，Go runtime 位于现有 `server/internal/gateway/`，认证连接适配位于 `server/internal/httpapi/`。不得未经设计新增 npm package 或 Rust crate。微信复用现有用户表和设备会话，不另建账号体系；部署继续复用 `server/deploy/`。
+客户端 HTTP／WS 访问层归 `crates/xw-api/`，服务端 HTTP／WS 接口及认证连接接入归 `server/internal/httpapi/`，WS 协议实现放在其 `ws/` 子目录。App 内部 Gateway 通过桌面原生 owner 代理客户端 API，不持有服务器网络协议。迁移方案见 [客户端 Rust 迁移](../proposed/2026-10-25-ios-client/client-rust-migration.md)。不得未经设计新增 npm package 或 Rust crate。微信复用现有用户表和设备会话，不另建账号体系；部署继续复用 `server/deploy/`。
 
 时间、随机源和邮件投递在自动测试中可替换；事务、唯一约束和并发消费使用隔离真实 PostgreSQL 验证，不用内存假实现代替。自动测试不发送真实邮件；真实 SMTP 投递验收需要实际凭据及用户明确的发送指令。桌面现场验收遵守用户冷启动规则，生产登录默认由用户验证。
 
 ## Current work
 
-切片 06（远端 Gateway／WebSocket）与 06B（统一服务端 API）均已完成代码、文档、自动回归及本地客户端验收。06B 的后续调整也已完成：`common.proto` 使用 `api.no_login` 布尔选项，未声明时默认要求登录；未指定 transport 时优先使用当前会话可调用该方法的 WS，不可用时在发送前选择 HTTP，已发出的 WS 请求不经 HTTP 重放。验证结果见下方 Outcome，无本轮遗留实施或必要验收。
+切片 06（WebSocket 接口接入）与 06B（统一服务端 API）的原交付已完成代码、文档、自动回归及本地客户端验收。06B 的后续调整也已完成：`common.proto` 使用 `api.no_login` 布尔选项，未声明时默认要求登录；未指定 transport 时优先使用当前会话可调用该方法的 WS，不可用时在发送前选择 HTTP，已发出的 WS 请求不经 HTTP 重放。2026-10-25 按用户重新确认的边界收敛服务端协议实现及其自动回归已完成；客户端迁移清理与契约重组于 2026-10-26 完成 Hermes 现场恢复及切服验收，验证结果与旧服务端的兼容限制见 Outcome 和原迁移方案。
 
 [xwapi](../../../docs/xwapi.md)、[HTTP](../../../server/docs/http.md) 与 [WebSocket](../../../server/docs/websocket.md) 说明已按 proto 和统一约定收敛，分别承载寻址／客户端边界、HTTP 接入及 WS 生命周期；不再重复维护 API 清单。根 AGENTS 已增加修改客户端与服务器接口前阅读 xwapi 文档的入口。
 
@@ -180,6 +180,12 @@ TS 远端 transport 归通用 Gateway，Go runtime 位于现有 `server/internal
 切片 06C（按服务器保留登录态与切换）和 06D（连接鉴权与恢复边界）已完成实际接入、自动回归和现场验收，结果见 Outcome。对应实施 Plan 已删除，不为尚未开始的后续切片预建占位 Plan。本事项因仍有邮箱注册、找回密码及微信等未实施范围而保留 active；密码重置后的全设备断连验收仍属后续范围。
 
 ## Outcome
+
+2026-10-25 服务端边界清理完成。用户确认 xwapi 仅是客户端访问层，服务端只实现对应接口及 HTTP／WebSocket 规范。Go 协议实现移入 `server/internal/httpapi/ws/`，删除独立的 `internal/xwapi/` 包、允许客户端导出的开关、客户端接口表、反向 Invoke／Stream／Subscribe 及专用流消费和测试分支。通知只向当前认证连接交付并等待确认；服务端接口、响应流、订阅、取消、并发与退出清理保留。旧帧版本 1、控制／契约版本 3／1、短接口地址和服务端 manifest 保持兼容；新增实际握手测试确认客户端声明方法或事件都会被拒绝。
+
+已通过真实 PostgreSQL 的完整 `go test -race ./...`、WS 协议 race 测试、18 项 Rust 共享核心测试、完整 desktop 回归和最终 `just check`。Go 认证集成覆盖连接身份及会话隔离、凭据过期、数据库故障拒绝调用、Logout 响应先写出再关闭对应连接；Rust／Go 回归覆盖调用、服务端通知及响应流、取消和资源限制。桌面为 93 项 main、147 项 renderer 及其他原生／worker 链路，既有外部 live provider 测试按设计跳过。相关源码、fixture 构建路径及当前职责说明已同步，Go 源码无旧 xwapi 包或反向调用引用。未启动或重启其他工作区服务，未部署线上；代码未提交。
+
+2026-10-26 在用户启动的 Hermes 完成迁移清理及契约重组的现场收尾：08:12:44 重载本工作区后，正式原生模块加载、保存会话恢复、WS 建连与用户 HTTP 校验成功；08:13:10／08:13:15 通过实际账号管理界面完成线上／本地往返，线上刷新成功、两项保存会话保持，最终恢复本地选择。旧服务端的 Empty 类型声明与新版契约不同，相关方法在发送前回退 HTTP；未把该结果记作新版 WS 方法验收，未重启其他工作区服务或部署线上。Rebase 到 develop `efccd63` 后的自动回归与详细接入结果见[客户端迁移 Outcome](../proposed/2026-10-25-ios-client/client-rust-migration.md#outcome)。
 
 2026-10-18 切片 06D 已完成。`just check`、完整 `pnpm --dir desktop test` 通过，主进程回归含连接真实 WS fixture、刷新拒绝／过期、HTTP 回退及原权限检查；renderer 为 22 个文件、145 个测试。review 报告 `/tmp/review-server-account-management.md` 的 R001／R002 均已解决。14:49:51 经核实 cwd 与进程关系后通过 cmux 重载当前工作区客户端，真实启动日志先出现 WS connected，再通过 WS 调用一次 GetCurrentUser，code 为 0，没有前置 HTTP 用户校验。14:50:32／14:50:42 实际管理弹窗完成远程／本地往返切换，各自同样先建连再通过 WS 获取用户，均 code 0；两个已保存账号保持，最终恢复本轮开始时的本地选择。未读取真实凭据，未操作真实账号退出。06D Plan 已删除。
 

@@ -1,8 +1,8 @@
 use crate::dao::DaoClient;
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result};
+use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use xw_contracts::xiaowei::clipboard as pb;
 use xw_gateway::invoke::Client;
 
 pub struct Store {

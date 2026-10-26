@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 	"github.com/tctony-labs/xiaowei/server/internal/auth"
 	"github.com/tctony-labs/xiaowei/server/internal/db"
-	"github.com/tctony-labs/xiaowei/server/internal/gateway"
+	"github.com/tctony-labs/xiaowei/server/internal/httpapi/ws"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -19,9 +19,9 @@ type connectionIdentity struct{}
 
 type ConnectionHub struct {
 	service        *auth.Service
-	runtime        *gateway.Runtime
+	runtime        *ws.Runtime
 	mu             sync.Mutex
-	peers          map[*gateway.Peer]db.SessionUser
+	peers          map[*ws.Peer]db.SessionUser
 	closed         bool
 	unsubscribe    func()
 	connections    map[uint64]context.CancelFunc
@@ -30,15 +30,15 @@ type ConnectionHub struct {
 }
 
 func NewConnectionHub(api *API) *ConnectionHub {
-	registrations := make([]gateway.Registration, 0)
+	registrations := make([]ws.Registration, 0)
 	for _, method := range api.ordered {
 		if !method.requiresSession {
 			continue
 		}
-		registrations = append(registrations, gateway.Registration{
+		registrations = append(registrations, ws.Registration{
 			Method: method.method, Name: method.id,
 			Handler: func(
-				ctx context.Context, input proto.Message, peer *gateway.Peer,
+				ctx context.Context, input proto.Message, peer *ws.Peer,
 			) (proto.Message, error) {
 				call := apiCall{identity: ctx.Value(connectionIdentity{}).(db.SessionUser),
 					ip:   ctx.Value(sourceIPKey{}).(string),
@@ -48,12 +48,12 @@ func NewConnectionHub(api *API) *ConnectionHub {
 			},
 		})
 	}
-	runtime, err := gateway.New(registrations, nil)
+	runtime, err := ws.New(registrations, nil)
 	if err != nil {
 		panic("invalid built-in WebSocket routes")
 	}
 	hub := &ConnectionHub{
-		service: api.auth.service, runtime: runtime, peers: map[*gateway.Peer]db.SessionUser{},
+		service: api.auth.service, runtime: runtime, peers: map[*ws.Peer]db.SessionUser{},
 		connections: map[uint64]context.CancelFunc{}, maxConnections: 256,
 	}
 	hub.unsubscribe = api.auth.service.OnSessionChange(hub.sessionChanged)
@@ -81,15 +81,15 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.mu.Unlock()
 	}()
 	var token string
-	gateway.ServeHTTP(w, r.WithContext(ctx), gateway.Options{Runtime: h.runtime,
+	ws.ServeHTTP(w, r.WithContext(ctx), ws.Options{Runtime: h.runtime,
 		Authenticate: func(ctx context.Context, credential string) (context.Context, error) {
 			identity, err := h.service.Authenticate(ctx, credential)
 			if err != nil {
 				slog.Warn("WebSocket authentication rejected")
 				if errors.Is(err, auth.ErrUnauthenticated) {
-					return nil, gateway.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
+					return nil, ws.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
 				}
-				return nil, gateway.Failure("OWNER_UNAVAILABLE", "认证服务暂不可用")
+				return nil, ws.Failure("OWNER_UNAVAILABLE", "认证服务暂不可用")
 			}
 			token = credential
 			return context.WithValue(ctx, connectionIdentity{}, identity), nil
@@ -98,17 +98,17 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			identity, err := h.service.Authenticate(ctx, token)
 			if err != nil {
 				if errors.Is(err, auth.ErrUnauthenticated) {
-					return gateway.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
+					return ws.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
 				}
-				return gateway.Failure("OWNER_UNAVAILABLE", "认证服务暂不可用")
+				return ws.Failure("OWNER_UNAVAILABLE", "认证服务暂不可用")
 			}
 			bound := ctx.Value(connectionIdentity{}).(db.SessionUser)
 			if identity.SessionID != bound.SessionID {
-				return gateway.Failure("UNAUTHORIZED", "连接身份不一致")
+				return ws.Failure("UNAUTHORIZED", "连接身份不一致")
 			}
 			return nil
 		},
-		Opened: func(peer *gateway.Peer) {
+		Opened: func(peer *ws.Peer) {
 			identity := peer.Context().Value(connectionIdentity{}).(db.SessionUser)
 			h.mu.Lock()
 			closed := h.closed
@@ -129,7 +129,7 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			slog.Info("WebSocket connected", "user_id", identity.User.PublicID, "session_id", identity.SessionID)
 		},
-		Closed: func(peer *gateway.Peer) {
+		Closed: func(peer *ws.Peer) {
 			h.mu.Lock()
 			identity := h.peers[peer]
 			delete(h.peers, peer)
@@ -141,7 +141,7 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *ConnectionHub) sessionChanged(change auth.SessionChange) {
 	h.mu.Lock()
-	peers := make([]*gateway.Peer, 0)
+	peers := make([]*ws.Peer, 0)
 	for peer, identity := range h.peers {
 		if (change.SessionID != "" && identity.SessionID == change.SessionID) ||
 			(change.UserID != "" && identity.User.PublicID == change.UserID &&
@@ -152,7 +152,7 @@ func (h *ConnectionHub) sessionChanged(change auth.SessionChange) {
 	}
 	h.mu.Unlock()
 	for _, peer := range peers {
-		go peer.Reject(gateway.Failure("UNAUTHORIZED", "会话已撤销，请重新登录"))
+		go peer.Reject(ws.Failure("UNAUTHORIZED", "会话已撤销，请重新登录"))
 	}
 }
 
@@ -163,7 +163,7 @@ func (h *ConnectionHub) Close() {
 	for _, cancel := range h.connections {
 		pending = append(pending, cancel)
 	}
-	peers := make([]*gateway.Peer, 0, len(h.peers))
+	peers := make([]*ws.Peer, 0, len(h.peers))
 	for peer := range h.peers {
 		peers = append(peers, peer)
 	}

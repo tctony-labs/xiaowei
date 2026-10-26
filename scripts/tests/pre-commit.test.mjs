@@ -52,7 +52,7 @@ process.exit(result.status ?? 1);
     );
     write(`${name}/src/lib.rs`, "pub fn example() {}\n");
   }
-  for (const name of ["server", "contracts/go"]) {
+  for (const name of ["server", "contracts/out/proto-server-go"]) {
     write(`${name}/go.mod`, `module example/${name}\n\ngo 1.26.0\n`);
     write(`${name}/main.go`, "package example\n\nfunc Example() {}\n");
   }
@@ -124,7 +124,7 @@ test("Rust uses each package edition without following child modules; Go formats
   }
   write("server/main.go", "package example\nfunc Example( ) { }\n");
   git("add", "server/main.go");
-  write("contracts/go/main.go", "package example\nfunc Example( ) { }\n");
+  write("contracts/out/proto-server-go/main.go", "package example\nfunc Example( ) { }\n");
   const index = git("write-tree");
   const result = run();
 
@@ -137,16 +137,19 @@ test("Rust uses each package edition without following child modules; Go formats
     assert.equal(read(`${name}/src/child.rs`), "pub fn child( ) { }\n");
   }
   assert.equal(read("server/main.go"), "package example\n\nfunc Example() {}\n");
-  assert.equal(read("contracts/go/main.go"), "package example\nfunc Example( ) { }\n");
+  assert.equal(
+    read("contracts/out/proto-server-go/main.go"),
+    "package example\nfunc Example( ) { }\n",
+  );
   assert.equal(git("write-tree"), index);
 });
 
 test("proto generated files keep their original bytes and still run the workspace check", (context) => {
   const { write, read, git, run } = fixture(context);
   const generated = {
-    "contracts/rust/src/gen/example.rs": "pub struct Generated {pub value:u32}\n",
-    "contracts/ts/src/gen/example.ts": "export const generated={value:1}\n",
-    "contracts/go/gen/example.pb.go": "package generated\nfunc Generated( ) { }\n",
+    "contracts/out/proto-desktop-rs/src/gen/example.rs": "pub struct Generated {pub value:u32}\n",
+    "contracts/out/proto-desktop-ts/src/gen/example.ts": "export const generated={value:1}\n",
+    "contracts/out/proto-server-go/gen/example.pb.go": "package generated\nfunc Generated( ) { }\n",
   };
   for (const [path, contents] of Object.entries(generated)) {
     write(path, contents);
@@ -201,7 +204,7 @@ test("the repository just format entry formats files across the workspace withou
   write("other.js", "console.log( 'unstaged' )\n");
   write("modern/src/lib.rs", "pub fn example( ) { }\n");
   write("server/main.go", "package example\nfunc Example( ) { }\n");
-  write("contracts/go/main.go", "package example\nfunc Example( ) { }\n");
+  write("contracts/out/proto-server-go/main.go", "package example\nfunc Example( ) { }\n");
   const index = git("write-tree");
   const result = spawnSync(
     "just",
@@ -216,6 +219,9 @@ test("the repository just format entry formats files across the workspace withou
   assert.equal(read("other.js"), 'console.log("unstaged");\n');
   assert.equal(read("modern/src/lib.rs"), "pub fn example() {}\n");
   assert.equal(read("server/main.go"), "package example\n\nfunc Example() {}\n");
-  assert.equal(read("contracts/go/main.go"), "package example\n\nfunc Example() {}\n");
+  assert.equal(
+    read("contracts/out/proto-server-go/main.go"),
+    "package example\n\nfunc Example() {}\n",
+  );
   assert.equal(git("write-tree"), index);
 });

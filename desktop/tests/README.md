@@ -19,6 +19,10 @@
 
 `run.mjs` 通过 `tsx --conditions=source` 加载 Gateway 源码，构建 desktop 自身 worker，再按需要构建正式 xiaowei-rust／xiaowei-agent addon。Storage、LLM、xwapi 的 Rust 测试调用方使用 rust 的 `gateway-fixtures`；其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
 
+服务器 API 测试通过 `main/server-api-fixture.ts` 为正式组合 endpoint 设置目标、凭据和测试时钟；不依赖生产 TS xwapi 模块。账号 fixture 使用正式 account 接入，验证普通 Gateway 调用从 Rust 当前上下文取值，以及进行中的 Health 检查不影响当前服务器请求。
+
+`main/server-connection.test.ts` 同样使用正式 account 接入，通过实际连接事件等待状态变化，验证凭据替换、鉴权拒绝后暂停重连及关闭；状态桥接复用生产实现。
+
 测试 addon 的准备及正式导出检查复用 `scripts/tests/rust-napi-fixtures.mjs`。正式 debug 产物留在各包的 `napi/`，fixture 的 `.node`、`index.js` 和 `index.d.ts` 输出到 `target/rust-napi-tests/<name>/`，并补充 `type: commonjs` 的 `package.json`，使 napi 生成的加载器不受根工作区 ESM 设置影响。测试显式加载该目录或其中的 `.node`。fixture 不覆盖正式包，测试结束后无需重建恢复；即使构建或测试失败，仍检查正式包不含测试导出。
 
 根 `pnpm test` 由 `scripts/tests/run.mjs` 先构建全部正式 debug addon，再构建 rust／agent fixture，随后串行执行 workspace 测试。只有两套产物均准备成功后，才为 workspace 测试子进程设置内部标记 `XIAOWEI_TEST_NAPI_PREPARED=1`，使 Gateway 和 desktop 复用本轮产物。单独运行测试入口时不设置该标记，仍构建所需正式包与 fixture，不凭文件存在跳过构建。不要手动设置标记，也不要与相同 addon 的构建并行运行。
@@ -91,3 +95,7 @@ expect(screen.queryByText("已保存")).toBeNull();
 `llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建 desktop：`pnpm --dir desktop build`，再执行 `pnpm --dir desktop exec tsx --conditions=source --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/config.test.mjs`。
 
 `llm/verify-provider.test.mjs` 用临时配置、假 Key 和本地 SSE 验证手动验收工具的执行与退出，不继承真实模型凭据。真实模型的手动入口见 [验收脚本](../scripts/README.md)。
+
+服务器网络与账号核心回归先执行 `cargo test --locked -p xw-api`（包含 Go race fixture 和 `tests/account/` 会话测试），再验证正式 `xiaowei-rust` 的 Auth／Health Gateway。`main/http-logging.test.ts` 通过原生统一日志入口验证真实 HTTP 的等级、元数据和敏感信息边界；`main/auth-websocket-fixture.ts` 将独立 Go WS fixture 桥接到隔离 HTTP 账号 fixture，替代 TS 网络执行器注入。
+
+账号回归继续使用原 Account UI 契约，经单会话原生 owner 执行认证与维护，覆盖刷新检查点必须先保存、取消校验后新凭据保留、普通 caller 无法注入／读取凭据。测试 fixture 为每个操作释放保留结果，手动关闭 AccountService 时也关闭其会话与网络资源。

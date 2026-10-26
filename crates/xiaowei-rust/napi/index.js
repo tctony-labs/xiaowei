@@ -783,6 +783,7 @@ module.exports.FocusSnapshot = nativeBinding.FocusSnapshot
 module.exports.GatewayEndpoint = nativeBinding.GatewayEndpoint
 module.exports.SparkleUpdater = nativeBinding.SparkleUpdater
 module.exports.Storage = nativeBinding.Storage
+module.exports.XwAccount = nativeBinding.XwAccount
 module.exports.captureFocus = nativeBinding.captureFocus
 module.exports.createGatewayEndpoint = nativeBinding.createGatewayEndpoint
 module.exports.createSearchGatewayEndpoint = nativeBinding.createSearchGatewayEndpoint

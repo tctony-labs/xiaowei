@@ -1,13 +1,12 @@
 import { create, toBinary } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { act, cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, test, vi } from "vitest";
 import {
   ClipboardBiz,
   ClipboardCategoriesSchema,
   ClipboardChangedSchema,
   ClipboardItemsSchema,
-  EmptySchema,
   ExecuteResponseSchema,
   LauncherMode,
   LauncherOpenedSchema,
@@ -18,7 +17,8 @@ import {
   ModelSettingsSnapshotSchema,
   SettingsAnchor,
   System,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { afterEach, expect, test, vi } from "vitest";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";

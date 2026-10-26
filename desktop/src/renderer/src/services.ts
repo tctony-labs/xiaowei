@@ -9,7 +9,7 @@ import {
   ModelSettings,
   Settings,
   System,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import {
   bindClient,
   bindStreamClient,

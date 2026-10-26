@@ -1,14 +1,14 @@
-use std::sync::{Arc, Mutex};
-use xw_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
-use xw_contracts::xiaowei::clipboard::{
+use proto_desktop_rs::xiaowei::desktop::clipboard::{
     ClipboardItemRequest, ClipboardListOptions, PurgeExpiredRequest,
 };
+use std::sync::{Arc, Mutex};
+use xw_clipboard::{ClipboardBackend, ClipboardData, Result, Service};
 use xw_gateway::{CallContext, XwInvokeRegistry};
 
 #[allow(dead_code)]
 #[path = "../src/gateway_binding.rs"]
 mod bindings;
-use bindings::xiaowei_clipboard_clipboard_biz_service as methods;
+use bindings::xiaowei_desktop_clipboard_clipboard_biz_service as methods;
 
 struct Backend(Arc<Mutex<Option<ClipboardData>>>);
 impl ClipboardBackend for Backend {
@@ -125,9 +125,10 @@ async fn gateway_reads_original_image_bytes_and_uses_existing_service() {
 #[tokio::test]
 async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
     use bindings::{
-        xiaowei_storage_settings_service as settings, xiaowei_system_system_service as system,
+        xiaowei_desktop_host_system_service as system,
+        xiaowei_desktop_settings_settings_service as settings,
     };
-    use xw_contracts::xiaowei::{common::Empty, storage::SettingsSnapshot};
+    use proto_desktop_rs::xiaowei::desktop::settings::SettingsSnapshot;
     let dir = tempfile::tempdir().unwrap();
     let calls = Arc::new(Mutex::new(Vec::new()));
     struct SelectionBackend(Arc<Mutex<Vec<&'static str>>>);
@@ -202,7 +203,7 @@ async fn selection_keeps_caller_and_stops_after_copy_or_hide_failure() {
                         started.notify_one();
                         resume.notified().await;
                     }
-                    Ok(Empty {})
+                    Ok(())
                 }
             })],
             vec![],

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FinishReason } from "xiaowei-contracts";
+import { FinishReason } from "proto-desktop-ts";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
 const code = (expected) => (error) => error.detail?.code === expected;

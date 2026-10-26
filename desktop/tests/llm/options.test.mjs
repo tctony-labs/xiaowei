@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { GenerateRequestSchema } from "xiaowei-contracts";
+import { GenerateRequestSchema } from "proto-desktop-ts";
 import { toOptions } from "../../src/main/services/llm/worker/options.ts";
 
 const model = { api: "openai-completions", maxTokens: 32768, reasoning: true };

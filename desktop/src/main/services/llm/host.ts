@@ -1,5 +1,5 @@
 import { createLoggedWorker } from "@xiaowei/source-log/worker";
-import { Llm } from "xiaowei-contracts";
+import { Llm } from "proto-desktop-ts";
 import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import type { GatewayHost } from "xiaowei-gateway/host";
 import { attachWorker } from "xiaowei-gateway/worker-host";

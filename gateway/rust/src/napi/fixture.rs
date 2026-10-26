@@ -6,8 +6,8 @@ use std::sync::{
 use std::time::Duration;
 
 use prost::Message;
+use proto_testing_rs::testing::{Changed, Envelope};
 use tokio::sync::{Notify, mpsc};
-use xw_contracts::testing::{Changed, Envelope};
 
 use super::Endpoint;
 use crate::event::{EventBackpressure, EventExportRegistration, EventSubscription};
@@ -146,7 +146,7 @@ impl Fixture {
             async move {
                 if request.text == "llm" {
                     // Test-only typed consumer; no production search dependency on LLM.
-                    use xw_contracts::xiaowei::llm::{GenerateEvent, GenerateRequest};
+                    use proto_llm_rs::xiaowei::llm::{GenerateEvent, GenerateRequest};
                     let method =
                         crate::binding::StreamMethod::<GenerateRequest, GenerateEvent>::new(
                             "xiaowei.llm.Llm.Generate",
@@ -161,7 +161,7 @@ impl Fixture {
                     return Ok(Box::pin(stream.map(|item| {
                         item.map(|event| Changed {
                             value: Some(Envelope {
-                                blobs: vec![xw_contracts::testing::envelope::Blob {
+                                blobs: vec![proto_testing_rs::testing::envelope::Blob {
                                     data: event.encode_to_vec(),
                                 }],
                                 ..Default::default()

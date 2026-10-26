@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { GenerateRequestSchema } from "xiaowei-contracts";
+import { GenerateRequestSchema } from "proto-desktop-ts";
 import { toContext } from "../../src/main/services/llm/worker/messages.ts";
 import { generate } from "../../src/main/services/llm/worker/provider.ts";
 

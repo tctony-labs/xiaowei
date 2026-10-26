@@ -1,12 +1,12 @@
 import { create } from "@bufbuild/protobuf";
-import { expect, test } from "vitest";
 import {
   AgentEventSchema,
   AgentRunStatus,
   type AgentSession,
   AgentSessionSchema,
   AgentToolStatus,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { expect, test } from "vitest";
 import { applyAgentEvent, chatMessages } from "./agent-events";
 
 test("title updates advance activity time and delayed run settlement cannot move it backwards", () => {

@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { type Model, normalizeContext } from "@earendil-works/pi-ai";
-import { GenerateEventSchema, type GenerateRequest } from "xiaowei-contracts";
+import { GenerateEventSchema, type GenerateRequest } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 import type { ResolvedModelConfig } from "../shared/models";
 import { apis } from "./apis";

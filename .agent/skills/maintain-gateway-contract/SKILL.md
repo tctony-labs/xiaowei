@@ -14,7 +14,7 @@ description: >-
 
 ## 更新入口与生成绑定
 
-- 新增 Rust package 时更新 `contracts/rust/src/lib.rs`；新增 TS proto 文件时更新 `contracts/ts/src/index.ts`。Go 仅在服务端需要时加入 `contracts/generate.config.json`。
+- 在 `contracts/generate.config.json` 的 `sources` 中确认源码对应的固定输出包；目录使用 `**`。新增 Rust 消息 package 时更新所属 `contracts/out/*-rs/src/lib.rs`；新增 TS 文件时更新 `contracts/out/proto-desktop-ts/src/index.ts`。仅含 service 的 package 可能没有 prost 消息源码。输出包之间不得直接依赖，同语言的同一项目类型不得重复生成。
 - 在 [Rust 模块 service 配置](../../../gateway/rust/business_binding_config.rs)中，为每个调用或实现该 service 的 Rust 模块列出完整的 `package.Service`。该配置只选择 typed Method 常量，不创建 handler、endpoint、权限或 owner；TS 不使用这份配置。
 - proto 或模块配置变化后，从仓库根目录执行 `just gen`：自动先执行 `just prepare` 准备工作区依赖，再生成契约与 descriptor，最后生成各模块的 `src/gateway_binding.rs`。生成文件不得手改。只检查漂移时运行 `pnpm contracts:check` 和 `pnpm gateway:check`。
 

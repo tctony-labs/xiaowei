@@ -1,9 +1,9 @@
 use futures_util::StreamExt;
+use proto_testing_rs::testing::{Changed, Envelope};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
-use xw_contracts::testing::{Changed, Envelope};
 use xw_gateway::stream::{StreamPolicy, bounded_byte_queue};
 use xw_gateway::{CallContext, ErrorCode, XwInvokeRegistry};
 #[allow(dead_code)]

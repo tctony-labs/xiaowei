@@ -25,9 +25,9 @@ function fixture(context) {
     "server/go.sum": "// server dependencies\n",
     "server/main.go": "package main\n\nfunc main() {}\n",
     "server/internal/db/migrations/first.sql": "SELECT 1;\n",
-    "contracts/go/go.mod": "module example/contracts\n\ngo 1.26.0\n",
-    "contracts/go/go.sum": "// contract dependencies\n",
-    "contracts/go/codec.go": "package contracts\n",
+    "contracts/out/proto-server-go/go.mod": "module example/contracts\n\ngo 1.26.0\n",
+    "contracts/out/proto-server-go/go.sum": "// contract dependencies\n",
+    "contracts/out/proto-server-go/codec.go": "package contracts\n",
     "desktop/example.tsx": "// renderer\n",
     ".github/workflows/test.yml": "name: test\n",
     ".github/workflows/macos-release.yml": "name: release\n",
@@ -97,8 +97,8 @@ test("both modules' dependency changes rotate module and build snapshots", (cont
   for (const path of [
     "server/go.mod",
     "server/go.sum",
-    "contracts/go/go.mod",
-    "contracts/go/go.sum",
+    "contracts/out/proto-server-go/go.mod",
+    "contracts/out/proto-server-go/go.sum",
   ]) {
     const absolute = join(workspace, path);
     const original = readFileSync(absolute, "utf8");
@@ -116,7 +116,7 @@ test("Go sources, SQL migrations and CI logic rotate only the build snapshot", (
   const first = run("key");
   const inputs = [
     "server/main.go",
-    "contracts/go/codec.go",
+    "contracts/out/proto-server-go/codec.go",
     "server/internal/db/migrations/first.sql",
     ".github/workflows/test.yml",
     ".github/workflows/macos-release.yml",

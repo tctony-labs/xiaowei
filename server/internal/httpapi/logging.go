@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	pb "github.com/tctony-labs/xiaowei/contracts/go/gen/xiaowei/server"
+	pb "github.com/tctony-labs/xiaowei/contracts/out/proto-server-go/gen/xiaowei/server"
 )
 
 func withRequestLogging(next http.Handler, resolveRoute func(*http.Request) string) http.Handler {

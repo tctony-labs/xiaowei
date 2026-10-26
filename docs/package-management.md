@@ -14,7 +14,7 @@ Rust 功能入口、业务实现与支撑模块、通用平台能力放在 `crat
 | --- | --- | --- |
 | pnpm | 桌面应用、TS 契约、Gateway、共享 npm 包与 Rust napi 的 npm 入口 | 各包的 `package.json`、[pnpm-workspace.yaml](../pnpm-workspace.yaml)、`pnpm-lock.yaml` |
 | Cargo | Rust 核心、业务支撑模块、通用平台能力、契约、生成工具、Gateway 与 napi 绑定 | 各 crate 及根 [Cargo.toml](../Cargo.toml)、`Cargo.lock` |
-| Go | `server/` 和 `contracts/go/` 两个独立 module | 各 module 的 `go.mod` 与 `go.sum` |
+| Go | `server/` 和 `contracts/out/proto-server-go/` 两个独立 module | 各 module 的 `go.mod` 与 `go.sum` |
 
 工作区 npm 包在消费方声明 `workspace:*` 依赖；Rust crate 使用 Cargo path 依赖。Go 服务端通过 require 与本地 replace 消费契约 module，不使用根 `go.work`。
 

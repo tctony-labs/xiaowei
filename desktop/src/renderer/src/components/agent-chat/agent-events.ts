@@ -5,7 +5,7 @@ import {
   type AgentSession,
   AgentSessionSchema,
   AgentSessionStatus,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
 import { messageBlocks } from "./message-blocks";
 

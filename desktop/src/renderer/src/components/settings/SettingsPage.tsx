@@ -1,7 +1,6 @@
 import { create, fromBinary } from "@bufbuild/protobuf";
-import { useCallback, useEffect, useState } from "react";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
-  EmptySchema,
   SettingsAnchor,
   SettingsChangedSchema,
   SettingsNavigationRequestedSchema,
@@ -11,7 +10,8 @@ import {
   ThemeMode,
   type UpdateSettingsRequest,
   UpdateSettingsRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
+import { useCallback, useEffect, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import { services as defaultServices, type Services } from "../../services";
 import { applyTheme, themeValue } from "../../theme";

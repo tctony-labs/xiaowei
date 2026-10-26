@@ -4,14 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { create, toJsonString } from "@bufbuild/protobuf";
+import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   DeleteProviderRequestSchema,
-  EmptySchema,
   ModelSettings,
   ModelSettingsSnapshotSchema,
   SaveProviderRequestSchema,
   UpdateModelDefaultsRequestSchema,
-} from "xiaowei-contracts";
+} from "proto-desktop-ts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { emptyConfig, loadConfig, resolveModels } from "../../src/main/services/llm/config.ts";
@@ -219,7 +219,7 @@ test("draft discovery goes through the built worker without saving and cancellat
   const { createServer } = await import("node:http");
   const { once } = await import("node:events");
   const { bindStreamClient } = await import("xiaowei-gateway");
-  const { DiscoverModelsRequestSchema } = await import("xiaowei-contracts");
+  const { DiscoverModelsRequestSchema } = await import("proto-desktop-ts");
   const { attachLlm } = await import("../../src/main/services/llm/host.ts");
   let closed;
   let pending;
