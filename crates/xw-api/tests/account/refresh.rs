@@ -153,6 +153,65 @@ async fn restore_stops_at_rotation_and_retains_pair_after_cancel_or_later_failur
 }
 
 #[tokio::test]
+async fn cancelled_checkpoint_settles_with_rotated_credentials_and_allows_the_next_operation() {
+    for operation in [Operation::Restore { force: false }, Operation::Logout] {
+        let server = support::Server::start().await;
+        let api = xw_api::Client::new().unwrap();
+        let core = SessionCore::new(api.clone());
+        core.activate(
+            server.url.clone(),
+            Some(server.session(server.now)),
+            false,
+            server.now,
+        );
+        let checkpoint = core
+            .start(
+                "cancelled".into(),
+                operation,
+                server.now,
+                Access::default(),
+                CancellationToken::new(),
+            )
+            .await;
+        assert!(checkpoint.checkpoint);
+
+        core.cancel("cancelled");
+        let cancelled = core.settled_outcome(server.now).await;
+        assert_eq!(cancelled.code, 10008);
+        assert!(!cancelled.checkpoint);
+        assert_eq!(cancelled.credential_version, checkpoint.credential_version);
+        assert_eq!(
+            cancelled
+                .session
+                .unwrap()
+                .authenticated
+                .tokens
+                .unwrap()
+                .refresh_token,
+            "refresh_1"
+        );
+
+        let next = core
+            .start(
+                "next".into(),
+                Operation::Maintain { force: false },
+                server.now,
+                Access::default(),
+                CancellationToken::new(),
+            )
+            .await;
+        assert_eq!(next.code, 0);
+        assert!(!next.checkpoint);
+        assert_eq!(next.credential_version, checkpoint.credential_version);
+        assert_eq!(server.state.lock().unwrap().refreshes, 1);
+        assert_eq!(server.state.lock().unwrap().users, 0);
+        assert_eq!(server.state.lock().unwrap().logouts, 0);
+        core.close().await;
+        api.close().await;
+    }
+}
+
+#[tokio::test]
 async fn unauthenticated_http_validation_refreshes_only_once_and_expiry_needs_no_network() {
     let server = support::Server::start().await;
     let api = xw_api::Client::new().unwrap();

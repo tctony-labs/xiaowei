@@ -1272,3 +1272,55 @@ test("rotation is persisted before validation; cancelling validation retains the
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
   assert.equal(server.state.refreshes, 1);
 });
+
+test("refresh delivers updated user details after saving the credential checkpoint", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "account-profile-"));
+  const server = await authServer();
+  const store = new AccountStore(join(directory, "auth.json"), await accountMeta(t, directory));
+  let now = server.state.now;
+  const service = await openAccount(t, { store, deviceName: "test", now: () => now });
+  t.after(async () => {
+    await service.close();
+    await server.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.addServer(server.url);
+  assert.equal(
+    (
+      await service.login(
+        create(AccountLoginRequestSchema, {
+          serverAddress: server.url,
+          password: { email: "user@example.test", password: "  sample  " },
+          attemptId: randomUUID(),
+        }),
+      )
+    ).code,
+    0,
+  );
+
+  const userId = service.snapshot().user?.userId;
+  now += 7_200_000;
+  server.state.now = now;
+  server.state.beforeCurrentUser = async () => {
+    const saved = (await store.load()).sessions.find((entry) => entry.server === server.url);
+    assert.equal(saved?.authenticated.tokens?.refreshToken, server.state.tokens.refreshToken);
+    assert.equal(saved?.authenticated.user?.email, "user@example.test");
+    server.state.currentUserResponse = JSON.stringify({
+      code: 0,
+      msg: "ok",
+      data: {
+        user: { user_id: userId, email: "updated@example.test", created_at_ms: "1" },
+        session_id: server.state.tokens.sessionId,
+        device: { device_id: server.state.deviceId },
+      },
+    });
+  };
+
+  await service.restore();
+  assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
+  assert.equal(service.snapshot().user?.email, "updated@example.test");
+  const saved = (await store.load()).sessions.find((entry) => entry.server === server.url);
+  assert.equal(saved?.authenticated.user?.email, "updated@example.test");
+  assert.equal(saved?.authenticated.tokens?.refreshToken, server.state.tokens.refreshToken);
+  assert.equal(server.state.refreshes, 1);
+});

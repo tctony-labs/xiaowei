@@ -104,7 +104,14 @@ impl SessionCore {
 
     pub async fn settled_outcome(&self, now_ms: i64) -> Outcome {
         let _gate = self.gate.lock().await;
-        self.outcome(now_ms)
+        let mut state = self.state.lock().unwrap();
+        // A paused checkpoint has no running drive to finish cancellation.
+        if state.pending.as_ref().is_some_and(|pending| {
+            pending.cancel.is_cancelled() && !matches!(pending.phase, Phase::Complete)
+        }) {
+            return Self::failure(&mut state, crate::Error::cancelled(), now_ms);
+        }
+        Self::result(&state, now_ms)
     }
 
     fn result(state: &State, now_ms: i64) -> Outcome {

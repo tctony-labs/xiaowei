@@ -138,12 +138,12 @@ export async function registerAccountSession(
         nowMs: now(),
       };
       let started = false;
-      let acceptedVersion = -1n;
+      let acceptedAuthenticated: Buffer | undefined;
       const abort = () => native.cancelOperation(context.operationId);
       async function consume(result: AccountOperationResult) {
-        if (result.authenticated && result.credentialVersion > acceptedVersion) {
+        if (result.authenticated && !acceptedAuthenticated?.equals(result.authenticated)) {
           // Retain before awaiting persistence: failed saving must not replay this checkpoint.
-          acceptedVersion = result.credentialVersion;
+          acceptedAuthenticated = result.authenticated;
           await accept(fromBinary(AuthenticatedSchema, result.authenticated));
         }
         if (input.connect) nextAt = result.nextMaintenanceAtMs;
