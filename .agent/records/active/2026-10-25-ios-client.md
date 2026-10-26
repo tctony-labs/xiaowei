@@ -152,15 +152,17 @@ sequenceDiagram
 
 2026-10-26 用户明确要求本 record 从 proposed 进入 active。整体方向与首期完成标准沿用上述约定；未决的 App 配置、安全策略和跨服务器归属分别作为相关切片的前置决策，不因状态迁移而视为已经确定。
 
-剩余任务、依赖及各片验收统一维护在[实施顺序与任务拆分](../../plans/2026-10-25-ios-client/00-implementation-order.md)。01 已按下述收窄后的真机验收范围完成；下一片是 02 Swift 契约、账号与平台登录态，开工前明确服务器入口、会话 Keychain 可访问条件及 SwiftProtobuf 版本，再展开实施 Plan。
+剩余任务、依赖及各片验收统一维护在[实施顺序与任务拆分](../../plans/2026-10-25-ios-client/00-implementation-order.md)。01、02 已完成约定实现与验收，结果见下述 Outcome。下一片为 03 授权、密钥与通用同步协议定案。服务器沿用现有单服务器入口，用户已选择首次系统解锁后可读写且仅限本设备的会话 Keychain；不增加 App 锁或 Face ID。SwiftProtobuf 生成器与运行库固定为 1.39.0。
 
-后续账号与平台存储、协议决策、密钥与配对、桌面和服务端接入、通用密文同步及整体验收依次按依赖推进；不重新实施已完成的 Rust 迁移与绑定。协议设计可以先行对齐，但在算法、密钥生命周期和同步库边界明确前不实现配对或加密协议。
+02 的实现、模拟器及真机平台自动验证已完成；用户已在 App 内确认真实密码登录、认证 WSS，以及结束进程后无需密码的自动恢复，对应 Plan 已删除。用户重新连接 iPhone 15 Plus 后，本轮 Keychain／公开 HTTPS／生命周期的 3 项测试均通过；结果独立于 01 记录。后续协议决策、密钥与配对、桌面和服务端接入、通用密文同步及整体验收依次按依赖推进；不重新实施已完成的 Rust 迁移与绑定。协议设计可以先行对齐，但在算法、密钥生命周期和同步库边界明确前不实现配对或加密协议。
 
 ## Outcome
 
 已交付的前置成果为纯 Rust xw-api 及 account 会话模块、桌面既有 Gateway／napi 接入、xiaowei-mobile 功能模块与 Swift／Kotlin 绑定。迁移与验证证据分别见[客户端 Rust 迁移](2026-10-25-ios-client/client-rust-migration.md#outcome)和[移动接入结果](2026-10-25-ios-client/mobile-module-interface.md#outcome)。
 
-2026-10-26 按用户要求执行 br-merge：前置模块、record 状态迁移与初始任务计划提交为 `c0f3363`，合入含 WebSocket／账号修复的 develop，合并结果为 `1ea785d`；atlas 保留并恢复至该结果。01 基于该版本继续实施，本片代码与文档保持未提交。
+2026-10-26 按用户要求执行 br-merge：前置模块、record 状态迁移与初始任务计划提交为 `c0f3363`，合入含 WebSocket／账号修复的 develop，合并结果为 `1ea785d`；atlas 保留并恢复至该结果。01 随后基于该版本实施，提交与再次合并结果见下段。
+
+随后用户要求 br-merge 并继续 02：01 提交为 `a2d45e2`，合并至包含两项桌面修复的 develop，结果为 `1a7674a`；atlas 保留并恢复至合并结果，合并后 just check 通过。02 实施期间的新增改动未提交。
 
 ### 01 iOS 工程与运行基线
 
@@ -178,4 +180,23 @@ sequenceDiagram
 
 各运行报告包含源码基线与未提交内容哈希、实际工具链／destination、范围和安全断言，不保存凭据。模拟器与真机截图均已从实际 UI 测试核对。最低 iOS 17 当前没有安装 runtime，仅完成 deployment 编译基线，不宣称 17 已运行验证。
 
-Keychain、产品账号与重启恢复、设备授权及通用加密同步仍属于本 active 事项的剩余范围。Android App、收藏业务同步、上架与生产部署继续留在首期范围之外。
+上述 01 结束时，Keychain、产品账号与重启恢复、设备授权及通用加密同步仍属后续；02 的当前进展见下节。Android App、收藏业务同步、上架与生产部署继续留在首期范围之外。
+
+
+### 02 Swift 契约、账号与平台登录态
+
+已实现唯一 Swift 服务器契约输出及 descriptor 方法常量、精确 SwiftProtobuf 1.39.0 依赖与解析锁、密码登录表单、真实 Keychain store 和 AccountSession 平台编排。产品仍用单个 MobileClient。会话采用用户确认的 AfterFirstUnlockThisDeviceOnly，不增加 App 锁或 Face ID；当前行为和持久化／取消／重连边界统一维护在 [iOS 开发说明](../../../ios/docs/development.md#账号与平台持久化)。验收完成后按用户要求进入 br-merge 提交与合并流程。
+
+实际 UI 验收复现并修复了账号句柄关闭误断已提交连接：Rust 回归测试先证实 generation 从 1 错误重置为 2，再验证关闭只结算隔离操作、连接继续由 MobileClient 管理。Swift 侧也验证同一 generation 的断线重连会再次校验账号。另修复库验收与 App 打包共用 Cargo 产物导致 15.0 链接误用 17.0 增量对象，SDK 缓存现按 deployment 版本隔离；不改共享业务或 App 最低版本。
+
+| 层次 | 实际结果与证据 |
+| --- | --- |
+| Swift 契约 | 生成／漂移、唯一提供方、manifest／解析锁缓存失效与消息／方法常量缺失、多余、陈旧产物检查通过；服务器登录／健康消息在 TS／Rust／Go／Swift 双向遍历通过，原 Envelope 三语言检查保留；日志 `/tmp/xiaowei-ios02-codec-final.log`、`/tmp/xiaowei-ios02-contracts-cache.log` |
+| iOS 26.3.1 模拟器 | 6 个 XCTest 及 fixture 断言通过：真实 Keychain、10 项账号保存／取消／失效／离线／补偿场景、账号表单与进程重启、同会话重连、原生命周期 UI 与 Rust 网络宿主；账号 UI 3 次登录请求、3 次用户校验、3 次连接、1 次退出，最终 0 个 WS；最终打包入口复验报告 `target/ios/runs/2026-10-26T05-24-35.206Z/`；初轮完整报告 `target/ios/runs/2026-10-26T05-19-20.691Z/` |
+| iOS 18.3.1 模拟器 | 同组 6 个测试、10 项账号场景及 fixture 断言通过；报告 `target/ios/runs/2026-10-26T05-21-38.853Z/` |
+| 构建与原入口 | 两个 SDK 的 Debug／Release 构建通过，Release 不含 fixture／account-fixture／verification-public 入口或测试网络 plist；Rust 移动测试、Swift／Kotlin 原绑定验证、iOS 15.0 库编译／链接及 just check 通过；最终库日志 `/tmp/xiaowei-ios02-ios-library-final.log`，仓库检查日志 `/tmp/xiaowei-ios02-just-check-final.log`，其余日志前缀 `/tmp/xiaowei-ios02-` |
+| Keychain 补充验收 | 两版模拟器以禁止认证 UI 的新 LAContext 实际读回字节；报告 `target/ios/runs/2026-10-26T05-28-52.274Z/`、`target/ios/runs/2026-10-26T05-29-05.008Z/` |
+| iOS 26.5 真机 | 用户重新连接并解锁 iPhone 15 Plus 后，个人开发签名安装／运行，`--public-only` 的 3 项 XCTest 全部通过：真实 Keychain 读写、访问属性、禁止认证 UI 的实际读回，Rust 公开 HTTPS，以及 App 前后台／停止重建；报告 `target/ios/runs/2026-10-26T06-11-53.656Z/`，实际 UI 截图已核对 |
+| 真实产品账号 | 已打开无测试参数的正常 App，用户自行输入账号并明确确认“已登录且已连接”；按 Rust 的连接状态语义，此状态对应认证 WSS 成功。已结束原进程并启动新进程，用户再次明确确认“已自动恢复，无需密码”，页面恢复为“已登录”“已连接”。该链路为真机产品入口的人工验收，独立于合成 fixture 与公开 HTTPS 自动测试。凭据未进入对话、参数或报告。真机到 Mac 的局域网 fixture 沿用用户已授权的跳过决定 |
+
+02 的实现与约定验收已完成，结果回填后删除对应 Plan。正常 App 留在真机继续使用，真实凭据由 App 自行保存在设备 Keychain，不进入对话、命令参数或报告。真机局域网 fixture 的允许／拒绝、隔离账号失败与取消仍未执行，沿用已授权的跳过边界；对应失败路径已由模拟器验证。下一片为 03 的协议与安全决策；本 record 因仍有后续配对和同步事项保持 active。

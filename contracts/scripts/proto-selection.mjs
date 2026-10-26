@@ -3,12 +3,23 @@ import { fromBinary } from "@bufbuild/protobuf";
 import { FileDescriptorSetSchema } from "@bufbuild/protobuf/wkt";
 
 export function targetLayout(name) {
-  const match = /^proto-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(rs|ts|go)$/.exec(name);
+  const match = /^proto-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(rs|ts|go|swift)$/.exec(name);
   if (!match) throw new Error(`Invalid proto target: ${name}`);
 
-  const language = { rs: "rust", ts: "ts", go: "go" }[match[1]];
+  const language = { rs: "rust", ts: "ts", go: "go", swift: "swift" }[match[1]];
   const output = `contracts/out/${name}`;
-  const generated = language === "go" ? `${output}/gen` : `${output}/src/gen`;
+  const swiftModule = name
+    .replace(/-swift$/, "")
+    .split("-")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join("");
+  const directory = {
+    go: "gen",
+    swift: `Sources/${swiftModule}/Generated`,
+    rust: "src/gen",
+    ts: "src/gen",
+  }[language];
+  const generated = `${output}/${directory}`;
   return { language, output, generated };
 }
 

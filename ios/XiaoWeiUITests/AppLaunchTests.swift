@@ -9,10 +9,11 @@ final class AppLaunchTests: XCTestCase {
     @MainActor
     func testPublicServerAndLifecycle() async throws {
         let app = XCUIApplication()
+        app.launchArguments = ["--verification-public"]
         app.launch()
         try await startupNetwork(app, allowLocalAccess: true)
-        app.buttons["connection.check"].tap()
-        try await waitForLabel(app, "service.status", "服务已响应")
+        tap(app, "connection.check")
+        try await waitForLabel(app, "service.status", "服务正常")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Public HTTPS App"
         screenshot.lifetime = .keepAlways
@@ -22,14 +23,14 @@ final class AppLaunchTests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
         app.activate()
         try await waitForLabel(app, "lifecycle.status", "准备就绪")
-        app.buttons["connection.stop"].tap()
+        tap(app, "connection.stop")
         try await waitForLabel(app, "lifecycle.status", "已停止")
         try await waitForLabel(app, "connection.status", "未连接")
 
-        app.buttons["connection.check"].tap()
+        tap(app, "connection.check")
         try await waitForLabel(app, "lifecycle.status", "准备就绪")
-        try await waitForLabel(app, "service.status", "服务已响应")
-        app.buttons["connection.stop"].tap()
+        try await waitForLabel(app, "service.status", "服务正常")
+        tap(app, "connection.stop")
         try await waitForLabel(app, "lifecycle.status", "已停止")
         app.terminate()
         print("iOS public HTTPS App, foreground lifecycle and client recreation passed")
@@ -58,9 +59,10 @@ final class AppLaunchTests: XCTestCase {
         try await startupNetwork(app, allowLocalAccess: true)
         try await waitForLabel(app, "lifecycle.status", "准备就绪")
         try await waitForLabel(app, "connection.status", "已连接")
+        try await waitForLabel(app, "account.status", "已登录")
 
-        app.buttons["connection.check"].tap()
-        try await waitForLabel(app, "service.status", "服务已响应")
+        tap(app, "connection.check")
+        try await waitForLabel(app, "service.status", "服务正常")
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Connected App"
         screenshot.lifetime = .keepAlways
@@ -73,31 +75,43 @@ final class AppLaunchTests: XCTestCase {
         app.activate()
         try await waitForLabel(app, "lifecycle.status", "准备就绪")
         try await waitForLabel(app, "connection.status", "已连接")
-        app.buttons["connection.check"].tap()
+        try await waitForLabel(app, "account.status", "已登录")
+        tap(app, "connection.check")
         try await waitForState(control) { state in
             let counts = state["counts"] as? [String: Int]
             return counts?["health"] == 2
         }
-        try await waitForLabel(app, "service.status", "服务已响应")
-        app.buttons["connection.stop"].tap()
+        try await waitForLabel(app, "service.status", "服务正常")
+        tap(app, "connection.stop")
         try await waitForLabel(app, "lifecycle.status", "已停止")
         try await waitForLabel(app, "connection.status", "未连接")
         try await waitForState(control) { ($0["openWebSockets"] as? Int) == 0 }
 
-        app.buttons["connection.check"].tap()
+        tap(app, "connection.check")
         try await waitForLabel(app, "lifecycle.status", "准备就绪")
         try await waitForLabel(app, "connection.status", "已连接")
-        try await waitForLabel(app, "service.status", "服务已响应")
+        try await waitForLabel(app, "account.status", "已登录")
+        try await waitForLabel(app, "service.status", "服务正常")
         try await waitForState(control) { state in
             let counts = state["counts"] as? [String: Int]
             return counts?["health"] == 3
         }
-        app.buttons["connection.stop"].tap()
+        tap(app, "connection.stop")
         try await waitForLabel(app, "lifecycle.status", "已停止")
         try await waitForState(control) { ($0["openWebSockets"] as? Int) == 0 }
         _ = try await get(control.appendingPathComponent("ui-complete"))
         app.terminate()
         print("iOS App foreground, background, reconnect, shutdown and recreation passed")
+    }
+
+    @MainActor
+    private func tap(_ app: XCUIApplication, _ identifier: String) {
+        let button = app.buttons[identifier]
+        for _ in 0..<4 {
+            if button.isHittable { break }
+            app.swipeUp()
+        }
+        button.tap()
     }
 
     @MainActor
@@ -170,7 +184,7 @@ final class AppLaunchTests: XCTestCase {
             if element.exists && (element.value as? String) == value { return }
             if granted && identifier == "service.status"
                 && (element.value as? String) == "连接失败" {
-                app.buttons["connection.check"].tap()
+                tap(app, "connection.check")
                 granted = false
             }
             app.navigationBars.firstMatch.tap()

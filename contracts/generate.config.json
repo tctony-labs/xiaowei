@@ -1,6 +1,11 @@
 {
   "sources": {
-    "xiaowei/server/**": ["proto-server-rs", "proto-server-go", "proto-desktop-ts"],
+    "xiaowei/server/**": [
+      "proto-server-rs",
+      "proto-server-go",
+      "proto-desktop-ts",
+      "proto-server-swift"
+    ],
     "xiaowei/desktop/**": ["proto-desktop-rs", "proto-desktop-ts"],
     "xiaowei/agent.proto": ["proto-agent-rs", "proto-desktop-ts"],
     "xiaowei/llm/**": ["proto-llm-rs", "proto-desktop-ts"],

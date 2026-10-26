@@ -5,6 +5,27 @@ use proto_server_rs::xiaowei::server::auth as pb;
 use xiaowei_mobile::{LocalErrorKind, MobileClient, MobileError};
 
 #[tokio::test]
+async fn closing_account_operation_preserves_committed_connection_target() {
+    let server = support::Server::start().await;
+    let client = MobileClient::new().unwrap();
+    let mut context = server.context(true, false);
+    context.connect = true;
+    client.set_session(context.clone()).await.unwrap();
+    let before = client.subscribe_connection().unwrap();
+    let generation = before.next().await.unwrap().unwrap().generation;
+    before.close();
+
+    let operation = client.maintain(context, false).unwrap();
+    assert_eq!(operation.run().await.unwrap().code, 0);
+    operation.close().await.unwrap();
+
+    let after = client.subscribe_connection().unwrap();
+    assert_eq!(after.next().await.unwrap().unwrap().generation, generation);
+    after.close();
+    client.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn checkpoints_require_acknowledgement_and_cancel_retains_rotation() {
     let server = support::Server::start().await;
     let client = MobileClient::new().unwrap();

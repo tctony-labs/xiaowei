@@ -218,7 +218,8 @@ impl AccountWork {
                         let _ = running.await;
                     }
                     core.settled_outcome(xw_api::now_ms()).await;
-                    core.close().await;
+                    // The work is closed and its drive has settled. The shared connection
+                    // belongs to MobileClient's committed session, not this isolated core.
                     released.store(true, Ordering::Release);
                     Ok(())
                 })?);

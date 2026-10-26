@@ -10,7 +10,7 @@ private struct RuntimeFailure: Error {
     }
 }
 
-private struct RuntimeFixture: Sendable {
+struct RuntimeFixture: Sendable {
     let control: URL
     let server: String
     let samples: [String: String]

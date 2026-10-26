@@ -48,7 +48,7 @@ flowchart TB
 | `resume(credential_version)` | 核对最近返回的检查点和凭据版本，再继续同一核心；只能在宿主接受新凭据后调用 |
 | `cancel()` | 同步且幂等；首次执行前取消也有效 |
 | `settled_result()` | 等待在途执行并收取核心保留结果；不启动命令、继续检查点或重放请求 |
-| `close()` | 取消、等待结算并关闭隔离核心；关闭后仍可从原句柄收取保留结果 |
+| `close()` | 禁止新执行，取消并等待隔离操作结算；保留当前 MobileClient 的已提交连接，关闭后仍可从原句柄收取保留结果 |
 
 `AccountOutcome` 包含 code、msg、可选完整认证 PB、credential_version、checkpoint 和 next_maintenance_at_ms。成功、失败和取消都交付完整结果；账号业务失败不使用会丢失凭据的异常路径。
 

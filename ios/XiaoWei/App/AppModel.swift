@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import OSLog
+import ProtoServer
 import UIKit
 import XiaoweiMobile
 
@@ -21,6 +22,7 @@ final class AppModel {
     private(set) var healthStatus = "尚未检查"
     private(set) var connectionStatus = "未连接"
     private(set) var isChecking = false
+    private(set) var account: AccountSession?
 
     @ObservationIgnored private let logger = Logger(
         subsystem: "com.tctony.xiaowei.ios", category: "lifecycle"
@@ -34,13 +36,6 @@ final class AppModel {
     @ObservationIgnored private var foreground = false
     @ObservationIgnored private var backgroundTime = UIBackgroundTaskIdentifier.invalid
     @ObservationIgnored private var backgroundRevision: UInt64?
-    @ObservationIgnored private var context = SessionContext(
-        server: "https://xiaowei.tctony.com", authenticated: nil, connect: false
-    )
-
-    #if DEBUG
-    @ObservationIgnored private var fixtureLoaded = false
-    #endif
 
     var phaseLabel: String {
         switch phase {
@@ -65,13 +60,24 @@ final class AppModel {
             await previous?.value
             guard let self, self.foreground, self.revision == expected else { return }
             do {
-                #if DEBUG
-                try await self.loadFixtureIfNeeded()
-                #endif
+                if self.account == nil {
+                    let configuration = try await AppConfiguration.load()
+                    let store = KeychainSessionStore(service: configuration.keychainService)
+                    let deviceID: String
+                    if let configured = configuration.deviceID {
+                        deviceID = configured
+                    } else {
+                        deviceID = try await store.deviceID()
+                    }
+                    self.account = AccountSession(
+                        server: configuration.server, deviceID: deviceID,
+                        store: store, seed: configuration.seed
+                    )
+                }
                 guard self.foreground, self.revision == expected else { return }
                 let client = try self.client ?? MobileClient()
                 self.client = client
-                _ = try await client.setSession(context: self.context)
+                try await self.account?.activate(client: client)
                 guard self.foreground, self.revision == expected else { return }
                 try self.observe(client, revision: expected)
                 self.phase = .ready
@@ -91,6 +97,7 @@ final class AppModel {
         let expected = revision
         let previous = transition
         call?.cancel()
+        account?.deactivate()
         stopObservation()
         if isChecking { healthStatus = "已取消" }
         isChecking = false
@@ -109,6 +116,7 @@ final class AppModel {
             await previous?.value
             guard let self else { return }
             do {
+                await self.account?.waitForIdle()
                 try await self.client?.pause()
                 if self.revision == expected {
                     self.connectionStatus = "未连接"
@@ -125,14 +133,14 @@ final class AppModel {
 
     func checkConnection() async {
         await transition?.value
-        guard foreground, phase == .ready, !isChecking, let client else { return }
+        guard foreground, phase == .ready, !isChecking, let client, let account else { return }
         let expected = revision
         isChecking = true
         healthStatus = "检查中"
         do {
             let request = try client.invoke(
-                context: context,
-                method: "xiaowei.server.common.Health.Check",
+                context: account.context,
+                method: Xiaowei_Server_Common_Health.Check,
                 payload: Data(),
                 options: RequestOptions(timeoutMs: 10_000, transport: .http)
             )
@@ -145,7 +153,9 @@ final class AppModel {
                 }
                 await request.shutdown()
                 guard revision == expected else { return }
-                healthStatus = response.isEmpty ? "响应无效" : "服务已响应"
+                let result = try Xiaowei_Server_Common_BaseResponse(serializedBytes: response)
+                healthStatus = result.code == Xiaowei_Server_Common_ErrorCode.success.rawValue
+                    && result.hasData ? "服务正常" : "服务不可用"
                 logger.info("Health request completed bytes=\(response.count)")
             } catch {
                 await request.shutdown()
@@ -168,6 +178,7 @@ final class AppModel {
         let expected = revision
         let previous = transition
         call?.cancel()
+        account?.deactivate()
         stopObservation()
         if isChecking { healthStatus = "已取消" }
         isChecking = false
@@ -176,8 +187,10 @@ final class AppModel {
             await previous?.value
             guard let self else { return }
             do {
+                await self.account?.waitForIdle()
                 try await self.client?.shutdown()
                 self.client = nil
+                self.account?.detachClient()
                 self.call = nil
                 if self.revision == expected {
                     self.connectionStatus = "未连接"
@@ -207,6 +220,7 @@ final class AppModel {
                     case .connected: "已连接"
                     case .reconnecting: "重新连接中"
                     }
+                    self.account?.connectionChanged(snapshot)
                     self.logger.info("Connection state changed generation=\(snapshot.generation)")
                 }
             } catch {
@@ -237,33 +251,4 @@ final class AppModel {
         default: "platform"
         }
     }
-
-    #if DEBUG
-    private func loadFixtureIfNeeded() async throws {
-        guard !fixtureLoaded else { return }
-        let arguments = ProcessInfo.processInfo.arguments
-        guard let index = arguments.firstIndex(of: "--fixture-control"),
-              arguments.indices.contains(index + 1),
-              let base = URL(string: arguments[index + 1]) else { return }
-        var request = URLRequest(url: base.appendingPathComponent("bootstrap"))
-        request.timeoutInterval = 15
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-        struct Bootstrap: Decodable {
-            let server: String
-            let samples: [String: String]
-        }
-        let bootstrap = try JSONDecoder().decode(Bootstrap.self, from: data)
-        guard let encoded = bootstrap.samples["valid"],
-              let authenticated = Data(base64Encoded: encoded) else {
-            throw URLError(.cannotDecodeContentData)
-        }
-        context = SessionContext(
-            server: bootstrap.server, authenticated: authenticated, connect: true
-        )
-        fixtureLoaded = true
-    }
-    #endif
 }

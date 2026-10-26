@@ -15,6 +15,8 @@ const { values } = parseArgs({
     "listen-host": { type: "string", default: "127.0.0.1" },
     "fixture-host": { type: "string", default: "127.0.0.1" },
     "public-only": { type: "boolean", default: false },
+    "account-only": { type: "boolean", default: false },
+    "keychain-only": { type: "boolean", default: false },
     team: { type: "string" },
   },
 });
@@ -27,7 +29,11 @@ if (!simulator && !destination.startsWith("platform=iOS,")) {
   throw new Error("Expected platform=iOS Simulator or platform=iOS");
 }
 const publicOnly = values["public-only"];
-if (!simulator && !publicOnly && ["127.0.0.1", "localhost"].includes(values["fixture-host"])) {
+const accountOnly = values["account-only"];
+const keychainOnly = values["keychain-only"];
+assert.ok([publicOnly, accountOnly, keychainOnly].filter(Boolean).length <= 1);
+const needsFixture = !publicOnly && !keychainOnly;
+if (!simulator && needsFixture && ["127.0.0.1", "localhost"].includes(values["fixture-host"])) {
   throw new Error("A physical device requires --fixture-host reachable from that device");
 }
 
@@ -76,7 +82,13 @@ const report = {
   dirty: Boolean(status),
   sourceStateSha256: sourceHash.digest("hex"),
   platform: simulator ? "simulator" : "device",
-  scope: publicOnly ? "public-https-and-lifecycle" : "isolated-network-and-public-https",
+  scope: keychainOnly
+    ? "keychain"
+    : publicOnly
+      ? "public-https-lifecycle-and-keychain"
+      : accountOnly
+        ? "isolated-account"
+        : "isolated-network-account-and-public-https",
   destination,
   xcode: await run("xcodebuild", ["-version"]),
   sdk: await run("xcrun", [
@@ -158,7 +170,7 @@ try {
     "-parallel-testing-enabled",
     "NO",
   ];
-  if (simulator) buildArguments.push("CODE_SIGNING_ALLOWED=NO");
+  if (simulator) buildArguments.push("CODE_SIGN_IDENTITY=-");
   else buildArguments.push("-allowProvisioningUpdates");
   if (values.team) buildArguments.push(`DEVELOPMENT_TEAM=${values.team}`);
   await logged("xcodebuild", [...buildArguments, "build-for-testing"], "build-for-testing");
@@ -174,7 +186,7 @@ try {
   );
   const target = await targetDirectory();
   const binary = join(target, "mobile-bindings/ios-go-fixture");
-  if (!publicOnly) {
+  if (needsFixture) {
     await mkdir(join(target, "mobile-bindings"), { recursive: true });
     await logged(
       "go",
@@ -186,18 +198,34 @@ try {
 
   if (simulator) await bootSimulator();
 
-  const scenarios = publicOnly
-    ? [
-        ["public-ui", "XiaoWeiUITests/AppLaunchTests/testPublicServerAndLifecycle", 1],
-        ["public-runtime", "XiaoWeiTests/MobileRuntimeTests/testPublicHttpsUsesRust", 1],
-      ]
-    : [
-        ["ui", "XiaoWeiUITests/AppLaunchTests/testForegroundNetworkAndShutdown", 1],
-        ["runtime", "XiaoWeiTests", 2],
-      ];
+  const keychain = [
+    "keychain",
+    "XiaoWeiTests/KeychainSessionStoreTests/testKeychainPersistenceAndAccessPolicy",
+    1,
+  ];
+  const accounts = [
+    ["account", "XiaoWeiTests/AccountSessionTests/testAccountStorageAndCleanup", 1],
+    ["account-ui", "XiaoWeiUITests/AccountFlowTests/testPasswordLoginRestoreCancelAndLogout", 1],
+  ];
+  const scenarios = keychainOnly
+    ? [keychain]
+    : accountOnly
+      ? accounts
+      : publicOnly
+        ? [
+            keychain,
+            ["public-ui", "XiaoWeiUITests/AppLaunchTests/testPublicServerAndLifecycle", 1],
+            ["public-runtime", "XiaoWeiTests/MobileRuntimeTests/testPublicHttpsUsesRust", 1],
+          ]
+        : [
+            keychain,
+            ...accounts,
+            ["ui", "XiaoWeiUITests/AppLaunchTests/testForegroundNetworkAndShutdown", 1],
+            ["runtime", "XiaoWeiTests/MobileRuntimeTests", 2],
+          ];
   for (const [kind, testTarget, testCount] of scenarios) {
     let fixture;
-    if (!publicOnly) {
+    if (needsFixture && kind !== "keychain") {
       const now = Date.now();
       const samples = JSON.parse(
         await run("cargo", [
@@ -216,6 +244,7 @@ try {
         samples,
         listenHost: values["listen-host"],
         advertisedHost: values["fixture-host"],
+        scenario: kind,
       });
     }
     const identifier = randomUUID();
@@ -248,9 +277,9 @@ try {
           "-test-timeouts-enabled",
           "YES",
           "-default-test-execution-time-allowance",
-          "75",
+          kind.endsWith("ui") ? "150" : "75",
           "-maximum-test-execution-time-allowance",
-          "90",
+          kind.endsWith("ui") ? "180" : "90",
           "test-without-building",
         ],
         `test-${kind}`,

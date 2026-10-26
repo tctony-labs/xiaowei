@@ -24,7 +24,7 @@ const definitions = [
 ];
 const descriptor = (files = definitions) =>
   toBinary(FileDescriptorSetSchema, create(FileDescriptorSetSchema, { file: files }));
-const network = ["proto-network-rs", "proto-desktop-ts", "proto-server-go"];
+const network = ["proto-network-rs", "proto-desktop-ts", "proto-server-go", "proto-server-swift"];
 const config = {
   sources: {
     "example/types/**": [...network],
@@ -38,6 +38,7 @@ test("target names determine the language and fixed generation directory", () =>
     ["proto-network-rs", "rust", "src/gen"],
     ["proto-desktop-ts", "ts", "src/gen"],
     ["proto-server-go", "go", "gen"],
+    ["proto-server-swift", "swift", "Sources/ProtoServer/Generated"],
   ]) {
     assert.deepEqual(targetLayout(name), {
       language,
@@ -131,7 +132,7 @@ test("invalid, unmatched or incomplete rules cannot silently delete generated ou
 });
 
 test("each package has only one type provider per language", () => {
-  for (const suffix of ["rs", "ts", "go"]) {
+  for (const suffix of ["rs", "ts", "go", "swift"]) {
     const invalid = structuredClone(config);
     invalid.sources["example/types/**"].push(`proto-duplicate-${suffix}`);
     assert.throws(

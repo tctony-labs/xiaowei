@@ -13,9 +13,12 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fromBinary } from "@bufbuild/protobuf";
+import { FileDescriptorSetSchema } from "@bufbuild/protobuf/wkt";
 import { ensureProtoc } from "./ensure-protoc.mjs";
 import { ensureProtocGenEs } from "./ensure-protoc-gen-es.mjs";
 import { ensureProtocGenGo } from "./ensure-protoc-gen-go.mjs";
+import { ensureProtocGenSwift } from "./ensure-protoc-gen-swift.mjs";
 import { selectProtoFiles, targetLayout } from "./proto-selection.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,7 +32,12 @@ const config = JSON.parse(readFileSync(join(root, "generate.config.json"), "utf8
 const targetNames = [...new Set(Object.values(config.sources).flat())].sort();
 const layouts = targetNames.map((name) => ({ name, ...targetLayout(name) }));
 for (const layout of layouts) {
-  const manifest = { rust: "Cargo.toml", ts: "package.json", go: "go.mod" }[layout.language];
+  const manifest = {
+    rust: "Cargo.toml",
+    ts: "package.json",
+    go: "go.mod",
+    swift: "Package.swift",
+  }[layout.language];
   const path = join(workspace, layout.output, manifest);
   if (!existsSync(path)) throw new Error(`Missing fixed contract package: ${path}`);
 }
@@ -39,6 +47,9 @@ const run = (command, args, options = {}) =>
 const protoc = ensureProtoc();
 const protocGenGo = ensureProtocGenGo();
 const protocGenEs = ensureProtocGenEs();
+const protocGenSwift = layouts.some((layout) => layout.language === "swift")
+  ? ensureProtocGenSwift()
+  : null;
 
 function files(directory) {
   if (!existsSync(directory)) return [];
@@ -63,6 +74,8 @@ function checkFingerprint() {
         "tsconfig.json",
         "go.mod",
         "go.sum",
+        "Package.swift",
+        "Package.resolved",
         "src/lib.rs",
         "src/index.ts",
         "src/server-api.ts",
@@ -96,6 +109,7 @@ function checkFingerprint() {
     protoc,
     protocGenGo,
     protocGenEs,
+    protocGenSwift,
   ];
   return createHash("sha256")
     .update(JSON.stringify([environment, entries]))
@@ -116,8 +130,9 @@ try {
   const includes = [`-I${proto}`, `-I${resolve(protoc, "../../include")}`];
   const descriptor = join(temp, "inputs.bin");
   run(protoc, [...includes, `--descriptor_set_out=${descriptor}`, "--include_imports", ...inputs]);
+  const descriptorBytes = readFileSync(descriptor);
   const selected = selectProtoFiles(
-    readFileSync(descriptor),
+    descriptorBytes,
     config,
     inputs.map((file) => relative(proto, file)),
   );
@@ -159,6 +174,33 @@ try {
         ),
         ...target.files,
       ]);
+    } else if (target.language === "swift") {
+      run(protoc, [
+        ...includes,
+        `--plugin=protoc-gen-swift=${protocGenSwift}`,
+        `--swift_out=${output}`,
+        "--swift_opt=Visibility=Public",
+        ...target.files,
+      ]);
+      const definitions = fromBinary(FileDescriptorSetSchema, descriptorBytes);
+      const lines = ["// Generated from proto service descriptors. Do not edit.", ""];
+      for (const file of definitions.file.filter((file) => target.files.includes(file.name))) {
+        for (const service of file.service) {
+          const prefix = file.package
+            .split(".")
+            .map((part) => part[0].toUpperCase() + part.slice(1))
+            .join("_");
+          lines.push(`public enum ${prefix}_${service.name} {`);
+          for (const method of service.method) {
+            lines.push(
+              `    public static let ${method.name} = "` +
+                `${file.package}.${service.name}.${method.name}"`,
+            );
+          }
+          lines.push("}", "");
+        }
+      }
+      writeFileSync(join(output, "ServerMethods.swift"), lines.join("\n"));
     } else {
       run(
         "cargo",

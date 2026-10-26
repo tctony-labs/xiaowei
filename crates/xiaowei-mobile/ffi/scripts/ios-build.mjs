@@ -61,6 +61,9 @@ export async function buildTargets(target, deploymentTarget, configuration = "De
     throw new Error("Configuration must be Debug or Release");
   }
   const profile = configuration.toLowerCase();
+  // Cargo's incremental objects can retain a prior deployment version. Keep the
+  // library check (15.0) and App builds (17.0) in distinct target directories.
+  const cargoTarget = join(target, "mobile-ios-cargo", deploymentTarget);
   const results = [];
   for (const [sdk, suffix, rustTarget] of [
     ["iphoneos", "", "aarch64-apple-ios"],
@@ -80,6 +83,8 @@ export async function buildTargets(target, deploymentTarget, configuration = "De
       "--lib",
       "--target",
       rustTarget,
+      "--target-dir",
+      cargoTarget,
     ];
     if (configuration === "Release") arguments_.push("--release");
     await run("cargo", arguments_, { env });
@@ -87,7 +92,7 @@ export async function buildTargets(target, deploymentTarget, configuration = "De
       sdkPath,
       rustTarget,
       swiftTarget: `arm64-apple-ios${deploymentTarget}${suffix}`,
-      library: join(target, rustTarget, profile, "libxiaowei_mobile_ffi.a"),
+      library: join(cargoTarget, rustTarget, profile, "libxiaowei_mobile_ffi.a"),
       env,
     });
   }

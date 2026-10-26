@@ -58,7 +58,7 @@ cargo build --locked -p xiaowei-mobile-ffi --lib --target aarch64-apple-ios-sim
 node crates/xiaowei-mobile/ffi/scripts/verify-ios.mjs
 ```
 
-该入口为真机与模拟器分别设置 SDKROOT 和测试用 iOS 15.0 deployment target，保证 Rust 的 C／汇编依赖与 Swift 使用一致的 SDK 和版本；Swift 严格并发检查及 linker warnings 均作为失败处理。此配置只用于库验收，不代替正式 App 的最低系统版本决定。
+该入口为真机与模拟器分别设置 SDKROOT 和测试用 iOS 15.0 deployment target，保证 Rust 的 C／汇编依赖与 Swift 使用一致的 SDK 和版本；Swift 严格并发检查及 linker warnings 均作为失败处理。此配置只用于库验收，不代替正式 App 的最低系统版本决定。SDK 构建的 Cargo 缓存按 deployment 版本隔离在 `target_directory/mobile-ios-cargo/<版本>/`，避免 15.0 库检查与 17.0 App 互用残留版本的增量对象。
 
 iOS App 的打包入口见下节。Android 接入时为目标 ABI 构建 `.so` 并验证 JNA 加载与平台生命周期。macOS 的 Kotlin/JVM 成功不表示 Android 已验收，静态库与 SDK 编译不表示移动 App 已完成真机验收。
 

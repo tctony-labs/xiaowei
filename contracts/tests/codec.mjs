@@ -25,6 +25,14 @@ try {
     ["build", "-mod=readonly", "-o", join(temp, "codec-go"), "./cmd/codec"],
     join(root, "contracts/out/proto-server-go"),
   );
+  const swiftBuild = join(root, "target/contracts-swift-codec");
+  const swiftArgs = ["--package-path", "contracts/tests/swift", "--scratch-path", swiftBuild];
+  run("swift", ["build", ...swiftArgs, "--product", "ContractCodec"]);
+  const swiftBin = execFileSync("swift", ["build", ...swiftArgs, "--show-bin-path"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
+  }).trim();
   console.log("[contracts] Resolving Cargo target directory");
   const metadata = JSON.parse(
     execFileSync("cargo", ["metadata", "--no-deps", "--format-version=1"], {
@@ -38,6 +46,7 @@ try {
     "contracts/out/proto-desktop-ts/test/codec.ts",
     join(metadata.target_directory, "debug/examples/codec"),
     join(temp, "codec-go"),
+    join(swiftBin, "ContractCodec"),
   ]);
 } finally {
   rmSync(temp, { recursive: true, force: true });

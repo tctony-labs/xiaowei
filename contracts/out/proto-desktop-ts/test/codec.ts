@@ -10,7 +10,7 @@ import {
 } from "proto-desktop-ts";
 import { runCodec } from "./codec-process.ts";
 
-const [rust, go] = process.argv.slice(2);
+const [rust, go, swift] = process.argv.slice(2);
 assert.equal(Fixture.typeName, "testing.Fixture");
 assert.equal(Fixture.method.echo.methodKind, "unary");
 assert.equal(Fixture.method.echo.input.typeName, EnvelopeSchema.typeName);
@@ -51,7 +51,15 @@ const cases = [
   },
 ];
 const routeName = (path: string[]) =>
-  path.map((bin) => (bin === rust ? "Rust" : "Go")).join(" -> ");
+  path.map((bin) => (bin === rust ? "Rust" : bin === go ? "Go" : "Swift")).join(" -> ");
+const serverOrders = [
+  [rust, go],
+  [go, rust],
+  [rust, swift, go],
+  [go, swift, rust],
+  [swift, rust, go],
+  [go, rust, swift],
+];
 
 for (const { name, value } of cases) {
   const bytes = toBinary(EnvelopeSchema, value);
@@ -91,10 +99,7 @@ for (const [name, token] of [
     thirdpartyBindToken: token,
     credential: { case: "password", value: { email: "a@example.com", password: "secret" } },
   });
-  for (const order of [
-    [rust, go],
-    [go, rust],
-  ]) {
+  for (const order of serverOrders) {
     const bytes = order.reduce(
       (data, bin) =>
         runCodec(bin, data, { args: ["login-request"], caseName: `${name}, ${routeName(order)}` }),
@@ -126,10 +131,7 @@ const loginResponses: { name: string; json: JsonValue }[] = [
 ];
 for (const { name, json } of loginResponses) {
   const response = fromJson(LoginResponseSchema, json);
-  for (const order of [
-    [rust, go],
-    [go, rust],
-  ]) {
+  for (const order of serverOrders) {
     const bytes = order.reduce(
       (data, bin) =>
         runCodec(bin, data, {
@@ -164,10 +166,7 @@ for (const value of [
   create(BaseResponseSchema, { msg: "ok", data: {} }),
   create(BaseResponseSchema, { code: 10008, msg: "unavailable" }),
 ]) {
-  for (const path of [
-    [rust, go],
-    [go, rust],
-  ]) {
+  for (const path of serverOrders) {
     const bytes = path.reduce(
       (data, bin) =>
         runCodec(bin, data, {
@@ -179,3 +178,19 @@ for (const value of [
     assert.deepEqual(fromBinary(BaseResponseSchema, bytes), value);
   }
 }
+
+assert.deepEqual(
+  runCodec(swift, added, {
+    args: ["login-request"],
+    caseName: "Swift unknown field preserved",
+  }),
+  added,
+);
+for (const invalid of [new Uint8Array([0x0a, 0x05, 0x01]), new Uint8Array([0x80])]) {
+  runCodec(swift, invalid, {
+    args: ["login-request"],
+    caseName: "Swift invalid wire rejected",
+    expectFailure: true,
+  });
+}
+console.log("Swift server codec checks passed with TS/Rust/Go in both traversal directions.");

@@ -48,6 +48,8 @@ function fixture(context) {
     "contracts/out/proto-desktop-ts/package.json",
     "contracts/out/proto-server-go/go.mod",
     "contracts/out/proto-server-go/go.sum",
+    "contracts/out/proto-server-swift/Package.swift",
+    "contracts/out/proto-server-swift/Package.resolved",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
@@ -65,9 +67,11 @@ function fixture(context) {
   );
   write(
     "contracts/generate.config.json",
-    JSON.stringify({ sources: { "*.proto": ["proto-desktop-ts", "proto-server-go"] } }),
+    JSON.stringify({
+      sources: { "*.proto": ["proto-desktop-ts", "proto-server-go", "proto-server-swift"] },
+    }),
   );
-  // The real TS and Go generators exercise caching without rebuilding Rust in each fixture.
+  // Real TS, Go and Swift generation exercises caching without rebuilding Rust per fixture.
   symlinkSync(
     join(root, "contracts/out/proto-desktop-ts/node_modules"),
     join(directory, "contracts/out/proto-desktop-ts/node_modules"),
@@ -108,6 +112,7 @@ test("generator, configuration and dependency changes invalidate a successful ca
   for (const path of [
     "contracts/scripts/generate.mjs",
     "contracts/scripts/ensure-protoc.mjs",
+    "contracts/scripts/ensure-protoc-gen-swift.mjs",
     "contracts/scripts/proto-selection.mjs",
     "contracts/tools/src/main.rs",
     "contracts/tools/Cargo.toml",
@@ -115,6 +120,8 @@ test("generator, configuration and dependency changes invalidate a successful ca
     "contracts/out/proto-desktop-ts/package.json",
     "contracts/out/proto-server-go/go.mod",
     "contracts/out/proto-server-go/go.sum",
+    "contracts/out/proto-server-swift/Package.swift",
+    "contracts/out/proto-server-swift/Package.resolved",
     "pnpm-workspace.yaml",
     "pnpm-lock.yaml",
     "Cargo.toml",
@@ -165,6 +172,8 @@ test("edited, missing and extra generated outputs force drift checks even with u
   for (const path of [
     "contracts/out/proto-desktop-ts/src/gen/example_pb.ts",
     "contracts/out/proto-server-go/gen/example.pb.go",
+    "contracts/out/proto-server-swift/Sources/ProtoServer/Generated/example.pb.swift",
+    "contracts/out/proto-server-swift/Sources/ProtoServer/Generated/ServerMethods.swift",
   ]) {
     const original = read(path);
     write(path, `${original}\n// edited\n`);
@@ -177,6 +186,7 @@ test("edited, missing and extra generated outputs force drift checks even with u
   for (const path of [
     "contracts/out/proto-desktop-ts/src/gen/extra.ts",
     "contracts/out/proto-server-go/gen/extra.go",
+    "contracts/out/proto-server-swift/Sources/ProtoServer/Generated/extra.swift",
   ]) {
     write(path, "// extra\n");
     fail();
