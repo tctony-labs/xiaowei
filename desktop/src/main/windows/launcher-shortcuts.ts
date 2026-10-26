@@ -46,6 +46,7 @@ export function showLauncherWindow(
   window: BrowserWindow | undefined,
   screen: Pick<Screen, "getCursorScreenPoint" | "getDisplayNearestPoint" | "getDisplayMatching">,
   platform = process.platform,
+  focus: () => void = () => window?.focus(),
 ): void {
   if (!window || window.isDestroyed()) return;
   const targetDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -72,5 +73,5 @@ export function showLauncherWindow(
   // Reveal on the active Space before app activation can restore its previous Space.
   if (platform === "darwin") window.showInactive();
   else window.show();
-  window.focus();
+  focus();
 }

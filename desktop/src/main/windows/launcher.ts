@@ -31,6 +31,14 @@ export function createLauncherWindow(options: {
   let requestedMode: LauncherMode | "toggle" | undefined;
   let generation = 0;
 
+  function focusLauncher(): void {
+    if (!launcher || launcher.isDestroyed()) return;
+    if (process.platform === "darwin" && launcherMode === "quick-chat") {
+      app.focus({ steal: true });
+    }
+    launcher.focus();
+  }
+
   function updateOrdinaryWindow(): void {
     if (!launcher || launcher.isDestroyed()) return;
     const visible = launcher.isVisible();
@@ -50,6 +58,7 @@ export function createLauncherWindow(options: {
     launcherMode = mode;
     if (launcher && !launcher.isDestroyed()) {
       launcher.setAlwaysOnTop(mode !== "quick-chat");
+      if (mode === "quick-chat" && launcher.isVisible()) focusLauncher();
     }
     updateOrdinaryWindow();
   }
@@ -95,13 +104,13 @@ export function createLauncherWindow(options: {
     }
     if (quitting || pendingShow || !launcher || launcher.isDestroyed()) return;
     if (launcher.isVisible()) {
-      if (!launcher.isFocused()) launcher.focus();
+      if (!launcher.isFocused()) focusLauncher();
       return;
     }
     generation++;
     pendingShow = (async () => {
       if (options.focus && !(await options.focus.begin())) return;
-      if (!quitting) showLauncherWindow(launcher, screen);
+      if (!quitting) showLauncherWindow(launcher, screen, process.platform, focusLauncher);
     })()
       .catch((error: unknown) => console.error("Launcher focus capture failed", error))
       .finally(() => {
@@ -125,6 +134,8 @@ export function createLauncherWindow(options: {
       minimizable: false,
       fullscreenable: false,
       alwaysOnTop: launcherMode !== "quick-chat",
+      // Search and clipboard must not activate background settings windows.
+      type: process.platform === "darwin" ? "panel" : undefined,
       show: false,
       transparent: true,
       hasShadow: false,
