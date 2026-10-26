@@ -1,6 +1,6 @@
 # 客户端 Rust 迁移方案
 
-本方案承载 [iOS 客户端与设备授权](../2026-10-25-ios-client.md) 的独立前置迁移任务，覆盖 xwapi 迁移与 AccountService 的共享逻辑提取。01、02 的共享核心与桌面接入已完成，后续契约重组和迁移遗留清理也已完成自动回归及 Hermes 现场验收；移动 FFI 和移动端工程尚未实施。当前契约边界与验证结果见下文。
+本方案承载 [iOS 客户端与设备授权](../2026-10-25-ios-client.md) 的独立前置迁移任务，覆盖 xwapi 迁移与 AccountService 的共享逻辑提取。01、02 的共享核心与桌面接入已完成，后续契约重组和迁移遗留清理也已完成自动回归及 Hermes 现场验收。后续独立切片已建立移动 Rust 功能模块与双语言绑定，结果见[移动接入](mobile-module-interface.md)；完整移动工程尚未实施。主事项已于 2026-10-26 按用户要求进入 active，下文保留各轮前置迁移当时的状态与验证记录，后续实施以主 record 为准。
 
 ## 范围与边界
 
@@ -21,9 +21,10 @@ flowchart TB
     Gateway --> Native
     Native --> Account[xw-api::account]
     Native --> API[xw-api]
-    Mobile[Swift / 后续 Kotlin] --> FFI[xiaowei-mobile/ffi / 移动集成出口]
-    FFI --> Account
-    FFI --> API
+    Mobile[Swift / Kotlin 宿主] --> FFI[xiaowei-mobile/ffi / 语言绑定]
+    FFI --> MobileCore[xiaowei-mobile / 移动功能入口]
+    MobileCore --> Account
+    MobileCore --> API
     Mobile --> MobileStore[移动端登录态与系统存储]
     Account --> API
     API --> HTTP[HTTP]
@@ -39,10 +40,11 @@ flowchart TB
 | `crates/xw-api/` | Cargo 包 `xw-api`，Rust 导入名 `xw_api` | Rust HTTP／WS 实现；内部创建网络 client |
 | `crates/xw-api/src/account/` | Rust 模块 `xw_api::account` | 直接使用同一 crate 的认证与连接能力，管理当前会话运行 |
 | `crates/xiaowei-rust/napi/` | 现有 Cargo 包 `xiaowei-rust-napi`、npm 包 `xiaowei-rust` | 桌面 Gateway 与 napi 适配，继续只生成现有聚合 `.node` |
-| `crates/xiaowei-mobile/ffi/`（后续移动切片） | 移动端 FFI 集成出口 | 组合 xw-api 的网络客户端与 account 模块，提供 Swift／后续 Kotlin 可调用接口及移动生命周期接入 |
+| `crates/xiaowei-mobile/` | 移动端 Rust 功能入口 | 组合 xw-api 网络与 account 能力，提供统一 API，管理运行时、操作与资源生命周期 |
+| `crates/xiaowei-mobile/ffi/` | 移动端语言适配 | 调用移动功能入口，生成 Swift／Kotlin 绑定，不直接组合底层业务 |
 | `desktop/src/main/services/account/` | 现有 TS AccountService／AccountStore | 桌面登录态、存储、多服务器选择和 UI 状态提交 |
 
-各端按需设置自己的集成出口：桌面复用 `xiaowei-rust/napi`，移动端后续使用 `xiaowei-mobile/ffi`。`napi` 专用于 Node 绑定，移动端通过 FFI 暴露同一组 Rust 核心；具体绑定库仍按 iOS record 的评估验证。各端独立管理产品登录态与存储，移动端按自身内部通信需要决定是否接入 Gateway。本轮不创建移动集成包或绑定工程。
+各端按需设置自己的功能入口：桌面复用 `xiaowei-rust/napi`，移动端已建立独立的 `xiaowei-mobile` Rust 功能模块，由其 `ffi/` 子层适配 Swift／Kotlin。当前职责与公开接口维护在[模块文档](../../../../crates/xiaowei-mobile/README.md)，独立切片结果见[移动接入](mobile-module-interface.md)，不在此重复维护。各端独立管理产品登录态与存储，移动端按自身内部通信需要决定是否接入 Gateway；完整移动工程未创建。
 
 xw-api::account 直接调用同一 crate 的网络能力，桌面与移动端使用相同的调用路径，不注入认证接口或 client 创建工厂。xiaowei-rust 在 Rust 内部创建并组合 account 与 api，共用同一个具体客户端和 Gateway endpoint；TS 不创建或传递 Xwapi 原生实例，也不保留 desktop/services/xwapi 模块。HTTP／WS 由 xw-api 内部创建和维护。宿主只提供目标服务器、设备与恢复会话等数据，接收操作结果和凭据变化。xw-api::account 不提供存储接口，也不读取、保存或清除持久化凭据。
 
@@ -156,9 +158,9 @@ Rust 核心只操作宿主指定的单服务器会话，在内存中保留执行
 | --- | --- | --- |
 | 01 xwapi 网络迁移 | Rust HTTP／WS、Gateway 提供方透明替换、网络代码归位；整理旧实现类型与装配引用 | 原有 typed 调用与断言经真实 napi／Go 链路回归、现有账号回归、Gateway 本地链路回归 |
 | 02 共享会话核心 | 提取认证操作与会话维护，桌面 AccountService／AccountStore 继续维护原有登录态 | 单服务器核心失败路径、桌面全部账号行为、持久化兼容、权限和取消回归 |
-| 后续移动接入 | Swift 最小绑定及 iOS 平台适配 | 真机／模拟器加载、实际请求、取消、状态与前后台恢复；进入实施时单独编写切片计划 |
+| 后续移动接入 | 独立移动 Rust 功能模块、Swift／Kotlin 绑定及 iOS 平台适配，见[接口方案](mobile-module-interface.md) | 先验收模块公开 API，再分别验证两种语言与移动平台；进入实施时单独编写切片计划 |
 
-01、02 的独立前置迁移已完成并验证，实施 Plan 已删除，结果见下述 Outcome。当前 iOS record 保持 proposed；移动工程、FFI 与配对设计进入实施时再建立所属切片 Plan。
+01、02 的独立前置迁移已完成并验证，实施 Plan 已删除，结果见下述 Outcome。移动功能模块与 FFI 的后续前置切片也已交付；完整 iOS 工程、配对与同步按主 record 的 active 任务拆分实施，不复用本迁移方案的旧编号。
 
 01 替换 xwapi 提供方、原生接入、主进程装配和相应测试准备，保持既有 Gateway service、消息、options、业务调用方式与行为。迁移前 Account 从 connection.ts 实现文件引用鉴权结果类型不合理；01 将其提取到公开接入类型，调整相应 import，不保留旧实现文件来维持路径。Account 中等待鉴权和选择传输的行为在 01 保留，02 已将认证／维护执行提取到共享会话核心，后续合并为 xw-api::account。
 

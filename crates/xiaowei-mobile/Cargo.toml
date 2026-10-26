@@ -1,0 +1,19 @@
+[package]
+name = "xiaowei-mobile"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+xw-api = { path = "../xw-api" }
+proto-server-rs = { path = "../../contracts/out/proto-server-rs" }
+prost = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+tokio-util = "0.7"
+futures-util = "0.3"
+thiserror = "2"
+log = "0.4"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["io-util"] }

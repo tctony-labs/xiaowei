@@ -1,0 +1,20 @@
+[package]
+name = "xiaowei-mobile-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[features]
+bindgen = ["uniffi/cli", "uniffi/cargo-metadata"]
+
+[dependencies]
+xiaowei-mobile = { path = ".." }
+uniffi = { version = "=0.32.2", default-features = false }
+thiserror = "2"
+
+[[bin]]
+name = "generate-mobile-bindings"
+path = "src/bin/generate-bindings.rs"
+required-features = ["bindgen"]

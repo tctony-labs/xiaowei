@@ -8,6 +8,8 @@ members = [
     "crates/xw-*",
     "crates/xiaowei-agent",
     "crates/xiaowei-agent/napi",
+    "crates/xiaowei-mobile",
+    "crates/xiaowei-mobile/ffi",
     "crates/xiaowei-rust/napi",
 ]
 
