@@ -231,7 +231,12 @@ impl Connection {
                     Authentication::Rejected,
                     None,
                 );
-                log::warn!("Server WebSocket authentication rejected generation={generation}");
+                log::warn!(
+                    "Server WebSocket authentication rejected generation={} code={} msg={:?}",
+                    generation,
+                    reason.code,
+                    reason.message
+                );
                 return;
             }
             connection.publish(
@@ -245,7 +250,13 @@ impl Connection {
             let wait_ms = (500_u64 << failures.saturating_sub(1).min(6)).min(30_000);
             // Per-attempt jitter prevents all devices reconnecting in lockstep.
             let jitter = (uuid::Uuid::new_v4().as_u128() as u64) % ((wait_ms / 4).min(1000) + 1);
-            log::warn!("Server WebSocket disconnected generation={generation} retry_ms={wait_ms}");
+            log::warn!(
+                "Server WebSocket disconnected generation={} retry_ms={} code={} msg={:?}",
+                generation,
+                wait_ms,
+                reason.code,
+                reason.message
+            );
             tokio::select! {
                 _ = cancel.cancelled() => return,
                 _ = tokio::time::sleep(std::time::Duration::from_millis(wait_ms + jitter)) => {}

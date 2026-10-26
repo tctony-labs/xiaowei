@@ -12,6 +12,7 @@ import {
   AccountUserSchema,
   CloudConnectionStatus,
   ServerAccountSchema,
+  System,
 } from "proto-desktop-ts";
 import { StrictMode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
@@ -107,6 +108,7 @@ test("inline adding cannot interrupt pending switching or logout-all", async () 
     await verifyBlocked();
     await act(async () => finish());
     expect(dialog.getByRole("alert")).toHaveTextContent("1 个服务器退出失败");
+    expect(dialog.getByRole("alert")).toHaveClass("absolute");
     expect(page.getByRole("dialog", { name: "账号管理" })).toBeVisible();
     await actions.click(dialog.getByRole("button", { name: "退出全部" }));
     await verifyBlocked();
@@ -554,7 +556,68 @@ test("closing the login overlay cancels its attempt and ignores a late failure",
   }
 });
 
-test("cloud reconnect state changes without removing the signed-in account", async () => {
+test("copy feedback uses a temporary toast and repeated copies restart its duration", async () => {
+  const host = new GatewayHost();
+  const snapshot = create(AccountSnapshotSchema, {
+    revision: 1n,
+    status: AccountStatus.SIGNED_IN,
+    servers: ["https://example.test"],
+    selectedServer: "https://example.test",
+    user: create(AccountUserSchema, { userId: "u_copy" }),
+  });
+  let fail = false;
+  const copy = vi.fn();
+  const owner = host.registerOwner(
+    "account",
+    [
+      ...bindHandlers(Account, { get: () => snapshot }, { partial: true }),
+      ...bindHandlers(
+        System,
+        {
+          writeClipboardText(request) {
+            copy(request.text);
+            if (fail) throw new Error("Clipboard unavailable");
+            return create(EmptySchema);
+          },
+        },
+        { partial: true },
+      ),
+    ],
+    [bindEvent(AccountChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  const services = createServices(() => host.client({ caller: "settings", trusted: true }));
+  const page = render(<AccountSettingsSection services={services} />);
+  try {
+    const button = await page.findByRole("button", { name: "复制 UID" });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await act(async () => fireEvent.click(button));
+    expect(copy).toHaveBeenCalledWith("u_copy");
+    const toast = page.getByText("已复制 UID");
+    expect(toast).toHaveClass("fixed");
+    expect(toast.parentElement).toBe(document.body);
+
+    await act(async () => vi.advanceTimersByTimeAsync(2999));
+    expect(toast).toBeVisible();
+    await act(async () => fireEvent.click(button));
+    await act(async () => vi.advanceTimersByTimeAsync(2999));
+    expect(page.getByText("已复制 UID")).toBeVisible();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(page.queryByText("已复制 UID")).not.toBeInTheDocument();
+
+    fail = true;
+    await act(async () => fireEvent.click(button));
+    expect(page.getByText("复制 UID 失败")).toHaveClass("fixed");
+    expect(page.queryByText("已复制 UID")).not.toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(3000));
+    expect(page.queryByText("复制 UID 失败")).not.toBeInTheDocument();
+  } finally {
+    cleanup();
+    owner.close();
+    vi.useRealTimers();
+  }
+});
+
+test("cloud errors stay beside the server and clear after recovery", async () => {
   const host = new GatewayHost();
   let snapshot = create(AccountSnapshotSchema, {
     revision: 1n,
@@ -573,9 +636,28 @@ test("cloud reconnect state changes without removing the signed-in account", asy
   const page = render(<AccountSettingsSection services={services} />);
   try {
     await page.findByRole("status", { name: "云连接：已连接" });
+    expect(page.queryByRole("alert")).not.toBeInTheDocument();
     snapshot = create(AccountSnapshotSchema, {
       ...snapshot,
       revision: 2n,
+      status: AccountStatus.OFFLINE,
+      statusMessage: "云连接不可用，请稍后重试",
+    });
+    await act(async () =>
+      owner.publish(
+        AccountChangedSchema.typeName,
+        toBinary(AccountChangedSchema, create(AccountChangedSchema, { snapshot })),
+      ),
+    );
+    const message = await page.findByRole("alert");
+    const details = page.getByText("https://example.test").closest("p");
+    expect(details).toContainElement(message);
+    expect(details).toHaveTextContent(/https:\/\/example\.test\s*云连接不可用，请稍后重试/);
+    expect(page.getAllByRole("alert")).toHaveLength(1);
+
+    snapshot = create(AccountSnapshotSchema, {
+      ...snapshot,
+      revision: 3n,
       cloudConnection: CloudConnectionStatus.RECONNECTING,
     });
     await act(async () =>
@@ -588,6 +670,23 @@ test("cloud reconnect state changes without removing the signed-in account", asy
     expect(reconnecting).toBeVisible();
     expect(page.getByText("u_still_signed_in")).toBeVisible();
     expect(page.queryByRole("button", { name: "登录服务器" })).not.toBeInTheDocument();
+
+    snapshot = create(AccountSnapshotSchema, {
+      ...snapshot,
+      revision: 4n,
+      status: AccountStatus.SIGNED_IN,
+      statusMessage: "",
+      cloudConnection: CloudConnectionStatus.CONNECTED,
+    });
+    await act(async () =>
+      owner.publish(
+        AccountChangedSchema.typeName,
+        toBinary(AccountChangedSchema, create(AccountChangedSchema, { snapshot })),
+      ),
+    );
+    expect(page.getByRole("status", { name: "云连接：已连接" })).toBeVisible();
+    expect(page.queryByRole("alert")).not.toBeInTheDocument();
+    expect(page.getByText("u_still_signed_in")).toBeVisible();
   } finally {
     page.unmount();
     owner.close();

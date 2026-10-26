@@ -4,6 +4,41 @@ use proto_server_rs::xiaowei::server::{auth as pb, common};
 
 use crate::{Client, Error, RequestContext, Result, contract::Method, normalize_server};
 
+// Log completion even when the caller drops an in-flight request future.
+struct WebsocketRequestLog {
+    method: String,
+    origin: String,
+    started: std::time::Instant,
+    code: Option<String>,
+    message: Option<String>,
+    failure: Option<Error>,
+    level: log::Level,
+}
+
+impl Drop for WebsocketRequestLog {
+    fn drop(&mut self) {
+        let mut metadata = format!(
+            "WebSocket request completed method={} server={} duration_ms={}",
+            self.method,
+            self.origin,
+            self.started.elapsed().as_millis()
+        );
+        if let Some(code) = &self.code {
+            metadata.push_str(&format!(" code={code}"));
+        }
+        if let Some(message) = &self.message {
+            metadata.push_str(&format!(" msg={message:?}"));
+        }
+        if let Some(error) = &self.failure {
+            metadata.push_str(&format!(
+                " error_code={} error_msg={:?}",
+                error.code, error.message
+            ));
+        }
+        log::log!(self.level, "{metadata}");
+    }
+}
+
 impl Client {
     pub async fn invoke(
         &self,
@@ -54,45 +89,86 @@ impl Client {
             || (transport == Transport::Auto
                 && method.requires_login
                 && self.connection.can_invoke(&route, &context.target));
-        let bytes = if use_ws {
-            let peer = self
-                .connection
-                .peer(&route, &context.target)
-                .ok_or_else(|| Error::unavailable("云连接尚未就绪"))?;
-            // Once dispatched, an error is terminal. Never replay it over HTTP.
-            let started = std::time::Instant::now();
-            let pending = peer.invoke(
-                route,
-                payload.to_vec(),
+        let mut request_log = use_ws.then(|| {
+            let origin = url::Url::parse(&server)
+                .map(|url| url.origin().ascii_serialization())
+                .unwrap_or_default();
+            log::debug!(
+                "WebSocket request started method={} timeout_ms={} server={}",
+                method.id,
                 timeout,
-                context.cancellation.clone(),
+                origin
             );
+            WebsocketRequestLog {
+                method: method.id.clone(),
+                origin,
+                started: std::time::Instant::now(),
+                code: Some("CANCELLED".into()),
+                message: Some("request cancelled".into()),
+                failure: None,
+                level: log::Level::Debug,
+            }
+        });
+        let bytes = if use_ws {
+            // Once dispatched, an error is terminal. Never replay it over HTTP.
+            let pending = async {
+                let peer = self
+                    .connection
+                    .peer(&route, &context.target)
+                    .ok_or_else(|| {
+                        crate::wire::WireError::new(
+                            "OWNER_UNAVAILABLE",
+                            "WebSocket connection not ready",
+                        )
+                    })?;
+                peer.invoke(
+                    route,
+                    payload.to_vec(),
+                    timeout,
+                    context.cancellation.clone(),
+                )
+                .await
+            };
             let result = tokio::select! {
-                _ = self.closed.cancelled() => Err(crate::wire::WireError::unavailable()),
+                _ = self.closed.cancelled() => {
+                    Err(crate::wire::WireError::new("CANCELLED", "client closed"))
+                },
                 result = pending => result,
             };
-            log::debug!(
-                "WebSocket request completed method={} outcome={} duration_ms={}",
-                method.id,
-                if result.is_ok() {
-                    "response"
-                } else {
-                    "unavailable"
-                },
-                started.elapsed().as_millis()
-            );
-            result.map_err(|_| Error::unavailable("云连接不可用，请稍后重试"))?
+            result.map_err(|error| {
+                let log = request_log.as_mut().unwrap();
+                log.code = Some(error.code.clone());
+                log.message = Some(error.message.clone());
+                log.level = match error.code.as_str() {
+                    "CANCELLED" => log::Level::Debug,
+                    "HANDLER_ERROR" | "OWNER_UNAVAILABLE" => log::Level::Error,
+                    _ => log::Level::Warn,
+                };
+                websocket_error(error)
+            })?
         } else {
             self.http_request(&method, payload, context, &server, token)
                 .await?
         };
-        if let Err(error) = self.validate_response(name, payload, &bytes) {
-            return Err(if use_ws {
-                Error::unavailable("云连接不可用，请稍后重试")
-            } else {
-                error
-            });
+        let validation = self.validate_response(name, payload, &bytes);
+        if let Some(log) = &mut request_log {
+            log.code = None;
+            log.message = None;
+            if let Ok(response) = common::BaseResponse::decode(bytes.as_slice()) {
+                log.code = Some(response.code.to_string());
+                log.message = Some(response.msg);
+                log.level = match response.code {
+                    0 => log::Level::Debug,
+                    10008 | 10009 => log::Level::Error,
+                    _ => log::Level::Warn,
+                };
+            }
+            if let Err(error) = &validation {
+                log.failure = Some(error.clone());
+                log.level = log::Level::Error;
+            }
         }
+        validation?;
         Ok(bytes)
     }
 
@@ -219,6 +295,56 @@ impl Client {
     ) -> Result<Res> {
         let bytes = self.invoke(name, &request.encode_to_vec(), context).await?;
         Res::decode(bytes.as_slice()).map_err(|_| Error::unavailable("服务器返回了无效的响应"))
+    }
+}
+
+fn websocket_error(error: crate::wire::WireError) -> Error {
+    use common::ErrorCode;
+
+    if error.code == "CANCELLED" {
+        return Error::cancelled();
+    }
+    let (code, category, summary) = match error.code.as_str() {
+        "UNAUTHORIZED" => (
+            ErrorCode::Unauthenticated,
+            "credentials",
+            "服务器拒绝了此操作",
+        ),
+        "INVALID_ARGUMENT" | "WRONG_METHOD_KIND" => {
+            (ErrorCode::InvalidArgument, "argument", "服务器请求无效")
+        }
+        "UNKNOWN_ROUTE" => (ErrorCode::NotFound, "protocol", "服务器未提供此接口"),
+        "RESOURCE_EXHAUSTED" | "CONCURRENCY_FULL" => (
+            ErrorCode::RateLimited,
+            "network",
+            "服务器请求过于频繁，请稍后重试",
+        ),
+        "INCOMPATIBLE" => (
+            ErrorCode::Unavailable,
+            "protocol",
+            "客户端与服务器接口不兼容",
+        ),
+        "TIMEOUT" => (
+            ErrorCode::Unavailable,
+            "timeout",
+            "服务器请求超时，请稍后重试",
+        ),
+        "OWNER_UNAVAILABLE" => (ErrorCode::Unavailable, "network", "服务器接口暂不可用"),
+        "HANDLER_ERROR" => (ErrorCode::InternalError, "protocol", "服务器处理请求失败"),
+        _ => (
+            ErrorCode::Unavailable,
+            "protocol",
+            if error.message.is_empty() {
+                "服务器请求失败"
+            } else {
+                &error.message
+            },
+        ),
+    };
+    Error {
+        code: code as i32,
+        message: summary.into(),
+        category,
     }
 }
 

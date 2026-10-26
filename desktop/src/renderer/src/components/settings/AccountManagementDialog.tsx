@@ -37,6 +37,7 @@ export function AccountManagementDialog({
   const [address, setAddress] = useState("");
   const [addError, setAddError] = useState("");
   const [saving, setSaving] = useState(false);
+  const message = addError || error;
 
   useEffect(() => {
     if (adding) {
@@ -108,6 +109,7 @@ export function AccountManagementDialog({
       open
       title="账号管理"
       width="w-[500px] max-w-[calc(100vw-32px)]"
+      contentClassName="relative px-5 py-3"
       onClose={onClose}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
@@ -128,9 +130,15 @@ export function AccountManagementDialog({
         </div>
       }
     >
-      {error && (
-        <p role="alert" className="mb-3 text-[12px] text-danger">
-          {error}
+      {message && (
+        <p
+          id="account-management-error"
+          role="alert"
+          title={message}
+          className="absolute -top-[13px] right-5 left-5 h-[18px] truncate text-center
+            text-[12px] leading-[18px] text-danger"
+        >
+          {message}
         </p>
       )}
       <ul ref={listRef} className="max-h-[300px] overflow-y-auto rounded-lg border border-line">
@@ -213,7 +221,7 @@ export function AccountManagementDialog({
                   ref={addressRef}
                   aria-label="服务器地址"
                   aria-invalid={Boolean(addError)}
-                  aria-describedby={addError ? "add-server-error" : undefined}
+                  aria-describedby={addError ? "account-management-error" : undefined}
                   type="text"
                   inputMode="url"
                   autoComplete="url"
@@ -262,11 +270,6 @@ export function AccountManagementDialog({
                   取消
                 </button>
               </div>
-              {addError && (
-                <p id="add-server-error" role="alert" className="mt-2 text-[12px] text-danger">
-                  {addError}
-                </p>
-              )}
             </form>
           </li>
         )}

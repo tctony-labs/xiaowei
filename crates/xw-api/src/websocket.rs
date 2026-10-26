@@ -59,16 +59,19 @@ impl Peer {
                 ));
             let (mut socket, _) = connect_async_with_config(url, Some(config), false)
                 .await
-                .map_err(|_| WireError::unavailable())?;
+                .map_err(|error| WireError::new("OWNER_UNAVAILABLE", &error.to_string()))?;
             let mut auth = Header::new("authenticate");
             auth.token = Some(token.into());
             auth.manifest = Some(Manifest::default());
             socket
                 .send(Message::Binary(wire::encode(auth, &[], &[])?.into()))
                 .await
-                .map_err(|_| WireError::unavailable())?;
+                .map_err(|error| WireError::new("OWNER_UNAVAILABLE", &error.to_string()))?;
             let bytes = match socket.next().await {
                 Some(Ok(Message::Binary(bytes))) => bytes,
+                Some(Err(error)) => {
+                    return Err(WireError::new("OWNER_UNAVAILABLE", &error.to_string()));
+                }
                 _ => return Err(WireError::unavailable()),
             };
             let ready = wire::decode(&bytes)?.header;
@@ -114,7 +117,12 @@ impl Peer {
                                 _ = writer_closed.cancelled() => break,
                                 sent = write.send(message) => sent,
                             };
-                            if sent.is_err() {
+                            if let Err(error) = sent {
+                                if let Some(peer) = weak.upgrade() {
+                                    peer.close_with(WireError::new(
+                                        "OWNER_UNAVAILABLE", &error.to_string(),
+                                    ));
+                                }
                                 break;
                             }
                         }
@@ -138,11 +146,19 @@ impl Peer {
                     let Some(peer) = weak.upgrade() else { break };
                     match message {
                         Some(Ok(Message::Binary(bytes))) => {
-                            if peer.receive(&bytes).is_err() {
+                            if let Err(error) = peer.receive(&bytes) {
+                                peer.close_with(error);
                                 break;
                             }
                         }
                         Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
+                        Some(Err(error)) => {
+                            peer.close_with(WireError::new(
+                                "OWNER_UNAVAILABLE",
+                                &error.to_string(),
+                            ));
+                            break;
+                        }
                         _ => break,
                     }
                 }

@@ -83,16 +83,22 @@ async fn real_go_pb_routing_limits_and_empty_client_exports() {
         .unwrap();
     assert_eq!(Envelope::decode(bytes.as_slice()).unwrap(), input);
     assert!(peer.can_invoke(&route("Echo", false)));
-    let mut wrong = route("Echo", false);
-    wrong.output = "wrong.Output".into();
-    assert!(!peer.can_invoke(&wrong));
-    assert_eq!(
-        peer.invoke(wrong, vec![], 5000, CancellationToken::new())
-            .await
-            .unwrap_err()
-            .code,
-        "INCOMPATIBLE"
-    );
+    let mut wrong_kind = route("Echo", true);
+    wrong_kind.output = "testing.Envelope".into();
+    let mut wrong_control = route("Echo", false);
+    wrong_control.control_version += 1;
+    let mut wrong_contract = route("Echo", false);
+    wrong_contract.contract_version += 1;
+    for wrong in [wrong_kind, wrong_control, wrong_contract] {
+        assert!(!peer.can_invoke(&wrong));
+        assert_eq!(
+            peer.invoke(wrong, vec![], 5000, CancellationToken::new())
+                .await
+                .unwrap_err()
+                .code,
+            "INCOMPATIBLE"
+        );
+    }
     assert_eq!(
         peer.invoke(
             route("Missing", false),
@@ -137,6 +143,64 @@ async fn real_go_pb_routing_limits_and_empty_client_exports() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn real_go_pb_message_renames_preserve_unary_and_streaming_calls() {
+    let fixture = support::Fixture::start();
+    let peer = Peer::connect(&fixture.url, "fixture", CancellationToken::new())
+        .await
+        .unwrap();
+    let input = Envelope {
+        text: "中文".into(),
+        id: u64::MAX,
+        label: Some("label".into()),
+        blobs: vec![proto_testing_rs::testing::envelope::Blob {
+            data: vec![0, 255, 128],
+        }],
+        ..Default::default()
+    };
+    let mut unary = route("Echo", false);
+    unary.input = "client.RenamedRequest".into();
+    unary.output = "client.RenamedResponse".into();
+    assert!(peer.can_invoke(&unary));
+    let bytes = peer
+        .invoke(
+            unary.clone(),
+            input.encode_to_vec(),
+            5000,
+            CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(Envelope::decode(bytes.as_slice()).unwrap(), input);
+    assert_eq!(
+        peer.invoke(unary, vec![255], 5000, CancellationToken::new())
+            .await
+            .unwrap_err()
+            .code,
+        "INVALID_ARGUMENT"
+    );
+
+    let mut streaming = route("Watch", true);
+    streaming.input = "client.RenamedRequest".into();
+    streaming.output = "client.RenamedChunk".into();
+    assert!(peer.can_invoke(&streaming));
+    let mut stream = peer
+        .stream(streaming, &input.encode_to_vec(), CancellationToken::new())
+        .await
+        .unwrap();
+    for id in 1..=3 {
+        let bytes = stream.next().await.unwrap().unwrap();
+        let mut expected = input.clone();
+        expected.id = id;
+        assert_eq!(
+            Changed::decode(bytes.as_slice()).unwrap().value,
+            Some(expected)
+        );
+    }
+    assert!(stream.next().await.unwrap().is_none());
+    peer.close();
 }
 
 #[tokio::test]

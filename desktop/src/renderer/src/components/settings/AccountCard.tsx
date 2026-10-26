@@ -7,6 +7,7 @@ export interface AccountCardProps {
   server: string;
   user?: { uid: string; avatar?: string };
   connectionStatus: "connected" | "disconnected" | "connecting" | "reconnecting";
+  statusMessage?: string;
   busy?: boolean;
   onSelectServer: (server: string) => void;
   onAddServer: () => void;
@@ -20,6 +21,7 @@ export function AccountCard({
   server,
   user,
   connectionStatus,
+  statusMessage,
   busy = false,
   onSelectServer,
   onAddServer,
@@ -59,7 +61,7 @@ export function AccountCard({
                 </svg>
               </span>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1 text-[13px] leading-[18px]">
                 <span className="truncate" title={`UID：${user.uid}`}>
                   {user.uid}
@@ -98,6 +100,11 @@ export function AccountCard({
                 <span className="truncate" title={server}>
                   {server}
                 </span>
+                {statusMessage && (
+                  <span role="alert" className="truncate text-danger" title={statusMessage}>
+                    {statusMessage}
+                  </span>
+                )}
               </p>
             </div>
           </div>

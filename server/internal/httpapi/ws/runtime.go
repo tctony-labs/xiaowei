@@ -104,7 +104,8 @@ func New(registrations []Registration, events []Event) (*Runtime, error) {
 }
 
 func sameRoute(a, b Route) bool {
-	return a.Name == b.Name && a.Kind == b.Kind && a.Input == b.Input && a.Output == b.Output &&
+	// PB message names are metadata; each endpoint uses its local method schema.
+	return a.Name == b.Name && a.Kind == b.Kind &&
 		a.ControlVersion == b.ControlVersion && a.ContractVersion == b.ContractVersion
 }
 
@@ -127,22 +128,33 @@ func (r *Runtime) lookup(route *Route) (*entry, proto.Message, error) {
 }
 
 func (r *Runtime) invoke(ctx context.Context, peer *Peer, f frame) (response []byte, failure error) {
+	started := time.Now()
+	method := "[unexported]"
+	if f.Route != nil {
+		if entry := r.entries[f.Route.Name]; entry != nil {
+			method = string(entry.registration.Method.FullName())
+		}
+	}
+	var code any = "OK"
+	message := ""
+	level := slog.LevelInfo
+	defer func() {
+		if failure != nil {
+			err := protocolError(failure)
+			code, message = err.Code, err.Message
+			level = slog.LevelWarn
+			if err.Code == "HANDLER_ERROR" || err.Code == "OWNER_UNAVAILABLE" {
+				level = slog.LevelError
+			}
+		}
+		slog.Log(ctx, level, "WebSocket request completed",
+			"method", method, "transport", "websocket", "code", code,
+			"response_msg", message, "duration_ms", time.Since(started).Milliseconds())
+	}()
 	entry, input, err := r.lookup(f.Route)
 	if err != nil {
 		return nil, err
 	}
-	started := time.Now()
-	defer func() {
-		code := "OK"
-		level := slog.LevelInfo
-		if failure != nil {
-			code = protocolError(failure).Code
-			level = slog.LevelWarn
-		}
-		slog.Log(ctx, level, "WebSocket request completed",
-			"method", string(entry.registration.Method.FullName()),
-			"transport", "websocket", "code", code, "duration_ms", time.Since(started).Milliseconds())
-	}()
 	if entry.route.Kind != "unary" {
 		return nil, Failure("WRONG_METHOD_KIND", "unary operation required")
 	}
@@ -160,8 +172,9 @@ func (r *Runtime) invoke(ctx context.Context, peer *Peer, f frame) (response []b
 	ctx, cancel := context.WithTimeout(ctx, entry.registration.Timeout)
 	defer cancel()
 	type result struct {
-		value []byte
-		err   error
+		value   []byte
+		message proto.Message
+		err     error
 	}
 	done := make(chan result, 1)
 	go func() {
@@ -185,10 +198,23 @@ func (r *Runtime) invoke(ctx context.Context, peer *Peer, f frame) (response []b
 		if len(value) > MaxPayload {
 			err = Failure("RESOURCE_EXHAUSTED", "response too large")
 		}
-		done <- result{value, err}
+		done <- result{value: value, message: response, err: err}
 	}()
 	select {
 	case response := <-done:
+		if envelope, ok := response.message.(interface {
+			GetCode() int32
+			GetMsg() string
+		}); ok {
+			code, message = envelope.GetCode(), envelope.GetMsg()
+			switch envelope.GetCode() {
+			case 0:
+			case 10008, 10009:
+				level = slog.LevelError
+			default:
+				level = slog.LevelWarn
+			}
+		}
 		return response.value, response.err
 	case <-ctx.Done():
 		return nil, contextError(ctx.Err())

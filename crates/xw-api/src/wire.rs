@@ -112,10 +112,9 @@ impl Route {
     }
 
     pub fn compatible(&self, other: &Self) -> bool {
+        // PB message names are metadata; each endpoint uses its local method schema.
         self.name == other.name
             && self.kind == other.kind
-            && self.input == other.input
-            && self.output == other.output
             && self.control_version == other.control_version
             && self.contract_version == other.contract_version
     }

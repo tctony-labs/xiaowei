@@ -155,6 +155,8 @@ test("inline adding shows validation loading, retains errors and supports retry"
   await actions.type(address, "http://127.0.0.1:10001/");
   await actions.click(management.getByRole("button", { name: "添加" }));
   expect(management.getByRole("alert")).toHaveTextContent("该服务器地址已保存");
+  expect(management.getByRole("alert")).toHaveClass("absolute");
+  expect(management.getByRole("alert").closest("li")).toBeNull();
   expect(add).not.toHaveBeenCalled();
 
   await actions.clear(address);

@@ -9,6 +9,9 @@ struct RequestLog {
     started: std::time::Instant,
     status: Option<u16>,
     code: Option<i32>,
+    message: Option<String>,
+    failure: Option<Error>,
+    source: Option<String>,
     outcome: &'static str,
 }
 
@@ -26,6 +29,18 @@ impl Drop for RequestLog {
         }
         if let Some(code) = self.code {
             metadata.push_str(&format!(" code={code}"));
+        }
+        if let Some(message) = &self.message {
+            metadata.push_str(&format!(" msg={message:?}"));
+        }
+        if let Some(error) = &self.failure {
+            metadata.push_str(&format!(
+                " error_code={} error_msg={:?}",
+                error.code, error.message
+            ));
+        }
+        if let Some(source) = &self.source {
+            metadata.push_str(&format!(" error={source:?}"));
         }
         match self.outcome {
             "success" | "cancelled" => log::debug!("{metadata}"),
@@ -63,6 +78,9 @@ impl Client {
             started: std::time::Instant::now(),
             status: None,
             code: None,
+            message: None,
+            failure: None,
+            source: None,
             outcome: "cancelled",
         };
         log::debug!(
@@ -80,10 +98,10 @@ impl Client {
             request = request.bearer_auth(token);
         }
         let work = async {
-            let response = request
-                .send()
-                .await
-                .map_err(|_| Error::unavailable("无法连接服务器，请稍后重试"))?;
+            let response = request.send().await.map_err(|error| {
+                log.source = Some(format!("{:?}", error.without_url()));
+                Error::unavailable("无法连接服务器，请稍后重试")
+            })?;
             log.status = Some(response.status().as_u16());
             if response.status() != reqwest::StatusCode::OK {
                 return Err(Error {
@@ -101,16 +119,25 @@ impl Client {
             let mut stream = response.bytes_stream();
             let mut bytes = Vec::new();
             while let Some(chunk) = stream.next().await {
-                let chunk = chunk.map_err(|_| Error::unavailable("无法连接服务器，请稍后重试"))?;
+                let chunk = chunk.map_err(|error| {
+                    log.source = Some(format!("{:?}", error.without_url()));
+                    Error::unavailable("无法连接服务器，请稍后重试")
+                })?;
                 if bytes.len() + chunk.len() > 65_536 {
                     return Err(too_large());
                 }
                 bytes.extend_from_slice(&chunk);
             }
-            log.code = serde_json::from_slice::<serde_json::Value>(&bytes)
-                .ok()
-                .and_then(|value| value.get("code")?.as_i64())
-                .and_then(|v| i32::try_from(v).ok());
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                log.code = value
+                    .get("code")
+                    .and_then(|value| value.as_i64())
+                    .and_then(|v| i32::try_from(v).ok());
+                log.message = value
+                    .get("msg")
+                    .and_then(|value| value.as_str())
+                    .map(String::from);
+            }
             method.decode_json(&bytes)
         };
         let result = tokio::select! {
@@ -133,6 +160,7 @@ impl Client {
             .as_ref()
             .map(|_| "success")
             .unwrap_or_else(|error| error.category);
+        log.failure = result.as_ref().err().cloned();
         result
     }
 }

@@ -15,6 +15,7 @@ import {
 } from "proto-desktop-ts";
 import { bindClient, GatewayFailure } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import { initializeLogging, type NativeLogEntry } from "xiaowei-rust";
 import { registerAccountSession, type SessionInput } from "../../src/main/services/account/session";
 import { authServer } from "./account-fixture";
 
@@ -148,6 +149,10 @@ test("native connection authenticates, isolates rotations, pauses rejection and 
 });
 
 test("native Gateway selects authenticated WS and keeps public methods on HTTP", async () => {
+  const entries: NativeLogEntry[] = [];
+  initializeLogging(true, (entry) => {
+    if (entry.target === "xw_api::methods") entries.push(entry);
+  });
   const f = await fixture();
   try {
     await f.ready();
@@ -157,6 +162,15 @@ test("native Gateway selects authenticated WS and keeps public methods on HTTP",
     });
     assert.equal((await f.auth.getCurrentUser(empty)).msg, "WS response");
     assert.equal(f.server.state.requests.at(-1)?.transport, "websocket");
+    const deadline = Date.now() + 1000;
+    while (entries.length < 2 && Date.now() < deadline) await delay(1);
+    assert.equal(entries.length, 2);
+    assert.ok(entries[0].message.startsWith("WebSocket request started "));
+    assert.equal(entries[1].level, "error");
+    assert.ok(entries[1].message.includes("method=auth.Auth/GetCurrentUser"));
+    assert.ok(entries[1].message.includes("code=10008"));
+    assert.ok(entries[1].message.includes('msg="WS response"'));
+    assert.ok(!entries[1].message.includes("outcome="));
     for (const call of [() => f.health.check(empty), () => f.health.ready(empty)]) {
       assert.equal((await call()).code, 0);
       assert.equal(f.server.state.requests.at(-1)?.transport, undefined);

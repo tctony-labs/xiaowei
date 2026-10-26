@@ -14,6 +14,7 @@ import {
   WriteClipboardTextRequestSchema,
 } from "proto-desktop-ts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Rpc, Subscription } from "xiaowei-gateway";
 import type { Services } from "../../services";
 import { AccountCard } from "./AccountCard";
@@ -30,7 +31,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
   const loginOrigin = useRef<AccountSnapshot | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ text: string } | null>(null);
   const current = useRef<AccountSnapshot | undefined>(undefined);
   const active = useRef(false);
   const attempt = useRef<string | undefined>(undefined);
@@ -79,6 +80,12 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     };
   }, [api, services, accept]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   function closeDialog() {
     operationId.current++;
     operationRequest.current?.cancel();
@@ -87,7 +94,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     attempt.current = undefined;
     if (id)
       void api.cancelLogin(create(CancelAccountLoginRequestSchema, { attemptId: id })).catch(() => {
-        if (active.current) setNotice("取消登录请求失败，请检查账号状态");
+        if (active.current) setNotice({ text: "取消登录请求失败，请检查账号状态" });
       });
     setDialog(dialog === "login" && returnToManagement.current ? "manage" : undefined);
     setBusy(false);
@@ -101,7 +108,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
     const id = ++operationId.current;
     setBusy(true);
     setError("");
-    setNotice("");
+    setNotice(null);
     const minimumPending =
       (options.minimumPendingMs ?? 0) > 0
         ? new Promise<void>((resolve) => setTimeout(resolve, options.minimumPendingMs))
@@ -147,6 +154,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
   // 登录事件可能先于最短 loading 时间到达，卡片与浮层结束时一起切换。
   const cardSnapshot = dialog === "login" && busy ? (loginOrigin.current ?? snapshot) : snapshot;
   const cardUser = cardSnapshot.user;
+  const statusMessage = (dialog ? "" : error) || cardSnapshot.statusMessage;
 
   return (
     <div>
@@ -163,6 +171,7 @@ export function AccountSettingsSection({ services }: { services: Services }) {
                 ? "reconnecting"
                 : "disconnected"
         }
+        statusMessage={statusMessage}
         busy={accountBusy || dialog !== undefined}
         onSelectServer={(serverAddress) => {
           void run(() => api.selectServer(create(SelectServerRequestSchema, { serverAddress })));
@@ -191,23 +200,29 @@ export function AccountSettingsSection({ services }: { services: Services }) {
               }),
             )
             .then(() => {
-              if (active.current) setNotice("已复制 UID");
+              if (active.current) setNotice({ text: "已复制 UID" });
             })
             .catch(() => {
-              if (active.current) setNotice("复制 UID 失败");
+              if (active.current) setNotice({ text: "复制 UID 失败" });
             });
         }}
       />
-      {(snapshot.statusMessage || (error && !dialog)) && (
+      {!cardUser && statusMessage && (
         <p role="alert" className="mt-2 px-1 text-[12px] text-danger">
-          {error || snapshot.statusMessage}
+          {statusMessage}
         </p>
       )}
-      {notice && (
-        <p role="status" className="mt-2 px-1 text-[12px] text-muted">
-          {notice}
-        </p>
-      )}
+      {notice &&
+        createPortal(
+          <div
+            role="status"
+            className="pointer-events-none fixed bottom-5 left-1/2 z-[250] max-w-[80%]
+              -translate-x-1/2 rounded-lg bg-elevated px-4 py-2 text-[13px] text-ink shadow-lg"
+          >
+            {notice.text}
+          </div>,
+          document.body,
+        )}
       {dialog === "manage" && (
         <AccountManagementDialog
           servers={snapshot.servers.map((address) => ({

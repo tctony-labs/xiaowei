@@ -95,6 +95,79 @@ func readTest(t *testing.T, socket *websocket.Conn) frame {
 	return f
 }
 
+func TestMessageRenamesUseRegisteredProtobufAndRetainProtocolChecks(t *testing.T) {
+	methods := pb.File_testing_fixture_proto.Services().ByName("Fixture").Methods()
+	runtime, err := New([]Registration{{Method: methods.ByName("Echo"),
+		Handler: func(
+			_ context.Context, input proto.Message, _ *Peer,
+		) (proto.Message, error) {
+			return input, nil
+		},
+	}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	socket, generation := testPeer(t, runtime)
+	input := &pb.Envelope{Text: "中文", Id: ^uint64(0), Label: proto.String("label"),
+		Blobs: []*pb.Envelope_Blob{{Data: []byte{0, 255, 128}}}}
+	payload, err := proto.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, scenario := range []struct {
+		name    string
+		change  func(*Route)
+		payload []byte
+		options []byte
+		code    string
+	}{
+		{name: "renamed-messages", payload: payload},
+		{name: "invalid-protobuf", payload: []byte{255}, code: "INVALID_ARGUMENT"},
+		{name: "unsupported-options", payload: payload,
+			options: []byte{1}, code: "INVALID_ARGUMENT"},
+		{name: "wrong-kind", change: func(route *Route) { route.Kind = "serverStreaming" },
+			payload: payload, code: "INCOMPATIBLE"},
+		{name: "wrong-control-version",
+			change:  func(route *Route) { route.ControlVersion++ },
+			payload: payload, code: "INCOMPATIBLE"},
+		{name: "wrong-contract-version",
+			change:  func(route *Route) { route.ContractVersion++ },
+			payload: payload, code: "INCOMPATIBLE"},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			route := runtime.manifest.Routes[0]
+			route.Input = "client.RenamedRequest"
+			route.Output = "client.RenamedResponse"
+			if scenario.change != nil {
+				scenario.change(&route)
+			}
+			sendTest(t, socket, frame{header: header{
+				Version: 1, Generation: generation, Op: "invoke",
+				ID: "c:" + scenario.name, Route: &route,
+			}, payload: scenario.payload, options: scenario.options})
+			response := readTest(t, socket)
+			if scenario.code != "" {
+				if response.Error == nil || response.Error.Code != scenario.code {
+					t.Fatalf("expected %s, got %v",
+						scenario.code, response.Error)
+				}
+				return
+			}
+			if response.Error != nil {
+				t.Fatal(response.Error)
+			}
+			output := new(pb.Envelope)
+			if err := proto.Unmarshal(response.payload, output); err != nil {
+				t.Fatal(err)
+			}
+			if !proto.Equal(input, output) {
+				t.Fatal("renamed messages changed protobuf contents")
+			}
+		})
+	}
+}
+
 func TestTimeoutAndCancellationRetainActualAdmission(t *testing.T) {
 	started := make(chan struct{}, 2)
 	release := make(chan struct{})
