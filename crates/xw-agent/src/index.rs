@@ -82,9 +82,11 @@ impl AgentService {
         let (mut journal, repair) = store
             .open_registered(id, stored.created_at_ms)
             .map_err(crate::persistence::storage_error)?;
-        crate::settle_interrupted(&mut journal, None, now_ms()?)
+        let tools = self.state()?.tools.clone();
+        crate::recovery::settle_with_tools(&mut journal, None, now_ms()?, &tools)
             .map_err(crate::persistence::storage_error)?;
         let mut session = crate::persistence::restore(journal)?;
+        crate::tool_registry::bind(&mut session, &tools)?;
         session.indexed = true;
         session.view.title = stored.title.clone();
         session.view.auto_title_enabled = stored.auto_title_enabled;

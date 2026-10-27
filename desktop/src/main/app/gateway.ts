@@ -88,8 +88,6 @@ export async function createApplicationGateway(
   let iconProtocolHandled = false;
   try {
     llm = await attachLlm(host, resolveModels(config?.document ?? emptyConfig(), process.env));
-    agent = await Agent.open(agentDirectory);
-    agentEndpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     if (config) modelSettings = registerModelSettings(host, config, llm.updateModels, process.env);
     system = registerSystem(
       host,
@@ -135,6 +133,8 @@ export async function createApplicationGateway(
       "settings",
       database.createSettingsGatewayEndpoint(actions.platform),
     );
+    agent = await Agent.open(agentDirectory);
+    agentEndpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     search = await attachRustNapi(host, "search", createSearchGatewayEndpoint(actions.development));
     history = await ClipboardHistory.open(directory, () => {}, app.getPath("temp"));
     clipboard = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());

@@ -20,7 +20,7 @@ pub struct RunRequest {
     pub session_id: SessionId,
     pub input_id: InputId,
     pub run_id: RunId,
-    pub turn_id: TurnId,
+    pub turn_id: Option<TurnId>,
     pub gen_id: GenId,
     pub message_id: MessageId,
     pub generation: GenerationRequest,
@@ -69,7 +69,7 @@ pub async fn execute_text(
     let started_at_ms = now_ms();
     let started = Instant::now();
     log::debug!(
-        "Agent Gen started session={} input={} run={} turn={} gen={}",
+        "Agent Gen started session={} input={} run={} turn={:?} gen={}",
         request.session_id,
         request.input_id,
         request.run_id,

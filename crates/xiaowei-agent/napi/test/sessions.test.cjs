@@ -47,6 +47,7 @@ test("formal Agent owns SQLite and archive/delete; titles never append JSONL", a
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const root = await mkdtemp(join(tmpdir(), "agent-sqlite-"));
   const host = new GatewayHost();
+  await require("./fixtures/settings.cjs").settingsFixture(host);
   const caller = host.client({ caller: "desktop", trusted: true });
   const api = bindClient(pb.Agent, caller);
   let agent;
@@ -224,6 +225,7 @@ test("formal Agent batch delete respects searched page targets, restoration and 
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const root = await mkdtemp(join(tmpdir(), "agent-batch-"));
   const host = new GatewayHost();
+  await require("./fixtures/settings.cjs").settingsFixture(host);
   const agent = await Agent.open(root);
   const endpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
   const api = bindClient(pb.Agent, host.client({ caller: "settings", trusted: true }));
@@ -345,6 +347,7 @@ test("formal Agent persists retention policy and automatically archives/deletes 
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const root = await mkdtemp(join(tmpdir(), "agent-retention-"));
   const host = new GatewayHost();
+  await require("./fixtures/settings.cjs").settingsFixture(host);
   const caller = host.client({ caller: "settings", trusted: true });
   const api = bindClient(pb.Agent, caller);
   let agent;
@@ -467,6 +470,7 @@ test("saving policy through Gateway restarts live maintenance; failed KV save pr
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const root = await mkdtemp(join(tmpdir(), "agent-policy-restart-"));
   const host = new GatewayHost();
+  await require("./fixtures/settings.cjs").settingsFixture(host);
   const api = bindClient(pb.Agent, host.client({ caller: "settings", trusted: true }));
   let agent;
   let endpoint;

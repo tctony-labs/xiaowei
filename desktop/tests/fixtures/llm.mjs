@@ -4,6 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { GenerateRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import artifacts from "../../../scripts/tests/bundled-worker.cjs";
 import { attachLlm } from "../../src/main/services/llm/host.ts";
 
 export const request = (userText = "正常", extra = {}) =>
@@ -20,7 +21,7 @@ export async function llmFixture(
   t,
   host = new GatewayHost(),
   api = "openai-completions",
-  workerUrl = new URL("../../out/main/llm-worker.js", import.meta.url),
+  workerUrl = artifacts.bundledWorkerUrl,
 ) {
   const requests = [];
   const disconnected = new Set();

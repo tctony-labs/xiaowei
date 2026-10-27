@@ -19,6 +19,10 @@
 
 `run.mjs` 通过 `tsx --conditions=source` 加载 Gateway 源码，构建 desktop 自身 worker，再按需要构建正式 xiaowei-rust／xiaowei-agent addon。Storage、LLM、xwapi 的 Rust 测试调用方使用 rust 的 `gateway-fixtures`；其他业务回归只加载正式 addon。迁入的 TS 测试纳入 desktop 的 Node 类型检查。
 
+验证构建使用 `pnpm --dir desktop build:test`，main／preload／renderer 输出到 `desktop/out-test/`，与开发实例和正式打包使用的 `desktop/out/` 分离。全量 desktop 测试和单独的 `pnpm --filter xiaowei-agent test:runtime` 都会准备这套产物；嵌套运行时通过 `XIAOWEI_TEST_BUNDLED_MAIN_DIR` 复用刚构建的 main 目录。所有 worker 测试统一从 `scripts/tests/bundled-worker.cjs` 获取路径，不回退开发产物。定向测试可以设置该变量使用另一套已准备的绝对目录。
+
+`build` 保留为正式打包构建，不能用于有开发实例运行时的独立验证；开发重建仍通过 console 的 `r` 按停止、构建、启动顺序执行。验证产物不进入应用包。发布 CI 在测试完成后另行构建正式 desktop 产物。
+
 服务器 API 测试通过 `main/server-api-fixture.ts` 为正式组合 endpoint 设置目标、凭据和测试时钟；不依赖生产 TS xwapi 模块。账号 fixture 使用正式 account 接入，验证普通 Gateway 调用从 Rust 当前上下文取值，以及进行中的 Health 检查不影响当前服务器请求。
 
 `main/server-connection.test.ts` 同样使用正式 account 接入，通过实际连接事件等待状态变化，验证凭据替换、鉴权拒绝后暂停重连及关闭；状态桥接复用生产实现。
@@ -92,7 +96,7 @@ expect(screen.queryByText("已保存")).toBeNull();
 
 ## LLM 配置与真实模型验收
 
-`llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建 desktop：`pnpm --dir desktop build`，再执行 `pnpm --dir desktop exec tsx --conditions=source --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/config.test.mjs`。
+`llm/*.test.mjs` 自动覆盖配置解析、PB／Pi 转换、Completions／Responses／Anthropic Messages 本地 SSE、配置替换及在途隔离，不使用真实 Key。定向测试先构建隔离产物：`pnpm --dir desktop build:test`，再执行 `pnpm --dir desktop exec tsx --conditions=source --test 'tests/llm/*.test.mjs'`。纯配置测试可直接运行 `pnpm --dir desktop exec tsx --conditions=source --test tests/llm/config.test.mjs`。
 
 `llm/verify-provider.test.mjs` 用临时配置、假 Key 和本地 SSE 验证手动验收工具的执行与退出，不继承真实模型凭据。真实模型的手动入口见 [验收脚本](../scripts/README.md)。
 

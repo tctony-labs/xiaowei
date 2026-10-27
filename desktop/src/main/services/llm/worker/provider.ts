@@ -5,6 +5,7 @@ import { GenerateEventSchema, type GenerateRequest } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 import type { ResolvedModelConfig } from "../shared/models";
 import { apis } from "./apis";
+import { generationDiagnostic } from "./diagnostics";
 import { mapEvent } from "./events";
 import { toContext } from "./messages";
 import { toOptions } from "./options";
@@ -57,6 +58,20 @@ export function generate(
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) abort();
     let events: ReturnType<ReturnType<(typeof apis)[keyof typeof apis]>["stream"]> | undefined;
+    let httpStatus: number | undefined;
+    let failureLogged = false;
+
+    function logFailure(error: unknown) {
+      if (failureLogged || signal.aborted) return;
+      failureLogged = true;
+      console.warn("LLM generation failed", {
+        session: request.options?.sessionId,
+        model: config.id,
+        api: config.api,
+        ...generationDiagnostic(error, config.api, httpStatus),
+      });
+    }
+
     try {
       const model = toPiModel(config);
       const updates = transcriptUpdates(request);
@@ -88,11 +103,19 @@ export function generate(
         ...options.options,
         apiKey: config.apiKey,
         signal: controller.signal,
+        onResponse: ({ status }: { status: number }) => {
+          httpStatus = status;
+        },
         ...(observableSseApis.has(config.api)
           ? {
-              fetch: observeSseFetch((receivedAtMs) => {
-                firstSseAt ??= receivedAtMs;
-              }),
+              fetch: observeSseFetch(
+                (receivedAtMs) => {
+                  firstSseAt ??= receivedAtMs;
+                },
+                (status) => {
+                  httpStatus = status;
+                },
+              ),
             }
           : {}),
       };
@@ -122,6 +145,9 @@ export function generate(
             event: { case: "firstSseReceived", value: { receivedAtMs: BigInt(firstSseAt) } },
           });
         }
+        if (event.type === "error" && event.reason !== "aborted")
+          logFailure(event.error.errorMessage);
+
         const mapped = mapEvent(event, request.messages.length > 0);
         // Signatures and final tool arguments may arrive without delta events.
         for (const chunk of mapped) {
@@ -138,6 +164,9 @@ export function generate(
         code: "HANDLER_ERROR",
         message: "generation ended without a terminal event",
       });
+    } catch (error) {
+      logFailure(error);
+      throw error;
     } finally {
       controller.abort();
       if (events) await events.result();

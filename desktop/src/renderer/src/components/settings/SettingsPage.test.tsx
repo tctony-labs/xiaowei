@@ -57,25 +57,29 @@ test("product settings loads saved values and sends changes and cleanup to servi
 
   host.registerOwner(
     "settings-test",
-    bindHandlers(Settings, {
-      get: () => snapshot,
-      update(request) {
-        updates(request.change);
-        if (request.change.case === "includeChromeBookmarks") {
-          snapshot = create(SettingsSnapshotSchema, {
-            ...snapshot,
-            includeChromeBookmarks: request.change.value,
-          });
-        }
-        if (request.change.case === "shortcuts") {
-          snapshot = create(SettingsSnapshotSchema, {
-            ...snapshot,
-            shortcuts: request.change.value,
-          });
-        }
-        return snapshot;
+    bindHandlers(
+      Settings,
+      {
+        get: () => snapshot,
+        update(request) {
+          updates(request.change);
+          if (request.change.case === "includeChromeBookmarks") {
+            snapshot = create(SettingsSnapshotSchema, {
+              ...snapshot,
+              includeChromeBookmarks: request.change.value,
+            });
+          }
+          if (request.change.case === "shortcuts") {
+            snapshot = create(SettingsSnapshotSchema, {
+              ...snapshot,
+              shortcuts: request.change.value,
+            });
+          }
+          return snapshot;
+        },
       },
-    }),
+      { partial: true },
+    ),
     [
       bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true),
       bindEvent(SettingsNavigationRequestedSchema, EmptySchema, "coalesce", () => true),
@@ -191,10 +195,14 @@ test("navigation waits for models to load and repeated navigation restarts the h
   );
   const owner = host.registerOwner(
     "settings",
-    bindHandlers(Settings, {
-      get: () => create(SettingsSnapshotSchema),
-      update: () => create(SettingsSnapshotSchema),
-    }),
+    bindHandlers(
+      Settings,
+      {
+        get: () => create(SettingsSnapshotSchema),
+        update: () => create(SettingsSnapshotSchema),
+      },
+      { partial: true },
+    ),
     [
       bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true),
       bindEvent(SettingsNavigationRequestedSchema, EmptySchema, "coalesce", () => true),

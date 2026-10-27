@@ -1,6 +1,7 @@
 //! Typed settings, backed by the existing per-key meta entries.
 
 pub mod gateway;
+mod web_search;
 
 use crate::Database;
 use proto_desktop_rs::xiaowei::desktop::{
@@ -99,6 +100,11 @@ impl SettingsService {
     ) -> Result<SettingsSnapshot, SettingsError> {
         let _guard = self.updates.lock().await;
         let previous = self.load().await.map_err(SettingsError::Operation)?;
+        if let Some(change @ (Change::WebSearchProvider(_) | Change::WebSearchApiKey(_))) =
+            request.change.as_ref()
+        {
+            return self.update_web_search(previous, change.clone()).await;
+        }
         let (next, key, value) =
             changed(&previous, request).map_err(SettingsError::InvalidArgument)?;
 
@@ -178,6 +184,7 @@ fn defaults(platform: &str) -> SettingsSnapshot {
         clipboard_enabled: true,
         clipboard_auto_paste: false,
         clipboard_retention_days: 30,
+        web_search: Some(web_search::Stored::default().snapshot()),
     }
 }
 
@@ -295,6 +302,11 @@ fn shortcuts_json(config: &ShortcutConfiguration) -> Value {
 
 fn apply_stored(snapshot: &mut SettingsSnapshot, name: &str, value: Value) {
     match name {
+        "webSearch" => {
+            if let Ok(stored) = serde_json::from_value::<web_search::Stored>(value) {
+                snapshot.web_search = Some(stored.snapshot());
+            }
+        }
         "theme" => {
             snapshot.theme = match value.as_str() {
                 Some("system") => ThemeMode::System as i32,
@@ -387,6 +399,7 @@ fn changed(
             next.clipboard_retention_days = value;
             ("clipboardRetentionDays", json!(value))
         }
+        Change::WebSearchProvider(_) | Change::WebSearchApiKey(_) => unreachable!("handled above"),
     };
     Ok((next, key, value))
 }

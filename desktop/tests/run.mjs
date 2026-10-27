@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import artifacts from "../../scripts/tests/bundled-worker.cjs";
 import {
   assertProduction,
   runPnpm,
@@ -26,7 +27,7 @@ runPnpm([
   "--test",
   "tests/main/*.test.ts",
 ]);
-runPnpm(["--dir", "desktop", "build"]);
+artifacts.prepareBundledWorker();
 runPnpm([
   "--dir",
   "desktop",
@@ -64,4 +65,6 @@ runPnpm([
   "tests/rust-napi/resources.test.ts",
   "tests/rust-napi/usage.test.ts",
   "tests/rust-napi/clipboard-runtime.test.ts",
+  "tests/rust-napi/agent-settings.test.ts",
+  "tests/rust-napi/agent-web-tools.test.cjs",
 ]);

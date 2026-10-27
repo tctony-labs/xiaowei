@@ -45,7 +45,31 @@ pub(super) async fn apply(
 pub fn registrations(service: &Arc<SettingsService>) -> Vec<InvokeRegistration> {
     let get = service.clone();
     let update = service.clone();
+    let runtime = service.clone();
     vec![
+        methods::GET_WEB_SEARCH_RUNTIME_CONFIG.handler(move |request, client| {
+            let service = runtime.clone();
+            async move {
+                // Electron assigns frame identities; business payloads cannot override them.
+                if client.context().caller().starts_with("frame:") {
+                    return Err(GatewayError::new(
+                        ErrorCode::Unauthorized,
+                        "Agent assembly required",
+                    ));
+                }
+                service
+                    .web_search_runtime_config(request)
+                    .await
+                    .map_err(|error| match error {
+                        SettingsError::InvalidArgument(_) => {
+                            GatewayError::new(ErrorCode::InvalidArgument, error.to_string())
+                        }
+                        SettingsError::Operation(_) => {
+                            GatewayError::new(ErrorCode::HandlerError, error.to_string())
+                        }
+                    })
+            }
+        }),
         methods::GET.handler(move |_, _| {
             let service = get.clone();
             async move {

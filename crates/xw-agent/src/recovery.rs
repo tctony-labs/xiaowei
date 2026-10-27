@@ -89,6 +89,15 @@ pub fn settle_interrupted(
     known_failed_run: Option<RunId>,
     recovered_at_ms: i64,
 ) -> Result<RecoveryState> {
+    settle_with_tools(journal, known_failed_run, recovered_at_ms, &[])
+}
+
+pub(crate) fn settle_with_tools(
+    journal: &mut Journal,
+    known_failed_run: Option<RunId>,
+    recovered_at_ms: i64,
+    tools: &[crate::ToolRegistration],
+) -> Result<RecoveryState> {
     let state = inspect_recovery(journal.entries())
         .map_err(|_| xw_agent_rollout::RolloutError::InvalidHistory)?;
     let entries = journal.entries().to_vec();
@@ -119,6 +128,35 @@ pub fn settle_interrupted(
             recovered_at_ms,
         )?;
     }
+    for id in &state.gens {
+        let failed = gens[id].run_id.is_some() && gens[id].run_id == known_failed_run;
+        let message = entries.iter().find_map(|entry| match &entry.payload {
+            EntryPayload::Message(message) if message.gen_id == Some(*id) => Some(message),
+            _ => None,
+        });
+        journal.append(
+            EntryPayload::GenEnded(GenEnded {
+                gen_id: *id,
+                status: GenStatus::Interrupted,
+                preempting_input_id: None,
+                ended_at_ms: None,
+                stop_reason: None,
+                assistant_message_id: message.map(|message| message.message_id),
+                usage: message.and_then(|message| match &message.message {
+                    AgentMessage::Assistant(assistant) => assistant.usage.clone(),
+                    _ => None,
+                }),
+                context_tokens: None,
+                duration_ms: None,
+                reasoning_duration_ms: None,
+                error: failed.then(|| SafeError {
+                    code: "rollout_write_failed".into(),
+                    message: "会话记录写入失败".into(),
+                }),
+            }),
+            recovered_at_ms,
+        )?;
+    }
     // Session-local tools have no unknown external side effect. Rebuild interactive
     // results from durable answers; uncommitted TodoWrite updates are cancelled.
     for id in &state.tools {
@@ -132,7 +170,10 @@ pub fn settle_interrupted(
                 matches!(
                     intent.tool_name.as_str(),
                     "AskUserQuestion" | "RequestPermission" | "TodoWrite"
-                )
+                ) || tools.iter().any(|tool| {
+                    tool.declaration.name == intent.tool_name
+                        && tool.recovery == crate::RecoveryPolicy::CancelPending
+                })
             })
         else {
             continue;
@@ -162,6 +203,15 @@ pub fn settle_interrupted(
                 ToolStatus::Cancelled,
                 "待办更新未提交，已因运行中断取消".into(),
             ),
+            None if tools
+                .iter()
+                .any(|tool| tool.declaration.name == intent.tool_name) =>
+            {
+                (
+                    ToolStatus::Cancelled,
+                    "工具因运行中断而取消，未重新执行".into(),
+                )
+            }
             None => (ToolStatus::Cancelled, "交互因运行中断而失效".into()),
         };
         journal.append(
@@ -173,35 +223,6 @@ pub fn settle_interrupted(
                 None,
                 recovered_at_ms,
             )),
-            recovered_at_ms,
-        )?;
-    }
-    for id in &state.gens {
-        let failed = gens[id].run_id.is_some() && gens[id].run_id == known_failed_run;
-        let message = entries.iter().find_map(|entry| match &entry.payload {
-            EntryPayload::Message(message) if message.gen_id == Some(*id) => Some(message),
-            _ => None,
-        });
-        journal.append(
-            EntryPayload::GenEnded(GenEnded {
-                gen_id: *id,
-                status: GenStatus::Interrupted,
-                preempting_input_id: None,
-                ended_at_ms: None,
-                stop_reason: None,
-                assistant_message_id: message.map(|message| message.message_id),
-                usage: message.and_then(|message| match &message.message {
-                    AgentMessage::Assistant(assistant) => assistant.usage.clone(),
-                    _ => None,
-                }),
-                context_tokens: None,
-                duration_ms: None,
-                reasoning_duration_ms: None,
-                error: failed.then(|| SafeError {
-                    code: "rollout_write_failed".into(),
-                    message: "会话记录写入失败".into(),
-                }),
-            }),
             recovered_at_ms,
         )?;
     }

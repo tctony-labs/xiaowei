@@ -18,6 +18,7 @@ use crate::{
 const MAX_OBSERVERS: usize = 64;
 
 pub(crate) struct State {
+    pub(crate) tools: Vec<crate::ToolRegistration>,
     pub(crate) closed: bool,
     pub(crate) sessions: BTreeMap<SessionId, Session>,
     pub(crate) creations: BTreeMap<ClientRequestId, (SessionId, AgentModelConfig, Option<String>)>,
@@ -45,6 +46,7 @@ impl AgentService {
             index: None,
             rollout: None,
             state: Arc::new(Mutex::new(State {
+                tools: Vec::new(),
                 closed: false,
                 sessions: BTreeMap::new(),
                 creations: BTreeMap::new(),
@@ -55,6 +57,31 @@ impl AgentService {
             })),
             maintenance: Mutex::new(None),
         }
+    }
+
+    /// Replaces the default registrations for subsequently created/loaded sessions.
+    pub fn set_tools(&self, tools: Vec<crate::ToolRegistration>) -> Result<(), AgentError> {
+        crate::tool_registry::validate(&tools)?;
+        self.state()?.tools = tools;
+        Ok(())
+    }
+
+    pub fn update_tool(
+        &self,
+        id: impl Into<String>,
+        tool: Arc<dyn xw_agent_runtime::tools::AgentTool>,
+    ) -> Result<(), AgentError> {
+        let registration = crate::ToolRegistration::new(id, tool);
+        let mut state = self.state()?;
+        let mut tools = state.tools.clone();
+        if let Some(slot) = tools.iter_mut().find(|tool| tool.id == registration.id) {
+            *slot = registration;
+        } else {
+            tools.push(registration);
+        }
+        crate::tool_registry::validate(&tools)?;
+        state.tools = tools;
+        Ok(())
     }
 
     pub(crate) fn state(&self) -> Result<MutexGuard<'_, State>, AgentError> {
@@ -148,6 +175,7 @@ impl AgentService {
         {
             session.view.cwd = Some(crate::workspace::prepare(store.root(), id)?);
         }
+        crate::tool_registry::bind(&mut session, &state.tools)?;
         crate::model::apply_info(&mut session, &config.model_ref, info);
         session.indexed = self.index.is_some();
         if let Some(store) = &self.rollout {

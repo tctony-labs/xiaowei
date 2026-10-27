@@ -58,6 +58,10 @@ List 按字面前缀匹配，`%`、`_` 不作 SQL 通配符；结果按 key 的 
 
 [settings/](../src/settings/) 负责默认值、类型校验、逐项保存和变更通知，使用 `setting.` 前缀。更新串行执行：先应用宿主动作，再写入对应 meta key，成功后通知；宿主动作或持久化失败时尝试恢复原宿主状态，失败与恢复失败均向调用方返回。通用 KeyValue 不提供这些设置语义。
 
+搜索配置由 [settings/web_search.rs](../src/settings/web_search.rs) 持有，以单个 `setting.webSearch` JSON 保存当前选择及各源 Key。Key 沿旧版 XOR xwwx＋标准 Base64 可逆混淆；Get／Update 响应与 SettingsChanged 只返回 selected／effective provider 及已配置源列表。缺 Key 的选择保留且实际回退 Bing，删除当前源 Key 在同次写入内切回 Bing；保存成功才发布通知，替换 Key 即使脱敏快照相同也发布。
+
+GetWebSearchRuntimeConfig 仅向装配调用返回有效源及其单个明文 Key；显式指定源用于测试时缺 Key 严格报错。Electron 的 frame caller 不可调用该读取。SettingsService 不依赖 Web crate，也不驱动工具重建；xiaowei-agent 消费已提交通知并维护工具内存对象。字段与缺失值语义见 [Settings 契约](../../../contracts/proto/xiaowei/desktop/settings.proto)，设置页不读取明文 Key。
+
 [ClipboardDao](../src/clipboard_dao.rs) 在 Storage 内维护业务表与 SQL，包含分页、筛选、去重合并和检索。正文编辑涉及目标查询、条件合并、来源删除和最终结果读取时，在一次原子事务中完成。具体业务规则见[剪贴板](../../../docs/clipboard.md)，本篇不重复定义其业务索引和附件行为。
 
 [usage.rs](../src/usage.rs) 计算数据库本体和 `-wal`、`-shm` 普通文件的实际大小，缺失文件按零计，不跟随符号链接，不计目录；通过 typed 存储占用接口提供给宿主。

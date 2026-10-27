@@ -83,7 +83,7 @@ fn request() -> RunRequest {
         session_id,
         input_id: InputId::new(),
         run_id: RunId::new(),
-        turn_id: TurnId::new(),
+        turn_id: Some(TurnId::new()),
         gen_id: GenId::new(),
         message_id: MessageId::new(),
         generation: GenerationRequest {

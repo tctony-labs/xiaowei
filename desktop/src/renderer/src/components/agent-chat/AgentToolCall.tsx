@@ -1,6 +1,7 @@
 import { AgentToolStatus, type AgentToolCall as ToolCall } from "proto-desktop-ts";
 import { AgentTodoList } from "./AgentTodoList";
 import { AgentToolIcon } from "./AgentToolIcon";
+import { type AgentWebCallbacks, AgentWebResult } from "./AgentWebResult";
 import { readTodos } from "./todo-presentation";
 import { isToolObject, parseToolJson, toolPresentation } from "./tool-presentation";
 
@@ -13,7 +14,15 @@ const statusLabels: Record<number, string> = {
   [AgentToolStatus.RESULT_UNKNOWN]: "结果未知",
 };
 
-export function AgentToolCall({ call, defaultOpen }: { call: ToolCall; defaultOpen?: boolean }) {
+export function AgentToolCall({
+  call,
+  defaultOpen,
+  onCopy,
+  onOpenUrl,
+}: {
+  call: ToolCall;
+  defaultOpen?: boolean;
+} & AgentWebCallbacks) {
   const status = statusLabels[call.status] ?? "状态未知";
   const active = call.status === AgentToolStatus.PENDING;
   const showStatus = !active && call.status !== AgentToolStatus.COMPLETED;
@@ -44,7 +53,9 @@ export function AgentToolCall({ call, defaultOpen }: { call: ToolCall; defaultOp
         </span>
       </summary>
       <div className="agent-tool-details">
-        {todos !== undefined ? (
+        {call.name === "WebFetch" || call.name === "WebSearch" ? (
+          <AgentWebResult call={call} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+        ) : todos !== undefined ? (
           <AgentTodoList todos={todos} />
         ) : (
           <>

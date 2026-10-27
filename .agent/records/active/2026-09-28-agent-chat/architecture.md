@@ -16,7 +16,7 @@ XiaoWei 使用的是 Pi 的 LLM provider，未使用 Pi Agent／harness。上下
 
 Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目内部 Turn 包含 Gen 及其工具结果。借鉴职责和生命周期，不承诺 Codex wire 兼容或相同产品能力。Pi 的类型与旧字段对齐见[领域类型](model-types.md)。
 
-2026-10-10 用户确认 [Agent Preset 暂缓](agent-presets.md)，技能后移。当前先将提示词与工具装配集中在 xw-agent，xiaowei-agent 负责模型协议适配，runtime 执行循环；以后出现第二种实际模式时再提取 preset，当前不新增身份、注册目录或历史快照字段。
+2026-10-10 用户确认 [Agent Preset 暂缓](agent-presets.md)，技能后移。当前由 xw-agent 持有提示词、通用工具绑定与循环，xiaowei-agent 负责模型协议适配及 Web 装配，runtime 提供原语；以后出现第二种实际模式时再提取 preset，当前不新增身份、注册目录或历史快照字段。
 
 ## 当前包与职责
 
@@ -24,11 +24,12 @@ Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目�
 | --- | --- |
 | `xw-agent-types` | 领域身份、消息、生成纯数据、模型选择／说明、RunContext、rollout 和严格 compact codec／校验。lib.rs 显式导出，内部模块私有；不是公共 RPC 协议，不依赖 contracts |
 | `xw-agent-rollout` | JSONL 读写、提交边界、跨进程 writer 锁、尾部修复及文件生命周期；不管理 SQLite，不决定业务 Run 如何恢复 |
-| `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具与 Bash 进程执行及基础写权限；消费 types，不接受 UI RPC、不依赖 Gateway |
+| `xw-agent-runtime` | 单次 Gen 收集、取消、文件工具与 Bash 原语、通用 AgentTool／ToolContext；消费 types，不接受 UI RPC、不依赖 Gateway |
+| `xw-agent-tools-web` | 独立 WebFetch／WebSearch 与四个单源搜索实现，只依赖 runtime／types；不读取设置、存储或解密 |
 | `xw-sandboxed-exec` | macOS Seatbelt 策略与 sandbox-exec 参数；不持有进程、会话或运行，调用方负责路径解析及进程生命周期 |
 | `xw-agent` | App Server：顺序工具循环与提交、会话／输入／运行所有权、上下文重建、公共 Run／Item 投影、直接事件、标题、SQLite 目录和自动维护；定义统一 AgentHost。公开服务使用 Agent proto，不依赖 Gateway 或外部业务 service |
 | `contracts/proto/xiaowei/agent.proto` | Request／Response、Session／Run／Item 与公共事件；由 proto-agent-rs／proto-desktop-ts 生成消息和 service descriptor，不包含 Rust trait 或宿主运行对象 |
-| `xiaowei-agent` | 薄集成层：实现 AgentHost、LLM 消息 codec、Gateway handler 和 consumer binding；不保存第二份会话／运行状态 |
+| `xiaowei-agent` | 实现 AgentHost、LLM codec、Gateway 接入与 Web 工具装配／Settings 订阅；不保存第二份会话／运行状态 |
 | `xiaowei-agent/napi` | Rust xiaowei-agent-napi／npm xiaowei-agent：Node 生命周期、endpoint 与日志适配；main 传目录并装配依赖 |
 | `desktop` main／LLM worker | main 装配同一服务及关闭顺序；worker 提供生成和模型说明，ModelSettings owner 提供辅助引用与全局偏好 |
 | `desktop` renderer | typed Agent client、快照／事件缓存、pending 请求、草稿、菜单、焦点和滚动；不执行 Agent 循环、不直接生成模型 |
@@ -38,6 +39,28 @@ xw-agent 的主要文件为 service／session／input／execution／events、con
 调用方向：renderer → contracts + Gateway client → xiaowei-agent handler → xw-agent → runtime／rollout；runtime／rollout → types。模型调用由核心桥接 AgentHost，wrapper 实现外部 typed RPC。外部 contracts 不依赖 core／Gateway／types，内部模块不反向依赖 wrapper／Electron／napi。详情见[Host](host-interface.md)。
 
 核心不消费 ModelSettings、Storage 或外部 Llm service，不提供 AgentIndexDao／存储 Gateway 接线；SQLite 目录是核心私有实现。统一 Host 只提供生成、模型说明与辅助引用，不注入 provider 管理对象、完整设置或配置 token。通用文件／进程／HTTP 基础设施可按实际工具需要使用，App 专属能力后续由宿主注入。
+
+## 网页工具与设置装配（第 6 批）
+
+2026-10-27 按用户确认的边界实现：desktop Settings 是搜索配置和各源 Key 的唯一持久 owner；xiaowei-agent 订阅提交后的变更，读取有效源及其单个明文 Key，通过唯一工厂构造具体 `Arc<dyn SearchTool>`。Web crate 的请求只使用构造时的客户端和 Key，不回读设置、不解密、不选源或重试。具体实现及入口见 [Web crate](../../../../crates/xw-agent-tools-web/README.md)、[集成层](../../../../crates/xiaowei-agent/README.md) 和 [Settings 存储](../../../../crates/xw-storage/docs/database.md#settings-与业务-dao)。
+
+```mermaid
+flowchart LR
+  UI[搜索设置页] --> S[desktop Settings]
+  S --> DB[(共享数据库)]
+  S -->|已提交变更| A[xiaowei-agent 装配]
+  A -->|单源明文 Key| P[Arc dyn SearchTool]
+  P --> W[共享 WebSearch]
+  A -->|逻辑工具注册| C[xw-agent session 快照]
+  C --> W
+  C --> F[独立 WebFetch]
+  F -->|ToolContext 提取| C
+  C --> H[AgentHost 模型能力]
+```
+
+默认外部工具集按稳定 ID 更新，session 创建时冻结声明、规则及执行 Arc，幂等重试和首次发送前均保留原绑定；当前进程更新默认集合只影响后续 session。搜索源变化只替换共享 WebSearch 内部 Arc，已有 session 后续搜索透明使用新源，系统上下文不追加增量。在途请求使用旧对象，旧结果保留实际 provider。重启后按当前默认集合重新绑定，沿用已有上下文增量与 provider 能力校验。
+
+辅助提取由 core 提交独立 ToolExtraction Gen，使用同一 Run、空 Turn 和独立 Gen／Message；不进入聊天投影或 Assistant 上下文。恢复先结束辅助 Gen，再按当前注册项的策略结算；未知工具保护仍在。无新增 JSONL schema、搜索配置 RPC 到 Agent service 或第二套工具循环。实现偏差与验收证据见[交付结果](implementation-results.md)。
 
 ## 文件与业务恢复边界
 

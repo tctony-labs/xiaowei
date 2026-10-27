@@ -2,6 +2,7 @@ import { type AgentToolCall, AgentToolStatus } from "proto-desktop-ts";
 
 export type AgentToolIconKind =
   | "file"
+  | "web"
   | "search"
   | "edit"
   | "terminal"
@@ -15,6 +16,7 @@ const toolActivities = {
   tools: { label: "调用工具", icon: "tools" },
   changes: { label: "修改文件", icon: "edit" },
   exploration: { label: "读取文件", icon: "file" },
+  web: { label: "查阅网页", icon: "web" },
   commands: { label: "执行命令", icon: "terminal" },
 } satisfies Record<string, { label: string; icon: AgentToolIconKind }>;
 
@@ -27,6 +29,8 @@ const toolActions: Record<
     activity: keyof typeof toolActivities;
   }
 > = {
+  WebFetch: { action: "读取网页", summary: "读取网页", icon: "web", activity: "web" },
+  WebSearch: { action: "搜索网络", summary: "搜索网络", icon: "search", activity: "web" },
   TodoWrite: { action: "更新待办", summary: "更新待办", icon: "todo", activity: "tools" },
   AskUserQuestion: { action: "向你提问", summary: "向你提问", icon: "question", activity: "tools" },
   RequestPermission: {
@@ -64,7 +68,7 @@ export function toolPresentation(call: AgentToolCall) {
   };
   const args = parseToolJson(call.argumentsJson);
   const target = isToolObject(args)
-    ? [args.pattern, args.path, args.command].find(
+    ? [args.query, args.url, args.pattern, args.path, args.command].find(
         (value): value is string => typeof value === "string" && !!value.trim(),
       )
     : undefined;

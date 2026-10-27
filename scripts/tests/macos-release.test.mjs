@@ -249,6 +249,9 @@ test(
     const stages = [
       ...workflow.matchAll(/packageMac\(\{ signed: true, build: false, stage: "([a-z]+)" \}\)/g),
     ];
+    const desktopBuild = workflow.indexOf("run: pnpm --dir desktop build");
+    assert.ok(desktopBuild > workflow.indexOf("run: node scripts/release/test-prebuilt.mjs"));
+    assert.ok(desktopBuild < stages[0].index);
     assert.deepEqual(
       stages.map((match) => match[1]),
       ["app", "dmg", "notarize", "zip"],

@@ -111,17 +111,21 @@ mock.module(import.meta.resolve("xiaowei-gateway/rust-napi"), {
           : name === "settings"
             ? host.registerOwner(
                 "settings-test",
-                bindHandlers(Settings, {
-                  get: () =>
-                    create(SettingsSnapshotSchema, {
-                      clipboardEnabled: true,
-                      clipboardRetentionDays: 30,
-                      includeChromeBookmarks: true,
-                    }),
-                  update: () => {
-                    throw new Error("Unexpected settings update");
+                bindHandlers(
+                  Settings,
+                  {
+                    get: () =>
+                      create(SettingsSnapshotSchema, {
+                        clipboardEnabled: true,
+                        clipboardRetentionDays: 30,
+                        includeChromeBookmarks: true,
+                      }),
+                    update: () => {
+                      throw new Error("Unexpected settings update");
+                    },
                   },
-                }),
+                  { partial: true },
+                ),
                 [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
               )
             : undefined;
@@ -234,6 +238,8 @@ test("desktop startup failures unwind producers and owners before Storage closes
           join(directory, "auth.json"),
           actions,
         );
+        assert.ok(calls.indexOf("attach-settings") < calls.indexOf("create-agent"));
+        assert.ok(calls.indexOf("create-agent") < calls.indexOf("attach-agent"));
         assert.ok(calls.indexOf("attach-storage") < calls.indexOf("register-account-session"));
         assert.ok(
           calls.indexOf("register-account-session") < calls.indexOf("attach-clipboard-dao"),
@@ -249,15 +255,18 @@ test("desktop startup failures unwind producers and owners before Storage closes
       }
       if (stage !== "llm") assert.equal(calls.filter((call) => call === "close-llm").length, 1);
       if (stage === "llm") assert.ok(!calls.includes("open-storage"));
-      if (!["llm", "agent-create", "agent-attach", "storage", "migration"].includes(stage)) {
+      if (!["llm", "storage", "migration"].includes(stage)) {
         assert.equal(calls.filter((call) => call === "close-account-session").length, 1);
         assert.ok(calls.indexOf("close-account-session") < calls.indexOf("close-storage"));
+      }
+      if (!["llm", "agent-create", "agent-attach", "storage", "migration"].includes(stage)) {
         assert.ok(calls.indexOf("stop") < calls.indexOf("close-clipboard"));
         assert.ok(calls.indexOf("close-clipboard") < calls.indexOf("close-clipboard-dao"));
         assert.ok(calls.indexOf("close-clipboard-dao") < calls.indexOf("close-storage"));
       }
-      if (!["llm", "agent-create"].includes(stage)) {
+      if (!["llm", "agent-create", "storage", "migration"].includes(stage)) {
         assert.ok(calls.indexOf("stop-agent") < calls.indexOf("close-llm"));
+        assert.ok(calls.indexOf("stop-agent") < calls.indexOf("close-settings"));
         if (stage !== "agent-attach") {
           assert.ok(calls.indexOf("stop-agent") < calls.indexOf("close-agent"));
           assert.ok(calls.indexOf("close-agent") < calls.indexOf("close-llm"));

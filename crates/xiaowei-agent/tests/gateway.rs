@@ -39,8 +39,37 @@ async fn inactive_errors_not_found_and_shared_snapshots_use_registered_handlers(
         create.call(&a, request.clone()).await.unwrap_err().code,
         ErrorCode::OwnerUnavailable
     );
+    use proto_desktop_rs::xiaowei::desktop::{
+        GetWebSearchRuntimeConfigRequest, SettingsChanged, WebSearchProvider,
+        WebSearchRuntimeConfig,
+    };
+    use xw_gateway::event::{EventBackpressure, EventExportRegistration};
+    registry
+        .register_owner(
+            "settings",
+            vec![
+                Method::<GetWebSearchRuntimeConfigRequest, WebSearchRuntimeConfig>::new(
+                    "xiaowei.desktop.Settings.GetWebSearchRuntimeConfig",
+                    MethodKind::Unary,
+                )
+                .handler(|_, _| async {
+                    Ok(WebSearchRuntimeConfig {
+                        provider: WebSearchProvider::Bing as i32,
+                        api_key: None,
+                    })
+                }),
+            ],
+            vec![EventExportRegistration::typed::<SettingsChanged, (), _>(
+                EventBackpressure::Coalesce,
+                |_, _| true,
+            )],
+        )
+        .unwrap();
     // This test registry is the host; production obtains this identity from Endpoint::client().
-    agent.activate(registry.client(CallContext::trusted("host-assigned-agent")));
+    agent
+        .activate(registry.client(CallContext::trusted("agent")))
+        .await
+        .unwrap();
     let created = create.call(&a, request.clone()).await.unwrap();
     let retried = create.call(&b, request).await.unwrap();
     assert_eq!(

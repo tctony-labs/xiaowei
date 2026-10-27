@@ -41,7 +41,7 @@ impl GatewayEndpoint {
             let result = async {
                 inner.activate().await?;
                 if let Some(agent) = &agent {
-                    agent.activate(inner.client()?);
+                    agent.activate(inner.client()?).await?;
                 }
                 Ok(vec![])
             }

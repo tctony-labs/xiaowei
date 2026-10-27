@@ -23,6 +23,7 @@ const outputs = [
   // Includes Rust build artifacts and Rust napi test fixtures.
   "target",
   "desktop/out",
+  "desktop/out-test",
   "desktop/dist",
   "desktop/storybook-static",
   "server/bin",

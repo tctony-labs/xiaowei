@@ -599,3 +599,31 @@
   display: block;
   overflow-wrap: anywhere;
 }
+
+.agent-web-result {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-web-result ol {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+  list-style: decimal;
+}
+
+.agent-web-result a {
+  color: var(--color-primary-text);
+  cursor: pointer;
+}
+
+.agent-web-result a:hover {
+  text-decoration: underline;
+}
+
+.agent-web-domain {
+  color: var(--color-muted);
+  font-size: 11px;
+}

@@ -27,7 +27,8 @@ const searchSources = [
   },
 ];
 export interface AgentValues {
-  maxCalls: number;
+  maxCalls?: number;
+  effectiveSource?: string;
   source: string;
   configured: string[];
 }
@@ -39,16 +40,19 @@ export function AgentSettings({
   onOpenUrl,
   initialEditor,
   highlight = false,
+  busy = false,
 }: {
   values: AgentValues;
-  onChange: (values: AgentValues) => void;
+  onChange: (values: AgentValues) => void | Promise<void>;
   onTest: () => Promise<void>;
   onSaveKey: (source: string, key: string) => Promise<void>;
   onOpenUrl: (url: string) => void;
   initialEditor?: string;
   highlight?: boolean;
+  busy?: boolean;
 }) {
   const [editor, setEditor] = useState(initialEditor ?? "");
+  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState("");
   async function test() {
@@ -65,26 +69,30 @@ export function AgentSettings({
   }
   return (
     <SettingsTabLayout title="智能体">
-      <div className={`rounded-xl ${highlight ? "ring-2 ring-primary/60" : ""}`}>
-        <SettingCard>
-          <SettingRow
-            title="单轮工具调用上限"
-            description="一次对话累计调用工具次数达到上限后，强制智能体收尾输出，避免陷入死循环"
-          >
-            <Select
-              value={values.maxCalls}
-              options={[30, 50, 100, 300].map((value) => ({ value, label: `${value} 次` }))}
-              onChange={(maxCalls) => onChange({ ...values, maxCalls })}
-              menuClassName="w-[120px]"
-            />
-          </SettingRow>
-        </SettingCard>
-      </div>
+      {values.maxCalls !== undefined && (
+        <div className={`rounded-xl ${highlight ? "ring-2 ring-primary/60" : ""}`}>
+          <SettingCard>
+            <SettingRow
+              title="单轮工具调用上限"
+              description="一次对话累计调用工具次数达到上限后，强制智能体收尾输出，避免陷入死循环"
+            >
+              <Select
+                value={values.maxCalls}
+                options={[30, 50, 100, 300].map((value) => ({ value, label: `${value} 次` }))}
+                onChange={(maxCalls) => onChange({ ...values, maxCalls })}
+                menuClassName="w-[120px]"
+              />
+            </SettingRow>
+          </SettingCard>
+        </div>
+      )}
       <SettingCard>
         <SettingRow title="网络搜索" description="智能体在调用 WebSearch 工具时使用的搜索源">
           <div className="flex items-center gap-2">
             <Select
               value={values.source}
+              disabled={busy || saving || testing}
+              ariaLabel="搜索源"
               options={searchSources.map((s) => ({
                 value: s.id,
                 label:
@@ -93,14 +101,19 @@ export function AgentSettings({
                     : `${s.name}（未配置 Key）`,
               }))}
               onChange={(source) => {
-                if (source !== "bing" && !values.configured.includes(source))
-                  setMessage("请先配置该搜索源的 API Key");
-                else onChange({ ...values, source });
+                setSaving(true);
+                setMessage("");
+                void Promise.resolve()
+                  .then(() => onChange({ ...values, source }))
+                  .catch((error: unknown) => {
+                    setMessage(error instanceof Error ? error.message : "保存失败");
+                  })
+                  .finally(() => setSaving(false));
               }}
             />
             <button
               type="button"
-              disabled={testing}
+              disabled={busy || saving || testing}
               onClick={() => void test()}
               className="cursor-pointer rounded-md bg-hover px-3 py-1 text-[12px] disabled:opacity-50"
             >
@@ -134,6 +147,7 @@ export function AgentSettings({
               {s.id !== "bing" && (
                 <button
                   type="button"
+                  disabled={busy || saving || testing}
                   onClick={() => setEditor(s.id)}
                   aria-label={`${values.configured.includes(s.id) ? "修改" : "配置"} ${s.name}`}
                   className={`cursor-pointer rounded-md px-3 py-1 text-[12px] font-medium
@@ -146,6 +160,9 @@ export function AgentSettings({
           ))}
         </div>
       </SettingCard>
+      {values.effectiveSource && values.effectiveSource !== values.source && (
+        <p className="text-[12px] text-muted">当前使用 Bing，配置所选搜索源的 Key 后生效。</p>
+      )}
       {message && (
         <p role="status" className="text-[12px] text-ink-secondary">
           {message}
@@ -160,13 +177,6 @@ export function AgentSettings({
           onOpenUrl={onOpenUrl}
           onSave={async (key) => {
             await onSaveKey(editor, key);
-            onChange({
-              ...values,
-              configured: key
-                ? [...new Set([...values.configured, editor])]
-                : values.configured.filter((s) => s !== editor),
-              source: !key && values.source === editor ? "bing" : values.source,
-            });
             setEditor("");
             setMessage(
               key ? "已保存" : values.source === editor ? "已删除，已切回 Bing" : "已删除",
@@ -234,7 +244,7 @@ function SearchKeyEditor({
               disabled={!key.trim() || busy}
               onClick={() => void save(key.trim())}
             >
-              {busy ? "校验中..." : "保存"}
+              {busy ? "保存中..." : "保存"}
             </ModalButton>
           </>
         }
@@ -288,7 +298,7 @@ function SearchKeyEditor({
         }
       >
         <p className="text-[13px] text-ink-secondary">
-          删除后将无法选择 {provider?.name}
+          删除后将无法使用 {provider?.name}
           {current ? "，并自动切回 Bing" : ""}。确定要继续吗？
         </p>
       </Modal>

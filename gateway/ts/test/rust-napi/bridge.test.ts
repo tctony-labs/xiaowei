@@ -306,6 +306,38 @@ test("reservation does not publish early and failed activation preserves the run
   await handle.close();
 });
 
+test("native activation calls dependencies before publishing routes", async () => {
+  const host = new GatewayHost();
+  const peer = host.registerOwner(
+    "peer",
+    bindHandlers(PeerFixture, { echo: (request) => request }),
+  );
+  const endpoint = business.createGatewayFixture();
+  let initialized = false;
+  const initializing = new Proxy(endpoint, {
+    get(target, key) {
+      if (key === "activate")
+        return async () => {
+          const activated = await target.activate();
+          const response = read(
+            await target.fixtureInvoke(JSON.stringify(peerEcho), bytes("init")),
+          );
+          assert.equal(fromBinary(EnvelopeSchema, response).text, "init");
+          const api = bindClient(Fixture, host.client({ caller: "test", trusted: true }));
+          await assert.rejects(api.echo(create(EnvelopeSchema)), isCode("UNKNOWN_ROUTE"));
+          initialized = true;
+          return activated;
+        };
+      const value = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  const attached = await attachRustNapi(host, "initializing", initializing);
+  assert.ok(initialized);
+  await attached.close();
+  peer.close();
+});
+
 test("Rust napi subscriber can precede source registration; Ordered burst is delivered once", async () => {
   const host = new GatewayHost();
   const b = agent.createGatewayFixture();

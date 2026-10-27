@@ -115,7 +115,9 @@ export function AgentMessage({
         {groups.map((group) => {
           let content: ReactNode;
           if (group.kind === "tools") {
-            content = <AgentToolGroup blocks={group.blocks} />;
+            content = (
+              <AgentToolGroup blocks={group.blocks} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+            );
           } else if (group.kind === "todo") {
             content = <AgentToolCall call={group.call} defaultOpen={group.id === lastTodoId} />;
           } else if (group.kind === "interaction") {

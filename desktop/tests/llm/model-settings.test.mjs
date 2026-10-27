@@ -14,6 +14,7 @@ import {
 } from "proto-desktop-ts";
 import { bindClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import artifacts from "../../../scripts/tests/bundled-worker.cjs";
 import { emptyConfig, loadConfig, resolveModels } from "../../src/main/services/llm/config.ts";
 import { registerModelSettings } from "../../src/main/services/llm/gateway.ts";
 
@@ -251,11 +252,7 @@ test("draft discovery goes through the built worker without saving and cancellat
   );
   const directory = await mkdtemp(join(tmpdir(), "draft-catalog-"));
   const host = new GatewayHost();
-  const worker = await attachLlm(
-    host,
-    [],
-    new URL("../../out/main/llm-worker.js", import.meta.url),
-  );
+  const worker = await attachLlm(host, [], artifacts.bundledWorkerUrl);
   const applied = [];
   const owner = registerModelSettings(
     host,

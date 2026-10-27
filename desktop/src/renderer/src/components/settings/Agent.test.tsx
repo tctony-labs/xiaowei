@@ -39,6 +39,6 @@ test("DeleteAndFallback", async () => {
   await userEvent.click(page.getByRole("button", { name: "删除 Key" }));
   await userEvent.click(page.getByRole("button", { name: "确认删除" }));
   await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
-  await expect(page.getByRole("button", { name: "Bing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "搜索源" })).toHaveTextContent("Bing");
   await expect(page.getByRole("button", { name: "配置 Tavily" })).toBeVisible();
 });

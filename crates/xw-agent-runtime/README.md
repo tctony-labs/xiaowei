@@ -8,6 +8,10 @@
 
 `complete_text` 供标题等辅助任务消费同一生成流，只返回通过校验且没有工具调用的完整成功 AssistantMessage，不向聊天投影发送增量；开流、读取、失败与取消沿用同一生成边界。调用方提供模型引用、指令和生成选项，并拥有任务超时与业务结果的提交。
 
+`tools::AgentTool` 提供外部逻辑工具的声明、具名规则、恢复策略及异步执行入口；`ToolContext` 只提供取消和由 core 提交保障的 `extract_text`。`ToolError::CommitFailed` 必须终止 Run，不能转换成可继续的普通工具失败。runtime 不包含设置存储或 provider 装配接口。[网页工具](../xw-agent-tools-web/README.md) 在独立 crate 实现。
+
+`RunRequest.turn_id` 为可选值：普通聊天使用 Some，工具辅助生成使用 None，不伪造聊天 Turn。`RunOutcome` 保留真实计时、首 SSE 与原始完整回复；消费者须持续排空有界事件通道，并在极短流与完成同时到达时从 outcome 补交尚未保存的首 SSE。
+
 ```sh
 cargo test -p xw-agent-runtime --locked
 ```

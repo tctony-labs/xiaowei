@@ -20,12 +20,17 @@ mod retention;
 mod service;
 mod session;
 mod title;
+mod tool_execution;
+#[cfg(test)]
+mod tool_execution_tests;
 
 pub use error::AgentError;
 pub use events::{EventSubscription, SubscriptionError};
 pub use interaction_delivery::InteractionSubscription;
 pub use proto_agent_rs::xiaowei::agent as protocol;
 pub use service::AgentService;
+pub use tool_registry::ToolRegistration;
+pub use xw_agent_runtime::tools::{AgentTool, RecoveryPolicy, ToolContext, ToolError, ToolFuture};
 pub use xw_agent_runtime::{
     CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest,
     GenerationStream, LlmGeneration,

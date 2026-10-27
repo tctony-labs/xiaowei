@@ -3,10 +3,10 @@ const { once } = require("node:events");
 const { createServer } = require("node:http");
 const { mkdtemp, readFile, rm } = require("node:fs/promises");
 const { tmpdir, homedir } = require("node:os");
-const { join, resolve } = require("node:path");
+const { join } = require("node:path");
 const { randomUUID, randomBytes } = require("node:crypto");
 const { Worker } = require("node:worker_threads");
-const { pathToFileURL } = require("node:url");
+const { bundledWorkerUrl } = require("../../../../scripts/tests/bundled-worker.cjs");
 const { test } = require("node:test");
 const { Agent } = require("xiaowei-agent");
 
@@ -222,10 +222,8 @@ async function exerciseScenario(scenario) {
   }
   const root = await mkdtemp(join(tmpdir(), "xiaowei-file-acceptance-"));
   const host = new GatewayHost();
-  const worker = new Worker(
-    pathToFileURL(resolve(__dirname, "../../../../desktop/out/main/llm-worker.js")),
-    { workerData: { models } },
-  );
+  await require("./fixtures/settings.cjs").settingsFixture(host);
+  const worker = new Worker(bundledWorkerUrl, { workerData: { models } });
   const agent = await Agent.open(root);
   let llm;
   let endpoint;
@@ -405,6 +403,8 @@ async function exerciseScenario(scenario) {
         "AskUserQuestion",
         "RequestPermission",
         "TodoWrite",
+        "WebFetch",
+        "WebSearch",
       ];
       if (process.platform === "darwin") expected.push("Bash");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());

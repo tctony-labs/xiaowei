@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 target/
 desktop/out/
+desktop/out-test/
 desktop/dist/
 desktop/.sparkle/
 server/bin/
@@ -17,6 +18,7 @@ coverage/
 *.db
 *.db-*
 *.pem
+!desktop/tests/fixtures/web/*.pem
 *.key
 *recovery-key*
 .DS_Store

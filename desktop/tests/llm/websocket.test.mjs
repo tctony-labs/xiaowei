@@ -5,6 +5,7 @@ import { GenerateRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { textEvents, until, websocketFixture } from "../../../patches/tests/fixtures/websocket.mjs";
+import artifacts from "../../../scripts/tests/bundled-worker.cjs";
 import { attachLlm } from "../../src/main/services/llm/host.ts";
 
 const user = (text) => ({
@@ -50,11 +51,7 @@ async function setup(t) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   };
   const host = new GatewayHost();
-  const owner = await attachLlm(
-    host,
-    [model],
-    new URL("../../out/main/llm-worker.js", import.meta.url),
-  );
+  const owner = await attachLlm(host, [model], artifacts.bundledWorkerUrl);
   t.after(() => owner.close());
   const client = bindStreamClient(Llm, host.client({ caller: "websocket-test", trusted: true }));
   const request = (messages, options = {}) =>

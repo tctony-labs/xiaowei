@@ -141,6 +141,9 @@ jobs:
       - name: Check and test the desktop and release tools
         run: node scripts/release/test-prebuilt.mjs
 
+      - name: Build the production desktop bundle
+        run: pnpm --dir desktop build
+
       - name: Record Cargo input timestamps for the next run
         run: node scripts/ci/cargo-cache.mjs save
 

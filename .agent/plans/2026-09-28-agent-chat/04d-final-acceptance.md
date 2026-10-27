@@ -1,6 +1,6 @@
 # 04d：工具边界、打包与产品验收
 
-前置：[当前文本聊天基线](../../records/active/2026-09-28-agent-chat/implementation-results.md#持久文本聊天里程碑)、[02i](02i-webfetch.md)、[02k](02k-continue-recovery.md)、[02l](02l-titles.md)、[03d](03d-composed-preview.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[当前文本聊天基线](../../records/active/2026-09-28-agent-chat/implementation-results.md#持久文本聊天里程碑)、[网页工具交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)、[02k](02k-continue-recovery.md)、[02l](02l-titles.md)、[03d](03d-composed-preview.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：首期全部真实工具／恢复／标题功能通过生产边界与 Quick Chat 产品验收，回填结果后结束计划。
 
@@ -31,7 +31,7 @@
 
 ## 独立验收
 
-- 受影响 crates cargo test、contracts:test／contracts:check／gateway:check、just check、desktop test、desktop build／package。只改 Gateway 核心才额外 gateway:test。
+- 受影响 crates cargo test、contracts:test／contracts:check／gateway:check、just check、desktop test／build:test；正式 build／package 按发布流程单独执行，不覆盖活跃开发实例的产物。只改 Gateway 核心才额外 gateway:test。
 - Electron：普通多轮、文件／Bash／问答权限、各阶段停止、隐藏切换、renderer 重载、应用重启、继续不重复副作用、压缩／标题／模型。
 - 平台：快捷键、Esc／空输入 ↑、菜单优先级、真实 IME、焦点与搜索末项滚动。未完成的必要人工验收不能当完成；不运行冷启动冒烟脚本。
 

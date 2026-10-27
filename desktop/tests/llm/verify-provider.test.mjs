@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import artifacts from "../../../scripts/tests/bundled-worker.cjs";
 import { llmFixture } from "../fixtures/llm.mjs";
 import { configDocument } from "../fixtures/model-config.mjs";
 
@@ -23,7 +24,12 @@ const execute = (path, mode, id = "test") =>
       ],
       {
         cwd: new URL("../../", import.meta.url),
-        env: { PATH: process.env.PATH, XIAOWEI_LLM_CONFIG: path, VERIFY_KEY: "test-key" },
+        env: {
+          PATH: process.env.PATH,
+          XIAOWEI_LLM_CONFIG: path,
+          VERIFY_KEY: "test-key",
+          XIAOWEI_TEST_BUNDLED_MAIN_DIR: artifacts.bundledMainDir,
+        },
         stdio: ["ignore", "pipe", "pipe"],
         timeout: 15000,
       },

@@ -8,6 +8,64 @@ service Settings {
   rpc Get(google.protobuf.Empty) returns (SettingsSnapshot);
 
   rpc Update(UpdateSettingsRequest) returns (SettingsSnapshot);
+
+  // Native assembly only. Returns one plaintext key; never publish this response as an event.
+  rpc GetWebSearchRuntimeConfig(GetWebSearchRuntimeConfigRequest)
+      returns (WebSearchRuntimeConfig);
+
+  // Owned by Agent assembly. Uses the saved key for this provider without changing settings
+  // or the active provider. Missing keys fail strictly; no fallback. Searches "ping", one result.
+  rpc TestWebSearchProvider(TestWebSearchProviderRequest) returns (WebSearchProviderTestResult);
+}
+
+enum WebSearchProvider {
+  WEB_SEARCH_PROVIDER_UNSPECIFIED = 0;
+  WEB_SEARCH_PROVIDER_BING = 1;
+  WEB_SEARCH_PROVIDER_TAVILY = 2;
+  WEB_SEARCH_PROVIDER_BRAVE = 3;
+  WEB_SEARCH_PROVIDER_SERPER = 4;
+}
+
+message WebSearchSettings {
+  // Defaults to Bing. A provider without a saved key may remain selected.
+  WebSearchProvider selected_provider = 1;
+  // Bing when the selected keyed provider has no key.
+  WebSearchProvider effective_provider = 2;
+  // Keyed providers with saved keys, in enum order. No keys or key fragments are exposed.
+  repeated WebSearchProvider configured_providers = 3;
+}
+
+message WebSearchApiKeyUpdate {
+  // Tavily, Brave or Serper; Bing and unspecified are rejected.
+  WebSearchProvider provider = 1;
+  // Write-only. Trimmed ASCII key, at most 4096 bytes; empty deletes it. Deleting the
+  // selected provider's key atomically selects Bing in the same persisted setting.
+  string api_key = 2;
+}
+
+message GetWebSearchRuntimeConfigRequest {
+  // Absent uses the effective provider with Bing fallback. Present requests this exact
+  // provider for testing and fails if its key is missing. Unspecified is invalid.
+  optional WebSearchProvider provider = 1;
+}
+
+message WebSearchRuntimeConfig {
+  WebSearchProvider provider = 1;
+  // Absent for Bing; otherwise only the requested/effective provider's plaintext key.
+  optional string api_key = 2;
+}
+
+message TestWebSearchProviderRequest {
+  WebSearchProvider provider = 1;
+}
+
+message WebSearchProviderTestResult {
+  bool ok = 1;
+  uint32 latency_ms = 2;
+  // Absent on failure or a successful empty search.
+  optional string sample_title = 3;
+  // Safe classification and optional HTTP status; never upstream bodies or credentials.
+  optional string error = 4;
 }
 
 enum ThemeMode {
@@ -39,6 +97,7 @@ message SettingsSnapshot {
   bool clipboard_auto_paste = 6;
   // Allowed values: 1, 7, 15, 30, -1 (permanent). Default: 30.
   int32 clipboard_retention_days = 7;
+  WebSearchSettings web_search = 8;
 }
 
 message SettingsChanged {
@@ -56,5 +115,8 @@ message UpdateSettingsRequest {
     bool clipboard_enabled = 5;
     bool clipboard_auto_paste = 6;
     int32 clipboard_retention_days = 7;
+    // Saves the selection even when no key exists; unspecified is rejected.
+    WebSearchProvider web_search_provider = 8;
+    WebSearchApiKeyUpdate web_search_api_key = 9;
   }
 }

@@ -3,8 +3,8 @@ const { createServer } = require("node:http");
 const { once } = require("node:events");
 const { randomBytes } = require("node:crypto");
 const { Worker } = require("node:worker_threads");
-const { pathToFileURL } = require("node:url");
-const { resolve, join } = require("node:path");
+const { join } = require("node:path");
+const { bundledWorkerUrl } = require("../../../../scripts/tests/bundled-worker.cjs");
 const { mkdtemp, rm, readdir, readFile } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { test } = require("node:test");
@@ -74,31 +74,29 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const host = new GatewayHost();
-  const worker = new Worker(
-    pathToFileURL(resolve(__dirname, "../../../../desktop/out/main/llm-worker.js")),
-    {
-      workerData: {
-        models: [
-          {
-            id: "test",
-            modelId: "upstream",
-            name: "Test",
-            api: "openai-completions",
-            provider: "openai",
-            providerName: "Test provider",
-            reasoning: true,
-            input: ["text"],
-            maxTokens: 4096,
-            contextWindow: 8192,
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            apiKey: "fixture",
-            baseUrl: `http://127.0.0.1:${server.address().port}`,
-            compat: { maxTokensField: "max_tokens" },
-          },
-        ],
-      },
+  await require("./fixtures/settings.cjs").settingsFixture(host);
+  const worker = new Worker(bundledWorkerUrl, {
+    workerData: {
+      models: [
+        {
+          id: "test",
+          modelId: "upstream",
+          name: "Test",
+          api: "openai-completions",
+          provider: "openai",
+          providerName: "Test provider",
+          reasoning: true,
+          input: ["text"],
+          maxTokens: 4096,
+          contextWindow: 8192,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          apiKey: "fixture",
+          baseUrl: `http://127.0.0.1:${server.address().port}`,
+          compat: { maxTokensField: "max_tokens" },
+        },
+      ],
     },
-  );
+  });
   let llm;
   let endpoint;
   const root = await mkdtemp(join(tmpdir(), "agent-rollout-runtime-"));

@@ -2,10 +2,17 @@ import { AgentToolStatus } from "proto-desktop-ts";
 import { useId, useState } from "react";
 import { AgentToolCall } from "./AgentToolCall";
 import { AgentToolIcon } from "./AgentToolIcon";
+import type { AgentWebCallbacks } from "./AgentWebResult";
 import type { AgentToolBlock } from "./message-blocks";
 import { toolGroupPresentation } from "./tool-presentation";
 
-export function AgentToolGroup({ blocks }: { blocks: AgentToolBlock[] }) {
+export function AgentToolGroup({
+  blocks,
+  onCopy,
+  onOpenUrl,
+}: {
+  blocks: AgentToolBlock[];
+} & AgentWebCallbacks) {
   const contentId = useId();
   const [expanded, setExpanded] = useState(false);
   const multiple = blocks.length > 1;
@@ -42,7 +49,7 @@ export function AgentToolGroup({ blocks }: { blocks: AgentToolBlock[] }) {
       )}
       <div id={contentId} className="agent-tool-group-content" hidden={multiple && !expanded}>
         {blocks.map((block) => (
-          <AgentToolCall key={block.id} call={block.call} />
+          <AgentToolCall key={block.id} call={block.call} onCopy={onCopy} onOpenUrl={onOpenUrl} />
         ))}
       </div>
     </div>

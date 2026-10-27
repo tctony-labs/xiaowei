@@ -34,6 +34,7 @@ pub fn error(error: AgentError) -> GatewayError {
 }
 
 pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
+    let test_search = agent.clone();
     let create = agent.clone();
     let archive = agent.clone();
     let list = agent.clone();
@@ -113,6 +114,15 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
     });
     viewing.stream_policy.producer_idle_ms = 2_147_483_647;
     vec![
+        crate::gateway_binding::xiaowei_desktop_settings_service::TEST_WEB_SEARCH_PROVIDER.handler(
+            move |request, _| {
+                let agent = test_search.clone();
+                async move {
+                    ready(&agent)?;
+                    agent.test_web_search_provider(request.provider).await
+                }
+            },
+        ),
         api::CREATE_SESSION.handler(move |request, client| {
             let agent = create.clone();
             async move {

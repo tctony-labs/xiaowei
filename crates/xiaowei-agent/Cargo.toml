@@ -6,11 +6,14 @@ edition = "2024"
 [dependencies]
 xw-agent = { path = "../xw-agent" }
 xw-agent-types = { path = "../xw-agent-types" }
+xw-agent-tools-web = { path = "../xw-agent-tools-web" }
 xw-gateway = { path = "../../gateway/rust" }
 proto-agent-rs = { path = "../../contracts/out/proto-agent-rs" }
 proto-llm-rs = { path = "../../contracts/out/proto-llm-rs" }
+proto-desktop-rs = { path = "../../contracts/out/proto-desktop-rs" }
 futures-util = "0.3"
 prost = { workspace = true }
 tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
 thiserror = "2"
+log = "0.4"
 serde_json = { version = "1", features = ["raw_value"] }

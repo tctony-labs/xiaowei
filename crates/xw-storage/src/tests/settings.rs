@@ -13,6 +13,170 @@ fn allow() -> Apply {
 }
 
 #[tokio::test]
+async fn search_settings_keep_keys_private_and_refresh_even_when_redacted_values_are_equal() {
+    use proto_desktop_rs::xiaowei::desktop::{
+        GetWebSearchRuntimeConfigRequest, WebSearchApiKeyUpdate, WebSearchProvider as Provider,
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("search.sqlite");
+    let database = Arc::new(Database::open(&path).await.unwrap());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
+    let events = Arc::new(Mutex::new(vec![]));
+    let captured = events.clone();
+    settings.set_publisher(Arc::new(move |event| captured.lock().unwrap().push(event)));
+    let initial = settings.get().await.unwrap().web_search.unwrap();
+    assert_eq!(initial.selected_provider, Provider::Bing as i32);
+    assert!(initial.configured_providers.is_empty());
+    let selected = settings
+        .update(UpdateSettingsRequest {
+            change: Some(Change::WebSearchProvider(Provider::Tavily as i32)),
+        })
+        .await
+        .unwrap()
+        .web_search
+        .unwrap();
+    assert_eq!(selected.selected_provider, Provider::Tavily as i32);
+    assert_eq!(selected.effective_provider, Provider::Bing as i32);
+    let runtime = settings
+        .web_search_runtime_config(GetWebSearchRuntimeConfigRequest { provider: None })
+        .await
+        .unwrap();
+    assert_eq!(runtime.provider, Provider::Bing as i32);
+    assert_eq!(runtime.api_key, None);
+    assert!(settings
+        .web_search_runtime_config(GetWebSearchRuntimeConfigRequest {
+            provider: Some(Provider::Tavily as i32),
+        })
+        .await
+        .is_err());
+
+    for (provider, key) in [
+        (Provider::Tavily, "tavily-fixture-a"),
+        (Provider::Brave, "brave-fixture"),
+        (Provider::Tavily, "tavily-fixture-b"),
+    ] {
+        settings
+            .update(UpdateSettingsRequest {
+                change: Some(Change::WebSearchApiKey(WebSearchApiKeyUpdate {
+                    provider: provider as i32,
+                    api_key: key.into(),
+                })),
+            })
+            .await
+            .unwrap();
+    }
+    let events = events.lock().unwrap().clone();
+    assert_eq!(events.len(), 4);
+    assert_eq!(events[2], events[3]);
+    assert!(!format!("{events:?}").contains("fixture"));
+    let runtime = settings
+        .web_search_runtime_config(GetWebSearchRuntimeConfigRequest { provider: None })
+        .await
+        .unwrap();
+    assert_eq!(runtime.provider, Provider::Tavily as i32);
+    assert_eq!(runtime.api_key.as_deref(), Some("tavily-fixture-b"));
+    let stored = database
+        .meta_get(KvKey {
+            key: "setting.webSearch".into(),
+        })
+        .await
+        .unwrap()
+        .json
+        .unwrap();
+    assert!(!stored.contains("fixture"));
+    database.close().await;
+
+    let database = Arc::new(Database::open(&path).await.unwrap());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
+    assert_eq!(
+        settings
+            .web_search_runtime_config(GetWebSearchRuntimeConfigRequest {
+                provider: Some(Provider::Brave as i32),
+            })
+            .await
+            .unwrap()
+            .api_key
+            .as_deref(),
+        Some("brave-fixture")
+    );
+    let deleted = settings
+        .update(UpdateSettingsRequest {
+            change: Some(Change::WebSearchApiKey(WebSearchApiKeyUpdate {
+                provider: Provider::Tavily as i32,
+                api_key: String::new(),
+            })),
+        })
+        .await
+        .unwrap()
+        .web_search
+        .unwrap();
+    assert_eq!(deleted.selected_provider, Provider::Bing as i32);
+    assert_eq!(deleted.configured_providers, [Provider::Brave as i32]);
+    for change in [
+        Change::WebSearchProvider(0),
+        Change::WebSearchProvider(99),
+        Change::WebSearchApiKey(WebSearchApiKeyUpdate {
+            provider: Provider::Bing as i32,
+            api_key: "key".into(),
+        }),
+        Change::WebSearchApiKey(WebSearchApiKeyUpdate {
+            provider: Provider::Brave as i32,
+            api_key: "secret\r\nheader".into(),
+        }),
+    ] {
+        assert!(matches!(
+            settings
+                .update(UpdateSettingsRequest {
+                    change: Some(change)
+                })
+                .await,
+            Err(SettingsError::InvalidArgument(_))
+        ));
+    }
+    database.close().await;
+}
+
+#[tokio::test]
+async fn failed_search_save_never_publishes_or_changes_the_previous_value() {
+    use proto_desktop_rs::xiaowei::desktop::WebSearchProvider;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("search.sqlite");
+    let database = Arc::new(Database::open(&path).await.unwrap());
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite:{}", path.display()))
+        .await
+        .unwrap();
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
+    let events = Arc::new(Mutex::new(vec![]));
+    let captured = events.clone();
+    settings.set_publisher(Arc::new(move |event| captured.lock().unwrap().push(event)));
+    sqlx::query(
+        "CREATE TRIGGER fail_search BEFORE INSERT ON meta \
+         WHEN NEW.key = 'setting.webSearch' BEGIN SELECT RAISE(FAIL, 'fixture'); END",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(settings
+        .update(UpdateSettingsRequest {
+            change: Some(Change::WebSearchProvider(WebSearchProvider::Tavily as i32)),
+        })
+        .await
+        .is_err());
+    assert!(events.lock().unwrap().is_empty());
+    assert_eq!(
+        settings
+            .get()
+            .await
+            .unwrap()
+            .web_search
+            .unwrap()
+            .selected_provider,
+        WebSearchProvider::Bing as i32
+    );
+    database.close().await;
+}
+
+#[tokio::test]
 async fn old_per_key_values_keep_their_names_and_invalid_values_fall_back() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("settings.sqlite");

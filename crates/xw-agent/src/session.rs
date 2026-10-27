@@ -14,6 +14,8 @@ pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T
 }
 
 pub(crate) struct Session {
+    pub tools: Vec<crate::ToolRegistration>,
+    pub tool_context: Option<xw_agent_types::SystemContext>,
     pub indexed: bool,
     pub frozen: bool,
     pub index_dirty: bool,
@@ -39,6 +41,8 @@ pub(crate) struct Session {
 impl Session {
     pub fn new(id: SessionId, created_at_ms: i64, config: AgentModelConfig) -> Self {
         Self {
+            tools: Vec::new(),
+            tool_context: None,
             indexed: false,
             frozen: false,
             index_dirty: false,

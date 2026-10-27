@@ -1,0 +1,26 @@
+[package]
+name = "xw-agent-tools-web"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+xw-agent-runtime = { path = "../xw-agent-runtime" }
+xw-agent-types = { path = "../xw-agent-types" }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "rustls-tls-native-roots",
+] }
+htmd = "0.5"
+base64 = "0.22"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
+futures-util = "0.3"
+log = "0.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["net", "io-util", "test-util"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+rustls-pemfile = "2"

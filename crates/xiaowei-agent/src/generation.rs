@@ -110,6 +110,8 @@ impl AgentHost for GatewayGeneration {
         let client = self.client.lock().unwrap().clone();
         Box::pin(async move {
             let client = client.ok_or(GenerationError::Unavailable)?;
+            let session_id = request.session_id;
+            let model_ref = request.model_ref.clone();
             let request = pb::GenerateRequest {
                 model_ref: request.model_ref,
                 system_prompt: request.system_prompt,
@@ -131,25 +133,48 @@ impl AgentHost for GatewayGeneration {
             let upstream = tokio::select! {
                 biased;
                 _ = cancellation.cancelled() => return Err(GenerationError::Cancelled),
-                upstream = llm::GENERATE.stream(&client, request) => upstream.map_err(|_| unavailable())?,
+                upstream = llm::GENERATE.stream(&client, request) => {
+                    upstream.map_err(|error| {
+                        log_gateway_failure("open", session_id, &model_ref, &error);
+                        unavailable()
+                    })?
+                },
             };
             // TypedResponseStream's lease cancels the remote source on drop, including
             // cancellation while next() is pending and rejection of a terminal message.
             let stream = stream::unfold(
-                (upstream, cancellation),
-                |(mut upstream, cancellation)| async move {
+                (upstream, cancellation, model_ref),
+                move |(mut upstream, cancellation, model_ref)| async move {
                     let result = tokio::select! {
                         biased;
                         _ = cancellation.cancelled() => return None,
                         event = upstream.next() => event?,
                     };
-                    let event = result.map_err(|_| unavailable()).and_then(decode_event);
-                    Some((event, (upstream, cancellation)))
+                    let event = result
+                        .map_err(|error| {
+                            log_gateway_failure("consume", session_id, &model_ref, &error);
+                            unavailable()
+                        })
+                        .and_then(decode_event);
+                    Some((event, (upstream, cancellation, model_ref)))
                 },
             );
             Ok(Box::pin(stream) as GenerationStream)
         })
     }
+}
+
+fn log_gateway_failure(
+    stage: &str,
+    session_id: xw_agent_types::SessionId,
+    model_ref: &str,
+    error: &xw_gateway::GatewayError,
+) {
+    log::warn!(
+        "LLM Gateway stream failed stage={stage} session={session_id} \
+         model={model_ref} code={:?}",
+        error.code,
+    );
 }
 
 fn invalid() -> GenerationError {
@@ -226,4 +251,90 @@ fn decode_event(event: pb::GenerateEvent) -> Result<GenerationEvent, GenerationE
 
 fn valid_budget(value: f64) -> bool {
     value.is_finite() && value > 0.0 && value.fract() == 0.0 && value <= 9_007_199_254_740_991.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use xw_agent_types::SessionId;
+    use xw_gateway::{CallContext, ErrorCode, GatewayError, XwInvokeRegistry};
+
+    struct Logs(Mutex<Vec<String>>);
+
+    impl log::Log for Logs {
+        fn enabled(&self, _: &log::Metadata<'_>) -> bool {
+            true
+        }
+
+        fn log(&self, record: &log::Record<'_>) {
+            if record.target() == module_path!().trim_end_matches("::tests") {
+                self.0.lock().unwrap().push(record.args().to_string());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    static LOGS: Logs = Logs(Mutex::new(Vec::new()));
+
+    #[tokio::test]
+    async fn gateway_open_and_consumption_failures_log_safe_origin_context() {
+        log::set_logger(&LOGS).unwrap();
+        log::set_max_level(log::LevelFilter::Warn);
+
+        let registry = XwInvokeRegistry::new();
+        let adapter = GatewayGeneration::default();
+        adapter.bind(registry.client(CallContext::trusted("test")));
+        let session_id = SessionId::new();
+        let request = GenerationRequest {
+            session_id,
+            model_ref: "fixture-model".into(),
+            system_prompt: "private prompt".into(),
+            messages: vec![],
+            reasoning: None,
+            temperature: None,
+            max_tokens: None,
+        };
+
+        let result = adapter
+            .generate(request.clone(), CancellationToken::new())
+            .await;
+        assert!(matches!(result, Err(GenerationError::Failed(_))));
+
+        registry
+            .register_owner(
+                "llm",
+                vec![llm::GENERATE.handler(|_, _| async {
+                    Ok(stream::once(async {
+                        Err::<pb::GenerateEvent, _>(GatewayError::new(
+                            ErrorCode::HandlerError,
+                            "private upstream response api-key",
+                        ))
+                    }))
+                })],
+                vec![],
+            )
+            .unwrap();
+        let mut stream = adapter
+            .generate(request, CancellationToken::new())
+            .await
+            .unwrap();
+        assert!(matches!(
+            stream.next().await,
+            Some(Err(GenerationError::Failed(_)))
+        ));
+
+        let logs = LOGS.0.lock().unwrap();
+        assert_eq!(logs.len(), 2);
+        assert!(logs[0].contains("stage=open"));
+        assert!(logs[0].contains("code=UnknownRoute"));
+        assert!(logs[1].contains("stage=consume"));
+        assert!(logs[1].contains("code=HandlerError"));
+        for line in logs.iter() {
+            assert!(line.contains(&session_id.to_string()));
+            assert!(line.contains("model=fixture-model"));
+            assert!(!line.contains("private"));
+            assert!(!line.contains("api-key"));
+        }
+    }
 }

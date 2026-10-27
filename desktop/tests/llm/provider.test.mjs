@@ -60,6 +60,8 @@ test("built LLM worker maps requests, text, usage and unique terminal", async (t
 });
 
 test("LLM rejects unsupported inputs before HTTP and propagates sanitized failures", async (t) => {
+  const logs = [];
+  t.mock.method(console, "warn", (line) => logs.push(line));
   const fixture = await llmFixture(t);
   for (const extra of [
     { modelRef: "missing" },
@@ -94,6 +96,9 @@ test("LLM rejects unsupported inputs before HTTP and propagates sanitized failur
     assert.ok(!received.includes("finished"));
   }
   assert.equal(fixture.requests.length, 3);
+  await waitFor(() => logs.some((line) => line.includes("http_error")));
+  assert.ok(logs.some((line) => line.includes("status: 401")));
+  assert.ok(logs.every((line) => !line.includes("test-key") && !line.includes("secret response")));
 });
 
 test("LLM cancellation and owner close abort HTTP, including a paused consumer", async (t) => {

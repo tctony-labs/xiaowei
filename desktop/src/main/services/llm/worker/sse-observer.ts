@@ -1,8 +1,12 @@
 // Observe complete SSE data events while forwarding the original bytes unchanged.
 // Only parser state is retained; event bodies are never accumulated.
-export function observeSseFetch(onFirstEvent: (receivedAtMs: number) => void): typeof fetch {
+export function observeSseFetch(
+  onFirstEvent: (receivedAtMs: number) => void,
+  onResponse?: (status: number) => void,
+): typeof fetch {
   return async (input, init) => {
     const response = await fetch(input, init);
+    onResponse?.(response.status);
     if (
       !response.body ||
       response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !==

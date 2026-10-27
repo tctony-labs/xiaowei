@@ -33,7 +33,15 @@ pub(crate) async fn execute(
     let _done = done.drop_guard();
     let started = Instant::now();
     let session_id = request.session_id;
-    let result = drive(&shared, generation, &mut request, &cancellation, started).await;
+    let result = drive(
+        &shared,
+        host.clone(),
+        generation,
+        &mut request,
+        &cancellation,
+        started,
+    )
+    .await;
     let failed_commit = result.is_err();
     let (status, error) = match result {
         Ok((RunStatus::Completed, _)) => (AgentRunStatus::Completed, None),
@@ -108,12 +116,13 @@ pub(crate) async fn execute(
 
 async fn drive(
     shared: &Arc<Mutex<State>>,
+    host: Arc<dyn AgentHost>,
     generation: Arc<dyn LlmGeneration>,
     request: &mut RunRequest,
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, history, mut grants, todo_metadata) = {
+    let (cwd, history, mut grants, todo_metadata, registered, exposed) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
         let todo_metadata = session
@@ -137,6 +146,12 @@ async fn drive(
             session.history.clone(),
             session.granted_paths.clone(),
             todo_metadata,
+            session.tools.clone(),
+            crate::tool_registry::context(session)?
+                .tools
+                .into_iter()
+                .map(|tool| tool.name)
+                .collect::<std::collections::BTreeSet<_>>(),
         )
     };
     let mut todos = xw_agent_runtime::tools::todo::TodoWrite::restore(todo_metadata.as_deref())
@@ -173,6 +188,7 @@ async fn drive(
         tokio::pin!(future);
         let mut blocks = BTreeMap::new();
         let mut storage_failed = false;
+        let mut first_sse_committed = false;
         let mut display_failed = false;
         let mut outcome = loop {
             tokio::select! {
@@ -181,14 +197,16 @@ async fn drive(
                     if storage_failed || display_failed { continue; }
                     let mut state = shared.lock().unwrap();
                     let session = state.sessions.get_mut(&request.session_id).unwrap();
-                    if let GenerationEvent::FirstSseReceived { received_at_ms } = &update.event
-                        && session.append(domain::EntryPayload::GenFirstSseReceived(
+                    if let GenerationEvent::FirstSseReceived { received_at_ms } = &update.event {
+                        if session.append(domain::EntryPayload::GenFirstSseReceived(
                             domain::GenFirstSseReceived { gen_id: request.gen_id,
                                 received_at_ms: *received_at_ms }), *received_at_ms).is_err()
                         {
                             storage_failed = true;
                             cancellation.cancel();
                             continue;
+                        }
+                        first_sse_committed = true;
                     }
                     let previous = session.view.runs.last().unwrap().clone();
                     let changes = project_update(
@@ -244,6 +262,15 @@ async fn drive(
         {
             let mut state = shared.lock().unwrap();
             let session = state.sessions.get_mut(&request.session_id).unwrap();
+            if !first_sse_committed && let Some(received_at_ms) = outcome.first_sse_at_ms {
+                session.append(
+                    domain::EntryPayload::GenFirstSseReceived(domain::GenFirstSseReceived {
+                        gen_id: request.gen_id,
+                        received_at_ms,
+                    }),
+                    received_at_ms,
+                )?;
+            }
             session.record_generation(request, &outcome, &blocks)?;
             let run = session.view.runs.last_mut().unwrap();
             run.items.truncate(base_items);
@@ -307,7 +334,7 @@ async fn drive(
                     tool_id: domain::ToolId::new(),
                     key: domain::ProviderToolKey {
                         run_id: request.run_id,
-                        turn_id: request.turn_id,
+                        turn_id: request.turn_id.expect("conversation Turn"),
                         gen_id: request.gen_id,
                         provider_call_id: id.clone(),
                     },
@@ -330,6 +357,33 @@ async fn drive(
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
+                } else if !exposed.contains(name) {
+                    Err(format!("当前会话未开放工具：{name}"))
+                } else if let Some(registration) = registered
+                    .iter()
+                    .find(|tool| tool.declaration.name == *name)
+                {
+                    let context = crate::tool_execution::ExecutionContext {
+                        shared: shared.clone(),
+                        host: host.clone(),
+                        generation: generation.clone(),
+                        request: request.clone(),
+                        intent: intent.clone(),
+                        cancellation: cancellation.clone(),
+                    };
+                    match registration
+                        .tool
+                        .execute(&intent.arguments_json, &context)
+                        .await
+                    {
+                        Ok(output) => Ok(output),
+                        Err(crate::ToolError::CommitFailed) => return Err(AgentError::Persistence),
+                        Err(crate::ToolError::Cancelled) => {
+                            execution_cancelled = true;
+                            Err("工具已取消".into())
+                        }
+                        Err(crate::ToolError::Failed(message)) => Err(message),
+                    }
                 } else if name == "TodoWrite" && cwd.is_some() {
                     todos.execute(&intent.arguments_json)
                 } else if matches!(name.as_str(), "AskUserQuestion" | "RequestPermission") {
@@ -484,7 +538,7 @@ async fn drive(
             return Ok((status, error));
         }
         ordinal += 1;
-        request.turn_id = domain::TurnId::new();
+        request.turn_id = Some(domain::TurnId::new());
         request.gen_id = domain::GenId::new();
         request.message_id = domain::MessageId::new();
         start_next(shared, request, ordinal)?;
@@ -703,7 +757,7 @@ fn settle_turn(
         .unwrap()
         .append(
             domain::EntryPayload::TurnEnded(domain::TurnEnded {
-                turn_id: request.turn_id,
+                turn_id: request.turn_id.expect("conversation Turn"),
                 status: match status {
                     RunStatus::Completed => domain::TurnStatus::Completed,
                     RunStatus::Failed => domain::TurnStatus::Failed,
@@ -774,7 +828,7 @@ fn start_next(
     };
     session.append(
         domain::EntryPayload::TurnStarted(domain::TurnStarted {
-            turn_id: request.turn_id,
+            turn_id: request.turn_id.expect("conversation Turn"),
             run_id: request.run_id,
             ordinal,
             boundary: boundary.clone(),
@@ -785,7 +839,7 @@ fn start_next(
         domain::EntryPayload::GenStarted(domain::GenStarted {
             gen_id: request.gen_id,
             run_id: Some(request.run_id),
-            turn_id: Some(request.turn_id),
+            turn_id: request.turn_id,
             attempt: 1,
             purpose: domain::GenPurpose::Conversation,
             context: None,

@@ -12,7 +12,164 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/desktop/settings.proto.
  */
 export const file_xiaowei_desktop_settings: GenFile = /*@__PURE__*/
-  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3Avc2V0dGluZ3MucHJvdG8SD3hpYW93ZWkuZGVza3RvcCIfCg9TaG9ydGN1dEJpbmRpbmcSDAoEa2V5cxgBIAMoCSKyAQoVU2hvcnRjdXRDb25maWd1cmF0aW9uEi4KBG1haW4YASABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nEjMKCWNsaXBib2FyZBgCIAEoCzIgLnhpYW93ZWkuZGVza3RvcC5TaG9ydGN1dEJpbmRpbmcSNAoKcXVpY2tfY2hhdBgDIAEoCzIgLnhpYW93ZWkuZGVza3RvcC5TaG9ydGN1dEJpbmRpbmciiAIKEFNldHRpbmdzU25hcHNob3QSKQoFdGhlbWUYASABKA4yGi54aWFvd2VpLmRlc2t0b3AuVGhlbWVNb2RlEhEKCWF1dG9zdGFydBgCIAEoCBIgChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAgSOQoJc2hvcnRjdXRzGAQgASgLMiYueGlhb3dlaS5kZXNrdG9wLlNob3J0Y3V0Q29uZmlndXJhdGlvbhIZChFjbGlwYm9hcmRfZW5hYmxlZBgFIAEoCBIcChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCBIgChhjbGlwYm9hcmRfcmV0ZW50aW9uX2RheXMYByABKAUiRgoPU2V0dGluZ3NDaGFuZ2VkEjMKCHNuYXBzaG90GAEgASgLMiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3QipQIKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIrCgV0aGVtZRgBIAEoDjIaLnhpYW93ZWkuZGVza3RvcC5UaGVtZU1vZGVIABITCglhdXRvc3RhcnQYAiABKAhIABIiChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAhIABI7CglzaG9ydGN1dHMYBCABKAsyJi54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRDb25maWd1cmF0aW9uSAASGwoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAhIABIeChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCEgAEiIKGGNsaXBib2FyZF9yZXRlbnRpb25fZGF5cxgHIAEoBUgAQggKBmNoYW5nZSppCglUaGVtZU1vZGUSGgoWVEhFTUVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVRIRU1FX01PREVfU1lTVEVNEAESFAoQVEhFTUVfTU9ERV9MSUdIVBACEhMKD1RIRU1FX01PREVfREFSSxADMqEBCghTZXR0aW5ncxJACgNHZXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaIS54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NTbmFwc2hvdBJTCgZVcGRhdGUSJi54aWFvd2VpLmRlc2t0b3AuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0GiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3RiBnByb3RvMw", [file_google_protobuf_empty]);
+  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3Avc2V0dGluZ3MucHJvdG8SD3hpYW93ZWkuZGVza3RvcCLUAQoRV2ViU2VhcmNoU2V0dGluZ3MSPQoRc2VsZWN0ZWRfcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISPgoSZWZmZWN0aXZlX3Byb3ZpZGVyGAIgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyEkAKFGNvbmZpZ3VyZWRfcHJvdmlkZXJzGAMgAygOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyIl4KFVdlYlNlYXJjaEFwaUtleVVwZGF0ZRI0Cghwcm92aWRlchgBIAEoDjIiLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hQcm92aWRlchIPCgdhcGlfa2V5GAIgASgJImoKIEdldFdlYlNlYXJjaFJ1bnRpbWVDb25maWdSZXF1ZXN0EjkKCHByb3ZpZGVyGAEgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVySACIAQFCCwoJX3Byb3ZpZGVyInAKFldlYlNlYXJjaFJ1bnRpbWVDb25maWcSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISFAoHYXBpX2tleRgCIAEoCUgAiAEBQgoKCF9hcGlfa2V5IlQKHFRlc3RXZWJTZWFyY2hQcm92aWRlclJlcXVlc3QSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXIihwEKG1dlYlNlYXJjaFByb3ZpZGVyVGVzdFJlc3VsdBIKCgJvaxgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgNEhkKDHNhbXBsZV90aXRsZRgDIAEoCUgAiAEBEhIKBWVycm9yGAQgASgJSAGIAQFCDwoNX3NhbXBsZV90aXRsZUIICgZfZXJyb3IiHwoPU2hvcnRjdXRCaW5kaW5nEgwKBGtleXMYASADKAkisgEKFVNob3J0Y3V0Q29uZmlndXJhdGlvbhIuCgRtYWluGAEgASgLMiAueGlhb3dlaS5kZXNrdG9wLlNob3J0Y3V0QmluZGluZxIzCgljbGlwYm9hcmQYAiABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nEjQKCnF1aWNrX2NoYXQYAyABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nIsACChBTZXR0aW5nc1NuYXBzaG90EikKBXRoZW1lGAEgASgOMhoueGlhb3dlaS5kZXNrdG9wLlRoZW1lTW9kZRIRCglhdXRvc3RhcnQYAiABKAgSIAoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgIEjkKCXNob3J0Y3V0cxgEIAEoCzImLnhpYW93ZWkuZGVza3RvcC5TaG9ydGN1dENvbmZpZ3VyYXRpb24SGQoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAgSHAoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAgSIAoYY2xpcGJvYXJkX3JldGVudGlvbl9kYXlzGAcgASgFEjYKCndlYl9zZWFyY2gYCCABKAsyIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoU2V0dGluZ3MiRgoPU2V0dGluZ3NDaGFuZ2VkEjMKCHNuYXBzaG90GAEgASgLMiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3QirgMKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIrCgV0aGVtZRgBIAEoDjIaLnhpYW93ZWkuZGVza3RvcC5UaGVtZU1vZGVIABITCglhdXRvc3RhcnQYAiABKAhIABIiChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAhIABI7CglzaG9ydGN1dHMYBCABKAsyJi54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRDb25maWd1cmF0aW9uSAASGwoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAhIABIeChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCEgAEiIKGGNsaXBib2FyZF9yZXRlbnRpb25fZGF5cxgHIAEoBUgAEkEKE3dlYl9zZWFyY2hfcHJvdmlkZXIYCCABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXJIABJEChJ3ZWJfc2VhcmNoX2FwaV9rZXkYCSABKAsyJi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoQXBpS2V5VXBkYXRlSABCCAoGY2hhbmdlKrUBChFXZWJTZWFyY2hQcm92aWRlchIjCh9XRUJfU0VBUkNIX1BST1ZJREVSX1VOU1BFQ0lGSUVEEAASHAoYV0VCX1NFQVJDSF9QUk9WSURFUl9CSU5HEAESHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9UQVZJTFkQAhIdChlXRUJfU0VBUkNIX1BST1ZJREVSX0JSQVZFEAMSHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9TRVJQRVIQBCppCglUaGVtZU1vZGUSGgoWVEhFTUVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVRIRU1FX01PREVfU1lTVEVNEAESFAoQVEhFTUVfTU9ERV9MSUdIVBACEhMKD1RIRU1FX01PREVfREFSSxADMpADCghTZXR0aW5ncxJACgNHZXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaIS54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NTbmFwc2hvdBJTCgZVcGRhdGUSJi54aWFvd2VpLmRlc2t0b3AuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0GiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3QSdwoZR2V0V2ViU2VhcmNoUnVudGltZUNvbmZpZxIxLnhpYW93ZWkuZGVza3RvcC5HZXRXZWJTZWFyY2hSdW50aW1lQ29uZmlnUmVxdWVzdBonLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hSdW50aW1lQ29uZmlnEnQKFVRlc3RXZWJTZWFyY2hQcm92aWRlchItLnhpYW93ZWkuZGVza3RvcC5UZXN0V2ViU2VhcmNoUHJvdmlkZXJSZXF1ZXN0GiwueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyVGVzdFJlc3VsdGIGcHJvdG8z", [file_google_protobuf_empty]);
+
+/**
+ * @generated from message xiaowei.desktop.WebSearchSettings
+ */
+export type WebSearchSettings = Message<"xiaowei.desktop.WebSearchSettings"> & {
+  /**
+   * Defaults to Bing. A provider without a saved key may remain selected.
+   *
+   * @generated from field: xiaowei.desktop.WebSearchProvider selected_provider = 1;
+   */
+  selectedProvider: WebSearchProvider;
+
+  /**
+   * Bing when the selected keyed provider has no key.
+   *
+   * @generated from field: xiaowei.desktop.WebSearchProvider effective_provider = 2;
+   */
+  effectiveProvider: WebSearchProvider;
+
+  /**
+   * Keyed providers with saved keys, in enum order. No keys or key fragments are exposed.
+   *
+   * @generated from field: repeated xiaowei.desktop.WebSearchProvider configured_providers = 3;
+   */
+  configuredProviders: WebSearchProvider[];
+};
+
+/**
+ * Describes the message xiaowei.desktop.WebSearchSettings.
+ * Use `create(WebSearchSettingsSchema)` to create a new message.
+ */
+export const WebSearchSettingsSchema: GenMessage<WebSearchSettings> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 0);
+
+/**
+ * @generated from message xiaowei.desktop.WebSearchApiKeyUpdate
+ */
+export type WebSearchApiKeyUpdate = Message<"xiaowei.desktop.WebSearchApiKeyUpdate"> & {
+  /**
+   * Tavily, Brave or Serper; Bing and unspecified are rejected.
+   *
+   * @generated from field: xiaowei.desktop.WebSearchProvider provider = 1;
+   */
+  provider: WebSearchProvider;
+
+  /**
+   * Write-only. Trimmed ASCII key, at most 4096 bytes; empty deletes it. Deleting the
+   * selected provider's key atomically selects Bing in the same persisted setting.
+   *
+   * @generated from field: string api_key = 2;
+   */
+  apiKey: string;
+};
+
+/**
+ * Describes the message xiaowei.desktop.WebSearchApiKeyUpdate.
+ * Use `create(WebSearchApiKeyUpdateSchema)` to create a new message.
+ */
+export const WebSearchApiKeyUpdateSchema: GenMessage<WebSearchApiKeyUpdate> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 1);
+
+/**
+ * @generated from message xiaowei.desktop.GetWebSearchRuntimeConfigRequest
+ */
+export type GetWebSearchRuntimeConfigRequest = Message<"xiaowei.desktop.GetWebSearchRuntimeConfigRequest"> & {
+  /**
+   * Absent uses the effective provider with Bing fallback. Present requests this exact
+   * provider for testing and fails if its key is missing. Unspecified is invalid.
+   *
+   * @generated from field: optional xiaowei.desktop.WebSearchProvider provider = 1;
+   */
+  provider?: WebSearchProvider | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.GetWebSearchRuntimeConfigRequest.
+ * Use `create(GetWebSearchRuntimeConfigRequestSchema)` to create a new message.
+ */
+export const GetWebSearchRuntimeConfigRequestSchema: GenMessage<GetWebSearchRuntimeConfigRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 2);
+
+/**
+ * @generated from message xiaowei.desktop.WebSearchRuntimeConfig
+ */
+export type WebSearchRuntimeConfig = Message<"xiaowei.desktop.WebSearchRuntimeConfig"> & {
+  /**
+   * @generated from field: xiaowei.desktop.WebSearchProvider provider = 1;
+   */
+  provider: WebSearchProvider;
+
+  /**
+   * Absent for Bing; otherwise only the requested/effective provider's plaintext key.
+   *
+   * @generated from field: optional string api_key = 2;
+   */
+  apiKey?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.WebSearchRuntimeConfig.
+ * Use `create(WebSearchRuntimeConfigSchema)` to create a new message.
+ */
+export const WebSearchRuntimeConfigSchema: GenMessage<WebSearchRuntimeConfig> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 3);
+
+/**
+ * @generated from message xiaowei.desktop.TestWebSearchProviderRequest
+ */
+export type TestWebSearchProviderRequest = Message<"xiaowei.desktop.TestWebSearchProviderRequest"> & {
+  /**
+   * @generated from field: xiaowei.desktop.WebSearchProvider provider = 1;
+   */
+  provider: WebSearchProvider;
+};
+
+/**
+ * Describes the message xiaowei.desktop.TestWebSearchProviderRequest.
+ * Use `create(TestWebSearchProviderRequestSchema)` to create a new message.
+ */
+export const TestWebSearchProviderRequestSchema: GenMessage<TestWebSearchProviderRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 4);
+
+/**
+ * @generated from message xiaowei.desktop.WebSearchProviderTestResult
+ */
+export type WebSearchProviderTestResult = Message<"xiaowei.desktop.WebSearchProviderTestResult"> & {
+  /**
+   * @generated from field: bool ok = 1;
+   */
+  ok: boolean;
+
+  /**
+   * @generated from field: uint32 latency_ms = 2;
+   */
+  latencyMs: number;
+
+  /**
+   * Absent on failure or a successful empty search.
+   *
+   * @generated from field: optional string sample_title = 3;
+   */
+  sampleTitle?: string | undefined;
+
+  /**
+   * Safe classification and optional HTTP status; never upstream bodies or credentials.
+   *
+   * @generated from field: optional string error = 4;
+   */
+  error?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.WebSearchProviderTestResult.
+ * Use `create(WebSearchProviderTestResultSchema)` to create a new message.
+ */
+export const WebSearchProviderTestResultSchema: GenMessage<WebSearchProviderTestResult> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 5);
 
 /**
  * @generated from message xiaowei.desktop.ShortcutBinding
@@ -31,7 +188,7 @@ export type ShortcutBinding = Message<"xiaowei.desktop.ShortcutBinding"> & {
  * Use `create(ShortcutBindingSchema)` to create a new message.
  */
 export const ShortcutBindingSchema: GenMessage<ShortcutBinding> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 0);
+  messageDesc(file_xiaowei_desktop_settings, 6);
 
 /**
  * @generated from message xiaowei.desktop.ShortcutConfiguration
@@ -61,7 +218,7 @@ export type ShortcutConfiguration = Message<"xiaowei.desktop.ShortcutConfigurati
  * Use `create(ShortcutConfigurationSchema)` to create a new message.
  */
 export const ShortcutConfigurationSchema: GenMessage<ShortcutConfiguration> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 1);
+  messageDesc(file_xiaowei_desktop_settings, 7);
 
 /**
  * @generated from message xiaowei.desktop.SettingsSnapshot
@@ -103,6 +260,11 @@ export type SettingsSnapshot = Message<"xiaowei.desktop.SettingsSnapshot"> & {
    * @generated from field: int32 clipboard_retention_days = 7;
    */
   clipboardRetentionDays: number;
+
+  /**
+   * @generated from field: xiaowei.desktop.WebSearchSettings web_search = 8;
+   */
+  webSearch?: WebSearchSettings | undefined;
 };
 
 /**
@@ -110,7 +272,7 @@ export type SettingsSnapshot = Message<"xiaowei.desktop.SettingsSnapshot"> & {
  * Use `create(SettingsSnapshotSchema)` to create a new message.
  */
 export const SettingsSnapshotSchema: GenMessage<SettingsSnapshot> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 2);
+  messageDesc(file_xiaowei_desktop_settings, 8);
 
 /**
  * @generated from message xiaowei.desktop.SettingsChanged
@@ -129,7 +291,7 @@ export type SettingsChanged = Message<"xiaowei.desktop.SettingsChanged"> & {
  * Use `create(SettingsChangedSchema)` to create a new message.
  */
 export const SettingsChangedSchema: GenMessage<SettingsChanged> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 3);
+  messageDesc(file_xiaowei_desktop_settings, 9);
 
 /**
  * @generated from message xiaowei.desktop.UpdateSettingsRequest
@@ -182,6 +344,20 @@ export type UpdateSettingsRequest = Message<"xiaowei.desktop.UpdateSettingsReque
      */
     value: number;
     case: "clipboardRetentionDays";
+  } | {
+    /**
+     * Saves the selection even when no key exists; unspecified is rejected.
+     *
+     * @generated from field: xiaowei.desktop.WebSearchProvider web_search_provider = 8;
+     */
+    value: WebSearchProvider;
+    case: "webSearchProvider";
+  } | {
+    /**
+     * @generated from field: xiaowei.desktop.WebSearchApiKeyUpdate web_search_api_key = 9;
+     */
+    value: WebSearchApiKeyUpdate;
+    case: "webSearchApiKey";
   } | { case: undefined; value?: undefined };
 };
 
@@ -190,7 +366,43 @@ export type UpdateSettingsRequest = Message<"xiaowei.desktop.UpdateSettingsReque
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 4);
+  messageDesc(file_xiaowei_desktop_settings, 10);
+
+/**
+ * @generated from enum xiaowei.desktop.WebSearchProvider
+ */
+export enum WebSearchProvider {
+  /**
+   * @generated from enum value: WEB_SEARCH_PROVIDER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: WEB_SEARCH_PROVIDER_BING = 1;
+   */
+  BING = 1,
+
+  /**
+   * @generated from enum value: WEB_SEARCH_PROVIDER_TAVILY = 2;
+   */
+  TAVILY = 2,
+
+  /**
+   * @generated from enum value: WEB_SEARCH_PROVIDER_BRAVE = 3;
+   */
+  BRAVE = 3,
+
+  /**
+   * @generated from enum value: WEB_SEARCH_PROVIDER_SERPER = 4;
+   */
+  SERPER = 4,
+}
+
+/**
+ * Describes the enum xiaowei.desktop.WebSearchProvider.
+ */
+export const WebSearchProviderSchema: GenEnum<WebSearchProvider> = /*@__PURE__*/
+  enumDesc(file_xiaowei_desktop_settings, 0);
 
 /**
  * @generated from enum xiaowei.desktop.ThemeMode
@@ -221,7 +433,7 @@ export enum ThemeMode {
  * Describes the enum xiaowei.desktop.ThemeMode.
  */
 export const ThemeModeSchema: GenEnum<ThemeMode> = /*@__PURE__*/
-  enumDesc(file_xiaowei_desktop_settings, 0);
+  enumDesc(file_xiaowei_desktop_settings, 1);
 
 /**
  * @generated from service xiaowei.desktop.Settings
@@ -242,6 +454,27 @@ export const Settings: GenService<{
     methodKind: "unary";
     input: typeof UpdateSettingsRequestSchema;
     output: typeof SettingsSnapshotSchema;
+  },
+  /**
+   * Native assembly only. Returns one plaintext key; never publish this response as an event.
+   *
+   * @generated from rpc xiaowei.desktop.Settings.GetWebSearchRuntimeConfig
+   */
+  getWebSearchRuntimeConfig: {
+    methodKind: "unary";
+    input: typeof GetWebSearchRuntimeConfigRequestSchema;
+    output: typeof WebSearchRuntimeConfigSchema;
+  },
+  /**
+   * Owned by Agent assembly. Uses the saved key for this provider without changing settings
+   * or the active provider. Missing keys fail strictly; no fallback. Searches "ping", one result.
+   *
+   * @generated from rpc xiaowei.desktop.Settings.TestWebSearchProvider
+   */
+  testWebSearchProvider: {
+    methodKind: "unary";
+    input: typeof TestWebSearchProviderRequestSchema;
+    output: typeof WebSearchProviderTestResultSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_xiaowei_desktop_settings, 0);

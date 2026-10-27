@@ -63,6 +63,10 @@ pub mod xiaowei_desktop_settings_service {
         xw_gateway::binding::Method::new("xiaowei.desktop.Settings.Get", xw_gateway::MethodKind::Unary);
     pub const UPDATE: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::UpdateSettingsRequest, proto_desktop_rs::xiaowei::desktop::SettingsSnapshot> =
         xw_gateway::binding::Method::new("xiaowei.desktop.Settings.Update", xw_gateway::MethodKind::Unary);
+    pub const GET_WEB_SEARCH_RUNTIME_CONFIG: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::GetWebSearchRuntimeConfigRequest, proto_desktop_rs::xiaowei::desktop::WebSearchRuntimeConfig> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.Settings.GetWebSearchRuntimeConfig", xw_gateway::MethodKind::Unary);
+    pub const TEST_WEB_SEARCH_PROVIDER: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::TestWebSearchProviderRequest, proto_desktop_rs::xiaowei::desktop::WebSearchProviderTestResult> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.Settings.TestWebSearchProvider", xw_gateway::MethodKind::Unary);
 }
 #[rustfmt::skip]
 pub mod xiaowei_desktop_shortcuts_service {

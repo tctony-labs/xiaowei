@@ -13,6 +13,7 @@ import { GenerateRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { textEvents, until, websocketFixture } from "../../../patches/tests/fixtures/websocket.mjs";
+import artifacts from "../../../scripts/tests/bundled-worker.cjs";
 import { attachLlm } from "../../src/main/services/llm/host.ts";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
@@ -20,9 +21,7 @@ let directory;
 let workerUrl;
 before(async () => {
   directory = await mkdtemp(join(tmpdir(), "xiaowei-bundled-worker-"));
-  const source =
-    process.env.XIAOWEI_TEST_BUNDLED_MAIN_DIR ?? new URL("../../out/main/", import.meta.url);
-  await cp(source, join(directory, "main"), { recursive: true });
+  await cp(artifacts.bundledMainDir, join(directory, "main"), { recursive: true });
   await writeFile(join(directory, "package.json"), JSON.stringify({ type: "module" }));
   workerUrl = pathToFileURL(join(directory, "main/llm-worker.js"));
 });
@@ -80,6 +79,43 @@ test("isolated provider chunks load with plain Node and no dependency directorie
     { cwd: directory, env: { PATH: process.env.PATH }, timeout: 15000 },
   );
   assert.ok(stdout.trim().endsWith(`providers=${providers.length}`), stdout);
+});
+
+test("missing lazy provider chunk logs its safe cause before any HTTP request", async (t) => {
+  const broken = await mkdtemp(join(tmpdir(), "xiaowei-missing-provider-"));
+  t.after(() => rm(broken, { recursive: true, force: true }));
+  await cp(directory, broken, { recursive: true });
+
+  const logs = [];
+  t.mock.method(console, "warn", (line) => logs.push(line));
+  const fixture = await llmFixture(
+    t,
+    undefined,
+    "openai-completions",
+    pathToFileURL(join(broken, "main/llm-worker.js")),
+  );
+  const chunks = await readdir(join(broken, "main/chunks"));
+  const provider = chunks.find((name) => name.startsWith("openai-completions-"));
+  assert.ok(provider);
+  // The worker is already ready; the provider implementation is loaded on demand.
+  await rm(join(broken, "main/chunks", provider));
+
+  const events = [];
+  for await (const event of await fixture.client.generate(
+    request("private-prompt", { options: { sessionId: "missing-provider-session" } }),
+  ))
+    events.push(event.event);
+
+  assert.equal(events.at(-1).case, "failed");
+  assert.equal(events.at(-1).value.message, "model generation failed");
+  assert.equal(fixture.requests.length, 0);
+  await waitFor(() => logs.some((line) => line.includes("provider_module_missing")));
+  assert.equal(logs.length, 1);
+  assert.ok(logs[0].includes(provider));
+  assert.ok(logs[0].includes("missing-provider-session"));
+  assert.ok(logs[0].includes("provider.ts:"));
+  for (const secret of ["private-prompt", "test-key", broken])
+    assert.ok(!logs[0].includes(secret), secret);
 });
 
 for (const api of ["openai-completions", "openai-responses", "anthropic-messages"]) {

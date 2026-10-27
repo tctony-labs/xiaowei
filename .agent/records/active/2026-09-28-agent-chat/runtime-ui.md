@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer、Read／Write／Edit、Glob／Grep 及 macOS 前台 Bash 已接入；前三批工具的窗口及重启验收见[实施结果](implementation-results.md)。问答／权限及对应 UI 已实现，本批功能链路与窗口验收已完成，平台复核边界见交付结果；其他工具及扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer 及前六批工具已接入，包含文件读写／搜索、macOS 前台 Bash、问答／权限、TodoWrite 和网页工具／搜索设置；各批窗口及重启验收见[实施结果](implementation-results.md)。真实输入法等平台复核边界见交付结果；后台工具、Skill 及其他扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
 ## 当前执行
 
@@ -107,6 +107,16 @@ composer 仅在有明确 pending Question 时将发送路由到 RespondInteracti
 执行与保存方式分别见 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/quick-chat.md)。沿用替换／按 ID 合并、四状态及多项进行中只警告的语义；保留列表顺序和 `todoWrite.todos` 元数据形状。工具随实际注册新增 `tool.TodoWrite` 规则，提示三步及以上任务按需建清单、及时更新、最多一项进行中和完成／取消状态；不加入 Skill 或 preset。
 
 恢复适配以已提交成功 ToolOutcome 的完整结果为准。旧版仅检查最后一次调用参数，最后一次为 merge 时会跳过恢复，也未核对工具是否成功；本批使用核心已恢复的完整投影，失败／跳过不覆盖之前清单，合并和空清单可正确恢复。待办更新没有外部副作用，已提交意图但缺少结果时结算取消；意图提交前失败沿用现有未闭合调用保护，不扩展 Continue。没有新增持久记录类型、数据表、文件、控制 RPC 或另一套运行循环。
+
+### WebFetch 与 WebSearch（第 6 批）
+
+2026-10-27 已接入两个工具与搜索设置。核对旧版 `tools/web/fetch.rs`、`web_search.rs`、四个 backends、搜索设置 service／commands、XOR 混淆和 WebFetch／WebSearch 展示组件；实际实现放在独立 Web crate，由 xiaowei-agent 装配，不将 desktop 配置 owner 搬进工具或 core。
+
+沿用旧版 URL／跳转限制、HTML 转换、文本分类、四源协议、结果顺序和 metadata 形状；差异是 WebFetch 改用当前 small_text 模型，10 MiB 在流式读取时限制，搜索配置保存成功后由订阅替换内存对象，请求不再读取设置。工具实现及限制见 [Web crate](../../../../crates/xw-agent-tools-web/README.md)，设置和回退见 [Settings 存储](../../../../crates/xw-storage/docs/database.md#settings-与业务-dao)，配置接口边界见[控制协议](control-api.md#desktop-搜索设置与-agent-装配)。
+
+提取的辅助 Assistant 不作为普通正文或最终回答；辅助增量不发布聊天 Generate／Item。核心保存原始回复、首 SSE 与 usage，先完成辅助 Gen 再结算工具。提取失败成为 Failed 工具结果后模型可继续，Stop 结束活动辅助生成并取消工具；持久化失败终止 Run，不降级为普通工具错误。恢复保留已提交事实，不重抓网页或重做提取。
+
+desktop 结果卡片的链接／复制、旧 metadata／空结果回退和设置编辑行为统一见 [Quick Chat](../../../../desktop/docs/quick-chat.md)，自动及实际窗口证据见[交付结果](implementation-results.md)。
 
 ### Run 阶段与内容排列（2026-10-25，源码复核）
 

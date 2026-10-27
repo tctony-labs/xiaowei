@@ -10,6 +10,7 @@ import { create } from "@bufbuild/protobuf";
 import { GenerateRequestSchema, ListModelsRequestSchema, Llm } from "proto-desktop-ts";
 import { bindStreamClient } from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
+import artifacts from "../../scripts/tests/bundled-worker.cjs";
 import { loadConfig, resolveModels } from "../src/main/services/llm/config.ts";
 import { attachLlm } from "../src/main/services/llm/host.ts";
 
@@ -77,7 +78,7 @@ try {
     const model = models.find((entry) => entry.id === values.model);
     if (!model) throw new Error("model not found or API Key unavailable");
     const host = new GatewayHost();
-    owner = await attachLlm(host, models, new URL("../out/main/llm-worker.js", import.meta.url));
+    owner = await attachLlm(host, models, artifacts.bundledWorkerUrl);
     const endpoint = host.client({ caller: "llm-verification", trusted: true });
     const client = bindStreamClient(Llm, endpoint);
 

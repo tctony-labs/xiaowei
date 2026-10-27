@@ -16,6 +16,7 @@ pub const MODULES: &[BindingModule] = &[
         name: "xiaowei-agent",
         services: &[
             "xiaowei.agent.Agent",
+            "xiaowei.desktop.Settings",
             "xiaowei.llm.Llm",
             "xiaowei.llm.ModelSettings",
         ],

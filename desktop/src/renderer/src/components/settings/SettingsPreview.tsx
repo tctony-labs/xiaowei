@@ -350,7 +350,16 @@ export function SettingsPreview(props: PreviewProps) {
             values={agent}
             onChange={setAgent}
             onTest={operation}
-            onSaveKey={operation}
+            onSaveKey={async (source, key) => {
+              await operation();
+              setAgent((previous) => ({
+                ...previous,
+                configured: key
+                  ? [...new Set([...previous.configured, source])]
+                  : previous.configured.filter((value) => value !== source),
+                source: !key && previous.source === source ? "bing" : previous.source,
+              }));
+            }}
             initialEditor={props.initialSearchEditor}
             highlight={props.highlighted}
             onOpenUrl={(url) => setToast(`打开 ${url}（预览）`)}

@@ -23,7 +23,8 @@ impl AgentService {
             for id in store.session_ids().map_err(storage_error)? {
                 let (mut journal, repair) = store.open(id).map_err(storage_error)?;
                 crate::settle_interrupted(&mut journal, None, now_ms()?).map_err(storage_error)?;
-                let session = restore(journal)?;
+                let mut session = restore(journal)?;
+                crate::tool_registry::bind(&mut session, &state.tools)?;
                 if repair.discarded_bytes > 0 {
                     log::debug!(
                         "Agent rollout tail repaired session={id} bytes={}",
@@ -96,7 +97,8 @@ impl Session {
             return Err(AgentError::Conflict("failed run is settling"));
         }
         journal.check_after_failure().map_err(storage_error)?;
-        crate::settle_interrupted(journal, self.failed_run, now_ms()?).map_err(storage_error)?;
+        crate::recovery::settle_with_tools(journal, self.failed_run, now_ms()?, &self.tools)
+            .map_err(storage_error)?;
         self.failed_run = None;
         // Rebuild accepted identities too: a failed start may have committed InputAccepted
         // without making it into the live projection. Such an input must never be accepted twice.
@@ -200,7 +202,9 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                 });
             }
             domain::EntryPayload::GenStarted(generation) => {
-                if let Some(run_id) = generation.run_id {
+                if generation.purpose == domain::GenPurpose::Conversation
+                    && let Some(run_id) = generation.run_id
+                {
                     generations.insert(generation.gen_id, run_id);
                 }
             }
@@ -220,7 +224,11 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     run.final_gen_id = Some(generation.gen_id.to_string());
                 }
             }
-            domain::EntryPayload::Message(message) if message.run_id.is_some() => {
+            domain::EntryPayload::Message(message)
+                if message
+                    .gen_id
+                    .is_some_and(|id| generations.contains_key(&id)) =>
+            {
                 if let Some(run) = session
                     .view
                     .runs
@@ -458,7 +466,7 @@ impl Session {
         )?;
         self.append(
             domain::EntryPayload::TurnStarted(domain::TurnStarted {
-                turn_id: execution.turn_id,
+                turn_id: execution.turn_id.expect("conversation Turn"),
                 run_id: execution.run_id,
                 ordinal: 1,
                 boundary: boundary.clone(),
@@ -470,7 +478,7 @@ impl Session {
                 domain::EntryPayload::InputConsumed(domain::InputConsumed {
                     input_ids: vec![execution.input_id],
                     run_id: execution.run_id,
-                    turn_id: execution.turn_id,
+                    turn_id: execution.turn_id.expect("conversation Turn"),
                     boundary,
                 }),
                 started_at,
@@ -480,7 +488,7 @@ impl Session {
             domain::EntryPayload::GenStarted(domain::GenStarted {
                 gen_id: execution.gen_id,
                 run_id: Some(execution.run_id),
-                turn_id: Some(execution.turn_id),
+                turn_id: execution.turn_id,
                 attempt: 1,
                 purpose: domain::GenPurpose::Conversation,
                 context: None,
@@ -545,7 +553,7 @@ impl Session {
                     message_id: execution.message_id,
                     block_ids,
                     run_id: Some(execution.run_id),
-                    turn_id: Some(execution.turn_id),
+                    turn_id: execution.turn_id,
                     gen_id: Some(execution.gen_id),
                     input_id: None,
                     completeness: if outcome.status == xw_agent_runtime::RunStatus::Completed {

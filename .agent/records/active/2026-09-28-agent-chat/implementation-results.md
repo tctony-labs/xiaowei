@@ -2,6 +2,55 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## WebFetch、WebSearch 与搜索设置（2026-10-27）
+
+第 6 批已实现，并于 2026-10-28 完成约定验收：独立 `xw-agent-tools-web` 提供 WebFetch、WebSearch 和 Bing／Tavily／Brave／Serper；core 仅持有通用工具注册、session 绑定、顺序执行与辅助 Gen。配置由 desktop Settings 持有，集成层读取当前有效源及其单个明文 Key 创建 `dyn SearchTool`，提交后的通知只更新共享 WebSearch 内部 provider。在途请求使用原对象，已有 session 后续搜索透明切源，不追加模型上下文。当前进程的工具声明／规则／执行绑定在创建 session 时固定；默认注册更新只影响后续 session，重启恢复允许按当前配置重新装配。具体边界见[架构](architecture.md#网页工具与设置装配第-6-批)及各包 README。
+
+迁移沿用旧版 htmd 0.5、四源请求／解析、同源跳转和 Key 的 XOR `xwwx`＋Base64 混淆。主要适配为：固定提取模型改用当前 small_text；响应体上限在流读取时执行；辅助提取使用同 Run、无 Turn 的独立 ToolExtraction Gen，记录真实元数据／usage，但不进入聊天 Item、最终回复或后续聊天上下文；恢复先闭合辅助 Gen，再取消未结算工具，不重放。提交失败保持致命错误，不降为普通工具失败。没有导入旧设置库、增加 Agent 搜索配置存储或替换技术方案。
+
+正式接线发现 napi adapter 在 activate 返回前禁止向外调用，阻止 Agent 初始化读取 Settings。现允许已绑定 endpoint 在初始化期间调用依赖，自身业务 routes 仍在 activate 成功后发布；契约与权限不变，完整 Gateway 回归覆盖初始化依赖调用及尚未发布的路由。另修复极短流结束时首 SSE 仍在事件队列、尚未落盘的问题，正常与辅助生成都从最终 outcome 补记未提交的真实时间，不伪造缺失时间。
+
+已通过的自动检查：
+
+- Web、runtime、core、Storage 和集成包的 Rust 测试，覆盖四种独立装配、稳定注册更新、创建时快照／幂等／首次 Run、四源协议与错误／取消、体积／跳转／内容分类、辅助模型与所有已提交恢复前缀、Stop 及提交故障。core／runtime 的依赖树没有 Web crate、reqwest 或 htmd。
+- 正式双 addon／Gateway／worker 网络 fixture：搜索 → 抓取 → 当前小模型提取 → 回答、源／Key 替换、在途旧对象／后续新对象、初读与变更通知竞态、刷新失败保留旧对象、请求不读取 Settings、三阶段 Stop、历史脱敏／无系统增量和恢复不重放。测试只在子进程使用 CONNECT 代理与测试 CA，不改系统信任、生产 endpoint 或用户配置。
+- `pnpm gateway:test`、`pnpm contracts:test`、`just check`、完整 `pnpm --dir desktop test`；最新 renderer 为 29 文件／216 项通过，LLM 为 95 项通过／1 项显式跳过真实服务，Agent NAPI 为 10 项通过，最后一组原生业务为 10 项通过。受影响两个正式 addon 均已重建。
+- Web／runtime／core／集成层 strict no-deps Clippy 通过。Storage 在 HEAD 中已有 `unit_arg`／`bool_assert_comparison` 告警，未改无关代码；仅允许这两类基线 lint 后，本批 Storage 检查通过。Gateway 非 no-deps 检查仍有已有 `collapsible_if`，本批没有修改这些位置。
+
+产品窗口已在当前工作区的独立验收会话 `01a17dce-9bba-719f-a6d1-f13058be2dc6` 验证实际 `tctony/sol` 完成 Bing 搜索 → WebFetch Rust Book → small_text 提取 → 中文回答，总耗时 19158 ms。Bing 返回三项，抓取 HTTP 200／22496 字节，辅助提取日志为 `turn=None`。已查看工具顺序、搜索标题／域名／摘要、Fetch URL／指令／结果和明暗主题；系统复制粘贴确认原始结果，URL 经 System 打开到 Chrome 的官方 Rust Book。没有向用户原会话追加验收任务。
+
+2026-10-27 实际设置页的 Bing 测试通过；当时付费源没有现成 Key，仅完成本地协议验证。选择无 Key 的 Tavily 后，页面提示并回退 Bing，单源测试严格提示先保存 Key；空 Key 弹窗不可保存，Agent 未录入凭据。随后用户自行配置 Tavily 并恢复浅色，后续验收保留该配置。
+
+23:02 经归属检查后，通过同一 cmux console 的 r 重建并重启，Electron 从 11128 变为 61015，实例从 `cb814b24-af0e-43a7-adce-ee8e21926a86` 变为 `2b3bb7ed-b4eb-4f5a-bb01-74d3a006b3b3`。新实例加载最新 Web／worker 修复，原会话 `repaired_bytes=0`；只读 SQLite 行和 JSONL 均未变化：48 条／46770 字节，SHA-256 为 `218cad731d08c08bff60abee9deaba74ad6506960f2ee06bbafc24b85e5242af`，没有重放搜索、抓取或生成。
+
+当晚锁屏阻塞了剩余窗口验收，第一次 httpbin 抓取在点击 Stop 前已完成，不计为停止通过。2026-10-28 用户配置 Tavily 后明确要求继续验收，以下补验均通过实际 Quick Chat 完成，没有冷启动应用或读取／改写真实 Key。
+
+Tavily 设置页显示已配置且测试成功。继续同一验收会话，实际 sol 完成 Tavily 搜索三项 → 抓取 Rust Book 的 Result 章节 → 当前 small_text 提取 → 中文回答，Run 为 Completed／19756 ms；搜索 metadata 为 tavily／2111 ms，抓取 HTTP 200／59721 字节，提取 4794 ms，工具总耗时 5300 ms。实际窗口展开确认搜索标题／域名／摘要、两个工具的顺序和提取后的简短回答。原 Bing 结果仍保留原 provider，整个会话始终只有一条 system_context，没有因换源追加声明或规则。
+
+三个阶段的实际 Stop 分别核对窗口、日志及持久结果：
+
+| 阶段 | 点击停止前的实际状态 | 结算与后续 |
+| --- | --- | --- |
+| Tavily 搜索 | WebSearch 卡片为执行中 | 执行 336 ms 后 Cancelled，Run Interrupted，无后续 Gen |
+| 网页请求 | httpbin 的 WebFetch 卡片为执行中，尚未收到页面 | 执行 157 ms 后 Cancelled，未启动辅助 Gen，Run Interrupted |
+| 辅助提取 | Rust Book 已返回 HTTP 200／59721 字节，`turn=None` 的提取 Gen 已启动 | 提取在 7344 ms 后 Cancelled，工具在 7849 ms 后 Cancelled，Run Interrupted，无后续回答 |
+
+三张卡片和对应 Run 均显示已停止，辅助提取没有混入聊天正文。持久化的 Gen／Run 取消使用既有 aborted 状态，工具为 cancelled；各 Run 均已闭合。
+
+07:55 再按工作区进程／cwd／父子链／tty 和 cmux console 核对后，通过同一 console 的 r 重建并重启：Electron 61015 → 37985，实例变为 `64d67c28-0b9a-4869-85e5-ed1887e2472b`。实际窗口恢复同一会话、原回答和三张已停止卡片。重启前后 SQLite 行和 JSONL 均完全一致：110 条／109926 字节，SHA-256 为 `cae183ded823eecd25b3f85ff8374e52e6243d2444df91f2d9d31c0b4c9a6ace`；`repaired_bytes=0`，没有新增生成、工具或恢复记录。
+
+随后显式发送新一轮，实际 Tavily 返回一个官方 std::result 文档结果，3105 ms 后工具 Completed，模型正常回答。重启后的设置页仍选择 Tavily，显示修改入口且保持浅色，证明搜索源及其 Key 持久可用；按用户最新选择保留 Tavily。最终为 7 Run／17 Gen、9 对工具意图／结果，126 条／124716 字节，SHA-256 为 `d8e102cfe65709f777fdb6894b1633b9d4e51be44e8e3255068ffd21c635d466`；重启前的完整前缀未变。Bing 和 Tavily 已有真实请求证据，Brave／Serper 无现成凭据，仍仅计确定性协议验证。本批必要验收完成，02i 已删除；下一工具批为后台三工具，不扩大为完整 Agent Chat 已完成。
+
+### 验证构建隔离与生成失败诊断
+
+同轮误用 `pnpm --dir desktop build` 于 22:18 重写了 `desktop/out`；旧 worker 仍持有先前动态 import 的 chunk 名称。启动清单、文件时间和本地缺失模块复现共同支持这是 22:28 立即 Failed 的原因；原实例当时未记录原始异常，不能将复现中的零 HTTP 请求说成原实例的网络抓包结果。
+
+验证入口现为 `build:test`，输出到 `desktop/out-test`；desktop 全量、独立 Agent NAPI、LLM fixture 和手动验收脚本统一选择该目录，支持显式传入另一套已构建 main 目录。测试不再使用开发产物。正式打包仍使用 `out`，发布 CI 在测试后单独执行正式构建；开发重建继续由既有 console r 先停止再构建、启动。详见 [desktop 测试](../../../../desktop/tests/README.md)。
+
+worker 在原始 provider 事件／异常边界记录一次安全诊断，保留 session、model、API、HTTP 状态、固定网络错误码或缺失 chunk 文件名；不输出原始响应／凭据／prompt。Rust adapter 对 Gateway stream 的打开和消费错误记录阶段与错误码；provider Failed 不重复打印。UI 与 JSONL SafeError 保持通用文案。
+
+回归确认验证构建前后开发目录所有文件的 SHA-256 与 mtime 不变；在已启动的隔离 worker 中删除实际懒加载 chunk 后，恰有一条源位置／具体模块诊断，HTTP 请求数为零，公共失败文案及日志均无 fixture Key／prompt／完整本地路径。HTTP 401、Gateway 打开／消费失败及错误体不泄露的用例均通过。`pnpm test:tooling` 共 162 项通过；独立 `test:runtime` 自动构建隔离产物并通过 10 项。另将默认 out-test/main 暂时移开，显式传入临时 main 目录后，全部 LLM、Agent NAPI 和 Web 双 addon 测试仍通过，证明子进程也没有回退默认或开发产物；测试目录已恢复、临时副本已清理。
+
 ## TodoWrite 与清单卡片（2026-10-27）
 
 第 5 批已实现 TodoWrite、对应工具规则、完整结果持久化和独立只读清单卡片。旧版源码依据、保留行为及恢复适配见[运行与 UI](runtime-ui.md#todowrite第-5-批)。沿用当前 run_loop、ToolOutcome 和正式 Gateway／napi／worker，无新增 RPC、表或 todo 文件。旧会话只追加 TodoWrite 声明和 tool.TodoWrite 规则，原基线及已有 schema 不改写。

@@ -2,6 +2,7 @@ import { EditIcon, FilesIcon } from "../ClipboardIcons";
 import type { AgentToolIconKind } from "./tool-presentation";
 
 const paths = {
+  web: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM2 8h12M8 2c-4 3-4 9 0 12M8 2c4 3 4 9 0 12",
   todo: "m2 4 1 1 2-2M7 4h7M2 8h3M7 8h7M2 12h3M7 12h7",
   question: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6 6a2 2 0 1 1 3 2c-1 .5-1 1-1 1M8 11h.01",
   permission: "M8 1.5 13 4v4c0 3-5 6.5-5 6.5S3 11 3 8V4l5-2.5ZM6 8l1.5 1.5L10 6",

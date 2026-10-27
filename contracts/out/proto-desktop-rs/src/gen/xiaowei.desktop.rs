@@ -1673,6 +1673,121 @@ impl ConnectionStatus {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearchSettings {
+    /// Defaults to Bing. A provider without a saved key may remain selected.
+    #[prost(enumeration = "WebSearchProvider", tag = "1")]
+    pub selected_provider: i32,
+    /// Bing when the selected keyed provider has no key.
+    #[prost(enumeration = "WebSearchProvider", tag = "2")]
+    pub effective_provider: i32,
+    /// Keyed providers with saved keys, in enum order. No keys or key fragments are exposed.
+    #[prost(enumeration = "WebSearchProvider", repeated, tag = "3")]
+    pub configured_providers: ::prost::alloc::vec::Vec<i32>,
+}
+impl ::prost::Name for WebSearchSettings {
+    const NAME: &'static str = "WebSearchSettings";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.WebSearchSettings".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.WebSearchSettings".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearchApiKeyUpdate {
+    /// Tavily, Brave or Serper; Bing and unspecified are rejected.
+    #[prost(enumeration = "WebSearchProvider", tag = "1")]
+    pub provider: i32,
+    /// Write-only. Trimmed ASCII key, at most 4096 bytes; empty deletes it. Deleting the
+    /// selected provider's key atomically selects Bing in the same persisted setting.
+    #[prost(string, tag = "2")]
+    pub api_key: ::prost::alloc::string::String,
+}
+impl ::prost::Name for WebSearchApiKeyUpdate {
+    const NAME: &'static str = "WebSearchApiKeyUpdate";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.WebSearchApiKeyUpdate".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.WebSearchApiKeyUpdate".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetWebSearchRuntimeConfigRequest {
+    /// Absent uses the effective provider with Bing fallback. Present requests this exact
+    /// provider for testing and fails if its key is missing. Unspecified is invalid.
+    #[prost(enumeration = "WebSearchProvider", optional, tag = "1")]
+    pub provider: ::core::option::Option<i32>,
+}
+impl ::prost::Name for GetWebSearchRuntimeConfigRequest {
+    const NAME: &'static str = "GetWebSearchRuntimeConfigRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.GetWebSearchRuntimeConfigRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.GetWebSearchRuntimeConfigRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearchRuntimeConfig {
+    #[prost(enumeration = "WebSearchProvider", tag = "1")]
+    pub provider: i32,
+    /// Absent for Bing; otherwise only the requested/effective provider's plaintext key.
+    #[prost(string, optional, tag = "2")]
+    pub api_key: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for WebSearchRuntimeConfig {
+    const NAME: &'static str = "WebSearchRuntimeConfig";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.WebSearchRuntimeConfig".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.WebSearchRuntimeConfig".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct TestWebSearchProviderRequest {
+    #[prost(enumeration = "WebSearchProvider", tag = "1")]
+    pub provider: i32,
+}
+impl ::prost::Name for TestWebSearchProviderRequest {
+    const NAME: &'static str = "TestWebSearchProviderRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.TestWebSearchProviderRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.TestWebSearchProviderRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct WebSearchProviderTestResult {
+    #[prost(bool, tag = "1")]
+    pub ok: bool,
+    #[prost(uint32, tag = "2")]
+    pub latency_ms: u32,
+    /// Absent on failure or a successful empty search.
+    #[prost(string, optional, tag = "3")]
+    pub sample_title: ::core::option::Option<::prost::alloc::string::String>,
+    /// Safe classification and optional HTTP status; never upstream bodies or credentials.
+    #[prost(string, optional, tag = "4")]
+    pub error: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for WebSearchProviderTestResult {
+    const NAME: &'static str = "WebSearchProviderTestResult";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.WebSearchProviderTestResult".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.WebSearchProviderTestResult".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ShortcutBinding {
     /// KeyboardEvent.code names, including at least one modifier and one non-modifier key.
     #[prost(string, repeated, tag = "1")]
@@ -1726,6 +1841,8 @@ pub struct SettingsSnapshot {
     /// Allowed values: 1, 7, 15, 30, -1 (permanent). Default: 30.
     #[prost(int32, tag = "7")]
     pub clipboard_retention_days: i32,
+    #[prost(message, optional, tag = "8")]
+    pub web_search: ::core::option::Option<WebSearchSettings>,
 }
 impl ::prost::Name for SettingsSnapshot {
     const NAME: &'static str = "SettingsSnapshot";
@@ -1756,7 +1873,10 @@ impl ::prost::Name for SettingsChanged {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct UpdateSettingsRequest {
     /// Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
-    #[prost(oneof = "update_settings_request::Change", tags = "1, 2, 3, 4, 5, 6, 7")]
+    #[prost(
+        oneof = "update_settings_request::Change",
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9"
+    )]
     pub change: ::core::option::Option<update_settings_request::Change>,
 }
 /// Nested message and enum types in `UpdateSettingsRequest`.
@@ -1778,6 +1898,11 @@ pub mod update_settings_request {
         ClipboardAutoPaste(bool),
         #[prost(int32, tag = "7")]
         ClipboardRetentionDays(i32),
+        /// Saves the selection even when no key exists; unspecified is rejected.
+        #[prost(enumeration = "super::WebSearchProvider", tag = "8")]
+        WebSearchProvider(i32),
+        #[prost(message, tag = "9")]
+        WebSearchApiKey(super::WebSearchApiKeyUpdate),
     }
 }
 impl ::prost::Name for UpdateSettingsRequest {
@@ -1788,6 +1913,41 @@ impl ::prost::Name for UpdateSettingsRequest {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.desktop.UpdateSettingsRequest".into()
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum WebSearchProvider {
+    Unspecified = 0,
+    Bing = 1,
+    Tavily = 2,
+    Brave = 3,
+    Serper = 4,
+}
+impl WebSearchProvider {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "WEB_SEARCH_PROVIDER_UNSPECIFIED",
+            Self::Bing => "WEB_SEARCH_PROVIDER_BING",
+            Self::Tavily => "WEB_SEARCH_PROVIDER_TAVILY",
+            Self::Brave => "WEB_SEARCH_PROVIDER_BRAVE",
+            Self::Serper => "WEB_SEARCH_PROVIDER_SERPER",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "WEB_SEARCH_PROVIDER_UNSPECIFIED" => Some(Self::Unspecified),
+            "WEB_SEARCH_PROVIDER_BING" => Some(Self::Bing),
+            "WEB_SEARCH_PROVIDER_TAVILY" => Some(Self::Tavily),
+            "WEB_SEARCH_PROVIDER_BRAVE" => Some(Self::Brave),
+            "WEB_SEARCH_PROVIDER_SERPER" => Some(Self::Serper),
+            _ => None,
+        }
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

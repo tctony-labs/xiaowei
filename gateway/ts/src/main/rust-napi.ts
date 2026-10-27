@@ -496,8 +496,10 @@ export async function attachRustNapi(
       },
       contextJson(originToken, origin),
     );
-    unwrap(decode(await endpoint.activate()));
+    // Native activation may initialize dependencies through the bound host client.
+    // Its business routes remain reserved until activation has completed successfully.
     ready = true;
+    unwrap(decode(await endpoint.activate()));
     owner = reservation.publish();
     owner.onClose(() => {
       void close().catch(() => {});

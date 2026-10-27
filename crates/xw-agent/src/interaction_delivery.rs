@@ -237,6 +237,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn idle_delivery_sends_heartbeats_and_close_wakes_a_pending_pull() {
         let state = Arc::new(Mutex::new(State {
+            tools: Vec::new(),
             closed: false,
             sessions: Default::default(),
             creations: Default::default(),

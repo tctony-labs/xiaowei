@@ -6,7 +6,7 @@
 
 持久文本聊天、Header／Meta 精简 v2、核心 SQLite 目录、统一 Host、正式 Gateway／napi、会话管理／标题／模型控件与启动恢复已交付。已完成的会话管理、快照同步、napi、Host 和 composer 计划删除；缺少直接窗口复验的项目集中记录在交付证据，不保留重复实施步骤。
 
-02e＋Read／Write／Edit、第 2 批前台 Bash 和第 3 批 Glob／Grep 已完成自动／正式链路与产品窗口验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 4 批问答／权限及对应 UI 也已验收；第 5 批 TodoWrite 已实现并完成自动及真实模型验证；产品窗口／重启验收见交付证据。2026-10-27 用户将下一批扩为 WebFetch＋WebSearch，要求使用独立 crate 并可按需装配；当前先审 02i 计划。01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成；它不阻塞当前批次。各工具片依赖既有持久化、同一 App Server 与直接事件流；02i 只补独立工具注入接口；搜索配置与 Token 沿 desktop Settings，由装配方按当前源及单个明文 Key 创建具体实例，工厂返回 dyn SearchTool 对象，不新增 Agent 配置存储或模型接线。
+前六批工具已完成实现与约定验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 6 批独立 Web crate、辅助模型提取及 desktop 搜索设置已于 2026-10-28 补齐 Bing／Tavily 真实链路、三个阶段 Stop 和重启恢复，02i 已删除。下一工具批为 02h 的后台三工具；01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成。各工具片继续依赖既有持久化、同一 App Server 与直接事件流；Web 工具装配边界见[架构](../../records/active/2026-09-28-agent-chat/architecture.md#网页工具与设置装配第-6-批)。
 
 2026-10-25 依据已提交代码复核：循环所有者为 `crates/xw-agent/src/run_loop.rs`，runtime 提供单次生成收集和工具原语；`tool_registry.rs` 与 `prompts/mod.rs` 分别装配声明和相应规则。后续工具接入这些实际入口，不恢复不存在的 runtime/agent_loop。当前不重新创建已完成的 02e 计划。
 
@@ -23,13 +23,13 @@
 | 3 | Glob／Grep，已完成实现与验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25) |
 | 4 | AskUserQuestion／RequestPermission 及对应 UI，已完成本批验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26) |
 | 5 | TodoWrite，执行、持久恢复与清单卡片 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27) |
-| 6 | 独立 Web 工具 crate：WebFetch／WebSearch 与搜索源设置 | [02i 网页工具](02i-webfetch.md) |
+| 6 | 独立 Web 工具 crate：WebFetch／WebSearch 与搜索源设置，已完成验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27) |
 | 7 | BgRun／BgOutput／BgStop | [02h 命令执行](02h-bash-sandbox.md)第二阶段 |
 | 8 | Skill | 放在最后；先登记，具体范围与计划后续细化 |
 
 文件工具先具备既有规则要求的权限检查；RequestPermission 接入前，需要额外授权且没有有效决定的操作返回权限不足，不为调整顺序放宽权限。前台 Bash 不包含后台启动参数或自动转后台行为。
 
-前五批已验证旧会话的声明追加；2026-10-27 用户在 02i 调整后续装配规则：默认工具集按稳定 ID 更新，本进程已有 session 保留工具暴露快照，新 session 使用新集合。搜索 provider 的内存更新对 session 透明，已有 session 后续搜索可使用新源而不改变声明／规则。用户允许重启后按当前配置重新装配；恢复声明有差异时仍遵守既有增量和 provider 能力校验，不静默重写全量声明。
+前五批已验证旧会话的声明追加；2026-10-27 用户在第 6 批调整后续装配规则：默认工具集按稳定 ID 更新，本进程已有 session 保留工具暴露快照，新 session 使用新集合。搜索 provider 的内存更新对 session 透明，已有 session 后续搜索可使用新源而不改变声明／规则。用户允许重启后按当前配置重新装配；恢复声明有差异时仍遵守既有增量和 provider 能力校验，不静默重写全量声明。
 
 ## 下一批的执行入口
 
@@ -37,7 +37,7 @@
 
 2026-10-26 第 4 批两个工具、两阶段送达／决定和产品 UI 已实现并完成本批验收，用户手动记录已核对；Stop／草稿、重启失效／不重放、后续新 Run 和明暗主题已补验。02f 已删除，03c 仅保留长输出，真实 IME 平台复核仍在 04d，证据见[本批结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。
 
-1. 第 5 批 TodoWrite 已完成实现与验收，证据见交付结果；下一工具批为 02i WebFetch／WebSearch 与搜索源设置，当前先审计划，不提前展开后台工具、Skill 或 preset。
+1. 第 6 批网页工具与搜索设置已完成实现与验收，证据见交付结果；下一工具批为 02h 的 BgRun／BgOutput／BgStop，实施时先核对旧版与当前源码。Skill 的具体范围仍待明确，preset 暂缓。
 2. 01f 的历史读取可独立推进，03a／03c 等其公共接口；不因工具 UI 已完成而放宽完整快照预算。后台工具仍等第 7 批。
 
 工具批次之外，01f／03a（历史读取与展示）、02j（压缩）和 02l（辅助标题记录）可在各自前置满足时独立实施，完整完成后再汇入 03d／04d；本次不将它们插入工具批次，Skill 的具体范围仍待明确。
@@ -50,7 +50,6 @@
 | --- | --- | --- |
 | [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
 | [02h](02h-bash-sandbox.md) | 第 7 批后台工具 | 第一阶段前台 Bash 已验收；第 7 批接第 6 批 |
-| [02i](02i-webfetch.md) | WebFetch 与辅助模型提取、WebSearch、搜索源设置及对应 UI | 第 5 批完成 |
 | Skill（已登记） | 具体实现范围后续确定；按生命周期验证所需 provider 更新 | 第 7 批完成，工具批次最后实施 |
 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 已交付交互、02h、02j；文件搜索已交付 |

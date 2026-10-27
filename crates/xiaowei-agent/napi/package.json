@@ -16,7 +16,7 @@
     "build": "node ../../../scripts/dev/build-napi.mjs --release",
     "build:debug": "node ../../../scripts/dev/build-napi.mjs",
     "check": "cargo check -p xiaowei-agent-napi --locked",
-    "test:runtime": "node --conditions=source --import tsx --test test/*.test.cjs"
+    "test:runtime": "node ../../../scripts/tests/agent-runtime.mjs"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.10.1",

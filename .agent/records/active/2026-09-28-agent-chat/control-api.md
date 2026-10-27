@@ -55,7 +55,15 @@
 
 RegenerateTitle 使用 Host 当次查询的辅助引用，旧 title_model_ref 字段已忽略，有限超时等待完整标题；成功设 auto_title_enabled=true 并恢复自动生成，失败保留原标题与开关。手动改名／主动重新生成推进 updated_at_ms，每轮后的自动标题生成保留原时间；结果均通过含提交后 updated_at_ms 的 SessionTitleUpdated 同步到所有观察者，快照和摘要也保存该开关；RPC 响应不覆盖事件缓存。
 
-会话配置在创建时保存并返回。StartRun.config 缺失继承默认，存在时只覆盖当前 Run；SetSessionConfig 单独提交会话默认，reasoning 缺失表示模型默认。ModelSettings 和 provider 解析仍归调用方／LLM 层，Agent 不读取外部业务设置。业务 UUIDv7 身份与 Gateway 请求 ID 分开，可信来源单独由宿主提供，不由客户端 payload 自报。
+会话配置在创建时保存并返回。StartRun.config 缺失继承默认，存在时只覆盖当前 Run；SetSessionConfig 单独提交会话默认，reasoning 缺失表示模型默认。ModelSettings 和 provider 解析仍归调用方／LLM 层，core 不读取外部业务设置。业务 UUIDv7 身份与 Gateway 请求 ID 分开，可信来源单独由宿主提供，不由客户端 payload 自报。
+
+### desktop 搜索设置与 Agent 装配
+
+搜索配置沿用 `xiaowei.desktop.Settings`，不加入 agent.proto 或 Agent catalog。Storage 持有 Get／Update／GetWebSearchRuntimeConfig 和完整脱敏 SettingsChanged；xiaowei-agent 只实现 TestWebSearchProvider。字段、缺失值和错误语义统一在 [settings.proto](../../../../contracts/proto/xiaowei/desktop/settings.proto) 维护。
+
+设置页只保存选择、write-only Key 并测试已保存配置，不读取运行 Key。运行配置读取拒绝 Electron frame caller；测试由原生装配层读取指定源的单个 Key，缺 Key 严格失败，不替换当前对象或写会话历史。Settings.Update 成功表示已保存，工具实例通过提交通知串行刷新；刷新失败保留已装配对象，后续通知再恢复，不回滚已保存配置或虚报已经生效。
+
+启动顺序是 Settings 就绪后激活 Agent，先订阅再初读，完成装配后才发布业务 ready 并启动维护。TS napi adapter 在初始化时允许绑定客户端向外调用，但业务路由仍等 activate 成功后发布；失败清理订阅、服务与 endpoint。退出先停止配置任务，再关闭 core 和依赖。通用工具 set_tools／update_tool 只是本地 Rust 装配入口，不增加 Apply RPC。
 
 ### 请求、响应与直接业务事件
 
