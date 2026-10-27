@@ -70,6 +70,7 @@ process.exit(result.status ?? 1);
     "-c",
     "core.hooksPath=/dev/null",
     "commit",
+    "--no-gpg-sign",
     "-qm",
     "fixture",
   );
