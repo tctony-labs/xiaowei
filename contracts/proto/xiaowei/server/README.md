@@ -4,7 +4,7 @@
 
 ## API 声明与传输
 
-对外 unary 方法默认要求 access session，提供认证 HTTP 和认证 WS。仅允许未登录调用的方法在 [common.proto](common.proto) 的 MethodOptions 扩展中声明 `(xiaowei.server.common.api).no_login = true`，此类方法仅提供 HTTP；该标记不免除密码、刷新凭据或业务参数校验。
+对外 unary 方法默认要求 access session，提供认证 HTTP 和认证 WS。仅允许未登录调用的方法在 [common.proto](common.proto) 的 MethodOptions 扩展中声明 `(xiaowei.server.api).no_login = true`，此类方法仅提供 HTTP；该标记不免除密码、刷新凭据或业务参数校验。
 
 方法、Request、Response 和访问策略元信息只在 proto 维护。网络短标识、统一 POST 路径、网站契约复用与传输选择规则见 [xwapi](../../../../docs/xwapi.md#方法与登录要求)；新增方法须显式注册业务 handler，不因存在 descriptor 而自动发布。
 

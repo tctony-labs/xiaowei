@@ -82,7 +82,7 @@ cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
 发送成功或 `.rs` 已更新只代表重启请求已送出，必须继续验证实际结果：
 
 - 客户端：旧 Electron 退出，新进程及其 cwd／父子关系属于当前工作区；构建完成且新启动日志正常。核对本次任务所需的运行行为；构建失败时不要声称已重启成功。
-- 服务端：核对停止、编译与重新监听的日志，新 Go 进程仍属于同一控制脚本；按实际配置地址 POST 请求 `/api/common.Health/Ready`（JSON 请求体 `{}`），检查 HTTP 200 和业务 code 为 0。重启 Go 时核对共享 PostgreSQL 容器未更换；不能只凭端口恢复判断进程归属。
+- 服务端：核对停止、编译与重新监听的日志，新 Go 进程仍属于同一控制脚本；按实际配置地址 POST 请求 `/api/Health/Ready`（JSON 请求体 `{}`），检查 HTTP 200 和业务 code 为 0。重启 Go 时核对共享 PostgreSQL 容器未更换；不能只凭端口恢复判断进程归属。
 - 查询失败或尚未看到完成时，先核对进程和新日志，不重复发送重启请求。确认失败后报告实际状态与可执行的下一步。
 
 开发入口的当前实现见 [客户端控制脚本](../../../scripts/dev/dev.mjs)、[服务端控制脚本](../../../scripts/dev/server.mjs) 和 [justfile](../../../justfile)。

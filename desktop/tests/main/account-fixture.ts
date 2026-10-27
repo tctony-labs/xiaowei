@@ -128,21 +128,18 @@ export async function authServer() {
       response.end(JSON.stringify({ code, msg }));
     };
 
-    if (
-      path === "/xiaowei/api/common.Health/Check" ||
-      path === "/xiaowei/api/common.Health/Ready"
-    ) {
+    if (path === "/xiaowei/api/Health/Check" || path === "/xiaowei/api/Health/Ready") {
       await state.beforeHealth?.();
       if (state.healthResponse !== undefined) {
         response.writeHead(state.healthStatus, { "Content-Type": "application/json" });
         response.end(state.healthResponse);
-      } else if (path.endsWith("/api/common.Health/Ready") && !state.ready) {
+      } else if (path.endsWith("/api/Health/Ready") && !state.ready) {
         fail(10008, "数据库暂不可用");
       } else {
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ code: 0, msg: "成功", data: {} }));
       }
-    } else if (path === "/xiaowei/api/auth.Auth/Login") {
+    } else if (path === "/xiaowei/api/Auth/Login") {
       await state.beforeLogin?.();
       if (state.loginResponse !== undefined) {
         response.writeHead(200, { "Content-Type": "application/json" });
@@ -176,7 +173,7 @@ export async function authServer() {
           },
         }),
       );
-    } else if (path === "/xiaowei/api/auth.Auth/Refresh") {
+    } else if (path === "/xiaowei/api/Auth/Refresh") {
       state.refreshes++;
       if (state.revoked || body.refresh_token !== state.tokens.refreshToken) {
         fail(10002, "登录已失效");
@@ -184,10 +181,7 @@ export async function authServer() {
       }
       rotate();
       send(RefreshResponseSchema, create(RefreshResponseSchema, { msg: "ok", data: state.tokens }));
-    } else if (
-      path === "/xiaowei/api/auth.Auth/GetCurrentUser" ||
-      path === "/xiaowei/api/auth.Auth/Logout"
-    ) {
+    } else if (path === "/xiaowei/api/Auth/GetCurrentUser" || path === "/xiaowei/api/Auth/Logout") {
       if (state.revoked || !access.has(bearer?.replace(/^Bearer /, "") ?? "")) {
         fail(10002, "登录已失效");
         return;

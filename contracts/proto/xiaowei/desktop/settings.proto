@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.desktop.settings;
+package xiaowei.desktop;
 
 import "google/protobuf/empty.proto";
 

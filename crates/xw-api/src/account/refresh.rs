@@ -1,5 +1,5 @@
 use super::{Session, SessionCore};
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 
 pub(super) const LEAD_MS: i64 = 5 * 60_000;
 

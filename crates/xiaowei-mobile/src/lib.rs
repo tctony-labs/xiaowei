@@ -12,7 +12,7 @@ pub use error::{LocalErrorKind, MobileError, Result};
 pub use xw_api::{RequestOptions, Transport};
 
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth::{Authenticated, LoginRequest};
+use proto_server_rs::xiaowei::server::{Authenticated, LoginRequest};
 use std::sync::{Arc, Mutex};
 use tokio_util::sync::CancellationToken;
 use xw_api::account::{Operation, SessionCore};

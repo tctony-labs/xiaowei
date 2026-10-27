@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.server.auth;
+package xiaowei.server;
 
 import "google/protobuf/empty.proto";
 import "xiaowei/server/common.proto";
@@ -8,12 +8,12 @@ import "xiaowei/server/common.proto";
 service Auth {
   // Successful login replaces the prior session for this user and device only.
   rpc Login(LoginRequest) returns (LoginResponse) {
-    option (xiaowei.server.common.api).no_login = true;
+    option (xiaowei.server.api).no_login = true;
   }
 
   // Rotates refresh credentials atomically; existing access tokens keep their own expiry.
   rpc Refresh(RefreshRequest) returns (RefreshResponse) {
-    option (xiaowei.server.common.api).no_login = true;
+    option (xiaowei.server.api).no_login = true;
   }
 
   // Identity comes from the transport's verified bearer token, never from the payload.

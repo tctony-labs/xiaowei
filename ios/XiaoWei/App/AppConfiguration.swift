@@ -29,7 +29,7 @@ struct AppConfiguration: Sendable {
                   let sample = Data(base64Encoded: encoded) else {
                 throw URLError(.cannotDecodeContentData)
             }
-            let authenticated = try Xiaowei_Server_Auth_Authenticated(serializedBytes: sample)
+            let authenticated = try Xiaowei_Server_Authenticated(serializedBytes: sample)
             return Self(
                 server: bootstrap.server,
                 keychainService: "com.tctony.xiaowei.ios.tests." + base.lastPathComponent,

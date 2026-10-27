@@ -10,7 +10,7 @@ AccountService 持有桌面产品登录态、服务器选择、保存／提交�
 
 xwapi 负责网络协议、响应解码和本地鉴权前置检查，不管理 Account 会话。直接调用原始 Login／Refresh／Logout 不会自动保存凭据或发出 Account 状态变更；AccountService 校验业务 code 及 authenticated 结果后才提交产品登录态。取消补偿和关闭顺序见 [xwapi 会话边界](../../docs/xwapi.md#模块职责与会话边界)，不在这里维护另一份传输实现说明。
 
-xwapi 的网络路由和 API 方法日志从原始 descriptor 生成短标识，例如 `auth.Auth/GetCurrentUser`。本地 Gateway 注册与权限检查仍使用完整方法身份；HTTP 日志中的 `method=POST` 表示请求动词，API 标识体现在 `path` 中。
+xwapi 的网络路由和 API 方法日志从原始 descriptor 生成短标识，例如 `Auth/GetCurrentUser`。本地 Gateway 注册与权限检查仍使用完整方法身份；HTTP 日志中的 `method=POST` 表示请求动词，API 标识体现在 `path` 中。
 
 ## 服务器与设备
 

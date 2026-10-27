@@ -6,11 +6,11 @@ do {
     let output: Data
     switch CommandLine.arguments.dropFirst().first {
     case "login-request":
-        output = try Xiaowei_Server_Auth_LoginRequest(serializedBytes: input).serializedData()
+        output = try Xiaowei_Server_LoginRequest(serializedBytes: input).serializedData()
     case "login-response":
-        output = try Xiaowei_Server_Auth_LoginResponse(serializedBytes: input).serializedData()
+        output = try Xiaowei_Server_LoginResponse(serializedBytes: input).serializedData()
     case "base-response":
-        output = try Xiaowei_Server_Common_BaseResponse(serializedBytes: input).serializedData()
+        output = try Xiaowei_Server_BaseResponse(serializedBytes: input).serializedData()
     default:
         throw CocoaError(.coderInvalidValue)
     }

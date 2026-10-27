@@ -8,8 +8,8 @@ pub const MODULES: &[BindingModule] = &[
     BindingModule {
         name: "xiaowei-rust/napi",
         services: &[
-            "xiaowei.server.auth.Auth",
-            "xiaowei.server.common.Health",
+            "xiaowei.server.Auth",
+            "xiaowei.server.Health",
         ],
     },
     BindingModule {
@@ -23,30 +23,30 @@ pub const MODULES: &[BindingModule] = &[
     BindingModule {
         name: "xw-search",
         services: &[
-            "xiaowei.desktop.search.Search",
-            "xiaowei.desktop.applications.App",
-            "xiaowei.desktop.host.System",
+            "xiaowei.desktop.Search",
+            "xiaowei.desktop.App",
+            "xiaowei.desktop.System",
         ],
     },
     BindingModule {
         name: "xw-clipboard",
         services: &[
-            "xiaowei.desktop.settings.Settings",
-            "xiaowei.desktop.storage.Storage",
-            "xiaowei.desktop.host.System",
-            "xiaowei.desktop.clipboard.ClipboardBiz",
-            "xiaowei.desktop.clipboard.ClipboardDao",
+            "xiaowei.desktop.Settings",
+            "xiaowei.desktop.Storage",
+            "xiaowei.desktop.System",
+            "xiaowei.desktop.ClipboardBiz",
+            "xiaowei.desktop.ClipboardDao",
         ],
     },
     BindingModule {
         name: "xw-storage",
         services: &[
-            "xiaowei.desktop.host.System",
-            "xiaowei.desktop.shortcuts.Shortcuts",
-            "xiaowei.desktop.storage.Storage",
-            "xiaowei.desktop.storage.KeyValue",
-            "xiaowei.desktop.settings.Settings",
-            "xiaowei.desktop.clipboard.ClipboardDao",
+            "xiaowei.desktop.System",
+            "xiaowei.desktop.Shortcuts",
+            "xiaowei.desktop.Storage",
+            "xiaowei.desktop.KeyValue",
+            "xiaowei.desktop.Settings",
+            "xiaowei.desktop.ClipboardDao",
         ],
     },
 ];

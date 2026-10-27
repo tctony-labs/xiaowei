@@ -1,10 +1,10 @@
 mod support;
 
 use prost::Message;
-use proto_server_rs::xiaowei::server::common::BaseResponse;
+use proto_server_rs::xiaowei::server::BaseResponse;
 use xiaowei_mobile::{LocalErrorKind, MobileClient, MobileError, RequestOptions};
 
-const HEALTH: &str = "xiaowei.server.common.Health.Check";
+const HEALTH: &str = "xiaowei.server.Health.Check";
 
 #[tokio::test]
 async fn repeated_reads_do_not_replay_and_immediate_cancel_sends_nothing() {

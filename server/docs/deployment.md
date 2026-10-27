@@ -113,7 +113,7 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 docker compose --project-name xiaowei --env-file config/.env --file compose.yaml ps
 ```
 
-`--wait` 依赖容器内 `/xiaowei-healthcheck`：探针 POST 请求容器内部的 `/api/common.Health/Ready`，要求同时返回 HTTP 200 与整数 code 0；数据库不可用时，即使 HTTP 200 也会返回非零退出码。探针不读取配置或凭据，不启动应用。未配置服务器 YAML、迁移失败或初始化失败时不会开放 HTTP。
+`--wait` 依赖容器内 `/xiaowei-healthcheck`：探针 POST 请求容器内部的 `/api/Health/Ready`，要求同时返回 HTTP 200 与整数 code 0；数据库不可用时，即使 HTTP 200 也会返回非零退出码。探针不读取配置或凭据，不启动应用。未配置服务器 YAML、迁移失败或初始化失败时不会开放 HTTP。
 
 管理员登录由用户验证。初始化后保留 config/.env 中两项 `XIAOWEI_BOOTSTRAP_ADMIN_*` 及“仅首次初始化使用”的注释，不自动删除或改写。数据库已有初始化标记时会跳过初始化，后续修改这些变量不会重置已有密码，变量值也不代表当前登录密码。具体事务和密码规则见 [首次管理员初始化](authentication.md#首次管理员初始化)。
 
@@ -145,7 +145,7 @@ cp releases/<version>/nginx.logrotate /etc/logrotate.d/xiaowei
 nginx -t
 systemctl reload nginx
 curl --fail --silent --show-error -X POST -H 'Content-Type: application/json' \
-  -d '{}' https://xiaowei.tctony.com/api/common.Health/Ready
+  -d '{}' https://xiaowei.tctony.com/api/Health/Ready
 ```
 
 常规应用升级复用现有 HTTPS 接入，只执行公网访问验证，不重复复制 Nginx 模板、签发证书或重载 Nginx。仅在域名、上游端口、代理规则或证书配置变化时，更新对应设置并检查、重载；证书续期沿用服务器既有机制。
@@ -200,7 +200,7 @@ docker compose --project-name xiaowei --env-file config/.env --file compose.yaml
 
 逐步检查退出码，任何失败都停止后续操作，保留回滚备份并排查；恢复成功后才启动旧 server，期间不开放业务接口。不能在恢复前把故障数据写入 latest.tar。普通升级不改变 PostgreSQL 主版本、数据库身份或凭据，恢复配置必须与仍运行的 db 对应。数据库恢复要求它独占该应用的数据库，不能对共享业务数据库执行上述命令。验收后删除 upgrade-pending 和本次临时恢复目录。
 
-恢复后验证用户、设备和会话，确认 /api/common.Health/Ready 的 code 0；备份内未失效的会话也随数据库恢复。恢复演练使用隔离数据库，不在生产库做破坏性演练。若新版本已接受业务写入，恢复会丢失备份后的数据，必须先说明具体影响并取得确认。
+恢复后验证用户、设备和会话，确认 /api/Health/Ready 的 code 0；备份内未失效的会话也随数据库恢复。恢复演练使用隔离数据库，不在生产库做破坏性演练。若新版本已接受业务写入，恢复会丢失备份后的数据，必须先说明具体影响并取得确认。
 
 ## 升级与回滚
 

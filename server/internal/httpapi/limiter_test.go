@@ -54,7 +54,7 @@ func TestLimiterCapacityAndAtomicQuotas(t *testing.T) {
 }
 
 func TestSourceIgnoresProxyHeaders(t *testing.T) {
-	r := httptest.NewRequest("POST", "/api/auth.Auth/Login", nil)
+	r := httptest.NewRequest("POST", "/api/Auth/Login", nil)
 	r.RemoteAddr = "[::ffff:192.0.2.1]:1234"
 	r.Header.Set("X-Forwarded-For", "198.51.100.1")
 	if sourceIP(r) != "192.0.2.1" {

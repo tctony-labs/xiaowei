@@ -4,7 +4,7 @@ use napi::bindgen_prelude::{Buffer, PromiseRaw};
 use napi_derive::napi;
 use operation::{AccountOperationAccess, AccountOperationContext, AccountOperationResult};
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth::LoginRequest;
+use proto_server_rs::xiaowei::server::LoginRequest;
 use serde::Deserialize;
 use std::{
     collections::HashMap,
@@ -34,7 +34,7 @@ impl HostSession {
             .as_ref()
             .map(|bytes| {
                 let authenticated =
-                    proto_server_rs::xiaowei::server::auth::Authenticated::decode(bytes.as_slice())
+                    proto_server_rs::xiaowei::server::Authenticated::decode(bytes.as_slice())
                         .map_err(|_| {
                             xw_gateway::GatewayError::new(
                                 xw_gateway::ErrorCode::InvalidArgument,

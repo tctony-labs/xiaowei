@@ -3,7 +3,7 @@
 pub mod gateway;
 
 use crate::{invalid, sql as storage_pb, Database, Result};
-use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
+use proto_desktop_rs::xiaowei::desktop as pb;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 

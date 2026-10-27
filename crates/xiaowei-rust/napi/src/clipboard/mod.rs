@@ -1,6 +1,6 @@
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi_derive::napi;
-use proto_desktop_rs::xiaowei::desktop::clipboard::ClipboardChanged;
+use proto_desktop_rs::xiaowei::desktop::ClipboardChanged;
 use std::sync::{Arc, Mutex, Weak};
 use xw_clipboard::{ClipboardData, Service, SystemClipboard};
 use xw_gateway::{invoke::Owner, XwInvokeRegistry};

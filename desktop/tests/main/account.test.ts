@@ -175,7 +175,7 @@ test("adding checks HTTP without changing the active server or credentials", asy
   assert.equal((await add(`${first.url}/`)).code, 0);
   assert.equal(service.snapshot().selectedServer, "https://xiaowei.tctony.com");
   assert.deepEqual(first.state.requests, [
-    { path: "/xiaowei/api/common.Health/Check", bearer: undefined, body: {} },
+    { path: "/xiaowei/api/Health/Check", bearer: undefined, body: {} },
   ]);
   assert.equal((await add(first.url)).code, ErrorCode.INVALID_ARGUMENT);
   assert.equal((await add("http://remote.example.test")).code, ErrorCode.INVALID_ARGUMENT);
@@ -223,7 +223,7 @@ test("adding checks HTTP without changing the active server or credentials", asy
   assert.ok(service.snapshot().servers.includes(target.url));
   assert.ok(
     target.state.requests.every(
-      (request) => request.path === "/xiaowei/api/common.Health/Check" && !request.bearer,
+      (request) => request.path === "/xiaowei/api/Health/Check" && !request.bearer,
     ),
   );
 });
@@ -970,8 +970,7 @@ test("switching servers discards cancelled login results; stale cancellation can
   assert.ok(
     server.state.requests.every(
       (entry) =>
-        entry.path.startsWith("/xiaowei/api/auth.Auth/") ||
-        entry.path === "/xiaowei/api/common.Health/Check",
+        entry.path.startsWith("/xiaowei/api/Auth/") || entry.path === "/xiaowei/api/Health/Check",
     ),
   );
   await api.selectServer(create(SelectServerRequestSchema, { serverAddress: server.url }));
@@ -992,7 +991,7 @@ test("redirect never forwards credentials", async (t) => {
 
   const otherServer = await authServer();
   t.after(() => otherServer.close());
-  server.state.redirectTo = `${otherServer.url}/api/auth.Auth/GetCurrentUser`;
+  server.state.redirectTo = `${otherServer.url}/api/Auth/GetCurrentUser`;
   const host = new GatewayHost();
   const owner = await attachServerApiFixture(host, () => ({
     server: server.url,
@@ -1155,7 +1154,7 @@ test("Account nested authentication preserves the caller's Gateway permissions",
   );
   assert.equal(result.code, ErrorCode.PERMISSION_DENIED);
   assert.equal(server.state.requests.length, 1);
-  assert.equal(server.state.requests[0].path, "/xiaowei/api/common.Health/Check");
+  assert.equal(server.state.requests[0].path, "/xiaowei/api/Health/Check");
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_OUT);
   assert.equal(
     (

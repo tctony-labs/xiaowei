@@ -37,7 +37,7 @@ impl Method {
             return Err(Error::invalid("此服务器接口不是 unary 方法"));
         }
         let extension = pool()
-            .get_extension_by_name("xiaowei.server.common.api")
+            .get_extension_by_name("xiaowei.server.api")
             .expect("generated api option exists");
         let options = descriptor.options();
         let option = options.get_extension(&extension);

@@ -1,5 +1,5 @@
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use std::sync::{Arc, Mutex};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -89,17 +89,17 @@ impl Server {
                     let header = String::from_utf8_lossy(&bytes);
                     let (code, data, pause) = {
                         let mut counts = counts.lock().unwrap();
-                        if header.starts_with("POST /api/common.Health/Check ") {
+                        if header.starts_with("POST /api/Health/Check ") {
                             counts.health += 1;
                             (
                                 counts.health_code,
                                 serde_json::json!({}),
                                 counts.pause_health,
                             )
-                        } else if header.starts_with("POST /api/auth.Auth/Refresh ") {
+                        } else if header.starts_with("POST /api/Auth/Refresh ") {
                             counts.refresh += 1;
                             (0, tokens(now), false)
-                        } else if header.starts_with("POST /api/auth.Auth/GetCurrentUser ") {
+                        } else if header.starts_with("POST /api/Auth/GetCurrentUser ") {
                             counts.user += 1;
                             (
                                 counts.user_code,
@@ -110,7 +110,7 @@ impl Server {
                                 }),
                                 false,
                             )
-                        } else if header.starts_with("POST /api/auth.Auth/Logout ") {
+                        } else if header.starts_with("POST /api/Auth/Logout ") {
                             counts.logout += 1;
                             (0, serde_json::json!({}), false)
                         } else {

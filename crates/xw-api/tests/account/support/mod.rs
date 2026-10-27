@@ -1,4 +1,4 @@
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use std::sync::{Arc, Mutex};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -85,7 +85,7 @@ impl Server {
                         }
                     }
                     let text = String::from_utf8_lossy(&bytes);
-                    let refresh = text.starts_with("POST /api/auth.Auth/Refresh ");
+                    let refresh = text.starts_with("POST /api/Auth/Refresh ");
                     let pause = { state.lock().unwrap().pause_refresh && refresh };
                     if pause {
                         started.notify_one();
@@ -97,7 +97,7 @@ impl Server {
                             state.refreshes += 1;
                             state.token += 1;
                             (0, tokens(state.token, "session", now))
-                        } else if text.starts_with("POST /api/auth.Auth/GetCurrentUser ") {
+                        } else if text.starts_with("POST /api/Auth/GetCurrentUser ") {
                             state.users += 1;
                             let user = if state.mismatched_user {
                                 "wrong"
@@ -112,7 +112,7 @@ impl Server {
                                     "session_id": "session",
                                 }),
                             )
-                        } else if text.starts_with("POST /api/auth.Auth/Logout ") {
+                        } else if text.starts_with("POST /api/Auth/Logout ") {
                             state.logouts += 1;
                             (0, serde_json::json!({}))
                         } else {

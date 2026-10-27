@@ -1,4 +1,4 @@
-use proto_server_rs::xiaowei::server::auth::{Authenticated, LoginRequest};
+use proto_server_rs::xiaowei::server::{Authenticated, LoginRequest};
 
 #[derive(Clone)]
 pub struct Session {

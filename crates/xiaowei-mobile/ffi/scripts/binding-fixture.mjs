@@ -241,7 +241,7 @@ export async function createFixture(binary, now, businessCode, options = {}) {
       if (path === "/fixture/authenticate") {
         assert.match(request.headers.authorization, /^Bearer access_\d+$/);
         response.end(JSON.stringify({ code: "authenticated" }));
-      } else if (path.endsWith("/common.Health/Check")) {
+      } else if (path.endsWith("/Health/Check")) {
         assert.equal(request.headers.authorization, undefined);
         const label = path.split("/")[1];
         if (["cancel", "close", "timeout"].includes(label)) {
@@ -257,7 +257,7 @@ export async function createFixture(binary, now, businessCode, options = {}) {
           counts.health += 1;
           reply({});
         }
-      } else if (path === "/api/auth.Auth/Refresh") {
+      } else if (path === "/api/Auth/Refresh") {
         assert.equal(body.refresh_token ?? body.refreshToken, `refresh_${counts.refresh}`);
         if (accountMode && mode === "hold-refresh") {
           held("refresh");
@@ -273,7 +273,7 @@ export async function createFixture(binary, now, businessCode, options = {}) {
         }
         counts.refresh += 1;
         reply(tokens(counts.refresh));
-      } else if (path === "/api/auth.Auth/GetCurrentUser") {
+      } else if (path === "/api/Auth/GetCurrentUser") {
         counts.user += 1;
         if (request.headers["x-fixture-transport"] === "websocket") counts.wsUser += 1;
         if (accountMode && mode === "hold-user") {
@@ -289,14 +289,14 @@ export async function createFixture(binary, now, businessCode, options = {}) {
           return;
         }
         reply({ user: user(true), device, session_id: "fixture-session" });
-      } else if (path === "/api/auth.Auth/Logout") {
+      } else if (path === "/api/Auth/Logout") {
         counts.logout += 1;
         if (accountMode && mode === "unavailable") {
           failure(10008);
           return;
         }
         reply({});
-      } else if (path === "/api/auth.Auth/Login") {
+      } else if (path === "/api/Auth/Login") {
         counts.login += 1;
         if (accountMode && mode === "hold-login") {
           held("login");

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.desktop.applications;
+package xiaowei.desktop;
 
 service App {
   rpc ReadIcon(ReadIconRequest) returns (AppIcon);

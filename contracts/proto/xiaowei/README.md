@@ -4,9 +4,9 @@
 
 ## 按业务职责划分
 
-先明确调用方要完成什么、需要哪些信息、结果代表什么，再设计 service 和消息。package 按业务边界命名，同一 package 可以包含多个 proto 文件；service 使用 PascalCase。
+先明确调用方要完成什么、需要哪些信息、结果代表什么，再设计 service 和消息。package 表达稳定的契约输出与消费范围，同一 package 可以包含多个 proto 文件；service 使用 PascalCase。
 
-桌面使用 `xiaowei.desktop.<职责>`，服务器使用 `xiaowei.server.<职责>`；Agent 和 LLM 按能力独立。单文件 package 直接放职责名 proto，同包多文件才使用目录归组。不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约，只定义当前需要的通信能力。普通 Rust 库共享接口不因此需要定义 proto。
+桌面使用 `xiaowei.desktop`，服务器使用 `xiaowei.server`；Agent 和 LLM 保留各自独立的 `xiaowei.agent` 与 `xiaowei.llm`。具体业务通过 proto 文件、目录和 service 组织，源码目录不必对应 package 层级；同一 package 内的顶层符号不得重名。不根据 crate、进程、napi 方法、IPC 通道或数据库表机械划分契约，只定义当前需要的通信能力。普通 Rust 库共享接口不因此需要定义 proto。
 
 不同业务通过相同通信 package 交互；只在含义与生命周期一致时复用消息。桌面 Account 的展示和表单消息由桌面定义，AccountService 负责适配服务器认证数据；保存格式继续使用服务器类型。空消息使用标准 `google.protobuf.Empty`，不另建自定义 Empty 或 common 输出包。
 

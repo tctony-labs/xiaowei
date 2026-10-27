@@ -12,7 +12,7 @@ import (
 
 func main() {
 	client := &http.Client{Timeout: 2 * time.Second}
-	if err := checkReadiness(client, "http://127.0.0.1:10001/api/common.Health/Ready"); err != nil {
+	if err := checkReadiness(client, "http://127.0.0.1:10001/api/Health/Ready"); err != nil {
 		_, _ = io.WriteString(os.Stderr, "server is not ready\n")
 		os.Exit(1)
 	}

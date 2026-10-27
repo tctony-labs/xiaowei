@@ -2,7 +2,7 @@
 
 ## 读取当前实例配置
 
-1. 先确认运行实例属于目标工作区。已有可信 Gateway 调用入口时，可用 `xiaowei.desktop.settings.Settings.Get` 读取有效 `shortcuts`；不要为查询新增调试 RPC、启用远程调试或启动另一个实例。
+1. 先确认运行实例属于目标工作区。已有可信 Gateway 调用入口时，可用 `xiaowei.desktop.Settings.Get` 读取有效 `shortcuts`；不要为查询新增调试 RPC、启用远程调试或启动另一个实例。
 2. 没有现成调用入口时，只读查询该实例实际使用的 Storage 数据库。路径由 [paths.ts](../../../../desktop/src/main/app/paths.ts) 决定，必要时结合进程打开文件确认。普通 macOS 实例为 `~/Library/Application Support/com.tctony.xiaowei/xiaowei/storage.sqlite`，本地更新测试实例使用另一目录；`XIAOWEI_AGENT_HOME` 只影响 Agent 数据，不决定此数据库位置。不存在时报告，不创建数据库。
 
 ```sql

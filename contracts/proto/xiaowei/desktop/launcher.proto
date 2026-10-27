@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.desktop.launcher;
+package xiaowei.desktop;
 
 import "google/protobuf/empty.proto";
 import "xiaowei/desktop/search.proto";
@@ -38,7 +38,7 @@ message LauncherHit {
   string provider = 3;
   string label = 4;
   double score = 5;
-  repeated xiaowei.desktop.search.HighlightRange ranges = 6;
+  repeated xiaowei.desktop.HighlightRange ranges = 6;
   // Optional image resource URL; clients load it as an image rather than calling an icon RPC.
   optional string icon_url = 7;
 }

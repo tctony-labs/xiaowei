@@ -133,10 +133,10 @@ final class AccountSession {
 
     func login(email: String, password: String) {
         guard !isAuthenticated else { return }
-        var credential = Xiaowei_Server_Auth_PasswordLogin()
+        var credential = Xiaowei_Server_PasswordLogin()
         credential.email = email.trimmingCharacters(in: .whitespacesAndNewlines)
         credential.password = password
-        var request = Xiaowei_Server_Auth_LoginRequest()
+        var request = Xiaowei_Server_LoginRequest()
         request.deviceID = deviceID
         request.deviceName = "iPhone"
         request.credential = .password(credential)
@@ -269,7 +269,7 @@ final class AccountSession {
                 while true {
                     if !command.isLogin { try await accept(value) }
                     try Task.checkCancellation()
-                    if value.code != Xiaowei_Server_Common_ErrorCode.success.rawValue {
+                    if value.code != Xiaowei_Server_ErrorCode.success.rawValue {
                         throw AccountFailure(code: value.code)
                     }
                     if !value.checkpoint { return value }
@@ -287,7 +287,7 @@ final class AccountSession {
             case .login:
                 guard let authenticated = outcome.authenticated else {
                     throw AccountFailure(
-                        code: Int32(Xiaowei_Server_Common_ErrorCode.internalError.rawValue)
+                        code: Int32(Xiaowei_Server_ErrorCode.internalError.rawValue)
                     )
                 }
                 try validate(authenticated)
@@ -332,7 +332,7 @@ final class AccountSession {
                 operation = nil
             }
             if let failure = error as? AccountFailure,
-               failure.code == Xiaowei_Server_Common_ErrorCode.unauthenticated.rawValue,
+               failure.code == Xiaowei_Server_ErrorCode.unauthenticated.rawValue,
                !Task.isCancelled {
                 pendingRemoval = true
                 do {
@@ -443,7 +443,7 @@ final class AccountSession {
     }
 
     private func validate(_ data: Data) throws {
-        let value = try Xiaowei_Server_Auth_Authenticated(serializedBytes: data)
+        let value = try Xiaowei_Server_Authenticated(serializedBytes: data)
         guard value.hasUser, !value.user.userID.isEmpty,
               value.hasDevice, value.device.deviceID == deviceID,
               value.hasTokens, !value.tokens.sessionID.isEmpty,
@@ -454,7 +454,7 @@ final class AccountSession {
 
     private func display(_ data: Data) throws {
         try validate(data)
-        let value = try Xiaowei_Server_Auth_Authenticated(serializedBytes: data)
+        let value = try Xiaowei_Server_Authenticated(serializedBytes: data)
         userID = value.user.userID
         email = value.user.email
     }
@@ -464,7 +464,7 @@ final class AccountSession {
             status = .storageError
             errorMessage = "登录信息保存失败，请重试"
         } else if let failure = error as? AccountFailure,
-                  failure.code == Xiaowei_Server_Auth_AuthErrorCode.invalidCredentials.rawValue {
+                  failure.code == Xiaowei_Server_AuthErrorCode.invalidCredentials.rawValue {
             status = .signedOut
             errorMessage = "邮箱或密码错误"
         } else {

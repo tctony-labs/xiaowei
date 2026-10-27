@@ -140,7 +140,7 @@ final class AppModel {
         do {
             let request = try client.invoke(
                 context: account.context,
-                method: Xiaowei_Server_Common_Health.Check,
+                method: Xiaowei_Server_Health.Check,
                 payload: Data(),
                 options: RequestOptions(timeoutMs: 10_000, transport: .http)
             )
@@ -153,8 +153,8 @@ final class AppModel {
                 }
                 await request.shutdown()
                 guard revision == expected else { return }
-                let result = try Xiaowei_Server_Common_BaseResponse(serializedBytes: response)
-                healthStatus = result.code == Xiaowei_Server_Common_ErrorCode.success.rawValue
+                let result = try Xiaowei_Server_BaseResponse(serializedBytes: response)
+                healthStatus = result.code == Xiaowei_Server_ErrorCode.success.rawValue
                     && result.hasData ? "服务正常" : "服务不可用"
                 logger.info("Health request completed bytes=\(response.count)")
             } catch {

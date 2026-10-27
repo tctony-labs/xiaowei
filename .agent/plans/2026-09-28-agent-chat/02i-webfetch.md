@@ -201,7 +201,7 @@ crates/xiaowei-agent/src/
 | --- | --- | --- |
 | 修改 | `contracts/proto/xiaowei/desktop/settings.proto` | 扩展脱敏快照、Update 的 provider／write-only Key 分支；RuntimeConfig 仅返回单源明文 Key，读取可指定测试源；Test 严格缺 Key，不新增 Apply 配置方法 |
 | 修改 | `gateway/rust/business_binding_config.rs` | xiaowei-agent 增加 Settings service 依赖；xw-storage／xw-clipboard 已有该 service，不修改生成机制 |
-| 生成 | `contracts/out/proto-desktop-rs/src/gen/xiaowei.desktop.settings.rs`、`descriptor.bin` | just gen 更新消息与 descriptor；proto-agent-rs 与 agent.proto 无搜索配置改动 |
+| 生成 | `contracts/out/proto-desktop-rs/src/gen/xiaowei.desktop.rs`、`descriptor.bin` | just gen 更新消息与 descriptor；proto-agent-rs 与 agent.proto 无搜索配置改动 |
 | 生成 | `contracts/out/proto-desktop-ts/src/gen/xiaowei/desktop/settings_pb.ts` | 同步 Settings descriptor 与 typed client 方法 |
 | 生成 | `crates/{xiaowei-agent,xw-storage,xw-clipboard}/src/gateway_binding.rs` | 同步各模块已声明的 Settings Method 常量 |
 | 修改 | `desktop/src/main/app/gateway.ts` | Storage／Settings 先接入，再打开／激活 Agent；只调整生命周期依赖顺序，不读取或传递 Key，不新增 TS settings owner |

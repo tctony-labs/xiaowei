@@ -1,5 +1,5 @@
 use super::support;
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use tokio_util::sync::CancellationToken;
 use xw_api::account::{Access, Operation, SessionCore};
 

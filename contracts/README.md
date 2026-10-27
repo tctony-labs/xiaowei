@@ -50,7 +50,7 @@ pnpm contracts:test
 
 codec 测试记录每次原生调用的 case、语言顺序、模式、输入字节数、退出码和耗时，不输出输入内容。单次原生调用最多等待 10 秒，超时强制结束并使测试失败；无效 wire 只接受正常退出后的非零码，超时、信号终止和启动失败均不能算作正确拒绝。测试入口中的构建及测试阶段设 10 分钟上限，Cargo target 查询设 30 秒上限；入口还验证子进程超时终止与异常判定。
 
-输出范围以 [generate.config.json](generate.config.json) 为准。源码按业务 package 组织；桌面协议位于 `proto/xiaowei/desktop/`，服务器协议位于 `proto/xiaowei/server/`。单文件 package 直接使用职责名，多文件 package 才归入同名子目录。
+输出范围以 [generate.config.json](generate.config.json) 为准。package 对应稳定的契约输出与消费范围：桌面使用 `xiaowei.desktop`，服务器使用 `xiaowei.server`，Agent 和 LLM 分别使用 `xiaowei.agent` 与 `xiaowei.llm`。源码通过文件、目录和 service 区分业务，目录不必对应 package 层级；桌面协议位于 `proto/xiaowei/desktop/`，服务器协议位于 `proto/xiaowei/server/`。
 
 产物 `out/*/src/gen/`、`out/*/gen/` 和 Swift 的 `Sources/<模块>/Generated/` 全部入库，禁止手改。新增 TS 文件或 Rust 消息 package 时同步维护所属输出包的公共入口；仅含 service 的 package 可能没有 prost 消息源码，其服务仍在 descriptor 中。具体修改步骤见 [维护 Gateway 业务契约](../.agent/skills/maintain-gateway-contract/SKILL.md)。
 

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.desktop.session;
+package xiaowei.desktop;
 
 enum ConnectionAuthentication {
   CONNECTION_AUTHENTICATION_UNSPECIFIED = 0;

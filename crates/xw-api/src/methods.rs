@@ -1,6 +1,6 @@
 use crate::Transport;
 use prost::Message;
-use proto_server_rs::xiaowei::server::{auth as pb, common};
+use proto_server_rs::xiaowei::server as pb;
 
 use crate::{Client, Error, RequestContext, Result, contract::Method, normalize_server};
 
@@ -154,7 +154,7 @@ impl Client {
         if let Some(log) = &mut request_log {
             log.code = None;
             log.message = None;
-            if let Ok(response) = common::BaseResponse::decode(bytes.as_slice()) {
+            if let Ok(response) = pb::BaseResponse::decode(bytes.as_slice()) {
                 log.code = Some(response.code.to_string());
                 log.message = Some(response.msg);
                 log.level = match response.code {
@@ -173,7 +173,7 @@ impl Client {
     }
 
     fn validate_request(&self, name: &str, bytes: &[u8]) -> Result<()> {
-        if name == "xiaowei.server.auth.Auth.Refresh" {
+        if name == "xiaowei.server.Auth.Refresh" {
             let request =
                 pb::RefreshRequest::decode(bytes).map_err(|_| Error::invalid("无效的刷新请求"))?;
             if request.refresh_token.is_empty() {
@@ -184,7 +184,7 @@ impl Client {
     }
 
     fn validate_response(&self, name: &str, request: &[u8], bytes: &[u8]) -> Result<()> {
-        let base = common::BaseResponse::decode(bytes)
+        let base = pb::BaseResponse::decode(bytes)
             .map_err(|_| Error::unavailable("服务器返回了无效的响应"))?;
         if base.code != 0 {
             return Ok(());
@@ -194,7 +194,7 @@ impl Client {
         }
         let invalid = || Error::unavailable("服务器返回了无效的响应");
         match name {
-            "xiaowei.server.auth.Auth.Login" => {
+            "xiaowei.server.Auth.Login" => {
                 let request = pb::LoginRequest::decode(request).map_err(|_| invalid())?;
                 let result = pb::LoginResponse::decode(bytes)
                     .map_err(|_| invalid())?
@@ -223,7 +223,7 @@ impl Client {
                     None => return Err(invalid()),
                 }
             }
-            "xiaowei.server.auth.Auth.Refresh" => {
+            "xiaowei.server.Auth.Refresh" => {
                 if !pb::RefreshResponse::decode(bytes)
                     .map_err(|_| invalid())?
                     .data
@@ -233,7 +233,7 @@ impl Client {
                     return Err(invalid());
                 }
             }
-            "xiaowei.server.auth.Auth.GetCurrentUser" => {
+            "xiaowei.server.Auth.GetCurrentUser" => {
                 let data = pb::GetCurrentUserResponse::decode(bytes)
                     .map_err(|_| invalid())?
                     .data
@@ -261,7 +261,7 @@ impl Client {
         request: pb::LoginRequest,
         context: &RequestContext,
     ) -> Result<pb::LoginResponse> {
-        self.typed("xiaowei.server.auth.Auth.Login", request, context)
+        self.typed("xiaowei.server.Auth.Login", request, context)
             .await
     }
 
@@ -270,7 +270,7 @@ impl Client {
         request: pb::RefreshRequest,
         context: &RequestContext,
     ) -> Result<pb::RefreshResponse> {
-        self.typed("xiaowei.server.auth.Auth.Refresh", request, context)
+        self.typed("xiaowei.server.Auth.Refresh", request, context)
             .await
     }
 
@@ -278,13 +278,12 @@ impl Client {
         &self,
         context: &RequestContext,
     ) -> Result<pb::GetCurrentUserResponse> {
-        self.typed("xiaowei.server.auth.Auth.GetCurrentUser", (), context)
+        self.typed("xiaowei.server.Auth.GetCurrentUser", (), context)
             .await
     }
 
     pub async fn logout(&self, context: &RequestContext) -> Result<pb::LogoutResponse> {
-        self.typed("xiaowei.server.auth.Auth.Logout", (), context)
-            .await
+        self.typed("xiaowei.server.Auth.Logout", (), context).await
     }
 
     async fn typed<Req: Message, Res: Message + Default>(
@@ -299,7 +298,7 @@ impl Client {
 }
 
 fn websocket_error(error: crate::wire::WireError) -> Error {
-    use common::ErrorCode;
+    use pb::ErrorCode;
 
     if error.code == "CANCELLED" {
         return Error::cancelled();

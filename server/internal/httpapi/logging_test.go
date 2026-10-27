@@ -82,24 +82,24 @@ func TestRequestLoggingRoutesAndFailures(t *testing.T) {
 		code                                     int32
 		readiness                                func(context.Context) error
 	}{
-		{"health", "POST", "/api/common.Health/Check?foo=private-query",
-			"", "/api/common.Health/Check", "INFO", 0, nil},
-		{"ready", "POST", "/api/common.Health/Ready",
-			"", "/api/common.Health/Ready", "INFO", 0, nil},
-		{"wrong method", "GET", "/api/common.Health/Check",
-			"", "/api/common.Health/Check", "WARN", 10000, nil},
+		{"health", "POST", "/api/Health/Check?foo=private-query",
+			"", "/api/Health/Check", "INFO", 0, nil},
+		{"ready", "POST", "/api/Health/Ready",
+			"", "/api/Health/Ready", "INFO", 0, nil},
+		{"wrong method", "GET", "/api/Health/Check",
+			"", "/api/Health/Check", "WARN", 10000, nil},
 		{"missing", "GET", "/private-path?foo=private-query", "", "[unmatched]", "WARN", 10004, nil},
-		{"decode", "POST", "/api/auth.Auth/Login",
-			`{"foo":"private-body"}`, "/api/auth.Auth/Login", "WARN", 10000, nil},
-		{"argument", "POST", "/api/auth.Auth/Login",
-			`{}`, "/api/auth.Auth/Login", "WARN", 10001, nil},
-		{"unauthenticated", "POST", "/api/auth.Auth/GetCurrentUser",
-			"", "/api/auth.Auth/GetCurrentUser", "WARN", 10002, nil},
-		{"unavailable", "POST", "/api/common.Health/Ready",
-			"", "/api/common.Health/Ready", "ERROR", 10008,
+		{"decode", "POST", "/api/Auth/Login",
+			`{"foo":"private-body"}`, "/api/Auth/Login", "WARN", 10000, nil},
+		{"argument", "POST", "/api/Auth/Login",
+			`{}`, "/api/Auth/Login", "WARN", 10001, nil},
+		{"unauthenticated", "POST", "/api/Auth/GetCurrentUser",
+			"", "/api/Auth/GetCurrentUser", "WARN", 10002, nil},
+		{"unavailable", "POST", "/api/Health/Ready",
+			"", "/api/Health/Ready", "ERROR", 10008,
 			func(context.Context) error { return errors.New("private-db-password") }},
-		{"panic", "POST", "/api/common.Health/Ready",
-			"", "/api/common.Health/Ready", "ERROR", 10009,
+		{"panic", "POST", "/api/Health/Ready",
+			"", "/api/Health/Ready", "ERROR", 10009,
 			func(context.Context) error { panic("private-panic-value") }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -148,11 +148,12 @@ func TestRequestLoggingRateLimit(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/missing", nil))
 	logs.Reset()
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/auth.Auth/Login",
+	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/Auth/Login",
 		strings.NewReader("{}")))
 	entry := requestSummary(t, logs)
-	if entry["level"] != "WARN" || entry["code"] != float64(10007) || entry["path"] != "/api/auth.Auth/Login" ||
-		response.Header().Get("Retry-After") == "" || strings.Contains(logs.String(), "HTTP request rate limited") {
+	if entry["level"] != "WARN" || entry["code"] != float64(10007) ||
+		entry["path"] != "/api/Auth/Login" || response.Header().Get("Retry-After") == "" ||
+		strings.Contains(logs.String(), "HTTP request rate limited") {
 		t.Fatal("rate limit did not produce a single warning summary")
 	}
 }

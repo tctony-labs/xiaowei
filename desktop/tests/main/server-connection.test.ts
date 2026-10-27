@@ -167,7 +167,7 @@ test("native Gateway selects authenticated WS and keeps public methods on HTTP",
     assert.equal(entries.length, 2);
     assert.ok(entries[0].message.startsWith("WebSocket request started "));
     assert.equal(entries[1].level, "error");
-    assert.ok(entries[1].message.includes("method=auth.Auth/GetCurrentUser"));
+    assert.ok(entries[1].message.includes("method=Auth/GetCurrentUser"));
     assert.ok(entries[1].message.includes("code=10008"));
     assert.ok(entries[1].message.includes('msg="WS response"'));
     assert.ok(!entries[1].message.includes("outcome="));
