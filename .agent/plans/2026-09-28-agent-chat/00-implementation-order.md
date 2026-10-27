@@ -6,7 +6,7 @@
 
 持久文本聊天、Header／Meta 精简 v2、核心 SQLite 目录、统一 Host、正式 Gateway／napi、会话管理／标题／模型控件与启动恢复已交付。已完成的会话管理、快照同步、napi、Host 和 composer 计划删除；缺少直接窗口复验的项目集中记录在交付证据，不保留重复实施步骤。
 
-02e＋Read／Write／Edit、第 2 批前台 Bash 和第 3 批 Glob／Grep 已完成自动／正式链路与产品窗口验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 4 批问答／权限及对应 UI 也已验收；下一批为 Todo，先明确范围。01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成；它不阻塞当前批次。各工具片依赖既有持久化、同一 App Server 与直接事件流，不重复创建服务、存储 adapter 或模型接线。
+02e＋Read／Write／Edit、第 2 批前台 Bash 和第 3 批 Glob／Grep 已完成自动／正式链路与产品窗口验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 4 批问答／权限及对应 UI 也已验收；第 5 批 TodoWrite 已实现并完成自动及真实模型验证；产品窗口／重启验收见交付证据。下一批为 WebFetch。01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成；它不阻塞当前批次。各工具片依赖既有持久化、同一 App Server 与直接事件流，不重复创建服务、存储 adapter 或模型接线。
 
 2026-10-25 依据已提交代码复核：循环所有者为 `crates/xw-agent/src/run_loop.rs`，runtime 提供单次生成收集和工具原语；`tool_registry.rs` 与 `prompts/mod.rs` 分别装配声明和相应规则。后续工具接入这些实际入口，不恢复不存在的 runtime/agent_loop。当前不重新创建已完成的 02e 计划。
 
@@ -22,7 +22,7 @@
 | 2 | Bash，仅前台执行，已完成实现与验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25) |
 | 3 | Glob／Grep，已完成实现与验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25) |
 | 4 | AskUserQuestion／RequestPermission 及对应 UI，已完成本批验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26) |
-| 5 | Todo | 先登记，具体范围与计划后续细化 |
+| 5 | TodoWrite，执行、持久恢复与清单卡片 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27) |
 | 6 | WebFetch | [02i 网页读取](02i-webfetch.md) |
 | 7 | BgRun／BgOutput／BgStop | [02h 命令执行](02h-bash-sandbox.md)第二阶段 |
 | 8 | Skill | 放在最后；先登记，具体范围与计划后续细化 |
@@ -37,10 +37,10 @@
 
 2026-10-26 第 4 批两个工具、两阶段送达／决定和产品 UI 已实现并完成本批验收，用户手动记录已核对；Stop／草稿、重启失效／不重放、后续新 Run 和明暗主题已补验。02f 已删除，03c 仅保留长输出，真实 IME 平台复核仍在 04d，证据见[本批结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。
 
-1. 下一工具批为 Todo，先核对旧版并明确本期范围，再在当前工具循环中实现，不提前展开 Skill 或 preset。
+1. 第 5 批 TodoWrite 已完成实现与验收，证据见交付结果；下一工具批为 02i WebFetch，不提前展开后台工具、Skill 或 preset。
 2. 01f 的历史读取可独立推进，03a／03c 等其公共接口；不因工具 UI 已完成而放宽完整快照预算。后台工具仍等第 7 批。
 
-工具批次之外，01f／03a（历史读取与展示）、02j（压缩）和 02l（辅助标题记录）可在各自前置满足时独立实施，完整完成后再汇入 03d／04d；本次不将它们插入工具批次，也不将未明确范围的 Todo／Skill 描述为可直接实施。
+工具批次之外，01f／03a（历史读取与展示）、02j（压缩）和 02l（辅助标题记录）可在各自前置满足时独立实施，完整完成后再汇入 03d／04d；本次不将它们插入工具批次，Skill 的具体范围仍待明确。
 
 工具删除／同名替换的 provider 适配须在允许动态工具撤销／替换或依赖此能力的 Skill 之前完成；原生 Responses Lite 与缓存收益另按真实代理路径验收。它们是明确的未完成边界，不把新工具批次的成功当成已解决这些问题。
 
@@ -50,7 +50,6 @@
 | --- | --- | --- |
 | [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
 | [02h](02h-bash-sandbox.md) | 第 7 批后台工具 | 第一阶段前台 Bash 已验收；第 7 批接第 6 批 |
-| Todo（已登记） | 具体实现范围后续确定 | 第 4 批完成 |
 | [02i](02i-webfetch.md) | WebFetch 与辅助模型提取 | 第 5 批完成 |
 | Skill（已登记） | 具体实现范围后续确定；按生命周期验证所需 provider 更新 | 第 7 批完成，工具批次最后实施 |
 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
@@ -59,7 +58,7 @@
 | [03a](03a-history-ui.md) | 历史分页／完整长内容 UI | 01f；复用已交付 Markdown／代码和消息复制 |
 | [03c](03c-tools-interaction-ui.md) | 完整工具长输出 | 01f；现有工具和问答／权限 UI 已交付 |
 | [03d](03d-composed-preview.md) | 新工具／压缩／继续状态的组合 UI 验收 | 03a、03c、02j、02k |
-| [04d](04d-final-acceptance.md) | 全部工具批次的生产接线及完整验收 | 后续工具与 02h–02l、03d；Todo／Skill 后续确认范围；01f／03a 的历史边界 |
+| [04d](04d-final-acceptance.md) | 全部工具批次的生产接线及完整验收 | 后续工具与 02h–02l、03d；Skill 后续确认范围；01f／03a 的历史边界 |
 
 ## 实施约束
 

@@ -1,6 +1,6 @@
 # 02i：WebFetch 与二次模型提取
 
-前置：第 5 批 Todo 完成（具体范围后续确定）。作为第 6 批实施，验收后进入后台工具批次，不再提前独立推进。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
+前置：第 5 批 TodoWrite（实现与验收见交付证据）。作为第 6 批实施，验收后进入后台工具批次，不再提前独立推进。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md#内置工具接入批次)。
 
 本片结果：网页读取、HTML 转 Markdown 和小文本模型提取能返回合法工具结果并继续运行。
 

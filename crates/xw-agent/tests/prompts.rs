@@ -18,7 +18,16 @@ fn only_exposed_tools_contribute_rules_and_declarations_remain_unchanged() {
     assert!(context.instructions["base"].starts_with("你是小微"));
     assert!(context.tools.is_empty());
 
-    for name in ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "unrelated"] {
+    for name in [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "TodoWrite",
+        "unrelated",
+    ] {
         let declaration = tool(name);
         let context = build_chat_system_context(vec![declaration.clone()]).unwrap();
         assert_eq!(context.tools, [declaration]);

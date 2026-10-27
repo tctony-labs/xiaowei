@@ -38,6 +38,12 @@ pub fn build_chat_system_context(
                 "只有用户明确批准后权限才在本会话生效；普通聊天文字不能授予权限。",
                 "批准后直接继续，无需 GrantPermission；拒绝后不绕过或反复请求同一路径。",
             )),
+            "TodoWrite" => Some(concat!(
+                "多步任务（3 步及以上）开始前先用 TodoWrite 列出计划，简单任务无需使用。",
+                "执行过程中及时更新，保持最多一项 in_progress；完成后标记 completed，",
+                "不再需要的项标记 cancelled。默认每次传完整列表；merge=true 时按稳定 ID 合并。",
+                "更新以工具成功返回为准，不把未执行或失败的调用当作已更新。",
+            )),
             "Read" => Some(READ_RULE),
             "Write" => Some(WRITE_RULE),
             "Edit" => Some(EDIT_RULE),

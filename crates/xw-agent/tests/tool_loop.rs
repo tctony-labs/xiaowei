@@ -170,6 +170,301 @@ fn entries(root: &std::path::Path) -> Vec<xw_agent_types::JournalEntry> {
     xw_agent_types::decode_history(&std::fs::read_to_string(journal_path(root)).unwrap()).unwrap()
 }
 
+mod todo_tests {
+    use super::*;
+
+    const INITIAL: &str = r#"{"todos":[
+        {"id":"a","content":"实现","status":"in_progress"},
+        {"id":"b","content":"验收","status":"pending"},
+        {"id":"c","content":"已取消","status":"cancelled"}
+    ]}"#;
+    const MERGE: &str = r#"{"merge":true,"todos":[
+        {"id":"a","content":"实现完成","status":"completed"},
+        {"id":"d","content":"检查","status":"in_progress"}
+    ]}"#;
+
+    fn tools(run: &AgentRun) -> Vec<&AgentToolCall> {
+        run.items
+            .iter()
+            .filter_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool)) => Some(tool),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn snapshot(tool: &AgentToolCall) -> serde_json::Value {
+        serde_json::from_str::<serde_json::Value>(tool.metadata_json.as_ref().unwrap())
+            .unwrap()["todoWrite"]["todos"].clone()
+    }
+
+    #[tokio::test]
+    async fn existing_sessions_append_only_todo_declaration_and_rule_once() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(vec![message(&[], "ok"); 3]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        let path = journal_path(root.path());
+        let mut saved = entries(root.path());
+        for entry in &mut saved {
+            if let EntryPayload::SystemContext(xw_agent_types::SystemContextUpdate::Baseline(
+                context,
+            )) = &mut entry.payload
+            {
+                context.tools.retain(|tool| tool.name != "TodoWrite");
+                context.instructions.remove("tool.TodoWrite");
+            }
+        }
+        let before = xw_agent_types::encode_history(&saved).unwrap();
+        std::fs::write(&path, &before).unwrap();
+
+        for _ in 0..2 {
+            let service = AgentService::open(host.clone(), root.path().into())
+                .await
+                .unwrap();
+            run(&service, &session).await;
+            service.close().await.unwrap();
+        }
+        assert!(std::fs::read_to_string(&path).unwrap().starts_with(&before));
+        let saved = entries(root.path());
+        let changes: Vec<_> = saved
+            .iter()
+            .filter_map(|entry| match &entry.payload {
+                EntryPayload::SystemContext(xw_agent_types::SystemContextUpdate::Delta(delta)) => {
+                    Some(delta)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].tools_added.len(), 1);
+        assert_eq!(changes[0].tools_added[0].name, "TodoWrite");
+        assert_eq!(
+            changes[0]
+                .instructions
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["tool.TodoWrite"]
+        );
+        assert!(changes[0].tools_removed.is_empty());
+        assert!(changes[0].instructions_removed.is_empty());
+    }
+
+    #[tokio::test]
+    async fn stopping_before_a_todo_update_keeps_it_skipped_and_the_list_unchanged() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(vec![
+            message(
+                &[
+                    ("AskUserQuestion", r#"{"question":"等待停止"}"#),
+                    ("TodoWrite", INITIAL),
+                ],
+                "",
+            ),
+            message(&[("TodoWrite", r#"{"merge":true,"todos":[]}"#)], ""),
+            message(&[], "仍为空"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let mut events = service
+            .subscribe_session(SubscribeSessionRequest {
+                session_id: session.session_id.clone(),
+            })
+            .await
+            .unwrap();
+        let accepted = start(&service, &session).await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if matches!(
+                    events.recv().await.unwrap().unwrap().payload,
+                    Some(agent_event::Payload::InteractionUpdated(_))
+                ) {
+                    break;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        service
+            .interrupt_run(InterruptRunRequest {
+                session_id: session.session_id.clone(),
+                run_id: accepted.run_id,
+            })
+            .unwrap();
+        let stopped = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(agent_event::Payload::RunCompleted(end)) =
+                    events.recv().await.unwrap().unwrap().payload
+                {
+                    break end.run.unwrap();
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(tools(&stopped)[1].status, AgentToolStatus::Skipped as i32);
+        assert_eq!(host.requests.lock().unwrap().len(), 1);
+        assert_eq!(
+            snapshot(tools(&run(&service, &session).await)[0]),
+            serde_json::json!([])
+        );
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn merged_snapshots_survive_reopen_isolate_sessions_and_keep_empty_replacements() {
+        let root = tempfile::tempdir().unwrap();
+        let isolated = r#"{"merge":true,"todos":[
+            {"id":"only","content":"独立会话","status":"pending"}
+        ]}"#;
+        let host = Host::new(vec![
+            message(&[("TodoWrite", INITIAL), ("TodoWrite", MERGE)], ""),
+            message(
+                &[("TodoWrite", r#"{"todos":[{"id":"bad","status":"done"}]}"#)],
+                "",
+            ),
+            message(&[], "已更新"),
+            message(&[("TodoWrite", r#"{"merge":true,"todos":[]}"#)], ""),
+            message(&[], "保留清单"),
+            message(&[("TodoWrite", isolated)], ""),
+            message(&[], "独立清单"),
+            message(&[("TodoWrite", r#"{"todos":[]}"#)], ""),
+            message(&[], "已清空"),
+            message(&[("TodoWrite", isolated)], ""),
+            message(&[], "重新开始"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let first = run(&service, &session).await;
+        assert_eq!(first.status, AgentRunStatus::Completed as i32);
+        let calls = tools(&first);
+        assert_eq!(calls.len(), 3);
+        let expected = snapshot(calls[1]);
+        assert_eq!(expected.as_array().unwrap().len(), 4);
+        assert_eq!(expected[0]["status"], "completed");
+        assert_eq!(expected[1]["id"], "b");
+        assert_eq!(calls[2].status, AgentToolStatus::Failed as i32);
+        assert!(calls[2].metadata_json.is_none());
+        assert!(
+            host.requests.lock().unwrap()[1]
+                .messages
+                .iter()
+                .any(|message| {
+                    matches!(message, History::ToolResult(result) if result.tool_name == "TodoWrite"
+                && result.content.iter().any(|block| matches!(block,
+                    ContentBlock::Text { text, .. } if text.contains("1 completed"))))
+                })
+        );
+        let path = journal_path(root.path());
+        service.close().await.unwrap();
+        let before = std::fs::read(&path).unwrap();
+
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let restored = service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        assert_eq!(restored.runs[0].items, first.items);
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(host.requests.lock().unwrap().len(), 3);
+        let second = run(&service, &restored).await;
+        assert_eq!(snapshot(tools(&second)[0]), expected);
+
+        let other = create(&service, None).await;
+        let independent = run(&service, &other).await;
+        assert_eq!(
+            snapshot(tools(&independent)[0]).as_array().unwrap().len(),
+            1
+        );
+        let cleared = run(&service, &restored).await;
+        assert_eq!(snapshot(tools(&cleared)[0]), serde_json::json!([]));
+        service.close().await.unwrap();
+
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let fresh = run(&service, &session).await;
+        assert_eq!(snapshot(tools(&fresh)[0]), snapshot(tools(&independent)[0]));
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn interrupted_uncommitted_updates_are_cancelled_without_replay_or_losing_old_state() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(vec![
+            message(&[("TodoWrite", INITIAL)], ""),
+            message(&[], "第一轮"),
+            message(&[("TodoWrite", MERGE)], ""),
+            message(&[], "第二轮"),
+            message(&[("TodoWrite", r#"{"merge":true,"todos":[]}"#)], ""),
+            message(&[], "恢复后"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let first = run(&service, &session).await;
+        let expected = snapshot(tools(&first)[0]);
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        let mut saved = entries(root.path());
+        let last_intent = saved
+            .iter()
+            .rposition(|entry| matches!(entry.payload, EntryPayload::ToolIntent(_)))
+            .unwrap();
+        saved.truncate(last_intent + 1);
+        std::fs::write(
+            journal_path(root.path()),
+            xw_agent_types::encode_history(&saved).unwrap(),
+        )
+        .unwrap();
+
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let recovered = service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        assert_eq!(host.requests.lock().unwrap().len(), 4);
+        assert_eq!(
+            tools(&recovered.runs[1])[0].status,
+            AgentToolStatus::Cancelled as i32
+        );
+        assert!(
+            xw_agent::inspect_recovery(&entries(root.path()))
+                .unwrap()
+                .tools
+                .is_empty()
+        );
+        let result = run(&service, &session).await;
+        assert_eq!(result.status, AgentRunStatus::Completed as i32);
+        assert_eq!(snapshot(tools(&result)[0]), expected);
+        service.close().await.unwrap();
+    }
+}
+
 fn journal_path(root: &std::path::Path) -> std::path::PathBuf {
     fn find(root: &std::path::Path) -> Option<std::path::PathBuf> {
         for entry in std::fs::read_dir(root).ok()?.flatten() {
@@ -283,7 +578,13 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
         if cfg!(target_os = "macos") {
             expected.push("Bash");
         }
-        expected.extend(["Glob", "Grep", "AskUserQuestion", "RequestPermission"]);
+        expected.extend([
+            "Glob",
+            "Grep",
+            "AskUserQuestion",
+            "RequestPermission",
+            "TodoWrite",
+        ]);
         assert_eq!(
             context
                 .tools
