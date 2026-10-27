@@ -84,7 +84,7 @@ XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复�
 
 基础正文唯一维护于 `crates/xw-agent/src/prompts/base.md`；`prompts/mod.rs` 的 `build_chat_system_context(tools)` 将其装配为稳定的 `base` 片段，只为调用方实际传入的 Read／Write／Edit 声明加入 `tool.Read`／`tool.Write`／`tool.Edit` 片段。规则分别独立，不依赖 map 字典序覆盖其他片段；工具定义保持原值，结构和重复名沿用已有校验。这个入口不注册工具、授予权限或提交记录，后续仍由注册结果、sync_system_context 和生成边界接线负责。
 
-第一批规则保留专用工具优先、按需分页读取、了解既有内容后局部编辑，以及约 8000 字符或 200 行的大参数分批建议；这是降低流式截断风险的指引，不是 schema 硬限制。description 首字段及旧卡片标题要求等待实际 schema／UI 核对。Skill／Todo／交互／网页／后台规则均随对应能力后续接入，本次没有提前加入基础正文。
+第一批规则保留专用工具优先、按需分页读取、了解既有内容后局部编辑，以及约 8000 字符或 200 行的大参数分批建议；这是降低流式截断风险的指引，不是 schema 硬限制。description 首字段及旧卡片标题要求等待实际 schema／UI 核对。后续问答／权限与 TodoWrite 规则已随工具接入；Skill／网页／后台规则仍随对应能力实施，不提前加入基础正文。
 
 本次未迁移应用／项目 rules 发现与加载，也没有注入未经核实的 Python 环境、写入范围、cwd 或模型身份承诺。旧环境 attachment 中每轮当前时间、日期变化等频率本次不调整；环境链路接入时另核对，不宣称已全面对齐。生产 start_run、PB／worker 的有序投影已接通，基础正文与实际工具规则进入真实模型请求；本批另注入实际 cwd 及基础写入权限说明。
 

@@ -28,6 +28,41 @@ function id() {
 const live = process.env.XIAOWEI_AGENT_LIVE === "1";
 const scenarios = [
   {
+    name: "todo updates",
+    file: "todo-acceptance.txt",
+    calls: [
+      [
+        "TodoWrite",
+        {
+          todos: [
+            { id: "a", content: "写入文件", status: "in_progress" },
+            { id: "b", content: "读取文件", status: "pending" },
+            { id: "c", content: "取消的任务", status: "cancelled" },
+          ],
+        },
+      ],
+      [
+        "TodoWrite",
+        {
+          merge: true,
+          todos: [
+            { id: "a", content: "写入文件", status: "completed" },
+            { id: "b", content: "读取文件", status: "in_progress" },
+          ],
+        },
+      ],
+      ["Write", { path: "todo-acceptance.txt", contents: "hello\nxiaowei\n" }],
+      ["Read", { path: "todo-acceptance.txt" }],
+    ],
+    prompt:
+      "严格只按以下顺序调用四次工具：" +
+      "先 TodoWrite 完整清单，a 写入文件为 in_progress，b 读取文件为 pending，" +
+      "c 取消的任务为 cancelled。再 TodoWrite merge=true，" +
+      "将 a 改为 completed、b 改为 in_progress，省略 c 以验证合并保留。" +
+      "然后 Write todo-acceptance.txt 内容 hello\\nxiaowei\\n（真实换行），" +
+      "最后 Read 此文件并总结。清单状态是验收样本，结束时保持第二次结果，无需再次更新。",
+  },
+  {
     name: "interactive decisions",
     interactive: true,
     file: "interactive-acceptance.txt",
@@ -341,6 +376,19 @@ async function exerciseScenario(scenario) {
       assert.equal(JSON.parse(tools[1].metadataJson).search.truncated, false);
       assert.equal(JSON.parse(tools[2].metadataJson).search.truncated, false);
     }
+    if (scenario.name === "todo updates") {
+      const initial = JSON.parse(tools[0].metadataJson).todoWrite.todos;
+      const merged = JSON.parse(tools[1].metadataJson).todoWrite.todos;
+      assert.equal(initial.length, 3);
+      assert.deepEqual(
+        merged.map((todo) => todo.id),
+        ["a", "b", "c"],
+      );
+      assert.deepEqual(
+        merged.map((todo) => todo.status),
+        ["completed", "in_progress", "cancelled"],
+      );
+    }
     assert.ok(
       completed.items.some(
         (item) => item.content.case === "agentMessage" && item.content.value.text,
@@ -356,6 +404,7 @@ async function exerciseScenario(scenario) {
         "Grep",
         "AskUserQuestion",
         "RequestPermission",
+        "TodoWrite",
       ];
       if (process.platform === "darwin") expected.push("Bash");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());

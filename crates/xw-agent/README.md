@@ -31,4 +31,6 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 AskUserQuestion／RequestPermission 在同一 Run 中等待用户决定，等待时没有活跃 Generate，也不持有服务锁。公共交互附在原 ToolCall，快照和 InteractionUpdated 保持同一身份；回应按 revision、可信来源与 client request ID 校验，首个持久决定胜出，相同决定的原请求重试幂等。拒绝也是有效工具结果；批准后立即刷新本 Run 的文件工具和后续 Bash 授权，已启动进程不追溯扩权。批准范围随会话恢复，停止／关闭使未决请求失效，重启不恢复等待或自动执行。
 
+TodoWrite 沿用相同工具循环和 ToolOutcome 提交，完整清单在成功结果元数据中保存。每 Run 从核心完整投影中最后一次成功结果恢复状态，失败／跳过的调用不覆盖清单；合并结果和空清单均可跨 Run／重启恢复，不写独立 todo 文件或 SQLite 表。已提交意图但没有结果的更新在恢复时结算取消，保留之前成功的清单，不重放；意图提交前失败仍沿用既有未闭合调用保护。工具行为见 [runtime](../xw-agent-runtime/README.md)。
+
 交互送达独立于决定：`observe_interactions` 先返回 ready，再按需投递当前待答请求，空闲时每 20 秒 heartbeat；`acknowledge_interaction` 只确认指定 caller／observer／delivery 已接收，不授予权限或恢复工具。观察者及回执有界，关闭观察不解决请求。恢复时只为已知的两个交互工具重建持久回答结果或补取消；外部工具的未知副作用保护保持不变。

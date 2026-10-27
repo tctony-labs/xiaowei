@@ -419,6 +419,45 @@
   font-weight: 400;
 }
 
+.agent-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--color-ink-secondary);
+}
+
+.agent-todo-status {
+  flex-shrink: 0;
+  color: var(--color-muted);
+}
+
+.agent-todo-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-todo:is([data-status="in_progress"], [data-status="completed"]) .agent-todo-status {
+  color: var(--color-primary-text);
+}
+
+.agent-todo:is([data-status="completed"], [data-status="cancelled"]) .agent-todo-content {
+  color: var(--color-muted);
+}
+
+.agent-todo[data-status="cancelled"] .agent-todo-content {
+  text-decoration: line-through;
+}
+
 .agent-tool-scroll {
   max-height: 240px;
   overflow: auto;

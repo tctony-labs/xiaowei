@@ -6,6 +6,7 @@ export type AgentToolIconKind =
   | "edit"
   | "terminal"
   | "tools"
+  | "todo"
   | "question"
   | "permission";
 
@@ -26,6 +27,7 @@ const toolActions: Record<
     activity: keyof typeof toolActivities;
   }
 > = {
+  TodoWrite: { action: "更新待办", summary: "更新待办", icon: "todo", activity: "tools" },
   AskUserQuestion: { action: "向你提问", summary: "向你提问", icon: "question", activity: "tools" },
   RequestPermission: {
     action: "请求写入权限",

@@ -113,15 +113,34 @@ async fn drive(
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, history, mut grants) = {
+    let (cwd, history, mut grants, todo_metadata) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
+        let todo_metadata = session
+            .view
+            .runs
+            .iter()
+            .rev()
+            .flat_map(|run| run.items.iter().rev())
+            .find_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool))
+                    if tool.name == "TodoWrite"
+                        && tool.status == AgentToolStatus::Completed as i32 =>
+                {
+                    Some(tool.metadata_json.clone())
+                }
+                _ => None,
+            })
+            .flatten();
         (
             session.view.cwd.clone(),
             session.history.clone(),
             session.granted_paths.clone(),
+            todo_metadata,
         )
     };
+    let mut todos = xw_agent_runtime::tools::todo::TodoWrite::restore(todo_metadata.as_deref())
+        .map_err(|_| AgentError::Persistence)?;
     let tools = cwd.as_ref().map(|cwd| {
         Arc::new(Mutex::new(FileTools::new(
             PathBuf::from(cwd),
@@ -311,6 +330,8 @@ async fn drive(
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
+                } else if name == "TodoWrite" && cwd.is_some() {
+                    todos.execute(&intent.arguments_json)
                 } else if matches!(name.as_str(), "AskUserQuestion" | "RequestPermission") {
                     match xw_agent_runtime::tools::interactive::parse(name, &intent.arguments_json)
                     {

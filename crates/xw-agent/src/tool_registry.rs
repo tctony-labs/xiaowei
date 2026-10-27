@@ -10,6 +10,7 @@ pub(crate) fn context(session: &Session) -> Result<SystemContext, AgentError> {
         }
         tools.extend(xw_agent_runtime::tools::search_declarations());
         tools.extend(xw_agent_runtime::tools::interactive::declarations());
+        tools.push(xw_agent_runtime::tools::todo::declaration());
         tools
     } else {
         vec![]

@@ -33,6 +33,7 @@ export interface AgentGenerationState {
 
 export type AgentMessageGroup =
   | Exclude<AgentMessageBlock, AgentToolBlock>
+  | { id: string; kind: "todo"; call: AgentToolCall }
   | { id: string; kind: "tools"; blocks: AgentToolBlock[] };
 
 export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGroup[] {
@@ -41,6 +42,11 @@ export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGro
   for (const block of blocks) {
     if (block.kind !== "tool") {
       if (block.kind === "interaction" || block.text.trim()) groups.push(block);
+      continue;
+    }
+
+    if (block.call.name === "TodoWrite") {
+      groups.push({ id: block.id, kind: "todo", call: block.call });
       continue;
     }
 

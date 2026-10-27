@@ -100,6 +100,14 @@ composer 仅在有明确 pending Question 时将发送路由到 RespondInteracti
 
 权限继续使用当前真实路径和 symlink 检查，不放宽默认可写范围。批准提交后刷新当前 Run 的 grants 与 FileTools，保留 Read 去重；Bash 下一次启动使用新的授权快照，已启动进程不追溯扩权。有效批准持久化，未决定的请求在重启时失效；恢复不自动开始生成或重放外部操作。已知交互工具在恢复时从持久回答补结果或补取消，不按未知外部副作用阻止后续普通 Run。
 
+### TodoWrite（第 5 批）
+
+2026-10-27 用户要求实施 Todo，范围为旧版会话级 TodoWrite 及对应只读清单卡片。核对来源为 `~/Develop/XiaoWei/workspace/src/xiaowei-next`，HEAD `d97d45b42bf9bc621e66603ad878cccb97dd990c`，已完整读取 runtime 的 `tools/core/todo_write.rs`、UI 的 `chat/parts/tools/TodoWrite.tsx`，以及 AssistantMessage 的独立卡片／最新默认展开逻辑和 agent_factory 的提示词。旧仓库存在无关的 bookmark 修改与 `.astra/`，本批未改动旧仓库。
+
+执行与保存方式分别见 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/quick-chat.md)。沿用替换／按 ID 合并、四状态及多项进行中只警告的语义；保留列表顺序和 `todoWrite.todos` 元数据形状。工具随实际注册新增 `tool.TodoWrite` 规则，提示三步及以上任务按需建清单、及时更新、最多一项进行中和完成／取消状态；不加入 Skill 或 preset。
+
+恢复适配以已提交成功 ToolOutcome 的完整结果为准。旧版仅检查最后一次调用参数，最后一次为 merge 时会跳过恢复，也未核对工具是否成功；本批使用核心已恢复的完整投影，失败／跳过不覆盖之前清单，合并和空清单可正确恢复。待办更新没有外部副作用，已提交意图但缺少结果时结算取消；意图提交前失败沿用现有未闭合调用保护，不扩展 Continue。没有新增持久记录类型、数据表、文件、控制 RPC 或另一套运行循环。
+
 ### Run 阶段与内容排列（2026-10-25，源码复核）
 
 本节结合源码与本批产品接线梳理阶段及内容排列，实际验收范围见[交付结果](implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。一个 Run 对应一次已接纳的用户任务，可以经历多次模型生成与工具执行循环。主要流程为可选思考、本次 response（正文与工具声明均可选）、完整生成校验、工具执行；中途随时可能失败或停止。适配器允许多种内容块顺序，但没有实际样本证明当前 sol 经常任意思考／正文／工具交错，不将所有协议可表达的排列当作常规阶段。

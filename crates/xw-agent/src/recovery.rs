@@ -119,8 +119,8 @@ pub fn settle_interrupted(
             recovered_at_ms,
         )?;
     }
-    // Interactive tools have no unknown external side effect. Rebuild their result
-    // from a durable answer, or cancel them; never resume a model or replay an action.
+    // Session-local tools have no unknown external side effect. Rebuild interactive
+    // results from durable answers; uncommitted TodoWrite updates are cancelled.
     for id in &state.tools {
         let Some(intent) = entries
             .iter()
@@ -131,7 +131,7 @@ pub fn settle_interrupted(
             .filter(|intent| {
                 matches!(
                     intent.tool_name.as_str(),
-                    "AskUserQuestion" | "RequestPermission"
+                    "AskUserQuestion" | "RequestPermission" | "TodoWrite"
                 )
             })
         else {
@@ -158,6 +158,10 @@ pub fn settle_interrupted(
         });
         let (status, text) = match answer {
             Some(output) => (ToolStatus::Completed, output.text),
+            None if intent.tool_name == "TodoWrite" => (
+                ToolStatus::Cancelled,
+                "待办更新未提交，已因运行中断取消".into(),
+            ),
             None => (ToolStatus::Cancelled, "交互因运行中断而失效".into()),
         };
         journal.append(

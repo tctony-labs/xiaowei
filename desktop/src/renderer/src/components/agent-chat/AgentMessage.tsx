@@ -5,6 +5,7 @@ import { AgentInteraction } from "./AgentInteraction";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentMessageTime } from "./AgentMessageTime";
 import { AgentReasoning } from "./AgentReasoning";
+import { AgentToolCall } from "./AgentToolCall";
 import { AgentToolGroup } from "./AgentToolGroup";
 import {
   type AgentGenerationState,
@@ -61,6 +62,10 @@ export function AgentMessage({
 
   const blocks = message.blocks ?? [];
   const groups = groupMessageBlocks(blocks);
+  const lastTodoId = groups
+    .slice()
+    .reverse()
+    .find((group) => group.kind === "todo")?.id;
   const hasFinalResponse = message.status === "complete" && finalResponseBlockIds !== undefined;
   const answerIds = new Set(finalResponseBlockIds);
   const activity = hasFinalResponse ? blocks.filter((block) => !answerIds.has(block.id)) : [];
@@ -111,6 +116,8 @@ export function AgentMessage({
           let content: ReactNode;
           if (group.kind === "tools") {
             content = <AgentToolGroup blocks={group.blocks} />;
+          } else if (group.kind === "todo") {
+            content = <AgentToolCall call={group.call} defaultOpen={group.id === lastTodoId} />;
           } else if (group.kind === "interaction") {
             content = <AgentInteraction view={group.interaction} controls={interactions} />;
           } else if (group.kind === "reasoning") {

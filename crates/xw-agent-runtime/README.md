@@ -16,6 +16,8 @@ cargo test -p xw-agent-runtime --locked
 
 `tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重，Bash 下一次启动使用新的授权快照。
 
+`tools::todo` 提供 TodoWrite 声明和每 Run 的清单执行器。默认替换完整清单，`merge=true` 按稳定 ID 更新已有项并在末尾追加新项；空列表可清空。状态为 pending／in_progress／completed／cancelled，多项 in_progress 返回警告但仍成功。结果正文为计数摘要，`metadata_json.todoWrite.todos` 始终保存更新后的完整列表。调用方只用最后一个已提交成功结果恢复执行器，不从未执行的参数推断状态，也不重复执行历史调用；本包不单独写盘。
+
 `tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 使用 globset／walkdir，自动补 `**/`，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore；只保留修改时间最新的 500 个文件，返回绝对路径，不跟随目录 symlink。Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行；目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 沿用旧版文件类型筛选解释，适用于 `*.rs`、`*.{ts,tsx}` 等表达式；显式文件目标不应用目录忽略或 include 筛选。Grep 不对文件顺序额外排序，最多返回 5000 个匹配行。
 
 两种搜索的文本输出不超过 64 KiB；数量或字节超限时明确提示缩小范围，单行超长按 UTF-8 边界截断。遍历／文件读取错误按旧版跳过，结果正文与 metadata 标明跳过数量和可能不完整，不能把此时的无匹配当作完整检查。非法参数／模式返回工具错误。`execute_cancellable(name, arguments, cancellation)` 在阻塞池中执行；搜索在遍历及流式读取阶段检查取消，调用方等待实际结束再提交 Cancelled，不在取消后继续生成。原有 execute 入口保留，Read／Write／Edit 已开始的操作仍按实际结果结算。搜索 metadata 包含 matches／shown、truncated 与 skipped_errors；Grep 截断时 matches 是已显示的下界，不是完整匹配总数。

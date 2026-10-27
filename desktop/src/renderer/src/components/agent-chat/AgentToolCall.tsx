@@ -1,5 +1,7 @@
 import { AgentToolStatus, type AgentToolCall as ToolCall } from "proto-desktop-ts";
+import { AgentTodoList } from "./AgentTodoList";
 import { AgentToolIcon } from "./AgentToolIcon";
+import { readTodos } from "./todo-presentation";
 import { isToolObject, parseToolJson, toolPresentation } from "./tool-presentation";
 
 const statusLabels: Record<number, string> = {
@@ -11,7 +13,7 @@ const statusLabels: Record<number, string> = {
   [AgentToolStatus.RESULT_UNKNOWN]: "结果未知",
 };
 
-export function AgentToolCall({ call }: { call: ToolCall }) {
+export function AgentToolCall({ call, defaultOpen }: { call: ToolCall; defaultOpen?: boolean }) {
   const status = statusLabels[call.status] ?? "状态未知";
   const active = call.status === AgentToolStatus.PENDING;
   const showStatus = !active && call.status !== AgentToolStatus.COMPLETED;
@@ -21,9 +23,13 @@ export function AgentToolCall({ call }: { call: ToolCall }) {
   const metadata = parseToolJson(call.metadataJson);
   const diff =
     isToolObject(metadata) && isToolObject(metadata.filediff) ? metadata.filediff : undefined;
+  const todos =
+    call.name === "TodoWrite" && call.status === AgentToolStatus.COMPLETED
+      ? readTodos(call.metadataJson)
+      : undefined;
 
   return (
-    <details className="agent-tool" data-state={call.status}>
+    <details className="agent-tool" data-state={call.status} open={defaultOpen}>
       <summary aria-label={`${presentation.label} · ${status}`} aria-busy={active}>
         <AgentToolIcon kind={presentation.icon} />
         <span
@@ -38,23 +44,29 @@ export function AgentToolCall({ call }: { call: ToolCall }) {
         </span>
       </summary>
       <div className="agent-tool-details">
-        <div>
-          <h4>参数</h4>
-          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling for params. */}
-          <section className="agent-tool-scroll" aria-label="工具参数" tabIndex={0}>
-            <pre>{parameters || "无参数"}</pre>
-          </section>
-        </div>
-        <div>
-          <h4>输出</h4>
-          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling for output. */}
-          <section className="agent-tool-scroll" aria-label="工具输出" tabIndex={0}>
-            <pre>
-              {call.output ||
-                (call.status === AgentToolStatus.PENDING ? "等待执行结果…" : "无输出")}
-            </pre>
-          </section>
-        </div>
+        {todos !== undefined ? (
+          <AgentTodoList todos={todos} />
+        ) : (
+          <>
+            <div>
+              <h4>参数</h4>
+              {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling. */}
+              <section className="agent-tool-scroll" aria-label="工具参数" tabIndex={0}>
+                <pre>{parameters || "无参数"}</pre>
+              </section>
+            </div>
+            <div>
+              <h4>输出</h4>
+              {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling. */}
+              <section className="agent-tool-scroll" aria-label="工具输出" tabIndex={0}>
+                <pre>
+                  {call.output ||
+                    (call.status === AgentToolStatus.PENDING ? "等待执行结果…" : "无输出")}
+                </pre>
+              </section>
+            </div>
+          </>
+        )}
         {typeof diff?.unified === "string" && (
           <div>
             <h4>

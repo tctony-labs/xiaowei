@@ -2,6 +2,22 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## TodoWrite 与清单卡片（2026-10-27）
+
+第 5 批已实现 TodoWrite、对应工具规则、完整结果持久化和独立只读清单卡片。旧版源码依据、保留行为及恢复适配见[运行与 UI](runtime-ui.md#todowrite第-5-批)。沿用当前 run_loop、ToolOutcome 和正式 Gateway／napi／worker，无新增 RPC、表或 todo 文件。旧会话只追加 TodoWrite 声明和 tool.TodoWrite 规则，原基线及已有 schema 不改写。
+
+验证结果：
+
+- `cargo test -p xw-agent -p xw-agent-runtime --locked` 全部通过；补充的 Todo 定向回归通过。覆盖替换／按 ID 合并、四状态、多项进行中警告、非法参数不覆盖、完整结果进入后续模型、跨 Run／会话隔离、清空后恢复、重启不重放、未提交结果取消、Stop 跳过，以及旧会话只追加一次声明／规则且原前缀不变。
+- 意图／结果提交部分写盘失败注入通过：失败更新不发布成功清单、不开始下一次生成、不重放；有意图但无结果时恢复取消并允许后续 Run。意图提交前失败保留既有未闭合调用保护，没有扩展 Continue。
+- `pnpm --filter xiaowei-agent build:debug`、desktop build 和正式 addon／Gateway／worker 的全部 10 项测试通过；新增 TodoWrite → TodoWrite merge → Write → Read 场景核对完整清单与继续生成。
+- 相同正式场景以当前实际模型单独验收通过，严格完成两次 TodoWrite 及 Write／Read，正常结束；renderer 全部 27 文件／211 项通过，覆盖四状态、合并后完整清单、独立卡片、最新默认展开、手动折叠保持、空列表及错误回退。
+- `just check` 及 Agent／runtime strict no-deps Clippy 通过。没有修改业务契约或生成产物。
+
+产品验收通过同一工作区 cmux console 的 r 重建加载；inspect 确认来源、cwd 及当前实例属于本仓库。实际 tctony/sol 在独立验收会话 `01a17c7d-70be-75a4-90d3-c864388d40f4` 完成两次 TodoWrite，窗口确认独立卡片、状态图标、合并后保留未传任务、完成文字弱化及取消删除线。未向已有用户会话追加任务。
+
+随后经同一 console 重启，Electron 从 6692 变为 28024，实例从 `9425a4d5-4aed-475c-b071-9124622baa5d` 变为 `9f8334cd-eef4-46df-85a4-92496c257a3d`。原会话恢复后，JSONL 仍为 26 条／25157 字节，SHA-256 同为 `edd922b7ea7ce36691df429c05ad3d8ebd4ac8bef159903a1cc749e022b0f680`，没有新增生成或工具重放；展开过程后，旧卡片收起，最新清单默认展开，四项状态与重启前一致。明确发送新一轮，仅 merge 更新 b 后，实际窗口显示原四项全部保留、b 已完成，并回复“重启续写验收通过”。本批实现与约定验收完成，下一批为 WebFetch；原有平台及其他 provider 验收边界保持。
+
 ## 问答、权限与对应 UI（2026-10-26）
 
 第 4 批已实现 AskUserQuestion／RequestPermission、逐端接收确认、唯一持久决定、同 Run 继续及实际 Quick Chat 卡片。问题支持单选／多选／自由文字，卡片与 composer 共用草稿和提交锁；权限决定只包含 allow，目标取已保存请求，批准后立即更新本 Run 的 FileTools 与后续 Bash。当前行为和旧版适配统一见[运行与 UI](runtime-ui.md#问答与权限卡片第-4-批)、[控制协议](control-api.md#两阶段交互与多客户端送达)和包内 README。本批功能链路、停止／恢复及明暗主题已验收；02f 已删除，03c 只保留依赖 01f 的完整工具长输出。真实输入法组合输入的完整平台复核继续留在 04d，不把合成事件当作真实输入法证据。

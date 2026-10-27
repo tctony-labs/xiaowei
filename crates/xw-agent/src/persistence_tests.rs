@@ -45,6 +45,19 @@ async fn failed_bash_intent_and_result_commits_never_replay_side_effects() {
     }
 }
 
+#[tokio::test]
+async fn failed_todo_commits_never_publish_state_or_replay_updates() {
+    for after in [2, 3] {
+        failed_tool_commit(
+            "TodoWrite",
+            r#"{"todos":[{"id":"a","content":"must not commit","status":"completed"}]}"#,
+            after,
+            false,
+        )
+        .await;
+    }
+}
+
 async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed: bool) {
     let root = tempfile::tempdir().unwrap();
     let host = Arc::new(Host::default());
@@ -114,6 +127,26 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    if name == "TodoWrite" && after == 3 {
+        {
+            let state = service.state().unwrap();
+            let recovered = &state.sessions[&id];
+            assert!(recovered.view.runs[0].items.iter().all(|item| {
+                !matches!(&item.content, Some(agent_item::Content::ToolCall(tool))
+                if tool.status == AgentToolStatus::Completed as i32)
+            }));
+            assert!(
+                crate::inspect_recovery(recovered.journal.as_ref().unwrap().entries())
+                    .unwrap()
+                    .tools
+                    .is_empty()
+            );
+        }
+        assert_eq!(host.calls.lock().unwrap().len(), 1);
+        send(&service, request(&session.session_id)).await.unwrap();
+        service.close().await.unwrap();
+        return;
+    }
     assert!(matches!(
         send(&service, request(&session.session_id)).await,
         Err(AgentError::Conflict(_))
