@@ -21,9 +21,9 @@ API 的唯一声明来源是 service、Request、Response 和方法级 [api.no_l
 
 | 调用位置 | 示例 |
 | --- | --- |
-| 本地 Gateway | `xiaowei.server.auth.Auth.GetCurrentUser` |
-| HTTP | `POST /api/auth.Auth/GetCurrentUser` |
-| WS manifest／invoke 的 `route.name` | `auth.Auth/GetCurrentUser` |
+| 本地 Gateway | `xiaowei.server.Auth.GetCurrentUser` |
+| HTTP | `POST /api/Auth/GetCurrentUser` |
+| WS manifest／invoke 的 `route.name` | `Auth/GetCurrentUser` |
 
 仅方法地址缩短，PB 类型全名和本地 `methodRoute` 保持原样。HTTP 使用完整 Request 的 Proto JSON，WS 使用同一消息的二进制 PB；具体接入规则见 [HTTP](../server/docs/http.md) 和 [WebSocket](../server/docs/websocket.md)。
 
@@ -55,7 +55,7 @@ xw-api 的网络请求层不保存或自动刷新凭据，也不因原始认证�
 `xw-api::RequestOptions` 与 `Transport` 是普通 Rust 类型，提供超时和显式传输选择，不另定义 xwapi 或 server_call proto。桌面服务器 Gateway 代理使用默认自动选择策略；调用方通过原有 RPC 句柄取消请求。
 
 自动选择优先使用当前会话已认证、ready 且导出兼容方法的 WS；接口不支持 WS、连接尚未就绪、已断开或方法未导出／不兼容时直接使用 HTTP，不等待重连。Rust 调用方可以显式选择 HTTP；显式 WS 不切换传输，不支持 WS 的方法返回 INVALID_ARGUMENT，连接不可用返回 UNAVAILABLE。已经选用 WS 发起的请求，无论断线、超时还是响应无效，都直接返回错误，不再通过 HTTP 重发。
-标准 `google.protobuf.Empty` 与旧自定义 Empty 的 PB 字节和 Proto JSON 均兼容，但 WS manifest 中的输入类型全名会改变。客户端与旧 manifest 不匹配时，自动策略在发送前选择 HTTP；要通过 WS 调用这些方法，需要服务端也更新到相同契约。
+package、service 或消息全名变化会改变本地路由、HTTP 地址或 WS manifest 的类型身份，即使 PB 字段与 Proto JSON 仍兼容，也不能视为调用兼容。当前服务器契约统一使用 `xiaowei.server`；使用旧业务子 package 的客户端与新服务器，以及新客户端与旧服务器，均不兼容，需要配套更新。自动策略在 WS manifest 不匹配时只会尝试当前契约的 HTTP 地址，不会转换旧地址。
 
 HTTP 的等待期限由 Rust 网络请求取消与超时执行，WS 通过 RPC 取消向对端传递。该期限与 Gateway／peer 的执行期限独立，任一先到即结束等待；关闭 xwapi 计时不绕过 Gateway 上限。HTTP／WS 的网络、取消、超时或无效响应映射为业务 UNAVAILABLE；本地 Gateway 自身的执行超时仍为 RPC TIMEOUT。业务非零 code 保留在对应响应中，不解释为 Gateway 权限错误。
 

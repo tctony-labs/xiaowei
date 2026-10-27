@@ -4,8 +4,8 @@ use std::future::Future;
 use std::sync::Arc;
 use xw_gateway::{binding::Method, ErrorCode, GatewayError, InvokeRegistration};
 
-use crate::gateway_binding::xiaowei_desktop_storage_key_value_service as kv;
-use crate::gateway_binding::xiaowei_desktop_storage_storage_service as storage;
+use crate::gateway_binding::xiaowei_desktop_key_value_service as kv;
+use crate::gateway_binding::xiaowei_desktop_storage_service as storage;
 
 pub fn registrations(database: &Arc<Database>) -> Vec<InvokeRegistration> {
     vec![

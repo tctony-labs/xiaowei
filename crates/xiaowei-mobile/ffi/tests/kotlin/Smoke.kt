@@ -36,7 +36,7 @@ fun main(arguments: Array<String>) = runBlocking {
         }
     }
     val websocket = client.invoke(
-        context(auth = valid), "xiaowei.server.auth.Auth.GetCurrentUser", byteArrayOf(),
+        context(auth = valid), "xiaowei.server.Auth.GetCurrentUser", byteArrayOf(),
         RequestOptions(null, Transport.WEBSOCKET)
     )
     check(websocket.run().isNotEmpty())
@@ -44,21 +44,21 @@ fun main(arguments: Array<String>) = runBlocking {
     websocket.close()
 
     val health = client.invoke(
-        context(auth = valid), "xiaowei.server.common.Health.Check", byteArrayOf(), options
+        context(auth = valid), "xiaowei.server.Health.Check", byteArrayOf(), options
     )
     check(health.run().contentEquals(healthResponse))
     check(health.run().contentEquals(healthResponse))
     health.shutdown()
     health.close()
     val business = client.invoke(
-        context("/business"), "xiaowei.server.common.Health.Check", byteArrayOf(), options
+        context("/business"), "xiaowei.server.Health.Check", byteArrayOf(), options
     )
     check(business.run().contentEquals(businessResponse))
     business.shutdown()
     business.close()
 
     val never = client.invoke(
-        context("/never"), "xiaowei.server.common.Health.Check", byteArrayOf(), options
+        context("/never"), "xiaowei.server.Health.Check", byteArrayOf(), options
     )
     never.cancel()
     try {
@@ -71,7 +71,7 @@ fun main(arguments: Array<String>) = runBlocking {
     never.close()
 
     val timeout = client.invoke(
-        context("/timeout"), "xiaowei.server.common.Health.Check", byteArrayOf(),
+        context("/timeout"), "xiaowei.server.Health.Check", byteArrayOf(),
         RequestOptions(30u, Transport.HTTP)
     )
     try {
@@ -84,7 +84,7 @@ fun main(arguments: Array<String>) = runBlocking {
     timeout.close()
 
     val slow = client.invoke(
-        context("/cancel"), "xiaowei.server.common.Health.Check", byteArrayOf(), options
+        context("/cancel"), "xiaowei.server.Health.Check", byteArrayOf(), options
     )
     val task = async(Dispatchers.Default) {
         try {
@@ -143,7 +143,7 @@ fun main(arguments: Array<String>) = runBlocking {
     client.pause()
     client.setSession(context())
     val finalCall = client.invoke(
-        context("/close"), "xiaowei.server.common.Health.Check", byteArrayOf(), options
+        context("/close"), "xiaowei.server.Health.Check", byteArrayOf(), options
     )
     val finalTask = async(Dispatchers.Default) {
         try {

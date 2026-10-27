@@ -63,7 +63,7 @@ test("real native HTTP logs retain severity, metadata and omit private content",
       assert.ok(entries[0].message.startsWith("HTTP request started "));
       assert.ok(entries[0].message.includes("timeout_ms=15000"));
       assert.equal(entries[1].level, item.level);
-      assert.ok(entries[1].message.includes("path=/api/common.Health/Check"));
+      assert.ok(entries[1].message.includes("path=/api/Health/Check"));
       assert.ok(entries[1].message.includes(`http_status=${item.status ?? 200}`));
       assert.match(entries[1].message, /duration_ms=\d+/u);
       if (typeof item.body === "object" && "msg" in item.body) {

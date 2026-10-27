@@ -33,7 +33,7 @@ func TestAuthJSONBoundaries(t *testing.T) {
 		{"empty", "", "application/json", pb.ErrorCode_ERROR_CODE_INVALID_REQUEST},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest("POST", "/api/auth.Auth/Login", strings.NewReader(tc.body))
+			r := httptest.NewRequest("POST", "/api/Auth/Login", strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", tc.contentType)
 			w := httptest.NewRecorder()
 			if readAPIRequest(w, r, new(pb.LoginRequest), false) || w.Code != 200 ||
@@ -47,7 +47,7 @@ func TestAuthJSONBoundaries(t *testing.T) {
 		})
 	}
 	for _, body := range []string{"", "{}"} {
-		r := httptest.NewRequest("POST", "/api/auth.Auth/Logout", strings.NewReader(body))
+		r := httptest.NewRequest("POST", "/api/Auth/Logout", strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
 		if !readAPIRequest(httptest.NewRecorder(), r, new(emptypb.Empty), true) {
 			t.Fatal("valid empty logout request rejected")
@@ -61,7 +61,7 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 	)
 	handler := NewHandler(api, config.DefaultServerRateLimit())
 	for _, header := range []string{"", "Basic private-secret", "Bearer", "Bearer  private-secret"} {
-		r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser?token=private-secret", nil)
+		r := httptest.NewRequest("POST", "/api/Auth/GetCurrentUser?token=private-secret", nil)
 		r.Header.Set("Authorization", header)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
@@ -72,7 +72,7 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 			t.Fatal("invalid header accepted or token leaked")
 		}
 	}
-	r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser", nil)
+	r := httptest.NewRequest("POST", "/api/Auth/GetCurrentUser", nil)
 	r.Header.Add("Authorization", "Bearer first")
 	r.Header.Add("Authorization", "Bearer second")
 	w := httptest.NewRecorder()
@@ -84,7 +84,7 @@ func TestAuthHeaderAndMethods(t *testing.T) {
 	}
 	for _, path := range []string{"Login", "Refresh", "GetCurrentUser", "Logout"} {
 		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/auth.Auth/"+path, nil))
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/Auth/"+path, nil))
 		response := new(pb.BaseResponse)
 		if err := protojson.Unmarshal(w.Body.Bytes(), response); err != nil || w.Code != 200 ||
 			response.Code != int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST) {
@@ -141,7 +141,7 @@ func TestLoginCredentialAndBindingBoundaries(t *testing.T) {
 			int32(pb.AuthErrorCode_AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED)},
 	} {
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest("POST", "/api/auth.Auth/Login", strings.NewReader(tc.body))
+		r := httptest.NewRequest("POST", "/api/Auth/Login", strings.NewReader(tc.body))
 		r.Header.Set("Content-Type", "application/json")
 		handler.ServeHTTP(w, r)
 		response := new(pb.LoginResponse)

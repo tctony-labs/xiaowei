@@ -4,7 +4,7 @@ use super::{
 };
 use crate::Transport;
 use crate::{RequestContext, Target, connection::Authentication};
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use tokio_util::sync::CancellationToken;
 
 pub(super) fn business(code: i32, message: &str) -> crate::Result<()> {

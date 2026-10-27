@@ -97,9 +97,9 @@ go run ./cmd/xiaowei-server --config /path/to/server.yaml --check-config
 
 ```sh
 curl -f -X POST -H 'Content-Type: application/json' -d '{}' \
-  http://127.0.0.1:10001/api/common.Health/Check
+  http://127.0.0.1:10001/api/Health/Check
 curl -f -X POST -H 'Content-Type: application/json' -d '{}' \
-  http://127.0.0.1:10001/api/common.Health/Ready
+  http://127.0.0.1:10001/api/Health/Ready
 ```
 
 检查响应中的 `code = 0`，不能仅凭 HTTP 200 或 curl 退出状态判断就绪。语义见 [HTTP 接口](docs/http.md#健康检查)。

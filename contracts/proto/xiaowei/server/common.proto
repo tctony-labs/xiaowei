@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.server.common;
+package xiaowei.server;
 
 import "google/protobuf/descriptor.proto";
 
@@ -19,13 +19,13 @@ extend google.protobuf.MethodOptions {
 service Health {
   // No login required. Success means the server process can respond.
   rpc Check(google.protobuf.Empty) returns (BaseResponse) {
-    option (xiaowei.server.common.api).no_login = true;
+    option (xiaowei.server.api).no_login = true;
   }
 
   // No login required. Probes database availability for up to two seconds.
   // Unavailable databases return ERROR_CODE_UNAVAILABLE, even with HTTP 200.
   rpc Ready(google.protobuf.Empty) returns (BaseResponse) {
-    option (xiaowei.server.common.api).no_login = true;
+    option (xiaowei.server.api).no_login = true;
   }
 }
 

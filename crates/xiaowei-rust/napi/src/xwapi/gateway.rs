@@ -1,7 +1,7 @@
 use crate::gateway::{GatewayEndpoint, Resources};
 use prost::{Message, Name};
-use proto_desktop_rs::xiaowei::desktop::session as pb;
-use proto_server_rs::xiaowei::server::common::BaseResponse;
+use proto_desktop_rs::xiaowei::desktop as pb;
+use proto_server_rs::xiaowei::server::BaseResponse;
 use std::sync::Arc;
 use xw_gateway::napi::Endpoint;
 use xw_gateway::{
@@ -13,7 +13,7 @@ use xw_gateway::{
 
 use crate::account::Service;
 use crate::gateway_binding::{
-    xiaowei_server_auth_auth_service as auth, xiaowei_server_common_health_service as health,
+    xiaowei_server_auth_service as auth, xiaowei_server_health_service as health,
 };
 
 pub(crate) fn create(service: &Arc<Service>, env: &napi::Env) -> napi::Result<GatewayEndpoint> {

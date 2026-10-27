@@ -51,7 +51,7 @@ fn reply(body: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-const HEALTH: &str = "xiaowei.server.common.Health.Check";
+const HEALTH: &str = "xiaowei.server.Health.Check";
 
 #[tokio::test]
 async fn real_http_has_short_paths_no_public_bearer_and_bounded_bodies() {
@@ -68,7 +68,7 @@ async fn real_http_has_short_paths_no_public_bearer_and_bounded_bodies() {
     });
     client.invoke(HEALTH, &[], &context).await.unwrap();
     let request = received.await.unwrap();
-    assert!(request.starts_with("POST /proxy/api/common.Health/Check HTTP/1.1"));
+    assert!(request.starts_with("POST /proxy/api/Health/Check HTTP/1.1"));
     assert!(!request.to_lowercase().contains("authorization"));
     let (url, _) = server(reply(&"a".repeat(65537)), Duration::ZERO).await;
     context.target.server = url;

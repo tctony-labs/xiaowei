@@ -39,6 +39,14 @@ func TestAPIMetadataValidationAndNetworkNames(t *testing.T) {
 	if len(api.methods) != 6 {
 		t.Fatal("unexpected API registration count")
 	}
+	for _, path := range []string{
+		"/api/Auth/Login", "/api/Auth/Refresh", "/api/Auth/GetCurrentUser", "/api/Auth/Logout",
+		"/api/Health/Check", "/api/Health/Ready",
+	} {
+		if api.methods[path] == nil {
+			t.Fatalf("missing API route: %s", path)
+		}
+	}
 	for path, entry := range api.methods {
 		if path != "/api/"+entry.id {
 			t.Fatal("inconsistent network name")
@@ -85,12 +93,12 @@ func TestAPIDefaultRequiresSessionAtHTTPBoundary(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			method := api.methods["/api/auth.Auth/Login"]
+			method := api.methods["/api/Auth/Login"]
 			if method.requiresSession != tc.requiresSession {
 				t.Fatal("incorrect default access policy")
 			}
 			response := httptest.NewRecorder()
-			request := httptest.NewRequest("POST", "/api/auth.Auth/Login", strings.NewReader("{}"))
+			request := httptest.NewRequest("POST", "/api/Auth/Login", strings.NewReader("{}"))
 			request.Header.Set("Content-Type", "application/json")
 			NewHandler(api, config.DefaultServerRateLimit()).ServeHTTP(response, request)
 			var result pb.BaseResponse
@@ -112,7 +120,9 @@ func TestDirectMigrationRemovesOldPathsAndKeepsTypedEmptyData(t *testing.T) {
 	api := NewAPI(func(context.Context) error { return nil }, nil, config.DefaultAuthRateLimit())
 	handler := NewHandler(api, config.DefaultServerRateLimit())
 	for _, path := range []string{"/healthz", "/readyz", "/api/auth/login", "/api/auth/refresh",
-		"/api/auth/me", "/api/auth/logout", "/api/xiaowei.server.common.Health/Check"} {
+		"/api/auth/me", "/api/auth/logout", "/api/xiaowei.server.Health/Check",
+		"/api/auth.Auth/Login", "/api/auth.Auth/Refresh", "/api/auth.Auth/GetCurrentUser",
+		"/api/auth.Auth/Logout", "/api/common.Health/Check", "/api/common.Health/Ready"} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest("POST", path, nil))
 		var result pb.BaseResponse

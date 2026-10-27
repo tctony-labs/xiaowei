@@ -213,7 +213,7 @@ var file_xiaowei_server_common_proto_extTypes = []protoimpl.ExtensionInfo{
 		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
 		ExtensionType: (*ApiMethodOptions)(nil),
 		Field:         50001,
-		Name:          "xiaowei.server.common.api",
+		Name:          "xiaowei.server.api",
 		Tag:           "bytes,50001,opt,name=api",
 		Filename:      "xiaowei/server/common.proto",
 	},
@@ -221,7 +221,7 @@ var file_xiaowei_server_common_proto_extTypes = []protoimpl.ExtensionInfo{
 
 // Extension fields to descriptorpb.MethodOptions.
 var (
-	// optional xiaowei.server.common.ApiMethodOptions api = 50001;
+	// optional xiaowei.server.ApiMethodOptions api = 50001;
 	E_Api = &file_xiaowei_server_common_proto_extTypes[0]
 )
 
@@ -229,7 +229,7 @@ var File_xiaowei_server_common_proto protoreflect.FileDescriptor
 
 const file_xiaowei_server_common_proto_rawDesc = "" +
 	"\n" +
-	"\x1bxiaowei/server/common.proto\x12\x15xiaowei.server.common\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\"-\n" +
+	"\x1bxiaowei/server/common.proto\x12\x0exiaowei.server\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\"-\n" +
 	"\x10ApiMethodOptions\x12\x19\n" +
 	"\bno_login\x18\x01 \x01(\bR\anoLogin\"`\n" +
 	"\fBaseResponse\x12\x12\n" +
@@ -247,11 +247,11 @@ const file_xiaowei_server_common_proto_rawDesc = "" +
 	"!ERROR_CODE_UNSUPPORTED_MEDIA_TYPE\x10\x96N\x12\x1c\n" +
 	"\x17ERROR_CODE_RATE_LIMITED\x10\x97N\x12\x1b\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x98N\x12\x1e\n" +
-	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99N2\xa4\x01\n" +
-	"\x06Health\x12L\n" +
-	"\x05Check\x12\x16.google.protobuf.Empty\x1a#.xiaowei.server.common.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12L\n" +
-	"\x05Ready\x12\x16.google.protobuf.Empty\x1a#.xiaowei.server.common.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01:[\n" +
-	"\x03api\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\v2'.xiaowei.server.common.ApiMethodOptionsR\x03apib\x06proto3"
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\x99N2\x96\x01\n" +
+	"\x06Health\x12E\n" +
+	"\x05Check\x12\x16.google.protobuf.Empty\x1a\x1c.xiaowei.server.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12E\n" +
+	"\x05Ready\x12\x16.google.protobuf.Empty\x1a\x1c.xiaowei.server.BaseResponse\"\x06\x8a\xb5\x18\x02\b\x01:T\n" +
+	"\x03api\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\v2 .xiaowei.server.ApiMethodOptionsR\x03apib\x06proto3"
 
 var (
 	file_xiaowei_server_common_proto_rawDescOnce sync.Once
@@ -268,20 +268,20 @@ func file_xiaowei_server_common_proto_rawDescGZIP() []byte {
 var file_xiaowei_server_common_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_xiaowei_server_common_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_xiaowei_server_common_proto_goTypes = []any{
-	(ErrorCode)(0),                     // 0: xiaowei.server.common.ErrorCode
-	(*ApiMethodOptions)(nil),           // 1: xiaowei.server.common.ApiMethodOptions
-	(*BaseResponse)(nil),               // 2: xiaowei.server.common.BaseResponse
+	(ErrorCode)(0),                     // 0: xiaowei.server.ErrorCode
+	(*ApiMethodOptions)(nil),           // 1: xiaowei.server.ApiMethodOptions
+	(*BaseResponse)(nil),               // 2: xiaowei.server.BaseResponse
 	(*emptypb.Empty)(nil),              // 3: google.protobuf.Empty
 	(*descriptorpb.MethodOptions)(nil), // 4: google.protobuf.MethodOptions
 }
 var file_xiaowei_server_common_proto_depIdxs = []int32{
-	3, // 0: xiaowei.server.common.BaseResponse.data:type_name -> google.protobuf.Empty
-	4, // 1: xiaowei.server.common.api:extendee -> google.protobuf.MethodOptions
-	1, // 2: xiaowei.server.common.api:type_name -> xiaowei.server.common.ApiMethodOptions
-	3, // 3: xiaowei.server.common.Health.Check:input_type -> google.protobuf.Empty
-	3, // 4: xiaowei.server.common.Health.Ready:input_type -> google.protobuf.Empty
-	2, // 5: xiaowei.server.common.Health.Check:output_type -> xiaowei.server.common.BaseResponse
-	2, // 6: xiaowei.server.common.Health.Ready:output_type -> xiaowei.server.common.BaseResponse
+	3, // 0: xiaowei.server.BaseResponse.data:type_name -> google.protobuf.Empty
+	4, // 1: xiaowei.server.api:extendee -> google.protobuf.MethodOptions
+	1, // 2: xiaowei.server.api:type_name -> xiaowei.server.ApiMethodOptions
+	3, // 3: xiaowei.server.Health.Check:input_type -> google.protobuf.Empty
+	3, // 4: xiaowei.server.Health.Ready:input_type -> google.protobuf.Empty
+	2, // 5: xiaowei.server.Health.Check:output_type -> xiaowei.server.BaseResponse
+	2, // 6: xiaowei.server.Health.Ready:output_type -> xiaowei.server.BaseResponse
 	5, // [5:7] is the sub-list for method output_type
 	3, // [3:5] is the sub-list for method input_type
 	2, // [2:3] is the sub-list for extension type_name

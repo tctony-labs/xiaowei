@@ -34,7 +34,7 @@ func TestBootstrapAdminHTTPAndRestart(t *testing.T) {
 		t.Fatal("administrator role or password storage is invalid")
 	}
 	login := new(pb.LoginResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Login", "",
 		passwordRequest("admin@example.com", password, testDeviceID(t))), 200, 0, login)
 	authenticated := login.Data.GetAuthenticated()
 	if authenticated == nil || authenticated.User.Email != "admin@example.com" {
@@ -55,10 +55,10 @@ func TestBootstrapAdminHTTPAndRestart(t *testing.T) {
 	if err != nil || storedHash != hash {
 		t.Fatal("restart replaced the initial password")
 	}
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
 		authenticated.Tokens.AccessToken, nil),
 		200, 0, nil)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Login", "",
 		passwordRequest("admin@example.com", "changed-password", testDeviceID(t))), 200, 10100, nil)
 	stop()
 
@@ -67,10 +67,10 @@ func TestBootstrapAdminHTTPAndRestart(t *testing.T) {
 	stop = startAuthServer(t, fixture)
 	defer stop()
 	login = new(pb.LoginResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Login", "",
 		passwordRequest("admin@example.com", password, testDeviceID(t))), 200, 0, login)
 	accessToken := login.Data.GetAuthenticated().Tokens.AccessToken
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Logout",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Logout",
 		accessToken, nil), 200, 0, nil)
 	for _, secret := range []string{password, hash, "Admin@Example.com", "changed-password"} {
 		if strings.Contains(logs.String(), secret) {

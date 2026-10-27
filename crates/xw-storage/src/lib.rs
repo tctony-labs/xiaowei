@@ -26,8 +26,11 @@ mod tests {
 
 pub use db::Database;
 pub mod pb {
-    pub use proto_desktop_rs::xiaowei::desktop::settings::*;
-    pub use proto_desktop_rs::xiaowei::desktop::storage::*;
+    pub use proto_desktop_rs::xiaowei::desktop::{
+        update_settings_request, DatabaseUsageResponse, KvDeleted, KvEntries, KvEntry, KvKey,
+        KvPrefix, KvValue, SettingsChanged, SettingsSnapshot, ShortcutBinding,
+        ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
+    };
 }
 
 #[derive(Debug, thiserror::Error)]

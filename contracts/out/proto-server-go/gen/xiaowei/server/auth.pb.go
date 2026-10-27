@@ -965,7 +965,7 @@ var File_xiaowei_server_auth_proto protoreflect.FileDescriptor
 
 const file_xiaowei_server_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x19xiaowei/server/auth.proto\x12\x13xiaowei.server.auth\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1bxiaowei/server/common.proto\"a\n" +
+	"\x19xiaowei/server/auth.proto\x12\x0exiaowei.server\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1bxiaowei/server/common.proto\"a\n" +
 	"\fUserSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\"\n" +
@@ -983,46 +983,46 @@ const file_xiaowei_server_auth_proto_rawDesc = "" +
 	"\x15refresh_expires_at_ms\x18\x05 \x01(\x03R\x12refreshExpiresAtMs\"A\n" +
 	"\rPasswordLogin\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"\xef\x01\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"\xea\x01\n" +
 	"\fLoginRequest\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x1f\n" +
 	"\vdevice_name\x18\x02 \x01(\tR\n" +
 	"deviceName\x127\n" +
-	"\x15thirdparty_bind_token\x18\x03 \x01(\tH\x01R\x13thirdpartyBindToken\x88\x01\x01\x12@\n" +
-	"\bpassword\x18\x04 \x01(\v2\".xiaowei.server.auth.PasswordLoginH\x00R\bpasswordB\f\n" +
+	"\x15thirdparty_bind_token\x18\x03 \x01(\tH\x01R\x13thirdpartyBindToken\x88\x01\x01\x12;\n" +
+	"\bpassword\x18\x04 \x01(\v2\x1d.xiaowei.server.PasswordLoginH\x00R\bpasswordB\f\n" +
 	"\n" +
 	"credentialB\x18\n" +
-	"\x16_thirdparty_bind_token\"\xbb\x01\n" +
-	"\rAuthenticated\x125\n" +
-	"\x04user\x18\x01 \x01(\v2!.xiaowei.server.auth.UserSnapshotR\x04user\x126\n" +
-	"\x06tokens\x18\x02 \x01(\v2\x1e.xiaowei.server.auth.TokenPairR\x06tokens\x12;\n" +
-	"\x06device\x18\x03 \x01(\v2#.xiaowei.server.auth.DeviceSnapshotR\x06device\"i\n" +
+	"\x16_thirdparty_bind_token\"\xac\x01\n" +
+	"\rAuthenticated\x120\n" +
+	"\x04user\x18\x01 \x01(\v2\x1c.xiaowei.server.UserSnapshotR\x04user\x121\n" +
+	"\x06tokens\x18\x02 \x01(\v2\x19.xiaowei.server.TokenPairR\x06tokens\x126\n" +
+	"\x06device\x18\x03 \x01(\v2\x1e.xiaowei.server.DeviceSnapshotR\x06device\"i\n" +
 	"\x0fBindingRequired\x122\n" +
 	"\x15thirdparty_bind_token\x18\x01 \x01(\tR\x13thirdpartyBindToken\x12\"\n" +
-	"\rexpires_at_ms\x18\x02 \x01(\x03R\vexpiresAtMs\"\xb6\x01\n" +
-	"\vLoginResult\x12J\n" +
-	"\rauthenticated\x18\x01 \x01(\v2\".xiaowei.server.auth.AuthenticatedH\x00R\rauthenticated\x12Q\n" +
-	"\x10binding_required\x18\x02 \x01(\v2$.xiaowei.server.auth.BindingRequiredH\x00R\x0fbindingRequiredB\b\n" +
-	"\x06result\"k\n" +
+	"\rexpires_at_ms\x18\x02 \x01(\x03R\vexpiresAtMs\"\xac\x01\n" +
+	"\vLoginResult\x12E\n" +
+	"\rauthenticated\x18\x01 \x01(\v2\x1d.xiaowei.server.AuthenticatedH\x00R\rauthenticated\x12L\n" +
+	"\x10binding_required\x18\x02 \x01(\v2\x1f.xiaowei.server.BindingRequiredH\x00R\x0fbindingRequiredB\b\n" +
+	"\x06result\"f\n" +
 	"\rLoginResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
-	"\x03msg\x18\x02 \x01(\tR\x03msg\x124\n" +
-	"\x04data\x18\x03 \x01(\v2 .xiaowei.server.auth.LoginResultR\x04data\"5\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12/\n" +
+	"\x04data\x18\x03 \x01(\v2\x1b.xiaowei.server.LoginResultR\x04data\"5\n" +
 	"\x0eRefreshRequest\x12#\n" +
-	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"k\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"f\n" +
 	"\x0fRefreshResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
-	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
-	"\x04data\x18\x03 \x01(\v2\x1e.xiaowei.server.auth.TokenPairR\x04data\"\xa7\x01\n" +
-	"\x12GetCurrentUserData\x125\n" +
-	"\x04user\x18\x01 \x01(\v2!.xiaowei.server.auth.UserSnapshotR\x04user\x12\x1d\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12-\n" +
+	"\x04data\x18\x03 \x01(\v2\x19.xiaowei.server.TokenPairR\x04data\"\x9d\x01\n" +
+	"\x12GetCurrentUserData\x120\n" +
+	"\x04user\x18\x01 \x01(\v2\x1c.xiaowei.server.UserSnapshotR\x04user\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12;\n" +
-	"\x06device\x18\x03 \x01(\v2#.xiaowei.server.auth.DeviceSnapshotR\x06device\"{\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x126\n" +
+	"\x06device\x18\x03 \x01(\v2\x1e.xiaowei.server.DeviceSnapshotR\x06device\"v\n" +
 	"\x16GetCurrentUserResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
-	"\x03msg\x18\x02 \x01(\tR\x03msg\x12;\n" +
-	"\x04data\x18\x03 \x01(\v2'.xiaowei.server.auth.GetCurrentUserDataR\x04data\"b\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x126\n" +
+	"\x04data\x18\x03 \x01(\v2\".xiaowei.server.GetCurrentUserDataR\x04data\"b\n" +
 	"\x0eLogoutResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12*\n" +
@@ -1031,12 +1031,12 @@ const file_xiaowei_server_auth_proto_rawDesc = "" +
 	"\x1bAUTH_ERROR_CODE_UNSPECIFIED\x10\x00\x12(\n" +
 	"#AUTH_ERROR_CODE_INVALID_CREDENTIALS\x10\xf4N\x12-\n" +
 	"(AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED\x10\xf5N\x123\n" +
-	".AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED\x10\xf6N2\xda\x02\n" +
-	"\x04Auth\x12V\n" +
-	"\x05Login\x12!.xiaowei.server.auth.LoginRequest\x1a\".xiaowei.server.auth.LoginResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12\\\n" +
-	"\aRefresh\x12#.xiaowei.server.auth.RefreshRequest\x1a$.xiaowei.server.auth.RefreshResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12U\n" +
-	"\x0eGetCurrentUser\x12\x16.google.protobuf.Empty\x1a+.xiaowei.server.auth.GetCurrentUserResponse\x12E\n" +
-	"\x06Logout\x12\x16.google.protobuf.Empty\x1a#.xiaowei.server.auth.LogoutResponseb\x06proto3"
+	".AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED\x10\xf6N2\xbc\x02\n" +
+	"\x04Auth\x12L\n" +
+	"\x05Login\x12\x1c.xiaowei.server.LoginRequest\x1a\x1d.xiaowei.server.LoginResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12R\n" +
+	"\aRefresh\x12\x1e.xiaowei.server.RefreshRequest\x1a\x1f.xiaowei.server.RefreshResponse\"\x06\x8a\xb5\x18\x02\b\x01\x12P\n" +
+	"\x0eGetCurrentUser\x12\x16.google.protobuf.Empty\x1a&.xiaowei.server.GetCurrentUserResponse\x12@\n" +
+	"\x06Logout\x12\x16.google.protobuf.Empty\x1a\x1e.xiaowei.server.LogoutResponseb\x06proto3"
 
 var (
 	file_xiaowei_server_auth_proto_rawDescOnce sync.Once
@@ -1053,44 +1053,44 @@ func file_xiaowei_server_auth_proto_rawDescGZIP() []byte {
 var file_xiaowei_server_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_xiaowei_server_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_xiaowei_server_auth_proto_goTypes = []any{
-	(AuthErrorCode)(0),             // 0: xiaowei.server.auth.AuthErrorCode
-	(*UserSnapshot)(nil),           // 1: xiaowei.server.auth.UserSnapshot
-	(*DeviceSnapshot)(nil),         // 2: xiaowei.server.auth.DeviceSnapshot
-	(*TokenPair)(nil),              // 3: xiaowei.server.auth.TokenPair
-	(*PasswordLogin)(nil),          // 4: xiaowei.server.auth.PasswordLogin
-	(*LoginRequest)(nil),           // 5: xiaowei.server.auth.LoginRequest
-	(*Authenticated)(nil),          // 6: xiaowei.server.auth.Authenticated
-	(*BindingRequired)(nil),        // 7: xiaowei.server.auth.BindingRequired
-	(*LoginResult)(nil),            // 8: xiaowei.server.auth.LoginResult
-	(*LoginResponse)(nil),          // 9: xiaowei.server.auth.LoginResponse
-	(*RefreshRequest)(nil),         // 10: xiaowei.server.auth.RefreshRequest
-	(*RefreshResponse)(nil),        // 11: xiaowei.server.auth.RefreshResponse
-	(*GetCurrentUserData)(nil),     // 12: xiaowei.server.auth.GetCurrentUserData
-	(*GetCurrentUserResponse)(nil), // 13: xiaowei.server.auth.GetCurrentUserResponse
-	(*LogoutResponse)(nil),         // 14: xiaowei.server.auth.LogoutResponse
+	(AuthErrorCode)(0),             // 0: xiaowei.server.AuthErrorCode
+	(*UserSnapshot)(nil),           // 1: xiaowei.server.UserSnapshot
+	(*DeviceSnapshot)(nil),         // 2: xiaowei.server.DeviceSnapshot
+	(*TokenPair)(nil),              // 3: xiaowei.server.TokenPair
+	(*PasswordLogin)(nil),          // 4: xiaowei.server.PasswordLogin
+	(*LoginRequest)(nil),           // 5: xiaowei.server.LoginRequest
+	(*Authenticated)(nil),          // 6: xiaowei.server.Authenticated
+	(*BindingRequired)(nil),        // 7: xiaowei.server.BindingRequired
+	(*LoginResult)(nil),            // 8: xiaowei.server.LoginResult
+	(*LoginResponse)(nil),          // 9: xiaowei.server.LoginResponse
+	(*RefreshRequest)(nil),         // 10: xiaowei.server.RefreshRequest
+	(*RefreshResponse)(nil),        // 11: xiaowei.server.RefreshResponse
+	(*GetCurrentUserData)(nil),     // 12: xiaowei.server.GetCurrentUserData
+	(*GetCurrentUserResponse)(nil), // 13: xiaowei.server.GetCurrentUserResponse
+	(*LogoutResponse)(nil),         // 14: xiaowei.server.LogoutResponse
 	(*emptypb.Empty)(nil),          // 15: google.protobuf.Empty
 }
 var file_xiaowei_server_auth_proto_depIdxs = []int32{
-	4,  // 0: xiaowei.server.auth.LoginRequest.password:type_name -> xiaowei.server.auth.PasswordLogin
-	1,  // 1: xiaowei.server.auth.Authenticated.user:type_name -> xiaowei.server.auth.UserSnapshot
-	3,  // 2: xiaowei.server.auth.Authenticated.tokens:type_name -> xiaowei.server.auth.TokenPair
-	2,  // 3: xiaowei.server.auth.Authenticated.device:type_name -> xiaowei.server.auth.DeviceSnapshot
-	6,  // 4: xiaowei.server.auth.LoginResult.authenticated:type_name -> xiaowei.server.auth.Authenticated
-	7,  // 5: xiaowei.server.auth.LoginResult.binding_required:type_name -> xiaowei.server.auth.BindingRequired
-	8,  // 6: xiaowei.server.auth.LoginResponse.data:type_name -> xiaowei.server.auth.LoginResult
-	3,  // 7: xiaowei.server.auth.RefreshResponse.data:type_name -> xiaowei.server.auth.TokenPair
-	1,  // 8: xiaowei.server.auth.GetCurrentUserData.user:type_name -> xiaowei.server.auth.UserSnapshot
-	2,  // 9: xiaowei.server.auth.GetCurrentUserData.device:type_name -> xiaowei.server.auth.DeviceSnapshot
-	12, // 10: xiaowei.server.auth.GetCurrentUserResponse.data:type_name -> xiaowei.server.auth.GetCurrentUserData
-	15, // 11: xiaowei.server.auth.LogoutResponse.data:type_name -> google.protobuf.Empty
-	5,  // 12: xiaowei.server.auth.Auth.Login:input_type -> xiaowei.server.auth.LoginRequest
-	10, // 13: xiaowei.server.auth.Auth.Refresh:input_type -> xiaowei.server.auth.RefreshRequest
-	15, // 14: xiaowei.server.auth.Auth.GetCurrentUser:input_type -> google.protobuf.Empty
-	15, // 15: xiaowei.server.auth.Auth.Logout:input_type -> google.protobuf.Empty
-	9,  // 16: xiaowei.server.auth.Auth.Login:output_type -> xiaowei.server.auth.LoginResponse
-	11, // 17: xiaowei.server.auth.Auth.Refresh:output_type -> xiaowei.server.auth.RefreshResponse
-	13, // 18: xiaowei.server.auth.Auth.GetCurrentUser:output_type -> xiaowei.server.auth.GetCurrentUserResponse
-	14, // 19: xiaowei.server.auth.Auth.Logout:output_type -> xiaowei.server.auth.LogoutResponse
+	4,  // 0: xiaowei.server.LoginRequest.password:type_name -> xiaowei.server.PasswordLogin
+	1,  // 1: xiaowei.server.Authenticated.user:type_name -> xiaowei.server.UserSnapshot
+	3,  // 2: xiaowei.server.Authenticated.tokens:type_name -> xiaowei.server.TokenPair
+	2,  // 3: xiaowei.server.Authenticated.device:type_name -> xiaowei.server.DeviceSnapshot
+	6,  // 4: xiaowei.server.LoginResult.authenticated:type_name -> xiaowei.server.Authenticated
+	7,  // 5: xiaowei.server.LoginResult.binding_required:type_name -> xiaowei.server.BindingRequired
+	8,  // 6: xiaowei.server.LoginResponse.data:type_name -> xiaowei.server.LoginResult
+	3,  // 7: xiaowei.server.RefreshResponse.data:type_name -> xiaowei.server.TokenPair
+	1,  // 8: xiaowei.server.GetCurrentUserData.user:type_name -> xiaowei.server.UserSnapshot
+	2,  // 9: xiaowei.server.GetCurrentUserData.device:type_name -> xiaowei.server.DeviceSnapshot
+	12, // 10: xiaowei.server.GetCurrentUserResponse.data:type_name -> xiaowei.server.GetCurrentUserData
+	15, // 11: xiaowei.server.LogoutResponse.data:type_name -> google.protobuf.Empty
+	5,  // 12: xiaowei.server.Auth.Login:input_type -> xiaowei.server.LoginRequest
+	10, // 13: xiaowei.server.Auth.Refresh:input_type -> xiaowei.server.RefreshRequest
+	15, // 14: xiaowei.server.Auth.GetCurrentUser:input_type -> google.protobuf.Empty
+	15, // 15: xiaowei.server.Auth.Logout:input_type -> google.protobuf.Empty
+	9,  // 16: xiaowei.server.Auth.Login:output_type -> xiaowei.server.LoginResponse
+	11, // 17: xiaowei.server.Auth.Refresh:output_type -> xiaowei.server.RefreshResponse
+	13, // 18: xiaowei.server.Auth.GetCurrentUser:output_type -> xiaowei.server.GetCurrentUserResponse
+	14, // 19: xiaowei.server.Auth.Logout:output_type -> xiaowei.server.LogoutResponse
 	16, // [16:20] is the sub-list for method output_type
 	12, // [12:16] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name

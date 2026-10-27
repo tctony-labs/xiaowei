@@ -6,7 +6,7 @@
 
 所有业务 HTTP 请求先按来源 IP 检查共享的通用额度，再检查该接口的专用额度；没有专用额度的接口只执行通用检查。通用额度按 IP 汇总，不为每个接口分别分配一份。
 
-POST /api/common.Health/Check、POST /api/common.Health/Ready 不计入业务额度，避免业务流量使正常探针被限流。未知路径和错误方法仍计入通用额度。WebSocket 升级计入通用 HTTP 额度；建连后不再按 HTTP 请求计数，改用有界请求／控制表、方法执行并发、流配额和队列字节预算，见 [WebSocket 接入](websocket.md)。按账号、发邮件等限流随对应业务接入，不在本次实现。
+POST /api/Health/Check、POST /api/Health/Ready 不计入业务额度，避免业务流量使正常探针被限流。未知路径和错误方法仍计入通用额度。WebSocket 升级计入通用 HTTP 额度；建连后不再按 HTTP 请求计数，改用有界请求／控制表、方法执行并发、流配额和队列字节预算，见 [WebSocket 接入](websocket.md)。按账号、发邮件等限流随对应业务接入，不在本次实现。
 
 ```mermaid
 flowchart LR

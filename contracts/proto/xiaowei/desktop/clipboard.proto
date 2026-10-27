@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package xiaowei.desktop.clipboard;
+package xiaowei.desktop;
 
 import "google/protobuf/empty.proto";
 
@@ -59,7 +59,7 @@ service ClipboardDao {
   rpc HashReferenced(ClipboardEntityHashRequest) returns (ClipboardEntityHashReference);
 }
 
-// Record and category IDs in this package must be in 1..=9223372036854775807.
+// Clipboard record and category IDs must be in 1..=9223372036854775807.
 enum ClipboardKind {
   CLIPBOARD_KIND_UNSPECIFIED = 0;
   CLIPBOARD_KIND_TEXT = 1;

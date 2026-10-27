@@ -46,7 +46,7 @@ func authFixture() http.Handler {
 	for _, name := range []string{"GetCurrentUser", "Logout"} {
 		method := methods.ByName(protoreflect.Name(name))
 		registrations = append(registrations, ws.Registration{
-			Method: method, Name: "auth.Auth/" + name,
+			Method: method, Name: "Auth/" + name,
 			Handler: func(
 				ctx context.Context, input proto.Message, peer *ws.Peer,
 			) (proto.Message, error) {
@@ -54,7 +54,7 @@ func authFixture() http.Handler {
 				if err != nil {
 					return nil, err
 				}
-				wire, err := post(ctx, "/api/auth.Auth/"+name, ctx.Value(tokenKey{}).(string), body)
+				wire, err := post(ctx, "/api/Auth/"+name, ctx.Value(tokenKey{}).(string), body)
 				if err != nil {
 					return nil, ws.Failure("OWNER_UNAVAILABLE", "fixture unavailable")
 				}

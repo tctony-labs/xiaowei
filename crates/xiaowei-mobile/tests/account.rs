@@ -1,7 +1,7 @@
 mod support;
 
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use xiaowei_mobile::{LocalErrorKind, MobileClient, MobileError};
 
 #[tokio::test]

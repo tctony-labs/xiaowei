@@ -1,23 +1,54 @@
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth as pb;
+use proto_server_rs::xiaowei::server as pb;
 use xw_api::{contract::Method, normalize_server};
 
 #[test]
 fn descriptors_preserve_default_authentication_and_standard_proto_json() {
     for name in ["Login", "Refresh"] {
-        let method = Method::resolve(&format!("xiaowei.server.auth.Auth.{name}")).unwrap();
+        let method = Method::resolve(&format!("xiaowei.server.Auth.{name}")).unwrap();
         assert!(!method.requires_login);
-        assert_eq!(method.id, format!("auth.Auth/{name}"));
-        assert_eq!(method.path, format!("/api/auth.Auth/{name}"));
+        assert_eq!(method.id, format!("Auth/{name}"));
+        assert_eq!(method.path, format!("/api/Auth/{name}"));
     }
     for name in ["GetCurrentUser", "Logout"] {
-        assert!(
-            Method::resolve(&format!("xiaowei.server.auth.Auth.{name}"))
-                .unwrap()
-                .requires_login
+        let method = Method::resolve(&format!("xiaowei.server.Auth.{name}")).unwrap();
+        assert!(method.requires_login);
+        assert_eq!(method.id, format!("Auth/{name}"));
+        assert_eq!(method.path, format!("/api/Auth/{name}"));
+        assert_eq!(
+            method.descriptor.input().full_name(),
+            "google.protobuf.Empty"
+        );
+        assert_eq!(
+            method.descriptor.output().full_name(),
+            format!("xiaowei.server.{name}Response")
         );
     }
-    let method = Method::resolve("xiaowei.server.auth.Auth.Login").unwrap();
+    for name in ["Check", "Ready"] {
+        let method = Method::resolve(&format!("xiaowei.server.Health.{name}")).unwrap();
+        assert!(!method.requires_login);
+        assert_eq!(method.id, format!("Health/{name}"));
+        assert_eq!(method.path, format!("/api/Health/{name}"));
+        assert_eq!(
+            method.descriptor.input().full_name(),
+            "google.protobuf.Empty"
+        );
+        assert_eq!(
+            method.descriptor.output().full_name(),
+            "xiaowei.server.BaseResponse"
+        );
+        assert_eq!(method.encode_json(&[]).unwrap(), "{}");
+    }
+    for name in [
+        "xiaowei.server.auth.Auth.Login",
+        "xiaowei.server.common.Health.Check",
+    ] {
+        assert!(
+            Method::resolve(name).is_err(),
+            "old method accepted: {name}"
+        );
+    }
+    let method = Method::resolve("xiaowei.server.Auth.Login").unwrap();
     let request = pb::LoginRequest {
         device_id: "device".into(),
         credential: Some(pb::login_request::Credential::Password(pb::PasswordLogin {
@@ -49,7 +80,7 @@ fn descriptors_preserve_default_authentication_and_standard_proto_json() {
 
 #[test]
 fn json_envelope_rejects_malformed_success_and_preserves_business_failures() {
-    let method = Method::resolve("xiaowei.server.common.Health.Check").unwrap();
+    let method = Method::resolve("xiaowei.server.Health.Check").unwrap();
     assert!(!method.requires_login);
     for value in [
         "null",

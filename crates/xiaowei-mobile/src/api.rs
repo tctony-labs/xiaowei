@@ -1,6 +1,6 @@
 use crate::{MobileError, Result, runtime};
 use prost::Message;
-use proto_server_rs::xiaowei::server::common::BaseResponse;
+use proto_server_rs::xiaowei::server::BaseResponse;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},

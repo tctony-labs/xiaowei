@@ -3,11 +3,10 @@
 pub mod gateway;
 
 use crate::Database;
-use proto_desktop_rs::xiaowei::desktop::settings::{
-    update_settings_request::Change, SettingsChanged, SettingsSnapshot, ShortcutBinding,
-    ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
+use proto_desktop_rs::xiaowei::desktop::{
+    update_settings_request::Change, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot,
+    ShortcutBinding, ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
 };
-use proto_desktop_rs::xiaowei::desktop::storage::{KvEntry, KvPrefix};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fmt;

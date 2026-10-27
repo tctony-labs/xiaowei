@@ -12,11 +12,11 @@ test("Storage opens a real file, exports only typed routes and closes idempotent
     const endpoint = storage.createKeyValueGatewayEndpoint();
     const manifest = JSON.parse(endpoint.manifest());
     assert.deepEqual(manifest.routes.map((route) => route.name).sort(), [
-      "xiaowei.desktop.storage.KeyValue.Delete",
-      "xiaowei.desktop.storage.KeyValue.Get",
-      "xiaowei.desktop.storage.KeyValue.List",
-      "xiaowei.desktop.storage.KeyValue.Set",
-      "xiaowei.desktop.storage.Storage.DatabaseUsage",
+      "xiaowei.desktop.KeyValue.Delete",
+      "xiaowei.desktop.KeyValue.Get",
+      "xiaowei.desktop.KeyValue.List",
+      "xiaowei.desktop.KeyValue.Set",
+      "xiaowei.desktop.Storage.DatabaseUsage",
     ]);
     assert.ok(Buffer.isBuffer(await endpoint.close()));
     assert.ok(Buffer.isBuffer(await endpoint.close()));

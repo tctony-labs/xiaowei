@@ -24,8 +24,8 @@ func TestHealthRoute(t *testing.T) {
 		path   string
 		status int
 	}{
-		{http.MethodPost, "/api/common.Health/Check", 0},
-		{http.MethodGet, "/api/common.Health/Check", int(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST)},
+		{http.MethodPost, "/api/Health/Check", 0},
+		{http.MethodGet, "/api/Health/Check", int(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST)},
 		{http.MethodGet, "/missing", int(pb.ErrorCode_ERROR_CODE_NOT_FOUND)},
 	} {
 		t.Run(tc.method+tc.path, func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestReadiness(t *testing.T) {
 				tc.check, nil, config.DefaultAuthRateLimit(),
 			)
 			handler := NewHandler(api, config.DefaultServerRateLimit())
-			handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/common.Health/Ready",
+			handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/Health/Ready",
 				nil))
 			var body struct {
 				Code int `json:"code"`
@@ -92,7 +92,7 @@ func TestReadinessCancellationAndMethod(t *testing.T) {
 	)
 	handler := NewHandler(api, config.DefaultServerRateLimit())
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/common.Health/Ready",
+	handler.ServeHTTP(response, httptest.NewRequest("POST", "/api/Health/Ready",
 		nil).WithContext(ctx))
 	var body pb.BaseResponse
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || response.Code != 200 ||
@@ -100,7 +100,7 @@ func TestReadinessCancellationAndMethod(t *testing.T) {
 		t.Fatal("request cancellation was not propagated")
 	}
 	response = httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest("GET", "/api/common.Health/Ready", nil))
+	handler.ServeHTTP(response, httptest.NewRequest("GET", "/api/Health/Ready", nil))
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || response.Code != 200 ||
 		body.Code != int32(pb.ErrorCode_ERROR_CODE_INVALID_REQUEST) {
 		t.Fatal("readiness accepted GET")
@@ -113,16 +113,16 @@ func TestHandlerPanicAndUnnormalizedPaths(t *testing.T) {
 	)
 	handler := NewHandler(api, config.DefaultServerRateLimit())
 	for _, path := range []string{
-		"/api/common.Health/Ready",
-		"//api/common.Health/Check",
-		"/a/../api/common.Health/Check",
-		"/api/common.Health/Check/",
+		"/api/Health/Ready",
+		"//api/Health/Check",
+		"/a/../api/Health/Check",
+		"/api/Health/Check/",
 	} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("POST", path, nil))
 		var body pb.BaseResponse
 		want := int32(pb.ErrorCode_ERROR_CODE_NOT_FOUND)
-		if path == "/api/common.Health/Ready" {
+		if path == "/api/Health/Ready" {
 			want = int32(pb.ErrorCode_ERROR_CODE_INTERNAL_ERROR)
 		}
 		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || w.Code != 200 || body.Code != want ||

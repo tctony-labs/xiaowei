@@ -51,8 +51,8 @@ final class AccountSessionTests: XCTestCase {
         let expired = try fixture.sample("expired")
         let rotated = try fixture.sample("rotated")
         let updated = try fixture.sample("updated")
-        var restored = try Xiaowei_Server_Auth_Authenticated(serializedBytes: valid)
-        restored.user = try Xiaowei_Server_Auth_Authenticated(serializedBytes: updated).user
+        var restored = try Xiaowei_Server_Authenticated(serializedBytes: valid)
+        restored.user = try Xiaowei_Server_Authenticated(serializedBytes: updated).user
         let restoredBytes = try restored.serializedData()
 
         try await runCase("login", fixture: fixture) { account, store, _ in

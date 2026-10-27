@@ -1,5 +1,5 @@
 use crate::{clipboard_dao::ClipboardDao, clipboard_migrations, sql::DatabaseRollback, Database};
-use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
+use proto_desktop_rs::xiaowei::desktop as pb;
 use std::sync::Arc;
 
 async fn capture(dao: &ClipboardDao, text: &str, time: i64) -> u64 {
@@ -225,7 +225,7 @@ async fn baseline_database_is_backfilled_and_reopen_does_not_duplicate_index() {
 
 #[tokio::test]
 async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
-    use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as methods;
+    use crate::gateway_binding::xiaowei_desktop_clipboard_dao_service as methods;
     use xw_gateway::{CallContext, ErrorCode, XwInvokeRegistry};
 
     let temp = tempfile::tempdir().unwrap();

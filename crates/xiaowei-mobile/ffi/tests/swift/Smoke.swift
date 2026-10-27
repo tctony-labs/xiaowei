@@ -35,7 +35,7 @@ struct Smoke {
         }
         let websocket = try client.invoke(
             context: context(auth: valid),
-            method: "xiaowei.server.auth.Auth.GetCurrentUser",
+            method: "xiaowei.server.Auth.GetCurrentUser",
             payload: Data(),
             options: RequestOptions(timeoutMs: nil, transport: .websocket)
         )
@@ -44,7 +44,7 @@ struct Smoke {
         await websocket.shutdown()
 
         let health = try client.invoke(
-            context: context(auth: valid), method: "xiaowei.server.common.Health.Check",
+            context: context(auth: valid), method: "xiaowei.server.Health.Check",
             payload: Data(), options: options
         )
         let first = try await health.run()
@@ -53,7 +53,7 @@ struct Smoke {
         await health.shutdown()
 
         let business = try client.invoke(
-            context: context("/business"), method: "xiaowei.server.common.Health.Check",
+            context: context("/business"), method: "xiaowei.server.Health.Check",
             payload: Data(), options: options
         )
         let businessResult = try await business.run()
@@ -61,7 +61,7 @@ struct Smoke {
         await business.shutdown()
 
         let never = try client.invoke(
-            context: context("/never"), method: "xiaowei.server.common.Health.Check",
+            context: context("/never"), method: "xiaowei.server.Health.Check",
             payload: Data(), options: options
         )
         never.cancel()
@@ -74,7 +74,7 @@ struct Smoke {
         await never.shutdown()
 
         let timeout = try client.invoke(
-            context: context("/timeout"), method: "xiaowei.server.common.Health.Check",
+            context: context("/timeout"), method: "xiaowei.server.Health.Check",
             payload: Data(), options: RequestOptions(timeoutMs: 30, transport: .http)
         )
         do {
@@ -86,7 +86,7 @@ struct Smoke {
         await timeout.shutdown()
 
         let slow = try client.invoke(
-            context: context("/cancel"), method: "xiaowei.server.common.Health.Check",
+            context: context("/cancel"), method: "xiaowei.server.Health.Check",
             payload: Data(), options: options
         )
         let task = Task.detached {
@@ -154,7 +154,7 @@ struct Smoke {
         _ = try await client.setSession(context: context())
 
         let finalCall = try client.invoke(
-            context: context("/close"), method: "xiaowei.server.common.Health.Check",
+            context: context("/close"), method: "xiaowei.server.Health.Check",
             payload: Data(), options: options
         )
         let finalTask = Task.detached { try await finalCall.run() }

@@ -21,7 +21,7 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
 }
 
 /// Common error codes occupy 10000-10099; zero means success.
-public nonisolated enum Xiaowei_Server_Common_ErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Xiaowei_Server_ErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case success // = 0
   case invalidRequest // = 10000
@@ -75,7 +75,7 @@ public nonisolated enum Xiaowei_Server_Common_ErrorCode: SwiftProtobuf.Enum, Swi
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Xiaowei_Server_Common_ErrorCode] = [
+  public static let allCases: [Xiaowei_Server_ErrorCode] = [
     .success,
     .invalidRequest,
     .invalidArgument,
@@ -91,7 +91,7 @@ public nonisolated enum Xiaowei_Server_Common_ErrorCode: SwiftProtobuf.Enum, Swi
 
 }
 
-public nonisolated struct Xiaowei_Server_Common_ApiMethodOptions: Sendable {
+public nonisolated struct Xiaowei_Server_ApiMethodOptions: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -106,7 +106,7 @@ public nonisolated struct Xiaowei_Server_Common_ApiMethodOptions: Sendable {
 }
 
 /// Result without domain data; also the failure envelope for typed business responses.
-public nonisolated struct Xiaowei_Server_Common_BaseResponse: Sendable {
+public nonisolated struct Xiaowei_Server_BaseResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -146,51 +146,51 @@ public nonisolated struct Xiaowei_Server_Common_BaseResponse: Sendable {
 
 nonisolated extension SwiftProtobuf.Google_Protobuf_MethodOptions {
 
-  public var Xiaowei_Server_Common_api: Xiaowei_Server_Common_ApiMethodOptions {
-    get {return getExtensionValue(ext: Xiaowei_Server_Common_Extensions_api) ?? Xiaowei_Server_Common_ApiMethodOptions()}
-    set {setExtensionValue(ext: Xiaowei_Server_Common_Extensions_api, value: newValue)}
+  public var Xiaowei_Server_api: Xiaowei_Server_ApiMethodOptions {
+    get {return getExtensionValue(ext: Xiaowei_Server_Extensions_api) ?? Xiaowei_Server_ApiMethodOptions()}
+    set {setExtensionValue(ext: Xiaowei_Server_Extensions_api, value: newValue)}
   }
-  /// Returns true if extension `Xiaowei_Server_Common_Extensions_api`
+  /// Returns true if extension `Xiaowei_Server_Extensions_api`
   /// has been explicitly set.
-  public var hasXiaowei_Server_Common_api: Bool {
-    return hasExtensionValue(ext: Xiaowei_Server_Common_Extensions_api)
+  public var hasXiaowei_Server_api: Bool {
+    return hasExtensionValue(ext: Xiaowei_Server_Extensions_api)
   }
-  /// Clears the value of extension `Xiaowei_Server_Common_Extensions_api`.
+  /// Clears the value of extension `Xiaowei_Server_Extensions_api`.
   /// Subsequent reads from it will return its default value.
-  public mutating func clearXiaowei_Server_Common_api() {
-    clearExtensionValue(ext: Xiaowei_Server_Common_Extensions_api)
+  public mutating func clearXiaowei_Server_api() {
+    clearExtensionValue(ext: Xiaowei_Server_Extensions_api)
   }
 
 }
 
-// MARK: - File's ExtensionMap: Xiaowei_Server_Common_Common_Extensions
+// MARK: - File's ExtensionMap: Xiaowei_Server_Common_Extensions
 
 /// A `SwiftProtobuf.SimpleExtensionMap` that includes all of the extensions defined by
 /// this .proto file. It can be used any place an `SwiftProtobuf.ExtensionMap` is needed
 /// in parsing, or it can be combined with other `SwiftProtobuf.SimpleExtensionMap`s to create
 /// a larger `SwiftProtobuf.SimpleExtensionMap`.
-public nonisolated let Xiaowei_Server_Common_Common_Extensions: SwiftProtobuf.SimpleExtensionMap = [
-  Xiaowei_Server_Common_Extensions_api
+public nonisolated let Xiaowei_Server_Common_Extensions: SwiftProtobuf.SimpleExtensionMap = [
+  Xiaowei_Server_Extensions_api
 ]
 
 // Extension Objects - The only reason these might be needed is when manually
 // constructing a `SimpleExtensionMap`, otherwise, use the above _Extension Properties_
 // accessors for the extension fields on the messages directly.
 
-public nonisolated let Xiaowei_Server_Common_Extensions_api = SwiftProtobuf.MessageExtension<SwiftProtobuf.OptionalMessageExtensionField<Xiaowei_Server_Common_ApiMethodOptions>, SwiftProtobuf.Google_Protobuf_MethodOptions>(
+public nonisolated let Xiaowei_Server_Extensions_api = SwiftProtobuf.MessageExtension<SwiftProtobuf.OptionalMessageExtensionField<Xiaowei_Server_ApiMethodOptions>, SwiftProtobuf.Google_Protobuf_MethodOptions>(
   _protobuf_fieldNumber: 50001,
-  fieldName: "xiaowei.server.common.api"
+  fieldName: "xiaowei.server.api"
 )
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "xiaowei.server.common"
+fileprivate nonisolated let _protobuf_package = "xiaowei.server"
 
-nonisolated extension Xiaowei_Server_Common_ErrorCode: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_ErrorCode: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ERROR_CODE_SUCCESS\0\u{2}P\\\u{2}ERROR_CODE_INVALID_REQUEST\0\u{1}ERROR_CODE_INVALID_ARGUMENT\0\u{1}ERROR_CODE_UNAUTHENTICATED\0\u{1}ERROR_CODE_PERMISSION_DENIED\0\u{1}ERROR_CODE_NOT_FOUND\0\u{1}ERROR_CODE_REQUEST_TOO_LARGE\0\u{1}ERROR_CODE_UNSUPPORTED_MEDIA_TYPE\0\u{1}ERROR_CODE_RATE_LIMITED\0\u{1}ERROR_CODE_UNAVAILABLE\0\u{1}ERROR_CODE_INTERNAL_ERROR\0")
 }
 
-nonisolated extension Xiaowei_Server_Common_ApiMethodOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_ApiMethodOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ApiMethodOptions"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}no_login\0")
 
@@ -213,14 +213,14 @@ nonisolated extension Xiaowei_Server_Common_ApiMethodOptions: SwiftProtobuf.Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Common_ApiMethodOptions, rhs: Xiaowei_Server_Common_ApiMethodOptions) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_ApiMethodOptions, rhs: Xiaowei_Server_ApiMethodOptions) -> Bool {
     if lhs.noLogin != rhs.noLogin {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-nonisolated extension Xiaowei_Server_Common_BaseResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_BaseResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BaseResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}msg\0\u{1}data\0")
 
@@ -255,7 +255,7 @@ nonisolated extension Xiaowei_Server_Common_BaseResponse: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Common_BaseResponse, rhs: Xiaowei_Server_Common_BaseResponse) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_BaseResponse, rhs: Xiaowei_Server_BaseResponse) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.msg != rhs.msg {return false}
     if lhs._data != rhs._data {return false}

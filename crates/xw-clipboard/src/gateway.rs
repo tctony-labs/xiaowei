@@ -2,7 +2,7 @@
 
 use crate::{ClipboardData, Service};
 use prost::{Message, Name};
-use proto_desktop_rs::xiaowei::desktop::{clipboard as pb, host as sys};
+use proto_desktop_rs::xiaowei::desktop as pb;
 use std::sync::Arc;
 use xw_gateway::{
     binding::Method,
@@ -10,10 +10,10 @@ use xw_gateway::{
     ErrorCode, GatewayError, InvokeRegistration,
 };
 
-use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_biz_service as methods;
-use crate::gateway_binding::xiaowei_desktop_host_system_service as system;
-use crate::gateway_binding::xiaowei_desktop_settings_settings_service as settings;
-use crate::gateway_binding::xiaowei_desktop_storage_storage_service as storage;
+use crate::gateway_binding::xiaowei_desktop_clipboard_biz_service as methods;
+use crate::gateway_binding::xiaowei_desktop_settings_service as settings;
+use crate::gateway_binding::xiaowei_desktop_storage_service as storage;
+use crate::gateway_binding::xiaowei_desktop_system_service as system;
 
 fn id(value: u64) -> crate::Result<i64> {
     i64::try_from(value)
@@ -157,7 +157,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             system::OPEN_PATH
                 .call(
                     &client,
-                    sys::LocalPathRequest {
+                    pb::LocalPathRequest {
                         path: paths[0].clone(),
                     },
                 )
@@ -169,7 +169,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             let client = crate::dao::CALLER.with(Clone::clone);
             for path in paths {
                 system::REVEAL_PATH
-                    .call(&client, sys::LocalPathRequest { path })
+                    .call(&client, pb::LocalPathRequest { path })
                     .await?;
             }
             Ok(())
@@ -179,7 +179,7 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
             let text = crate::resources::path_text(paths, r.directory)?;
             let client = crate::dao::CALLER.with(Clone::clone);
             system::WRITE_CLIPBOARD_TEXT
-                .call(&client, sys::WriteClipboardTextRequest { text })
+                .call(&client, pb::WriteClipboardTextRequest { text })
                 .await?;
             Ok(())
         }),

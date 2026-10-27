@@ -1,7 +1,7 @@
-use crate::gateway_binding::xiaowei_desktop_settings_settings_service as settings;
+use crate::gateway_binding::xiaowei_desktop_settings_service as settings;
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result, Store};
 use prost::{Message, Name};
-use proto_desktop_rs::xiaowei::desktop::settings::SettingsChanged;
+use proto_desktop_rs::xiaowei::desktop::SettingsChanged;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -541,9 +541,7 @@ mod tests {
     use super::*;
     use crate::types::HASH_COMPUTATIONS;
     use crate::{ClipboardBackend, ClipboardData};
-    use proto_desktop_rs::xiaowei::desktop::{
-        clipboard::DeletedClipboardEntities, settings::SettingsSnapshot,
-    };
+    use proto_desktop_rs::xiaowei::desktop::{DeletedClipboardEntities, SettingsSnapshot};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use xw_gateway::{CallContext, XwInvokeRegistry};
 
@@ -633,7 +631,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn cleanup_waits_thirty_seconds_repeats_hourly_and_stops_with_lifecycle() {
-        use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as dao;
+        use crate::gateway_binding::xiaowei_desktop_clipboard_dao_service as dao;
         let directory = tempfile::tempdir().unwrap();
         let registry = XwInvokeRegistry::new();
         registry

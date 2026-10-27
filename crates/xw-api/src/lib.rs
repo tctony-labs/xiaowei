@@ -11,7 +11,7 @@ pub mod wire;
 pub use context::{
     RequestContext, RequestOptions, Session, Target, Transport, normalize_server, now_ms,
 };
-use proto_server_rs::xiaowei::server::common::ErrorCode;
+use proto_server_rs::xiaowei::server::ErrorCode;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

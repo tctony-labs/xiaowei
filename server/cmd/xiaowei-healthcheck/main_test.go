@@ -27,7 +27,7 @@ func TestReadinessRequiresHTTPAndBusinessSuccess(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				body, err := io.ReadAll(r.Body)
-				if err != nil || r.Method != "POST" || r.URL.Path != "/api/common.Health/Ready" ||
+				if err != nil || r.Method != "POST" || r.URL.Path != "/api/Health/Ready" ||
 					r.Header.Get("Content-Type") != "application/json" ||
 					strings.TrimSpace(string(body)) != "{}" {
 					t.Error("readiness did not use the canonical POST API")
@@ -36,7 +36,7 @@ func TestReadinessRequiresHTTPAndBusinessSuccess(t *testing.T) {
 				_, _ = io.WriteString(w, tc.body)
 			}))
 			defer server.Close()
-			err := checkReadiness(server.Client(), server.URL+"/api/common.Health/Ready")
+			err := checkReadiness(server.Client(), server.URL+"/api/Health/Ready")
 			if (err == nil) != tc.ready {
 				t.Fatalf("readiness = %v, want %v", err == nil, tc.ready)
 			}

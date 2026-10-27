@@ -53,7 +53,7 @@ func TestTrustedProxySeparatesRateLimitsWithoutTrustingDirectSpoofing(t *testing
 	handler = WithTrustedProxies(handler, []netip.Prefix{netip.MustParsePrefix("172.18.0.1/32")})
 	request := func(peer, client string) int32 {
 		t.Helper()
-		r := httptest.NewRequest("POST", "/api/auth.Auth/GetCurrentUser", nil)
+		r := httptest.NewRequest("POST", "/api/Auth/GetCurrentUser", nil)
 		r.RemoteAddr = peer
 		r.Header.Set("X-Real-IP", client)
 		w := httptest.NewRecorder()

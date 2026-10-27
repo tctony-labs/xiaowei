@@ -1,9 +1,6 @@
 //! Independent consumer of the public contract crate; stdin/stdout are PB bytes.
 use prost::{Message, Name};
-use proto_server_rs::xiaowei::server::{
-    auth::{LoginRequest, LoginResponse},
-    common::BaseResponse,
-};
+use proto_server_rs::xiaowei::server::{BaseResponse, LoginRequest, LoginResponse};
 use proto_testing_rs::{
     FILE_DESCRIPTOR_SET,
     testing::{Changed, Envelope},

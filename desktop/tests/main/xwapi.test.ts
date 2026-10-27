@@ -279,7 +279,7 @@ test("health validates JSON business results; HTTP 200 alone does not mean ready
     await server.close();
   });
   assert.equal((await health.ready(empty)).code, 0);
-  assert.equal(server.state.requests.at(-1)?.path, "/xiaowei/api/common.Health/Ready");
+  assert.equal(server.state.requests.at(-1)?.path, "/xiaowei/api/Health/Ready");
   server.state.ready = false;
   assert.equal((await health.ready(empty)).code, ErrorCode.UNAVAILABLE);
   for (const response of [

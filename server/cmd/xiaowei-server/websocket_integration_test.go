@@ -74,7 +74,7 @@ func wsLogin(t *testing.T, fixture authFixture, token string) (*websocket.Conn, 
 			t.Fatal("WS must export exactly the two session-required API methods")
 		}
 		for _, route := range manifest.Routes {
-			if route.Name != "auth.Auth/GetCurrentUser" && route.Name != "auth.Auth/Logout" {
+			if route.Name != "Auth/GetCurrentUser" && route.Name != "Auth/Logout" {
 				t.Fatal("public or full-name API leaked into WS manifest")
 			}
 		}
@@ -87,9 +87,9 @@ func wsLogin(t *testing.T, fixture authFixture, token string) (*websocket.Conn, 
 func wsMe(t *testing.T, socket *websocket.Conn, generation string) *pb.GetCurrentUserResponse {
 	t.Helper()
 	wsWrite(t, socket, map[string]any{"v": 1, "generation": generation, "op": "invoke", "id": fmt.Sprintf("c:me:%d", wsSequence.Add(1)),
-		"optionsBytes": 0, "route": ws.Route{Name: "auth.Auth/GetCurrentUser", Kind: "unary",
+		"optionsBytes": 0, "route": ws.Route{Name: "Auth/GetCurrentUser", Kind: "unary",
 			ControlVersion: 3, ContractVersion: 1, Input: "google.protobuf.Empty",
-			Output: "xiaowei.server.auth.GetCurrentUserResponse"}}, nil)
+			Output: "xiaowei.server.GetCurrentUserResponse"}}, nil)
 	header, payload := wsRead(t, socket)
 	if len(header["error"]) != 0 {
 		t.Fatal("authenticated method failed")
@@ -124,12 +124,12 @@ func TestWebSocketAuthenticationSessionIsolationAndShutdown(t *testing.T) {
 	first, firstGeneration := wsLogin(t, fixture, a.Tokens.AccessToken)
 	second, secondGeneration := wsLogin(t, fixture, b.Tokens.AccessToken)
 	// Public methods remain unavailable even to an authenticated socket.
-	for _, name := range []string{"auth.Auth/Login", "auth.Auth/Refresh",
-		"common.Health/Check", "common.Health/Ready", "xiaowei.server.auth.Auth.GetCurrentUser"} {
+	for _, name := range []string{"Auth/Login", "Auth/Refresh",
+		"Health/Check", "Health/Ready", "xiaowei.server.Auth.GetCurrentUser"} {
 		wsWrite(t, first, map[string]any{"v": 1, "generation": firstGeneration,
 			"op": "invoke", "id": fmt.Sprintf("c:public:%d", wsSequence.Add(1)), "optionsBytes": 0,
 			"route": ws.Route{Name: name, Kind: "unary", ControlVersion: 3, ContractVersion: 1,
-				Input: "google.protobuf.Empty", Output: "xiaowei.server.common.BaseResponse"}}, nil)
+				Input: "google.protobuf.Empty", Output: "xiaowei.server.BaseResponse"}}, nil)
 		header, _ := wsRead(t, first)
 		var failure ws.Error
 		if json.Unmarshal(header["error"], &failure) != nil || failure.Code != "UNAUTHORIZED" {
@@ -142,14 +142,14 @@ func TestWebSocketAuthenticationSessionIsolationAndShutdown(t *testing.T) {
 		t.Fatal("WebSocket identity did not come from authenticated session")
 	}
 	refresh := new(pb.RefreshResponse)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Refresh", "",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
 		&pb.RefreshRequest{RefreshToken: a.Tokens.RefreshToken}), 200, 0, refresh)
 	rotated, rotatedGeneration := wsLogin(t, fixture, refresh.Data.AccessToken)
 	if wsMe(t, rotated, rotatedGeneration).Data.SessionId != a.Tokens.SessionId {
 		t.Fatal("refresh changed session identity")
 	}
 	_ = wsMe(t, first, firstGeneration)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Logout",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Logout",
 		refresh.Data.AccessToken, nil),
 		200, 0, new(pb.LogoutResponse))
 	wsMustClose(t, first)
@@ -158,7 +158,7 @@ func TestWebSocketAuthenticationSessionIsolationAndShutdown(t *testing.T) {
 		t.Fatal("logout closed another device")
 	}
 	request := passwordRequest("user@example.com", fixture.password, b.Device.DeviceId)
-	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/Login",
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Login",
 		"", request),
 		200, 0, new(pb.LoginResponse))
 	wsMustClose(t, second)
@@ -223,15 +223,16 @@ func TestWebSocketLogoutReturnsSuccessBeforeSessionConnectionsClose(t *testing.T
 		socket, generation := wsLogin(t, fixture, identity.Tokens.AccessToken)
 		sameSession, _ := wsLogin(t, fixture, identity.Tokens.AccessToken)
 		httpMe := new(pb.GetCurrentUserResponse)
-		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
 			identity.Tokens.AccessToken, nil), 200, 0, httpMe)
 		if !proto.Equal(httpMe, wsMe(t, socket, generation)) {
 			t.Fatal("HTTP/WS handlers diverged")
 		}
 		wsWrite(t, socket, map[string]any{"v": 1, "generation": generation,
 			"op": "invoke", "id": "c:logout", "optionsBytes": 0,
-			"route": ws.Route{Name: "auth.Auth/Logout", Kind: "unary", ControlVersion: 3,
-				ContractVersion: 1, Input: "google.protobuf.Empty", Output: "xiaowei.server.auth.LogoutResponse"}}, nil)
+			"route": ws.Route{Name: "Auth/Logout", Kind: "unary", ControlVersion: 3,
+				ContractVersion: 1, Input: "google.protobuf.Empty",
+				Output: "xiaowei.server.LogoutResponse"}}, nil)
 		header, payload := wsRead(t, socket)
 		response := new(pb.LogoutResponse)
 		var id string
@@ -242,7 +243,7 @@ func TestWebSocketLogoutReturnsSuccessBeforeSessionConnectionsClose(t *testing.T
 		}
 		wsMustClose(t, socket)
 		wsMustClose(t, sameSession)
-		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/auth.Auth/GetCurrentUser",
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
 			identity.Tokens.AccessToken, nil), 200, 10002, nil)
 		if wsMe(t, otherSocket, otherGeneration).Data.SessionId != other.Tokens.SessionId {
 			t.Fatal("WS logout affected another device")

@@ -21,7 +21,7 @@ fileprivate nonisolated struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobu
 }
 
 /// Authentication error codes occupy 10100-10199.
-public nonisolated enum Xiaowei_Server_Auth_AuthErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
+public nonisolated enum Xiaowei_Server_AuthErrorCode: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
 
@@ -56,7 +56,7 @@ public nonisolated enum Xiaowei_Server_Auth_AuthErrorCode: SwiftProtobuf.Enum, S
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Xiaowei_Server_Auth_AuthErrorCode] = [
+  public static let allCases: [Xiaowei_Server_AuthErrorCode] = [
     .unspecified,
     .invalidCredentials,
     .loginMethodUnsupported,
@@ -65,7 +65,7 @@ public nonisolated enum Xiaowei_Server_Auth_AuthErrorCode: SwiftProtobuf.Enum, S
 
 }
 
-public nonisolated struct Xiaowei_Server_Auth_UserSnapshot: Sendable {
+public nonisolated struct Xiaowei_Server_UserSnapshot: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -82,7 +82,7 @@ public nonisolated struct Xiaowei_Server_Auth_UserSnapshot: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_DeviceSnapshot: Sendable {
+public nonisolated struct Xiaowei_Server_DeviceSnapshot: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -96,7 +96,7 @@ public nonisolated struct Xiaowei_Server_Auth_DeviceSnapshot: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_TokenPair: Sendable {
+public nonisolated struct Xiaowei_Server_TokenPair: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -117,7 +117,7 @@ public nonisolated struct Xiaowei_Server_Auth_TokenPair: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_PasswordLogin: Sendable {
+public nonisolated struct Xiaowei_Server_PasswordLogin: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -133,7 +133,7 @@ public nonisolated struct Xiaowei_Server_Auth_PasswordLogin: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_LoginRequest: Sendable {
+public nonisolated struct Xiaowei_Server_LoginRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -156,12 +156,12 @@ public nonisolated struct Xiaowei_Server_Auth_LoginRequest: Sendable {
   /// Clears the value of `thirdpartyBindToken`. Subsequent reads from it will return its default value.
   public mutating func clearThirdpartyBindToken() {self._thirdpartyBindToken = nil}
 
-  public var credential: Xiaowei_Server_Auth_LoginRequest.OneOf_Credential? = nil
+  public var credential: Xiaowei_Server_LoginRequest.OneOf_Credential? = nil
 
-  public var password: Xiaowei_Server_Auth_PasswordLogin {
+  public var password: Xiaowei_Server_PasswordLogin {
     get {
       if case .password(let v)? = credential {return v}
-      return Xiaowei_Server_Auth_PasswordLogin()
+      return Xiaowei_Server_PasswordLogin()
     }
     set {credential = .password(newValue)}
   }
@@ -169,7 +169,7 @@ public nonisolated struct Xiaowei_Server_Auth_LoginRequest: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public nonisolated enum OneOf_Credential: Equatable, Sendable {
-    case password(Xiaowei_Server_Auth_PasswordLogin)
+    case password(Xiaowei_Server_PasswordLogin)
 
   }
 
@@ -178,13 +178,13 @@ public nonisolated struct Xiaowei_Server_Auth_LoginRequest: Sendable {
   fileprivate var _thirdpartyBindToken: String? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_Authenticated: Sendable {
+public nonisolated struct Xiaowei_Server_Authenticated: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var user: Xiaowei_Server_Auth_UserSnapshot {
-    get {_user ?? Xiaowei_Server_Auth_UserSnapshot()}
+  public var user: Xiaowei_Server_UserSnapshot {
+    get {_user ?? Xiaowei_Server_UserSnapshot()}
     set {_user = newValue}
   }
   /// Returns true if `user` has been explicitly set.
@@ -192,8 +192,8 @@ public nonisolated struct Xiaowei_Server_Auth_Authenticated: Sendable {
   /// Clears the value of `user`. Subsequent reads from it will return its default value.
   public mutating func clearUser() {self._user = nil}
 
-  public var tokens: Xiaowei_Server_Auth_TokenPair {
-    get {_tokens ?? Xiaowei_Server_Auth_TokenPair()}
+  public var tokens: Xiaowei_Server_TokenPair {
+    get {_tokens ?? Xiaowei_Server_TokenPair()}
     set {_tokens = newValue}
   }
   /// Returns true if `tokens` has been explicitly set.
@@ -201,8 +201,8 @@ public nonisolated struct Xiaowei_Server_Auth_Authenticated: Sendable {
   /// Clears the value of `tokens`. Subsequent reads from it will return its default value.
   public mutating func clearTokens() {self._tokens = nil}
 
-  public var device: Xiaowei_Server_Auth_DeviceSnapshot {
-    get {_device ?? Xiaowei_Server_Auth_DeviceSnapshot()}
+  public var device: Xiaowei_Server_DeviceSnapshot {
+    get {_device ?? Xiaowei_Server_DeviceSnapshot()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
@@ -214,12 +214,12 @@ public nonisolated struct Xiaowei_Server_Auth_Authenticated: Sendable {
 
   public init() {}
 
-  fileprivate var _user: Xiaowei_Server_Auth_UserSnapshot? = nil
-  fileprivate var _tokens: Xiaowei_Server_Auth_TokenPair? = nil
-  fileprivate var _device: Xiaowei_Server_Auth_DeviceSnapshot? = nil
+  fileprivate var _user: Xiaowei_Server_UserSnapshot? = nil
+  fileprivate var _tokens: Xiaowei_Server_TokenPair? = nil
+  fileprivate var _device: Xiaowei_Server_DeviceSnapshot? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_BindingRequired: Sendable {
+public nonisolated struct Xiaowei_Server_BindingRequired: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -235,27 +235,27 @@ public nonisolated struct Xiaowei_Server_Auth_BindingRequired: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_LoginResult: Sendable {
+public nonisolated struct Xiaowei_Server_LoginResult: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Exactly one recognized result is required on a successful response.
   /// Only authenticated establishes a session; binding_required continues registration/login.
-  public var result: Xiaowei_Server_Auth_LoginResult.OneOf_Result? = nil
+  public var result: Xiaowei_Server_LoginResult.OneOf_Result? = nil
 
-  public var authenticated: Xiaowei_Server_Auth_Authenticated {
+  public var authenticated: Xiaowei_Server_Authenticated {
     get {
       if case .authenticated(let v)? = result {return v}
-      return Xiaowei_Server_Auth_Authenticated()
+      return Xiaowei_Server_Authenticated()
     }
     set {result = .authenticated(newValue)}
   }
 
-  public var bindingRequired: Xiaowei_Server_Auth_BindingRequired {
+  public var bindingRequired: Xiaowei_Server_BindingRequired {
     get {
       if case .bindingRequired(let v)? = result {return v}
-      return Xiaowei_Server_Auth_BindingRequired()
+      return Xiaowei_Server_BindingRequired()
     }
     set {result = .bindingRequired(newValue)}
   }
@@ -265,8 +265,8 @@ public nonisolated struct Xiaowei_Server_Auth_LoginResult: Sendable {
   /// Exactly one recognized result is required on a successful response.
   /// Only authenticated establishes a session; binding_required continues registration/login.
   public nonisolated enum OneOf_Result: Equatable, Sendable {
-    case authenticated(Xiaowei_Server_Auth_Authenticated)
-    case bindingRequired(Xiaowei_Server_Auth_BindingRequired)
+    case authenticated(Xiaowei_Server_Authenticated)
+    case bindingRequired(Xiaowei_Server_BindingRequired)
 
   }
 
@@ -275,7 +275,7 @@ public nonisolated struct Xiaowei_Server_Auth_LoginResult: Sendable {
 
 /// Code 0 means the current step succeeded; nonzero means failure.
 /// Data is present only on success. Msg is descriptive, never used for branching.
-public nonisolated struct Xiaowei_Server_Auth_LoginResponse: Sendable {
+public nonisolated struct Xiaowei_Server_LoginResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -284,8 +284,8 @@ public nonisolated struct Xiaowei_Server_Auth_LoginResponse: Sendable {
 
   public var msg: String = String()
 
-  public var data: Xiaowei_Server_Auth_LoginResult {
-    get {_data ?? Xiaowei_Server_Auth_LoginResult()}
+  public var data: Xiaowei_Server_LoginResult {
+    get {_data ?? Xiaowei_Server_LoginResult()}
     set {_data = newValue}
   }
   /// Returns true if `data` has been explicitly set.
@@ -297,10 +297,10 @@ public nonisolated struct Xiaowei_Server_Auth_LoginResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _data: Xiaowei_Server_Auth_LoginResult? = nil
+  fileprivate var _data: Xiaowei_Server_LoginResult? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_RefreshRequest: Sendable {
+public nonisolated struct Xiaowei_Server_RefreshRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -313,7 +313,7 @@ public nonisolated struct Xiaowei_Server_Auth_RefreshRequest: Sendable {
   public init() {}
 }
 
-public nonisolated struct Xiaowei_Server_Auth_RefreshResponse: Sendable {
+public nonisolated struct Xiaowei_Server_RefreshResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -322,8 +322,8 @@ public nonisolated struct Xiaowei_Server_Auth_RefreshResponse: Sendable {
 
   public var msg: String = String()
 
-  public var data: Xiaowei_Server_Auth_TokenPair {
-    get {_data ?? Xiaowei_Server_Auth_TokenPair()}
+  public var data: Xiaowei_Server_TokenPair {
+    get {_data ?? Xiaowei_Server_TokenPair()}
     set {_data = newValue}
   }
   /// Returns true if `data` has been explicitly set.
@@ -335,16 +335,16 @@ public nonisolated struct Xiaowei_Server_Auth_RefreshResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _data: Xiaowei_Server_Auth_TokenPair? = nil
+  fileprivate var _data: Xiaowei_Server_TokenPair? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserData: Sendable {
+public nonisolated struct Xiaowei_Server_GetCurrentUserData: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var user: Xiaowei_Server_Auth_UserSnapshot {
-    get {_user ?? Xiaowei_Server_Auth_UserSnapshot()}
+  public var user: Xiaowei_Server_UserSnapshot {
+    get {_user ?? Xiaowei_Server_UserSnapshot()}
     set {_user = newValue}
   }
   /// Returns true if `user` has been explicitly set.
@@ -354,8 +354,8 @@ public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserData: Sendable {
 
   public var sessionID: String = String()
 
-  public var device: Xiaowei_Server_Auth_DeviceSnapshot {
-    get {_device ?? Xiaowei_Server_Auth_DeviceSnapshot()}
+  public var device: Xiaowei_Server_DeviceSnapshot {
+    get {_device ?? Xiaowei_Server_DeviceSnapshot()}
     set {_device = newValue}
   }
   /// Returns true if `device` has been explicitly set.
@@ -367,11 +367,11 @@ public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserData: Sendable {
 
   public init() {}
 
-  fileprivate var _user: Xiaowei_Server_Auth_UserSnapshot? = nil
-  fileprivate var _device: Xiaowei_Server_Auth_DeviceSnapshot? = nil
+  fileprivate var _user: Xiaowei_Server_UserSnapshot? = nil
+  fileprivate var _device: Xiaowei_Server_DeviceSnapshot? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserResponse: Sendable {
+public nonisolated struct Xiaowei_Server_GetCurrentUserResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -380,8 +380,8 @@ public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserResponse: Sendable {
 
   public var msg: String = String()
 
-  public var data: Xiaowei_Server_Auth_GetCurrentUserData {
-    get {_data ?? Xiaowei_Server_Auth_GetCurrentUserData()}
+  public var data: Xiaowei_Server_GetCurrentUserData {
+    get {_data ?? Xiaowei_Server_GetCurrentUserData()}
     set {_data = newValue}
   }
   /// Returns true if `data` has been explicitly set.
@@ -393,10 +393,10 @@ public nonisolated struct Xiaowei_Server_Auth_GetCurrentUserResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _data: Xiaowei_Server_Auth_GetCurrentUserData? = nil
+  fileprivate var _data: Xiaowei_Server_GetCurrentUserData? = nil
 }
 
-public nonisolated struct Xiaowei_Server_Auth_LogoutResponse: Sendable {
+public nonisolated struct Xiaowei_Server_LogoutResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -423,13 +423,13 @@ public nonisolated struct Xiaowei_Server_Auth_LogoutResponse: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate nonisolated let _protobuf_package = "xiaowei.server.auth"
+fileprivate nonisolated let _protobuf_package = "xiaowei.server"
 
-nonisolated extension Xiaowei_Server_Auth_AuthErrorCode: SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_AuthErrorCode: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0AUTH_ERROR_CODE_UNSPECIFIED\0\u{2}t]\u{2}AUTH_ERROR_CODE_INVALID_CREDENTIALS\0\u{1}AUTH_ERROR_CODE_LOGIN_METHOD_UNSUPPORTED\0\u{1}AUTH_ERROR_CODE_THIRDPARTY_BINDING_UNSUPPORTED\0")
 }
 
-nonisolated extension Xiaowei_Server_Auth_UserSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_UserSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserSnapshot"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{1}email\0\u{3}created_at_ms\0")
 
@@ -460,7 +460,7 @@ nonisolated extension Xiaowei_Server_Auth_UserSnapshot: SwiftProtobuf.Message, S
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_UserSnapshot, rhs: Xiaowei_Server_Auth_UserSnapshot) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_UserSnapshot, rhs: Xiaowei_Server_UserSnapshot) -> Bool {
     if lhs.userID != rhs.userID {return false}
     if lhs.email != rhs.email {return false}
     if lhs.createdAtMs != rhs.createdAtMs {return false}
@@ -469,7 +469,7 @@ nonisolated extension Xiaowei_Server_Auth_UserSnapshot: SwiftProtobuf.Message, S
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_DeviceSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_DeviceSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeviceSnapshot"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}device_name\0")
 
@@ -496,7 +496,7 @@ nonisolated extension Xiaowei_Server_Auth_DeviceSnapshot: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_DeviceSnapshot, rhs: Xiaowei_Server_Auth_DeviceSnapshot) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_DeviceSnapshot, rhs: Xiaowei_Server_DeviceSnapshot) -> Bool {
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.deviceName != rhs.deviceName {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -504,7 +504,7 @@ nonisolated extension Xiaowei_Server_Auth_DeviceSnapshot: SwiftProtobuf.Message,
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_TokenPair: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_TokenPair: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TokenPair"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}session_id\0\u{3}access_token\0\u{3}refresh_token\0\u{3}access_expires_at_ms\0\u{3}refresh_expires_at_ms\0")
 
@@ -543,7 +543,7 @@ nonisolated extension Xiaowei_Server_Auth_TokenPair: SwiftProtobuf.Message, Swif
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_TokenPair, rhs: Xiaowei_Server_Auth_TokenPair) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_TokenPair, rhs: Xiaowei_Server_TokenPair) -> Bool {
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs.accessToken != rhs.accessToken {return false}
     if lhs.refreshToken != rhs.refreshToken {return false}
@@ -554,7 +554,7 @@ nonisolated extension Xiaowei_Server_Auth_TokenPair: SwiftProtobuf.Message, Swif
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_PasswordLogin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_PasswordLogin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PasswordLogin"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}email\0\u{1}password\0")
 
@@ -581,7 +581,7 @@ nonisolated extension Xiaowei_Server_Auth_PasswordLogin: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_PasswordLogin, rhs: Xiaowei_Server_Auth_PasswordLogin) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_PasswordLogin, rhs: Xiaowei_Server_PasswordLogin) -> Bool {
     if lhs.email != rhs.email {return false}
     if lhs.password != rhs.password {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -589,7 +589,7 @@ nonisolated extension Xiaowei_Server_Auth_PasswordLogin: SwiftProtobuf.Message, 
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoginRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}device_id\0\u{3}device_name\0\u{3}thirdparty_bind_token\0\u{1}password\0")
 
@@ -603,7 +603,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginRequest: SwiftProtobuf.Message, S
       case 2: try { try decoder.decodeSingularStringField(value: &self.deviceName) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self._thirdpartyBindToken) }()
       case 4: try {
-        var v: Xiaowei_Server_Auth_PasswordLogin?
+        var v: Xiaowei_Server_PasswordLogin?
         var hadOneofValue = false
         if let current = self.credential {
           hadOneofValue = true
@@ -640,7 +640,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginRequest: SwiftProtobuf.Message, S
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_LoginRequest, rhs: Xiaowei_Server_Auth_LoginRequest) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_LoginRequest, rhs: Xiaowei_Server_LoginRequest) -> Bool {
     if lhs.deviceID != rhs.deviceID {return false}
     if lhs.deviceName != rhs.deviceName {return false}
     if lhs._thirdpartyBindToken != rhs._thirdpartyBindToken {return false}
@@ -650,7 +650,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginRequest: SwiftProtobuf.Message, S
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_Authenticated: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_Authenticated: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Authenticated"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{1}tokens\0\u{1}device\0")
 
@@ -685,7 +685,7 @@ nonisolated extension Xiaowei_Server_Auth_Authenticated: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_Authenticated, rhs: Xiaowei_Server_Auth_Authenticated) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_Authenticated, rhs: Xiaowei_Server_Authenticated) -> Bool {
     if lhs._user != rhs._user {return false}
     if lhs._tokens != rhs._tokens {return false}
     if lhs._device != rhs._device {return false}
@@ -694,7 +694,7 @@ nonisolated extension Xiaowei_Server_Auth_Authenticated: SwiftProtobuf.Message, 
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_BindingRequired: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_BindingRequired: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BindingRequired"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}thirdparty_bind_token\0\u{3}expires_at_ms\0")
 
@@ -721,7 +721,7 @@ nonisolated extension Xiaowei_Server_Auth_BindingRequired: SwiftProtobuf.Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_BindingRequired, rhs: Xiaowei_Server_Auth_BindingRequired) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_BindingRequired, rhs: Xiaowei_Server_BindingRequired) -> Bool {
     if lhs.thirdpartyBindToken != rhs.thirdpartyBindToken {return false}
     if lhs.expiresAtMs != rhs.expiresAtMs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -729,7 +729,7 @@ nonisolated extension Xiaowei_Server_Auth_BindingRequired: SwiftProtobuf.Message
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_LoginResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_LoginResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoginResult"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}authenticated\0\u{3}binding_required\0")
 
@@ -740,7 +740,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginResult: SwiftProtobuf.Message, Sw
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Xiaowei_Server_Auth_Authenticated?
+        var v: Xiaowei_Server_Authenticated?
         var hadOneofValue = false
         if let current = self.result {
           hadOneofValue = true
@@ -753,7 +753,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginResult: SwiftProtobuf.Message, Sw
         }
       }()
       case 2: try {
-        var v: Xiaowei_Server_Auth_BindingRequired?
+        var v: Xiaowei_Server_BindingRequired?
         var hadOneofValue = false
         if let current = self.result {
           hadOneofValue = true
@@ -789,14 +789,14 @@ nonisolated extension Xiaowei_Server_Auth_LoginResult: SwiftProtobuf.Message, Sw
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_LoginResult, rhs: Xiaowei_Server_Auth_LoginResult) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_LoginResult, rhs: Xiaowei_Server_LoginResult) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_LoginResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_LoginResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LoginResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}msg\0\u{1}data\0")
 
@@ -831,7 +831,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginResponse: SwiftProtobuf.Message, 
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_LoginResponse, rhs: Xiaowei_Server_Auth_LoginResponse) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_LoginResponse, rhs: Xiaowei_Server_LoginResponse) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.msg != rhs.msg {return false}
     if lhs._data != rhs._data {return false}
@@ -840,7 +840,7 @@ nonisolated extension Xiaowei_Server_Auth_LoginResponse: SwiftProtobuf.Message, 
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_RefreshRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_RefreshRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RefreshRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}refresh_token\0")
 
@@ -863,14 +863,14 @@ nonisolated extension Xiaowei_Server_Auth_RefreshRequest: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_RefreshRequest, rhs: Xiaowei_Server_Auth_RefreshRequest) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_RefreshRequest, rhs: Xiaowei_Server_RefreshRequest) -> Bool {
     if lhs.refreshToken != rhs.refreshToken {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_RefreshResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_RefreshResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RefreshResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}msg\0\u{1}data\0")
 
@@ -905,7 +905,7 @@ nonisolated extension Xiaowei_Server_Auth_RefreshResponse: SwiftProtobuf.Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_RefreshResponse, rhs: Xiaowei_Server_Auth_RefreshResponse) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_RefreshResponse, rhs: Xiaowei_Server_RefreshResponse) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.msg != rhs.msg {return false}
     if lhs._data != rhs._data {return false}
@@ -914,7 +914,7 @@ nonisolated extension Xiaowei_Server_Auth_RefreshResponse: SwiftProtobuf.Message
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_GetCurrentUserData: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_GetCurrentUserData: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCurrentUserData"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{3}session_id\0\u{1}device\0")
 
@@ -949,7 +949,7 @@ nonisolated extension Xiaowei_Server_Auth_GetCurrentUserData: SwiftProtobuf.Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_GetCurrentUserData, rhs: Xiaowei_Server_Auth_GetCurrentUserData) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_GetCurrentUserData, rhs: Xiaowei_Server_GetCurrentUserData) -> Bool {
     if lhs._user != rhs._user {return false}
     if lhs.sessionID != rhs.sessionID {return false}
     if lhs._device != rhs._device {return false}
@@ -958,7 +958,7 @@ nonisolated extension Xiaowei_Server_Auth_GetCurrentUserData: SwiftProtobuf.Mess
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_GetCurrentUserResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_GetCurrentUserResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetCurrentUserResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}msg\0\u{1}data\0")
 
@@ -993,7 +993,7 @@ nonisolated extension Xiaowei_Server_Auth_GetCurrentUserResponse: SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_GetCurrentUserResponse, rhs: Xiaowei_Server_Auth_GetCurrentUserResponse) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_GetCurrentUserResponse, rhs: Xiaowei_Server_GetCurrentUserResponse) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.msg != rhs.msg {return false}
     if lhs._data != rhs._data {return false}
@@ -1002,7 +1002,7 @@ nonisolated extension Xiaowei_Server_Auth_GetCurrentUserResponse: SwiftProtobuf.
   }
 }
 
-nonisolated extension Xiaowei_Server_Auth_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+nonisolated extension Xiaowei_Server_LogoutResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LogoutResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{1}msg\0\u{1}data\0")
 
@@ -1037,7 +1037,7 @@ nonisolated extension Xiaowei_Server_Auth_LogoutResponse: SwiftProtobuf.Message,
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Xiaowei_Server_Auth_LogoutResponse, rhs: Xiaowei_Server_Auth_LogoutResponse) -> Bool {
+  public static func ==(lhs: Xiaowei_Server_LogoutResponse, rhs: Xiaowei_Server_LogoutResponse) -> Bool {
     if lhs.code != rhs.code {return false}
     if lhs.msg != rhs.msg {return false}
     if lhs._data != rhs._data {return false}

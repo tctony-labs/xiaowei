@@ -1,14 +1,13 @@
 //! One lazily initialized engine shared by lifecycle calls and Gateway handlers.
 
 use crate::{Action, SearchEngine};
-use proto_desktop_rs::xiaowei::desktop::{applications as app, host as system, search as pb};
+use proto_desktop_rs::xiaowei::desktop as pb;
 use std::sync::{Arc, Mutex, OnceLock};
 use xw_gateway::{ErrorCode, GatewayError, InvokeRegistration};
 
 use crate::gateway_binding::{
-    xiaowei_desktop_applications_app_service as app_methods,
-    xiaowei_desktop_host_system_service as system_methods,
-    xiaowei_desktop_search_search_service as methods,
+    xiaowei_desktop_app_service as app_methods, xiaowei_desktop_search_service as methods,
+    xiaowei_desktop_system_service as system_methods,
 };
 
 #[derive(Default)]
@@ -132,7 +131,7 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
             }
         }),
         app_methods::READ_ICON.handler(|r, _| async move {
-            tokio::task::spawn_blocking(move || app::AppIcon {
+            tokio::task::spawn_blocking(move || pb::AppIcon {
                 png: crate::read_app_icon(std::path::Path::new(&r.path)),
             })
             .await
@@ -142,11 +141,11 @@ pub fn registrations(service: Arc<SearchService>, development: bool) -> Vec<Invo
             tokio::task::spawn_blocking(crate::toggle_dark_mode)
                 .await
                 .map_err(|_| error("Theme task failed"))?
-                .map(|dark| system::ToggleThemeResponse {
+                .map(|dark| pb::ToggleThemeResponse {
                     theme: if dark {
-                        system::Theme::Dark
+                        pb::Theme::Dark
                     } else {
-                        system::Theme::Light
+                        pb::Theme::Light
                     } as i32,
                 })
                 .map_err(|message| error(&message))

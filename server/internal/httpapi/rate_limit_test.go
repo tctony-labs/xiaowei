@@ -41,17 +41,17 @@ func TestGlobalRateLimit(t *testing.T) {
 		return body.Code, w.Header().Get("Retry-After")
 	}
 	ip := "192.0.2.1:1234"
-	if code, _ := request("POST", "/api/auth.Auth/GetCurrentUser", ip); code != 10002 {
+	if code, _ := request("POST", "/api/Auth/GetCurrentUser", ip); code != 10002 {
 		t.Fatalf("first request: %d", code)
 	}
 	if code, _ := request("GET", "/missing", ip); code != 10004 {
 		t.Fatalf("second request: %d", code)
 	}
-	if code, retry := request("POST", "/api/auth.Auth/Logout",
+	if code, retry := request("POST", "/api/Auth/Logout",
 		"[::ffff:192.0.2.1]:9999"); code != 10007 || retry != "2" {
 		t.Fatalf("shared normalized IP quota: %d, %s", code, retry)
 	}
-	for _, path := range []string{"/api/common.Health/Check", "/api/common.Health/Ready"} {
+	for _, path := range []string{"/api/Health/Check", "/api/Health/Ready"} {
 		if code, _ := request("POST", path, ip); code != 0 {
 			t.Fatal("health limited")
 		}
@@ -59,7 +59,7 @@ func TestGlobalRateLimit(t *testing.T) {
 			t.Fatal("invalid method bypassed limit")
 		}
 	}
-	if code, _ := request("POST", "/api/auth.Auth/GetCurrentUser",
+	if code, _ := request("POST", "/api/Auth/GetCurrentUser",
 		"192.0.2.2:1234"); code == 10007 {
 		t.Fatal("IP quotas not isolated")
 	}
@@ -75,7 +75,7 @@ func TestLayeredRateLimits(t *testing.T) {
 	)
 	handler := NewHandler(api, global)
 	for i, wantRetry := range []string{"", "300", "300", "60"} {
-		r := httptest.NewRequest("POST", "/api/auth.Auth/Refresh", nil)
+		r := httptest.NewRequest("POST", "/api/Auth/Refresh", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		if got := w.Header().Get("Retry-After"); got != wantRetry {

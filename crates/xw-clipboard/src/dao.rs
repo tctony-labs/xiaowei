@@ -1,12 +1,12 @@
 use crate::Result;
-use proto_desktop_rs::xiaowei::desktop::clipboard as pb;
+use proto_desktop_rs::xiaowei::desktop as pb;
 use xw_gateway::invoke::Client;
 
 tokio::task_local! {
     pub(crate) static CALLER: Client;
 }
 
-use crate::gateway_binding::xiaowei_desktop_clipboard_clipboard_dao_service as methods;
+use crate::gateway_binding::xiaowei_desktop_clipboard_dao_service as methods;
 
 #[derive(Clone)]
 pub struct DaoClient(pub Client);

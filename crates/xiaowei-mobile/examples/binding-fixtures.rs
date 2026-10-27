@@ -1,6 +1,6 @@
 use prost::Message;
-use proto_server_rs::xiaowei::server::auth as pb;
-use proto_server_rs::xiaowei::server::common::{BaseResponse, ErrorCode};
+use proto_server_rs::xiaowei::server as pb;
+use proto_server_rs::xiaowei::server::{BaseResponse, ErrorCode};
 
 fn authenticated(now: i64, index: u8, expired: bool, updated: bool) -> pb::Authenticated {
     pb::Authenticated {

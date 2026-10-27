@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
 use prost::Message;
-use proto_server_rs::xiaowei::server::{auth as pb, common::BaseResponse};
+use proto_server_rs::xiaowei::server::{self as pb, BaseResponse};
 use std::sync::{Arc, Mutex};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message as SocketMessage};
@@ -53,8 +53,7 @@ async fn fixture() -> (Arc<Client>, RequestContext, mpsc::UnboundedSender<Reply>
             let mut payload = Vec::new();
             match request.header.op.as_str() {
                 "authenticate" => {
-                    let method =
-                        Method::resolve("xiaowei.server.auth.Auth.GetCurrentUser").unwrap();
+                    let method = Method::resolve("xiaowei.server.Auth.GetCurrentUser").unwrap();
                     let mut route = Route::unary(&method);
                     route.input = "legacy.Empty".into();
                     route.timeout_ms = Some(30_000);
@@ -279,7 +278,7 @@ async fn connected_requests_log_original_errors_and_keep_the_socket_usable() {
     assert_eq!(client.current_user(&context).await.unwrap(), response);
     completed(
         log::Level::Debug,
-        &["method=auth.Auth/GetCurrentUser", "code=0", "msg=\"成功\""],
+        &["method=Auth/GetCurrentUser", "code=0", "msg=\"成功\""],
     );
     assert_eq!(
         client.connection.subscribe().borrow().status,

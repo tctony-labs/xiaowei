@@ -2,11 +2,10 @@ use crate::{
     settings::{Apply, SettingsError, SettingsService},
     Database,
 };
-use proto_desktop_rs::xiaowei::desktop::settings::{
-    update_settings_request::Change, ShortcutBinding, ShortcutConfiguration, ThemeMode,
-    UpdateSettingsRequest,
+use proto_desktop_rs::xiaowei::desktop::{
+    update_settings_request::Change, KvEntry, KvKey, ShortcutBinding, ShortcutConfiguration,
+    ThemeMode, UpdateSettingsRequest,
 };
-use proto_desktop_rs::xiaowei::desktop::storage::{KvEntry, KvKey};
 use std::sync::{Arc, Mutex};
 
 fn allow() -> Apply {
