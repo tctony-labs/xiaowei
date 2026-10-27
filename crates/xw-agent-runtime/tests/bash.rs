@@ -38,7 +38,7 @@ async fn foreground_output_exit_and_bounded_capture() {
     for (command, stdout, stderr) in [
         ("printf '%40000s' x", 40000, 0),
         (
-            "(printf '%100000s' x) & printf '%100000s' y >&2; wait",
+            "head -c 100000 /dev/zero & head -c 100000 /dev/zero >&2; wait",
             100000,
             100000,
         ),
