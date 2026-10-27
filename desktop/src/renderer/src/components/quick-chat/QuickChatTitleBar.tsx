@@ -622,9 +622,9 @@ export default function QuickChatTitleBar({
             {sessionsOpen && (
               <div
                 className={
-                  "absolute right-0 top-9 z-50 max-h-64 w-56 overflow-y-auto rounded-lg border " +
-                  "border-neutral-200 bg-white py-1 shadow-lg qc-dark:border-neutral-600 " +
-                  "qc-dark:bg-neutral-800"
+                  "absolute right-0 top-9 z-50 flex max-h-64 w-56 flex-col gap-0.5 " +
+                  "overflow-y-auto rounded-lg border border-neutral-200 bg-white p-1 shadow-lg " +
+                  "qc-dark:border-neutral-600 qc-dark:bg-neutral-800"
                 }
               >
                 {sessionsLoading && !sessionsHasMore ? (
@@ -638,12 +638,32 @@ export default function QuickChatTitleBar({
                       <div key={session.id} className="flex items-center">
                         <button
                           type="button"
+                          aria-current={active ? "true" : undefined}
                           onClick={() => handleSelectSession(session.id)}
-                          className={`min-w-0 flex-1 cursor-pointer truncate px-3 py-1.5 text-left text-sm ${
-                            active ? "bg-hover text-ink" : "text-ink-secondary hover:bg-hover"
-                          }`}
+                          className={
+                            "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md " +
+                            "px-2 py-1.5 text-left text-sm focus-visible:ring-1 " +
+                            "focus-visible:ring-inset focus-visible:ring-primary-text " +
+                            (active
+                              ? "bg-primary-bg font-medium text-primary-text"
+                              : "text-ink-secondary hover:bg-hover")
+                          }
                         >
-                          {session.title}
+                          <span className="min-w-0 flex-1 truncate">{session.title}</span>
+                          {active && (
+                            <svg
+                              className="h-4 w-4 shrink-0"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                     );
