@@ -27,7 +27,7 @@
 
 2026-09-29 用户确认首期保留旧版自动压缩、自动／手动标题生成，输入沿用现有 textarea，展示 Markdown／代码和工具卡片。2026-10-10 用户确认 preset 与技能暂缓；2026-10-18 补充登记 Todo 和 Skill，具体实现范围以后再定，Todo 放在问答／权限之后，Skill 放在工具批次最后。preset 仍暂缓；命令资源加载、附件／图片输入、富文本编辑器、旧会话数据导入及完整旧版工具集仍留到后续。不以“完整”宣称已全面对齐旧版。工具返回的数据仍须保留现有 LLM 契约支持的内容，不能因首期不提供图片输入 UI 而丢失回放元数据。
 
-2026-09-29 规划时已确认首期采用基础工具闭环：文件读写／搜索、Bash、网页读取、用户询问与权限申请；依赖搜索服务配置的 WebSearch、应用专属工具和插件留到后续。具体工具接入、后台进程和交互请求的生命周期在实施计划中对齐旧版。
+2026-09-29 规划时已确认首期采用基础工具闭环：文件读写／搜索、Bash、网页读取、用户询问与权限申请；当时将依赖搜索服务配置的 WebSearch、应用专属工具和插件留到后续。2026-10-27 用户将 WebSearch 与搜索源设置加入第 6 批，与 WebFetch 一起实施；具体范围与待审阅方案见 [02i](../../plans/2026-09-28-agent-chat/02i-webfetch.md)。应用专属工具和插件仍留到后续。
 
 2026-10-18 用户明确暂不实现旧 Read 的 PDF 能力，登记为后续工作；当前 Read 实现与验收范围为文本。PDF 的解析及输出接入以后另行确定，不作为当前批次或本事项现有完成标准的前置。
 
@@ -84,7 +84,13 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历史／完整长内容、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
 
-2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。下一批为 02i WebFetch，剩余历史分页、压缩、Continue、后台工具与 Skill 等范围保持。
+2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。下一批为 [02i WebFetch／WebSearch](../../plans/2026-09-28-agent-chat/02i-webfetch.md)。
+
+用户要求先出计划，并明确 Web 工具放入独立 crate、可灵活装配；02i 已改为独立 xw-agent-tools-web，由 xiaowei-agent 选取工具注入 core。
+
+用户进一步明确搜索配置／Token 归 desktop Settings，创建工具或服务时传入明文 Key，请求时不读取设置或解密；按当前源构造具体 provider 并返回 dyn SearchTool，由 xiaowei-agent 组装 WebSearch 再传入 core；本模块监听 SettingsChanged 更新共享 provider，已有 session 后续搜索透明切源且暴露不变，不提供 Apply 接口。
+
+默认工具集按 ID 更新只影响本进程后续 session；用户确认重启后可按当前配置重新装配。已移除 Agent 配置存储接口与多源 Key 配置方案，尚未开始代码实施；剩余历史分页、压缩、Continue、后台工具与 Skill 等范围保持。
 
 ## Outcome
 

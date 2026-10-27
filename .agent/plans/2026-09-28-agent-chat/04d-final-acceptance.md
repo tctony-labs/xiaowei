@@ -8,7 +8,7 @@
 
 本片在已交付持久文本链路上接入真实工具／审批、压缩和显式继续；会话管理、标题和模型控件保留回归，不重新列为开发任务。实施前根据实际源码复核文件，不拆新计划。
 
-最终工具范围以[工具批次](00-implementation-order.md#内置工具接入批次)为准。TodoWrite 的执行、持久恢复及清单卡片已实现，验收证据见 record；Skill 的实际范围与验收项目仍待明确，不从最终验收遗漏。
+最终工具范围以[工具批次](00-implementation-order.md#工具接入批次)为准。TodoWrite 的执行、持久恢复及清单卡片已实现，验收证据见 record；Skill 的实际范围与验收项目仍待明确，不从最终验收遗漏。
 
 ## 文件与改动
 
@@ -24,7 +24,7 @@
 ## 实施顺序
 
 1. 自动 fixture 不用用户凭据或真实文件；故障注入按 Rust journal、worker 通信和本片自有进程分层。
-2. 全链路覆盖文本多轮、思考／工具、真实文件→结果→生成、Bash Stop、Run 模型引用／思考强度固定、WebFetch 提取、压缩、标题、重建后 Continue 和删除不复活。
+2. 全链路覆盖文本多轮、思考／工具、真实文件→结果→生成、Bash Stop、Run 模型引用／思考强度固定、WebSearch→WebFetch 提取及搜索设置生效／恢复、压缩、标题、重建后 Continue 和删除不复活。
 3. 两个 caller 共享输入／run／item，响应丢失用 ReadSession(include_runs=true) 按 input ID 查询，不能换新 ID 自动重发；交互各端 ack 与决定独立，单端断连不 Stop。不宣称手机网络已验收。
 4. 打包检查 public native loader／ASAR 外 .node／worker 路径；只有检查发现缺项才调整资源。
 5. 先确认当前工作区活实例，再允许 just rs；无实例由用户启动。真实模型／副作用验收使用已授权的专用测试任务和目录，不改凭据／默认。

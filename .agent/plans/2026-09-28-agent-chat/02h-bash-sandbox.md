@@ -1,6 +1,6 @@
 # 02h：Bash、后台进程与隔离
 
-前置：第 7 批接 [02i WebFetch](02i-webfetch.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与[工具批次](00-implementation-order.md#内置工具接入批次)。
+前置：第 7 批接 [02i WebFetch／WebSearch](02i-webfetch.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与[工具批次](00-implementation-order.md#工具接入批次)。
 
 本片分两阶段交付：第 2 批前台 Bash 已完成，第 7 批为 BgRun／BgOutput／BgStop。继续扩展当前 `xw-agent/src/run_loop.rs`，不再规划 runtime/agent_loop，不提前建立后台任务表或改成整套通用工具框架。
 
@@ -10,7 +10,7 @@
 
 ## 第二阶段：第 7 批后台工具
 
-等第 6 批 WebFetch 完成后，再核对届时源码细化，不提前写入前台参数或会话任务状态：
+等第 6 批 WebFetch／WebSearch 完成后，再核对届时源码细化，不提前写入前台参数或会话任务状态：
 
 - 在 runtime 的 Bash 目录扩展 BgRun／BgOutput／BgStop 和实际任务管理，保留旧输出游标／限额、最多 5 个后台 shell、进程组清理与退出语义；名称不再使用 BashOutput／KillBash。
 - 根据后台任务真实所有权扩展 core 的 Session／service，Stop 清当前 Run 创建的任务，删除／退出清会话全部 shell，回收完成后释放 writer。
