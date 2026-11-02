@@ -6,7 +6,7 @@
 
 缺口在模型调用之上的 Agent Core 和对应 Chat UI。事项开始时 `useQuickChat` 在 renderer 内存中保存消息并直接调用 `Llm.Generate`，每次发送只进行一次模型生成；不执行工具，收到工具调用即报错，也没有持久会话、运行恢复或真实会话管理。仅把工具输出展示到现有文本面板，不能形成完整的 agent 对话闭环。
 
-本事项承接 [Quick Chat 入口与内存对话](../archived/2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider 建设事项](../archived/2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。入口行为维护在 [desktop Quick Chat 文档](../../../desktop/docs/quick-chat.md)，后续相关交互与复验由本事项承接，模型接入行为维护在 [LLM provider 长期文档](../../../docs/llm-provider.md)；本事项按职责同步对应当前说明。
+本事项承接 [Quick Chat 入口与内存对话](../archived/2026-09-24-quick-chat-ui-interaction.md) 和 [LLM provider 建设事项](../archived/2026-09-24-llm-provider.md)，将 Quick Chat 升级为真实 Agent Chat 的产品入口。入口行为维护在 [desktop Quick Chat 文档](../../../desktop/docs/chat-ui.md)，后续相关交互与复验由本事项承接，模型接入行为维护在 [LLM provider 长期文档](../../../docs/llm-provider.md)；本事项按职责同步对应当前说明。
 
 ## What
 
@@ -97,6 +97,8 @@ PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历�
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
+
+2026-11-02 对话过程折叠调整已实现并完成本批验证，包含运行中与整轮展开后的混合过程组、response 边界收起和单步骤例外。当前规则见 [Quick Chat](../../../desktop/docs/chat-ui.md#对话过程折叠)，自动检查、实际窗口证据及验证边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#思考与工具过程组折叠2026-11-02)。事项其余范围继续位于 active。
 
 2026-11-02 Skill 按需加载与 Run 快照已完成实现和约定验收。Rust、正式 addon／Gateway／worker、renderer 与静态检查通过，实际 sol 完成正文 V1 加载和下一 Run 使用 V2，重启恢复历史／SQLite 行／脚本哨兵均未变化。具体证据、单次既有 Bash 用例失败后的复验及平台边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)。slash command 主动触发另行实施，事项其余范围继续位于 active。
 

@@ -102,7 +102,7 @@ test("message and grouped calls pass URL and copy actions to web result cards", 
       onCopy={onCopy}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "展开工具调用" }));
+  fireEvent.click(screen.getByRole("button", { name: "展开过程组" }));
   fireEvent.click(screen.getByLabelText("读取网页 https://example.com/ · 已完成"));
   fireEvent.click(screen.getByRole("link"));
   expect(onOpenUrl).toHaveBeenCalledWith("https://example.com/");

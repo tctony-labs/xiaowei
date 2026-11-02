@@ -1,6 +1,6 @@
 # 桌面快捷键
 
-本文维护全局快捷键的配置、设置更新、原生注册与 Tray 菜单交接。Launcher 搜索行为见 [搜索](search.md)，快速对话的窗口内键盘行为见 [Quick Chat](../desktop/docs/quick-chat.md)。来源焦点与 Dock 策略暂由 [Tray、Dock 与焦点事项](../.agent/records/active/2026-09-28-tray-dock-focus.md) 承载，迁移及调度排障的历史依据见 [快捷键 record](../.agent/records/archived/2026-09-18-fixed-launcher-shortcuts.md)。
+本文维护全局快捷键的配置、设置更新、原生注册与 Tray 菜单交接。Launcher 搜索行为见 [搜索](search.md)，快速对话的窗口内键盘行为见 [Quick Chat](../desktop/docs/chat-ui.md)。来源焦点与 Dock 策略暂由 [Tray、Dock 与焦点事项](../.agent/records/active/2026-09-28-tray-dock-focus.md) 承载，迁移及调度排障的历史依据见 [快捷键 record](../.agent/records/archived/2026-09-18-fixed-launcher-shortcuts.md)。
 
 ## 默认值与动作
 

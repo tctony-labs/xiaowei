@@ -59,7 +59,7 @@ test("todo cards split tool groups and only the latest defaults to expanded", ()
   const cards = screen.getAllByLabelText("更新待办 · 已完成");
   expect(cards[0].closest("details")).not.toHaveAttribute("open");
   expect(cards[1].closest("details")).toHaveAttribute("open");
-  for (const card of cards) expect(card.closest(".agent-tool-group")).toBeNull();
+  for (const card of cards) expect(card.closest(".agent-process-group")).toBeNull();
 
   fireEvent.click(cards[1]);
   rerender(<AgentMessage {...props} message={{ ...message }} />);

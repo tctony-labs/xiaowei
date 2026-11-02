@@ -12,7 +12,7 @@
 | 修改 | `desktop/src/renderer/src/components/agent-chat/client.ts`、`message-blocks.ts` 及相邻测试 | 接入实际读取与缓存，按 Session／Run／Item 稳定身份和切换代次隔离；不让迟到结果覆盖新会话 |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/use-quick-chat.ts`、`QuickChatPanel.tsx` 及相邻测试 | 从页面适配层传递读取回调，展示组件不自建 Gateway 连接 |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/quick-chat.css` | 覆盖长中文、长行及内部滚动，详情展开保持无横向缩进 |
-| 修改 | `desktop/docs/quick-chat.md` | 同步完整工具内容的读取和失败行为 |
+| 修改 | `desktop/docs/chat-ui.md` | 同步完整工具内容的读取和失败行为 |
 
 具体读取字段与分页规则随 01f 确定，不预建空 RPC、假完整内容或固定实现包装。
 

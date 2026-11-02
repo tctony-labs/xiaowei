@@ -2,6 +2,14 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 思考与工具过程组折叠（2026-11-02）
+
+按用户指定的 AstraBuddy 会话过程文档调整运行中与整轮展开后的分组折叠，当前规则及单步骤例外统一见 [Quick Chat](../../../../desktop/docs/chat-ui.md#对话过程折叠)。保留原有 Run 计时、最终回复判定和独立交互／清单卡片，未改协议或持久化格式。
+
+两个新增组件用例在修改前分别复现“展开整轮后混合思考／工具仍逐条露出”和“运行中的混合步骤没有组级折叠”，修改后通过。全量 renderer 为 29 文件／231 项通过，覆盖运行中手动展开保持、response 到来自动收起、组间独立展开、单思考／单工具、单项增长为多项、思考结束收起、停止／失败及已有卡片。`just check` 通过；最后补充摘要复用和停止／失败覆盖后，renderer 全量、desktop 类型检查与相关 Biome 再次通过。
+
+已有工作区 Electron 经 HMR 加载，本批未冷启动或重启应用。实际原会话展开整轮后只显示一个收起的“查阅网页、执行命令”过程组，进一步展开可见原顺序的两条思考与三条工具，最终回复仍在组外，组内没有额外工具组。运行中观察到单条 WebSearch 及后续单条 WebFetch 直接显示步骤行，没有重复组入口；多步骤流式更新与 response 边界收起由组件回归覆盖。用户随后在同一窗口继续操作，未再切换其会话或追加验收消息。
+
 ## Skill 按需加载与 Run 快照（2026-11-02）
 
 本批已实现并完成约定验收：用户级与项目级 SKILL.md 扫描、项目覆盖、固定字符串参数的 Skill、简介目录、按需正文、去重、下一 Run 更新／删除及持久恢复。沿用原工具循环和 SystemContext，不增加 RPC、存储格式或工具权限。旧版来源和明确适配见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)；包内行为分别维护在 core／runtime README。slash command 主动触发另行实施，旧内置业务技能留随对应业务迁移。
@@ -129,7 +137,7 @@ Agent 新建补验会话 `01a17574-57b8-774f-9763-5d2ad7fab0bb`，没有向用�
 
 ## 有序消息与现有工具 UI（2026-10-25，产品接入与验收）
 
-用户要求在问答／权限工具前，联合实施 03a 的 Markdown／代码／复制和 03c 的现有工具 UI；经本机 Codex app.asar 参考、Storybook 调整和用户确认后，已接实际 Quick Chat。Panel 直接复用 AgentMessage，旧的 Run 正文／思考／工具聚合字段与 renderMessageContent 预览分派已删除。显示规则和参考差异统一维护在 [运行与 UI](runtime-ui.md#codex-桌面参考与本批适配2026-10-25)，当前桌面行为见 [Quick Chat](../../../../desktop/docs/quick-chat.md)。
+用户要求在问答／权限工具前，联合实施 03a 的 Markdown／代码／复制和 03c 的现有工具 UI；经本机 Codex app.asar 参考、Storybook 调整和用户确认后，已接实际 Quick Chat。Panel 直接复用 AgentMessage，旧的 Run 正文／思考／工具聚合字段与 renderMessageContent 预览分派已删除。显示规则和参考差异统一维护在 [运行与 UI](runtime-ui.md#codex-桌面参考与本批适配2026-10-25)，当前桌面行为见 [Quick Chat](../../../../desktop/docs/chat-ui.md)。
 
 Harness 将当前 Generate 的身份、开始时间、内容接收状态及活跃 Item 纳入公开快照／有序事件；响应 Item 关联 Gen，正常终态明确最终无工具 response。空最终回复保留为空，不挪用先前说明。终态关联从既有 Journal 重建，不新增存储格式、provider phase 或传输层机制。3 秒首次等待、收到内容后停顿、工具后新 Gen 和终态分别使用真实生命周期；首 SSE／控制事件不算内容，工具声明不提前变成执行中工具 Item。
 

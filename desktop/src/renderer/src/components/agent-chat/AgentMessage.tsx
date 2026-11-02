@@ -4,9 +4,8 @@ import { AgentCopyButton } from "./AgentCopyButton";
 import { AgentInteraction } from "./AgentInteraction";
 import { AgentMarkdown } from "./AgentMarkdown";
 import { AgentMessageTime } from "./AgentMessageTime";
-import { AgentReasoning } from "./AgentReasoning";
+import { AgentProcessGroup } from "./AgentProcessGroup";
 import { AgentToolCall } from "./AgentToolCall";
-import { AgentToolGroup } from "./AgentToolGroup";
 import {
   type AgentGenerationState,
   groupMessageBlocks,
@@ -102,7 +101,9 @@ export function AgentMessage({
     .join("\n\n");
   const activeBlockId = generating ? generation?.activeBlockId : undefined;
   const hasActiveContent = groups.some(
-    (group) => group.kind !== "tools" && group.id === activeBlockId,
+    (group) =>
+      group.id === activeBlockId ||
+      (group.kind === "process" && group.blocks.some((block) => block.id === activeBlockId)),
   );
   const showWaiting =
     waitingForContent &&
@@ -137,16 +138,20 @@ export function AgentMessage({
       <div className="agent-message-blocks">
         {groups.map((group) => {
           let content: ReactNode;
-          if (group.kind === "tools") {
+          if (group.kind === "process") {
             content = (
-              <AgentToolGroup blocks={group.blocks} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+              <AgentProcessGroup
+                blocks={group.blocks}
+                complete={group.complete || !generating}
+                activeBlockId={activeBlockId}
+                onCopy={onCopy}
+                onOpenUrl={onOpenUrl}
+              />
             );
           } else if (group.kind === "todo") {
             content = <AgentToolCall call={group.call} defaultOpen={group.id === lastTodoId} />;
           } else if (group.kind === "interaction") {
             content = <AgentInteraction view={group.interaction} controls={interactions} />;
-          } else if (group.kind === "reasoning") {
-            content = <AgentReasoning text={group.text} active={group.id === activeBlockId} />;
           } else {
             content = (
               <AgentMarkdown

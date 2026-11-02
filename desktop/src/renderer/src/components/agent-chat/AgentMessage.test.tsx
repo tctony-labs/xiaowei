@@ -32,6 +32,150 @@ function textMessage(text: string, status: QuickChatMessage["status"] = "complet
   };
 }
 
+test("expanding a completed Run keeps mixed reasoning and tools in a collapsed group", () => {
+  render(
+    <AgentMessage
+      message={{
+        id: "run",
+        role: "assistant",
+        status: "complete",
+        blocks: [
+          { id: "thought-1", kind: "reasoning", text: "先查询赛程。" },
+          {
+            id: "search",
+            kind: "tool",
+            call: create(AgentToolCallSchema, {
+              name: "WebSearch",
+              status: AgentToolStatus.COMPLETED,
+            }),
+          },
+          { id: "thought-2", kind: "reasoning", text: "再核对当前日期。" },
+          {
+            id: "date",
+            kind: "tool",
+            call: create(AgentToolCallSchema, {
+              name: "Bash",
+              status: AgentToolStatus.COMPLETED,
+            }),
+          },
+          { id: "answer", kind: "text", text: "赛季已经开始。" },
+        ],
+      }}
+      finalResponseBlockIds={["answer"]}
+      onCopy={vi.fn()}
+      onOpenUrl={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
+  for (const summary of screen.getAllByLabelText("思考过程")) {
+    expect(summary).not.toBeVisible();
+  }
+  const group = screen.getByRole("button", { name: "展开过程组" });
+  expect(group).toHaveTextContent("查阅网页、执行命令");
+  expect(screen.getByText("赛季已经开始。")).toBeVisible();
+  fireEvent.click(group);
+  const steps = [
+    ...screen.getAllByLabelText("思考过程"),
+    screen.getByLabelText("搜索网络 · 已完成"),
+    screen.getByLabelText("执行命令 · 已完成"),
+  ];
+  for (const step of steps) expect(step).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "收起执行过程" }));
+  fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
+  expect(screen.getByRole("button", { name: "收起过程组" })).toBeVisible();
+});
+
+test("a running mixed group keeps manual expansion until the next response closes it", () => {
+  const read = create(AgentToolCallSchema, {
+    name: "Read",
+    status: AgentToolStatus.PENDING,
+  });
+  const message: QuickChatMessage = {
+    id: "run",
+    role: "assistant",
+    status: "generating",
+    blocks: [
+      { id: "thought", kind: "reasoning", text: "先读取配置。" },
+      { id: "read", kind: "tool", call: read },
+    ],
+  };
+  const props = { onCopy: vi.fn(), onOpenUrl: vi.fn() };
+  const { rerender } = render(<AgentMessage {...props} message={message} />);
+  expect(screen.getByLabelText("读取文件 · 执行中")).not.toBeVisible();
+  const toggle = screen.getByRole("button", { name: "展开过程组" });
+  expect(toggle).toHaveAttribute("aria-busy", "true");
+  fireEvent.click(toggle);
+
+  const thinking: QuickChatMessage = {
+    ...message,
+    blocks: [
+      ...(message.blocks ?? []).slice(0, 1),
+      { id: "read", kind: "tool", call: { ...read, status: AgentToolStatus.COMPLETED } },
+      { id: "thought-2", kind: "reasoning", text: "正在核对超时。" },
+    ],
+  };
+  const generation = {
+    id: "gen-2",
+    startedAtMs: Date.now(),
+    receivedContent: true,
+    activeBlockId: "thought-2",
+  };
+  rerender(<AgentMessage {...props} message={thinking} generation={generation} />);
+  expect(screen.getByRole("button", { name: "收起过程组" })).toHaveTextContent("正在核对超时。");
+  expect(screen.getByLabelText("正在思考")).toBeVisible();
+  expect(screen.queryByRole("status")).toBeNull();
+
+  const answering: QuickChatMessage = {
+    ...thinking,
+    blocks: [...(thinking.blocks ?? []), { id: "answer", kind: "text", text: "超时为 30 秒。" }],
+  };
+  rerender(
+    <AgentMessage
+      {...props}
+      message={answering}
+      generation={{ ...generation, activeBlockId: "answer" }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "展开过程组" })).toBe(toggle);
+  expect(toggle).toHaveAttribute("aria-busy", "false");
+  expect(screen.getByLabelText("读取文件 · 已完成")).not.toBeVisible();
+  expect(screen.getByText("超时为 30 秒。")).toBeVisible();
+  fireEvent.click(toggle);
+  rerender(
+    <AgentMessage {...props} message={{ ...answering, blocks: [...(answering.blocks ?? [])] }} />,
+  );
+  expect(screen.getByRole("button", { name: "收起过程组" })).toBeVisible();
+});
+
+test.each(["cancelled", "failed"] as const)(
+  "%s closes an expanded process group while keeping the Run outcome visible",
+  (status) => {
+    const message: QuickChatMessage = {
+      id: "run",
+      role: "assistant",
+      status: "generating",
+      blocks: [
+        { id: "thought-1", kind: "reasoning", text: "核对配置。" },
+        { id: "thought-2", kind: "reasoning", text: "检查超时。" },
+      ],
+    };
+    const props = { onCopy: vi.fn(), onOpenUrl: vi.fn() };
+    const { rerender } = render(<AgentMessage {...props} message={message} />);
+    fireEvent.click(screen.getByRole("button", { name: "展开过程组" }));
+    expect(screen.getByRole("button", { name: "收起过程组" })).toBeVisible();
+    rerender(
+      <AgentMessage
+        {...props}
+        message={{ ...message, status, error: status === "failed" ? "模型连接中断" : undefined }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "展开过程组" })).toBeVisible();
+    for (const step of screen.getAllByLabelText("思考过程")) expect(step).not.toBeVisible();
+    if (status === "cancelled") expect(screen.getByText("已停止")).toBeVisible();
+    else expect(screen.getByRole("alert")).toHaveTextContent("模型连接中断");
+  },
+);
+
 test.each([
   [AgentToolStatus.PENDING, "执行中"],
   [AgentToolStatus.COMPLETED, "已完成"],
@@ -89,7 +233,10 @@ test("consecutive questions stay visible between collapsed tool groups", () => {
         id: "run",
         role: "assistant",
         status: "generating",
-        blocks: messageBlocks(items),
+        blocks: [
+          { id: "thought", kind: "reasoning", text: "先读取文件，再确认需求。" },
+          ...messageBlocks(items),
+        ],
       }}
       onCopy={vi.fn()}
       onOpenUrl={vi.fn()}
@@ -97,9 +244,9 @@ test("consecutive questions stay visible between collapsed tool groups", () => {
   );
   for (const card of screen.getAllByRole("region", { name: "待回答问题" })) {
     expect(card).toBeVisible();
-    expect(card.closest(".agent-tool-group")).toBeNull();
+    expect(card.closest(".agent-process-group")).toBeNull();
   }
-  expect(screen.getByRole("button", { name: "展开工具调用" })).toHaveTextContent("读取文件");
+  expect(screen.getByRole("button", { name: "展开过程组" })).toHaveTextContent("读取文件");
   expect(screen.getByText("问题 2")).toBeVisible();
   expect(screen.getByText("问题 3")).toBeVisible();
   expect(container.querySelector(".agent-shimmer")).toBeNull();
@@ -257,7 +404,7 @@ test("the panel places explanation, tool and result in their actual order", () =
   expect(fullReasoning).toBeVisible();
 });
 
-test("text separates tool groups and their summaries show the current call", () => {
+test("responses separate mixed groups that expand independently in their original order", () => {
   const tool = (id: string, name: string, status = AgentToolStatus.COMPLETED) => ({
     id,
     kind: "tool" as const,
@@ -272,9 +419,11 @@ test("text separates tool groups and their summaries show the current call", () 
         status: "generating",
         blocks: [
           { id: "intro", kind: "text", text: "我先找一下配置文件。" },
+          { id: "thought-1", kind: "reasoning", text: "先查找配置路径。" },
           tool("glob", "Glob"),
           tool("grep", "Grep"),
           { id: "middle", kind: "text", text: "找到了，我读取一下。" },
+          { id: "thought-2", kind: "reasoning", text: "再核对配置字段。" },
           tool("read-first", "Read"),
           tool("read-second", "Read", AgentToolStatus.PENDING),
         ],
@@ -283,7 +432,7 @@ test("text separates tool groups and their summaries show the current call", () 
       onOpenUrl={vi.fn(async () => {})}
     />,
   );
-  const toggles = screen.getAllByRole("button", { name: "展开工具调用" });
+  const toggles = screen.getAllByRole("button", { name: "展开过程组" });
   expect(toggles).toHaveLength(2);
   expect(screen.getByText("我先找一下配置文件。")).toBeVisible();
   expect(screen.getByText("找到了，我读取一下。")).toBeVisible();
@@ -298,11 +447,12 @@ test("text separates tool groups and their summaries show the current call", () 
   expect(grep).toBeVisible();
   expect(glob.compareDocumentPosition(grep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(grep.compareDocumentPosition(middle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByLabelText("读取文件 · 执行中")).not.toBeVisible();
   fireEvent.click(toggles[1]);
   expect(screen.getByLabelText("读取文件 · 执行中")).toBeVisible();
 });
 
-test("a growing tool group preserves its expanded tool through updates and Run completion", () => {
+test("a growing group retains tool details but collapses when a response completes it", () => {
   const first = create(AgentToolCallSchema, {
     name: "Read",
     status: AgentToolStatus.COMPLETED,
@@ -334,8 +484,8 @@ test("a growing tool group preserves its expanded tool through updates and Run c
     ],
   };
   rerender(<AgentMessage {...props} message={growing} />);
-  expect(screen.getByRole("button", { name: "展开工具调用" })).toHaveTextContent("1 项异常");
-  fireEvent.click(screen.getByRole("button", { name: "展开工具调用" }));
+  expect(screen.getByRole("button", { name: "展开过程组" })).toHaveTextContent("1 项异常");
+  fireEvent.click(screen.getByRole("button", { name: "展开过程组" }));
   expect(screen.getByLabelText(/^读取(?:文件| config\.json) · 已完成$/).closest("details")).toBe(
     read,
   );
@@ -353,12 +503,14 @@ test("a growing tool group preserves its expanded tool through updates and Run c
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
-  expect(screen.getByRole("button", { name: "收起工具调用" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "展开过程组" })).toBeVisible();
+  expect(read).not.toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "展开过程组" }));
   expect(read).toBeVisible();
   expect(read).toHaveAttribute("open");
 });
 
-test("reasoning previews the latest visible line and retains full text on expansion", () => {
+test("reasoning preserves expansion during streaming and collapses when finished", () => {
   const text = "**定位配置**\r\n先搜索文件。\r\n\r\n正在读取 **config.json**\r\n<!-- note -->\r\n";
   const { rerender } = render(<AgentReasoning text={text} active />);
   const summary = screen.getByLabelText("正在思考");
@@ -375,6 +527,9 @@ test("reasoning previews the latest visible line and retains full text on expans
   expect(body).toBeVisible();
   rerender(<AgentReasoning text={`${text}检查完成。`} active={false} />);
   expect(screen.getByLabelText("思考过程")).toHaveTextContent("检查完成。");
+  expect(body).not.toBeVisible();
+  fireEvent.click(screen.getByLabelText("思考过程"));
+  rerender(<AgentReasoning text={`${text}检查完成。`} active={false} />);
   expect(body).toBeVisible();
 });
 
@@ -437,7 +592,7 @@ test.each(["complete", "cancelled", "failed"] as const)(
 );
 
 test.each(["generating", "cancelled", "failed"] as const)(
-  "%s keeps process commentary and tools visible without automatic folding",
+  "%s keeps commentary and single steps visible outside whole-Run folding",
   (status) => {
     const frame = messagePreview({ scenario: "tools-with-response", toolPhase: "answering" }, 0);
     const message = chatMessages(frame.session)[1];

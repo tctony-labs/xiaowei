@@ -320,19 +320,19 @@
   white-space: nowrap;
 }
 
-.agent-tool-group,
-.agent-tool-group-content {
+.agent-process-group,
+.agent-process-group-content {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 4px;
 }
 
-.agent-tool-group-content[hidden] {
+.agent-process-group-content[hidden] {
   display: none;
 }
 
-.agent-tool-group > .agent-activity-toggle {
+.agent-process-group > .agent-activity-toggle {
   flex-wrap: nowrap;
 }
 

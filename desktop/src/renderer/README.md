@@ -56,4 +56,4 @@ Storybook 通过 `just storybook` 独立启动，通过 `pnpm --dir desktop stor
 
 ## 功能文档
 
-- [Quick Chat 入口与窗口交互](../../docs/quick-chat.md)：模式切换、输入与会话展示、模型选择及设置导航。
+- [Quick Chat 入口与窗口交互](../../docs/chat-ui.md)：模式切换、输入与会话展示、模型选择及设置导航。

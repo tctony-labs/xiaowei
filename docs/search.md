@@ -12,7 +12,7 @@ Launcher 提供可唤起的本地搜索窗口，输入与结果共用 [LauncherS
 
 默认位置为鼠标所在屏幕工作区的水平居中、距顶部 15% 高度处。同屏再次唤起保留拖动位置；跨屏时，默认位置重新计算，手动位置按两个工作区比例映射。双击 Logo 恢复默认位置；定位实现见 [launcher-shortcuts.ts](../desktop/src/main/windows/launcher-shortcuts.ts)。
 
-搜索框挂载时聚焦，再次获得窗口焦点时全选输入。Esc 清空并隐藏；输入法组合期间不处理 Esc、方向键或回车。上下键选择结果，回车执行，单击选中、双击执行；键盘滚动保留上下 8px 余量。空查询按下方向键打开快速对话；入口与窗口交互见 [Quick Chat](../desktop/docs/quick-chat.md)，运行能力由 Agent Chat 事项维护。
+搜索框挂载时聚焦，再次获得窗口焦点时全选输入。Esc 清空并隐藏；输入法组合期间不处理 Esc、方向键或回车。上下键选择结果，回车执行，单击选中、双击执行；键盘滚动保留上下 8px 余量。空查询按下方向键打开快速对话；入口与窗口交互见 [Quick Chat](../desktop/docs/chat-ui.md)，运行能力由 Agent Chat 事项维护。
 
 查询改变时保留上一轮非空列表及窗口高度，待当前查询返回后替换；清空立即收起结果。旧响应不能覆盖新查询，等待结果或已有执行进行时不能执行旧条目。renderer 通过 typed Launcher Gateway 调用，preload 只暴露通用 `gateway`，不提供任意 IPC；结果执行权限见下方「桌面执行边界」。
 

@@ -23,6 +23,8 @@ export type AgentMessageBlock =
 
 export type AgentToolBlock = Extract<AgentMessageBlock, { kind: "tool" }>;
 
+export type AgentProcessBlock = Extract<AgentMessageBlock, { kind: "tool" | "reasoning" }>;
+
 // Supplied by the page adapter; a tool declaration is not a running tool Item.
 export interface AgentGenerationState {
   id: string;
@@ -32,29 +34,32 @@ export interface AgentGenerationState {
 }
 
 export type AgentMessageGroup =
-  | Exclude<AgentMessageBlock, AgentToolBlock>
+  | Exclude<AgentMessageBlock, AgentProcessBlock>
   | { id: string; kind: "todo"; call: AgentToolCall }
-  | { id: string; kind: "tools"; blocks: AgentToolBlock[] };
+  | { id: string; kind: "process"; blocks: AgentProcessBlock[]; complete: boolean };
 
 export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGroup[] {
   const groups: AgentMessageGroup[] = [];
 
   for (const block of blocks) {
-    if (block.kind !== "tool") {
-      if (block.kind === "interaction" || block.text.trim()) groups.push(block);
-      continue;
-    }
-
-    if (block.call.name === "TodoWrite") {
-      groups.push({ id: block.id, kind: "todo", call: block.call });
-      continue;
-    }
+    if (block.kind !== "tool" && block.kind !== "interaction" && !block.text.trim()) continue;
 
     const previous = groups.at(-1);
-    if (previous?.kind === "tools") {
+    const todo = block.kind === "tool" && block.call.name === "TodoWrite";
+    if (block.kind === "text" || block.kind === "interaction" || todo) {
+      if (previous?.kind === "process") previous.complete = true;
+      if (todo) {
+        groups.push({ id: block.id, kind: "todo", call: block.call });
+      } else if (block.kind === "text" || block.kind === "interaction") {
+        groups.push(block);
+      }
+      continue;
+    }
+
+    if (previous?.kind === "process") {
       previous.blocks.push(block);
     } else {
-      groups.push({ id: block.id, kind: "tools", blocks: [block] });
+      groups.push({ id: block.id, kind: "process", blocks: [block], complete: false });
     }
   }
 
