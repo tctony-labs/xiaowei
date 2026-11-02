@@ -551,6 +551,10 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                         <img
                           src={props.previewImage}
                           alt="剪贴板图片"
+                          title="双击查看大图"
+                          onDoubleClick={() => {
+                            if (!props.busy) props.onResource(selected.id, "open");
+                          }}
                           className="max-h-full max-w-full rounded-lg object-contain"
                         />
                       )}
@@ -656,6 +660,17 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 border-b border-subtle px-5 py-2.5">
+                  {selected.kind === "image" && (
+                    <button
+                      type="button"
+                      disabled={props.busy}
+                      onClick={() => props.onResource(selected.id, "open")}
+                      className="cursor-pointer text-sm leading-[22px] text-primary-text
+                        disabled:opacity-40"
+                    >
+                      查看大图
+                    </button>
+                  )}
                   {selected.kind === "text" && !hideMarkdown && (
                     <>
                       <button
