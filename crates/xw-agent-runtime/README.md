@@ -1,6 +1,6 @@
 # xw-agent-runtime
 
-提供 Agent 内部生成执行边界、单次生成收集、文件工具与沙箱 Bash 原语，独立于 App Server 公共协议、Gateway、napi 和具体 LLM provider。生成请求／事件／错误、消息、身份和用量复用 `xw-agent-types`；对外统一 AgentHost 定义于 xw-agent，核心将其桥接为本包内部 LlmGeneration。
+提供 Agent 内部生成执行边界、单次生成收集、文件工具、技能加载与沙箱 Bash 原语，独立于 App Server 公共协议、Gateway、napi 和具体 LLM provider。生成请求／事件／错误、消息、身份和用量复用 `xw-agent-types`；对外统一 AgentHost 定义于 xw-agent，核心将其桥接为本包内部 LlmGeneration。
 
 包根导出 `LlmGeneration`、`GenerationRequest`、`GenerationEvent`、`GenerationError`、异步流／future 别名和取消 token。实现方必须在开流与消费阶段响应取消，并在 future／stream 被释放时取消上游工作。错误不得携带原始响应正文或凭据。
 
@@ -21,6 +21,10 @@ cargo test -p xw-agent-runtime --locked
 `tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重，Bash 下一次启动使用新的授权快照。
 
 `tools::todo` 提供 TodoWrite 声明和每 Run 的清单执行器。默认替换完整清单，`merge=true` 按稳定 ID 更新已有项并在末尾追加新项；空列表可清空。状态为 pending／in_progress／completed／cancelled，多项 in_progress 返回警告但仍成功。结果正文为计数摘要，`metadata_json.todoWrite.todos` 始终保存更新后的完整列表。调用方只用最后一个已提交成功结果恢复执行器，不从未执行的参数推断状态，也不重复执行历史调用；本包不单独写盘。
+
+`tools::skill` 提供固定 `Skill(name: string)` 声明、SKILL.md 解析、目录扫描与不可变的 `SkillSnapshot`，名称不写入 schema 枚举。`snapshot(user_directory, cwd)` 扫描用户目录和 `<cwd>/.xiaowei/skills/<name>/SKILL.md`，同名时项目级覆盖用户级；缺失目录为空，无法读取或解析的文件记录警告并跳过。沿用旧版 YAML frontmatter，要求非空 name／description，按解析后的 Unicode 字符计数，包含空白和换行。name 最多 64 个字符，超限时跳过技能；description 最多 380 个字符，超限时保留前 379 个字符并追加“…”且记录警告，技能仍进入目录并可加载。兼容多行简介和额外元数据，描述截断不影响完整正文及原文件的 Blake3 hash。快照保存正文、绝对目录及全文 hash，后续加载不重新读文件。
+
+Skill 的成功结果只返回加载摘要和 `metadata_json.skill` 的名称、目录、hash 与重复加载标识；正文由 core 按已提交结果写入系统上下文，不作为普通工具输出展示。引用文件和脚本仍通过已有 Read／Bash 按真实文件内容读取或执行，不由 Skill 自动执行或授予权限。技能是否已加载、正文更新、撤销及持久恢复均由 core 管理。
 
 `tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 使用 globset／walkdir，自动补 `**/`，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore；只保留修改时间最新的 500 个文件，返回绝对路径，不跟随目录 symlink。Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行；目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 沿用旧版文件类型筛选解释，适用于 `*.rs`、`*.{ts,tsx}` 等表达式；显式文件目标不应用目录忽略或 include 筛选。Grep 不对文件顺序额外排序，最多返回 5000 个匹配行。
 

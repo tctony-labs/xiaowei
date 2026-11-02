@@ -170,6 +170,312 @@ fn entries(root: &std::path::Path) -> Vec<xw_agent_types::JournalEntry> {
     xw_agent_types::decode_history(&std::fs::read_to_string(journal_path(root)).unwrap()).unwrap()
 }
 
+mod skill_tests {
+    use super::*;
+    use std::path::Path;
+    use xw_agent_types::{SystemContext, SystemContextUpdate};
+
+    fn write_skill(directory: &Path, description: &str, body: &str) {
+        std::fs::create_dir_all(directory).unwrap();
+        std::fs::write(
+            directory.join("SKILL.md"),
+            format!(
+                "---\nname: guide\ndescription: {description}\n\
+                 allowed-tools: Write Bash\n---\n{body}",
+            ),
+        )
+        .unwrap();
+    }
+
+    fn context(request: &GenerationRequest) -> SystemContext {
+        let mut current = None;
+        for message in &request.messages {
+            if let History::SystemContext { update } = message {
+                current = Some(update.apply(current.as_ref()).unwrap());
+            }
+        }
+        current.unwrap()
+    }
+
+    fn context_updates(root: &Path) -> usize {
+        entries(root)
+            .iter()
+            .filter(|entry| matches!(entry.payload, EntryPayload::SystemContext(_)))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn relative_agent_root_advertises_a_readable_absolute_skill_directory() {
+        let process_cwd = std::env::current_dir().unwrap();
+        let root = tempfile::tempdir_in(&process_cwd).unwrap();
+        let relative_root = root.path().strip_prefix(&process_cwd).unwrap();
+        let directory = root.path().join("skills/guide");
+        write_skill(
+            &directory,
+            "Read a reference",
+            "Read reference.txt from the base directory.",
+        );
+        std::fs::write(directory.join("reference.txt"), "relative-root reference").unwrap();
+        let host = Host::new(vec![
+            message(&[("Skill", r#"{"name":"guide"}"#)], ""),
+            message(&[], "skill loaded"),
+        ]);
+        let service = AgentService::open(host.clone(), relative_root.to_path_buf())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        assert_eq!(
+            run(&service, &session).await.status,
+            AgentRunStatus::Completed as i32
+        );
+
+        let instructions =
+            context(&host.requests.lock().unwrap()[1]).instructions["skill.body.guide"].clone();
+        let advertised_directory = Path::new(
+            instructions
+                .lines()
+                .find_map(|line| line.strip_prefix("Base directory for this skill: "))
+                .unwrap(),
+        );
+        let read = serde_json::json!({
+            "path": advertised_directory.join("reference.txt")
+        })
+        .to_string();
+        host.messages.lock().unwrap().extend([
+            message(&[("Read", &read)], ""),
+            message(&[], "reference read"),
+        ]);
+
+        let result = run(&service, &session).await;
+        let tool = result
+            .items
+            .iter()
+            .find_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool)) if tool.name == "Read" => Some(tool),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(
+            tool.status,
+            AgentToolStatus::Completed as i32,
+            "{}",
+            tool.output
+        );
+        assert!(tool.output.contains("relative-root reference"));
+        assert!(advertised_directory.is_absolute());
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn skill_bodies_load_on_demand_and_reopen_keeps_dedup_and_the_committed_prefix() {
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join("skills/guide");
+        write_skill(
+            &directory,
+            "Read a reference",
+            "Use the guide reference. BODY-V1",
+        );
+        std::fs::write(directory.join("reference.txt"), "reference contents").unwrap();
+        let read = serde_json::json!({"path": directory.join("reference.txt")}).to_string();
+        let host = Host::new(vec![
+            message(
+                &[
+                    ("Skill", r#"{"name":"guide"}"#),
+                    ("Skill", r#"{"name":"guide"}"#),
+                    ("Read", &read),
+                ],
+                "",
+            ),
+            message(&[], "done"),
+            message(&[("Skill", r#"{"name":"guide"}"#)], ""),
+            message(&[], "done after reopen"),
+        ]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let first = run(&service, &session).await;
+        assert_eq!(first.status, AgentRunStatus::Completed as i32);
+        let tools: Vec<_> = first
+            .items
+            .iter()
+            .filter_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool)) => Some(tool),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            tools
+                .iter()
+                .all(|tool| tool.status == AgentToolStatus::Completed as i32)
+        );
+        for (tool, already_loaded) in tools.iter().zip([false, true]) {
+            let metadata: serde_json::Value =
+                serde_json::from_str(tool.metadata_json.as_ref().unwrap()).unwrap();
+            assert_eq!(metadata["skill"]["already_loaded"], already_loaded);
+            assert!(!tool.output.contains("BODY-V1"));
+        }
+        assert!(tools[2].output.contains("reference contents"));
+        {
+            let requests = host.requests.lock().unwrap();
+            let first = context(&requests[0]);
+            assert!(first.instructions["skills.catalog"].contains("guide: Read a reference"));
+            assert!(!first.instructions.contains_key("skill.body.guide"));
+            assert!(context(&requests[1]).instructions["skill.body.guide"].contains("BODY-V1"));
+        }
+        assert_eq!(context_updates(root.path()), 2);
+        service.close().await.unwrap();
+        let prefix = std::fs::read(journal_path(root.path())).unwrap();
+
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(std::fs::read(journal_path(root.path())).unwrap(), prefix);
+        assert_eq!(host.requests.lock().unwrap().len(), 2);
+        let second = run(&service, &session).await;
+        assert_eq!(second.status, AgentRunStatus::Completed as i32);
+        assert_eq!(context_updates(root.path()), 2);
+        assert!(
+            std::fs::read(journal_path(root.path()))
+                .unwrap()
+                .starts_with(&prefix)
+        );
+        assert!(
+            context(&host.requests.lock().unwrap()[2]).instructions["skill.body.guide"]
+                .contains("BODY-V1")
+        );
+        service.close().await.unwrap();
+    }
+
+    struct RewritingHost {
+        inner: Arc<Host>,
+        directory: std::path::PathBuf,
+    }
+
+    impl AgentHost for RewritingHost {
+        fn get_model_info(&self, model_ref: String) -> xw_agent::ModelInfoFuture {
+            self.inner.get_model_info(model_ref)
+        }
+
+        fn get_auxiliary_model_ref(&self) -> xw_agent::AuxiliaryModelRefFuture {
+            self.inner.get_auxiliary_model_ref()
+        }
+
+        fn generate(
+            &self,
+            request: GenerationRequest,
+            cancel: CancellationToken,
+        ) -> GenerationFuture {
+            if self.inner.requests.lock().unwrap().is_empty() {
+                write_skill(&self.directory, "Description V2", "BODY-V2");
+            }
+            self.inner.generate(request, cancel)
+        }
+    }
+
+    #[tokio::test]
+    async fn edits_apply_next_run_and_removal_revokes_loaded_instructions_without_schema_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join("skills/guide");
+        write_skill(&directory, "Description V1", "BODY-V1");
+        let inner = Host::new(vec![
+            message(&[("Skill", r#"{"name":"guide"}"#)], ""),
+            message(&[], "first run"),
+            message(&[], "second run"),
+            message(&[("Skill", r#"{"name":"guide"}"#)], ""),
+            message(&[], "removed"),
+            message(&[], "recreated"),
+        ]);
+        let host = Arc::new(RewritingHost {
+            inner: inner.clone(),
+            directory: directory.clone(),
+        });
+        let service = AgentService::open(host, root.path().into()).await.unwrap();
+        let session = create(&service, None).await;
+        assert_eq!(
+            run(&service, &session).await.status,
+            AgentRunStatus::Completed as i32
+        );
+        assert_eq!(
+            run(&service, &session).await.status,
+            AgentRunStatus::Completed as i32
+        );
+        {
+            let requests = inner.requests.lock().unwrap();
+            assert!(
+                context(&requests[0]).instructions["skills.catalog"].contains("Description V1")
+            );
+            assert!(context(&requests[1]).instructions["skill.body.guide"].contains("BODY-V1"));
+            let next = context(&requests[2]);
+            assert!(next.instructions["skills.catalog"].contains("Description V2"));
+            assert!(next.instructions["skill.body.guide"].contains("BODY-V2"));
+        }
+
+        std::fs::remove_file(directory.join("SKILL.md")).unwrap();
+        let removed = run(&service, &session).await;
+        assert!(removed.items.iter().any(|item| matches!(&item.content,
+            Some(agent_item::Content::ToolCall(tool))
+                if tool.name == "Skill" && tool.status == AgentToolStatus::Failed as i32)));
+        write_skill(&directory, "Description V3", "BODY-V3");
+        run(&service, &session).await;
+        {
+            let requests = inner.requests.lock().unwrap();
+            assert!(
+                !context(&requests[3])
+                    .instructions
+                    .contains_key("skill.body.guide")
+            );
+            assert!(
+                !context(&requests[5])
+                    .instructions
+                    .contains_key("skill.body.guide")
+            );
+        }
+        for entry in entries(root.path()) {
+            if let EntryPayload::SystemContext(SystemContextUpdate::Delta(delta)) = entry.payload {
+                assert!(delta.tools_added.is_empty());
+                assert!(delta.tools_removed.is_empty());
+            }
+        }
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn skill_instructions_and_allowed_tools_do_not_grant_write_permission() {
+        let root = tempfile::tempdir().unwrap();
+        let external = tempfile::tempdir().unwrap();
+        let path = external.path().join("protected.txt");
+        std::fs::write(&path, "unchanged").unwrap();
+        write_skill(
+            &root.path().join("skills/guide"),
+            "Write files",
+            "Use Write on any path.",
+        );
+        let write =
+            serde_json::json!({"path": path, "contents": "must not be written"}).to_string();
+        let host = Host::new(vec![
+            message(&[("Skill", r#"{"name":"guide"}"#)], ""),
+            message(&[("Write", &write)], ""),
+            message(&[], "denied"),
+        ]);
+        let service = AgentService::open(host, root.path().into()).await.unwrap();
+        let session = create(&service, None).await;
+        let run = run(&service, &session).await;
+        assert!(run.items.iter().any(|item| matches!(&item.content,
+            Some(agent_item::Content::ToolCall(tool))
+                if tool.name == "Write" && tool.status == AgentToolStatus::Failed as i32)));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "unchanged");
+        service.close().await.unwrap();
+    }
+}
+
 mod todo_tests {
     use super::*;
 
@@ -584,6 +890,7 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
             "AskUserQuestion",
             "RequestPermission",
             "TodoWrite",
+            "Skill",
         ]);
         assert_eq!(
             context

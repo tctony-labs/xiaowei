@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const { createServer } = require("node:http");
-const { mkdtemp, readFile, rm } = require("node:fs/promises");
+const { mkdir, mkdtemp, readFile, rm, writeFile } = require("node:fs/promises");
 const { tmpdir, homedir } = require("node:os");
 const { join } = require("node:path");
 const { randomUUID, randomBytes } = require("node:crypto");
@@ -27,6 +27,22 @@ function id() {
 
 const live = process.env.XIAOWEI_AGENT_LIVE === "1";
 const scenarios = [
+  {
+    name: "skill instructions",
+    skill: true,
+    file: "skill-acceptance.txt",
+    calls: [
+      ["Skill", { name: "fixture-skill" }],
+      ["Skill", { name: "fixture-skill" }],
+      ["Read", { path: "fixture-skill-reference" }],
+      ["Write", { path: "skill-acceptance.txt", contents: "hello\nxiaowei\n" }],
+      ["Read", { path: "skill-acceptance.txt" }],
+    ],
+    prompt:
+      "依次调用 Skill 加载 fixture-skill 两次以验证去重，" +
+      "再按技能正文读取 references/source.txt，" +
+      "用 Write 将引用内容保存到 skill-acceptance.txt，最后 Read 此文件并总结。",
+  },
   {
     name: "todo updates",
     file: "todo-acceptance.txt",
@@ -221,6 +237,19 @@ async function exerciseScenario(scenario) {
     ];
   }
   const root = await mkdtemp(join(tmpdir(), "xiaowei-file-acceptance-"));
+  const skillDescription = "Read a local reference and create a file. ".repeat(12);
+  if (scenario.skill) {
+    const directory = join(root, "skills", "fixture-skill");
+    await mkdir(join(directory, "references"), { recursive: true });
+    await writeFile(
+      join(directory, "SKILL.md"),
+      `---\nname: fixture-skill\ndescription: ${skillDescription}\n---\n` +
+        "SKILL-INSTRUCTION-FIXTURE: Read references/source.txt from this skill's base directory. " +
+        "Write its contents to skill-acceptance.txt in the current working directory.",
+    );
+    await writeFile(join(directory, "references", "source.txt"), "hello\nxiaowei\n");
+    calls.find(([name]) => name === "Read")[1].path = join(directory, "references", "source.txt");
+  }
   const host = new GatewayHost();
   await require("./fixtures/settings.cjs").settingsFixture(host);
   const worker = new Worker(bundledWorkerUrl, { workerData: { models } });
@@ -387,6 +416,10 @@ async function exerciseScenario(scenario) {
         ["completed", "in_progress", "cancelled"],
       );
     }
+    if (scenario.skill) {
+      assert.equal(JSON.parse(tools[0].metadataJson).skill.already_loaded, false);
+      assert.equal(JSON.parse(tools[1].metadataJson).skill.already_loaded, true);
+    }
     assert.ok(
       completed.items.some(
         (item) => item.content.case === "agentMessage" && item.content.value.text,
@@ -403,6 +436,7 @@ async function exerciseScenario(scenario) {
         "AskUserQuestion",
         "RequestPermission",
         "TodoWrite",
+        "Skill",
         "WebFetch",
         "WebSearch",
       ];
@@ -410,6 +444,17 @@ async function exerciseScenario(scenario) {
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
       assert.ok(requests.at(-1).messages.at(-1).content.includes("xiaowei"));
+      if (scenario.skill) {
+        const schema = requests[0].tools.find((tool) => tool.function.name === "Skill");
+        assert.equal(schema.function.parameters.properties.name.enum, undefined);
+        assert.ok(JSON.stringify(requests[0].messages).includes("fixture-skill"));
+        assert.ok(
+          JSON.stringify(requests[0].messages).includes(`${skillDescription.slice(0, 379)}…`),
+        );
+        assert.ok(!JSON.stringify(requests[0].messages).includes(skillDescription));
+        assert.ok(!JSON.stringify(requests[0].messages).includes("SKILL-INSTRUCTION-FIXTURE"));
+        assert.ok(JSON.stringify(requests[1].messages).includes("SKILL-INSTRUCTION-FIXTURE"));
+      }
       if (scenario.name === "sandboxed Bash") {
         assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
       }

@@ -19,6 +19,7 @@ mod recovery;
 mod retention;
 mod service;
 mod session;
+mod skills;
 mod title;
 mod tool_execution;
 #[cfg(test)]

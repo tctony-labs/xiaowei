@@ -32,12 +32,22 @@ export function AgentMessage({
 }: AgentMessageProps) {
   const activityId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [now, setNow] = useState(Date.now);
   const [waitingGeneration, setWaitingGeneration] = useState("");
   const generating = message.status === "generating";
+  const runStartedAtMs =
+    message.timestampMs === undefined ? undefined : Number(message.timestampMs);
   const waitingForContent = generating && generation && !generation.receivedContent;
   const generationId = generation?.id;
   const generationStartedAtMs = generation?.startedAtMs;
   const generationKey = `${generationId}:${generationStartedAtMs}`;
+
+  useEffect(() => {
+    if (message.role !== "assistant" || !generating || runStartedAtMs === undefined) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [message.role, generating, runStartedAtMs]);
 
   useEffect(() => {
     if (!waitingForContent || generationStartedAtMs === undefined) return;
@@ -73,10 +83,19 @@ export function AgentMessage({
     (block) => block.kind === "tool" || block.kind === "interaction" || !!block.text.trim(),
   );
   const activityIds = new Set(activity.map((block) => block.id));
-  const elapsedSeconds =
+  const finalElapsedSeconds =
     message.durationMs === undefined
       ? undefined
       : Math.round(Number(message.durationMs) / 100) / 10;
+  const elapsedSeconds = generating
+    ? runStartedAtMs === undefined
+      ? undefined
+      : Math.max(0, Math.floor((now - runStartedAtMs) / 1000))
+    : finalElapsedSeconds;
+  const elapsedLabel =
+    elapsedSeconds === undefined
+      ? "查看过程"
+      : `${generating ? "已用时" : "用时"} ${elapsedSeconds} 秒`;
   const replyBlocks = hasFinalResponse ? blocks.filter((block) => answerIds.has(block.id)) : blocks;
   const reply = replyBlocks
     .flatMap((block) => (block.kind === "text" && block.text ? [block.text] : []))
@@ -91,24 +110,28 @@ export function AgentMessage({
 
   return (
     <div className="agent-message">
-      {hasActivity && (
+      {(hasActivity || elapsedSeconds !== undefined) && (
         <div className="agent-activity-header">
-          <button
-            type="button"
-            className="agent-activity-toggle"
-            aria-label={expanded ? "收起执行过程" : "展开执行过程"}
-            aria-expanded={expanded}
-            aria-controls={groups
-              .filter((group) => activityIds.has(group.id))
-              .map((group) => `${activityId}-${group.id}`)
-              .join(" ")}
-            onClick={() => setExpanded(!expanded)}
-          >
-            <span>{elapsedSeconds === undefined ? "查看过程" : `用时 ${elapsedSeconds} 秒`}</span>
-            <span className="agent-disclosure" aria-hidden="true">
-              ›
-            </span>
-          </button>
+          {hasActivity ? (
+            <button
+              type="button"
+              className="agent-activity-toggle"
+              aria-label={expanded ? "收起执行过程" : "展开执行过程"}
+              aria-expanded={expanded}
+              aria-controls={groups
+                .filter((group) => activityIds.has(group.id))
+                .map((group) => `${activityId}-${group.id}`)
+                .join(" ")}
+              onClick={() => setExpanded(!expanded)}
+            >
+              <span>{elapsedLabel}</span>
+              <span className="agent-disclosure" aria-hidden="true">
+                ›
+              </span>
+            </button>
+          ) : (
+            <span className="text-xs leading-5 text-muted">{elapsedLabel}</span>
+          )}
         </div>
       )}
       <div className="agent-message-blocks">

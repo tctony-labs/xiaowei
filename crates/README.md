@@ -15,7 +15,7 @@
 | [xw-platform](xw-platform/README.md) | 通用原生系统能力实现 |
 | [xiaowei-agent](xiaowei-agent/README.md) | Agent Gateway／LLM 集成与 napi 入口 |
 | [xw-agent](xw-agent/README.md) | 传输无关的 Agent App Server、SQLite 会话目录、投影与业务恢复 |
-| [xw-agent-runtime](xw-agent-runtime/README.md) | 单次生成收集、取消、文件工具与沙箱 Bash 执行 |
+| [xw-agent-runtime](xw-agent-runtime/README.md) | 单次生成收集、取消、文件工具、技能解析与沙箱 Bash 执行 |
 | [xw-agent-tools-web](xw-agent-tools-web/README.md) | 可独立装配的网页抓取、辅助提取入口与四源搜索 |
 | [xw-sandboxed-exec](xw-sandboxed-exec/README.md) | macOS Seatbelt 策略与隔离命令参数生成 |
 | [xw-agent-rollout](xw-agent-rollout/README.md) | JSONL 文件提交、跨进程写锁与未提交尾部修复 |

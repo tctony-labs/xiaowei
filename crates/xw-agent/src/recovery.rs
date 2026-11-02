@@ -169,7 +169,7 @@ pub(crate) fn settle_with_tools(
             .filter(|intent| {
                 matches!(
                     intent.tool_name.as_str(),
-                    "AskUserQuestion" | "RequestPermission" | "TodoWrite"
+                    "AskUserQuestion" | "RequestPermission" | "TodoWrite" | "Skill"
                 ) || tools.iter().any(|tool| {
                     tool.declaration.name == intent.tool_name
                         && tool.recovery == crate::RecoveryPolicy::CancelPending
@@ -202,6 +202,10 @@ pub(crate) fn settle_with_tools(
             None if intent.tool_name == "TodoWrite" => (
                 ToolStatus::Cancelled,
                 "待办更新未提交，已因运行中断取消".into(),
+            ),
+            None if intent.tool_name == "Skill" => (
+                ToolStatus::Cancelled,
+                "技能加载未提交，已因运行中断取消".into(),
             ),
             None if tools
                 .iter()

@@ -2,6 +2,40 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## Skill 按需加载与 Run 快照（2026-11-02）
+
+本批已实现并完成约定验收：用户级与项目级 SKILL.md 扫描、项目覆盖、固定字符串参数的 Skill、简介目录、按需正文、去重、下一 Run 更新／删除及持久恢复。沿用原工具循环和 SystemContext，不增加 RPC、存储格式或工具权限。旧版来源和明确适配见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)；包内行为分别维护在 core／runtime README。slash command 主动触发另行实施，旧内置业务技能留随对应业务迁移。
+
+自动与正式链路验证：
+
+- `cargo test --offline --locked -p xw-agent-runtime -p xw-agent -p xiaowei-agent` 最终完整复验 160 项通过。覆盖 YAML／多行简介、元数据长度的 ASCII／中文／emoji 边界、用户与项目覆盖、缺失／非法文件、未知名称、Run 内冻结与下轮更新、删除撤销、重复加载、恢复不重放、同一回复混合 Skill 和其他工具、相对 root 下默认 cwd 创建与持久恢复、技能相对目录及权限不扩展。
+- 结果提交和正文上下文提交故障注入通过：失败后不再生成；未提交加载在恢复时取消，已提交加载在下轮从持久事实重建。自动压缩仍未交付，不将现有 SystemContext 兼容视为压缩生产验收。
+- 补充复现了有 cwd、没有 Tokio 执行器时新增扫描会 panic 的边界；扫描前按原入口约定返回 ExecutionUnavailable，新增回归确认没有接纳输入或修改会话。
+- 正式 `xiaowei-agent` addon 已重建；`pnpm --filter xiaowei-agent test:runtime` 共 11 项通过，新增 Skill → 重复 Skill → Read 引用 → Write → Read 的完整 addon／Gateway／worker／Pi 场景，确认首请求只有简介、后续请求含正文，name schema 没有 enum。
+- renderer 29 文件／224 项通过；runtime／core 的 all-targets strict no-deps Clippy、`just check`、显示宽度与 diff 检查通过。复用旧版 serde_yaml 0.9 解析，无新增 workspace 包。首次并发 Rust 回归中原有 Bash 取消用例一次返回 Failed；单独复验与随后完整回归均通过，未修改 Bash 实现，该次原因未定位。
+
+Review P2 已解决：相对 Agent root 会让技能快照保存相对目录，按正文中给出的目录调用 Read 时错误地相对会话 cwd 定位。新增 `AgentService::open(相对 root)` 回归先复现 Skill 成功但 Read 报文件不存在，再在扫描入口将目录转换为绝对路径，使正文与结果 metadata 都保存绝对目录；纯解析器不增加文件系统依赖。核心回归直接按模型收到的技能目录读取引用文件；runtime 另覆盖用户级和项目级相对目录，测试均不改变进程 cwd。
+
+补充复现并按用户确认修复了相对 root 配合默认 cwd 会返回 `InvalidArgument("cwd")` 的独立问题。`AgentService::open` 在打开数据库及创建 rollout store 前，按进程当前目录将 root 转为绝对路径；目录无需预先存在，转换失败记录原因并返回 Persistence。新增 catalog 回归覆盖不存在的相对根目录、默认 cwd 创建、SQLite 与历史位置一致，以及用对应绝对 root 重开后会话、cwd 和历史字节保持一致。上述 Skill → Read 回归也改为不传 cwd，验证完整默认路径；显式 cwd 仍要求已有绝对目录。
+
+按用户追加要求补齐技能元数据长度限制。查阅 notes 及对应本地源码后，name 参考 Codex `95273b84fb` 的 [parser.rs](https://github.com/openai/codex/blob/95273b84fbff40f9df7d71d50f1ca52c6489b25d/codex-rs/skills/src/parser.rs)，采用 Unicode 字符计数。description 参考 Claude Code `74f80e0` 的[目录描述截断](https://github.com/tctony/claude-code-source-code/blob/74f80e0/src/tools/SkillTool/prompt.ts)；其参考值为 250 个 JS 字符串单位，Codex 的 frontmatter description 没有长度硬上限。用户最终确认小微采用 380 个 Unicode 字符，描述超限时截断并保留技能，不再拒绝整个技能；具体规则维护在 [runtime README](../../../../crates/xw-agent-runtime/README.md)。
+
+回归覆盖 name 的 64／65、description 的 380／381 个字符在 ASCII／中文／emoji 下的边界。确认未超限的多行原值保留、描述截断后正文和原文件 hash 完整、项目定义仍可覆盖用户定义并成功加载，以及 name 超限不影响其他有效技能。
+
+描述截断的正式 addon 用例先在旧模块上复现 Skill 失败，再以相同超长描述通过新模块，验证模型收到截断目录并成功加载完整正文。最终 Rust 160 项、正式 addon／Gateway／worker 11 项、renderer 224 项、严格 Clippy 和 `CARGO_NET_OFFLINE=true just check` 均通过。耗时回归覆盖无内容即显示、跨生成连续计时，以及完成／停止／失败后使用最终时长并释放运行计时器。
+
+客户端通过原 cmux console 重建并加载最新 addon：Electron 41246 → 29529，实例为 `df307e02-68e6-49c3-9347-25a0c1230273`，恢复用户会话时 `repaired_bytes=0`。在独立验收会话 `01a19a57-de2b-71a1-8575-398a43c69a60` 中以 `tctony/luna` 加载 381 字符描述的项目技能，再按完整正文执行 10 秒 Bash，最终返回 `LONG-DESCRIPTION-OK`。实际窗口确认运行标题从“已用时 0 秒”到工具执行中的“已用时 12 秒”，结束后为“用时 15.4 秒”；展开过程与工具组可见“加载技能 description-limit-acceptance · 已完成”。验收技能已移除，未向用户已有会话追加任务。
+
+Review、root 入口及首版元数据限制完善后，完整 Rust 回归为上述 160 项，正式 addon／Gateway／worker 的 11 项、严格 Clippy 与 `CARGO_NET_OFFLINE=true just check` 再次通过。按工作区 cwd、完整进程链和 tty 核对后，经原 cmux console 重建并重启，Electron 40981 → 41246，新实例为 `f0bb794a-6baf-46e8-9158-0d7eb683d614`；确认 Agent addon 构建成功、会话恢复 `repaired_bytes=0`，窗口保持隐藏。仅使用隔离回归目录，没有修改已有验收会话的历史。
+
+产品验收在当前工作区独立会话 `01a19a05-ce91-75a3-a004-617f54581be6` 完成，没有向已有用户会话追加任务。实际 `tctony/sol` 先以 Bash 获取 cwd，再发现新增项目技能；完成 Skill → Read 引用 → Bash 脚本 → Read 结果，窗口展开确认技能图标、名称、已完成状态、名称参数和加载摘要。模型最终返回 `SKILL-V1 reference-v1 skill-v1`，真实文件为 `skill-v1`。
+
+该 Run 完成后将技能正文、引用和脚本更新为 V2。下一 Run 只调用 Read → Bash → Read，直接使用已加载技能的新正文，返回 `SKILL-V2 reference-v2 skill-v2`，文件结果为 `skill-v2`。历史仅追加对应正文增量，目录未变则不重复提交，Skill schema 保持不变。
+
+按 cwd、进程父子链与 tty 核对后，通过同一 cmux console 的 r 重建并重启；Electron 54499 → 26664，实例变为 `626c7a31-eb9f-49da-bb95-20aa6094a06e`。窗口自动恢复同一会话并显示 V1／V2 两轮结果，`repaired_bytes=0`。JSONL 保持 89 条／72094 字节，SHA-256 同为 `df1be7afb492478649a84a266f7e9288a3029043c368f158622b6d98ce591c31`；只读 SQLite 行摘要也完全一致。重启前写入的脚本结果哨兵保持原值，未发生模型或工具重放。
+
+无执行器边界的最后修复已通过同一 console 重建并加载，正式链路与静态检查再次通过，重开数据摘要不变。本批窗口验证使用用户当前浅色与 sol，不扩大为其他主题／provider 的人工复验。验收技能与结果文件已清理，保留会话历史供复查，窗口恢复原来的隐藏剪贴板模式。下一工具批为 02h 的后台三工具；其他历史分页、压缩及完整组合验收继续保留。
+
 ## WebFetch、WebSearch 与搜索设置（2026-10-27）
 
 第 6 批已实现，并于 2026-10-28 完成约定验收：独立 `xw-agent-tools-web` 提供 WebFetch、WebSearch 和 Bing／Tavily／Brave／Serper；core 仅持有通用工具注册、session 绑定、顺序执行与辅助 Gen。配置由 desktop Settings 持有，集成层读取当前有效源及其单个明文 Key 创建 `dyn SearchTool`，提交后的通知只更新共享 WebSearch 内部 provider。在途请求使用原对象，已有 session 后续搜索透明切源，不追加模型上下文。当前进程的工具声明／规则／执行绑定在创建 session 时固定；默认注册更新只影响后续 session，重启恢复允许按当前配置重新装配。具体边界见[架构](architecture.md#网页工具与设置装配第-6-批)及各包 README。

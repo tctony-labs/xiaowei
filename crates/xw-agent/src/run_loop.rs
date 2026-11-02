@@ -318,6 +318,7 @@ async fn drive(
         }
         let mut status = outcome.status;
         let mut error = outcome.error.as_ref().map(ToString::to_string);
+        let mut loaded_skill = false;
         if status == RunStatus::Completed {
             for (index, block) in final_blocks.iter().enumerate() {
                 let domain::ContentBlock::ToolCall {
@@ -384,6 +385,12 @@ async fn drive(
                         }
                         Err(crate::ToolError::Failed(message)) => Err(message),
                     }
+                } else if name == "Skill" && cwd.is_some() {
+                    let state = shared.lock().unwrap();
+                    crate::skills::execute(
+                        &state.sessions[&request.session_id],
+                        &intent.arguments_json,
+                    )
                 } else if name == "TodoWrite" && cwd.is_some() {
                     todos.execute(&intent.arguments_json)
                 } else if matches!(name.as_str(), "AskUserQuestion" | "RequestPermission") {
@@ -496,7 +503,14 @@ async fn drive(
                     metadata,
                     (!skipped).then(|| began.elapsed().as_millis() as u64),
                 )?;
+                loaded_skill |= name == "Skill" && tool_status == domain::ToolStatus::Completed;
             }
+        }
+        if loaded_skill {
+            // System updates require all calls from this response to have durable outcomes.
+            let mut state = shared.lock().unwrap();
+            let session = state.sessions.get_mut(&request.session_id).unwrap();
+            crate::tool_registry::synchronize(session, now_ms()?)?;
         }
         if cancellation.is_cancelled() && status != RunStatus::Failed {
             status = RunStatus::Cancelled;
@@ -607,6 +621,9 @@ fn commit_result(
     let session_id = *session_id;
     session.append(domain::EntryPayload::ToolOutcome(outcome.clone()), at)?;
     session.history.push(outcome.result.message.clone());
+    if intent.tool_name == "Skill" && status == domain::ToolStatus::Completed {
+        crate::skills::activate(session, &intent.arguments_json)?;
+    }
     let mut item = tool_item(intent, Some(&outcome));
     if let Some(agent_item::Content::ToolCall(tool)) = &mut item.content {
         tool.interaction = session

@@ -16,6 +16,7 @@ pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T
 pub(crate) struct Session {
     pub tools: Vec<crate::ToolRegistration>,
     pub tool_context: Option<xw_agent_types::SystemContext>,
+    pub skills: xw_agent_runtime::tools::skill::SkillSnapshot,
     pub indexed: bool,
     pub frozen: bool,
     pub index_dirty: bool,
@@ -43,6 +44,7 @@ impl Session {
         Self {
             tools: Vec::new(),
             tool_context: None,
+            skills: Default::default(),
             indexed: false,
             frozen: false,
             index_dirty: false,

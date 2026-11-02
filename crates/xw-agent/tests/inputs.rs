@@ -3,7 +3,7 @@ mod support;
 use futures_util::FutureExt;
 use support::{config, create, service};
 use xw_agent::{AgentError, InputSource, SourceKind, protocol::*};
-use xw_agent_types::{InputId, RunId};
+use xw_agent_types::{ClientRequestId, InputId, RunId};
 
 fn source() -> InputSource {
     InputSource {
@@ -60,6 +60,46 @@ fn valid_start_without_an_executor_does_not_mutate_config_or_create_a_run() {
             .session,
         Some(session)
     );
+}
+
+#[test]
+fn skill_scanning_without_an_executor_returns_an_error_without_accepting_input() {
+    let service = service();
+    let directory = tempfile::tempdir().unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: ClientRequestId::new().to_string(),
+            config: Some(config()),
+            cwd: Some(directory.path().to_str().unwrap().into()),
+            ..Default::default()
+        })
+        .now_or_never()
+        .unwrap()
+        .unwrap()
+        .session
+        .unwrap();
+    let response = service
+        .start_run(
+            StartRunRequest {
+                session_id: session.session_id.clone(),
+                input_id: InputId::new().to_string(),
+                input: vec![text("load a skill")],
+                ..Default::default()
+            },
+            source(),
+        )
+        .now_or_never()
+        .unwrap();
+    assert_eq!(response, Err(AgentError::ExecutionUnavailable));
+    let snapshot = service
+        .read_session(ReadSessionRequest {
+            session_id: session.session_id.clone(),
+            include_runs: true,
+        })
+        .now_or_never()
+        .unwrap()
+        .unwrap();
+    assert_eq!(snapshot.session, Some(session));
 }
 
 #[test]

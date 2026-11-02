@@ -25,13 +25,17 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 `build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和与实际传入声明对应的文件、Bash、搜索及问答／权限规则，返回经过校验的 SystemContext；不会注册工具或改变执行权限。正文与工具 schema 分别维护，规则随工具增删一起经过已有差异／持久化入口。`tool_registry` 按实际 cwd 装配工具及环境片段，再用于生产模型请求。新增工具只追加相应声明和 tool 规则，保留旧基线及已有 schema；未变化的后续 Run／重开不重复配置。
 
+有 cwd 的会话同时提供固定 schema 的 `Skill` 工具。每个新 Run 在阻塞池扫描 `<root>/skills/` 和 `<cwd>/.xiaowei/skills/`，固定本 Run 的名称、简介和正文，项目级同名技能优先。用户级目录沿用宿主传入的 Agent 根目录，desktop 默认 `~/.xiaowei/skills/` 并遵循已有 `XIAOWEI_AGENT_HOME` 覆盖；纯内存服务没有用户级根目录。技能目录与正文更新从下一 Run 生效，不需要文件监听。
+
+模型先看到 `skills.catalog` 简介目录，只有实际调用 Skill 才加载正文。成功工具结果提交后更新内存指令，在该次模型回复的全部工具结果闭合后，通过已有 SystemContext 提交 `skill.body.<name>`，随后才开始下一次生成；重复加载不重复提交正文。下一 Run 更新已加载且仍存在的技能正文，删除则撤销其指令；删除后重新出现的技能需要再次加载。重开从已提交上下文及成功工具结果恢复加载状态，不自动调用工具。结果或上下文提交失败停止 Run；仅有未结算意图的 Skill 在恢复时取消，已提交加载可在下一 Run 重建，不自动重新生成。Skill 不改变工具集合、已有授权或沙箱，slash command 主动入口另行实施。
+
 宿主通过 `set_tools(Vec<ToolRegistration>)` 或 `update_tool(id, Arc<dyn AgentTool>)` 更新默认外部工具集；重复注册 ID、模型工具名或规则名校验失败时保留原集合。CreateSession 在幂等检查后捕获声明、规则和执行器的完整快照，尚未首次发送的会话也保持原绑定。默认集合更新只影响当前进程之后创建／加载的 session；重启恢复按当前默认集合重新绑定，再走既有系统上下文增量与 provider 能力校验。外部工具不依赖 cwd，内置文件／进程工具继续要求 cwd。
 
 外部工具从同一 session 绑定分派，core 不依赖 Web crate 或具体搜索源。共享逻辑工具可自行替换内部 provider，因此已有 session 的后续搜索透明使用新对象，暴露及系统记录不变。
 
 `ToolContext.extract_text` 当次查询辅助模型，按模型能力构造独立 RunContext，提交 `GenStarted(ToolExtraction)`、首 SSE、原始完整／部分 Message 和 GenEnded 后才允许提交工具结果。辅助 Gen 使用相同 Run、空 Turn、独立 Gen／Message 身份；不进入聊天 Item、最终回复、对话次数、上下文测量或后续 Assistant 历史。usage 仅按 Gen 记录，工具结果不复制。停止先结算活动辅助 Gen，再取消工具；写入失败沿既有冻结／修复路径停止 Run。恢复先结束辅助 Gen，再按当前已装配工具的 CancelPending 策略补取消；未装配工具保留未知结果保护，不重抓取或重新生成。
 
-创建持久会话时，默认使用 `<root>/quick-chat/<session-id>/`，可显式指定已有绝对目录。cwd 创建时写入 Header，重开保持稳定；无 cwd 的旧 Header 按固定自有目录回退而不改写。归档保留文件；删除只清理自有目录，外部 cwd 保留。无根目录的内存会话没有 cwd 时只提供文本聊天。
+`AgentService::open` 在打开存储前，将 root 按进程当前目录转为绝对路径，数据库、rollout 与默认工作目录使用同一根目录，root 无需预先存在。创建持久会话时，默认使用 `<root>/quick-chat/<session-id>/`，可显式指定已有绝对目录。cwd 创建时写入 Header，重开保持稳定；无 cwd 的旧 Header 按固定自有目录回退而不改写。归档保留文件；删除只清理自有目录，外部 cwd 保留。无根目录的内存会话没有 cwd 时只提供文本聊天。
 
 工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集、文件原语及 Bash 的进程／沙箱生命周期。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止会向 Glob／Grep 传递取消并等待阻塞搜索退出，等待已开始的文件写入实际结算或异步 Bash 回收，余下调用补 skipped，不再生成；删除和关闭等待相同清理。Bash 保留真实退出结果与部分输出，取消显示 Cancelled，超时显示 Failed，普通非零退出仍显示 Completed。结果提交失败或 Bash 返回 ResultUnknown 时保留未结算意图，阻止普通新 Run，不自动重放。公共工具 Item 可由历史重建。
 

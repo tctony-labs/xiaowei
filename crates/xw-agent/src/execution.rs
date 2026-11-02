@@ -26,7 +26,7 @@ impl AgentService {
         request.title_model_ref = None;
         let id = input::validate(&request, &source)?;
         let input_id: InputId = parse_id(&request.input_id, "input_id")?;
-        let config = {
+        let (config, cwd) = {
             let state = self.state()?;
             let session = state
                 .sessions
@@ -46,14 +46,34 @@ impl AgentService {
                     .ok_or(AgentError::Conflict("input accepted without a run"))?;
                 return Ok(StartRunResponse { run: Some(run) });
             }
-            request
+            let config = request
                 .config
                 .clone()
                 .or_else(|| session.view.config.clone())
-                .ok_or(AgentError::Internal)?
+                .ok_or(AgentError::Internal)?;
+            (config, session.view.cwd.clone())
+        };
+        let user_directory = self
+            .rollout
+            .as_ref()
+            .map(|store| store.root().join("skills"));
+        let skills = if cwd.is_some() {
+            let runtime = tokio::runtime::Handle::try_current()
+                .map_err(|_| AgentError::ExecutionUnavailable)?;
+            runtime
+                .spawn_blocking(move || {
+                    xw_agent_runtime::tools::skill::snapshot(
+                        user_directory.as_deref(),
+                        cwd.as_deref().map(std::path::Path::new),
+                    )
+                })
+                .await
+                .map_err(|_| AgentError::Internal)?
+        } else {
+            Default::default()
         };
         let info = self.host.get_model_info(config.model_ref.clone()).await;
-        self.accept_run(request, source, config, info)
+        self.accept_run(request, source, config, info, skills)
     }
 
     fn accept_run(
@@ -62,6 +82,7 @@ impl AgentService {
         source: InputSource,
         config: AgentModelConfig,
         info: Result<xw_agent_types::ModelInfo, xw_agent_types::ModelInfoError>,
+        skills: xw_agent_runtime::tools::skill::SkillSnapshot,
     ) -> Result<StartRunResponse, AgentError> {
         let id = input::validate(&request, &source)?;
         let input_id: InputId = parse_id(&request.input_id, "input_id")?;
@@ -156,6 +177,7 @@ impl AgentService {
                 .collect(),
             timestamp_ms: started_at_ms,
         });
+        crate::skills::prepare(session, skills)?;
         crate::tool_registry::synchronize(session, started_at_ms)?;
         let mut history = session.history.clone();
         history.push(user);

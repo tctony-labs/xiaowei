@@ -32,6 +32,31 @@ function textMessage(text: string, status: QuickChatMessage["status"] = "complet
   };
 }
 
+test.each([
+  [AgentToolStatus.PENDING, "执行中"],
+  [AgentToolStatus.COMPLETED, "已完成"],
+  [AgentToolStatus.FAILED, "失败"],
+  [AgentToolStatus.CANCELLED, "已停止"],
+] as const)("skill loading identifies the name and its actual status %s", (status, label) => {
+  const { container } = render(
+    <AgentToolCall
+      call={create(AgentToolCallSchema, {
+        name: "Skill",
+        argumentsJson: JSON.stringify({ name: "fixture-skill" }),
+        status,
+        output: status === AgentToolStatus.FAILED ? "当前运行没有可用技能" : "已加载技能",
+      })}
+      onCopy={vi.fn()}
+      onOpenUrl={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText(`加载技能 fixture-skill · ${label}`)).toBeVisible();
+  expect(container.querySelector('[data-icon="skill"]')).not.toBeNull();
+  expect(container.querySelector(".agent-shimmer") !== null).toBe(
+    status === AgentToolStatus.PENDING,
+  );
+});
+
 test("consecutive questions stay visible between collapsed tool groups", () => {
   const items = ["Read", "Read", "AskUserQuestion", "AskUserQuestion", "Write"].map((name, index) =>
     create(AgentItemSchema, {
@@ -352,6 +377,64 @@ test("reasoning previews the latest visible line and retains full text on expans
   expect(screen.getByLabelText("思考过程")).toHaveTextContent("检查完成。");
   expect(body).toBeVisible();
 });
+
+test("running elapsed time starts before content and follows the Run across generations", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-02T04:00:00Z"));
+  const startedAtMs = Date.now() - 2200;
+  const message: QuickChatMessage = {
+    id: "run",
+    role: "assistant",
+    status: "generating",
+    timestampMs: BigInt(startedAtMs),
+    blocks: [],
+  };
+  const props = { onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
+  const { rerender } = render(<AgentMessage {...props} message={message} />);
+  expect(screen.getByText("已用时 2 秒")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "展开执行过程" })).toBeNull();
+
+  act(() => vi.advanceTimersByTime(1000));
+  expect(screen.getByText("已用时 3 秒")).toBeVisible();
+  rerender(
+    <AgentMessage
+      {...props}
+      message={message}
+      generation={{ id: "next-gen", startedAtMs: Date.now(), receivedContent: false }}
+    />,
+  );
+  act(() => vi.advanceTimersByTime(1000));
+  expect(screen.getByText("已用时 4 秒")).toBeVisible();
+});
+
+test.each(["complete", "cancelled", "failed"] as const)(
+  "%s replaces the live clock with the final Run duration",
+  (status) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-02T04:00:00Z"));
+    const message: QuickChatMessage = {
+      id: "run",
+      role: "assistant",
+      status: "generating",
+      timestampMs: BigInt(Date.now()),
+      blocks: [],
+    };
+    const props = { onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
+    const { rerender, unmount } = render(<AgentMessage {...props} message={message} />);
+    expect(screen.getByText("已用时 0 秒")).toBeVisible();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText("已用时 1 秒")).toBeVisible();
+
+    rerender(<AgentMessage {...props} message={{ ...message, status, durationMs: 1250n }} />);
+    expect(screen.getByText("用时 1.3 秒")).toBeVisible();
+    expect(screen.queryByText(/已用时/)).toBeNull();
+    act(() => vi.advanceTimersByTime(3000));
+    expect(screen.getByText("用时 1.3 秒")).toBeVisible();
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
 
 test.each(["generating", "cancelled", "failed"] as const)(
   "%s keeps process commentary and tools visible without automatic folding",

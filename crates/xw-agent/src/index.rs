@@ -38,7 +38,12 @@ pub(crate) fn summary(session: &Session) -> AgentSessionSummary {
 impl AgentService {
     /// Opens the session directory without enumerating JSONL histories.
     /// Both desktop and CLI hosts supply the root and model callbacks only.
+    /// Relative roots are resolved against the process working directory before opening storage.
     pub async fn open(host: Arc<dyn AgentHost>, root: PathBuf) -> Result<Self, AgentError> {
+        let root = std::path::absolute(root).map_err(|error| {
+            log::error!("Agent root path resolution failed error={error}");
+            AgentError::Persistence
+        })?;
         let catalog =
             Arc::new(crate::catalog::SessionCatalog::open(&root.join("sessions.sqlite")).await?);
         let mut service = Self::new(host);

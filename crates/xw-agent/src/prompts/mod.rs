@@ -29,6 +29,12 @@ pub fn build_chat_system_context(
 
     for tool in &tools {
         let rule = match tool.name.as_str() {
+            "Skill" => Some(concat!(
+                "任务匹配技能简介或用户点名技能时，先调用 Skill 加载正文，再按指令执行。",
+                "简介目录不包含技能全文；引用文档按需用 Read 读取，脚本用 Bash 执行，",
+                "相对路径以返回的技能目录为准。已加载正文在会话中持续生效，无需重复加载。",
+                "技能不增加工具或权限，仍遵守现有授权和沙箱。",
+            )),
             "AskUserQuestion" => Some(concat!(
                 "仅在确实需要用户提供信息时使用 AskUserQuestion，问题和选项使用用户语言。",
                 "工具会等待用户回答，并将选择及补充文字作为结果返回；不要假设用户已经回答。",

@@ -60,6 +60,56 @@ fn journal(root: &Path, id: &str) -> std::path::PathBuf {
 }
 
 #[tokio::test]
+async fn relative_root_creates_a_default_workspace_and_reopens_from_its_absolute_path() {
+    let process_cwd = std::env::current_dir().unwrap();
+    let directory = tempfile::tempdir_in(&process_cwd).unwrap();
+    let absolute_root = directory.path().join("agent-home");
+    let relative_root = absolute_root.strip_prefix(&process_cwd).unwrap();
+    assert!(!absolute_root.exists());
+    let service = AgentService::open(Arc::new(Host), relative_root.to_path_buf())
+        .await
+        .unwrap();
+    let view = service
+        .create_session(create_request())
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let expected_cwd = absolute_root.join("quick-chat").join(&view.session_id);
+    assert_eq!(
+        Path::new(view.cwd.as_ref().unwrap()),
+        expected_cwd.canonicalize().unwrap()
+    );
+    assert!(absolute_root.join("sessions.sqlite").is_file());
+    let path = journal(&absolute_root, &view.session_id);
+    let history = std::fs::read(&path).unwrap();
+    service.close().await.unwrap();
+
+    let reopened = AgentService::open(Arc::new(Host), absolute_root)
+        .await
+        .unwrap();
+    let list = reopened
+        .list_sessions(ListSessionsRequest::default())
+        .await
+        .unwrap();
+    assert_eq!(list.sessions.len(), 1);
+    assert_eq!(list.sessions[0].session_id, view.session_id);
+    let restored = reopened
+        .read_session(ReadSessionRequest {
+            session_id: view.session_id.clone(),
+            include_runs: true,
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    assert_eq!(restored.session_id, view.session_id);
+    assert_eq!(restored.cwd, view.cwd);
+    assert_eq!(std::fs::read(path).unwrap(), history);
+    reopened.close().await.unwrap();
+}
+
+#[tokio::test]
 async fn sqlite_directory_and_title_survive_without_startup_history_reads() {
     let root = tempfile::tempdir().unwrap();
     let service = AgentService::open(Arc::new(Host), root.path().into())

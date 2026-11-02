@@ -46,7 +46,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 ## How
 
-采用旧版 Rust Agent 迁移路线，复用现有 LLM worker 与 Gateway。当前已交付持久文本聊天、文件读写／搜索、macOS 前台 Bash、问答／权限交互、TodoWrite 及网页工具／搜索设置：Quick Chat 通过 Agent 控制 API 调用 xiaowei-agent／xw-agent；xw-agent 是 App Server，持有权威会话、运行与投影，直接管理 SQLite 会话目录；JSONL 保存模型配置与执行历史。宿主通过统一 AgentHost 提供模型能力，核心不依赖外部业务 service。
+采用旧版 Rust Agent 迁移路线，复用现有 LLM worker 与 Gateway。当前已交付持久文本聊天、文件读写／搜索、macOS 前台 Bash、问答／权限交互、TodoWrite、网页工具／搜索设置及 Skill 按需加载：Quick Chat 通过 Agent 控制 API 调用 xiaowei-agent／xw-agent；xw-agent 是 App Server，持有权威会话、运行与投影，直接管理 SQLite 会话目录；JSONL 保存模型配置与执行历史。宿主通过统一 AgentHost 提供模型能力，核心不依赖外部业务 service。
 
 详细说明按主题维护在同名目录中，都是本 record 的附属部分，共享同一事项范围与生命周期。字段、协议和行为只在对应专题维护，未实现设计明确标注。
 
@@ -69,6 +69,8 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 - **直接整体搬入旧 agent 与 UI**：旧版模型协议、宿主和存储边界不同，不能原样接入；先核对业务、恢复和文件生命周期，复用有效语义并显式记录适配差异。
 
 ## Current work
+
+2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。下一工具批恢复为后台三工具；旧内置业务技能留随对应业务迁移，preset 继续暂缓。
 
 截至 2026-10-25，02e＋第一批 Read／Write／Edit 已实现、验证并提交，已合入 develop；当前工作目录、系统提示词、顺序工具循环、持久结果、恢复与最小工具展示均在正式产品链路中。提交对应关系、自动检查与 2026-10-19 窗口验收统一见[交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。02e 临时计划已删除，不再将生产接线列为后续任务。
 
@@ -95,6 +97,8 @@ PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历�
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
+
+2026-11-02 Skill 按需加载与 Run 快照已完成实现和约定验收。Rust、正式 addon／Gateway／worker、renderer 与静态检查通过，实际 sol 完成正文 V1 加载和下一 Run 使用 V2，重启恢复历史／SQLite 行／脚本哨兵均未变化。具体证据、单次既有 Bash 用例失败后的复验及平台边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)。slash command 主动触发另行实施，事项其余范围继续位于 active。
 
 2026-10-28 WebFetch／WebSearch 和搜索设置已完成第 6 批实现与约定验收，02i 已删除。Bing／Tavily 真实链路、三个阶段 Stop、重启历史／配置及后续新查询均通过；构建隔离和生成失败诊断的追加修复也已通过回归并加载到当前工作区实例。验证证据、无凭据的 Brave／Serper 联网边界及迁移适配见[交付证据](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。
 

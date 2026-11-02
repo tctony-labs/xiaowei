@@ -62,6 +62,7 @@ fn builtin_declarations(has_cwd: bool) -> Vec<ToolDeclaration> {
         tools.extend(xw_agent_runtime::tools::search_declarations());
         tools.extend(xw_agent_runtime::tools::interactive::declarations());
         tools.push(xw_agent_runtime::tools::todo::declaration());
+        tools.push(xw_agent_runtime::tools::skill::declaration());
         tools
     } else {
         vec![]

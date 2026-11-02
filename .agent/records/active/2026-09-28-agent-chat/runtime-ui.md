@@ -2,7 +2,17 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer 及前六批工具已接入，包含文件读写／搜索、macOS 前台 Bash、问答／权限、TodoWrite 和网页工具／搜索设置；各批窗口及重启验收见[实施结果](implementation-results.md)。真实输入法等平台复核边界见交付结果；后台工具、Skill 及其他扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer、前六批工具及 Skill 已接入；各批窗口及重启验收见[实施结果](implementation-results.md)。真实输入法等平台复核边界见交付结果；后台工具及其他扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+
+## Skill 加载（2026-11-02）
+
+本轮用户确认 Skill 提前于后台工具、slash command 主动触发另行实现、name 不使用 enum、技能定义更新从下一 Run 生效。运行行为维护在 [core](../../../../crates/xw-agent/README.md) 与 [runtime](../../../../crates/xw-agent-runtime/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/quick-chat.md)，此处只记录迁移取舍。
+
+旧版依据为 `xiaowei-next` 的 `d97d45b4`：`xw-agent-runtime/src/resources/{skills,parser,types}.rs` 提供 YAML 解析和目录扫描；`tools/core/skill.rs` 从创建会话时的名称快照生成 enum，按需返回 SkillBody，与主动 supplement 入口共享去重状态；Studio 的 `infra/agent/resources` 合并 project > user > builtin，并通过监听更新共享资源，加载时读取最新 provider。
+
+本批保留用户／项目目录和覆盖顺序、frontmatter 格式、按需正文及资源相对技能目录的语义。明确适配为固定字符串 schema、每 Run 扫描并捕获完整定义、已有 SystemContext 的简介与正文片段，以及从已提交事实恢复加载状态。监听与快照独立：当前没有 Skill 页面或其他即时消费者，Run 开始扫描即可满足生效边界；不为此新建 watcher。正文更新在下一 Run 替换，删除撤销其有效片段，历史记录保持原样。
+
+旧版内置技能依赖 Wiki、扩展创建及 AppBridge，留随对应业务迁移。现有文件／Bash 工具负责引用文档和脚本的真实读取／执行，Skill 不增加权限或隐式执行。自动压缩仍属后续切片；技能有效正文进入已有 SystemContext，因此后续压缩须按权威上下文重建，不依赖摘要猜测。
 
 ## 当前执行
 
@@ -258,7 +268,7 @@ Codex 还会把未解决的用户交互及部分需持续展示的工具内容�
 
 本批借鉴“过程／最终回答分开”和紧凑工具行，但不照搬 Codex 的全部条件。当前公开 Item 未暴露 `final_answer`，不代表底层一定缺失该信息；Pi Responses 的可选 phase 保留链路见前述复核。按用户确认，无 toolcall 的最后一次 response 是最终回答；Harness 在正常终态提供最终 Gen，renderer 选取同 Gen 的正文块，不用最后工具之后的文本后缀猜测。仅在 Run 正常完成后折叠其他过程块，最终回答为空也不挪用前面的说明；运行中、停止或失败保持过程可见。只有思考前缀、没有工具的完成回复也可折叠该前缀。不新增 Codex 同名模型阶段字段。
 
-用户根据截图进一步明确：整轮完成后的过程折叠入口只显示总用时及箭头，例如“用时 3.2 秒 ›”，不显示“执行过程”、工具次数或异常计数。总用时取 Run 已记录的 completedAtMs − startedAtMs，包含本轮模型与工具执行，不累加各工具耗时；缺少有效时间时仅显示“查看过程”，不伪造时长或回退为调用次数。单个工具和连续工具组仍不显示耗时；组内异常提示保留，异常计数并非 Codex 的被拒动作计数。
+用户根据截图进一步明确：从 Run 开始即显示“已用时 N 秒”标题，每秒更新，跨模型生成和工具执行连续计时；运行时过程保持可见，标题不提供折叠。结束、停止或失败后显示最终“用时 N 秒”，正常完成且有过程可折叠时保留箭头，例如“用时 3.2 秒 ›”。总用时取 Run 的起止时间，包含本轮模型与工具执行，不累加各工具耗时；运行时以 startedAtMs 和当前时间计算非负整秒，终态使用已记录的 completedAtMs − startedAtMs。缺少有效时间时仅有可折叠过程才显示“查看过程”，不伪造时长。单个工具和连续工具组仍不显示耗时；组内异常提示保留，异常计数并非 Codex 的被拒动作计数。
 
 工具标题由共享 `tool-presentation.ts` 格式化。单条依次显示工具图标、动作与目标、必要的异常／停止提示和尾部箭头；文件动作显示 basename，完整路径仍在 tooltip 与参数详情中。组执行时取当前 Pending 工具的动作／目标；结束后按参考的类别顺序汇总：Write／Edit 合为“修改文件”，Read／Glob／Grep 合为“读取文件”，Bash 为“执行命令”，不同类别用顿号连接，重复调用不重复标题。未知工具的单条回退为“调用 工具名”，组内归为“调用工具”；组图标取首个摘要类别。当前六个工具按此做中文适配，没有照搬 Codex 的命令解析、插件或技能专用标题；异常计数、停止提示仍独立显示。
 

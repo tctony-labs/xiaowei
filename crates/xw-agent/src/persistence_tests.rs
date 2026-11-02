@@ -58,8 +58,24 @@ async fn failed_todo_commits_never_publish_state_or_replay_updates() {
     }
 }
 
+#[tokio::test]
+async fn failed_skill_commits_recover_only_durable_loads() {
+    for after in [3, 4] {
+        failed_tool_commit("Skill", r#"{"name":"guide"}"#, after, false).await;
+    }
+}
+
 async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed: bool) {
     let root = tempfile::tempdir().unwrap();
+    if name == "Skill" {
+        let directory = root.path().join("skills/guide");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("SKILL.md"),
+            "---\nname: guide\ndescription: Test loading\n---\nSKILL-BODY",
+        )
+        .unwrap();
+    }
     let host = Arc::new(Host::default());
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
     let session = service
@@ -127,14 +143,15 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
-    if name == "TodoWrite" && after == 3 {
+    if (name == "TodoWrite" && after == 3) || (name == "Skill" && after >= 3) {
         {
             let state = service.state().unwrap();
             let recovered = &state.sessions[&id];
-            assert!(recovered.view.runs[0].items.iter().all(|item| {
-                !matches!(&item.content, Some(agent_item::Content::ToolCall(tool))
+            let completed = recovered.view.runs[0].items.iter().any(|item| {
+                matches!(&item.content, Some(agent_item::Content::ToolCall(tool))
                 if tool.status == AgentToolStatus::Completed as i32)
-            }));
+            });
+            assert_eq!(completed, name == "Skill" && after == 4);
             assert!(
                 crate::inspect_recovery(recovered.journal.as_ref().unwrap().entries())
                     .unwrap()
@@ -144,6 +161,14 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
         }
         assert_eq!(host.calls.lock().unwrap().len(), 1);
         send(&service, request(&session.session_id)).await.unwrap();
+        if name == "Skill" {
+            let state = service.state().unwrap();
+            let context = state.sessions[&id].tool_context.as_ref().unwrap();
+            assert_eq!(
+                context.instructions.contains_key("skill.body.guide"),
+                after == 4
+            );
+        }
         service.close().await.unwrap();
         return;
     }
