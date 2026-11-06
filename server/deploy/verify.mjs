@@ -206,12 +206,15 @@ try {
   const refreshed = await request("/api/Auth/Refresh", {
     body: { refresh_token: credentials.tokens.refresh_token },
   });
-  await request("/api/Auth/Refresh", {
+  const retried = await request("/api/Auth/Refresh", {
     body: { refresh_token: credentials.tokens.refresh_token },
-    code: 10002,
   });
+  assert.equal(refreshed.refresh_token, credentials.tokens.refresh_token);
+  assert.equal(retried.refresh_token, credentials.tokens.refresh_token);
+  assert.notEqual(retried.access_token, refreshed.access_token);
   await request("/api/Auth/GetCurrentUser", { token: refreshed.access_token });
-  stage("Container replacement, persistent session and refresh rotation passed");
+  await request("/api/Auth/GetCurrentUser", { token: retried.access_token });
+  stage("Container replacement, persistent session and reusable refresh token passed");
 
   compose(["stop", "db"]);
   const unavailable = await fetch(`${address}/api/Health/Ready`, {

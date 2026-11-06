@@ -11,7 +11,8 @@ service Auth {
     option (xiaowei.server.api).no_login = true;
   }
 
-  // Rotates refresh credentials atomically; existing access tokens keep their own expiry.
+  // Issues a new access token and renews the unchanged refresh token's expiry atomically.
+  // Existing access tokens keep their own expiry.
   rpc Refresh(RefreshRequest) returns (RefreshResponse) {
     option (xiaowei.server.api).no_login = true;
   }
@@ -106,7 +107,7 @@ message LoginResponse {
 }
 
 message RefreshRequest {
-  // Successful refresh consumes this token. Reuse fails without revoking the session.
+  // Reusable until expired or revoked; successful refresh renews its expiry without changing it.
   string refresh_token = 1;
 }
 

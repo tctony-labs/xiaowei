@@ -298,7 +298,7 @@ impl ::prost::Name for LoginResponse {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RefreshRequest {
-    /// Successful refresh consumes this token. Reuse fails without revoking the session.
+    /// Reusable until expired or revoked; successful refresh renews its expiry without changing it.
     #[prost(string, tag = "1")]
     pub refresh_token: ::prost::alloc::string::String,
 }

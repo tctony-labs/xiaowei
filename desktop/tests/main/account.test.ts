@@ -855,7 +855,7 @@ test("WS authentication precedes user lookup and refreshes rejected access", asy
   await expired.close();
 });
 
-test("offline retains the session; concurrent restore rotates once; revoked credentials clear", async (t) => {
+test("refresh retries recover from lost responses; revocation clears the session", async (t) => {
   const directory = await mkdtemp(join(tmpdir(), "account-refresh-"));
   const server = await authServer();
   let now = server.state.now;
@@ -900,6 +900,31 @@ test("offline retains the session; concurrent restore rotates once; revoked cred
   await Promise.all([first, second]);
   assert.equal(server.state.refreshes, 1);
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
+
+  const beforeLoss = (await store.load()).sessions[0]?.authenticated.tokens;
+  assert.ok(beforeLoss);
+  now = Number(beforeLoss.accessExpiresAtMs) - 5 * 60_000;
+  server.state.now = now;
+  server.state.dropRefreshResponse = true;
+  await service.restore();
+  assert.equal(server.state.refreshes, 2);
+  assert.equal(service.snapshot().status, AccountStatus.OFFLINE);
+  assert.ok(service.snapshot().user);
+  assert.equal(server.state.tokens.refreshToken, beforeLoss.refreshToken);
+  assert.equal(
+    (await store.load()).sessions[0]?.authenticated.tokens?.accessToken,
+    beforeLoss.accessToken,
+  );
+
+  await service.restore();
+  assert.equal(server.state.refreshes, 3);
+  assert.equal(service.snapshot().status, AccountStatus.SIGNED_IN);
+  const recovered = (await store.load()).sessions[0]?.authenticated.tokens;
+  assert.equal(recovered?.refreshToken, beforeLoss.refreshToken);
+  assert.equal(recovered?.accessToken, server.state.tokens.accessToken);
+  assert.notEqual(recovered?.accessToken, beforeLoss.accessToken);
+  assert.ok((recovered?.refreshExpiresAtMs ?? 0n) > beforeLoss.refreshExpiresAtMs);
+
   server.state.revoked = true;
   await service.restore();
   assert.equal(service.snapshot().status, AccountStatus.SIGNED_OUT);
@@ -1054,7 +1079,7 @@ test("rotation retains new tokens on persistence failure and retries saving with
   store.fail = true;
   await service.restore();
   assert.equal(server.state.refreshes, 1);
-  assert.notEqual(server.state.tokens.refreshToken, oldRefresh);
+  assert.equal(server.state.tokens.refreshToken, oldRefresh);
   assert.equal(service.snapshot().status, AccountStatus.OFFLINE);
   assert.equal((await service.selectServer(other)).code, ErrorCode.INTERNAL_ERROR);
   assert.equal(service.snapshot().selectedServer, server.url);

@@ -678,7 +678,7 @@ func (x *LoginResponse) GetData() *LoginResult {
 
 type RefreshRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Successful refresh consumes this token. Reuse fails without revoking the session.
+	// Reusable until expired or revoked; successful refresh renews its expiry without changing it.
 	RefreshToken  string `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

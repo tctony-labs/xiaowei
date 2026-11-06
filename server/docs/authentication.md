@@ -37,17 +37,17 @@ device_id 由客户端首次使用生成并保存在共享数据目录，同一�
 
 公开会话 ID 为 `s_` 加 128 位随机值；access／refresh token 分别为 `at_`／`rt_` 加 256 位随机值的无填充 Base64URL 编码，不使用 JWT。服务端严格校验 token 类型和编码，数据库仅保存 SHA-256 哈希；不从 URL 获取认证凭据。日志不记录邮箱、密码、token、验证码或请求体。
 
-## 会话与轮换
+## 会话与续期
 
-access token 默认有效期 2 小时；refresh token 默认 30 天，每次成功刷新后重新计时。刷新使旧 refresh token 失效，重复提交只返回凭据无效的业务码，不撤销新凭据；旧 access token 保留到自己的有效期结束。退出立即撤销当前会话的所有凭据，不影响其他设备。服务器重启后未过期、未撤销的会话仍可使用。
+access token 默认有效期 2 小时；refresh token 默认 30 天，每次成功刷新后重新计时。刷新只签发新的 access token，refresh token 的值保持不变，其有效期延长至本次刷新时间之后的配置时长。相同 refresh token 在有效期内可以重复使用；旧 access token 保留到自己的有效期结束。退出立即撤销当前会话的所有凭据，不影响其他设备。服务器重启后未过期、未撤销的会话仍可使用。
 
 有效期可通过 `auth.access_token_ttl`／`auth.refresh_token_ttl` 配置，对应 env 为 `XIAOWEI_AUTH_ACCESS_TOKEN_TTL`／`XIAOWEI_AUTH_REFRESH_TOKEN_TTL`；必须为正时长且 refresh 长于 access。配置来源优先级见 [配置加载](persistence.md#配置加载)。
 
 同用户同设备登录按设备行锁串行执行，设备名称更新、旧会话撤销和新会话写入同事务提交；失败回滚后保留旧会话，其他设备和账号不受影响。设备 ID 只用于关联，不是认证凭据；退出保留设备记录。
 
-同一 refresh token 的并发刷新只有一次成功。刷新事务替换 refresh hash 并写入新 access token，失败不消费旧 token；重复使用旧 refresh 只拒绝当前请求。退出与刷新对同一会话行的写锁保证刷新不会复活已撤销会话。已完成认证的在途请求不承诺被中途取消。
+同一 refresh token 的并发刷新可以各自成功，每次签发独立的 access token。刷新事务延长 refresh 有效期并写入新 access token，不改变 refresh hash；失败时两项写入全部回滚。退出与刷新对同一会话行的写锁保证刷新不会复活已撤销会话。已完成认证的在途请求不承诺被中途取消。
 
-刷新响应丢失时，已消费的旧 refresh token 不能再次刷新；当前不提供幂等刷新结果缓存，客户端可能需要重新登录。桌面端串行刷新、持久化失败和恢复行为见 [桌面账号](../../desktop/docs/account.md)。退出及同设备重新登录会使对应 WebSocket 连接失效；密码重置及其全部会话撤销仍在后续范围。
+刷新响应丢失时，客户端保留的 refresh token 仍可重试，重试会签发另一个 access token，无需取回上次结果。refresh token 已过期或会话被撤销时仍需重新登录。桌面端串行刷新、持久化失败和恢复行为见 [桌面账号](../../desktop/docs/account.md)。退出及同设备重新登录会使对应 WebSocket 连接失效；密码重置及其全部会话撤销仍在后续范围。
 
 ## 存储与事务
 
@@ -69,7 +69,7 @@ access token 默认有效期 2 小时；refresh token 默认 30 天，每次成�
 
 - 会话从撤销时间与 refresh 到期时间中较早的时刻起，保留 6 个自然月；按 UTC 计算，达到期限后删除，关联 access token 级联删除。
 - Access token 从自身过期时刻起保留 7 天，达到期限后删除；刷新接口不提前删除这些记录。旧 access token 在未过期时继续有效。
-- 有效会话和有效凭据不删除，用户与设备记录保留。会话中的 refresh hash 在成功刷新时直接覆盖，没有独立的旧 refresh token 历史表。
+- 有效会话和有效凭据不删除，用户与设备记录保留。会话中的 refresh hash 在会话生命周期内保持不变，刷新只延长其有效期；同设备重新登录会创建新会话及新凭据。
 
 两类删除在一个数据库事务中执行，失败全部回滚。日志 `authentication records cleaned` 中 `sessions` 为删除会话数，`expired_access_tokens` 为按 7 天规则直接删除的 token 数，不包含会话级联删除的 token。清理按周期执行，记录达到保留期限后可能最多等待一个周期才被删除。
 

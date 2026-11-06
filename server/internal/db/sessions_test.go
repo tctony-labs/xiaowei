@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -46,7 +47,7 @@ func testSessionID(t *testing.T) string {
 	return "s_" + value[2:]
 }
 
-func TestConcurrentRefreshKeepsWinningSession(t *testing.T) {
+func TestConcurrentRefreshKeepsRefreshTokenAndExtendsExpiry(t *testing.T) {
 	_, options := testDatabase(t)
 	ctx := context.Background()
 	store, err := Open(ctx, options)
@@ -55,7 +56,7 @@ func TestConcurrentRefreshKeepsWinningSession(t *testing.T) {
 	}
 	defer store.Close()
 	user := createSessionIdentity(t, store)
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	initial := testSessionTokens("initial", now)
 	sessionID := testSessionID(t)
 	if err := store.CreateSession(ctx, user.ID, sessionID,
@@ -72,7 +73,7 @@ func TestConcurrentRefreshKeepsWinningSession(t *testing.T) {
 	for i := range 8 {
 		workers.Go(func() {
 			tokens := testSessionTokens(fmt.Sprintf("attempt:%d", i), now.Add(time.Minute))
-			id, err := store.RotateSession(ctx, initial.RefreshHash, tokens, now.Add(time.Minute))
+			id, err := store.RefreshSession(ctx, initial.RefreshHash, tokens, now.Add(time.Minute))
 			if err == nil && id != sessionID {
 				err = errors.New("session ID changed")
 			}
@@ -81,30 +82,38 @@ func TestConcurrentRefreshKeepsWinningSession(t *testing.T) {
 	}
 	workers.Wait()
 	close(results)
-	var winner SessionTokens
+	issued := []SessionTokens{initial}
 	successes := 0
 	for result := range results {
 		if result.err == nil {
 			successes++
-			winner = result.tokens
-		} else if !errors.Is(result.err, ErrInvalidSession) {
+			issued = append(issued, result.tokens)
+		} else {
 			t.Fatal(result.err)
 		}
 	}
-	if successes != 1 {
-		t.Fatalf("successful rotations = %d, want 1", successes)
+	if successes != 8 {
+		t.Fatalf("successful refreshes = %d, want 8", successes)
 	}
-	for _, tokens := range []SessionTokens{initial, winner} {
+	for _, tokens := range issued {
 		if _, err := store.FindSessionByAccessHash(ctx, tokens.AccessHash, now.Add(time.Minute)); err != nil {
 			t.Fatal("refresh invalidated a valid access token")
 		}
 	}
-	_, err = store.RotateSession(ctx, initial.RefreshHash, testSessionTokens("replay", now), now)
-	if !errors.Is(err, ErrInvalidSession) {
-		t.Fatal("old refresh token accepted")
+	var storedHash []byte
+	var expiry time.Time
+	err = store.pool.QueryRow(ctx,
+		"SELECT refresh_token_hash, refresh_expires_at FROM auth_sessions WHERE session_id = $1",
+		sessionID).Scan(&storedHash, &expiry)
+	if err != nil || !bytes.Equal(storedHash, initial.RefreshHash) ||
+		!expiry.Equal(initial.RefreshExpiresAt.Add(time.Minute)) {
+		t.Fatal("refresh changed the refresh token or did not extend its expiry")
 	}
-	if _, err := store.RotateSession(ctx, winner.RefreshHash, testSessionTokens("next", now), now); err != nil {
-		t.Fatal("rejected old token revoked the winning refresh token")
+	// The original token remains usable past its original expiry after a successful refresh.
+	retryAt := initial.RefreshExpiresAt
+	if _, err := store.RefreshSession(ctx, initial.RefreshHash,
+		testSessionTokens("retry", retryAt), retryAt); err != nil {
+		t.Fatal("original refresh token could not use its extended expiry")
 	}
 }
 
@@ -133,7 +142,7 @@ func TestSessionRollbackExpiryAndLogoutIsolation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	bad := testSessionTokens("bad", now)
+	bad := testSessionTokens("bad", now.Add(time.Minute))
 	bad.AccessHash = []byte("invalid length")
 	failedID := testSessionID(t)
 	if err := store.CreateSession(ctx, user.ID, failedID,
@@ -145,18 +154,25 @@ func TestSessionRollbackExpiryAndLogoutIsolation(t *testing.T) {
 		Scan(&count); err != nil || count != 0 {
 		t.Fatal("failed session creation left a partial session")
 	}
-	if _, err := store.RotateSession(ctx, first.RefreshHash, bad, now); err == nil {
+	if _, err := store.RefreshSession(ctx, first.RefreshHash, bad, now); err == nil {
 		t.Fatal("broken refresh transaction committed")
 	}
+	var expiry time.Time
+	if err := store.pool.QueryRow(ctx,
+		"SELECT refresh_expires_at FROM auth_sessions WHERE session_id = $1", firstID).
+		Scan(&expiry); err != nil || !expiry.Equal(first.RefreshExpiresAt) {
+		t.Fatal("failed refresh extended the expiry")
+	}
 	next := testSessionTokens("next", now.Add(time.Minute))
-	if _, err := store.RotateSession(ctx, first.RefreshHash, next, now.Add(time.Minute)); err != nil {
-		t.Fatal("failed transaction consumed the old refresh token")
+	_, err = store.RefreshSession(ctx, first.RefreshHash, next, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal("failed transaction invalidated the refresh token")
 	}
 	_, err = store.FindSessionByAccessHash(ctx, first.AccessHash, first.AccessExpiresAt)
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatal("expired access token accepted")
 	}
-	_, err = store.RotateSession(ctx, second.RefreshHash, bad, second.RefreshExpiresAt)
+	_, err = store.RefreshSession(ctx, second.RefreshHash, bad, second.RefreshExpiresAt)
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatal("expired refresh token accepted")
 	}
@@ -169,7 +185,7 @@ func TestSessionRollbackExpiryAndLogoutIsolation(t *testing.T) {
 			t.Fatal("logout left an access token active")
 		}
 	}
-	_, err = store.RotateSession(ctx, next.RefreshHash, bad, now.Add(2*time.Minute))
+	_, err = store.RefreshSession(ctx, first.RefreshHash, bad, now.Add(2*time.Minute))
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatal("logout left refresh active")
 	}
@@ -199,7 +215,7 @@ func TestRefreshLogoutRace(t *testing.T) {
 		results := make(chan error, 2)
 		go func() {
 			<-start
-			_, err := store.RotateSession(ctx, initial.RefreshHash, next, now)
+			_, err := store.RefreshSession(ctx, initial.RefreshHash, next, now)
 			results <- err
 		}()
 		go func() {
@@ -215,7 +231,8 @@ func TestRefreshLogoutRace(t *testing.T) {
 		if _, err := store.FindSessionByAccessHash(ctx, next.AccessHash, now); !errors.Is(err, ErrInvalidSession) {
 			t.Fatal("refresh reactivated a logged-out session")
 		}
-		if _, err := store.RotateSession(ctx, next.RefreshHash, initial, now); !errors.Is(err, ErrInvalidSession) {
+		_, err := store.RefreshSession(ctx, initial.RefreshHash, next, now)
+		if !errors.Is(err, ErrInvalidSession) {
 			t.Fatal("refresh after logout succeeded")
 		}
 	}
@@ -303,7 +320,8 @@ func TestDeviceLoginReplacementAndConcurrency(t *testing.T) {
 	if _, err := store.FindSessionByAccessHash(ctx, first.AccessHash, now); !errors.Is(err, ErrInvalidSession) {
 		t.Fatal("old access survived replacement")
 	}
-	_, err = store.RotateSession(ctx, first.RefreshHash, testSessionTokens("old-refresh", now), now)
+	oldRefresh := testSessionTokens("old-refresh", now)
+	_, err = store.RefreshSession(ctx, first.RefreshHash, oldRefresh, now)
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatal("old refresh survived replacement")
 	}
@@ -337,7 +355,7 @@ func TestReloginRacingRefresh(t *testing.T) {
 		results := make(chan error, 2)
 		go func() {
 			<-start
-			_, err := store.RotateSession(ctx, old.RefreshHash, refreshed, now)
+			_, err := store.RefreshSession(ctx, old.RefreshHash, refreshed, now)
 			results <- err
 		}()
 		go func() {

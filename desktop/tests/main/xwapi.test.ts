@@ -249,6 +249,10 @@ test("raw Auth results leave Account state and persistence with the caller", asy
   );
   assert.equal(refreshed.code, 0);
   assert.notEqual(
+    refreshed.data?.accessToken,
+    JSON.parse(contents).sessions[0].authenticated.tokens.accessToken,
+  );
+  assert.equal(
     refreshed.data?.refreshToken,
     JSON.parse(contents).sessions[0].authenticated.tokens.refreshToken,
   );

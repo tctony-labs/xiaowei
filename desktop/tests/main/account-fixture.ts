@@ -46,6 +46,7 @@ export async function authServer() {
     ready: true,
     revoked: false,
     refreshes: 0,
+    dropRefreshResponse: false,
     logins: 0,
     logouts: 0,
     deviceId: "",
@@ -65,11 +66,11 @@ export async function authServer() {
   const user = { userId: "u_testPublicIdentity1234", email: "user@example.test", createdAtMs: 1n };
   const access = new Set<string>();
 
-  function rotate() {
+  function issueTokens() {
     state.tokens = create(TokenPairSchema, {
       sessionId: state.tokens.sessionId || `s_${randomUUID()}`,
       accessToken: `access_${randomUUID()}`,
-      refreshToken: `refresh_${randomUUID()}`,
+      refreshToken: state.tokens.refreshToken || `refresh_${randomUUID()}`,
       accessExpiresAtMs: BigInt(state.now + 7_200_000),
       refreshExpiresAtMs: BigInt(state.now + 2_592_000_000),
     });
@@ -156,7 +157,8 @@ export async function authServer() {
       state.deviceId = String(body.device_id);
       access.clear();
       state.tokens.sessionId = "";
-      rotate();
+      state.tokens.refreshToken = "";
+      issueTokens();
       send(
         LoginResponseSchema,
         create(LoginResponseSchema, {
@@ -179,7 +181,12 @@ export async function authServer() {
         fail(10002, "登录已失效");
         return;
       }
-      rotate();
+      issueTokens();
+      if (state.dropRefreshResponse) {
+        state.dropRefreshResponse = false;
+        response.destroy();
+        return;
+      }
       send(RefreshResponseSchema, create(RefreshResponseSchema, { msg: "ok", data: state.tokens }));
     } else if (path === "/xiaowei/api/Auth/GetCurrentUser" || path === "/xiaowei/api/Auth/Logout") {
       if (state.revoked || !access.has(bearer?.replace(/^Bearer /, "") ?? "")) {

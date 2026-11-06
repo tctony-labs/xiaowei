@@ -113,7 +113,7 @@ func (s *Service) Login(ctx context.Context, email, password, deviceID, deviceNa
 	}
 
 	now := time.Now().UTC()
-	tokens, hashes, err := s.newTokens(now)
+	tokens, hashes, err := s.newTokens(now, "")
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -147,14 +147,16 @@ func unavailable(err error) error {
 	return fmt.Errorf("%w: %w", ErrUnavailable, err)
 }
 
-func (s *Service) newTokens(now time.Time) (Tokens, db.SessionTokens, error) {
+func (s *Service) newTokens(now time.Time, refresh string) (Tokens, db.SessionTokens, error) {
 	access, err := randomValue("at_", 32)
 	if err != nil {
 		return Tokens{}, db.SessionTokens{}, ErrInternal
 	}
-	refresh, err := randomValue("rt_", 32)
-	if err != nil {
-		return Tokens{}, db.SessionTokens{}, ErrInternal
+	if refresh == "" {
+		refresh, err = randomValue("rt_", 32)
+		if err != nil {
+			return Tokens{}, db.SessionTokens{}, ErrInternal
+		}
 	}
 	accessHash, _ := tokenHash(access, "at_")
 	refreshHash, _ := tokenHash(refresh, "rt_")
@@ -189,11 +191,11 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (Tokens, err
 		return Tokens{}, err
 	}
 	now := time.Now().UTC()
-	tokens, hashes, err := s.newTokens(now)
+	tokens, hashes, err := s.newTokens(now, refreshToken)
 	if err != nil {
 		return Tokens{}, err
 	}
-	tokens.SessionID, err = s.store.RotateSession(ctx, hash, hashes, now)
+	tokens.SessionID, err = s.store.RefreshSession(ctx, hash, hashes, now)
 	if errors.Is(err, db.ErrInvalidSession) {
 		return Tokens{}, ErrUnauthenticated
 	}

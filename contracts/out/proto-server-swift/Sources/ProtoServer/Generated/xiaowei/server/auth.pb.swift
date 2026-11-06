@@ -305,7 +305,7 @@ public nonisolated struct Xiaowei_Server_RefreshRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Successful refresh consumes this token. Reuse fails without revoking the session.
+  /// Reusable until expired or revoked; successful refresh renews its expiry without changing it.
   public var refreshToken: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

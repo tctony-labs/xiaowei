@@ -124,8 +124,8 @@ func (s *Store) FindSessionByAccessHash(ctx context.Context, hash []byte, now ti
 	return result, nil
 }
 
-func (s *Store) RotateSession(
-	ctx context.Context, oldHash []byte, tokens SessionTokens, now time.Time,
+func (s *Store) RefreshSession(
+	ctx context.Context, refreshHash []byte, tokens SessionTokens, now time.Time,
 ) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -133,18 +133,18 @@ func (s *Store) RotateSession(
 	}
 	defer rollbackSession(tx)
 
-	// UPDATE locks the row and rechecks the old hash after concurrent writers finish.
+	// UPDATE locks the row and rechecks expiry and revocation after concurrent writers finish.
 	var sessionID string
 	err = tx.QueryRow(ctx, `
-        UPDATE auth_sessions SET refresh_token_hash = $2, refresh_expires_at = $3, updated_at = $4
-        WHERE refresh_token_hash = $1 AND refresh_expires_at > $4 AND revoked_at IS NULL
+        UPDATE auth_sessions SET refresh_expires_at = $2, updated_at = $3
+        WHERE refresh_token_hash = $1 AND refresh_expires_at > $3 AND revoked_at IS NULL
         RETURNING session_id
-    `, oldHash, tokens.RefreshHash, tokens.RefreshExpiresAt, now).Scan(&sessionID)
+    `, refreshHash, tokens.RefreshExpiresAt, now).Scan(&sessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrInvalidSession
 	}
 	if err != nil {
-		return "", safeError("rotate refresh token", err)
+		return "", safeError("extend refresh token expiry", err)
 	}
 
 	if err := insertAccessToken(ctx, tx, sessionID, tokens, now); err != nil {

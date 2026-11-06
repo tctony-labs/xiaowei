@@ -94,7 +94,7 @@ func TestAuthCleanupRetentionBoundaries(t *testing.T) {
 		t.Fatal("cleanup invalidated a valid access token")
 	}
 	rotated := testSessionTokens("rotated", now)
-	if _, err := store.RotateSession(ctx, activeTokens.RefreshHash, rotated, now); err != nil {
+	if _, err := store.RefreshSession(ctx, activeTokens.RefreshHash, rotated, now); err != nil {
 		t.Fatal("cleanup invalidated a valid refresh token")
 	}
 	var retained bool

@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -333,13 +334,19 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 		&pb.RefreshRequest{RefreshToken: first.Tokens.AccessToken}),
 		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
 
-	rotated := new(pb.RefreshResponse)
+	refreshed := new(pb.RefreshResponse)
 	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
-		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}), 200, 0, rotated)
+		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}), 200, 0, refreshed)
+	retried := new(pb.RefreshResponse)
 	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
-		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}),
-		200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
-	for _, token := range []string{first.Tokens.AccessToken, rotated.Data.AccessToken} {
+		&pb.RefreshRequest{RefreshToken: first.Tokens.RefreshToken}), 200, 0, retried)
+	if refreshed.Data.RefreshToken != first.Tokens.RefreshToken ||
+		retried.Data.RefreshToken != first.Tokens.RefreshToken ||
+		refreshed.Data.AccessToken == first.Tokens.AccessToken ||
+		retried.Data.AccessToken == refreshed.Data.AccessToken {
+		t.Fatal("refresh changed the refresh token or reused an access token")
+	}
+	for _, token := range []string{first.Tokens.AccessToken, refreshed.Data.AccessToken} {
 		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
 			token, nil), 200, 0, nil)
 	}
@@ -349,32 +356,31 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 	for range 5 {
 		workers.Go(func() {
 			results <- requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
-				&pb.RefreshRequest{RefreshToken: rotated.Data.RefreshToken})
+				&pb.RefreshRequest{RefreshToken: refreshed.Data.RefreshToken})
 		})
 	}
 	workers.Wait()
 	close(results)
-	winner := new(pb.RefreshResponse)
-	successes := 0
+	concurrent := new(pb.RefreshResponse)
+	accessTokens := make(map[string]bool)
 	for result := range results {
-		decoded := new(pb.RefreshResponse)
-		if err := protojson.Unmarshal(result.body, decoded); err != nil {
-			t.Fatal("invalid refresh response")
+		requireAuthResponse(t, result, 200, 0, concurrent)
+		if concurrent.Data.RefreshToken != first.Tokens.RefreshToken ||
+			concurrent.Data.SessionId != first.Tokens.SessionId ||
+			accessTokens[concurrent.Data.AccessToken] {
+			t.Fatal("concurrent refresh changed the session or reused an access token")
 		}
-		if decoded.Code == 0 {
-			successes++
-			requireAuthResponse(t, result, 200, 0, winner)
-		} else {
-			requireAuthResponse(t, result, 200, int32(pb.ErrorCode_ERROR_CODE_UNAUTHENTICATED), nil)
-		}
+		accessTokens[concurrent.Data.AccessToken] = true
+		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
+			concurrent.Data.AccessToken, nil), 200, 0, nil)
 	}
-	if successes != 1 {
-		t.Fatal("HTTP concurrent refresh did not have exactly one winner")
+	if len(accessTokens) != 5 {
+		t.Fatal("concurrent refresh did not issue five access tokens")
 	}
 	current := new(pb.RefreshResponse)
 	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
-		&pb.RefreshRequest{RefreshToken: winner.Data.RefreshToken}), 200, 0, current)
-	if current.Data.RefreshExpiresAtMs < rotated.Data.RefreshExpiresAtMs {
+		&pb.RefreshRequest{RefreshToken: concurrent.Data.RefreshToken}), 200, 0, current)
+	if current.Data.RefreshExpiresAtMs < refreshed.Data.RefreshExpiresAtMs {
 		t.Fatal("refresh did not renew expiry")
 	}
 
@@ -388,7 +394,8 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 		requestAuth(fixture.address, "POST", "/api/Auth/Logout",
 			current.Data.AccessToken, nil), 200, 0, nil)
 	for _, token := range []string{
-		first.Tokens.AccessToken, rotated.Data.AccessToken, winner.Data.AccessToken, current.Data.AccessToken,
+		first.Tokens.AccessToken, refreshed.Data.AccessToken,
+		concurrent.Data.AccessToken, current.Data.AccessToken,
 	} {
 		requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
 			token, nil),
@@ -425,12 +432,52 @@ func TestAuthenticationHTTPAndRestart(t *testing.T) {
 	requireHTTPLog(t, logs, "/api/Auth/GetCurrentUser", 10002, "WARN")
 	for _, secret := range []string{
 		fixture.password, "user@example.com", first.Tokens.AccessToken, first.Tokens.RefreshToken,
-		rotated.Data.RefreshToken, winner.Data.RefreshToken, current.Data.RefreshToken, second.Tokens.AccessToken,
+		refreshed.Data.RefreshToken, concurrent.Data.RefreshToken,
+		current.Data.RefreshToken, second.Tokens.AccessToken,
 	} {
 		if strings.Contains(logs.String(), secret) {
 			t.Fatal("authentication logs exposed private data")
 		}
 	}
+}
+
+func TestRefreshRetryAfterLostResponse(t *testing.T) {
+	fixture := newAuthFixture(t)
+	startAuthServer(t, fixture)
+	initial := loginFixture(t, fixture)
+
+	// Forward the refresh, but close the client connection without delivering its response.
+	completed := make(chan authResponse, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		completed <- requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
+			&pb.RefreshRequest{RefreshToken: initial.Tokens.RefreshToken})
+		connection, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_ = connection.Close()
+	}))
+	t.Cleanup(proxy.Close)
+	lost := requestAuth(strings.TrimPrefix(proxy.URL, "http://"), "POST", "/api/Auth/Refresh", "",
+		&pb.RefreshRequest{RefreshToken: initial.Tokens.RefreshToken})
+	if lost.err == nil {
+		t.Fatal("client received the response intended to be lost")
+	}
+	issued := new(pb.RefreshResponse)
+	requireAuthResponse(t, <-completed, 200, 0, issued)
+
+	retried := new(pb.RefreshResponse)
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/Refresh", "",
+		&pb.RefreshRequest{RefreshToken: initial.Tokens.RefreshToken}), 200, 0, retried)
+	if retried.Data.RefreshToken != initial.Tokens.RefreshToken ||
+		retried.Data.SessionId != initial.Tokens.SessionId ||
+		retried.Data.AccessToken == initial.Tokens.AccessToken ||
+		retried.Data.AccessToken == issued.Data.AccessToken {
+		t.Fatal("refresh retry did not preserve the session and issue a new access token")
+	}
+	requireAuthResponse(t, requestAuth(fixture.address, "POST", "/api/Auth/GetCurrentUser",
+		retried.Data.AccessToken, nil), 200, 0, nil)
 }
 
 func TestAuthenticationExpiryRateLimitAndDatabaseFailure(t *testing.T) {

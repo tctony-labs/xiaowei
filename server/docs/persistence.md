@@ -20,7 +20,7 @@ YAML 必须存在且只能包含一个 document；未知字段、重复键和错
 | `database.password` | `XIAOWEI_DATABASE_PASSWORD` | 必填，不裁剪空白 |
 | `database.ssl_mode` | `XIAOWEI_DATABASE_SSL_MODE` | `verify-full`；只支持 `verify-full`／`disable` |
 
-认证有效期见 [会话与轮换](authentication.md#会话与轮换)，限流字段见 [限流配置](rate-limiting.md#配置)，可信代理见 [可信反向代理](deployment.md#可信反向代理)。初始化凭据只接受环境变量，不属于 YAML schema，具体规则见 [首次管理员初始化](authentication.md#首次管理员初始化)。完整示例维护在 [YAML 模板](../config/server.example.yaml) 和 [环境变量模板](../config/.env.example)。
+认证有效期见 [会话与续期](authentication.md#会话与续期)，限流字段见 [限流配置](rate-limiting.md#配置)，可信代理见 [可信反向代理](deployment.md#可信反向代理)。初始化凭据只接受环境变量，不属于 YAML schema，具体规则见 [首次管理员初始化](authentication.md#首次管理员初始化)。完整示例维护在 [YAML 模板](../config/server.example.yaml) 和 [环境变量模板](../config/.env.example)。
 
 服务端入口清除相关 libpq `PG*` 环境变量，数据库连接使用上述统一配置，不从环境中的其他数据库账号、passfile 或 TLS 参数补充配置。`verify-full` 使用系统信任根、校验服务器名，最低 TLS 1.2；本地开发和同机私有 Compose 网络的模板显式使用 `disable`。
 

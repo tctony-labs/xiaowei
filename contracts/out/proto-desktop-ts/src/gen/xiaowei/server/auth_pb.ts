@@ -297,7 +297,7 @@ export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
  */
 export type RefreshRequest = Message<"xiaowei.server.RefreshRequest"> & {
   /**
-   * Successful refresh consumes this token. Reuse fails without revoking the session.
+   * Reusable until expired or revoked; successful refresh renews its expiry without changing it.
    *
    * @generated from field: string refresh_token = 1;
    */
@@ -469,7 +469,8 @@ export const Auth: GenService<{
     output: typeof LoginResponseSchema;
   },
   /**
-   * Rotates refresh credentials atomically; existing access tokens keep their own expiry.
+   * Issues a new access token and renews the unchanged refresh token's expiry atomically.
+   * Existing access tokens keep their own expiry.
    *
    * @generated from rpc xiaowei.server.Auth.Refresh
    */
