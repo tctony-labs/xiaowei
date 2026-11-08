@@ -88,7 +88,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .agent-message-blocks:empty,
@@ -517,7 +517,6 @@
 }
 
 .agent-interaction {
-  margin-block: 8px;
   min-width: 0;
 }
 
