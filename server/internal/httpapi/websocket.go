@@ -85,7 +85,6 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Authenticate: func(ctx context.Context, credential string) (context.Context, error) {
 			identity, err := h.service.Authenticate(ctx, credential)
 			if err != nil {
-				slog.Warn("WebSocket authentication rejected")
 				if errors.Is(err, auth.ErrUnauthenticated) {
 					return nil, ws.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
 				}
@@ -117,24 +116,27 @@ func (h *ConnectionHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			h.mu.Unlock()
 			if closed {
-				peer.Close()
+				peer.CloseWithReason("server_shutdown", nil)
 				return
 			}
 			check, cancel := context.WithTimeout(peer.Context(), 3*time.Second)
 			_, err := h.service.Authenticate(check, token)
 			cancel()
 			if err != nil {
-				peer.Close()
+				reason := ws.Failure("OWNER_UNAVAILABLE", "认证服务暂不可用")
+				if errors.Is(err, auth.ErrUnauthenticated) {
+					reason = ws.Failure("UNAUTHORIZED", "登录凭据无效或已过期")
+				}
+				peer.CloseWithReason("opened_authentication", reason)
 				return
 			}
-			slog.Info("WebSocket connected", "user_id", identity.User.PublicID, "session_id", identity.SessionID)
+			slog.Info("WebSocket connected", "connection_id", peer.ConnectionID(),
+				"user_id", identity.User.PublicID, "session_id", identity.SessionID)
 		},
 		Closed: func(peer *ws.Peer) {
 			h.mu.Lock()
-			identity := h.peers[peer]
 			delete(h.peers, peer)
 			h.mu.Unlock()
-			slog.Info("WebSocket disconnected", "user_id", identity.User.PublicID, "session_id", identity.SessionID)
 		},
 	})
 }
@@ -169,10 +171,10 @@ func (h *ConnectionHub) Close() {
 	}
 	h.mu.Unlock()
 	h.unsubscribe()
+	for _, peer := range peers {
+		peer.CloseWithReason("server_shutdown", nil)
+	}
 	for _, cancel := range pending {
 		cancel()
-	}
-	for _, peer := range peers {
-		peer.Close()
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -49,6 +51,11 @@ type Peer struct {
 	queuedBytes   int
 	writes        chan queuedWrite
 	closeOnce     sync.Once
+	openedAt      time.Time
+	lastReceived  time.Time
+	lastSent      time.Time
+	closeSource   string
+	closeError    error
 }
 
 // ServeHTTP keeps upgraded sockets owned by the caller's server lifetime.
@@ -62,23 +69,31 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request, options Options) {
 	handshake, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	kind, data, err := socket.Read(handshake)
 	if err != nil || kind != websocket.MessageBinary {
+		slog.Warn("WebSocket handshake failed", "source", "authenticate_read",
+			"error", socketLogError(err),
+			"message_type", kind, "timeout", errors.Is(handshake.Err(), context.DeadlineExceeded))
 		cancel()
 		return
 	}
 	first, err := decode(data)
 	if err != nil || first.Op != "authenticate" || first.Generation != "" || first.Token == "" ||
 		first.Manifest == nil || len(first.payload) != 0 || len(first.options) != 0 {
+		slog.Warn("WebSocket handshake failed", "source", "authenticate_frame")
 		cancel()
 		return
 	}
 	// The published handshake carries an empty client manifest. All API interfaces are served here.
 	if len(first.Manifest.Routes) != 0 || len(first.Manifest.Events) != 0 {
+		slog.Warn("WebSocket handshake failed", "source", "client_manifest")
 		cancel()
 		return
 	}
 	authenticated, err := options.Authenticate(handshake, first.Token)
 	first.Token = ""
 	if err != nil {
+		reason := protocolError(err)
+		slog.Warn("WebSocket handshake failed", "source", "authenticate",
+			"code", reason.Code, "error", reason.Message)
 		payload, _ := encode(frame{header: header{Version: 1, Op: "ready", Error: protocolError(err)}})
 		_ = socket.Write(handshake, websocket.MessageBinary, payload)
 		cancel()
@@ -90,10 +105,13 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request, options Options) {
 	defer stop()
 	generation := make([]byte, 16)
 	if _, err := rand.Read(generation); err != nil {
+		slog.Error("WebSocket handshake failed", "source", "generation", "error", err)
 		return
 	}
+	now := time.Now()
 	peer := &Peer{ctx: ctx, cancel: stop, socket: socket, runtime: options.Runtime,
 		generation: hex.EncodeToString(generation), check: options.Check,
+		openedAt: now, lastReceived: now, lastSent: now,
 		pending: map[string]chan frame{}, serving: map[string]context.CancelFunc{},
 		streams: map[string]*streamState{}, opening: map[string]context.CancelFunc{},
 		subscriptions: map[string]*eventSubscription{}, writes: make(chan queuedWrite, limit+32)}
@@ -109,7 +127,7 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request, options Options) {
 	go func() {
 		select {
 		case <-r.Context().Done():
-			peer.Close()
+			peer.CloseWithReason("request_cancelled", r.Context().Err())
 		case <-ctx.Done():
 		}
 	}()
@@ -118,6 +136,9 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request, options Options) {
 }
 
 func (p *Peer) Context() context.Context { return p.ctx }
+
+// ConnectionID is the existing wire generation, shared with the authenticated client.
+func (p *Peer) ConnectionID() string { return p.generation }
 
 func (p *Peer) monitor() {
 	ticker := time.NewTicker(5 * time.Second)
@@ -143,7 +164,7 @@ func (p *Peer) enqueue(f frame, done chan error) {
 	f.Generation = p.generation
 	data, err := encode(f)
 	if err != nil {
-		p.Close()
+		p.CloseWithReason("encode", err)
 		return
 	}
 	p.mu.Lock()
@@ -153,7 +174,7 @@ func (p *Peer) enqueue(f frame, done chan error) {
 	}
 	if p.queuedBytes+len(data) > 2*MaxPayload {
 		p.mu.Unlock()
-		p.Close()
+		p.CloseWithReason("send_buffer_full", Failure("RESOURCE_EXHAUSTED", "send buffer full"))
 		return
 	}
 	p.queuedBytes += len(data)
@@ -162,7 +183,7 @@ func (p *Peer) enqueue(f frame, done chan error) {
 		p.mu.Unlock()
 	default:
 		p.mu.Unlock()
-		p.Close()
+		p.CloseWithReason("send_queue_full", Failure("RESOURCE_EXHAUSTED", "send queue full"))
 	}
 }
 
@@ -177,12 +198,15 @@ func (p *Peer) writeLoop() {
 			cancel()
 			p.mu.Lock()
 			p.queuedBytes -= len(item.data)
+			if err == nil {
+				p.lastSent = time.Now()
+			}
 			p.mu.Unlock()
 			if item.done != nil {
 				item.done <- err
 			}
 			if err != nil {
-				p.Close()
+				p.CloseWithReason("write", err)
 				return
 			}
 		}
@@ -197,12 +221,30 @@ func (p *Peer) readLoop() {
 	for {
 		ctx, cancel := context.WithTimeout(p.ctx, 45*time.Second)
 		kind, data, err := p.socket.Read(ctx)
+		readErr := ctx.Err()
 		cancel()
-		if err != nil || kind != websocket.MessageBinary {
+		if err != nil {
+			source := "read"
+			if errors.Is(readErr, context.DeadlineExceeded) {
+				source = "read_timeout"
+			}
+			p.CloseWithReason(source, err)
+			return
+		}
+		p.mu.Lock()
+		p.lastReceived = time.Now()
+		p.mu.Unlock()
+		if kind != websocket.MessageBinary {
+			p.CloseWithReason("message_type", Failure("INCOMPATIBLE", "expected binary message"))
 			return
 		}
 		f, err := decode(data)
-		if err != nil || f.Generation != p.generation {
+		if err != nil {
+			p.CloseWithReason("decode", err)
+			return
+		}
+		if f.Generation != p.generation {
+			p.CloseWithReason("generation_mismatch", Failure("INCOMPATIBLE", "generation mismatch"))
 			return
 		}
 		if f.Op == "result" {
@@ -223,6 +265,15 @@ func (p *Peer) readLoop() {
 		full := (!isControl && p.receiving >= limit) || (isControl && p.controls >= 32)
 		if !strings.HasPrefix(f.ID, "c:") || duplicate || full {
 			p.mu.Unlock()
+			source := "invalid_request_id"
+			reason := Failure("INCOMPATIBLE", "invalid request ID")
+			if duplicate {
+				source = "duplicate_request_id"
+			} else if full {
+				source = "request_limit"
+				reason = Failure("RESOURCE_EXHAUSTED", "request table full")
+			}
+			p.CloseWithReason(source, reason)
 			return
 		}
 		ctx, cancel = context.WithCancel(p.ctx)
@@ -527,6 +578,13 @@ func hexID(id uint64) string {
 
 // Reject reports a safe protocol reason before terminating the connection.
 func (p *Peer) Reject(reason error) {
+	// Preserve the local trigger if the client closes as soon as it receives connection.end.
+	p.mu.Lock()
+	if p.closeSource == "" {
+		p.closeSource = "rejected"
+		p.closeError = protocolError(reason)
+	}
+	p.mu.Unlock()
 	data, err := encode(frame{header: header{Version: 1, Generation: p.generation,
 		Op: "connection.end", Error: protocolError(reason)}})
 	if err == nil {
@@ -534,12 +592,54 @@ func (p *Peer) Reject(reason error) {
 		_ = p.socket.Write(ctx, websocket.MessageBinary, data)
 		cancel()
 	}
-	p.Close()
+	p.CloseWithReason("rejected", protocolError(reason))
 }
 
 func (p *Peer) Close() {
+	p.CloseWithReason("local_close", nil)
+}
+
+func socketLogError(err error) error {
+	if status := websocket.CloseStatus(err); status != -1 {
+		// Close reasons are arbitrary peer text, not trusted diagnostic content.
+		return fmt.Errorf("received WebSocket close frame code=%d", status)
+	}
+	return err
+}
+
+// CloseWithReason logs only the first cause, before cancellation can mask the transport error.
+func (p *Peer) CloseWithReason(source string, err error) {
 	p.closeOnce.Do(func() {
 		p.mu.Lock()
+		if p.closeSource != "" {
+			source, err = p.closeSource, p.closeError
+		}
+		level := slog.LevelInfo
+		status := websocket.CloseStatus(err)
+		if err != nil && !errors.Is(err, context.Canceled) &&
+			status != websocket.StatusNormalClosure && status != websocket.StatusGoingAway &&
+			status != websocket.StatusNoStatusRcvd {
+			level = slog.LevelWarn
+		}
+		fields := []any{
+			"connection_id", p.generation, "source", source,
+			"duration_ms", time.Since(p.openedAt).Milliseconds(),
+			"last_received_ms", time.Since(p.lastReceived).Milliseconds(),
+			"last_sent_ms", time.Since(p.lastSent).Milliseconds(),
+			"pending_requests", len(p.pending), "active_requests", len(p.serving),
+			"queued_bytes", p.queuedBytes,
+		}
+		if err != nil {
+			fields = append(fields, "error", socketLogError(err))
+		}
+		if status != -1 {
+			fields = append(fields, "ws_close_code", int(status))
+		}
+		var reason *Error
+		if errors.As(err, &reason) {
+			fields = append(fields, "code", reason.Code)
+		}
+		slog.Log(p.ctx, level, "WebSocket disconnected", fields...)
 		p.ended = true
 		p.cancel()
 		for _, cancel := range p.serving {

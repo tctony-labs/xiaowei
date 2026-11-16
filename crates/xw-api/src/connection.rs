@@ -90,10 +90,10 @@ impl Connection {
             return state.generation;
         }
         state.generation += 1;
-        state.cancellation.cancel();
         if let Some(peer) = state.peer.take() {
-            peer.close();
+            peer.close_for("target_changed");
         }
+        state.cancellation.cancel();
         state.key = key;
         state.target = target.clone();
         state.cancellation = CancellationToken::new();
@@ -180,13 +180,16 @@ impl Connection {
             } else {
                 return;
             }
+            let started = std::time::Instant::now();
             let connected =
                 Peer::connect(url.as_str(), &session.access_token, cancel.clone()).await;
             if cancel.is_cancelled() {
                 return;
             }
+            let mut connection_id = String::new();
             let reason = match connected {
                 Ok(peer) => {
+                    connection_id.clone_from(&peer.generation);
                     let Some(connection) = weak.upgrade() else {
                         return;
                     };
@@ -197,23 +200,46 @@ impl Connection {
                         Some(peer.clone()),
                     );
                     drop(connection);
-                    log::info!("Server WebSocket connected generation={generation}");
+                    log::info!(
+                        "Server WebSocket connected generation={} connection_id={} \
+                         server={} connect_ms={}",
+                        generation,
+                        connection_id,
+                        server,
+                        started.elapsed().as_millis(),
+                    );
                     failures = 0;
                     let reason = loop {
                         tokio::select! {
                             biased;
-                            _ = cancel.cancelled() => { peer.close(); return; }
+                            _ = cancel.cancelled() => {
+                                peer.close_for("target_cancelled");
+                                return;
+                            }
                             reason = peer.closed() => break reason,
                             _ = tokio::time::sleep(std::time::Duration::from_secs(15)) => {
                                 if crate::now_ms() >= session.access_expires_at_ms {
-                                    peer.close();
+                                    peer.close_for("credentials_expired");
                                     break crate::wire::WireError::unavailable();
                                 }
                                 let result = tokio::select! {
-                                    _ = cancel.cancelled() => { peer.close(); return; }
+                                    _ = cancel.cancelled() => {
+                                        peer.close_for("target_cancelled");
+                                        return;
+                                    }
                                     result = peer.ping() => result,
                                 };
-                                if result.is_err() { peer.close(); }
+                                if let Err(error) = result {
+                                    log::warn!(
+                                        "Server WebSocket heartbeat failed connection_id={} \
+                                         server={} code={} msg={:?}",
+                                        connection_id,
+                                        server,
+                                        error.code,
+                                        error.message,
+                                    );
+                                    peer.close_for("heartbeat_failed");
+                                }
                             }
                         }
                     };
@@ -232,8 +258,11 @@ impl Connection {
                     None,
                 );
                 log::warn!(
-                    "Server WebSocket authentication rejected generation={} code={} msg={:?}",
+                    "Server WebSocket authentication rejected generation={} connection_id={} \
+                     server={} code={} msg={:?}",
                     generation,
+                    connection_id,
+                    server,
                     reason.code,
                     reason.message
                 );
@@ -251,9 +280,13 @@ impl Connection {
             // Per-attempt jitter prevents all devices reconnecting in lockstep.
             let jitter = (uuid::Uuid::new_v4().as_u128() as u64) % ((wait_ms / 4).min(1000) + 1);
             log::warn!(
-                "Server WebSocket disconnected generation={} retry_ms={} code={} msg={:?}",
+                "Server WebSocket disconnected generation={} connection_id={} server={} \
+                 retry_ms={} jitter_ms={} code={} msg={:?}",
                 generation,
+                connection_id,
+                server,
                 wait_ms,
+                jitter,
                 reason.code,
                 reason.message
             );
@@ -317,10 +350,10 @@ impl Connection {
                 return;
             }
             state.closed = true;
-            state.cancellation.cancel();
             if let Some(peer) = state.peer.take() {
-                peer.close();
+                peer.close_for("client_shutdown");
             }
+            state.cancellation.cancel();
             self.updates.send_replace(Snapshot {
                 generation: state.generation,
                 status: Status::Disconnected,
@@ -337,9 +370,9 @@ impl Connection {
 impl Drop for Connection {
     fn drop(&mut self) {
         let state = self.state.get_mut().unwrap();
-        state.cancellation.cancel();
         if let Some(peer) = state.peer.take() {
-            peer.close();
+            peer.close_for("client_dropped");
         }
+        state.cancellation.cancel();
     }
 }

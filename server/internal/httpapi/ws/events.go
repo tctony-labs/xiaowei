@@ -77,7 +77,7 @@ func (p *Peer) subscribeLocal(ctx context.Context, f frame) error {
 					if life.Err() != nil {
 						return
 					}
-					p.Close()
+					p.CloseWithReason("event_delivery", err)
 					return
 				}
 			}
@@ -119,7 +119,7 @@ func (p *Peer) Publish(event string, payload []byte, matches func([]byte) bool) 
 		}
 		if len(subscription.queue) >= 16 || subscription.bytes+len(payload) > 4*1024*1024 {
 			subscription.mu.Unlock()
-			p.Close()
+			p.CloseWithReason("event_queue_full", Failure("RESOURCE_EXHAUSTED", "event queue full"))
 			return Failure("RESOURCE_EXHAUSTED", "event queue full")
 		}
 		subscription.queue = append(subscription.queue, append([]byte(nil), payload...))

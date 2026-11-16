@@ -72,7 +72,9 @@ func (p *Peer) EndAfterReply(ctx context.Context) error {
 		return Failure("CANCELLED", "request already ended")
 	}
 	p.terminal = true
-	completion.callbacks = append(completion.callbacks, p.Close)
+	completion.callbacks = append(completion.callbacks, func() {
+		p.CloseWithReason("terminal_reply", nil)
+	})
 	return nil
 }
 
@@ -105,11 +107,11 @@ func (p *Peer) sendReply(ctx context.Context, response frame) {
 	select {
 	case err := <-written:
 		if err != nil {
-			p.Close()
+			p.CloseWithReason("reply_write", err)
 		}
 	case <-ctx.Done():
 	case <-p.ctx.Done():
 	case <-timer.C:
-		p.Close()
+		p.CloseWithReason("reply_timeout", context.DeadlineExceeded)
 	}
 }

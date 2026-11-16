@@ -6,6 +6,7 @@ use std::{
         Arc, Mutex, Weak,
         atomic::{AtomicUsize, Ordering},
     },
+    time::Instant,
 };
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio_tungstenite::{
@@ -36,6 +37,8 @@ struct State {
     serving: HashMap<String, CancellationToken>,
     sequence: u64,
     reason: Option<WireError>,
+    last_received: Instant,
+    last_sent: Instant,
 }
 
 pub struct Peer {
@@ -45,10 +48,13 @@ pub struct Peer {
     outgoing: mpsc::Sender<Outgoing>,
     queued: Arc<AtomicUsize>,
     closed: CancellationToken,
+    opened_at: Instant,
 }
 
 impl Peer {
     pub async fn connect(url: &str, token: &str, cancel: CancellationToken) -> Result<Arc<Self>> {
+        let started = Instant::now();
+        let mut phase = "connect";
         let work = async {
             let config = WebSocketConfig::default()
                 .max_message_size(Some(
@@ -63,10 +69,12 @@ impl Peer {
             let mut auth = Header::new("authenticate");
             auth.token = Some(token.into());
             auth.manifest = Some(Manifest::default());
+            phase = "authenticate_send";
             socket
                 .send(Message::Binary(wire::encode(auth, &[], &[])?.into()))
                 .await
                 .map_err(|error| WireError::new("OWNER_UNAVAILABLE", &error.to_string()))?;
+            phase = "ready_read";
             let bytes = match socket.next().await {
                 Some(Ok(Message::Binary(bytes))) => bytes,
                 Some(Err(error)) => {
@@ -74,6 +82,7 @@ impl Peer {
                 }
                 _ => return Err(WireError::unavailable()),
             };
+            phase = "ready_decode";
             let ready = wire::decode(&bytes)?.header;
             if let Some(error) = ready.error {
                 return Err(error);
@@ -82,9 +91,11 @@ impl Peer {
                 return Err(WireError::unavailable());
             }
             let manifest = ready.manifest.ok_or_else(WireError::unavailable)?;
+            phase = "manifest";
             manifest.validate()?;
             let (outgoing, mut rx) = mpsc::channel::<Outgoing>(wire::LIMIT + 32);
             let closed = CancellationToken::new();
+            let now = Instant::now();
             let peer = Arc::new(Self {
                 generation: ready.generation,
                 manifest,
@@ -95,10 +106,13 @@ impl Peer {
                     serving: HashMap::new(),
                     sequence: 0,
                     reason: None,
+                    last_received: now,
+                    last_sent: now,
                 }),
                 outgoing,
                 queued: Arc::new(AtomicUsize::new(0)),
                 closed: closed.clone(),
+                opened_at: now,
             });
             let (mut write, mut read) = socket.split();
             let weak = Arc::downgrade(&peer);
@@ -119,17 +133,20 @@ impl Peer {
                             };
                             if let Err(error) = sent {
                                 if let Some(peer) = weak.upgrade() {
-                                    peer.close_with(WireError::new(
+                                    peer.close_with("write", WireError::new(
                                         "OWNER_UNAVAILABLE", &error.to_string(),
                                     ));
                                 }
                                 break;
                             }
+                            if let Some(peer) = weak.upgrade() {
+                                peer.state.lock().unwrap().last_sent = Instant::now();
+                            }
                         }
                     }
                 }
                 if let Some(peer) = weak.upgrade() {
-                    peer.close();
+                    peer.close_for("writer_stopped");
                 }
                 // A broken socket must not keep shutdown or application exit waiting.
                 let _ = tokio::time::timeout(std::time::Duration::from_millis(250), write.close())
@@ -144,37 +161,76 @@ impl Peer {
                         message = read.next() => message,
                     };
                     let Some(peer) = weak.upgrade() else { break };
+                    if matches!(message, Some(Ok(_))) {
+                        peer.state.lock().unwrap().last_received = Instant::now();
+                    }
                     match message {
                         Some(Ok(Message::Binary(bytes))) => {
                             if let Err(error) = peer.receive(&bytes) {
-                                peer.close_with(error);
+                                peer.close_with("decode", error);
                                 break;
                             }
                         }
                         Some(Ok(Message::Ping(_) | Message::Pong(_))) => {}
                         Some(Err(error)) => {
-                            peer.close_with(WireError::new(
-                                "OWNER_UNAVAILABLE",
-                                &error.to_string(),
-                            ));
+                            peer.close_with(
+                                "read",
+                                WireError::new("OWNER_UNAVAILABLE", &error.to_string()),
+                            );
                             break;
                         }
-                        _ => break,
+                        Some(Ok(Message::Close(frame))) => {
+                            let code = frame.map(|frame| u16::from(frame.code));
+                            peer.close_with(
+                                "remote_close",
+                                WireError::new(
+                                    "OWNER_UNAVAILABLE",
+                                    &format!("WebSocket close frame code={code:?}"),
+                                ),
+                            );
+                            break;
+                        }
+                        None => {
+                            peer.close_for("eof");
+                            break;
+                        }
+                        Some(Ok(_)) => {
+                            peer.close_for("message_type");
+                            break;
+                        }
                     }
                 }
                 if let Some(peer) = weak.upgrade() {
-                    peer.close();
+                    peer.close_for("reader_stopped");
                 }
             });
             Ok(peer)
         };
-        tokio::select! {
+        let result = tokio::select! {
             biased;
             _ = cancel.cancelled() => Err(WireError::new("CANCELLED", "connection cancelled")),
             result = tokio::time::timeout(std::time::Duration::from_secs(5), work) => {
-                result.map_err(|_| WireError::new("TIMEOUT", "authentication timed out"))?
+                result.unwrap_or_else(|_| {
+                    Err(WireError::new("TIMEOUT", "authentication timed out"))
+                })
             }
+        };
+        if let Err(error) = &result {
+            let level = if error.code == "CANCELLED" {
+                log::Level::Debug
+            } else {
+                log::Level::Warn
+            };
+            log::log!(
+                level,
+                "Server WebSocket connection failed phase={} duration_ms={} code={} msg={:?}",
+                phase,
+                started.elapsed().as_millis(),
+                error.code,
+                error.message,
+            );
         }
+        result
     }
 
     pub fn can_invoke(&self, route: &Route) -> bool {
@@ -217,7 +273,7 @@ impl Peer {
         };
         if prior + len > 2 * wire::MAX_PAYLOAD || self.outgoing.try_send(outgoing).is_err() {
             // outgoing's Drop releases the byte quota on either failure path.
-            self.close();
+            self.close_for("send_buffer_full");
             return Err(WireError::new(
                 "RESOURCE_EXHAUSTED",
                 "WebSocket send buffer full",
@@ -328,7 +384,10 @@ impl Peer {
             return Err(WireError::unavailable());
         }
         if h.op == "connection.end" {
-            self.close_with(h.error.clone().unwrap_or_else(WireError::unavailable));
+            self.close_with(
+                "connection_end",
+                h.error.clone().unwrap_or_else(WireError::unavailable),
+            );
             return Ok(());
         }
         if h.op == "result" {
@@ -417,7 +476,7 @@ impl Peer {
                         peer.state.lock().unwrap().serving.remove(&id);
                         response.error = result.err();
                         if peer.send(response, &[], &[]).is_err() {
-                            peer.close();
+                            peer.close_for("event_reply");
                         }
                     }
                 });
@@ -534,14 +593,33 @@ impl Peer {
     }
 
     pub fn close(&self) {
-        self.close_with(WireError::unavailable());
+        self.close_for("local_close");
     }
 
-    fn close_with(&self, reason: WireError) {
+    pub(crate) fn close_for(&self, source: &'static str) {
+        self.close_with(source, WireError::unavailable());
+    }
+
+    fn close_with(&self, source: &'static str, reason: WireError) {
         let mut state = self.state.lock().unwrap();
         if self.closed.is_cancelled() {
             return;
         }
+        // Log the first cause before cancellation wakes the other socket task.
+        log::info!(
+            "Server WebSocket closed connection_id={} source={} duration_ms={} \
+             last_received_ms={} last_sent_ms={} pending_requests={} queued_bytes={} \
+             code={} msg={:?}",
+            self.generation,
+            source,
+            self.opened_at.elapsed().as_millis(),
+            state.last_received.elapsed().as_millis(),
+            state.last_sent.elapsed().as_millis(),
+            state.pending.len(),
+            self.queued.load(Ordering::Acquire),
+            reason.code,
+            reason.message,
+        );
         state.reason = Some(reason.clone());
         self.closed.cancel();
         for (_, pending) in state.pending.drain() {
