@@ -1654,10 +1654,20 @@ mod bash {
                     })
                     .await
                     .unwrap();
-                    assert_eq!(result.status, AgentRunStatus::Interrupted as i32);
-                    assert_eq!(tools(&result)[0].status, AgentToolStatus::Cancelled as i32);
-                    assert!(tools(&result)[0].output.contains("partial"));
-                    assert_eq!(tools(&result)[1].status, AgentToolStatus::Skipped as i32);
+                    let calls = tools(&result);
+                    assert_eq!(calls.len(), 2, "{result:?}");
+                    match AgentToolStatus::try_from(calls[0].status).unwrap() {
+                        AgentToolStatus::Cancelled => {
+                            assert_eq!(result.status, AgentRunStatus::Interrupted as i32);
+                            assert!(calls[0].output.contains("partial"));
+                        }
+                        AgentToolStatus::ResultUnknown => {
+                            assert_eq!(result.status, AgentRunStatus::Failed as i32);
+                            assert!(calls[0].output.starts_with("Bash 执行结果未知："));
+                        }
+                        status => panic!("unexpected Bash status {status:?}: {result:?}"),
+                    }
+                    assert_eq!(calls[1].status, AgentToolStatus::Skipped as i32);
                 }
                 "delete" => {
                     let current = service
@@ -1695,17 +1705,209 @@ mod bash {
             if action != "delete" {
                 let saved = entries(root.path());
                 assert!(xw_agent::inspect_recovery(&saved).unwrap().tools.is_empty());
-                assert_eq!(
-                    saved
-                        .iter()
-                        .filter(|e| matches!(&e.payload,
-                            EntryPayload::ToolOutcome(o)
-                                if o.status == xw_agent_types::ToolStatus::Cancelled
-                        ))
-                        .count(),
-                    1
-                );
+                let outcomes = saved
+                    .iter()
+                    .filter_map(|entry| match &entry.payload {
+                        EntryPayload::ToolOutcome(outcome) => Some(outcome),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(outcomes.len(), 2, "action={action}: {outcomes:?}");
+                match outcomes[0].status {
+                    xw_agent_types::ToolStatus::Cancelled => {}
+                    xw_agent_types::ToolStatus::ResultUnknown => {
+                        let error = outcomes[0]
+                            .error
+                            .as_ref()
+                            .expect("unknown outcome has a cause");
+                        assert_eq!(error.code, "tool_result_unknown");
+                    }
+                    status => panic!("unexpected Bash status {status:?}, action={action}"),
+                }
+                assert_eq!(outcomes[1].status, xw_agent_types::ToolStatus::Skipped);
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn unknown_bash_outcome_skips_remaining_tools_and_allows_follow_up_after_reopen() {
+        use std::os::unix::process::CommandExt;
+
+        for cancel in [true, false] {
+            let root = tempfile::tempdir().unwrap();
+            let cwd = tempfile::tempdir().unwrap();
+            let arguments = serde_json::json!({
+                "description": "finish with an unreaped group member",
+                "command": concat!(
+                    "trap '' TERM; echo $$ > shell.pid; printf started >> executions; ",
+                    "sleep 30 & echo $! > child.pid; printf partial; ",
+                    "while [ ! -f release ]; do /bin/sleep 0.01; done",
+                ),
+            })
+            .to_string();
+            let host = Host::new(vec![
+                message(
+                    &[
+                        ("Bash", &arguments),
+                        ("Write", r#"{"path":"must-not-run","contents":"bad"}"#),
+                    ],
+                    "",
+                ),
+                message(&[], "继续对话"),
+                message(&[], "重开后继续对话"),
+            ]);
+            let service = AgentService::open(host.clone(), root.path().into())
+                .await
+                .unwrap();
+            let session = create(&service, Some(cwd.path().to_str().unwrap().into())).await;
+            let mut events = service
+                .subscribe_session(SubscribeSessionRequest {
+                    session_id: session.session_id.clone(),
+                })
+                .await
+                .unwrap();
+            let accepted = start(&service, &session).await;
+            let pid = child_pid(cwd.path()).await;
+            let group_id = std::fs::read_to_string(cwd.path().join("shell.pid"))
+                .unwrap()
+                .trim()
+                .parse::<i32>()
+                .unwrap();
+
+            // The test owns this member so it can hold the zombie after Bash is reaped.
+            let mut unreaped = std::process::Command::new("/usr/bin/true")
+                .process_group(group_id)
+                .spawn()
+                .unwrap();
+            let zombie_ready = tokio::time::timeout(Duration::from_secs(5), async {
+                loop {
+                    let output = std::process::Command::new("/bin/ps")
+                        .args(["-o", "stat=", "-p", &unreaped.id().to_string()])
+                        .output()
+                        .unwrap();
+                    if String::from_utf8_lossy(&output.stdout)
+                        .trim()
+                        .starts_with('Z')
+                    {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await;
+
+            if cancel {
+                service
+                    .interrupt_run(InterruptRunRequest {
+                        session_id: session.session_id.clone(),
+                        run_id: accepted.run_id,
+                    })
+                    .unwrap();
+            } else {
+                std::fs::write(cwd.path().join("release"), "").unwrap();
+            }
+            let completed = tokio::time::timeout(Duration::from_secs(5), async {
+                loop {
+                    if let Some(agent_event::Payload::RunCompleted(end)) =
+                        events.recv().await.unwrap().unwrap().payload
+                    {
+                        break end.run.unwrap();
+                    }
+                }
+            })
+            .await;
+            let reaped = unreaped.wait();
+            zombie_ready.unwrap();
+            assert!(reaped.unwrap().success());
+            assert_child_gone(&pid);
+            assert!(!cwd.path().join("must-not-run").exists());
+
+            let completed = completed.unwrap();
+            assert_eq!(completed.status, AgentRunStatus::Failed as i32);
+            let calls = tools(&completed);
+            assert_eq!(calls.len(), 2, "cancel={cancel}: {completed:?}");
+            assert_eq!(calls[0].status, AgentToolStatus::ResultUnknown as i32);
+            assert!(calls[0].output.contains("Bash 进程组清理失败"));
+            assert_eq!(calls[1].status, AgentToolStatus::Skipped as i32);
+            assert_eq!(host.requests.lock().unwrap().len(), 1);
+
+            let saved = entries(root.path());
+            let recovery = xw_agent::inspect_recovery(&saved).unwrap();
+            assert!(recovery.tools.is_empty(), "{recovery:?}");
+            assert!(recovery.runs.is_empty(), "{recovery:?}");
+            assert!(recovery.turns.is_empty(), "{recovery:?}");
+            let outcomes = saved
+                .iter()
+                .filter_map(|entry| match &entry.payload {
+                    EntryPayload::ToolOutcome(outcome) => Some(outcome),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(outcomes.len(), 2);
+            assert_eq!(
+                outcomes[0].status,
+                xw_agent_types::ToolStatus::ResultUnknown
+            );
+            assert_eq!(outcomes[1].status, xw_agent_types::ToolStatus::Skipped);
+            let error = outcomes[0]
+                .error
+                .as_ref()
+                .expect("unknown outcome has a cause");
+            assert_eq!(error.code, "tool_result_unknown");
+            assert!(error.message.contains("Bash 进程组清理失败"));
+
+            let follow_up = run(&service, &session).await;
+            assert_eq!(follow_up.status, AgentRunStatus::Completed as i32);
+            assert!(tools(&follow_up).is_empty());
+            assert_eq!(host.requests.lock().unwrap().len(), 2);
+            service.close().await.unwrap();
+
+            let service = AgentService::open(host.clone(), root.path().into())
+                .await
+                .unwrap();
+            let restored = service
+                .read_session(ReadSessionRequest {
+                    session_id: session.session_id.clone(),
+                    include_runs: true,
+                })
+                .await
+                .unwrap()
+                .session
+                .unwrap();
+            assert_eq!(restored.runs[0].items, completed.items);
+            let follow_up = run(&service, &restored).await;
+            assert_eq!(follow_up.status, AgentRunStatus::Completed as i32);
+            assert!(tools(&follow_up).is_empty());
+            service.close().await.unwrap();
+
+            let requests = host.requests.lock().unwrap();
+            assert_eq!(requests.len(), 3);
+            for request in &requests[1..] {
+                let results = request
+                    .messages
+                    .iter()
+                    .filter_map(|message| match message {
+                        History::ToolResult(result) => Some(result),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(results.len(), 2);
+                assert_eq!(results[0].tool_name, "Bash");
+                assert_eq!(results[1].tool_name, "Write");
+                assert!(results.iter().all(|result| result.is_error));
+            }
+            assert_eq!(
+                std::fs::read_to_string(cwd.path().join("executions")).unwrap(),
+                "started",
+            );
+            assert!(!cwd.path().join("must-not-run").exists());
+            assert_eq!(
+                entries(root.path())
+                    .iter()
+                    .filter(|entry| matches!(entry.payload, EntryPayload::ToolIntent(_)))
+                    .count(),
+                2,
+            );
         }
     }
 

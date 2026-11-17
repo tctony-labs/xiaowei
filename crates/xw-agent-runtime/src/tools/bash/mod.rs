@@ -368,3 +368,59 @@ fn denied(command: &str) -> Option<&'static str> {
     }
     None
 }
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use std::{os::unix::process::CommandExt, process::Command};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn unreaped_process_group_returns_eperm_until_reaped() {
+        let mut child = Command::new("/usr/bin/true")
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let mut group = ProcessGroup {
+            pid: child.id(),
+            armed: true,
+        };
+
+        // Observe exit without reaping, keeping the zombie window deterministic.
+        let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::uninit();
+        let waited = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                child.id(),
+                info.as_mut_ptr(),
+                libc::WEXITED | libc::WNOWAIT,
+            )
+        };
+        if waited != 0 {
+            let error = std::io::Error::last_os_error();
+            child.wait().unwrap();
+            panic!("waitid failed: {error}");
+        }
+
+        let probe = unsafe { libc::kill(-(group.pid as i32), 0) };
+        let probe_error = std::io::Error::last_os_error();
+        let terminated = group.terminate().await;
+        let killed = group.kill();
+        let confirmed = group.wait_terminated().await;
+
+        let exit = child.wait().unwrap();
+        let after_reap = group.wait_terminated().await;
+
+        assert!(exit.success());
+        assert_eq!(probe, -1);
+        assert_eq!(probe_error.raw_os_error(), Some(libc::EPERM));
+        let expected = format!("Bash 进程组清理失败：{probe_error}");
+        assert_eq!(terminated.unwrap_err(), expected);
+        assert_eq!(killed.unwrap_err(), expected);
+        assert_eq!(confirmed.unwrap_err(), expected);
+        after_reap.unwrap();
+        assert!(!group.armed);
+
+        eprintln!("unreaped group: {probe_error}; reaped group: confirmed gone");
+    }
+}

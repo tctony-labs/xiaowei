@@ -351,9 +351,10 @@ async fn drive(
                 commit_intent(shared, &intent)?;
                 used += 1;
                 let began = Instant::now();
-                let skipped = cancellation.is_cancelled();
+                let skipped = cancellation.is_cancelled() || status == RunStatus::Failed;
                 let mut execution_cancelled = false;
                 let mut execution_failed = false;
+                let mut execution_result_unknown = false;
                 let result = if skipped {
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
@@ -442,13 +443,16 @@ async fn drive(
                         Err(xw_agent_runtime::tools::bash::BashError::NotStarted(error)) => {
                             Err(error)
                         }
-                        Err(xw_agent_runtime::tools::bash::BashError::ResultUnknown(error)) => {
+                        Err(xw_agent_runtime::tools::bash::BashError::ResultUnknown(cause)) => {
                             log::error!(
-                                "Agent Bash outcome unknown run={} tool={}: {error}",
+                                "Agent Bash outcome unknown run={} tool={}: {cause}",
                                 request.run_id,
                                 intent.tool_id
                             );
-                            return Err(AgentError::Conflict("Bash outcome unknown"));
+                            execution_result_unknown = true;
+                            status = RunStatus::Failed;
+                            error = Some("Bash 执行结果未知".into());
+                            Err(format!("Bash 执行结果未知：{cause}"))
                         }
                     }
                 } else if let Some(tools) = &tools {
@@ -480,7 +484,9 @@ async fn drive(
                         output.metadata_json,
                     ),
                     Err(error) => (
-                        if execution_cancelled {
+                        if execution_result_unknown {
+                            domain::ToolStatus::ResultUnknown
+                        } else if execution_cancelled {
                             domain::ToolStatus::Cancelled
                         } else if skipped {
                             domain::ToolStatus::Skipped
@@ -667,6 +673,10 @@ pub(crate) fn tool_outcome(
     duration_ms: Option<u64>,
     at: i64,
 ) -> domain::ToolOutcome {
+    let error = (status == domain::ToolStatus::ResultUnknown).then(|| domain::SafeError {
+        code: "tool_result_unknown".into(),
+        message: text.clone(),
+    });
     domain::ToolOutcome {
         tool_id: intent.tool_id,
         key: intent.key.clone(),
@@ -697,7 +707,7 @@ pub(crate) fn tool_outcome(
         duration_ms,
         elapsed_ms: duration_ms,
         queue_duration_ms: None,
-        error: None,
+        error,
         settled_by_run_id: None,
     }
 }
