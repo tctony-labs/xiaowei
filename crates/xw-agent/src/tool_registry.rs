@@ -128,7 +128,10 @@ pub(crate) fn planned_update(
         .map_err(|_| AgentError::Internal)
 }
 
-pub(crate) fn synchronize(session: &mut Session, at: i64) -> Result<(), AgentError> {
+pub(crate) fn synchronize(
+    session: &mut Session,
+    at: i64,
+) -> Result<Vec<ToolDeclaration>, AgentError> {
     let desired = context(session)?;
     if let Some(journal) = &mut session.journal {
         crate::sync_system_context(journal, &desired, at)
@@ -137,13 +140,17 @@ pub(crate) fn synchronize(session: &mut Session, at: i64) -> Result<(), AgentErr
             through_entry_id: journal.entries().last().map(|e| e.entry_id),
             after_turn_id: None,
         };
-        session.history = crate::rebuild_context(journal.entries(), &boundary)
-            .map_err(|_| AgentError::Persistence)?
-            .messages;
-    } else if let Some(update) = planned_update(session)? {
+        let rebuilt = crate::rebuild_context(journal.entries(), &boundary)
+            .map_err(|_| AgentError::Persistence)?;
+        session.history = rebuilt.messages;
+        // Use the exact declarations projected into the model history after synchronization.
+        return Ok(rebuilt.system_context.ok_or(AgentError::Persistence)?.tools);
+    }
+
+    if let Some(update) = planned_update(session)? {
         session.history.push(AgentMessage::SystemContext { update });
     }
-    Ok(())
+    Ok(desired.tools)
 }
 
 pub(crate) fn has_unclosed_calls(history: &[AgentMessage]) -> bool {

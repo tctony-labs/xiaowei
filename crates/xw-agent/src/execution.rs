@@ -210,7 +210,7 @@ impl AgentService {
                 "model history and input identities",
             ));
         }
-        crate::tool_registry::synchronize(session, started_at_ms)?;
+        let tools = crate::tool_registry::synchronize(session, started_at_ms)?;
         let mut run = AgentRun {
             run_id: run_id.to_string(),
             input_id: input_id.to_string(),
@@ -280,6 +280,7 @@ impl AgentService {
                 .parse()
                 .map_err(|_| AgentError::Internal)?,
             descriptor,
+            tools,
         ) {
             session.failed_run = Some(run_id);
             return Err(error);

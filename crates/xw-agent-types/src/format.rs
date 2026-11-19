@@ -180,6 +180,40 @@ fn error_cause<'a>(
         })
 }
 
+fn system_context_at(
+    history: &[JournalEntry],
+    boundary: &ContextBoundary,
+) -> Result<Option<SystemContext>, FormatError> {
+    let Some(id) = boundary.through_entry_id else {
+        return Ok(None);
+    };
+    let upper = history
+        .iter()
+        .rposition(|entry| entry.entry_id == id)
+        .ok_or_else(invalid)?;
+    let mut updates = Vec::new();
+    let mut context = None;
+    for entry in history[..=upper].iter().rev() {
+        match &entry.payload {
+            EntryPayload::Compacted(compacted) => {
+                context = compacted.system_context.clone();
+                break;
+            }
+            EntryPayload::SystemContext(update) => {
+                updates.push(update);
+                if matches!(update, SystemContextUpdate::Baseline(_)) {
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    for update in updates.into_iter().rev() {
+        context = Some(update.apply(context.as_ref()).map_err(|_| invalid())?);
+    }
+    Ok(context)
+}
+
 fn context_encode(value: &mut Value) -> Result<(), FormatError> {
     let model = member(value, "model")?;
     if let Some(capabilities) = model.get_mut("capabilities") {
@@ -253,7 +287,15 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
     match &entry.payload {
         EntryPayload::SessionHeader { .. } => {}
         EntryPayload::Meta(_) | EntryPayload::SystemContext(_) => {}
-        EntryPayload::RunStarted(_) => context_encode(member(data, "context")?)?,
+        EntryPayload::RunStarted(run) => {
+            let context = member(data, "context")?;
+            context_encode(context)?;
+            if system_context_at(history, &run.base_context)?
+                .is_some_and(|system| system.tools == run.context.tools)
+            {
+                remove(context, &["tools"])?;
+            }
+        }
         EntryPayload::TurnStarted(_) => remove(data, &["ordinal"])?,
         EntryPayload::InputAccepted(_) => {
             compact_message(member(data, "message")?, entry.timestamp_ms)?;
@@ -390,7 +432,18 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
     let data = member(member(&mut stored, "payload")?, "data")?;
     match kind.as_str() {
         "meta" | "system_context" => {}
-        "run_started" => context_decode(member(data, "context")?)?,
+        "run_started" => {
+            if member(data, "context")?.get("tools").is_none() {
+                let boundary = get(data, "base_context")?;
+                let system = system_context_at(history, &boundary)?.ok_or_else(|| {
+                    FormatError::InvalidStructure {
+                        path: Some("context.tools".into()),
+                    }
+                })?;
+                put(member(data, "context")?, "tools", system.tools)?;
+            }
+            context_decode(member(data, "context")?)?;
+        }
         "turn_started" => {
             absent(data, &["ordinal"])?;
             let run_id: RunId = get(data, "run_id")?;
