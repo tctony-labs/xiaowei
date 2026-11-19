@@ -27,6 +27,7 @@ fn only_exposed_tools_contribute_rules_and_declarations_remain_unchanged() {
         "Grep",
         "TodoWrite",
         "Skill",
+        "Command",
         "unrelated",
     ] {
         let declaration = tool(name);

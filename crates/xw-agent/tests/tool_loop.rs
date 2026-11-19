@@ -170,6 +170,318 @@ fn entries(root: &std::path::Path) -> Vec<xw_agent_types::JournalEntry> {
     xw_agent_types::decode_history(&std::fs::read_to_string(journal_path(root)).unwrap()).unwrap()
 }
 
+mod resource_tests {
+    use super::*;
+    use std::{fs, path::Path};
+    use xw_agent_types::{SystemContext, SystemContextUpdate};
+
+    fn write(path: &Path, text: &str) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, text).unwrap();
+    }
+
+    fn context(request: &GenerationRequest) -> SystemContext {
+        let mut current = None;
+        for message in &request.messages {
+            if let History::SystemContext { update } = message {
+                current = Some(update.apply(current.as_ref()).unwrap());
+            }
+        }
+        current.unwrap()
+    }
+
+    fn updates(root: &Path) -> Vec<SystemContextUpdate> {
+        entries(root)
+            .into_iter()
+            .filter_map(|entry| match entry.payload {
+                EntryPayload::SystemContext(update) => Some(update),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn rules_update_per_file_without_duplicate_context_and_reopen_preserves_history() {
+        let root = tempfile::tempdir().unwrap();
+        let cwd = tempfile::tempdir().unwrap();
+        write(&root.path().join("AGENTS.md"), "USER-TOP");
+        let rule = root.path().join("rules/style.md");
+        write(&rule, "STYLE-V1");
+        write(&cwd.path().join("AGENTS.md"), "PROJECT-TOP");
+        let host = Host::new((0..6).map(|_| message(&[], "done")).collect());
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, Some(cwd.path().to_str().unwrap().into())).await;
+        run(&service, &session).await;
+        run(&service, &session).await;
+        assert_eq!(updates(root.path()).len(), 1);
+        {
+            let requests = host.requests.lock().unwrap();
+            let context = context(&requests[0]);
+            let index = &context.instructions["rules.index"];
+            assert!(
+                index.find("rules.user.AGENTS.md").unwrap()
+                    < index.find("rules.project.AGENTS.md").unwrap()
+            );
+            assert!(context.instructions["rules.user.rules/style.md"].contains("STYLE-V1"));
+            assert!(context.tools.iter().any(|tool| tool.name == "Command"));
+            assert!(
+                !context
+                    .tools
+                    .iter()
+                    .any(|tool| tool.name == "Command" && tool.parameters_json.contains("enum"))
+            );
+        }
+
+        fs::File::open(&rule)
+            .unwrap()
+            .set_times(
+                fs::FileTimes::new()
+                    .set_modified(std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(100)),
+            )
+            .unwrap();
+        run(&service, &session).await;
+        assert_eq!(updates(root.path()).len(), 1);
+        write(&rule, "STYLE-V2-CHANGED");
+        run(&service, &session).await;
+        let SystemContextUpdate::Delta(delta) = updates(root.path()).pop().unwrap() else {
+            panic!("expected file update");
+        };
+        assert_eq!(
+            delta
+                .instructions
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["rules.user.rules/style.md"]
+        );
+        assert!(delta.instructions_removed.is_empty() && delta.tools_added.is_empty());
+
+        fs::remove_file(&rule).unwrap();
+        run(&service, &session).await;
+        let SystemContextUpdate::Delta(delta) = updates(root.path()).pop().unwrap() else {
+            panic!("expected removal");
+        };
+        assert_eq!(delta.instructions_removed, ["rules.user.rules/style.md"]);
+        assert_eq!(delta.instructions.len(), 1);
+        assert!(delta.instructions.contains_key("rules.index"));
+        service.close().await.unwrap();
+        let before = fs::read(journal_path(root.path())).unwrap();
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(fs::read(journal_path(root.path())).unwrap(), before);
+        run(&service, &session).await;
+        assert_eq!(updates(root.path()).len(), 3);
+        service.close().await.unwrap();
+    }
+
+    struct RewritingHost {
+        inner: Arc<Host>,
+        path: std::path::PathBuf,
+    }
+
+    #[tokio::test]
+    async fn existing_sessions_add_command_and_catalog_once_without_rewriting_the_prefix() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(vec![message(&[], "done"); 3]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        run(&service, &session).await;
+        service.close().await.unwrap();
+        let path = journal_path(root.path());
+        let mut saved = entries(root.path());
+        for entry in &mut saved {
+            if let EntryPayload::SystemContext(SystemContextUpdate::Baseline(context)) =
+                &mut entry.payload
+            {
+                context.tools.retain(|tool| tool.name != "Command");
+                context.instructions.remove("tool.Command");
+                context.instructions.remove("commands.catalog");
+            }
+        }
+        let prefix = xw_agent_types::encode_history(&saved).unwrap();
+        fs::write(&path, &prefix).unwrap();
+        for _ in 0..2 {
+            let service = AgentService::open(host.clone(), root.path().into())
+                .await
+                .unwrap();
+            run(&service, &session).await;
+            service.close().await.unwrap();
+        }
+        assert!(fs::read_to_string(path).unwrap().starts_with(&prefix));
+        let changes = updates(root.path());
+        assert_eq!(changes.len(), 2);
+        let SystemContextUpdate::Delta(delta) = &changes[1] else {
+            panic!("expected command additions");
+        };
+        assert_eq!(delta.tools_added.len(), 1);
+        assert_eq!(delta.tools_added[0].name, "Command");
+        assert_eq!(
+            delta
+                .instructions
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["commands.catalog", "tool.Command"]
+        );
+        assert!(delta.tools_removed.is_empty() && delta.instructions_removed.is_empty());
+    }
+
+    impl AgentHost for RewritingHost {
+        fn get_model_info(&self, model_ref: String) -> xw_agent::ModelInfoFuture {
+            self.inner.get_model_info(model_ref)
+        }
+
+        fn get_auxiliary_model_ref(&self) -> xw_agent::AuxiliaryModelRefFuture {
+            self.inner.get_auxiliary_model_ref()
+        }
+
+        fn generate(
+            &self,
+            request: GenerationRequest,
+            cancel: CancellationToken,
+        ) -> GenerationFuture {
+            if self.inner.requests.lock().unwrap().is_empty() {
+                write(
+                    &self.path,
+                    "---\ndescription: Description V2\n---\nCOMMAND-V2-LONGER",
+                );
+            }
+            self.inner.generate(request, cancel)
+        }
+    }
+
+    #[tokio::test]
+    async fn commands_use_run_snapshot_and_preserve_results_and_idempotency_after_removal() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("commands/guide.md");
+        write(&path, "---\ndescription: Description V1\n---\nCOMMAND-V1");
+        let inner = Host::new(vec![
+            message(&[("Command", r#"{"name":"guide"}"#)], ""),
+            message(&[], "first"),
+            message(&[("Command", r#"{"name":"guide"}"#)], ""),
+            message(&[], "second"),
+            message(&[("Command", r#"{"name":"guide"}"#)], ""),
+            message(&[], "removed"),
+        ]);
+        let host = Arc::new(RewritingHost {
+            inner: inner.clone(),
+            path: path.clone(),
+        });
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let first = run(&service, &session).await;
+        let second = run(&service, &session).await;
+        for (run, body) in [(&first, "COMMAND-V1"), (&second, "COMMAND-V2-LONGER")] {
+            assert_eq!(run.status, AgentRunStatus::Completed as i32);
+            assert!(run.items.iter().any(|item| matches!(&item.content,
+                Some(agent_item::Content::ToolCall(tool)) if tool.name == "Command"
+                    && tool.status == AgentToolStatus::Completed as i32
+                    && tool.output.contains(body))));
+        }
+        {
+            let requests = inner.requests.lock().unwrap();
+            assert!(
+                context(&requests[0]).instructions["commands.catalog"].contains("Description V1")
+            );
+            assert!(
+                context(&requests[2]).instructions["commands.catalog"].contains("Description V2")
+            );
+            assert!(
+                matches!(requests[1].messages.last(), Some(History::ToolResult(result))
+                if result.content.iter().any(|block| matches!(block,
+                    ContentBlock::Text {text, ..} if text.contains("COMMAND-V1"))))
+            );
+            assert!(
+                !context(&requests[1])
+                    .instructions
+                    .values()
+                    .any(|text| text.contains("COMMAND-V1"))
+            );
+        }
+        fs::remove_file(path).unwrap();
+        service.close().await.unwrap();
+        let before = fs::read(journal_path(root.path())).unwrap();
+        let service = AgentService::open(host, root.path().into()).await.unwrap();
+        let retry = service
+            .start_run(
+                StartRunRequest {
+                    session_id: session.session_id.clone(),
+                    input_id: first.input_id.clone(),
+                    input: vec![AgentUserInput {
+                        content: Some(agent_user_input::Content::Text("执行工具任务".into())),
+                    }],
+                    ..Default::default()
+                },
+                InputSource {
+                    kind: SourceKind::Internal,
+                    principal_id: "test".into(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(retry.run.unwrap().run_id, first.run_id);
+        assert_eq!(fs::read(journal_path(root.path())).unwrap(), before);
+        let removed = run(&service, &session).await;
+        assert!(removed.items.iter().any(|item| matches!(&item.content,
+            Some(agent_item::Content::ToolCall(tool)) if tool.name == "Command"
+                && tool.status == AgentToolStatus::Failed as i32)));
+        assert!(context(inner.requests.lock().unwrap().last().unwrap())
+            .instructions["commands.catalog"].contains("没有可用命令"));
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn oversized_rules_reject_before_system_context_or_input_commit() {
+        let root = tempfile::tempdir().unwrap();
+        write(&root.path().join("AGENTS.md"), &"x".repeat(8 * 1024 * 1024));
+        let host = Host::new(vec![]);
+        let service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+        let result = service
+            .start_run(
+                StartRunRequest {
+                    session_id: session.session_id.clone(),
+                    input_id: InputId::new().to_string(),
+                    input: vec![AgentUserInput {
+                        content: Some(agent_user_input::Content::Text("query".into())),
+                    }],
+                    ..Default::default()
+                },
+                InputSource {
+                    kind: SourceKind::Internal,
+                    principal_id: "test".into(),
+                },
+            )
+            .await;
+        assert!(matches!(
+            result,
+            Err(xw_agent::AgentError::ResourceExhausted(_))
+        ));
+        assert!(host.requests.lock().unwrap().is_empty());
+        assert!(!entries(root.path()).iter().any(|entry| matches!(
+            entry.payload,
+            EntryPayload::SystemContext(_) | EntryPayload::InputAccepted(_)
+        )));
+        service.close().await.unwrap();
+    }
+}
+
 mod skill_tests {
     use super::*;
     use std::path::Path;
@@ -891,6 +1203,7 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
             "RequestPermission",
             "TodoWrite",
             "Skill",
+            "Command",
         ]);
         assert_eq!(
             context

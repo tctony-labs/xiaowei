@@ -5,7 +5,7 @@ const { randomBytes } = require("node:crypto");
 const { Worker } = require("node:worker_threads");
 const { join } = require("node:path");
 const { bundledWorkerUrl } = require("../../../../scripts/tests/bundled-worker.cjs");
-const { mkdtemp, rm, readdir, readFile } = require("node:fs/promises");
+const { mkdtemp, mkdir, rm, readdir, readFile, writeFile } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const { test } = require("node:test");
 const { Agent } = require("xiaowei-agent");
@@ -558,6 +558,191 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     await restored?.close();
     await restoredEndpoint?.close();
     settings?.close();
+    await llm?.close();
+    await worker.terminate();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("resource updates and Command results reach the production worker and survive reopen", {
+  timeout: 30000,
+}, async () => {
+  const pb = await import("proto-desktop-ts");
+  const { create } = await import("@bufbuild/protobuf");
+  const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
+  const { GatewayHost } = await import("xiaowei-gateway/host");
+  const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
+  const { attachWorker } = await import("xiaowei-gateway/worker-host");
+  const root = await mkdtemp(join(tmpdir(), "agent-resources-runtime-"));
+  await mkdir(join(root, "rules"));
+  await mkdir(join(root, "commands"));
+  await writeFile(join(root, "AGENTS.md"), "RESOURCE-TOP");
+  await writeFile(join(root, "rules/style.md"), "RESOURCE-STYLE-V1");
+  await writeFile(
+    join(root, "commands/guide.md"),
+    "---\ndescription: Resource guide V1\n---\nRESOURCE-COMMAND-V1",
+  );
+  const requests = [];
+  const server = createServer(async (incoming, outgoing) => {
+    const chunks = [];
+    for await (const chunk of incoming) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks));
+    requests.push(body);
+    outgoing.writeHead(200, { "Content-Type": "text/event-stream" });
+    const tool = body.messages.at(-1).role === "user";
+    const delta = tool
+      ? {
+          role: "assistant",
+          tool_calls: [
+            {
+              index: 0,
+              id: "resource-call",
+              type: "function",
+              function: { name: "Command", arguments: '{"name":"guide"}' },
+            },
+          ],
+        }
+      : { role: "assistant", content: "command handled" };
+    outgoing.write(
+      `data: ${JSON.stringify({
+        id: "resource-response",
+        model: "upstream",
+        choices: [{ index: 0, delta, finish_reason: tool ? "tool_calls" : "stop" }],
+      })}\n\n`,
+    );
+    outgoing.end("data: [DONE]\n\n");
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const host = new GatewayHost();
+  const settings = await require("./fixtures/settings.cjs").settingsFixture(host);
+  const worker = new Worker(bundledWorkerUrl, {
+    workerData: {
+      models: [
+        {
+          id: "test",
+          modelId: "upstream",
+          name: "Test",
+          api: "openai-completions",
+          provider: "openai",
+          providerName: "Fixture",
+          reasoning: true,
+          input: ["text"],
+          maxTokens: 4096,
+          contextWindow: 100000,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          apiKey: "fixture",
+          baseUrl: `http://127.0.0.1:${server.address().port}`,
+          compat: { maxTokensField: "max_tokens" },
+        },
+      ],
+    },
+  });
+  let agent;
+  let endpoint;
+  let llm;
+  let observer;
+  try {
+    llm = await attachWorker(host, "resource-llm", worker);
+    agent = await Agent.open(root);
+    endpoint = await attachRustNapi(host, "resource-agent", agent.createGatewayEndpoint());
+    const caller = host.client({ caller: "resource-test", trusted: true });
+    const api = bindClient(pb.Agent, caller);
+    const session = (
+      await api.createSession(
+        create(pb.CreateSessionRequestSchema, {
+          clientRequestId: id(),
+          config: { modelRef: "test" },
+        }),
+      )
+    ).session;
+    observer = await bindStreamClient(pb.Agent, caller).subscribeSession(
+      create(pb.SubscribeSessionRequestSchema, { sessionId: session.sessionId }),
+    );
+    await observer.next();
+    const send = async () => {
+      const accepted = (
+        await api.startRun(
+          create(pb.StartRunRequestSchema, {
+            sessionId: session.sessionId,
+            inputId: id(),
+            input: [{ content: { case: "text", value: "请按 guide 命令处理当前任务" } }],
+          }),
+        )
+      ).run;
+      while (true) {
+        const { value, done } = await observer.next();
+        assert.equal(done, false);
+        if (
+          value.payload.case === "runCompleted" &&
+          value.payload.value.run.runId === accepted.runId
+        )
+          return value.payload.value.run;
+      }
+    };
+    const loadedTool = (run) =>
+      run.items.find((item) => item.content.case === "toolCall").content.value;
+    const first = await send();
+    assert.equal(first.status, pb.AgentRunStatus.COMPLETED);
+    assert.match(loadedTool(first).output, /RESOURCE-COMMAND-V1/);
+    assert.ok(requests[0].tools.some((tool) => tool.function.name === "Command"));
+    assert.match(requests[0].messages[0].content, /RESOURCE-TOP/);
+    assert.match(requests[0].messages[0].content, /RESOURCE-STYLE-V1/);
+    assert.doesNotMatch(requests[0].messages[0].content, /RESOURCE-COMMAND-V1/);
+    assert.equal(requests[0].messages[0].role, "developer");
+    assert.equal(requests[1].messages.at(-1).role, "tool");
+    assert.match(requests[1].messages.at(-1).content, /RESOURCE-COMMAND-V1/);
+    await send();
+    assert.equal(requests[2].messages.filter((message) => message.role === "developer").length, 1);
+
+    await writeFile(join(root, "rules/style.md"), "RESOURCE-STYLE-V2-LONGER");
+    await writeFile(
+      join(root, "commands/guide.md"),
+      "---\ndescription: Resource guide V2\n---\nRESOURCE-COMMAND-V2-LONGER",
+    );
+    const updated = await send();
+    assert.match(loadedTool(updated).output, /RESOURCE-COMMAND-V2-LONGER/);
+    const changes = requests[4].messages.filter((message) => message.role === "developer");
+    assert.equal(changes.length, 2);
+    assert.match(changes[1].content, /Updated system prompt section "rules.user.rules\/style.md"/);
+    assert.match(changes[1].content, /RESOURCE-STYLE-V2-LONGER/);
+    assert.doesNotMatch(changes[1].content, /RESOURCE-TOP/);
+
+    await rm(join(root, "rules/style.md"));
+    await rm(join(root, "commands/guide.md"));
+    const removed = await send();
+    assert.equal(loadedTool(removed).status, pb.AgentToolStatus.FAILED);
+    assert.match(
+      requests[6].messages.filter((message) => message.role === "developer").at(-1).content,
+      /Removed system prompt section "rules.user.rules\/style.md"/,
+    );
+    await observer.cancel();
+    observer = undefined;
+    await agent.close();
+    await endpoint.close();
+    endpoint = undefined;
+    const count = requests.length;
+    agent = await Agent.open(root);
+    endpoint = await attachRustNapi(host, "reopened-resource-agent", agent.createGatewayEndpoint());
+    const reopened = (
+      await api.readSession(
+        create(pb.ReadSessionRequestSchema, {
+          sessionId: session.sessionId,
+          includeRuns: true,
+        }),
+      )
+    ).session;
+    assert.equal(reopened.runs.length, 4);
+    assert.deepEqual(reopened.runs[0].items, first.items);
+    assert.deepEqual(reopened.runs[2].items, updated.items);
+    assert.equal(requests.length, count);
+  } finally {
+    await observer?.cancel();
+    await agent?.close();
+    await endpoint?.close();
+    settings.close();
     await llm?.close();
     await worker.terminate();
     server.closeAllConnections();

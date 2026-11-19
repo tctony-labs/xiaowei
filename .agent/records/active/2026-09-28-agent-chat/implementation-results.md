@@ -2,6 +2,24 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## Agent 资源加载（2026-11-17）
+
+独立 02m 切片已实现 AGENTS.md、rules、commands。规则自动加载并按文件片段同步；canonical／mtime／size 缓存跳过未变文件读取及命令解析，Run 内固定，下一 Run 更新。commands.catalog 与固定 Command(name) 支持自然语言加载，正文走既有 ToolOutcome；不增加 slash UI、输入契约或历史格式。使用方式见 [core 资源说明](../../../../crates/xw-agent/docs/resources.md)，旧版适配见[运行与 UI](runtime-ui.md#agentsmdrules-与-commands2026-11-17)。
+
+自动验证：
+
+- `cargo test --locked -p xw-agent-runtime -p xw-agent -p xiaowei-agent` 170 项通过；随后追加的资源系统记录提交失败、旧会话 Command／目录只追加一次两项定向回归通过。覆盖排序／作用域、重定向／symlink、元信息命中不读正文、解析对象复用、同内容无增量、逐文件更新／撤销、Run 快照、超限、未知命令及重开不重放。命令 intent／outcome 故障复用已有 fixture：有持久 intent 时恢复取消；intent 本身未提交仍保留原未闭合调用保护。
+- runtime／core／集成层 all-targets strict no-deps Clippy、`just check`、显示宽度及 diff 检查通过。资源预算在系统上下文和输入提交前检查；Command 共享文件工具既有 64 KiB 输出上限，超限明确失败。
+- 完整 `pnpm --dir desktop test` 通过，包含正式 debug addon 构建、生产 worker、13 项 Agent runtime／工具集成与 renderer 29 文件／232 项。新增 HTTP fixture 实际捕获 developer 规则基线、Updated／Removed section 文本、只更新变化文件及 tool 角色的命令全文；重开 Item 原样且无模型请求。新增测试的无效清理调用已修正，最终完整门禁通过。
+
+真实模型验证使用既有 opt-in 场景：`XIAOWEI_AGENT_LIVE=1 pnpm --filter xiaowei-agent exec node --conditions=source --import tsx --test --test-name-pattern 'command template' test/tool-loop.test.cjs`。只发送自然语言“请使用 fixture-command 命令完成当前任务，最后用中文说明实际结果。”；默认配置模型实际完成 Command → Write → Read，Run Completed，真实文件内容逐字为 hello／xiaowei 两行，最后有中文结果。使用独立临时 root／会话，素材已清理，没有改写个人规则、命令或会话，也未启动 Electron。
+
+2026-11-19，使用用户启动的 prometheus 实例，从 Quick Chat 新建专用验收会话 `01a1f43b-d398-7137-bcbd-2940d6771e23`。三个临时资源以独占方式创建，首轮自然语言点名后实际显示「加载命令 prometheus-qa-731 · 已完成」，展开可见名称、来源和正文。最终回复同时包含顶层规则、目录规则及命令各自的标记。第二轮修改规则与命令正文后得到新标记。持久记录显示增量只包含修改的规则文件，命令正文随本轮工具结果保存。第三轮通过窗口停止，UI 显示「已停止」，持久终态为 `aborted`，未新增系统记录。
+
+通过同一工作区的开发 console 重启，旧进程 41055 退出，新进程 43962 加载本工作区的 Agent addon。重启后 Quick Chat 恢复前两轮回复、命令卡片及停止状态，发送新消息前会话 JSONL 的 SHA-256 一致。移除临时资源后，第四轮模型确认命令已不在当前目录。持久记录显示两个测试规则片段均撤销、命令目录已更新、固定工具声明未变化，也未新增工具调用。最终为三轮完成、一轮中断。运行中修改文件时的快照固定与项目优先级由前述自动回归覆盖。
+
+已清除三个临时资源，切回验收前的会话并收起 Quick Chat。专用验收会话保留用于复核。02m 验收通过，临时计划已收尾。
+
 ## 思考与工具过程组折叠（2026-11-02）
 
 按用户指定的 AstraBuddy 会话过程文档调整运行中与整轮展开后的分组折叠，当前规则及单步骤例外统一见 [Quick Chat](../../../../desktop/docs/chat-ui.md#对话过程折叠)。保留原有 Run 计时、最终回复判定和独立交互／清单卡片，未改协议或持久化格式。

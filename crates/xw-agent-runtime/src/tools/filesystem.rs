@@ -13,7 +13,7 @@ mod search;
 pub use search::declarations as search_declarations;
 
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
-const MAX_OUTPUT_BYTES: usize = 64 * 1024;
+pub(super) const MAX_OUTPUT_BYTES: usize = 64 * 1024;
 
 #[derive(Debug)]
 pub struct ToolOutput {

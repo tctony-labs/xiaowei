@@ -26,7 +26,7 @@ impl AgentService {
         request.title_model_ref = None;
         let id = input::validate(&request, &source)?;
         let input_id: InputId = parse_id(&request.input_id, "input_id")?;
-        let (config, cwd) = {
+        let (config, cwd, resource_cache) = {
             let state = self.state()?;
             let session = state
                 .sessions
@@ -51,29 +51,46 @@ impl AgentService {
                 .clone()
                 .or_else(|| session.view.config.clone())
                 .ok_or(AgentError::Internal)?;
-            (config, session.view.cwd.clone())
+            (
+                config,
+                session.view.cwd.clone(),
+                session.resource_cache.clone(),
+            )
         };
-        let user_directory = self
+        let user_root = self
             .rollout
             .as_ref()
-            .map(|store| store.root().join("skills"));
-        let skills = if cwd.is_some() {
+            .map(|store| store.root().to_path_buf());
+        let (skills, resources) = if cwd.is_some() || user_root.is_some() {
             let runtime = tokio::runtime::Handle::try_current()
                 .map_err(|_| AgentError::ExecutionUnavailable)?;
             runtime
                 .spawn_blocking(move || {
-                    xw_agent_runtime::tools::skill::snapshot(
-                        user_directory.as_deref(),
-                        cwd.as_deref().map(std::path::Path::new),
-                    )
+                    let cwd = cwd.as_deref().map(std::path::Path::new);
+                    let skills = if cwd.is_some() {
+                        xw_agent_runtime::tools::skill::snapshot(
+                            user_root
+                                .as_ref()
+                                .map(|root| root.join("skills"))
+                                .as_deref(),
+                            cwd,
+                        )
+                    } else {
+                        Default::default()
+                    };
+                    let resources = resource_cache
+                        .lock()
+                        .unwrap()
+                        .snapshot(user_root.as_deref(), cwd);
+                    (skills, resources)
                 })
                 .await
                 .map_err(|_| AgentError::Internal)?
         } else {
-            Default::default()
+            (Default::default(), Default::default())
         };
         let info = self.host.get_model_info(config.model_ref.clone()).await;
-        self.accept_run(request, source, config, info, skills)
+        self.accept_run(request, source, config, info, skills, resources)
     }
 
     fn accept_run(
@@ -83,6 +100,7 @@ impl AgentService {
         config: AgentModelConfig,
         info: Result<xw_agent_types::ModelInfo, xw_agent_types::ModelInfoError>,
         skills: xw_agent_runtime::tools::skill::SkillSnapshot,
+        resources: xw_agent_runtime::resources::ResourceSnapshot,
     ) -> Result<StartRunResponse, AgentError> {
         let id = input::validate(&request, &source)?;
         let input_id: InputId = parse_id(&request.input_id, "input_id")?;
@@ -178,8 +196,11 @@ impl AgentService {
             timestamp_ms: started_at_ms,
         });
         crate::skills::prepare(session, skills)?;
-        crate::tool_registry::synchronize(session, started_at_ms)?;
+        crate::resources::prepare(session, resources)?;
         let mut history = session.history.clone();
+        if let Some(update) = crate::tool_registry::planned_update(session)? {
+            history.push(ModelMessage::SystemContext { update });
+        }
         history.push(user);
         let history_bytes = serde_json::to_vec(&history)
             .map_err(|_| AgentError::Internal)?
@@ -189,6 +210,7 @@ impl AgentService {
                 "model history and input identities",
             ));
         }
+        crate::tool_registry::synchronize(session, started_at_ms)?;
         let mut run = AgentRun {
             run_id: run_id.to_string(),
             input_id: input_id.to_string(),

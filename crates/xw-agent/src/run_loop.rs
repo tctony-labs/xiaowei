@@ -386,6 +386,12 @@ async fn drive(
                         }
                         Err(crate::ToolError::Failed(message)) => Err(message),
                     }
+                } else if name == "Command" && cwd.is_some() {
+                    let state = shared.lock().unwrap();
+                    xw_agent_runtime::tools::command::execute(
+                        &state.sessions[&request.session_id].commands,
+                        &intent.arguments_json,
+                    )
                 } else if name == "Skill" && cwd.is_some() {
                     let state = shared.lock().unwrap();
                     crate::skills::execute(

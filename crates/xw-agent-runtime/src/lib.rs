@@ -13,4 +13,5 @@ mod text;
 pub use text::{RunEvent, RunOutcome, RunRequest, RunStatus, execute_text};
 
 mod permission;
+pub mod resources;
 pub mod tools;

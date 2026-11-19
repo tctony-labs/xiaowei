@@ -14,6 +14,16 @@
 
 旧版内置技能依赖 Wiki、扩展创建及 AppBridge，留随对应业务迁移。现有文件／Bash 工具负责引用文档和脚本的真实读取／执行，Skill 不增加权限或隐式执行。自动压缩仍属后续切片；技能有效正文进入已有 SystemContext，因此后续压缩须按权威上下文重建，不依赖摘要猜测。
 
+## AGENTS.md、rules 与 commands（2026-11-17）
+
+用户明确作为独立资源加载切片实施，slash 主动触发留后，commands 通过自然语言匹配或点名后加载。当前实现和使用方式见[资源说明](../../../../crates/xw-agent/docs/resources.md)；自动检查、真实模型与待验收边界见[实施结果](implementation-results.md#agent-资源加载2026-11-17)。不修改 composer、RPC、输入 oneof 或 JSONL 格式。
+
+旧版核对源为本地 ~/Develop/XiaoWei/workspace/src/xiaowei-next，HEAD 933a6997c1d2bc44e2addd608b6a5d8d8731a2d3。旧 runtime resources/rules.rs 自动发现 XiaoWei.md／AGENTS.md／CLAUDE.md 和 rules/*.md，commands.rs 解析命令；Studio watcher 更新缓存，但 agent_factory 只在创建 Agent 时捕获 merged_rules_text，命令通过 slash supplement 进入 is_meta 用户消息。
+
+本轮只自动发现点名的 AGENTS.md，保留顶层重定向；每 Run 枚举与 stat，以 canonical／mtime／size 复用文件及解析缓存，Run 内固定快照。规则采用稳定逐文件片段及顺序索引，变化发送片段新全文，不做逐行 diff。Command 使用固定 name 字符串 schema，目录经 commands.catalog，正文走原工具结果提交，按当前任务加载，不改成常驻规则。与旧版的 watcher、Agent 创建时规则快照和 meta 用户消息分开，不搬 Attachment 体系。
+
+核心验证直接复用 tool_loop 与持久化故障 fixture；Command 共享已有文件工具 64 KiB 输出上限，超限失败。已提交意图无结果时恢复取消；意图尚未提交时保留原未闭合调用保护。Skill 扫描与已加载正文机制不改；未新增 provider 增量支持。
+
 ## 当前执行
 
 Quick Chat 已经 Agent typed client → xiaowei-agent → xw-agent → runtime → 注入的 Llm.Generate adapter 执行。每个 Run 可包含多个 Turn／Gen，顺序执行文件工具和前台 Bash，无自动重试。完整合法 TOOL_USE 结束 Gen 后提交工具意图并执行，结果提交并闭合 Turn 后才继续生成；STOP／LENGTH 的完整有效且无工具调用的消息结束 Run，不保证有可见正文。完整成功消息与已提交结果进入后续模型历史；EOF、模型失败、非法／不支持输出为 Failed，取消为 Interrupted。失败／取消的用户输入保留，部分回复只用于显示。

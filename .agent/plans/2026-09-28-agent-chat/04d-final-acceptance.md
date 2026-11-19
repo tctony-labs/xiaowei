@@ -8,7 +8,7 @@
 
 本片在已交付持久文本链路上接入真实工具／审批、压缩和显式继续；会话管理、标题和模型控件保留回归，不重新列为开发任务。实施前根据实际源码复核文件，不拆新计划。
 
-最终工具范围以[工具批次](00-implementation-order.md#工具接入批次)为准。TodoWrite 的执行、持久恢复及清单卡片已实现，验收证据见 record；本轮 Skill 范围见[运行与 UI](../../records/active/2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)，覆盖按需加载、Run 快照、动态增删与恢复；slash command 主动触发已明确另行实施。
+最终工具范围以[工具批次](00-implementation-order.md#工具接入批次)为准。TodoWrite 的执行、持久恢复及清单卡片已实现，验收证据见 record；本轮 Skill 范围见[运行与 UI](../../records/active/2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)，覆盖按需加载、Run 快照、动态增删与恢复。AGENTS.md／rules 自动加载、命令的自然语言调用以及重启恢复已完成独立验收，见[资源加载交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#agent-资源加载2026-11-17)。slash 主动触发继续留后。
 
 ## 文件与改动
 

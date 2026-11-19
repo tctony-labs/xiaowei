@@ -16,6 +16,7 @@ mod persistence;
 mod persistence_tests;
 mod prompts;
 mod recovery;
+mod resources;
 mod retention;
 mod service;
 mod session;
