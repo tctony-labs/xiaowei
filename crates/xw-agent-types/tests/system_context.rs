@@ -46,6 +46,116 @@ fn new_records_roundtrip_without_rewriting_existing_text_history() {
 }
 
 #[test]
+fn run_tools_are_restored_from_its_boundary_and_explicit_tools_take_precedence() {
+    let fixture = include_str!("fixtures/v2/tools.jsonl");
+    let original = decode_history(fixture).unwrap();
+    let mut started = original[3].clone();
+    let EntryPayload::RunStarted(run) = &mut started.payload else {
+        panic!("expected fixture RunStarted");
+    };
+    let tools = run.context.tools.clone();
+    let mut prefix = original[..2].to_vec();
+    append(
+        &mut prefix,
+        SystemContextUpdate::Baseline(SystemContext {
+            tools: tools.clone(),
+            ..Default::default()
+        }),
+    );
+    run.base_context.through_entry_id = Some(prefix.last().unwrap().entry_id);
+    append(
+        &mut prefix,
+        SystemContextUpdate::Delta(SystemContextDelta {
+            tools_removed: tools.iter().map(|tool| tool.name.clone()).collect(),
+            ..Default::default()
+        }),
+    );
+    let mut input = original[2].clone();
+    input.sequence = Sequence(prefix.len() as u64 + 1);
+    prefix.push(input);
+    started.sequence = Sequence(prefix.len() as u64 + 1);
+
+    let compact = encode_entry(&started, &prefix).unwrap();
+    assert!(!compact.contains("\"tools\":"));
+    assert_eq!(decode_entry(&compact, &prefix).unwrap(), started);
+
+    let mut invalid: serde_json::Value = serde_json::from_str(&compact).unwrap();
+    invalid["payload"]["data"]["context"]["tools"] = serde_json::Value::Null;
+    assert!(decode_entry(&invalid.to_string(), &prefix).is_err());
+
+    let mut reversed = tools;
+    reversed.reverse();
+    for declarations in [reversed, vec![]] {
+        let mut explicit = started.clone();
+        let EntryPayload::RunStarted(run) = &mut explicit.payload else {
+            unreachable!();
+        };
+        run.context.tools = declarations;
+        let encoded = encode_entry(&explicit, &prefix).unwrap();
+        assert!(encoded.contains("\"tools\":"));
+        assert_eq!(decode_entry(&encoded, &prefix).unwrap(), explicit);
+    }
+}
+
+#[test]
+fn missing_run_tools_require_a_system_context_at_the_boundary() {
+    let fixture = include_str!("fixtures/v2/tools.jsonl");
+    let history = decode_history(fixture).unwrap();
+    let mut line: serde_json::Value =
+        serde_json::from_str(fixture.lines().nth(3).unwrap()).unwrap();
+    let context = line["payload"]["data"]["context"].as_object_mut().unwrap();
+    context.remove("tools").unwrap();
+    assert_eq!(
+        decode_entry(&line.to_string(), &history[..3]).unwrap_err(),
+        FormatError::InvalidStructure {
+            path: Some("context.tools".into()),
+        }
+    );
+}
+
+#[test]
+fn run_tools_can_be_restored_from_a_compaction_snapshot() {
+    let mut history = decode_history(include_str!("fixtures/v2/compaction.jsonl")).unwrap();
+    let snapshot = initial();
+    let checkpoint = history.last_mut().unwrap();
+    let EntryPayload::Compacted(compacted) = &mut checkpoint.payload else {
+        panic!("expected fixture checkpoint");
+    };
+    compacted.system_context = Some(snapshot.clone());
+    let checkpoint_id = checkpoint.entry_id;
+
+    let input_id = InputId::new();
+    let mut accepted = history[2].clone();
+    accepted.entry_id = EntryId::new();
+    accepted.sequence = Sequence(history.len() as u64 + 1);
+    let EntryPayload::InputAccepted(input) = &mut accepted.payload else {
+        panic!("expected fixture input");
+    };
+    input.input_id = input_id;
+    input.message.input_id = Some(input_id);
+    input.message.message_id = MessageId::new();
+    for id in &mut input.message.block_ids {
+        *id = BlockId::new();
+    }
+    history.push(accepted);
+
+    let mut started = history[3].clone();
+    started.entry_id = EntryId::new();
+    started.sequence = Sequence(history.len() as u64 + 1);
+    let EntryPayload::RunStarted(run) = &mut started.payload else {
+        panic!("expected fixture RunStarted");
+    };
+    run.run_id = RunId::new();
+    run.cause = RunCause::Send { input_id };
+    run.base_context.through_entry_id = Some(checkpoint_id);
+    run.context.tools = snapshot.tools;
+
+    let encoded = encode_entry(&started, &history).unwrap();
+    assert!(!encoded.contains("\"tools\":"));
+    assert_eq!(decode_entry(&encoded, &history).unwrap(), started);
+}
+
+#[test]
 fn rejects_missing_baselines_duplicate_baselines_and_noop_deltas() {
     let original = decode_history(include_str!("fixtures/v2/text.jsonl")).unwrap();
     let mut entries = original.clone();

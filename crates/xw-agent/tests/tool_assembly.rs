@@ -334,6 +334,87 @@ async fn invalid_replacement_is_atomic_and_empty_external_tools_are_supported() 
 }
 
 #[tokio::test]
+async fn persistent_runs_rebuild_tool_declarations_after_a_registration_change() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Host::new(false);
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    service.set_tools(vec![registration("v1", false)]).unwrap();
+    let session = service
+        .create_session(creation())
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    for _ in 0..2 {
+        assert_eq!(tool(&run(&service, &session.session_id).await).output, "v1");
+    }
+    service.close().await.unwrap();
+
+    let reopened = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    reopened.set_tools(vec![registration("v2", false)]).unwrap();
+    assert_eq!(
+        tool(&run(&reopened, &session.session_id).await).output,
+        "v2"
+    );
+    reopened.close().await.unwrap();
+
+    let store = xw_agent_rollout::RolloutStore::new(root.path());
+    let (journal, _) = store.open(session.session_id.parse().unwrap()).unwrap();
+    let stored = std::fs::read_to_string(journal.path()).unwrap();
+    let mut types = Vec::new();
+    for line in stored.lines() {
+        let value: serde_json::Value = serde_json::from_str(line).unwrap();
+        let payload = &value["payload"];
+        match payload["type"].as_str().unwrap() {
+            "system_context" => types.push(payload["data"]["type"].as_str().unwrap().to_owned()),
+            "run_started" => {
+                assert!(payload["data"]["context"].get("tools").is_none());
+                types.push("run_started".into());
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        types,
+        [
+            "baseline",
+            "run_started",
+            "run_started",
+            "delta",
+            "run_started"
+        ]
+    );
+
+    let entries = journal.entries();
+    domain::validate_history(entries).unwrap();
+    let runs: Vec<_> = entries
+        .iter()
+        .filter_map(|entry| match &entry.payload {
+            domain::EntryPayload::RunStarted(run) => Some(run),
+            _ => None,
+        })
+        .collect();
+    let requests = host.requests.lock().unwrap();
+    for (index, version) in ["v1", "v1", "v2"].into_iter().enumerate() {
+        let effective = context(&requests[index * 2]);
+        assert_eq!(runs[index].context.tools, effective.tools);
+        assert_eq!(
+            effective
+                .tools
+                .iter()
+                .find(|tool| tool.name == "Fixture")
+                .unwrap()
+                .description,
+            version
+        );
+    }
+}
+
+#[tokio::test]
 async fn auxiliary_generation_has_independent_identity_usage_and_no_chat_projection() {
     let root = tempfile::tempdir().unwrap();
     let host = Host::new(true);
@@ -378,6 +459,16 @@ async fn auxiliary_generation_has_independent_identity_usage_and_no_chat_project
     drop(service);
     let store = xw_agent_rollout::RolloutStore::new(root.path());
     let (journal, _) = store.open(session.session_id.parse().unwrap()).unwrap();
+    let stored = std::fs::read_to_string(journal.path()).unwrap();
+    let extraction_line = stored
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .find(|value| value["payload"]["data"]["purpose"]["type"] == "tool_extraction")
+        .unwrap();
+    assert_eq!(
+        extraction_line["payload"]["data"]["context"]["tools"],
+        serde_json::json!([])
+    );
     let entries = journal.entries();
     domain::validate_history(entries).unwrap();
     let extraction = entries

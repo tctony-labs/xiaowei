@@ -382,6 +382,7 @@ impl Session {
         execution: &xw_agent_runtime::RunRequest,
         user_item_id: domain::BlockId,
         model: domain::ModelDescriptor,
+        tools: Vec<domain::ToolDeclaration>,
     ) -> Result<(), AgentError> {
         if self.journal.is_none() {
             return Ok(());
@@ -404,7 +405,7 @@ impl Session {
                 max_tokens: execution.generation.max_tokens,
                 ..Default::default()
             },
-            tools: crate::tool_registry::context(self)?.tools,
+            tools,
             limits: domain::RuntimeLimits {
                 max_gens: Some(51),
                 max_tool_calls: 50,

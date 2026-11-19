@@ -98,6 +98,8 @@ PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历�
 
 ## Outcome
 
+2026-11-19 普通聊天 Run 的工具声明按起始边界从系统上下文重建，精简 JSONL 的同时兼容既有 v2 记录。持久化回归验证了连续 Run 省略副本、工具声明替换后按各轮恢复，以及辅助生成独立配置和故障恢复。Agent Rust 测试、原生模块构建及 Gateway／worker 集成测试均通过。字段语义见[历史格式](2026-09-28-agent-chat/history-format.md#inputrunturngen-与消息)。
+
 2026-11-02 对话过程折叠调整已实现并完成本批验证，包含运行中与整轮展开后的混合过程组、response 边界收起和单步骤例外。当前规则见 [Quick Chat](../../../desktop/docs/chat-ui.md#对话过程折叠)，自动检查、实际窗口证据及验证边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#思考与工具过程组折叠2026-11-02)。事项其余范围继续位于 active。
 
 2026-11-02 Skill 按需加载与 Run 快照已完成实现和约定验收。Rust、正式 addon／Gateway／worker、renderer 与静态检查通过，实际 sol 完成正文 V1 加载和下一 Run 使用 V2，重启恢复历史／SQLite 行／脚本哨兵均未变化。具体证据、单次既有 Bash 用例失败后的复验及平台边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)。slash command 主动触发另行实施，事项其余范围继续位于 active。

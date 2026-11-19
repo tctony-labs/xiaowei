@@ -178,7 +178,7 @@ impl AgentService {
             timestamp_ms: started_at_ms,
         });
         crate::skills::prepare(session, skills)?;
-        crate::tool_registry::synchronize(session, started_at_ms)?;
+        let tools = crate::tool_registry::synchronize(session, started_at_ms)?;
         let mut history = session.history.clone();
         history.push(user);
         let history_bytes = serde_json::to_vec(&history)
@@ -258,6 +258,7 @@ impl AgentService {
                 .parse()
                 .map_err(|_| AgentError::Internal)?,
             descriptor,
+            tools,
         ) {
             session.failed_run = Some(run_id);
             return Err(error);

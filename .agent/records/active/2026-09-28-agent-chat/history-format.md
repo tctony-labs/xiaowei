@@ -62,7 +62,9 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `turn_ended` | `turn_id`、`status`、可选抢占原因、单调耗时、安全错误／`error_ref` | final_gen_id 从最后一个所属 Conversation Gen 重建；不能指向工具提取 Gen |
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
 
-`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。当前聊天系统指令使用独立 system_context 历史同步，不重复保存到 RunContext；工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
+`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
+
+`RunStarted.context.tools` 可从 `base_context.through_entry_id` 指向的历史位置重建时，编码器省略该字段。读取以该边界内最近的基线或压缩快照为起点，依序应用其后的增量，再把声明补回完整领域对象并校验。显式保存的列表按原值读取，包括空列表；没有可用基线时必须显式保存。辅助 Gen 的独立 `context.tools` 仍显式保存。格式版本仍为 v2，既有文件可直接读取，读取新写入的精简条目需要更新后的 reader。
 
 InputMode 为 FollowUp／Steering／Preempt（另有普通 Send）。FollowUp 按接纳顺序由下一 Run 消费；Steering 在工具之间的安全检查点生效，尚未启动的批次工具结算 skipped 后进入同 Run 后续 Turn；Preempt 先打断当前 Gen／工具，完成抢占结算后进入同 Run 后续 Turn。Steering／Preempt 必须指向活动 Run。当前公共 RPC／运行调度只接纳 Send，其余模式保留类型与历史校验，没有提前提供空调度或 UI。
 
