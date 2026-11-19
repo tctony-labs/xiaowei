@@ -28,6 +28,17 @@ function id() {
 const live = process.env.XIAOWEI_AGENT_LIVE === "1";
 const scenarios = [
   {
+    name: "command template",
+    command: true,
+    file: "command-acceptance.txt",
+    calls: [
+      ["Command", { name: "fixture-command" }],
+      ["Write", { path: "command-acceptance.txt", contents: "hello\nxiaowei\n" }],
+      ["Read", { path: "command-acceptance.txt" }],
+    ],
+    prompt: "请使用 fixture-command 命令完成当前任务，最后用中文说明实际结果。",
+  },
+  {
     name: "skill instructions",
     skill: true,
     file: "skill-acceptance.txt",
@@ -238,6 +249,17 @@ async function exerciseScenario(scenario) {
   }
   const root = await mkdtemp(join(tmpdir(), "xiaowei-file-acceptance-"));
   const skillDescription = "Read a local reference and create a file. ".repeat(12);
+  if (scenario.command) {
+    await mkdir(join(root, "commands"));
+    await writeFile(join(root, "AGENTS.md"), "只执行当前任务并核对文件实际结果。");
+    await writeFile(
+      join(root, "commands", "fixture-command.md"),
+      "---\ndescription: 创建并核验当前任务的测试文件。\n---\n" +
+        "COMMAND-INSTRUCTION-FIXTURE：依次调用 Write、Read。" +
+        "在当前工作目录创建 command-acceptance.txt，正文精确为 hello\\nxiaowei\\n" +
+        "（真实换行）。然后读取该文件核验，用中文总结。只操作此文件。",
+    );
+  }
   if (scenario.skill) {
     const directory = join(root, "skills", "fixture-skill");
     await mkdir(join(directory, "references"), { recursive: true });
@@ -437,6 +459,7 @@ async function exerciseScenario(scenario) {
         "RequestPermission",
         "TodoWrite",
         "Skill",
+        "Command",
         "WebFetch",
         "WebSearch",
       ];
@@ -444,6 +467,11 @@ async function exerciseScenario(scenario) {
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
       assert.ok(requests.at(-1).messages.at(-1).content.includes("xiaowei"));
+      if (scenario.command) {
+        assert.ok(JSON.stringify(requests[0].messages).includes("fixture-command"));
+        assert.ok(!JSON.stringify(requests[0].messages).includes("COMMAND-INSTRUCTION-FIXTURE"));
+        assert.ok(JSON.stringify(requests[1].messages).includes("COMMAND-INSTRUCTION-FIXTURE"));
+      }
       if (scenario.skill) {
         const schema = requests[0].tools.find((tool) => tool.function.name === "Skill");
         assert.equal(schema.function.parameters.properties.name.enum, undefined);

@@ -1,5 +1,7 @@
 # xw-agent-runtime
 
+`resources::ResourceCache` 提供规则发现、重定向及基于 canonical 目标／mtime／size 的文件缓存；`tools::command` 提供命令解析、固定声明与不可变快照加载。对外使用与 Run／持久化语义见[规则与命令资源](../xw-agent/docs/resources.md)。
+
 提供 Agent 内部生成执行边界、单次生成收集、文件工具、技能加载与沙箱 Bash 原语，独立于 App Server 公共协议、Gateway、napi 和具体 LLM provider。生成请求／事件／错误、消息、身份和用量复用 `xw-agent-types`；对外统一 AgentHost 定义于 xw-agent，核心将其桥接为本包内部 LlmGeneration。
 
 包根导出 `LlmGeneration`、`GenerationRequest`、`GenerationEvent`、`GenerationError`、异步流／future 别名和取消 token。实现方必须在开流与消费阶段响应取消，并在 future／stream 被释放时取消上游工作。错误不得携带原始响应正文或凭据。

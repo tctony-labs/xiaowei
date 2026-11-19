@@ -34,6 +34,7 @@ const toolActions: Record<
   WebSearch: { action: "搜索网络", summary: "搜索网络", icon: "search", activity: "web" },
   TodoWrite: { action: "更新待办", summary: "更新待办", icon: "todo", activity: "tools" },
   Skill: { action: "加载技能", summary: "加载技能", icon: "skill", activity: "tools" },
+  Command: { action: "加载命令", summary: "加载命令", icon: "tools", activity: "tools" },
   AskUserQuestion: { action: "向你提问", summary: "向你提问", icon: "question", activity: "tools" },
   RequestPermission: {
     action: "请求写入权限",
@@ -72,7 +73,7 @@ export function toolPresentation(call: AgentToolCall) {
   let target: string | undefined;
   if (isToolObject(args)) {
     const targets =
-      call.name === "Skill"
+      call.name === "Skill" || call.name === "Command"
         ? [args.name]
         : [args.query, args.url, args.pattern, args.path, args.command];
     target = targets.find((value): value is string => typeof value === "string" && !!value.trim());

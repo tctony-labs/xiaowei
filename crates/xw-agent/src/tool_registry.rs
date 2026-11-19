@@ -63,6 +63,7 @@ fn builtin_declarations(has_cwd: bool) -> Vec<ToolDeclaration> {
         tools.extend(xw_agent_runtime::tools::interactive::declarations());
         tools.push(xw_agent_runtime::tools::todo::declaration());
         tools.push(xw_agent_runtime::tools::skill::declaration());
+        tools.push(xw_agent_runtime::tools::command::declaration());
         tools
     } else {
         vec![]
@@ -110,6 +111,23 @@ pub(crate) fn context(session: &Session) -> Result<SystemContext, AgentError> {
     session.tool_context.clone().ok_or(AgentError::Internal)
 }
 
+pub(crate) fn planned_update(
+    session: &Session,
+) -> Result<Option<xw_agent_types::SystemContextUpdate>, AgentError> {
+    let mut previous = None;
+    for message in &session.history {
+        if let AgentMessage::SystemContext { update } = message {
+            previous = Some(
+                update
+                    .apply(previous.as_ref())
+                    .map_err(|_| AgentError::Internal)?,
+            );
+        }
+    }
+    crate::plan_system_context_update(previous.as_ref(), &context(session)?)
+        .map_err(|_| AgentError::Internal)
+}
+
 pub(crate) fn synchronize(session: &mut Session, at: i64) -> Result<(), AgentError> {
     let desired = context(session)?;
     if let Some(journal) = &mut session.journal {
@@ -122,22 +140,8 @@ pub(crate) fn synchronize(session: &mut Session, at: i64) -> Result<(), AgentErr
         session.history = crate::rebuild_context(journal.entries(), &boundary)
             .map_err(|_| AgentError::Persistence)?
             .messages;
-    } else {
-        let mut previous = None;
-        for message in &session.history {
-            if let AgentMessage::SystemContext { update } = message {
-                previous = Some(
-                    update
-                        .apply(previous.as_ref())
-                        .map_err(|_| AgentError::Internal)?,
-                );
-            }
-        }
-        if let Some(update) = crate::plan_system_context_update(previous.as_ref(), &desired)
-            .map_err(|_| AgentError::Internal)?
-        {
-            session.history.push(AgentMessage::SystemContext { update });
-        }
+    } else if let Some(update) = planned_update(session)? {
+        session.history.push(AgentMessage::SystemContext { update });
     }
     Ok(())
 }

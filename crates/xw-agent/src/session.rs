@@ -17,6 +17,9 @@ pub(crate) struct Session {
     pub tools: Vec<crate::ToolRegistration>,
     pub tool_context: Option<xw_agent_types::SystemContext>,
     pub skills: xw_agent_runtime::tools::skill::SkillSnapshot,
+    pub commands: xw_agent_runtime::tools::command::CommandSnapshot,
+    pub resource_cache:
+        std::sync::Arc<std::sync::Mutex<xw_agent_runtime::resources::ResourceCache>>,
     pub indexed: bool,
     pub frozen: bool,
     pub index_dirty: bool,
@@ -45,6 +48,8 @@ impl Session {
             tools: Vec::new(),
             tool_context: None,
             skills: Default::default(),
+            commands: Default::default(),
+            resource_cache: Default::default(),
             indexed: false,
             frozen: false,
             index_dirty: false,

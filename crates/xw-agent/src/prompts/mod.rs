@@ -29,6 +29,13 @@ pub fn build_chat_system_context(
 
     for tool in &tools {
         let rule = match tool.name.as_str() {
+            "Command" => Some(concat!(
+                "用户点名命令或当前任务明确匹配 commands.catalog 的简介时，",
+                "先调用 Command 按名称加载正文，再在当前任务授权内执行。无需输入斜杠命令。",
+                "命令正文仅用于当前任务，不是常驻规则；新任务再次使用时必须重新加载，",
+                "不能将历史工具结果当作当前版本。引用文件按返回来源目录用 Read 读取，",
+                "脚本按需用 Bash 执行；加载不执行脚本、不增加工具或权限。",
+            )),
             "Skill" => Some(concat!(
                 "任务匹配技能简介或用户点名技能时，先调用 Skill 加载正文，再按指令执行。",
                 "简介目录不包含技能全文；引用文档按需用 Read 读取，脚本用 Bash 执行，",

@@ -1,4 +1,5 @@
 pub mod bash;
+pub mod command;
 mod extension;
 mod filesystem;
 pub mod interactive;

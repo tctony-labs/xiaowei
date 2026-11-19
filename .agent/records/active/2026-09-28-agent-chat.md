@@ -25,7 +25,7 @@
 
 不重写 Pi provider、模型设置或 Gateway，不恢复已明确移除的“在外部对话窗口打开”按钮。本事项不默认扩展为独立聊天窗口、Studio、多人／多 agent 协作、云同步或任意插件平台。
 
-2026-09-29 用户确认首期保留旧版自动压缩、自动／手动标题生成，输入沿用现有 textarea，展示 Markdown／代码和工具卡片。2026-10-10 用户确认 preset 与技能暂缓；2026-10-18 补充登记 Todo 和 Skill，具体实现范围以后再定，Todo 放在问答／权限之后，Skill 放在工具批次最后。preset 仍暂缓；命令资源加载、附件／图片输入、富文本编辑器、旧会话数据导入及完整旧版工具集仍留到后续。不以“完整”宣称已全面对齐旧版。工具返回的数据仍须保留现有 LLM 契约支持的内容，不能因首期不提供图片输入 UI 而丢失回放元数据。
+2026-09-29 用户确认首期保留旧版自动压缩、自动／手动标题生成，输入沿用现有 textarea，展示 Markdown／代码和工具卡片。2026-10-10 用户确认 preset 与技能暂缓；2026-10-18 补充登记 Todo 和 Skill，具体实现范围以后再定，Todo 放在问答／权限之后，Skill 放在工具批次最后。preset 仍暂缓；命令资源加载于 2026-11-17 纳入独立 02m 切片，slash 入口继续留后。附件／图片输入、富文本编辑器、旧会话数据导入及完整旧版工具集仍留到后续。不以“完整”宣称已全面对齐旧版。工具返回的数据仍须保留现有 LLM 契约支持的内容，不能因首期不提供图片输入 UI 而丢失回放元数据。
 
 2026-09-29 规划时已确认首期采用基础工具闭环：文件读写／搜索、Bash、网页读取、用户询问与权限申请；当时将依赖搜索服务配置的 WebSearch、应用专属工具和插件留到后续。2026-10-27 用户将 WebSearch 与搜索源设置加入第 6 批，与 WebFetch 一起实施；实现和验收边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。应用专属工具和插件仍留到后续。
 
@@ -70,6 +70,8 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 ## Current work
 
+02m 资源加载已完成窗口与重启验收。后台工具仍按总实施顺序进入 02h，slash 入口留待后续。
+
 2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。下一工具批恢复为后台三工具；旧内置业务技能留随对应业务迁移，preset 继续暂缓。
 
 截至 2026-10-25，02e＋第一批 Read／Write／Edit 已实现、验证并提交，已合入 develop；当前工作目录、系统提示词、顺序工具循环、持久结果、恢复与最小工具展示均在正式产品链路中。提交对应关系、自动检查与 2026-10-19 窗口验收统一见[交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。02e 临时计划已删除，不再将生产接线列为后续任务。
@@ -84,7 +86,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，03c 只保留 01f 长输出范围，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。第 5 批 TodoWrite 的最新进展见下文，后续依次为 WebFetch、后台三工具、Skill，Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
 
-PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历史／完整长内容、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
+PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
 
 2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
 
@@ -97,6 +99,8 @@ PDF 与 preset 继续暂缓，应用／项目 rules 加载没有迁移。大历�
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
+
+2026-11-19，02m 资源加载完成验收。prometheus 的 Quick Chat 通过自然语言加载命令和显示工具详情，规则与命令更新在下一 Run 生效。实际停止和重启恢复通过，删除验收资源后下一 Run 撤销规则及命令目录条目。实际行为见[资源使用说明](../../../crates/xw-agent/docs/resources.md)，证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#agent-资源加载2026-11-17)。
 
 2026-11-02 对话过程折叠调整已实现并完成本批验证，包含运行中与整轮展开后的混合过程组、response 边界收起和单步骤例外。当前规则见 [Quick Chat](../../../desktop/docs/chat-ui.md#对话过程折叠)，自动检查、实际窗口证据及验证边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#思考与工具过程组折叠2026-11-02)。事项其余范围继续位于 active。
 

@@ -65,8 +65,83 @@ async fn failed_skill_commits_recover_only_durable_loads() {
     }
 }
 
+#[tokio::test]
+async fn failed_command_commits_never_reload_and_only_durable_intents_are_cancelled() {
+    for after in [2, 3] {
+        failed_tool_commit("Command", r#"{"name":"guide"}"#, after, false).await;
+    }
+}
+
+#[tokio::test]
+async fn failed_resource_context_commit_does_not_accept_input_or_advance_the_baseline() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("AGENTS.md"), "RESOURCE-RULE").unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                reasoning: None,
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let id: domain::SessionId = session.session_id.parse().unwrap();
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&id)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_next_append(TestFault::Partial);
+    assert!(matches!(
+        send(&service, request(&session.session_id)).await,
+        Err(AgentError::Persistence)
+    ));
+    assert!(host.calls.lock().unwrap().is_empty());
+    {
+        let state = service.state().unwrap();
+        let entries = state.sessions[&id].journal.as_ref().unwrap().entries();
+        assert!(!entries.iter().any(|entry| matches!(
+            entry.payload,
+            domain::EntryPayload::SystemContext(_) | domain::EntryPayload::InputAccepted(_)
+        )));
+    }
+    send(&service, request(&session.session_id)).await.unwrap();
+    while host.calls.lock().unwrap().is_empty() {
+        tokio::task::yield_now().await;
+    }
+    {
+        let state = service.state().unwrap();
+        let entries = state.sessions[&id].journal.as_ref().unwrap().entries();
+        let baseline = entries
+            .iter()
+            .find_map(|entry| match &entry.payload {
+                domain::EntryPayload::SystemContext(domain::SystemContextUpdate::Baseline(
+                    context,
+                )) => Some(context),
+                _ => None,
+            })
+            .unwrap();
+        assert!(baseline.instructions["rules.user.AGENTS.md"].contains("RESOURCE-RULE"));
+    }
+    service.close().await.unwrap();
+}
+
 async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed: bool) {
     let root = tempfile::tempdir().unwrap();
+    if name == "Command" {
+        std::fs::create_dir(root.path().join("commands")).unwrap();
+        std::fs::write(root.path().join("commands/guide.md"), "COMMAND-BODY").unwrap();
+    }
     if name == "Skill" {
         let directory = root.path().join("skills/guide");
         std::fs::create_dir_all(&directory).unwrap();
@@ -143,7 +218,10 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
-    if (name == "TodoWrite" && after == 3) || (name == "Skill" && after >= 3) {
+    if (name == "TodoWrite" && after == 3)
+        || (name == "Skill" && after >= 3)
+        || (name == "Command" && after == 3)
+    {
         {
             let state = service.state().unwrap();
             let recovered = &state.sessions[&id];

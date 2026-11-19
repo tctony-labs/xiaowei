@@ -741,6 +741,26 @@ test("streaming fences keep code position through updates and stop", () => {
   expect(screen.getByRole("button", { name: "复制回复" })).toBeVisible();
 });
 
+test("Command displays its name and preserves loaded output and failure details", () => {
+  const call = create(AgentToolCallSchema, {
+    name: "Command",
+    status: AgentToolStatus.COMPLETED,
+    argumentsJson: '{"name":"周报"}',
+    output: "命令：周报\n\n按模块整理提交。",
+  });
+  const { rerender } = render(<AgentToolCall call={call} />);
+  const summary = screen.getByLabelText("加载命令 周报 · 已完成");
+  expect(summary).toHaveTextContent("加载命令 周报");
+  fireEvent.click(summary);
+  expect(screen.getByText(/按模块整理提交/)).toBeVisible();
+  rerender(
+    <AgentToolCall
+      call={{ ...call, status: AgentToolStatus.FAILED, output: "当前运行没有可用命令：周报" }}
+    />,
+  );
+  expect(screen.getByText("当前运行没有可用命令：周报")).toBeVisible();
+});
+
 test("single tool rows start with an icon and formatted text, with the chevron last", () => {
   render(
     <AgentToolCall
