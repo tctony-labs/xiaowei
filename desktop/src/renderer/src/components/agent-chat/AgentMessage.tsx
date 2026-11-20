@@ -1,3 +1,4 @@
+import { AgentInteractionStatus, AgentToolStatus } from "proto-desktop-ts";
 import { type ReactNode, useEffect, useId, useState } from "react";
 import type { QuickChatMessage } from "../quick-chat/QuickChatPanel";
 import { AgentCopyButton } from "./AgentCopyButton";
@@ -32,14 +33,9 @@ export function AgentMessage({
   const activityId = useId();
   const [expanded, setExpanded] = useState(false);
   const [now, setNow] = useState(Date.now);
-  const [waitingGeneration, setWaitingGeneration] = useState("");
   const generating = message.status === "generating";
   const runStartedAtMs =
     message.timestampMs === undefined ? undefined : Number(message.timestampMs);
-  const waitingForContent = generating && generation && !generation.receivedContent;
-  const generationId = generation?.id;
-  const generationStartedAtMs = generation?.startedAtMs;
-  const generationKey = `${generationId}:${generationStartedAtMs}`;
 
   useEffect(() => {
     if (message.role !== "assistant" || !generating || runStartedAtMs === undefined) return;
@@ -47,13 +43,6 @@ export function AgentMessage({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [message.role, generating, runStartedAtMs]);
-
-  useEffect(() => {
-    if (!waitingForContent || generationStartedAtMs === undefined) return;
-    const delay = Math.max(0, generationStartedAtMs + 3000 - Date.now());
-    const timer = setTimeout(() => setWaitingGeneration(generationKey), delay);
-    return () => clearTimeout(timer);
-  }, [waitingForContent, generationStartedAtMs, generationKey]);
 
   if (message.role === "user") {
     return (
@@ -105,9 +94,12 @@ export function AgentMessage({
       group.id === activeBlockId ||
       (group.kind === "process" && group.blocks.some((block) => block.id === activeBlockId)),
   );
-  const showWaiting =
-    waitingForContent &&
-    (waitingGeneration === generationKey || Date.now() - generation.startedAtMs >= 3000);
+  const hasPendingTool = blocks.some(
+    (block) =>
+      (block.kind === "tool" && block.call.status === AgentToolStatus.PENDING) ||
+      (block.kind === "interaction" && block.interaction.status === AgentInteractionStatus.PENDING),
+  );
+  const showGenerationDots = generating && generation && !hasActiveContent && !hasPendingTool;
 
   return (
     <div className="agent-message">
@@ -131,7 +123,7 @@ export function AgentMessage({
               </span>
             </button>
           ) : (
-            <span className="text-xs leading-5 text-muted">{elapsedLabel}</span>
+            <span className="agent-activity-time text-xs text-muted">{elapsedLabel}</span>
           )}
         </div>
       )}
@@ -144,7 +136,6 @@ export function AgentMessage({
                 blocks={group.blocks}
                 complete={group.complete || !generating}
                 activeBlockId={activeBlockId}
-                onCopy={onCopy}
                 onOpenUrl={onOpenUrl}
               />
             );
@@ -170,16 +161,14 @@ export function AgentMessage({
             </div>
           );
         })}
+        {showGenerationDots && (
+          <div className="agent-generation-dots" role="status" aria-label="模型正在生成">
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+          </div>
+        )}
       </div>
-      {generating && generation && !hasActiveContent && (
-        <p
-          role="status"
-          aria-label={showWaiting ? undefined : "模型正在生成"}
-          className="agent-shimmer text-xs text-muted"
-        >
-          {showWaiting ? "等待模型响应" : "…"}
-        </p>
-      )}
       {hasFinalResponse && !reply.trim() && <p className="text-xs text-muted">未返回回复内容</p>}
       {message.status === "cancelled" && <p className="text-xs text-muted">已停止</p>}
       {message.error && (

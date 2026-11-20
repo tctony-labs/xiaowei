@@ -281,7 +281,7 @@ test("the product Panel renders and copies final Markdown via System", async () 
   await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
   await waitFor(() => expect(app.requests).toHaveLength(1));
-  expect(screen.getByLabelText("模型正在生成")).toHaveClass("agent-shimmer");
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
   act(() => app.finish(AgentRunStatus.COMPLETED, "**final answer**", "process reasoning"));
   expect(await screen.findByText("final answer")).toHaveProperty("tagName", "STRONG");
   for (const element of screen.getAllByText("process reasoning")) {

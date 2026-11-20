@@ -42,6 +42,23 @@ test("the completed card renders the full result rather than the merge arguments
   expect(screen.queryByText("参数")).toBeNull();
 });
 
+test("a long todo list keeps every item in a keyboard-scrollable area", () => {
+  const items = Array.from({ length: 30 }, (_, index) => ({
+    id: `task-${index}`,
+    content: `任务 ${index + 1}`,
+    status: "pending",
+  }));
+  const block = todo("long", items);
+  if (block.kind !== "tool") throw new Error("expected tool");
+  render(<AgentToolCall call={block.call} defaultOpen />);
+
+  const list = screen.getByRole("list", { name: "待办清单" });
+  expect(list).toHaveClass("agent-content-scroll");
+  expect(list).toHaveAttribute("tabindex", "0");
+  expect(within(list).getAllByRole("listitem")).toHaveLength(30);
+  expect(list).toHaveTextContent("任务 30");
+});
+
 test("todo cards split tool groups and only the latest defaults to expanded", () => {
   const read: AgentMessageBlock = {
     id: "read",

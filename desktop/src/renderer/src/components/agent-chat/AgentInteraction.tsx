@@ -44,37 +44,43 @@ export function AgentInteraction({
     <div className="agent-interaction-content">
       {question && (
         <>
-          <p className="whitespace-pre-wrap break-words">{question.question}</p>
-          {question.options.length > 0 && (
-            <fieldset className="agent-interaction-options" aria-label="回答选项">
-              {question.options.map((option, index) => (
-                <button
-                  // biome-ignore lint/suspicious/noArrayIndexKey: Fixed option indices.
-                  key={`${index}-${option}`}
-                  type="button"
-                  className="agent-interaction-option"
-                  aria-pressed={selected.includes(index)}
-                  disabled={disabled}
-                  onClick={() => {
-                    if (disabled) return;
-                    const next = question.multiSelect
-                      ? selected.includes(index)
-                        ? selected.filter((value) => value !== index)
-                        : [...selected, index].sort((a, b) => a - b)
-                      : [index];
-                    controls?.onSelectionChange(view.interactionId, next);
-                    if (!question.multiSelect) controls?.onRespond(view.interactionId);
-                  }}
-                >
-                  <span aria-hidden="true">
-                    {question.multiSelect ? (selected.includes(index) ? "☑" : "☐") : index + 1}
-                  </span>
-                  <span className="min-w-0 break-words">{option}</span>
-                </button>
-              ))}
-            </fieldset>
-          )}
-          {pending ? (
+          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling. */}
+          <section className="agent-content-scroll space-y-2" aria-label="问题内容" tabIndex={0}>
+            <p className="whitespace-pre-wrap break-words">{question.question}</p>
+            {question.options.length > 0 && (
+              <fieldset className="agent-interaction-options" aria-label="回答选项">
+                {question.options.map((option, index) => (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: Fixed option indices.
+                    key={`${index}-${option}`}
+                    type="button"
+                    className="agent-interaction-option"
+                    aria-pressed={selected.includes(index)}
+                    disabled={disabled}
+                    onClick={() => {
+                      if (disabled) return;
+                      const next = question.multiSelect
+                        ? selected.includes(index)
+                          ? selected.filter((value) => value !== index)
+                          : [...selected, index].sort((a, b) => a - b)
+                        : [index];
+                      controls?.onSelectionChange(view.interactionId, next);
+                      if (!question.multiSelect) controls?.onRespond(view.interactionId);
+                    }}
+                  >
+                    <span aria-hidden="true">
+                      {question.multiSelect ? (selected.includes(index) ? "☑" : "☐") : index + 1}
+                    </span>
+                    <span className="min-w-0 break-words">{option}</span>
+                  </button>
+                ))}
+              </fieldset>
+            )}
+            {!pending && text && (
+              <p className="whitespace-pre-wrap break-words text-muted">{text}</p>
+            )}
+          </section>
+          {pending && (
             <>
               <textarea
                 aria-label="补充回答"
@@ -104,20 +110,21 @@ export function AgentInteraction({
                 {form?.submitting ? "提交中…" : "提交回答"}
               </button>
             </>
-          ) : (
-            text && <p className="whitespace-pre-wrap break-words text-muted">{text}</p>
           )}
         </>
       )}
       {permission && (
         <>
-          <p className="break-words">
-            允许写入{permission.isDirectory ? "目录及子路径" : "文件"}：
-            <span className="agent-permission-path">{permission.path}</span>
-          </p>
-          {permission.reason && (
-            <p className="whitespace-pre-wrap break-words text-muted">{permission.reason}</p>
-          )}
+          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling. */}
+          <section className="agent-content-scroll space-y-2" aria-label="权限内容" tabIndex={0}>
+            <p className="break-words">
+              允许写入{permission.isDirectory ? "目录及子路径" : "文件"}：
+              <span className="agent-permission-path">{permission.path}</span>
+            </p>
+            {permission.reason && (
+              <p className="whitespace-pre-wrap break-words text-muted">{permission.reason}</p>
+            )}
+          </section>
           {pending && (
             <>
               <p className="text-xs text-muted">批准后在本对话中持续有效。</p>

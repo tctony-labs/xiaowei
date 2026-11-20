@@ -14,12 +14,12 @@ export type AgentToolIconKind =
 
 // Keep completed summaries in the reference app's category order, not call order.
 const toolActivities = {
-  tools: { label: "调用工具", icon: "tools" },
-  changes: { label: "修改文件", icon: "edit" },
-  exploration: { label: "读取文件", icon: "file" },
-  web: { label: "查阅网页", icon: "web" },
-  commands: { label: "执行命令", icon: "terminal" },
-} satisfies Record<string, { label: string; icon: AgentToolIconKind }>;
+  tools: "调用工具",
+  changes: "修改文件",
+  exploration: "读取文件",
+  web: "查阅网页",
+  commands: "执行命令",
+};
 
 const toolActions: Record<
   string,
@@ -96,8 +96,7 @@ export function toolGroupPresentation(calls: AgentToolCall[]) {
     .reverse()
     .find((call) => call.status === AgentToolStatus.PENDING);
   if (activeCall) {
-    const { label, icon } = toolPresentation(activeCall);
-    return { label, icon, active: true };
+    return { label: toolPresentation(activeCall).label, active: true };
   }
 
   const activities = new Set<string>(calls.map((call) => toolPresentation(call).activity));
@@ -106,8 +105,7 @@ export function toolGroupPresentation(calls: AgentToolCall[]) {
     .map(([, summary]) => summary);
 
   return {
-    label: summaries.map((summary) => summary.label).join("、"),
-    icon: summaries[0]?.icon ?? "tools",
+    label: summaries.join("、"),
     active: false,
   };
 }
