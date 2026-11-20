@@ -90,21 +90,21 @@ const scenarios = [
       "最后 Read 此文件并总结。清单状态是验收样本，结束时保持第二次结果，无需再次更新。",
   },
   {
-    name: "interactive decisions",
+    name: "interactive question",
     interactive: true,
     file: "interactive-acceptance.txt",
     calls: [
       ["AskUserQuestion", { question: "选择内容", options: ["A", "B"], multi_select: true }],
-      ["RequestPermission", { path: "fixture-target", is_directory: false, reason: "验收" }],
       ["Write", { path: "interactive-acceptance.txt", contents: "hello\nxiaowei\n" }],
       ["Read", { path: "interactive-acceptance.txt" }],
     ],
     prompt:
-      "依次调用 AskUserQuestion（选项 A、B）、RequestPermission 申请文件 {target} 的写权限，" +
-      "各自等真实回答后，用 Write 写入 hello\\nxiaowei\\n（真实换行），最后 Read 并确认。",
+      "调用 AskUserQuestion（选项 A、B），等待真实回答后，" +
+      "用 Write 写入 hello\\nxiaowei\\n（真实换行），最后 Read 并确认。",
   },
   {
-    name: "real files",
+    name: "full access outside the workspace",
+    outsideWorkspace: true,
     file: "acceptance.txt",
     calls: [
       ["Write", { path: "acceptance.txt", contents: "hello\nworld\n" }],
@@ -114,7 +114,7 @@ const scenarios = [
     ],
     prompt:
       "严格依次调用 Write、Read、Edit、Read。\n" +
-      "先在当前工作目录的 acceptance.txt 写入 hello\\nworld\\n（真实换行），读取，" +
+      "先在 {target} 写入 hello\\nworld\\n（真实换行），读取，" +
       "然后把 world 替换成 xiaowei，再读取确认。最终用中文说明结果。只操作这个临时文件。",
   },
   {
@@ -135,7 +135,7 @@ const scenarios = [
 ];
 if (process.platform === "darwin") {
   scenarios.push({
-    name: "sandboxed Bash",
+    name: "foreground Bash",
     file: "bash-acceptance.txt",
     calls: [
       [
@@ -247,7 +247,8 @@ async function exerciseScenario(scenario) {
       },
     ];
   }
-  const root = await mkdtemp(join(tmpdir(), "xiaowei-file-acceptance-"));
+  const parent = scenario.outsideWorkspace ? homedir() : tmpdir();
+  const root = await mkdtemp(join(parent, ".xiaowei-file-acceptance-"));
   const skillDescription = "Read a local reference and create a file. ".repeat(12);
   if (scenario.command) {
     await mkdir(join(root, "commands"));
@@ -298,9 +299,11 @@ async function exerciseScenario(scenario) {
       )
     ).session;
     assert.ok(session.cwd.endsWith(`/quick-chat/${session.sessionId}`));
-    const permissionTarget = join(session.cwd, scenario.file);
+    const target = join(scenario.outsideWorkspace ? root : session.cwd, scenario.file);
+    if (scenario.outsideWorkspace) {
+      for (const [, arguments_] of calls) arguments_.path = target;
+    }
     if (scenario.interactive) {
-      calls.find(([name]) => name === "RequestPermission")[1].path = permissionTarget;
       for (const streamApi of [stream, otherStream]) {
         const source = await streamApi.observeInteractions(
           create(pb.ObserveInteractionsRequestSchema, {
@@ -327,7 +330,7 @@ async function exerciseScenario(scenario) {
           {
             content: {
               case: "text",
-              value: `工具验收 ${nonce}：${scenario.prompt.replace("{target}", permissionTarget)}`,
+              value: `工具验收 ${nonce}：${scenario.prompt.replace("{target}", target)}`,
             },
           },
         ],
@@ -367,20 +370,14 @@ async function exerciseScenario(scenario) {
         ).session;
         assert.equal(snapshot.runs.length, 1);
         assert.equal(snapshot.runs[0].generation, undefined);
-        if (interaction.request.case === "permission") {
-          assert.equal(interaction.request.value.path, permissionTarget);
-          assert.equal(interaction.request.value.isDirectory, false);
-        }
+        assert.equal(interaction.request.case, "question");
         const command = create(pb.RespondInteractionRequestSchema, {
           sessionId: session.sessionId,
           interactionId: interaction.interactionId,
           clientRequestId: id(),
           expectedRevision: 1n,
           answer: {
-            answer:
-              interaction.request.case === "question"
-                ? { case: "question", value: { selectedIndices: [1], text: "补充说明" } }
-                : { case: "permission", value: { allow: true } },
+            answer: { case: "question", value: { selectedIndices: [1], text: "补充说明" } },
           },
         });
         // This caller decides before its ACK. Retry succeeds, a competing caller cannot win.
@@ -402,7 +399,7 @@ async function exerciseScenario(scenario) {
       }
     }
     assert.equal(completed?.status, pb.AgentRunStatus.COMPLETED, completed?.error);
-    assert.equal(await readFile(join(session.cwd, scenario.file), "utf8"), "hello\nxiaowei\n");
+    assert.equal(await readFile(target, "utf8"), "hello\nxiaowei\n");
     const tools = completed.items
       .filter((item) => item.content.case === "toolCall")
       .map((item) => item.content.value);
@@ -412,7 +409,7 @@ async function exerciseScenario(scenario) {
     );
     assert.ok(tools.every((tool) => tool.status === pb.AgentToolStatus.COMPLETED));
     assert.ok(tools.at(-1).output.includes("xiaowei"));
-    if (scenario.name === "sandboxed Bash") {
+    if (scenario.name === "foreground Bash") {
       assert.ok(tools[0].output.includes("shell-output"));
       const metadata = JSON.parse(tools[0].metadataJson);
       assert.equal(metadata.bash.exit_code, 0);
@@ -456,7 +453,6 @@ async function exerciseScenario(scenario) {
         "Glob",
         "Grep",
         "AskUserQuestion",
-        "RequestPermission",
         "TodoWrite",
         "Skill",
         "Command",
@@ -466,6 +462,7 @@ async function exerciseScenario(scenario) {
       if (process.platform === "darwin") expected.push("Bash");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
+      assert.ok(JSON.stringify(requests[0].messages[0].content).includes("当前用户的系统权限"));
       assert.ok(requests.at(-1).messages.at(-1).content.includes("xiaowei"));
       if (scenario.command) {
         assert.ok(JSON.stringify(requests[0].messages).includes("fixture-command"));
@@ -483,7 +480,7 @@ async function exerciseScenario(scenario) {
         assert.ok(!JSON.stringify(requests[0].messages).includes("SKILL-INSTRUCTION-FIXTURE"));
         assert.ok(JSON.stringify(requests[1].messages).includes("SKILL-INSTRUCTION-FIXTURE"));
       }
-      if (scenario.name === "sandboxed Bash") {
+      if (scenario.name === "foreground Bash") {
         assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
       }
       if (scenario.name === "file search") {

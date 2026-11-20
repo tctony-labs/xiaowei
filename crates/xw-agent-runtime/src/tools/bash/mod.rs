@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 use tokio::io::{AsyncRead, AsyncReadExt};
-use xw_agent_types::{PermissionTarget, ToolDeclaration};
+use xw_agent_types::{PermissionMode, PermissionTarget, ToolDeclaration};
 
 use super::ToolOutput;
 use crate::CancellationToken;
@@ -44,9 +44,8 @@ pub fn declaration() -> Option<ToolDeclaration> {
     }
     Some(ToolDeclaration {
         name: "Bash".into(),
-        description: "Execute a foreground bash command in cwd, inside a write-restricted \
-            macOS sandbox. Returns stdout, stderr and exit code. No stdin or background mode. \
-            Default timeout 30000 ms, clamped to 100..600000 ms."
+        description: "Execute a foreground bash command in cwd. Returns stdout, stderr and exit \
+            code. No stdin or background mode. Default timeout 30000 ms, clamped to 100..600000 ms."
             .into(),
         parameters_json: json!({
             "type": "object",
@@ -65,6 +64,7 @@ pub fn declaration() -> Option<ToolDeclaration> {
 
 pub async fn execute(
     cwd: &Path,
+    mode: PermissionMode,
     grants: &[PermissionTarget],
     arguments: &str,
     cancellation: CancellationToken,
@@ -83,7 +83,7 @@ pub async fn execute(
         .unwrap_or(DEFAULT_TIMEOUT_MS)
         .clamp(100, 600_000);
     let mut command =
-        sandbox::command(cwd, grants, &args.command).map_err(BashError::NotStarted)?;
+        sandbox::command(cwd, mode, grants, &args.command).map_err(BashError::NotStarted)?;
     if cancellation.is_cancelled() {
         return Err(not_started("运行已停止，命令未执行"));
     }
@@ -135,10 +135,12 @@ pub async fn execute(
     let (stdout, stderr) = tokio::join!(reader_result(stdout), reader_result(stderr));
     let (stdout, stdout_bytes) = stdout.map_err(BashError::ResultUnknown)?;
     let (stderr, stderr_bytes) = stderr.map_err(BashError::ResultUnknown)?;
-    let sandbox_denied = !exit.success()
+    let sandbox_failed = mode != PermissionMode::FullAccess && !exit.success();
+    let sandbox_setup_failed = sandbox_failed && stderr.contains("sandbox-exec: sandbox_apply");
+    let sandbox_denied = sandbox_failed
+        && !sandbox_setup_failed
         && (stderr.contains("Operation not permitted")
-            || stdout.contains("Operation not permitted")
-            || stderr.contains("sandbox-exec: sandbox_apply"));
+            || stdout.contains("Operation not permitted"));
     let combined = format!(
         "{}{}{}",
         stdout,
@@ -162,6 +164,14 @@ pub async fn execute(
         "Cancelled".to_owned()
     } else if timed_out {
         format!("Timeout after {timeout_ms}ms")
+    } else if sandbox_setup_failed {
+        "Bash 沙箱启动失败，命令未执行".into()
+    } else if sandbox_denied && mode == PermissionMode::Interactive {
+        concat!(
+            "沙箱拒绝写入：权限不足，操作未获授权。",
+            "若确需写入当前范围外的路径，可调用 RequestPermission 申请该路径的权限。"
+        )
+        .into()
     } else if sandbox_denied {
         "沙箱拒绝写入：权限不足，操作未获授权".into()
     } else {
@@ -173,8 +183,10 @@ pub async fn execute(
     };
     let duration_ms = started.elapsed().as_millis() as u64;
     log::debug!(
-        "Agent Bash exited pid={} exit_code={:?} cancelled={cancelled} timed_out={timed_out} \
-         sandbox_denied={sandbox_denied} truncated={truncated} duration_ms={duration_ms}",
+        "Agent Bash exited pid={} mode={mode:?} exit_code={:?} \
+         cancelled={cancelled} timed_out={timed_out} \
+         sandbox_denied={sandbox_denied} sandbox_setup_failed={sandbox_setup_failed} \
+         truncated={truncated} duration_ms={duration_ms}",
         group.pid,
         exit.code()
     );
@@ -195,7 +207,7 @@ pub async fn execute(
                 .to_string(),
             ),
         },
-        is_error: cancelled || timed_out || sandbox_denied,
+        is_error: cancelled || timed_out || sandbox_setup_failed || sandbox_denied,
         cancelled,
     })
 }

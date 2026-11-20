@@ -512,12 +512,13 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     // Real worker packet time traverses PB, the native Host adapter and the journal unchanged.
     const years = await readdir(join(root, "sessions"));
     const months = await readdir(join(root, "sessions", years[0]));
-    const records = (
-      await readFile(
-        join(root, "sessions", years[0], months[0], `${session.sessionId}.jsonl`),
-        "utf8",
-      )
-    )
+    const directory = join(root, "sessions", years[0], months[0]);
+    const permissionState = await readFile(
+      join(directory, `${session.sessionId}.permission-mode`),
+      "utf8",
+    );
+    assert.equal(JSON.parse(permissionState), "full_access");
+    const records = (await readFile(join(directory, `${session.sessionId}.jsonl`), "utf8"))
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));
@@ -539,6 +540,7 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
       }
       if (record.payload.type === "run_started") {
         assert.ok(record.payload.data.context.model.model_ref);
+        assert.equal("permission_mode" in record.payload.data.context, false);
         assert.equal("system_prompt" in record.payload.data.context, false);
       }
       if (record.payload.type === "gen_started") {

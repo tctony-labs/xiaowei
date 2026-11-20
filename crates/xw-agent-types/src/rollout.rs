@@ -16,6 +16,9 @@ pub struct JournalEntry {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SessionMeta {
+    /// Recognized for histories written by the development draft, never written to shared v2.
+    #[serde(default, skip_serializing)]
+    pub permission_mode: Option<PermissionMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

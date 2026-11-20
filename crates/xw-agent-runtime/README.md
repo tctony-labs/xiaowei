@@ -18,9 +18,11 @@
 cargo test -p xw-agent-runtime --locked
 ```
 
-`tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。写操作先按实际路径与 symlink 检查 cwd／临时目录／已有有效授权；cwd 为 home 或其祖先时不获得整棵目录写权限。读取保留操作系统权限约束；工作区内 `.git` 不额外禁写。
+`tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。读取和路径解析沿用系统权限与 symlink 规则，写入范围由本 Run 的权限模式决定。
 
-`tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重，Bash 下一次启动使用新的授权快照。
+Write／Edit 和 Bash 共用 `PermissionMode`。在 `Interactive` 与 `UnattendedWorkspace` 下，工作目录、`/tmp`、`/private/tmp`、`~/tmp` 和已有会话授权可写。cwd 为 home 或其祖先时不开放整棵目录，工作区内 `.git` 不额外禁写。只有 `Interactive` 可发起权限申请。 `FullAccess` 跳过上述路径范围限制，读写仍受系统与当前用户权限约束。
+
+`tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重。
 
 `tools::todo` 提供 TodoWrite 声明和每 Run 的清单执行器。默认替换完整清单，`merge=true` 按稳定 ID 更新已有项并在末尾追加新项；空列表可清空。状态为 pending／in_progress／completed／cancelled，多项 in_progress 返回警告但仍成功。结果正文为计数摘要，`metadata_json.todoWrite.todos` 始终保存更新后的完整列表。调用方只用最后一个已提交成功结果恢复执行器，不从未执行的参数推断状态，也不重复执行历史调用；本包不单独写盘。
 
@@ -32,8 +34,8 @@ Skill 的成功结果只返回加载摘要和 `metadata_json.skill` 的名称、
 
 两种搜索的文本输出不超过 64 KiB；数量或字节超限时明确提示缩小范围，单行超长按 UTF-8 边界截断。遍历／文件读取错误按旧版跳过，结果正文与 metadata 标明跳过数量和可能不完整，不能把此时的无匹配当作完整检查。非法参数／模式返回工具错误。`execute_cancellable(name, arguments, cancellation)` 在阻塞池中执行；搜索在遍历及流式读取阶段检查取消，调用方等待实际结束再提交 Cancelled，不在取消后继续生成。原有 execute 入口保留，Read／Write／Edit 已开始的操作仍按实际结果结算。搜索 metadata 包含 matches／shown、truncated 与 skipped_errors；Grep 截断时 matches 是已显示的下界，不是完整匹配总数。
 
-`tools::bash::declaration()` 仅在 macOS 提供 Bash 声明，异步 `execute(cwd, grants, arguments, cancellation)` 返回 `BashOutcome`。参数为必填 description／command 与可选 timeout_ms，默认 30 秒，限制到 100 毫秒至 600 秒。命令通过绝对路径 `/usr/bin/sandbox-exec` 启动 `/bin/bash -c`，继承宿主环境，stdin 关闭；不提供后台参数或超时转后台。
+`tools::bash::declaration()` 仅在 macOS 提供 Bash 声明，异步 `execute(cwd, mode, grants, arguments, cancellation)` 返回 `BashOutcome`。参数为必填 description／command 与可选 timeout_ms，默认 30 秒，限制到 100 毫秒至 600 秒。受限模式通过绝对路径 `/usr/bin/sandbox-exec` 启动 `/bin/bash -c`，用 [Seatbelt](../xw-sandboxed-exec/README.md) 落实文件写入范围。授权更新适用于下一次 Bash 调用。`FullAccess` 直接启动 `/bin/bash -c`。各模式沿用命令拦截、联网、环境继承和前台执行规则，stdin 关闭。其他平台不注册 Bash，直接执行入口返回不支持错误。
 
-Bash 复用文件工具解析后的可写路径，通过 [xw-sandboxed-exec](../xw-sandboxed-exec/README.md) 生成 Seatbelt 策略。允许读取与网络，写入限制为 cwd、`/tmp`／`/private/tmp`／`~/tmp` 与已有有效授权；home 或其祖先不自动获得目录写权限，文件级授权只允许精确文件。子进程继承策略，`.git` 沿用普通写入规则，不为 `.bsk` 增加例外。命令正则拦截是补充防护，写入边界由系统沙箱执行。其他平台不注册 Bash，直接执行入口也返回不支持错误。
+stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
 
-stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。取消与超时对独立进程组发送 SIGTERM，500 毫秒后回收已退出 shell 并发送 SIGKILL；正常 shell 退出也清理同组残留子进程，确认进程组消失并收完输出后才返回。无法确认回收或输出结果时返回 `BashError::ResultUnknown`，由 core 记录未知结果与错误原因、跳过余下未执行工具并结束当前 Run；后续用户消息可继续，不自动重放旧调用。进程组清理不承诺管理主动脱离进程组的 daemon。
+取消与超时对独立进程组发送 SIGTERM，500 毫秒后回收已退出 shell 并发送 SIGKILL；正常 shell 退出也清理同组残留子进程，确认进程组消失并收完输出后才返回。无法确认回收或输出结果时返回 `BashError::ResultUnknown`，由 core 记录未知结果与错误原因、跳过余下未执行工具并结束当前 Run；后续用户消息可继续，不自动重放旧调用。进程组清理不承诺管理主动脱离进程组的 daemon。

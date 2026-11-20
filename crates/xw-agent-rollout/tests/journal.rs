@@ -47,21 +47,29 @@ fn registered_files_use_creation_month_in_utc_without_scanning() {
     };
     // This date differs from the UUID's timestamp and falls on a UTC month boundary.
     let created_at_ms = 1_735_689_600_000;
-    let journal = store.create(id, created_at_ms, meta.clone()).unwrap();
+    let mut journal = store.create(id, created_at_ms, meta.clone()).unwrap();
     let path = directory
         .path()
         .join("sessions/2025/01")
         .join(format!("{id}.jsonl"));
     assert_eq!(journal.path(), path);
+    journal
+        .set_permission_mode(PermissionMode::FullAccess)
+        .unwrap();
     drop(journal);
 
     assert!(store.open_registered(id, created_at_ms - 1).is_err());
     let (journal, repair) = store.open_registered(id, created_at_ms).unwrap();
     assert_eq!(journal.entries().len(), 2);
+    assert_eq!(
+        journal.permission_mode().unwrap(),
+        Some(PermissionMode::FullAccess)
+    );
     assert_eq!(repair.discarded_bytes, 0);
     drop(journal);
     store.delete_registered(id, created_at_ms).unwrap();
     assert!(!path.exists());
+    assert!(!path.with_extension("permission-mode").exists());
 
     for invalid in [-1, i64::MAX] {
         assert!(matches!(

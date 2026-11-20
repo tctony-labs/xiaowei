@@ -25,7 +25,11 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。生产 `start_run` 已在生成前提交同步结果，`rebuild_context` 将独立系统记录按历史顺序投影进模型请求；跨 Run 无变化不追加，重开不重复基线。
 
-`build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和与实际传入声明对应的文件、Bash、搜索及问答／权限规则，返回经过校验的 SystemContext；不会注册工具或改变执行权限。正文与工具 schema 分别维护，规则随工具增删一起经过已有差异／持久化入口。`tool_registry` 按实际 cwd 装配工具及环境片段，再用于生产模型请求。新增工具只追加相应声明和 tool 规则，保留旧基线及已有 schema；未变化的后续 Run／重开不重复配置。
+`build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和实际可用工具的通用规则。`tool_registry` 在会话创建、加载及 Run 启动时根据 cwd 和当前 `PermissionMode` 装配工具与 `environment.permissions`。切换模式只追加已变化的权限说明及 `RequestPermission` 的声明和规则，通用工具定义保持稳定。未变化的后续 Run／重开不重复记录上下文。
+
+宿主通过 `create_session_with_permission_mode` 提供初始模式，桌面当前传入 `FullAccess`。同一个创建请求 ID 的重试必须匹配原始模型配置、cwd 和初始模式。`set_session_permission_mode` 在两次 Run 之间更新会话的模式，活跃 Run 返回冲突。
+
+当前模式保存在 JSONL 旁的 `<session-id>.permission-mode` 文件。写入临时文件并同步后，原子替换正式文件，随后更新内存。写入失败后重开仍使用上次提交值。没有模式文件的会话以 `Interactive` 恢复。每个 Run 用同一个内存快照生成工具声明与权限提示词，并执行工具。权限提示词和工具变化沿用 `SystemContext` 记录，`Meta` 和 `RunStarted` 维持已发布的 v2 格式。各模式的文件权限见 [runtime](../xw-agent-runtime/README.md)。
 
 有 cwd 的会话同时提供固定 schema 的 `Skill` 工具。每个新 Run 在阻塞池扫描 `<root>/skills/` 和 `<cwd>/.xiaowei/skills/`，固定本 Run 的名称、简介和正文，项目级同名技能优先。用户级目录沿用宿主传入的 Agent 根目录，desktop 默认 `~/.xiaowei/skills/` 并遵循已有 `XIAOWEI_AGENT_HOME` 覆盖；纯内存服务没有用户级根目录。技能目录与正文更新从下一 Run 生效，不需要文件监听。
 
@@ -41,7 +45,7 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集、文件原语及 Bash 的进程／沙箱生命周期。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止会向 Glob／Grep 传递取消并等待阻塞搜索退出，等待已开始的文件写入实际结算或异步 Bash 回收，余下调用补 skipped，不再生成；删除和关闭等待相同清理。Bash 保留真实退出结果与部分输出，取消显示 Cancelled，超时显示 Failed，普通非零退出仍显示 Completed。Bash 返回 ResultUnknown 时提交带错误原因的未知结果，余下未执行调用补 Skipped，并将当前 Run 结算为 Failed；同一会话可立即或重开后发送新消息，未知结果随历史传给模型，不自动重放旧调用。结果提交失败仍保留未结算意图，沿写盘修复路径处理。公共工具 Item 可由历史重建。
 
-AskUserQuestion／RequestPermission 在同一 Run 中等待用户决定，等待时没有活跃 Generate，也不持有服务锁。公共交互附在原 ToolCall，快照和 InteractionUpdated 保持同一身份；回应按 revision、可信来源与 client request ID 校验，首个持久决定胜出，相同决定的原请求重试幂等。拒绝也是有效工具结果；批准后立即刷新本 Run 的文件工具和后续 Bash 授权，已启动进程不追溯扩权。批准范围随会话恢复，停止／关闭使未决请求失效，重启不恢复等待或自动执行。
+AskUserQuestion／RequestPermission 在同一 Run 中等待用户决定，等待时没有活跃 Generate，也不持有服务锁。公共交互附在原 ToolCall，快照和 InteractionUpdated 保持同一身份；回应按 revision、可信来源与 client request ID 校验，首个持久决定胜出，相同决定的原请求重试幂等。`RequestPermission` 仅在 `Interactive` 提供，批准后立即刷新本 Run 的文件工具和下一次 Bash 调用的授权。批准范围随会话恢复，停止／关闭使未决请求失效，重启不恢复等待或自动执行。
 
 TodoWrite 沿用相同工具循环和 ToolOutcome 提交，完整清单在成功结果元数据中保存。每 Run 从核心完整投影中最后一次成功结果恢复状态，失败／跳过的调用不覆盖清单；合并结果和空清单均可跨 Run／重启恢复，不写独立 todo 文件或 SQLite 表。已提交意图但没有结果的更新在恢复时结算取消，保留之前成功的清单，不重放；意图提交前失败仍沿用既有未闭合调用保护。工具行为见 [runtime](../xw-agent-runtime/README.md)。
 

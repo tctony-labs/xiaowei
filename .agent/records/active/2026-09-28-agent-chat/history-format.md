@@ -23,11 +23,11 @@
 | 第一条 SessionHeader 的外层 | `schema_version: 2`、`session_id`、`entry_id`、`timestamp_ms`、`payload` | 时间提供会话创建时间；Header 只写一次 |
 | Header payload | `{"type":"session_header","data":{"cwd":"/absolute/path"}}` | cwd 可选；既有无 data 的 Header 保持可读，不包含模型配置 |
 | 后续记录外层 | `entry_id`、`timestamp_ms`、`payload` | 版本及会话身份从首条继承；不重复保存 `sequence` |
-| Meta payload | `model_ref`、可选 `reasoning`／`provider_name`／`model_name` | 第二条保存初始配置，之后每次写全量小配置；省略 reasoning 表示模型默认，不包含创建时间 |
+| Meta payload | `model_ref`、可选 `reasoning`／`provider_name`／`model_name` | 第二条保存初始配置，之后每次写全量小配置，省略 reasoning 表示模型默认 |
 
-Meta 不保存标题、标题来源、归档、创建请求 ID／来源、原始创建配置、workspace 路径、metadata revision、系统指令或辅助模型引用。标题、自动标题开关和管理状态以 SQLite 为准。`execution_policy` 当前固定 Interactive，运行尚未消费；工具实现需要时再设计持久记录。
+Meta 不保存标题、标题来源、归档、创建请求 ID／来源、原始创建配置、workspace 路径、metadata revision、系统指令或辅助模型引用。标题、自动标题开关和管理状态以 SQLite 为准。会话当前权限模式的持久化见[权限模式提交与恢复](#权限模式提交与恢复)。
 
-CreateSession 先查询 Host 模型信息，成功时初始 Meta 带独立名称；查询失败仍按原选择创建，省略未知名称并通过公共快照提示。Header 和初始 Meta 都提交成功后才登记 SQLite，初始模型查询后不再重复启动创建刷新。模型／思考选择修改立即提交新 Meta；普通发送不重复保存会话配置。provider_name／model_name 分别保存（如 tctony 与 sol），最终展示时才组合为 `tctony/sol`。后续查询成功补充名称时可追加 Meta，名称变化不改写历史 Run，查询失败提示与连接状态不落盘。
+CreateSession 先查询 Host 模型信息，成功时初始 Meta 带独立名称；查询失败仍按原选择创建，省略未知名称并通过公共快照提示。Header、初始 Meta 和权限模式都提交成功后才登记 SQLite，初始模型查询后不再重复启动创建刷新。模型／思考选择修改立即提交新 Meta；普通发送不重复保存会话配置。provider_name／model_name 分别保存（如 tctony 与 sol），最终展示时才组合为 `tctony/sol`。后续查询成功补充名称时可追加 Meta，名称变化不改写历史 Run，查询失败提示与连接状态不落盘。
 
 `cwd` 已放入 SessionHeader，创建时确定，后续默认不更改，不放 Meta；具体生命周期见下节。
 
@@ -62,7 +62,7 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `turn_ended` | `turn_id`、`status`、可选抢占原因、单调耗时、安全错误／`error_ref` | final_gen_id 从最后一个所属 Conversation Gen 重建；不能指向工具提取 Gen |
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
 
-`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
+`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步，其中包含当时生效的权限说明。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
 
 `RunStarted.context.tools` 可从 `base_context.through_entry_id` 指向的历史位置重建时，编码器省略该字段。读取以该边界内最近的基线或压缩快照为起点，依序应用其后的增量，再把声明补回完整领域对象并校验。显式保存的列表按原值读取，包括空列表；没有可用基线时必须显式保存。辅助 Gen 的独立 `context.tools` 仍显式保存。格式版本仍为 v2，既有文件可直接读取，读取新写入的精简条目需要更新后的 reader。
 
@@ -129,6 +129,12 @@ FormatError 区分 UnsupportedVersion 与 InvalidStructure，ValidationError 返
 6. 有效上下文按稳定 entry 边界、适用检查点和后缀重建；公共投影恢复 Run／Item 和原 input 请求身份。完整 Assistant 来源、签名和统计来自历史响应，不能从当前模型补猜。
 
 生产 AgentService::open 初始化与列表只读 SQLite，打开登记会话才读取对应 JSONL；未登记文件不自动导入，损坏会话单独报错。显式非 indexed 测试入口和独立 deletion marker API 不属于生产持久会话路径，不能替代 SQLite 标题／归档管理。
+
+### 权限模式提交与恢复
+
+权限模式使用与 JSONL 同目录的 `<session-id>.permission-mode`。持有会话写锁时，将完整值写入 `<session-id>.permission-next` 并同步，然后原子更名为正式文件。更名成功后才更新内存。重开只加载正式文件，缺少时回退到 `Interactive`。会话删除时清理两个路径。
+
+新版生成的 JSONL 维持已发布的 v2 字段。新版读取器还可读取开发草稿曾写入 `Meta` 和 `RunStarted.context` 的 `permission_mode`，当前权限仍从正式模式文件恢复。已经包含草稿字段的历史需用新版读取器打开，重开时保留原始记录。
 
 ## 会话索引、归档与删除
 

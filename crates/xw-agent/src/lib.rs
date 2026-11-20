@@ -37,7 +37,7 @@ pub use xw_agent_runtime::{
     CancellationToken, GenerationError, GenerationEvent, GenerationFuture, GenerationRequest,
     GenerationStream, LlmGeneration,
 };
-pub use xw_agent_types::{InputSource, SourceKind};
+pub use xw_agent_types::{InputSource, PermissionMode, SourceKind};
 
 pub use host::{AgentHost, AuxiliaryModelRefFuture, ModelInfoFuture};
 pub use xw_agent_types::{AuxiliaryModelError, ModelInfo, ModelInfoError, ModelSelection};

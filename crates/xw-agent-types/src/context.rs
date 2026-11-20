@@ -9,6 +9,9 @@ pub struct RunContext {
     pub generation: GenerationParameters,
     pub tools: Vec<ToolDeclaration>,
     pub limits: RuntimeLimits,
+    /// Recognized for histories written by the development draft, never written to shared v2.
+    #[serde(default, skip_serializing)]
+    pub permission_mode: Option<PermissionMode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -128,12 +131,13 @@ pub enum InputMode {
     Preempt,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ExecutionPolicy {
+pub enum PermissionMode {
+    #[default]
     Interactive,
     UnattendedWorkspace,
-    Unrestricted,
+    FullAccess,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

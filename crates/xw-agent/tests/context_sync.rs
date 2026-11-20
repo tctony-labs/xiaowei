@@ -31,6 +31,7 @@ fn create(store: &RolloutStore) -> Journal {
             SessionId::new(),
             1000,
             SessionMeta {
+                permission_mode: None,
                 model_ref: Some("fixture".into()),
                 provider_name: None,
                 model_name: None,

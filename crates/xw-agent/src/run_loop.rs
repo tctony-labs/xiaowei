@@ -122,7 +122,7 @@ async fn drive(
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, history, mut grants, todo_metadata, registered, exposed) = {
+    let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
         let todo_metadata = session
@@ -143,6 +143,11 @@ async fn drive(
             .flatten();
         (
             session.view.cwd.clone(),
+            session
+                .active
+                .as_ref()
+                .expect("accepted run")
+                .permission_mode,
             session.history.clone(),
             session.granted_paths.clone(),
             todo_metadata,
@@ -159,6 +164,7 @@ async fn drive(
     let tools = cwd.as_ref().map(|cwd| {
         Arc::new(Mutex::new(FileTools::new(
             PathBuf::from(cwd),
+            permission_mode,
             grants.clone(),
             &history,
         )))
@@ -359,6 +365,10 @@ async fn drive(
                     Err("运行已停止，工具未执行".into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
+                } else if name == "RequestPermission"
+                    && permission_mode != crate::PermissionMode::Interactive
+                {
+                    Err("当前权限模式不允许申请写入权限".into())
                 } else if !exposed.contains(name) {
                     Err(format!("当前会话未开放工具：{name}"))
                 } else if let Some(registration) = registered
@@ -435,6 +445,7 @@ async fn drive(
                 {
                     match xw_agent_runtime::tools::bash::execute(
                         std::path::Path::new(cwd),
+                        permission_mode,
                         &grants,
                         &intent.arguments_json,
                         cancellation.clone(),

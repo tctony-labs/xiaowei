@@ -85,6 +85,7 @@ impl ToolContext for ExecutionContext {
                 },
             };
             let context = domain::RunContext {
+                permission_mode: None,
                 model: domain::ModelDescriptor {
                     model_ref,
                     provider_name: Some(info.provider_name),

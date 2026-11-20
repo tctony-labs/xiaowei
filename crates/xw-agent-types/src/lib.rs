@@ -13,9 +13,9 @@ mod system_context;
 mod validation;
 
 pub use context::{
-    ContextBoundary, ExecutionPolicy, GenerationParameters, InputModality, InputMode, InputSource,
-    ModelCapabilities, ModelDescriptor, RunCause, RunContext, RuntimeLimits, SourceKind,
-    ToolDeclaration,
+    ContextBoundary, GenerationParameters, InputModality, InputMode, InputSource,
+    ModelCapabilities, ModelDescriptor, PermissionMode, RunCause, RunContext, RuntimeLimits,
+    SourceKind, ToolDeclaration,
 };
 
 pub use format::{

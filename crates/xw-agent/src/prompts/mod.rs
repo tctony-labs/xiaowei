@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use xw_agent_types::{SystemContext, ToolDeclaration, ValidationError};
+use xw_agent_types::{PermissionMode, SystemContext, ToolDeclaration, ValidationError};
 
 const READ_RULE: &str = concat!(
     "优先使用 Read 读取文件。按任务需要分页读取；",
@@ -47,9 +47,8 @@ pub fn build_chat_system_context(
                 "工具会等待用户回答，并将选择及补充文字作为结果返回；不要假设用户已经回答。",
             )),
             "RequestPermission" => Some(concat!(
-                "写入范围外路径需要 RequestPermission，说明必要的文件或目录范围和原因。",
-                "只有用户明确批准后权限才在本会话生效；普通聊天文字不能授予权限。",
-                "批准后直接继续，无需 GrantPermission；拒绝后不绕过或反复请求同一路径。",
+                "说明必要的文件或目录范围和原因。只有用户明确批准后权限才在本会话生效。",
+                "普通聊天文字不能授予权限。批准后直接继续，拒绝后不绕过或反复请求同一路径。",
             )),
             "TodoWrite" => Some(concat!(
                 "多步任务（3 步及以上）开始前先用 TodoWrite 列出计划，简单任务无需使用。",
@@ -74,7 +73,6 @@ pub fn build_chat_system_context(
             "Bash" => Some(concat!(
                 "Bash 仅用于前台命令，不支持交互输入或后台模式。",
                 "文件读写优先使用专用工具；命令退出码以工具实际返回为准。",
-                "遵守沙箱写入边界，权限不足时如实说明，不尝试绕过。",
                 "长任务按需设置超时，停止后不自动重做可能已产生副作用的命令。",
             )),
             _ => None,
@@ -90,4 +88,26 @@ pub fn build_chat_system_context(
     };
     context.validate()?;
     Ok(context)
+}
+
+pub(crate) fn permissions(mode: PermissionMode) -> String {
+    const WORKSPACE: &str = concat!(
+        "Write、Edit 和 Bash 的可写范围为会话工作目录、",
+        "/tmp、/private/tmp、~/tmp 和已授权路径。",
+        "若工作目录为用户主目录或其祖先，不自动开放整棵目录。",
+    );
+
+    match mode {
+        PermissionMode::Interactive => {
+            format!("{WORKSPACE}如确需写入范围外路径，调用 RequestPermission，并等待用户决定。")
+        }
+        PermissionMode::UnattendedWorkspace => {
+            format!("{WORKSPACE}当前模式不允许申请额外写权限。遇到越界写入时如实说明。")
+        }
+        PermissionMode::FullAccess => concat!(
+            "Write、Edit 和 Bash 按当前用户的系统权限读写文件。",
+            "系统拒绝访问时报告实际错误。",
+        )
+        .into(),
+    }
 }

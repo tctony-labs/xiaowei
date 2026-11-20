@@ -5,7 +5,9 @@ use std::{
 };
 
 use chrono::{DateTime, Datelike};
-use xw_agent_types::{EntryId, EntryPayload, JournalEntry, Sequence, SessionId, encode_entry};
+use xw_agent_types::{
+    EntryId, EntryPayload, JournalEntry, PermissionMode, Sequence, SessionId, encode_entry,
+};
 
 use crate::{Repair, Result, RolloutError, recovery::read_and_repair, writer_lock::WriterLock};
 
@@ -246,6 +248,16 @@ impl SessionFiles {
 }
 
 fn delete_files(root: &Path, path: &Path, id: SessionId) -> Result<()> {
+    for path in [
+        path.with_extension("permission-mode"),
+        path.with_extension("permission-next"),
+    ] {
+        match fs::remove_file(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
     match fs::remove_file(path) {
         Ok(()) => {
             #[cfg(unix)]
@@ -345,6 +357,47 @@ impl Journal {
         self.state
     }
 
+    pub fn permission_mode(&self) -> Result<Option<PermissionMode>> {
+        match fs::read(self.path.with_extension("permission-mode")) {
+            Ok(bytes) => serde_json::from_slice(&bytes).map(Some).map_err(|error| {
+                std::io::Error::new(std::io::ErrorKind::InvalidData, error).into()
+            }),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Publish only after the staged value is synced. Cold open ignores the staging file.
+    pub fn set_permission_mode(&mut self, mode: PermissionMode) -> Result<()> {
+        if self.state == WriterState::NeedsCheck {
+            return Err(RolloutError::NeedsCheck);
+        }
+        let committed = self.path.with_extension("permission-mode");
+        let staged = self.path.with_extension("permission-next");
+        match fs::remove_file(&staged) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&staged)?;
+        let encoded = serde_json::to_string(&mode).map_err(std::io::Error::other)?;
+        let result = write_synced_line(
+            &mut file,
+            encoded.as_bytes(),
+            #[cfg(any(test, feature = "test-support"))]
+            self.take_write_fault(),
+        );
+        drop(file);
+        if let Err(error) = result.and_then(|()| fs::rename(&staged, &committed)) {
+            let _ = fs::remove_file(staged);
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
     pub fn append(&mut self, payload: EntryPayload, timestamp_ms: i64) -> Result<JournalEntry> {
         if self.state == WriterState::NeedsCheck {
             return Err(RolloutError::NeedsCheck);
@@ -371,34 +424,14 @@ impl Journal {
         // Keep the live cache identical to replay, including fields derived by the compact codec.
         let entry = xw_agent_types::decode_entry(&encoded, &self.entries)
             .map_err(|_| RolloutError::InvalidHistory)?;
-        let result = (|| -> std::io::Result<()> {
+        #[cfg(any(test, feature = "test-support"))]
+        let fault = self.take_write_fault();
+        let result = write_synced_line(
+            &mut self.file,
+            encoded.as_bytes(),
             #[cfg(any(test, feature = "test-support"))]
-            if self.fault.is_some_and(|(remaining, _)| remaining == 0) {
-                let (_, fault) = self.fault.take().expect("fault is set");
-                match fault {
-                    TestFault::BeforeWrite => {}
-                    TestFault::Partial => self
-                        .file
-                        .write_all(&encoded.as_bytes()[..encoded.len() / 2])?,
-                    TestFault::AfterLine | TestFault::Sync => {
-                        self.file.write_all(encoded.as_bytes())?;
-                        self.file.write_all(b"\n")?;
-                        if matches!(fault, TestFault::Sync) {
-                            self.file.flush()?;
-                        }
-                    }
-                }
-                return Err(std::io::Error::from(std::io::ErrorKind::StorageFull));
-            }
-            #[cfg(any(test, feature = "test-support"))]
-            if let Some((remaining, _)) = &mut self.fault {
-                *remaining -= 1;
-            }
-            self.file.write_all(encoded.as_bytes())?;
-            self.file.write_all(b"\n")?;
-            self.file.flush()?;
-            self.file.sync_data()
-        })();
+            fault,
+        );
         if let Err(error) = result {
             self.state = WriterState::NeedsCheck;
             return Err(error.into());
@@ -406,6 +439,16 @@ impl Journal {
         self.committed_bytes += encoded.len() as u64 + 1;
         self.entries.push(entry.clone());
         Ok(entry)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn take_write_fault(&mut self) -> Option<TestFault> {
+        let (remaining, _) = self.fault.as_mut()?;
+        if *remaining == 0 {
+            return self.fault.take().map(|(_, fault)| fault);
+        }
+        *remaining -= 1;
+        None
     }
 
     // Used only after a known local write failure. Even a complete line whose sync failed
@@ -442,6 +485,32 @@ impl Journal {
             diagnostic_path,
         })
     }
+}
+
+fn write_synced_line(
+    file: &mut File,
+    encoded: &[u8],
+    #[cfg(any(test, feature = "test-support"))] fault: Option<TestFault>,
+) -> std::io::Result<()> {
+    #[cfg(any(test, feature = "test-support"))]
+    if let Some(fault) = fault {
+        match fault {
+            TestFault::BeforeWrite => {}
+            TestFault::Partial => file.write_all(&encoded[..encoded.len() / 2])?,
+            TestFault::AfterLine | TestFault::Sync => {
+                file.write_all(encoded)?;
+                file.write_all(b"\n")?;
+                if matches!(fault, TestFault::Sync) {
+                    file.flush()?;
+                }
+            }
+        }
+        return Err(std::io::Error::from(std::io::ErrorKind::StorageFull));
+    }
+    file.write_all(encoded)?;
+    file.write_all(b"\n")?;
+    file.flush()?;
+    file.sync_data()
 }
 
 #[cfg(any(test, feature = "test-support"))]

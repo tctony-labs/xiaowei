@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use xw_agent_runtime::tools::{AgentTool, RecoveryPolicy};
 use xw_agent_types::{AgentMessage, ContextBoundary, SystemContext, ToolDeclaration};
 
-use crate::{AgentError, session::Session};
+use crate::{AgentError, PermissionMode, session::Session};
 
 #[derive(Clone)]
 pub struct ToolRegistration {
@@ -29,7 +29,8 @@ impl ToolRegistration {
 pub(crate) fn validate(tools: &[ToolRegistration]) -> Result<(), AgentError> {
     let mut ids = BTreeSet::new();
     let mut names = BTreeSet::new();
-    let builtins = builtin_declarations(true);
+    let permission_mode = PermissionMode::Interactive;
+    let builtins = builtin_declarations(true, permission_mode);
     let mut rules = BTreeSet::new();
     for tool in tools {
         if tool.id.trim().is_empty() || !ids.insert(&tool.id) {
@@ -48,19 +49,26 @@ pub(crate) fn validate(tools: &[ToolRegistration]) -> Result<(), AgentError> {
             }
         }
     }
-    assemble(None, tools)?;
-    assemble(Some("/workspace"), tools)?;
+    assemble(None, tools, permission_mode)?;
+    assemble(Some("/workspace"), tools, permission_mode)?;
     Ok(())
 }
 
-fn builtin_declarations(has_cwd: bool) -> Vec<ToolDeclaration> {
+fn builtin_declarations(has_cwd: bool, permission_mode: PermissionMode) -> Vec<ToolDeclaration> {
     if has_cwd {
         let mut tools = xw_agent_runtime::tools::declarations();
         if let Some(bash) = xw_agent_runtime::tools::bash::declaration() {
             tools.push(bash);
         }
         tools.extend(xw_agent_runtime::tools::search_declarations());
-        tools.extend(xw_agent_runtime::tools::interactive::declarations());
+        tools.extend(
+            xw_agent_runtime::tools::interactive::declarations()
+                .into_iter()
+                .filter(|tool| {
+                    tool.name != "RequestPermission"
+                        || permission_mode == PermissionMode::Interactive
+                }),
+        );
         tools.push(xw_agent_runtime::tools::todo::declaration());
         tools.push(xw_agent_runtime::tools::skill::declaration());
         tools.push(xw_agent_runtime::tools::command::declaration());
@@ -73,8 +81,9 @@ fn builtin_declarations(has_cwd: bool) -> Vec<ToolDeclaration> {
 fn assemble(
     cwd: Option<&str>,
     registered: &[ToolRegistration],
+    permission_mode: PermissionMode,
 ) -> Result<SystemContext, AgentError> {
-    let mut tools = builtin_declarations(cwd.is_some());
+    let mut tools = builtin_declarations(cwd.is_some(), permission_mode);
     tools.extend(registered.iter().map(|tool| tool.declaration.clone()));
     let mut context = crate::build_chat_system_context(tools).map_err(|_| AgentError::Internal)?;
     for tool in registered {
@@ -91,19 +100,27 @@ fn assemble(
     if let Some(cwd) = cwd {
         context.instructions.insert(
             "environment.cwd".into(),
-            format!(
-                "当前工作目录：{cwd}\n文件工具的相对路径基于此目录。默认可写工作目录及临时目录；\
-             工作目录为用户主目录或其祖先时不自动获得整棵目录写权限。\
-             其他路径需要已有有效授权。以工具返回的权限结果为准。"
-            ),
+            format!("当前工作目录：{cwd}\n文件工具的相对路径基于此目录。"),
+        );
+        context.instructions.insert(
+            "environment.permissions".into(),
+            crate::prompts::permissions(permission_mode),
         );
     }
     Ok(context)
 }
 
 pub(crate) fn bind(session: &mut Session, tools: &[ToolRegistration]) -> Result<(), AgentError> {
-    session.tool_context = Some(assemble(session.view.cwd.as_deref(), tools)?);
     session.tools = tools.to_vec();
+    prepare(session)
+}
+
+pub(crate) fn prepare(session: &mut Session) -> Result<(), AgentError> {
+    session.tool_context = Some(assemble(
+        session.view.cwd.as_deref(),
+        &session.tools,
+        session.permission_mode,
+    )?);
     Ok(())
 }
 

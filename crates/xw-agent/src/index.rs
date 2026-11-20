@@ -6,7 +6,7 @@ use std::{
 use xw_agent_types::{ClientRequestId, SessionId};
 
 use crate::{
-    AgentError, AgentHost, AgentService, EventSubscription, InputSource,
+    AgentError, AgentHost, AgentService, EventSubscription, InputSource, PermissionMode,
     protocol::*,
     service::{State, now_ms},
     session::{Session, parse_id},
@@ -140,9 +140,21 @@ impl AgentService {
         request: CreateSessionRequest,
         source: InputSource,
     ) -> Result<CreateSessionResponse, AgentError> {
+        self.create_session_with_permission_mode(request, source, PermissionMode::default())
+            .await
+    }
+
+    pub async fn create_session_with_permission_mode(
+        &self,
+        request: CreateSessionRequest,
+        source: InputSource,
+        permission_mode: PermissionMode,
+    ) -> Result<CreateSessionResponse, AgentError> {
         drop(self.state()?);
         let Some(index) = &self.index else {
-            return self.create_loaded_with_source(request, source).await;
+            return self
+                .create_loaded_with_source(request, source, permission_mode)
+                .await;
         };
         let _gate = index.gate.lock().await;
         if source.principal_id.trim().is_empty() {
@@ -156,10 +168,14 @@ impl AgentService {
             .ok_or(AgentError::InvalidArgument("config"))?;
         crate::input::validate_config(config)?;
         let previous = self.state()?.creations.get(&request_id).cloned();
-        if let Some((id, original_config, original_cwd)) = previous {
-            if &original_config != config || original_cwd != request.cwd {
+        if let Some(creation) = previous {
+            if &creation.config != config
+                || creation.cwd != request.cwd
+                || creation.permission_mode != permission_mode
+            {
                 return Err(AgentError::Conflict("creation config"));
             }
+            let id = creation.session_id;
             self.require(&id.to_string()).await?;
             return Ok(CreateSessionResponse {
                 session: self
@@ -170,7 +186,9 @@ impl AgentService {
                     .session,
             });
         }
-        let response = self.create_loaded_with_source(request, source).await?;
+        let response = self
+            .create_loaded_with_source(request, source, permission_mode)
+            .await?;
         let view = response.session.as_ref().ok_or(AgentError::Internal)?;
         let id: SessionId = parse_id(&view.session_id, "session_id")?;
         let record = {
@@ -199,7 +217,7 @@ impl AgentService {
             }
             state
                 .creations
-                .retain(|_, (session_id, _, _)| *session_id != id);
+                .retain(|_, creation| creation.session_id != id);
             return Err(error);
         }
         Self::publish(
@@ -212,6 +230,41 @@ impl AgentService {
             },
         );
         Ok(response)
+    }
+
+    /// Changes the persisted permission mode between runs for a trusted host.
+    pub async fn set_session_permission_mode(
+        &self,
+        session_id: &str,
+        mode: PermissionMode,
+    ) -> Result<(), AgentError> {
+        let _gate = match &self.index {
+            Some(index) => Some(index.gate.lock().await),
+            None => None,
+        };
+        let id = self.require(session_id).await?;
+        let mut state = self.state()?;
+        let session = state
+            .sessions
+            .get_mut(&id)
+            .filter(|session| !session.deleted())
+            .ok_or(AgentError::NotFound("session"))?;
+        session.available()?;
+        if session.active.is_some() {
+            return Err(AgentError::Conflict("session is running"));
+        }
+        session.prepare_writer()?;
+        if session.permission_mode == mode {
+            return Ok(());
+        }
+        if let Some(journal) = &mut session.journal {
+            journal
+                .set_permission_mode(mode)
+                .map_err(crate::persistence::storage_error)?;
+        }
+        session.permission_mode = mode;
+        log::debug!("Agent permission mode updated session={id} mode={mode:?}");
+        Ok(())
     }
 
     pub async fn list_sessions(
@@ -668,7 +721,7 @@ impl AgentService {
             state.sessions.remove(&id);
             state
                 .creations
-                .retain(|_, (session_id, _, _)| *session_id != id);
+                .retain(|_, creation| creation.session_id != id);
         } else if let Some(session) = state.sessions.get_mut(&id) {
             session.frozen = false;
         }
@@ -826,7 +879,7 @@ impl AgentService {
             state.sessions.remove(&id); // releases file ownership before direct cleanup
             state
                 .creations
-                .retain(|_, (session_id, _, _)| *session_id != id);
+                .retain(|_, creation| creation.session_id != id);
         }
         if let Some(ownership) = ownership {
             ownership

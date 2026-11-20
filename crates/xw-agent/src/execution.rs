@@ -195,6 +195,8 @@ impl AgentService {
                 .collect(),
             timestamp_ms: started_at_ms,
         });
+        let permission_mode = session.permission_mode;
+        crate::tool_registry::prepare(session)?;
         crate::skills::prepare(session, skills)?;
         crate::resources::prepare(session, resources)?;
         let mut history = session.history.clone();
@@ -289,6 +291,7 @@ impl AgentService {
         let done = CancellationToken::new();
         session.active = Some(ActiveRun {
             run_id,
+            permission_mode,
             cancellation: cancellation.clone(),
             done: done.clone(),
         });
@@ -328,7 +331,10 @@ impl AgentService {
             cancellation,
             done,
         ));
-        log::debug!("Agent Run accepted session={id} input={input_id} run={run_id}");
+        log::debug!(
+            "Agent Run accepted session={id} input={input_id} run={run_id} \
+             permission_mode={permission_mode:?}"
+        );
         Ok(StartRunResponse { run: Some(run) })
     }
 }

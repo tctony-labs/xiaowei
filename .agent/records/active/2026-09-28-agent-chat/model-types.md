@@ -222,7 +222,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 | --- | --- |
 | `crates/xw-agent-types/src/ids.rs` | SessionId／EntryId／InputId／RunId／TurnId／GenId／MessageId／BlockId／ToolId／InteractionId／ClientRequestId 的独立 newtype，UUIDv7 文本编码；Sequence／MetadataRevision 为独立 u64 计数类型 |
 | `src/rollout.rs` | JournalEntry／EntryPayload（含无 data 的 SessionHeader）、SessionMeta、输入接纳／消费／取消、RunStarted、TurnStarted／Ended、GenStarted／FirstSseReceived／Ended、RecordedMessage、ToolIntent／Outcome、Compacted、RunEnd、SessionSummary／ContextBudgetSnapshot、DeletionMarker |
-| `src/context.rs` | RunContext、ModelDescriptor／ModelCapabilities／InputModality、GenerationParameters、ToolDeclaration、RuntimeLimits、InputSource、InputMode、ContextBoundary、RunCause、ExecutionPolicy；没有运行句柄或完整历史 |
+| `src/context.rs` | RunContext、ModelDescriptor／ModelCapabilities／InputModality、GenerationParameters、ToolDeclaration、RuntimeLimits、InputSource、InputMode、ContextBoundary、RunCause、PermissionMode；没有运行句柄或完整历史 |
 | `src/system_context.rs` | SystemContext／SystemContextDelta／SystemContextUpdate，完整基线与具名指令片段、工具增删的纯状态转换；提交与恢复由 core／rollout 负责 |
 | `src/interaction.rs` | InteractionOpened／Resolved／Expired、InteractionRequest／Answer、PermissionTarget；没有 observer／delivery 或接收回执 |
 | `src/format.rs` | v2 精简序列化／解析入口、版本探测与 FormatError；区别于 PB codec，不处理文件 I/O；错误 path 只含已知 schema 字段与索引 |
@@ -235,7 +235,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 
 | 类型 | 全部字段 | 语义／不变量 |
 | --- | --- | --- |
-| `RunContext` | `model: ModelDescriptor`、`generation: GenerationParameters`、`tools: Vec<ToolDeclaration>`、`limits: RuntimeLimits` | 嵌在 RunStarted 中且该 Run 内不变；Conversation Gen 继承，辅助 Gen 自带必要配置。实际指令另由系统上下文基线／增量持久化，不在每 Run 复制；preset 暂缓；权限从历史重建 |
+| `RunContext` | `model: ModelDescriptor`、`generation: GenerationParameters`、`tools: Vec<ToolDeclaration>`、`limits: RuntimeLimits` | 嵌在 RunStarted 中且该 Run 内不变；Conversation Gen 继承，辅助 Gen 自带必要配置。实际指令由系统上下文基线／增量持久化 |
 | `ModelDescriptor` | `model_ref: String`、`provider_name: String?`、`model_name: String?`、`capabilities: ModelCapabilities?`、`budget: ModelBudget` | ref 为不透明调用身份，名称只展示；查询失败能力为 None（磁盘省略），预算记录实际 Default 回退，不含配置 token |
 | `ModelBudget` | `context_window: u64`、`max_output_tokens: u64`、`source: BudgetSource` | Host 或 Default；默认 256_000／32_768，恢复不改写历史值 |
 | `ModelCapabilities` | `input_modalities: Vec<InputModality>`、`supports_reasoning: bool`、`context_window: u64`、`max_output_tokens: u64` | 核心所需的输入能力、推理能力和预算；输入种类非空且不重复，预算为 JS safe 正整数、输出上限不超过上下文窗口 |
@@ -243,7 +243,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 | `GenerationParameters` | `temperature: f64?`、`max_tokens: u32?`、`reasoning: String?`、`thinking_budgets_json: String?`、`tool_choice_json: String?`、`sampling_params_json: String?`、`cache_retention: String?`、`provider_session_id: String?`、`transport: String?`、`timeout_ms: u32?`、`websocket_connect_timeout_ms: u32?`、`metadata_json: String?`、`api_options_json: String?` | 对齐 GenerateRequest 的两个参数及 GenerationOptions 全字段；provider_session_id 对应 options.session_id，避免混淆业务 SessionId；None=不显式指定（磁盘省略）。JSON 保留原字符串；types 只校验通用结构、有限数字、输出预算、推理能力和已知顶层敏感／覆盖字段。温度范围、推理档位、传输、接口选项及参数冲突由宿主模型适配层校验；未指定为 None（磁盘省略） |
 | `ToolDeclaration` | `name: String`、`description: String`、`parameters_json: String`、`constrained_sampling_json: String?` | 对齐 ToolDefinition 四字段；工具名在定义内唯一，schema 为 JSON object；constrained_sampling_json 仅检查 false／object 结构，具体约束语法由模型适配层校验；不保存工具实例 |
 | `RuntimeLimits` | `max_gens: u32?`、`max_tool_calls: u32` | 按 Run 累计，steering 不重置，新 follow-up Run 重新计算；None 代表无额外 Gen 次数限制，不臆造旧版限制；工具默认 50，实际使用值保存。max_gens 只计本 Run 的 Conversation GenStarted，每次尝试（含失败／取消／抢占）均计一次；Compaction／Title／ToolExtraction 不占此次数。所有 Gen 用量按其身份独立归属，不重复累计 |
-| `ExecutionPolicy` | Interactive／UnattendedWorkspace／Unrestricted | 沿用旧 Rust 含义；默认可写范围由宿主的自有 workspace、/tmp、~/tmp 规则得到，扩展写权限由持久审批决定得到 |
+| `PermissionMode` | Interactive／UnattendedWorkspace／FullAccess | 会话级写权限模式，由 Run 启动时捕获。实际写入边界见 [runtime](../../../../crates/xw-agent-runtime/README.md) |
 
 RunContext 不建立跨 Run 配置去重。它只保存重建所需的执行信息，不保存会话历史、context budget 缓存、授权路径列表或运行句柄。生成参数中的 JSON 字符串保留原值；模型预算在磁盘只保存一份，capabilities 的同名窗口／输出字段从 budget 恢复。历史消息自带的实际 api/provider/model/usage 是响应事实，不能被请求配置覆盖。
 

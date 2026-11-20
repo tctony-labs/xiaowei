@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use xw_agent_types::PermissionTarget;
+use xw_agent_types::{PermissionMode, PermissionTarget};
 
 /// Resolve existing ancestors too: a missing leaf must not bypass a symlink check.
 pub(crate) fn resolve(path: &Path) -> Result<PathBuf, String> {
@@ -30,9 +30,14 @@ pub(crate) fn resolve(path: &Path) -> Result<PathBuf, String> {
 pub(crate) fn check_write(
     cwd: &Path,
     path: &Path,
+    mode: PermissionMode,
     grants: &[PermissionTarget],
 ) -> Result<PathBuf, String> {
     let target = resolve(path)?;
+    if mode == PermissionMode::FullAccess {
+        return Ok(target);
+    }
+
     let allowed = writable_paths(cwd, grants)?
         .iter()
         .any(|(path, directory)| {
@@ -44,8 +49,14 @@ pub(crate) fn check_write(
         });
     if allowed {
         Ok(target)
+    } else if mode == PermissionMode::Interactive {
+        Err(concat!(
+            "权限不足：目标路径不在当前可写范围内，操作未执行。",
+            "如确有必要，调用 RequestPermission 申请写入权限。"
+        )
+        .into())
     } else {
-        Err("权限不足：目标路径不在当前可写范围内，操作未执行".into())
+        Err("权限不足：目标路径不在当前可写范围内，当前模式不允许申请写入权限。".into())
     }
 }
 
