@@ -1,44 +1,8 @@
-diff --git a/dist/api/anthropic-messages.js b/dist/api/anthropic-messages.js
-index 5dd85f19db51b73dcd0c5c4cd8c28ad99e09ee6f..e94fa7784bbe0b8972ec47a9088de6bf52ac4d4c 100644
---- a/dist/api/anthropic-messages.js
-+++ b/dist/api/anthropic-messages.js
-@@ -507,7 +507,6 @@ export const stream = (model, context, options) => {
-                         const block = blocks[index];
-                         if (block && block.type === "toolCall") {
-                             block.partialJson += event.delta.partial_json;
--                            block.arguments = parseStreamingJson(block.partialJson);
-                             stream.push({
-                                 type: "toolcall_delta",
-                                 contentIndex: index,
-diff --git a/dist/api/bedrock-converse-stream.js b/dist/api/bedrock-converse-stream.js
-index 44e3f13e808f0665a44e34437e173743f81bd51f..6c4899b29efeec46a67e1b9c1403677c66200a81 100644
---- a/dist/api/bedrock-converse-stream.js
-+++ b/dist/api/bedrock-converse-stream.js
-@@ -459,7 +459,6 @@ function handleContentBlockDelta(event, blocks, output, stream) {
-     }
-     else if (delta?.toolUse && block?.type === "toolCall") {
-         block.partialJson = (block.partialJson || "") + (delta.toolUse.input || "");
--        block.arguments = parseStreamingJson(block.partialJson);
-         stream.push({ type: "toolcall_delta", contentIndex: index, delta: delta.toolUse.input || "", partial: output });
-     }
-     else if (delta?.reasoningContent) {
-diff --git a/dist/api/mistral-conversations.js b/dist/api/mistral-conversations.js
-index 3106c5d470dc3610c05d8ee153026df20f86f66e..c54c1b5dc525715c7b9dc4e780cd74b497f0671d 100644
---- a/dist/api/mistral-conversations.js
-+++ b/dist/api/mistral-conversations.js
-@@ -541,7 +541,6 @@ async function consumeChatStream(model, output, stream, mistralStream) {
-                 ? toolCall.function.arguments
-                 : JSON.stringify(toolCall.function.arguments || {});
-             block.partialArgs = (block.partialArgs || "") + argsDelta;
--            block.arguments = parseStreamingJson(block.partialArgs);
-             stream.push({
-                 type: "toolcall_delta",
-                 contentIndex: toolBlocksByKey.get(key),
 diff --git a/dist/api/openai-codex-responses.js b/dist/api/openai-codex-responses.js
-index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600cb2c99f9 100644
+index e64cc029276fdb45c8ebf6d16a7d9573df223798..c9af819d27fd5835306d7e8e0e2af2c6981500dc 100644
 --- a/dist/api/openai-codex-responses.js
 +++ b/dist/api/openai-codex-responses.js
-@@ -217,7 +217,8 @@ export const stream = (model, context, options) => {
+@@ -224,7 +224,8 @@ export const stream = (model, context, options) => {
                          const aborted = options?.signal?.aborted;
                          const connectionLimitBeforeStart = !websocketStarted && isWebSocketConnectionLimitReachedError(error);
                          const previousResponseNotFound = isPreviousResponseNotFoundError(error);
@@ -48,16 +12,16 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
                              retriedMissingWebSocketContinuation = true;
                              continue;
                          }
-@@ -849,6 +850,8 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
+@@ -871,6 +872,8 @@ async function connectWebSocket(url, headers, signal, connectTimeoutMs = DEFAULT
      });
  }
  async function acquireWebSocket(url, headers, sessionId, accountId, signal, connectTimeoutMs, env) {
-+    // A session can use multiple endpoints or credentials. Never reuse another handshake's socket.
++    // Keep the connection scoped to the endpoint, credentials and handshake headers.
 +    accountId = JSON.stringify([url, accountId, [...headers.entries()].sort(([a], [b]) => a.localeCompare(b))]);
      if (!sessionId) {
          const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
          return {
-@@ -886,6 +889,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+@@ -908,6 +911,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
                              websocketSessionCache.delete(sessionId);
                          return;
                      }
@@ -68,18 +32,18 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
                      cached.busy = false;
                      scheduleSessionWebSocketExpiry(sessionId, accountId, cached);
                  },
-@@ -915,6 +922,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+@@ -937,6 +944,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
          accountEntries = new Map();
          websocketSessionCache.set(sessionId, accountEntries);
      }
-+    // Another concurrent acquisition may have completed its handshake first.
++    // A concurrent handshake may have already filled this slot.
 +    if (accountEntries.has(accountId)) {
 +        return { socket, reused: false, release: () => closeWebSocketSilently(socket) };
 +    }
      accountEntries.set(accountId, entry);
      return {
          socket,
-@@ -932,6 +943,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
+@@ -954,6 +965,10 @@ async function acquireWebSocket(url, headers, sessionId, accountId, signal, conn
                      websocketSessionCache.delete(sessionId);
                  return;
              }
@@ -90,7 +54,7 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
              entry.busy = false;
              scheduleSessionWebSocketExpiry(sessionId, accountId, entry);
          },
-@@ -1118,7 +1133,7 @@ function getCachedWebSocketInputDelta(body, continuation) {
+@@ -1140,7 +1155,7 @@ function getCachedWebSocketInputDelta(body, continuation) {
      }
      const currentInput = body.input ?? [];
      const baseline = [...(continuation.lastRequestBody.input ?? []), ...continuation.lastResponseItems];
@@ -99,7 +63,7 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
          return undefined;
      }
      const prefix = currentInput.slice(0, baseline.length);
-@@ -1153,7 +1168,10 @@ async function* startWebSocketOutputOnFirstEvent(events, onStart) {
+@@ -1175,7 +1190,10 @@ async function* startWebSocketOutputOnFirstEvent(events, onStart) {
          yield event;
      }
  }
@@ -111,12 +75,11 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
      const { socket, entry, reused, release } = await acquireWebSocket(url, headers, cacheSessionId, accountId, options?.signal, websocketConnectTimeoutMs, options?.env);
      let keepConnection = true;
      const useCachedContext = options?.transport === "websocket-cached" || options?.transport === "auto";
-@@ -1161,7 +1179,11 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+@@ -1183,7 +1201,10 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
      // WebSocket continuation still works via connection-scoped previous_response_id state.
      const fullBody = body;
      const requestBody = useCachedContext && entry ? buildCachedWebSocketRequestBody(entry, fullBody) : fullBody;
 -    const stats = cacheSessionId ? getOrCreateWebSocketDebugStats(cacheSessionId) : undefined;
-+    // A baseline is consumed once; non-cached requests must not leave an older continuation behind.
 +    if (entry) entry.continuation = undefined;
 +    const stats = cacheSessionId && model.api === "openai-codex-responses"
 +        ? getOrCreateWebSocketDebugStats(cacheSessionId)
@@ -124,19 +87,24 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
      if (stats) {
          stats.requests++;
          if (reused)
-@@ -1185,13 +1207,19 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+@@ -1207,13 +1228,24 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
          }
      }
      try {
 +        onSend?.(requestBody);
          socket.send(JSON.stringify({ type: "response.create", ...requestBody }));
--        await processResponsesStream(startWebSocketOutputOnFirstEvent(mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output), onStart), output, stream, model, {
+-        await processResponsesStream(startWebSocketOutputOnFirstEvent(mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output, model, options?.onProviderStreamEvent), onStart), output, stream, model, {
 -            serviceTier: options?.serviceTier,
 -            grammarToolInputProperties,
 -            resolveServiceTier: resolveCodexServiceTier,
 -            applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
 -        });
-+        const events = mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output);
++        const events = mapCodexEvents(
++            parseWebSocket(socket, options?.signal, idleTimeoutMs),
++            output,
++            model,
++            options?.onProviderStreamEvent,
++        );
 +        await processResponsesStream(
 +            startWebSocketOutputOnFirstEvent(events, onStart), output, stream, model,
 +            responseOptions ?? {
@@ -150,11 +118,11 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
          if (options?.signal?.aborted) {
              keepConnection = false;
          }
-@@ -1218,6 +1246,44 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
+@@ -1240,6 +1272,44 @@ async function processWebSocketStream(url, body, headers, output, stream, model,
          release({ keep: keepConnection });
      }
  }
-+// Internal transport entry for generic Responses. Request construction and message identity stay with the caller.
++// Generic Responses keeps its own request, authentication and pricing options.
 +export async function processResponsesWebSocket(url, params, headers, output, stream, model,
 +    grammarToolInputProperties, options, responseOptions) {
 +    const { stream: _stream, ...body } = params;
@@ -186,7 +154,7 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
 +                retriedContinuation = true;
 +                continue;
 +            }
-+            // Once response.create has been sent, a lost response does not prove the request was rejected.
++            // Once sent, a lost response does not prove the request was rejected.
 +            if (!sent && options?.transport === "auto") return false;
 +            throw error;
 +        }
@@ -195,50 +163,11 @@ index dfdb6ec3651febbba6b8788f16118ecbf4b38fa8..4f86ff2d9bd9e495a84c989f920bd600
  // ============================================================================
  // Error Handling
  // ============================================================================
-diff --git a/dist/api/openai-completions.js b/dist/api/openai-completions.js
-index fc8e89382b75f259eb4f041b522840b0d603c033..f5acd00ff7c0e4db054abfcd1b9e5ac4a6005959 100644
---- a/dist/api/openai-completions.js
-+++ b/dist/api/openai-completions.js
-@@ -437,7 +437,6 @@ export const stream = (model, context, options) => {
-                             if (toolCall.function?.arguments) {
-                                 delta = toolCall.function.arguments;
-                                 block.partialArgs = (block.partialArgs ?? "") + toolCall.function.arguments;
--                                block.arguments = parseStreamingJson(block.partialArgs);
-                             }
-                             else if (toolCall.custom?.input) {
-                                 const nextInput = getCustomToolCallInput(block) + toolCall.custom.input;
-diff --git a/dist/api/openai-responses-shared.js b/dist/api/openai-responses-shared.js
-index 53597d2c3becdd2c03d4fd265c213a36b403f26b..0aa5752a3e4bad3c0c5aa04d0405448e0fa488be 100644
---- a/dist/api/openai-responses-shared.js
-+++ b/dist/api/openai-responses-shared.js
-@@ -546,7 +546,6 @@ export async function processResponsesStream(openaiStream, output, stream, model
-             if (!slot || slot.block.partialJson === undefined)
-                 continue;
-             slot.block.partialJson += event.delta;
--            slot.block.arguments = parseStreamingJson(slot.block.partialJson);
-             pushToolCallDelta(slot, event.delta);
-         }
-         else if (event.type === "response.function_call_arguments.done") {
-diff --git a/dist/api/openai-responses.d.ts b/dist/api/openai-responses.d.ts
-index 41267bd50904069aa0879cc8634ea94bc1045236..f7aa8171efe7623874cdc3dc306f44864b274afb 100644
---- a/dist/api/openai-responses.d.ts
-+++ b/dist/api/openai-responses.d.ts
-@@ -1,5 +1,10 @@
- import type { ResponseCreateParamsStreaming } from "openai/resources/responses/responses.js";
- import type { SimpleStreamOptions, StreamFunction, StreamOptions } from "../types.ts";
-+/**
-+ * transport defaults to SSE. auto tries WebSocket and falls back only before sending response.create.
-+ * With sessionId, auto/websocket-cached reuse connections and matching history via previous_response_id.
-+ * websocket reuses connections with full input. cacheRetention does not disable connection reuse.
-+ */
- export interface OpenAIResponsesOptions extends StreamOptions {
-     reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-     reasoningSummary?: "auto" | "detailed" | "concise" | null;
 diff --git a/dist/api/openai-responses.js b/dist/api/openai-responses.js
-index 1396c8d57ffb0e300382281a026d878e6a96b43a..b8d1e3192ba461df08e6a842aa76820fabce67cb 100644
+index 0977a46594d2caa8c92b90e267158ee5efb74938..94aedf0bcbe1ed070a324bd86c64ed5c0b59c623 100644
 --- a/dist/api/openai-responses.js
 +++ b/dist/api/openai-responses.js
-@@ -114,23 +114,45 @@ export const stream = (model, context, options) => {
+@@ -142,24 +142,48 @@ export const stream = (model, context, options) => {
              if (nextParams !== undefined) {
                  params = nextParams;
              }
@@ -255,24 +184,26 @@ index 1396c8d57ffb0e300382281a026d878e6a96b43a..b8d1e3192ba461df08e6a842aa76820f
 -            await options?.onResponse?.({ status: response.status, headers: headersToRecord(response.headers) }, model);
 -            stream.push({ type: "start", partial: output });
 -            await processResponsesStream(openaiStream, output, stream, model, {
--                serviceTier: options?.serviceTier,
--                grammarToolInputProperties,
+-                onProviderStreamEvent: options?.onProviderStreamEvent,
++            const responseOptions = {
+                 serviceTier: options?.serviceTier,
+                 grammarToolInputProperties,
 -                applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
 -            });
++                applyServiceTierPricing: (usage, tier) => applyServiceTierPricing(usage, tier, model),
++            };
 +            let websocketCompleted = false;
 +            if (options?.transport && options.transport !== "sse") {
 +                const { processResponsesWebSocket } = await import("./openai-codex-responses.js");
-+                const headers = new Headers(buildHeaders(model, normalizedContext, options?.headers, cacheSessionId));
++                const headers = new Headers(buildHeaders(
++                    model, normalizedContext, options.headers, options.identity, cacheSessionId,
++                ));
 +                if (!headers.has("authorization")) headers.set("authorization", `Bearer ${apiKey}`);
 +                const url = new URL(`${model.baseUrl.replace(/\/+$/, "")}/responses`);
 +                url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 +                websocketCompleted = await processResponsesWebSocket(
 +                    url.toString(), params, headers, output, stream, model,
-+                    grammarToolInputProperties, options, {
-+                        serviceTier: options?.serviceTier,
-+                        grammarToolInputProperties,
-+                        applyServiceTierPricing: (usage, tier) => applyServiceTierPricing(usage, tier, model),
-+                    },
++                    grammarToolInputProperties, options, responseOptions,
 +                );
 +            }
 +            if (!websocketCompleted) {
@@ -282,7 +213,8 @@ index 1396c8d57ffb0e300382281a026d878e6a96b43a..b8d1e3192ba461df08e6a842aa76820f
 +                    maxRetries: 0,
 +                };
 +                const { data: openaiStream, response } = await retryProviderRequest(
-+                    () => client.responses.create(params, requestOptions).withResponse(), {
++                    () => client.responses.create(params, requestOptions).withResponse(),
++                    {
 +                        maxRetries: options?.maxRetries,
 +                        maxRetryDelayMs: options?.maxRetryDelayMs,
 +                        signal: options?.signal,
@@ -293,50 +225,36 @@ index 1396c8d57ffb0e300382281a026d878e6a96b43a..b8d1e3192ba461df08e6a842aa76820f
 +                );
 +                stream.push({ type: "start", partial: output });
 +                await processResponsesStream(openaiStream, output, stream, model, {
-+                    serviceTier: options?.serviceTier,
-+                    grammarToolInputProperties,
-+                    applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
++                    ...responseOptions,
++                    onProviderStreamEvent: options?.onProviderStreamEvent,
 +                });
 +            }
              if (options?.signal?.aborted) {
                  throw new Error("Request was aborted");
              }
-@@ -171,7 +193,7 @@ export const streamSimple = (model, context, options) => {
+@@ -205,7 +229,7 @@ export const streamSimple = (model, context, options) => {
          reasoningEffort,
      });
  };
--function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId) {
-+function buildHeaders(model, context, optionsHeaders, sessionId) {
+-function createClient(model, context, apiKey, optionsHeaders, identity, fetch, sessionId) {
++function buildHeaders(model, context, optionsHeaders, identity, sessionId) {
      const compat = getCompat(model);
-     const headers = { "User-Agent": getPiUserAgent(), ...model.headers };
+     const headers = { ...getIdentityHeaders(model, identity), ...model.headers };
      if (model.provider === "github-copilot") {
-@@ -197,12 +219,15 @@ function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId)
+@@ -231,12 +255,15 @@ function createClient(model, context, apiKey, optionsHeaders, identity, fetch, s
      if (optionsHeaders) {
          Object.assign(headers, optionsHeaders);
      }
 +    return headers;
 +}
-+function createClient(model, context, apiKey, optionsHeaders, fetch, sessionId) {
++function createClient(model, context, apiKey, optionsHeaders, identity, fetch, sessionId) {
      return new OpenAI({
          apiKey,
          baseURL: model.baseUrl,
          dangerouslyAllowBrowser: true,
          fetch,
 -        defaultHeaders: headers,
-+        defaultHeaders: buildHeaders(model, context, optionsHeaders, sessionId),
++        defaultHeaders: buildHeaders(model, context, optionsHeaders, identity, sessionId),
      });
  }
- function buildParams(model, context, options, compat = getCompat(model), grammarToolInputProperties = createGrammarToolInputProperties(getDeclaredTools(context.messages), compat.supportsOpenAIGrammarTools)) {
-diff --git a/dist/api/pi-messages.js b/dist/api/pi-messages.js
-index ad5f4605e8e157f12b8948e88e0c66e8a5494fc4..5609d61b49264b26fc86a787ec19780d29cdfcab 100644
---- a/dist/api/pi-messages.js
-+++ b/dist/api/pi-messages.js
-@@ -155,8 +155,6 @@ function createEventConverter(model) {
-             case "toolcall_delta": {
-                 const json = `${toolJson.get(event.contentIndex) ?? ""}${event.delta}`;
-                 toolJson.set(event.contentIndex, json);
--                partial.content[event.contentIndex].arguments =
--                    parseStreamingJson(json);
-                 break;
-             }
-             case "toolcall_end":
+ function buildParams(model, context, options, compat, grammarToolInputProperties, configurationUpdateEffort) {

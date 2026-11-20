@@ -288,10 +288,12 @@ test("thinking, tool arguments and signatures survive a WebSocket tool-result co
   assert.deepEqual(call.arguments, { text: "中文参数" });
   assert.equal(first.output.usage.cacheRead, 2);
   assert.equal(first.output.usage.reasoning, 1);
-  assert.ok(
+  assert.equal(
     first.events
       .filter((event) => event.type === "toolcall_delta")
-      .every((event) => Object.keys(event.partial.content[1].arguments).length === 0),
+      .map((event) => event.delta)
+      .join(""),
+    args,
   );
   const second = await run(fixture, [
     user("tool"),

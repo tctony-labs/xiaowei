@@ -42,7 +42,7 @@ function modelConfig(api, compat = {}) {
 }
 
 // Exercise the worker's real provider selection and SDK serialization. Only HTTP is replaced.
-// The current PB cannot carry SystemMessage, so these are provider-boundary characterization tests.
+// These cases isolate Pi's conversion from the worker's ordered-context projection.
 async function capture(api, messages, compat = {}, simple = false) {
   const bodies = [];
   const model = toPiModel(modelConfig(api, compat));
@@ -118,7 +118,8 @@ for (const api of Object.keys(enabled)) {
       ],
       enabled[api],
     );
-    const leading = body.system ?? messagesOf(body)[0];
+    const leading =
+      body.system ?? messagesOf(body).find((entry) => JSON.stringify(entry).includes("POLICY_OLD"));
     assert.match(JSON.stringify(leading), /POLICY_OLD/);
     const updates = messagesOf(body).filter((entry) =>
       JSON.stringify(entry).includes("POLICY_NEW"),
@@ -131,7 +132,7 @@ for (const api of Object.keys(enabled)) {
     assert.equal(last.role, api === "anthropic-messages" ? "system" : "user");
   });
 
-  test(`${api}: schema replacement uses full tools even with flags`, async () => {
+  test(`${api}: schema replacement reaches the provider with the new definition`, async () => {
     const body = await capture(
       api,
       [
@@ -142,7 +143,22 @@ for (const api of Object.keys(enabled)) {
       ],
       enabled[api],
     );
-    const definitions = toolsOf(body);
+    let definitions;
+    if (api === "openai-responses") {
+      assert.deepEqual(toolsOf(body), []);
+      const declarations = body.input.filter((entry) => entry.type === "additional_tools");
+      assert.equal(declarations.length, 2);
+      definitions = declarations.at(-1).tools;
+    } else if (api === "anthropic-messages") {
+      const declarations = body.messages
+        .flatMap((entry) => entry.content)
+        .filter((block) => block.type === "tool_addition");
+      assert.equal(declarations.length, 1);
+      definitions = [declarations[0].tool.definition];
+    } else {
+      definitions = toolsOf(body);
+      assert.ok(messagesOf(body).every((entry) => entry.tools === undefined));
+    }
     assert.deepEqual(
       definitions.map((entry) => entry.name),
       ["alpha"],
@@ -151,15 +167,10 @@ for (const api of Object.keys(enabled)) {
       (definitions[0].parameters ?? definitions[0].input_schema).properties.value.type,
       "number",
     );
-    assert.doesNotMatch(
-      JSON.stringify(messagesOf(body)),
-      /additional_tools|tool_addition|tool_removal/,
-    );
-    assert.ok(messagesOf(body).every((entry) => entry.tools === undefined));
   });
 }
 
-test("Responses: removals disable all anchored tool additions", async () => {
+test("Responses: removals keep earlier declarations anchored", async () => {
   const messages = [
     baseline(),
     user("before"),
@@ -167,13 +178,14 @@ test("Responses: removals disable all anchored tool additions", async () => {
     user("after"),
   ];
   const addition = await capture("openai-responses", messages, enabled["openai-responses"], true);
+  assert.deepEqual(toolsOf(addition), []);
+  const definitions = addition.input.filter((entry) => entry.type === "additional_tools");
   assert.deepEqual(
-    toolsOf(addition).map((entry) => entry.name),
+    definitions[0].tools.map((tool) => tool.name),
     ["alpha"],
   );
-  const addedTools = addition.input.find((entry) => entry.type === "additional_tools").tools;
   assert.deepEqual(
-    addedTools.map((entry) => entry.name),
+    definitions[1].tools.map((entry) => entry.name),
     ["beta"],
   );
 
@@ -182,12 +194,12 @@ test("Responses: removals disable all anchored tool additions", async () => {
     [...messages, system({ toolsRemoved: [{ name: "alpha" }] }), user("removed")],
     enabled["openai-responses"],
   );
+  assert.deepEqual(toolsOf(removal), []);
   assert.deepEqual(
-    toolsOf(removal).map((entry) => entry.name),
-    ["beta"],
+    removal.input.filter((entry) => entry.type === "additional_tools"),
+    definitions,
   );
-  assert.ok(removal.input.every((entry) => entry.type !== "additional_tools"));
-  assert.doesNotMatch(JSON.stringify(removal.input), /alpha|beta|tool_removal/);
+  assert.match(JSON.stringify(removal.input.slice(addition.input.length)), /alpha/);
 });
 
 test("Anthropic: enabled distinct-name additions and removals produce native blocks", async () => {
@@ -202,12 +214,12 @@ test("Anthropic: enabled distinct-name additions and removals produce native blo
     enabled["anthropic-messages"],
   );
   const blocks = body.messages.flatMap((entry) => entry.content);
-  assert.equal(blocks.find((block) => block.type === "tool_addition").tool.name, "beta");
+  assert.equal(blocks.find((block) => block.type === "tool_addition").tool.definition.name, "beta");
   assert.equal(blocks.find((block) => block.type === "tool_removal").tool.name, "alpha");
-  assert.equal(toolsOf(body).find((entry) => entry.name === "beta").defer_loading, true);
+  assert.ok(toolsOf(body).every((entry) => entry.name !== "beta"));
 });
 
-test("current worker boundary cannot accept system updates or configure their Pi flags", () => {
+test("worker accepts configured Claude updates while rejecting raw system messages", () => {
   const invalid = (error) => error.detail?.code === "INVALID_ARGUMENT";
   assert.throws(
     () =>
@@ -221,8 +233,10 @@ test("current worker boundary cannot accept system updates or configure their Pi
     invalid,
   );
 
-  for (const api of Object.keys(enabled)) {
-    assert.doesNotThrow(() => normalizeConfig(configDocument([modelConfig(api)])));
-    assert.throws(() => normalizeConfig(configDocument([modelConfig(api, enabled[api])])), invalid);
-  }
+  const api = "anthropic-messages";
+  assert.equal(
+    normalizeConfig(configDocument([modelConfig(api, enabled[api])])).providers[0].models[0].compat
+      .supportsMidConvoToolChanges,
+    true,
+  );
 });

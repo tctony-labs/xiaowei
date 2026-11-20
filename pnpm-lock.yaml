@@ -175,7 +175,9 @@ overrides:
   tsx: 4.23.13
 
 patchedDependencies:
-  '@earendil-works/pi-ai@0.87.1': 5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf
+  '@earendil-works/pi-ai@1.5.2': dd6b7b9c0e75cb6af370ec37a02cc9a2ce1baa258b434de1091256be1dad47c6
+  '@earendil-works/pi-schema@1.5.2': 53fcfb30d02e5f1f020c8a14c07a192d6f9811b30f4a4dbfef940c542c359755
+  '@earendil-works/pi-telemetry@1.5.2': 99e0b7f76f623b7b123c762d8c1b129bce2d219a099959ac29a40c455b7f7dad
 
 importers:
 
@@ -280,8 +282,8 @@ importers:
         specifier: 'catalog:'
         version: 2.15.0
       '@earendil-works/pi-ai':
-        specifier: 0.87.1
-        version: 0.87.1(patch_hash=5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf)(supports-color@5.5.0)(ws@8.21.3)
+        specifier: 1.5.2
+        version: 1.5.2(patch_hash=dd6b7b9c0e75cb6af370ec37a02cc9a2ce1baa258b434de1091256be1dad47c6)(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.3)(supports-color@5.5.0)(undici@8.10.2)(ws@8.21.3)
       '@storybook/react-vite':
         specifier: 10.6.0
         version: 10.6.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rollup@4.63.2)(storybook@10.6.0(@types/react@19.3.0)(react@19.3.0))(supports-color@5.5.0)(typescript@5.9.3)(vite@7.3.6(@types/node@26.5.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13))
@@ -434,8 +436,8 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@anthropic-ai/sdk@0.124.0':
-    resolution: {integrity: sha512-cN5O8i9UVxHeOQAzj/XjshWXG8KiibJDw9OGpH2Z/eR3n/RBxdoLxDJOcfqAJWvjaMDFfHTBADU04hWRJVkDyA==}
+  '@anthropic-ai/sdk@0.129.0':
+    resolution: {integrity: sha512-MH7LB20kNpGLUpPTe2OG5XvL/KhX8HUO9XyBaFjgFk6TLS4Xjt0VPIuMKywe7POKKPslX+QxSlVok9e+8kG5Nw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -742,13 +744,17 @@ packages:
     resolution: {integrity: sha512-bPlN9S9O1A0euCpEWE4qnvB5YDuyYVsUTrxSgmAM1Is0j4tICHoVyOVAXfWMP/kS9ZrjvyIXWV2PmomiAXXqOw==}
     engines: {node: '>=20.19.0'}
 
-  '@earendil-works/pi-ai@0.87.1':
-    resolution: {integrity: sha512-X/3PfQBnnoeVdO9Cv8zHghUMglzlgNZYGNzoPnbRoGnHl3Rw3TlA2UKSUB7BRHUOxMryHXYa8dnjWZlbRheDZA==}
+  '@earendil-works/pi-ai@1.5.2':
+    resolution: {integrity: sha512-2tWPSnV3qzfiDIY3aWluBag3vC++Vs+VsXt/UquSU5onPMohPih72FUhIhaqmDdMYubOgB3Byl9uF4Vk40JLvQ==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@earendil-works/pi-telemetry@0.87.1':
-    resolution: {integrity: sha512-MC6TRQH5lgMXpcN+Vku2WMI2T8BsiUPzMQHGo81uqFZD3/9O79WWJAysEDGuzduP6R4tvtgwMLwmqIxynM10JQ==}
+  '@earendil-works/pi-schema@1.5.2':
+    resolution: {integrity: sha512-hJoyCXWUhsSrXY5wJo2Q4kHXUsR51pNhkJHAMkWRwVMLDRtMDPkKNaa+JlVRVqTw1hjdSxcVVaFLSDbKlaTXEQ==}
+    engines: {node: '>=22.19.0'}
+
+  '@earendil-works/pi-telemetry@1.5.2':
+    resolution: {integrity: sha512-m+cumjIqNh1aMISi/9ttcG3ZOwIdriPbz/eMyWmRMJCGa/WcgY1RX4lrb7HvsHhSfI/JUeBESA4nOCr8C3y5ow==}
     engines: {node: '>=22.19.0'}
 
   '@electron-internal/extract-zip@1.0.5':
@@ -2178,6 +2184,9 @@ packages:
   '@smithy/core@3.35.0':
     resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -3917,12 +3926,25 @@ packages:
     resolution: {integrity: sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA==}
     engines: {node: '>=18'}
 
-  openai@6.40.0:
-    resolution: {integrity: sha512-MWtTjd/gQt4jpbji61NTgFWJLoY/PdRJ6wG9/ZDRMYNMlBKrCrSlkLI+KgHP1vR1qT6LKSAyAqIxno6lcK9JiA==}
+  openai@7.19.0:
+    resolution: {integrity: sha512-MX2s3u2L5racTO0CC/SWpCOasJQBCJrqLKXK+l82cAhdeF8mPMBEe/gxMm0ZFa2xpKpOFLRjxv5afYEZbBXmbQ==}
+    engines: {node: '>=22.0.0'}
     peerDependencies:
-      ws: ^8.18.0
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      undici: '>=5 <9'
+      ws: ^8.21.0
       zod: ^3.25 || ^4.0
     peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      undici:
+        optional: true
       ws:
         optional: true
       zod:
@@ -4446,9 +4468,6 @@ packages:
     resolution: {integrity: sha512-34R7HTnG0XIJcBSn5XhDd7nNFPRcXYRZrBB2O2jdKqYODldSzBAqzsWoZYYvduky73toYS/ESqxPvkDf/F0XMg==}
     engines: {node: '>=10'}
 
-  typebox@1.3.27:
-    resolution: {integrity: sha512-zu+jc1pcy4UiNThxikUr36f0Rybk9PEeCg/NE6adeWr/SKsdNO4EzZHYRDlv2YCVAfj3Odq3dESSo/jNyoBXzA==}
-
   typescript@5.4.5:
     resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
     engines: {node: '>=14.17'}
@@ -4753,7 +4772,7 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@anthropic-ai/sdk@0.124.0':
+  '@anthropic-ai/sdk@0.129.0':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
@@ -5207,28 +5226,34 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.1': {}
 
-  '@earendil-works/pi-ai@0.87.1(patch_hash=5ad1c4176da4086ed350f68b643ce4abcdb95b3510ff5ae3b9da64da7a3ae8bf)(supports-color@5.5.0)(ws@8.21.3)':
+  '@earendil-works/pi-ai@1.5.2(patch_hash=dd6b7b9c0e75cb6af370ec37a02cc9a2ce1baa258b434de1091256be1dad47c6)(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.3)(supports-color@5.5.0)(undici@8.10.2)(ws@8.21.3)':
     dependencies:
-      '@anthropic-ai/sdk': 0.124.0
+      '@anthropic-ai/sdk': 0.129.0
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
-      '@earendil-works/pi-telemetry': 0.87.1
+      '@earendil-works/pi-schema': 1.5.2(patch_hash=53fcfb30d02e5f1f020c8a14c07a192d6f9811b30f4a4dbfef940c542c359755)
+      '@earendil-works/pi-telemetry': 1.5.2(patch_hash=99e0b7f76f623b7b123c762d8c1b129bce2d219a099959ac29a40c455b7f7dad)
       '@google/genai': 2.21.0(supports-color@5.5.0)
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0(supports-color@5.5.0)
       https-proxy-agent: 9.1.0(supports-color@5.5.0)
-      openai: 6.40.0(ws@8.21.3)
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)
       partial-json: 0.1.7
-      typebox: 1.3.27
     transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
       - '@modelcontextprotocol/sdk'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
       - bufferutil
       - kerberos
       - supports-color
+      - undici
       - utf-8-validate
       - ws
       - zod
 
-  '@earendil-works/pi-telemetry@0.87.1': {}
+  '@earendil-works/pi-schema@1.5.2(patch_hash=53fcfb30d02e5f1f020c8a14c07a192d6f9811b30f4a4dbfef940c542c359755)': {}
+
+  '@earendil-works/pi-telemetry@1.5.2(patch_hash=99e0b7f76f623b7b123c762d8c1b129bce2d219a099959ac29a40c455b7f7dad)': {}
 
   '@electron-internal/extract-zip@1.0.5': {}
 
@@ -8408,8 +8433,11 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
-  openai@6.40.0(ws@8.21.3):
+  openai@7.19.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3):
     optionalDependencies:
+      '@aws-sdk/credential-provider-node': 3.972.84
+      '@smithy/signature-v4': 5.7.3
+      undici: 8.10.2
       ws: 8.21.3
 
   oxc-parser@0.127.0:
@@ -9032,8 +9060,6 @@ snapshots:
 
   type-fest@0.13.1:
     optional: true
-
-  typebox@1.3.27: {}
 
   typescript@5.4.5: {}
 

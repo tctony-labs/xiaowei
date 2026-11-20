@@ -591,7 +591,8 @@ test("resource updates and Command results reach the production worker and survi
     const body = JSON.parse(Buffer.concat(chunks));
     requests.push(body);
     outgoing.writeHead(200, { "Content-Type": "text/event-stream" });
-    const tool = body.messages.at(-1).role === "user";
+    const input = body.messages.findLast(({ role }) => role === "user" || role === "tool");
+    const tool = input?.role === "user";
     const delta = tool
       ? {
           role: "assistant",
@@ -709,6 +710,8 @@ test("resource updates and Command results reach the production worker and survi
     assert.match(changes[1].content, /Updated system prompt section "rules.user.rules\/style.md"/);
     assert.match(changes[1].content, /RESOURCE-STYLE-V2-LONGER/);
     assert.doesNotMatch(changes[1].content, /RESOURCE-TOP/);
+    assert.equal(requests[4].messages.at(-2).role, "user");
+    assert.deepEqual(requests[4].messages.at(-1), changes[1]);
 
     await rm(join(root, "rules/style.md"));
     await rm(join(root, "commands/guide.md"));

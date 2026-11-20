@@ -1,4 +1,4 @@
-// Application-owned compatibility schema, aligned with Pi 0.85.1 field semantics.
+// Application-owned compatibility settings for the supported provider paths.
 import type { ModelCost } from "./models";
 
 export type ChatTemplateKwargValue =
@@ -25,6 +25,8 @@ export interface AnthropicAllowedFallbackModel {
 }
 
 export interface OpenAICompletionsCompat {
+  supportsAllowedTools?: boolean;
+
   supportsStore?: boolean;
 
   supportsDeveloperRole?: boolean;
@@ -90,6 +92,8 @@ export interface OpenAICompletionsCompat {
 }
 
 export interface OpenAIResponsesCompat {
+  supportsAllowedTools?: boolean;
+
   supportsDeveloperRole?: boolean;
 
   sessionAffinityFormat?: SessionAffinityFormat;
@@ -110,6 +114,10 @@ export interface OpenAIResponsesCompat {
 }
 
 export interface AnthropicMessagesCompat {
+  supportsMidConvoSystemMessages?: boolean;
+
+  supportsMidConvoToolChanges?: boolean;
+
   supportsEagerToolInputStreaming?: boolean;
 
   supportsLongCacheRetention?: boolean;
@@ -214,6 +222,7 @@ export type ModelCompat =
   | BedrockCompat;
 
 export const compatibilityFields: Record<string, string | readonly string[]> = {
+  supportsAllowedTools: "boolean",
   supportsStore: "boolean",
   supportsDeveloperRole: "boolean",
   supportsReasoningEffort: "boolean",
@@ -263,6 +272,8 @@ export const compatibilityFields: Record<string, string | readonly string[]> = {
   allowEmptySignature: "boolean",
   supportsStrictTools: "boolean",
   supportsMidConvoEffort: "boolean",
+  supportsMidConvoSystemMessages: "boolean",
+  supportsMidConvoToolChanges: "boolean",
   allowedFallbackModels: "array",
   supportsToolReferences: "boolean",
 };

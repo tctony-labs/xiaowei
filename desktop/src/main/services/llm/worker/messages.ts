@@ -120,6 +120,7 @@ export function encodeBlock(block: PiBlock, starting = false) {
         },
       },
     });
+  if (!starting && block.argumentsError) invalid("model returned invalid tool arguments");
   return create(ContentBlockSchema, {
     content: {
       case: "toolCall",

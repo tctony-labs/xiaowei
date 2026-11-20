@@ -98,9 +98,21 @@ XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复�
 
 正式 LLM PB 增加 `ChatMessage.system_context`，worker 校验基线位置、具名片段和工具变更，并拒绝同时重复传入顶层 systemPrompt／tools。Responses、Completions 的适配开关由 worker 设置；Anthropic 的已知编码会移动增量位置，故与其他未验证 API 一样，遇到实际增量明确拒绝。各 API 的单次基线不受此门禁影响。Responses 的基线、工具新增、指令更新、无变化及重建基线已通过真实配置模型的五次正式 provider 调用；HTTP 捕获确认旧基线和新增项的历史位置。
 
-工具删除／同名替换目前在正式 provider 入口明确拒绝。Pi 原生路径会折叠为当前完整 tools；另试验稳定初始 tools 加 additional_tools 和替换通知时，实际默认 Responses 模型仍返回旧 text 参数，而非新 count 参数，故未启用该试验适配。此限制属于当前适配实现，不作为模型／API 固有限制的结论；核心领域、提交、恢复仍支持完整增删替换。固定 Read／Write／Edit 在本批运行中不变化，因此不触发此限制；后续动态工具／Skill 接入前须解决并重新联调，不偷偷回退为全量 tools。其他 provider 的实际增量及缓存收益未完成联调。
+本批交付时正式 provider 入口拒绝工具删除／同名替换。旧 Pi 会折叠为当前完整 tools，使用稳定初始 tools 加 additional_tools 的试验仍观察到旧参数。后续接入见[工具变化的模型适配](#工具变化的模型适配2026-11-20)。
 
 可重复验证：`XIAOWEI_AGENT_LIVE=1 pnpm --dir desktop exec node --conditions=source --import tsx --test tests/llm/harness-context.test.mjs`。仅发送合成提示和无副作用探针；不改配置，不输出凭据。工具循环的正式 addon／Gateway／worker 验收另见[交付证据](implementation-results.md#工具循环与文件工具2026-10-18)。
+
+#### 工具变化的模型适配（2026-11-20）
+
+Pi 1.5.2 接收完整工具变化历史，worker 在组装请求时按「已有历史 → 本次用户输入或完整工具结果 → 系统增量 → 本次生成」投影。JSONL 仍按提交顺序保存。业务层继续按当前绑定校验工具执行，协议允许名单提供额外约束。
+
+- **Responses** 将基线与后续新增或同名更新编码为 `additional_tools`。删除通过追加的停用说明和 `allowed_tools` 表达。支持开关默认为开启，可通过 `compat.supportsAdditionalTools`、`compat.supportsAllowedTools` 对不兼容的后端调整，回退时发送当前生效工具列表。允许名单变化仍可能让本轮 WebSocket 发送完整请求，上游可以复用原 prompt 前缀。
+- **Chat Completions** 在 OpenAI 官方端点或 `compat.supportsAllowedTools: true` 时用允许名单停用旧工具，新增和同名更新写入当前顶层定义。兼容后端默认按当前工具列表发送。Kimi 的消息内新增由 `compat.deferredToolsMode: "kimi"` 启用。
+- **Claude Messages** 对确认支持的模型设置 `compat.supportsMidConvoToolChanges: true`。worker 同时启用会话中的系统消息，Pi 生成 `tool_removal` 以及携带定义的 `tool_addition`。其他模型通过 Pi 折叠系统变更，发送当前指令和工具列表。
+
+Responses 实际代理的六步合成探针覆盖基线、新增、停用、指令更新、无变化和同名更新。一次运行中，新增、停用、同名更新分别命中 2,944、3,200 和 3,328 个缓存 tokens。复跑时三步功能均通过，停用和同名更新仍命中相同数量，新增未命中缓存。其余协议验证覆盖实际 SDK 生成的请求，由本地拦截 HTTP、检查字段及顺序。
+
+Responses 实际代理的 SSE 对照保留相同历史和 `allowed_tools`，只切换 Pi 的停用消息。提示要求在 `probe_lookup` 可用时调用它，否则回复 `UNAVAILABLE`，并禁止调用其他工具。仅传允许名单的两次请求都调用了名单内的 `probe_echo`。加上停用说明的两次请求都回复 `UNAVAILABLE`，工具调用为零。四次请求均未调用已移除的 `probe_lookup`。
 
 #### Pi provider 请求编码实测（2026-10-10）
 

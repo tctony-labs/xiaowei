@@ -1,8 +1,13 @@
 import { Buffer } from "node:buffer";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { type Model, normalizeContext } from "@earendil-works/pi-ai";
+import { type Context, type Model, normalizeContext } from "@earendil-works/pi-ai";
 import { GenerateEventSchema, type GenerateRequest } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
+import type {
+  AnthropicMessagesCompat,
+  OpenAICompletionsCompat,
+  OpenAIResponsesCompat,
+} from "../shared/model-compat";
 import type { ResolvedModelConfig } from "../shared/models";
 import { apis } from "./apis";
 import { generationDiagnostic } from "./diagnostics";
@@ -74,28 +79,16 @@ export function generate(
 
     try {
       const model = toPiModel(config);
-      const updates = transcriptUpdates(request);
-      if (updates.length) {
-        const nonAdditive = updates.some((update) => update.toolsRemoved.length);
-        if (nonAdditive) {
-          invalid("this provider adapter cannot preserve tool removal or replacement updates");
-        }
-        if (config.api === "openai-responses") {
-          model.compat = {
-            ...model.compat,
-            supportsMidConvoSystemMessages: true,
-            supportsAdditionalTools: true,
-          };
-        } else if (config.api === "openai-completions") {
-          model.compat = {
-            ...model.compat,
-            supportsMidConvoSystemMessages: true,
-            supportsMidConvoToolAdditions: true,
-          };
-        } else if (updates.some((update) => !update.baseline)) {
-          invalid("ordered context updates are unsupported by this provider adapter");
-        }
-      }
+      const toolChoice = "toolChoice" in options.options ? options.options.toolChoice : undefined;
+      const ordered = request.messages.some(({ message }) => message.case === "systemContext");
+      const { transcript, allowedTools } = prepareTranscript(
+        config,
+        model,
+        context,
+        ordered,
+        toolChoice,
+      );
+
       const api = apis[config.api]();
       let firstSseAt: number | undefined;
       let firstSseEmitted = false;
@@ -103,6 +96,15 @@ export function generate(
         ...options.options,
         apiKey: config.apiKey,
         signal: controller.signal,
+        ...(allowedTools && {
+          onPayload(payload: unknown) {
+            return restrictTools(
+              payload as OpenAiToolPayload,
+              allowedTools,
+              config.api === "openai-completions",
+            );
+          },
+        }),
         onResponse: ({ status }: { status: number }) => {
           httpStatus = status;
         },
@@ -119,7 +121,13 @@ export function generate(
             }
           : {}),
       };
-      const transcript = normalizeContext(context);
+      if (allowedTools) {
+        console.debug("LLM tool availability applied", {
+          session: request.options?.sessionId,
+          api: config.api,
+          allowed: allowedTools.length,
+        });
+      }
       events = options.simple
         ? api.streamSimple(model, transcript, parameters)
         : api.stream(model, transcript, parameters);
@@ -175,8 +183,135 @@ export function generate(
   }
 }
 
-function transcriptUpdates(request: GenerateRequest) {
-  return request.messages.flatMap(({ message }) =>
-    message.case === "systemContext" ? [message.value] : [],
-  );
+function prepareTranscript(
+  config: ResolvedModelConfig,
+  model: Model<ResolvedModelConfig["api"]>,
+  context: Context,
+  ordered: boolean,
+  toolChoice: unknown,
+) {
+  const transcript = normalizeContext(context);
+  if (!ordered) return { transcript };
+
+  let supportsAllowedTools = false;
+  let stripRemovals = false;
+  if (config.api === "openai-responses") {
+    const compat = config.compat as OpenAIResponsesCompat | undefined;
+    const supportsAdditionalTools = compat?.supportsAdditionalTools ?? true;
+    model.compat = {
+      ...model.compat,
+      supportsMidConvoSystemMessages: true,
+      supportsAdditionalTools,
+    };
+    supportsAllowedTools = compat?.supportsAllowedTools ?? supportsAdditionalTools;
+    // Responses can keep Pi's ordered removal notice without rewriting tool definitions.
+    stripRemovals = !supportsAdditionalTools;
+  } else if (config.api === "openai-completions") {
+    const compat = config.compat as OpenAICompletionsCompat | undefined;
+    model.compat = {
+      ...model.compat,
+      supportsMidConvoSystemMessages: true,
+      supportsMidConvoToolAdditions: compat?.deferredToolsMode === "kimi",
+    };
+    supportsAllowedTools =
+      compat?.supportsAllowedTools ?? new URL(config.baseUrl).hostname === "api.openai.com";
+    stripRemovals = true;
+  } else if (config.api === "anthropic-messages") {
+    const compat = config.compat as AnthropicMessagesCompat | undefined;
+    if (compat?.supportsMidConvoToolChanges) {
+      model.compat = { ...model.compat, supportsMidConvoSystemMessages: true };
+    }
+  }
+
+  // Preserve an explicit caller policy by putting only active tools in the request in that case.
+  const useAllowlist = supportsAllowedTools && (toolChoice === undefined || toolChoice === "auto");
+  const disabledTools = new Set<string>();
+  const activeTools = new Set<string>();
+  const messages: Context["messages"] = [];
+  const pending: Context["messages"] = [];
+
+  for (const [index, message] of transcript.messages.entries()) {
+    if (message.role === "system") {
+      for (const tool of message.toolsRemoved ?? []) {
+        disabledTools.add(tool.name);
+        activeTools.delete(tool.name);
+      }
+      for (const tool of message.toolsAdded ?? []) {
+        disabledTools.delete(tool.name);
+        activeTools.add(tool.name);
+      }
+
+      const update =
+        useAllowlist && stripRemovals ? { ...message, toolsRemoved: undefined } : message;
+      if (index === 0) {
+        messages.push(update);
+      } else if (
+        update.toolsRemoved?.length ||
+        update.toolsAdded?.length ||
+        update.content.length ||
+        Object.keys(update.sections ?? {}).length
+      ) {
+        pending.push(update);
+      }
+      continue;
+    }
+
+    if (message.role === "user") {
+      messages.push(message, ...pending.splice(0));
+    } else if (message.role === "toolResult") {
+      messages.push(message);
+      if (transcript.messages[index + 1]?.role !== "toolResult") {
+        messages.push(...pending.splice(0));
+      }
+    } else {
+      messages.push(...pending.splice(0), message);
+    }
+  }
+  messages.push(...pending);
+  if (config.api === "openai-responses" && disabledTools.size && !useAllowlist) {
+    model.compat = { ...model.compat, supportsAdditionalTools: false, supportsToolSearch: false };
+  }
+  return {
+    transcript: { ...transcript, messages },
+    allowedTools: useAllowlist && disabledTools.size ? [...activeTools].sort() : undefined,
+  };
+}
+
+type OpenAiTool = {
+  type: "function" | "custom";
+  name?: string;
+  function?: { name: string };
+  custom?: { name: string };
+};
+
+type OpenAiToolPayload = {
+  tools?: OpenAiTool[];
+  input?: { type?: string; tools?: OpenAiTool[] }[];
+};
+
+function restrictTools(payload: OpenAiToolPayload, allowed: string[], chatCompletions: boolean) {
+  if (!allowed.length) return { ...payload, tool_choice: "none" };
+
+  const types = new Map<string, OpenAiTool["type"]>();
+  const declarations = [
+    ...(payload.tools ?? []),
+    ...(payload.input ?? []).flatMap((item) =>
+      item.type === "additional_tools" ? (item.tools ?? []) : [],
+    ),
+  ];
+  for (const tool of declarations) {
+    const name = tool.name ?? tool.function?.name ?? tool.custom?.name;
+    if (name) types.set(name, tool.type);
+  }
+  const tools = allowed.map((name) => {
+    const type = types.get(name) ?? "function";
+    return chatCompletions ? { type, [type]: { name } } : { type, name };
+  });
+  const choice = { mode: "auto", tools };
+  return {
+    ...payload,
+    tool_choice: chatCompletions
+      ? { type: "allowed_tools", allowed_tools: choice }
+      : { type: "allowed_tools", ...choice },
+  };
 }

@@ -14,7 +14,8 @@
 
 ## 补丁索引
 
-- [`@earendil-works/pi-ai@0.87.1`](./@earendil-works__pi-ai@0.87.1.patch)：避免工具参数流式输出时重复解析累计 JSON，并为通用 Responses 接入可复用的 API Key WebSocket。由 0.85.1 补丁重基至 0.87.1，六处增量解析优化仍需保留；原始来源为 deepseek-harness 提交 `46a7f68b0922371ce7144b668b90e377d8e799f4` 的同名补丁。当前行为见 [LLM provider](../docs/llm-provider.md#responses-websocket)，取舍和验证范围见 [归档建设记录](../.agent/records/archived/2026-09-24-llm-provider.md)；回归见 [pi-patch.test.mjs](./tests/pi-patch.test.mjs)。
+- [`@earendil-works/pi-ai@1.5.2`](./@earendil-works__pi-ai@1.5.2.patch) 为通用 Responses 保留可复用的 API Key WebSocket。流式参数解析已由上游的增量解析器处理，回归仍检查原始 deltas、逐步解析结果和最终参数。[解析回归](./tests/pi-patch.test.mjs)
+- [`@earendil-works/pi-schema@1.5.2`](./@earendil-works__pi-schema@1.5.2.patch) 和 [`@earendil-works/pi-telemetry@1.5.2`](./@earendil-works__pi-telemetry@1.5.2.patch) 的 npm 包只包含 `dist/`。移除指向未发布源码的 `source` 导出条件后，桌面 worker 和测试可继续使用 `source` 加载工作区内部包。
 
 ## Pi Responses WebSocket 补丁
 

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
+import { cleanupSessionResources } from "@earendil-works/pi-ai";
 import { GenerateRequestSchema } from "proto-desktop-ts";
 import { toContext } from "../../src/main/services/llm/worker/messages.ts";
 import { generate } from "../../src/main/services/llm/worker/provider.ts";
@@ -73,18 +75,22 @@ test("formal worker preserves baseline, instruction delta and addition order", a
   }
   assert.equal(bodies.length, 1);
   const body = bodies[0];
+  assert.equal(body.tools, undefined);
   assert.deepEqual(
-    body.tools.map((tool) => tool.name),
-    ["Read"],
+    body.input
+      .filter((item) => item.type === "additional_tools")
+      .map((item) => item.tools.map((tool) => tool.name)),
+    [["Read"], ["Write"]],
   );
   assert.deepEqual(
-    body.input.map((item) => item.type ?? item.role),
-    ["system", "user", "additional_tools", "system", "user"],
+    body.input.filter((item) => item.role === "user").map((item) => item.content[0].text),
+    ["before", "after"],
   );
-  assert.match(JSON.stringify(body.input[0]), /OLD/);
-  assert.match(JSON.stringify(body.input[3]), /NEW/);
-  assert.doesNotMatch(JSON.stringify(body.input[3]), /OLD/);
-  assert.equal(body.input[2].tools[0].name, "Write");
+  const before = body.input.findIndex((item) => JSON.stringify(item).includes("OLD"));
+  const after = body.input.findIndex((item) => item.content?.[0]?.text === "after");
+  const updated = body.input.findIndex((item) => JSON.stringify(item).includes("NEW"));
+  assert.ok(before >= 0 && before < after && after < updated);
+  assert.doesNotMatch(JSON.stringify(body.input[updated]), /OLD/);
 });
 
 test("invalid updates and duplicate top-level configuration are rejected", () => {
@@ -103,83 +109,147 @@ test("invalid updates and duplicate top-level configuration are rejected", () =>
   );
 });
 
-test("non-additive tool updates fail explicitly instead of silently folding history", async (t) => {
-  let requests = 0;
-  t.mock.method(globalThis, "fetch", () => {
-    requests += 1;
-    throw Error("must not fetch");
+async function capture(t, config, histories) {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    requests.push({ body: JSON.parse(init.body), headers: new Headers(init.headers) });
+    return new Response(JSON.stringify({ error: { message: "capture" } }), { status: 400 });
   });
-  const value = request([
-    system({ baseline: true, toolsAdded: [tool("Read")] }),
-    user("before"),
-    system({ toolsRemoved: ["Read"] }),
-    user("after"),
-  ]);
-  await assert.rejects(async () => {
+  for (const messages of histories) {
     for await (const _event of generate(
-      value,
-      new Map([["test", { ...model, api: "openai-completions" }]]),
+      request(messages),
+      new Map([["test", { ...model, ...config }]]),
       new AbortController().signal,
     )) {
+      // Capture the SDK's actual requests.
     }
-  }, /removal or replacement/);
-  assert.equal(requests, 0);
-});
-
-test("Anthropic rejects deltas whose original position Pi cannot preserve", async (t) => {
-  let requests = 0;
-  t.mock.method(globalThis, "fetch", () => {
-    requests += 1;
-    throw Error("must not fetch");
-  });
-  await assert.rejects(async () => {
-    for await (const _event of generate(
-      request([
-        system({ baseline: true, instructions: { base: "old" } }),
-        user("before"),
-        system({ instructions: { base: "new" } }),
-        user("after"),
-      ]),
-      new Map([["test", { ...model, api: "anthropic-messages" }]]),
-      new AbortController().signal,
-    )) {
-    }
-  }, /ordered context updates are unsupported/);
-  assert.equal(requests, 0);
-});
-
-test("Responses also rejects removal and replacement before reaching the provider", async (t) => {
-  let requests = 0;
-  t.mock.method(globalThis, "fetch", () => {
-    requests += 1;
-    throw Error("must not fetch");
-  });
-  for (const replacement of [false, true]) {
-    const value = request([
-      system({ baseline: true, toolsAdded: [tool("Read")] }),
-      user("before"),
-      system({
-        toolsRemoved: ["Read"],
-        toolsAdded: replacement ? [{ ...tool("Read"), description: "updated" }] : [],
-      }),
-      user("after"),
-    ]);
-    await assert.rejects(async () => {
-      for await (const _event of generate(
-        value,
-        new Map([["test", model]]),
-        new AbortController().signal,
-      )) {
-      }
-    }, /removal or replacement/);
   }
-  assert.equal(requests, 0);
+  assert.equal(requests.length, histories.length);
+  return requests;
+}
+
+const original = [
+  system({ baseline: true, toolsAdded: [tool("a"), tool("b"), tool("c")] }),
+  user("first"),
+];
+const removed = [...original, system({ toolsRemoved: ["c"] }), user("remove c")];
+const added = [...removed, system({ toolsAdded: [tool("d")] }), user("add d")];
+const newB = {
+  ...tool("b"),
+  description: "new b",
+  parametersJson: '{"type":"object","properties":{"count":{"type":"integer"}}}',
+};
+const replaced = [...added, system({ toolsRemoved: ["b"], toolsAdded: [newB] }), user("update b")];
+const restored = [...replaced, system({ toolsAdded: [tool("c")] }), user("restore c")];
+
+test("Responses keeps declarations anchored and enforces removal with the allowlist", async (t) => {
+  const result = await capture(t, {}, [original, removed, added, replaced, restored]);
+  const [initial, deletion, addition, replacement, restoration] = result.map(({ body }) => body);
+  assert.ok(result.every(({ body }) => body.tools === undefined));
+  assert.deepEqual(deletion.input.slice(0, initial.input.length), initial.input);
+  assert.deepEqual(addition.input.slice(0, deletion.input.length), deletion.input);
+  assert.deepEqual(replacement.input.slice(0, addition.input.length), addition.input);
+  assert.deepEqual(restoration.input.slice(0, replacement.input.length), replacement.input);
+  assert.equal(restoration.tool_choice, undefined);
+  for (const [body, names] of [
+    [deletion, ["a", "b"]],
+    [addition, ["a", "b", "d"]],
+    [replacement, ["a", "b", "d"]],
+  ]) {
+    assert.deepEqual(body.tool_choice, {
+      type: "allowed_tools",
+      mode: "auto",
+      tools: names.map((name) => ({ type: "function", name })),
+    });
+  }
+  const declarations = replacement.input.filter((item) => item.type === "additional_tools");
+  assert.deepEqual(
+    declarations.map((item) => item.tools.map((tool) => tool.name)),
+    [["a", "b", "c"], ["d"], ["b"]],
+  );
+  assert.equal(declarations.at(-1).tools[0].description, newB.description);
+  assert.equal(declarations.at(-1).tools[0].parameters.properties.count.type, "integer");
 });
 
-test("live provider accepts baseline, additions, instruction delta and rebuild", {
+test("Chat Completions keeps definitions on deletion and updates them for additions and replacement", async (t) => {
+  const config = { api: "openai-completions", compat: { supportsAllowedTools: true } };
+  const result = await capture(t, config, [original, removed, added, replaced]);
+  const [initial, deletion, addition, replacement] = result.map(({ body }) => body);
+  assert.deepEqual(deletion.tools, initial.tools);
+  assert.deepEqual(deletion.tool_choice, {
+    type: "allowed_tools",
+    allowed_tools: {
+      mode: "auto",
+      tools: ["a", "b"].map((name) => ({ type: "function", function: { name } })),
+    },
+  });
+  assert.deepEqual(
+    addition.tools.map((tool) => tool.function.name),
+    ["a", "b", "c", "d"],
+  );
+  assert.deepEqual(
+    replacement.tools.map((tool) => tool.function.name),
+    ["a", "b", "c", "d"],
+  );
+  assert.equal(replacement.tools[1].function.description, newB.description);
+  assert.equal(replacement.tools[1].function.parameters.properties.count.type, "integer");
+});
+
+test("Claude sends native removal and inline additions and same-name replacements", async (t) => {
+  const config = {
+    api: "anthropic-messages",
+    provider: "anthropic",
+    compat: { supportsMidConvoToolChanges: true },
+  };
+  const result = await capture(t, config, [original, removed, added, replaced]);
+  const [initial, deletion, addition, replacement] = result.map(({ body }) => body);
+  assert.ok(
+    result.every(({ body }) => JSON.stringify(body.tools) === JSON.stringify(initial.tools)),
+  );
+  assert.match(result[1].headers.get("anthropic-beta"), /inline-tools-2026-09-15/);
+  const updates = (body) =>
+    body.messages
+      .filter((message) => message.role === "system")
+      .flatMap((message) => message.content);
+  assert.deepEqual(
+    updates(deletion).map(({ type, tool }) => [type, tool.name]),
+    [["tool_removal", "c"]],
+  );
+  const declarations = updates(replacement).filter((block) => block.type === "tool_addition");
+  assert.deepEqual(
+    declarations.map(({ tool }) => [tool.type, tool.definition.name]),
+    [
+      ["tool_definition", "d"],
+      ["tool_definition", "b"],
+    ],
+  );
+  assert.equal(declarations.at(-1).tool.definition.description, newB.description);
+  assert.equal(declarations.at(-1).tool.definition.input_schema.properties.count.type, "integer");
+  for (const body of [deletion, addition, replacement]) {
+    const input = body.messages.findLastIndex((message) => message.role === "user");
+    assert.ok(input >= 0 && input < body.messages.length - 1);
+    assert.ok(body.messages.slice(input + 1).every((message) => message.role === "system"));
+  }
+});
+
+test("Responses without an allowlist falls back to the active tools", async (t) => {
+  const responses = await capture(t, { compat: { supportsAllowedTools: false } }, [replaced]);
+  assert.deepEqual(responses[0].body.tools.map((tool) => tool.name).sort(), ["a", "b", "d"]);
+});
+
+test("Claude without inline support still accepts system updates and current tools", async (t) => {
+  const config = { api: "anthropic-messages", provider: "anthropic" };
+  const [result] = await capture(t, config, [
+    [...replaced, system({ instructions: { policy: "new instruction" } }), user("next")],
+  ]);
+  assert.deepEqual(result.body.tools.map((tool) => tool.name).sort(), ["a", "b", "d"]);
+  assert.match(JSON.stringify(result.body.system), /new instruction/);
+});
+
+test("live provider accepts tool additions, removal and same-name replacement", {
   skip: process.env.XIAOWEI_AGENT_LIVE !== "1",
   timeout: 240000,
-}, async () => {
+}, async (t) => {
   const { homedir } = await import("node:os");
   const { join } = await import("node:path");
   const { loadConfig, resolveModels } = await import("../../src/main/services/llm/config.ts");
@@ -202,7 +272,13 @@ test("live provider accepts baseline, additions, instruction delta and rebuild",
   });
   const echo = declaration("probe_echo", "text", "string");
   const lookup = declaration("probe_lookup", "key", "string");
-  const base = "Follow the current named instructions and tool definitions.";
+  const base =
+    "Follow the current named instructions and tool definitions.\n" +
+    Array.from(
+      { length: 180 },
+      (_, index) =>
+        `Fixture rule ${index + 1}. Apply the latest declared tool schema to this request.`,
+    ).join("\n");
   const scenarios = [
     {
       update: { baseline: true, instructions: { base }, toolsAdded: [echo] },
@@ -215,6 +291,11 @@ test("live provider accepts baseline, additions, instruction delta and rebuild",
       call: { name: "probe_lookup", arguments: { key: "sample" } },
     },
     {
+      update: { toolsRemoved: ["probe_lookup"] },
+      prompt: "If probe_lookup is unavailable, reply UNAVAILABLE only. Do not call other tools.",
+      text: "UNAVAILABLE",
+    },
+    {
       update: {
         instructions: { marker: "On a marker request, reply UPDATED only. Call no tools." },
       },
@@ -223,19 +304,18 @@ test("live provider accepts baseline, additions, instruction delta and rebuild",
     },
     { prompt: "Marker request.", text: "UPDATED" },
     {
-      reset: true,
       update: {
-        baseline: true,
-        instructions: { base },
+        toolsRemoved: ["probe_echo"],
         toolsAdded: [declaration("probe_echo", "count", "number")],
       },
       prompt: "Call probe_echo exactly once with count 7.",
       call: { name: "probe_echo", arguments: { count: 7 } },
     },
   ];
-  let messages = [];
-  for (const scenario of scenarios) {
-    if (scenario.reset) messages = [];
+  const messages = [];
+  const sessionId = randomUUID();
+  t.after(() => cleanupSessionResources(sessionId));
+  for (const [index, scenario] of scenarios.entries()) {
     if (scenario.update) messages.push(system(scenario.update));
     messages.push(user(scenario.prompt));
     let finished;
@@ -243,7 +323,7 @@ test("live provider accepts baseline, additions, instruction delta and rebuild",
       modelRef: selected.id,
       messages,
       maxTokens: Math.min(2048, selected.maxTokens),
-      options: { reasoning: document.defaults.thinkingLevel, timeoutMs: 45000 },
+      options: { sessionId, reasoning: document.defaults.thinkingLevel, timeoutMs: 45000 },
     });
     for await (const event of generate(
       value,
@@ -253,6 +333,7 @@ test("live provider accepts baseline, additions, instruction delta and rebuild",
       if (event.event.case === "finished") finished = event.event.value.message;
     }
     assert.ok(finished, "model did not complete");
+    console.info("live tool update", { step: index + 1, cachedTokens: finished.usage?.cacheRead });
     const calls = finished.content
       .filter((block) => block.content.case === "toolCall")
       .map((block) => block.content.value);

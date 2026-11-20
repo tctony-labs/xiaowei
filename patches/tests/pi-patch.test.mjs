@@ -83,7 +83,7 @@ for (const [api, stream, events, path] of [
   ["openai-completions", completions, completionEvents, "/chat/completions"],
   ["openai-responses", responses, responseEvents, "/responses"],
 ]) {
-  test(`patched Pi ${api} preserves deltas and parses final tool arguments`, {
+  test(`Pi ${api} preserves deltas and incrementally parses tool arguments`, {
     timeout: 10_000,
   }, async (t) => {
     const requests = [];
@@ -119,13 +119,18 @@ for (const [api, stream, events, path] of [
       maxTokens: 4096,
     };
     const deltas = [];
+    let sawPartialArguments = false;
     let final;
     let done = 0;
     for await (const event of stream(model, context, { apiKey: "test-key" })) {
       if (event.type === "toolcall_delta" && event.delta.length > 0) {
         deltas.push(event.delta);
-        // Inspect immediately: Pi reuses and mutates the partial message object.
-        assert.deepEqual(event.partial.content[event.contentIndex].arguments, {});
+        const partial = event.partial.content[event.contentIndex].arguments;
+        for (const [name, value] of Object.entries(partial)) {
+          assert.equal(typeof value, "string");
+          assert.ok(args[name]?.startsWith(value));
+          sawPartialArguments = true;
+        }
       } else if (event.type === "toolcall_end") {
         final = event.toolCall.arguments;
       } else if (event.type === "done") {
@@ -137,6 +142,7 @@ for (const [api, stream, events, path] of [
     }
     assert.deepEqual(requests, [path]);
     assert.deepEqual(deltas, fragments);
+    assert.equal(sawPartialArguments, true);
     assert.deepEqual(final, args);
     assert.equal(done, 1);
   });

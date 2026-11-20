@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { FinishReason, GenerateRequestSchema } from "proto-desktop-ts";
-import { toContext } from "../../src/main/services/llm/worker/messages.ts";
+import { encodeBlock, toContext } from "../../src/main/services/llm/worker/messages.ts";
 import { llmFixture, request, waitFor } from "../fixtures/llm.mjs";
 
 const user = (text) => ({
@@ -19,6 +19,19 @@ const collect = async (stream) => {
   for await (const event of stream) events.push(event.event);
   return events;
 };
+
+test("malformed final tool arguments cannot be projected as a valid partial object", () => {
+  const malformed = {
+    type: "toolCall",
+    id: "call",
+    name: "echo",
+    arguments: { text: "partial" },
+    argumentsError: "trailing JSON",
+  };
+  assert.equal(encodeBlock(malformed, true).content.value.argumentsJson, undefined);
+  assert.throws(() => encodeBlock(malformed), /model returned invalid tool arguments/);
+});
+
 for (const api of ["openai-completions", "openai-responses", "anthropic-messages"]) {
   test(`${api}: thinking and tool deltas preserve final arguments and replayable history`, async (t) => {
     const fixture = await llmFixture(t, undefined, api);

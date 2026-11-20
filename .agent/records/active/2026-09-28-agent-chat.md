@@ -78,7 +78,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-25 已完成前台 Bash 与 Seatbelt 沙箱、进程组取消／回收、有界输出和未知结果保护；Rust、正式 addon／worker、真实模型及静态检查通过。旧文件工具会话只追加 Bash 和 tool.Bash，原基线／schema 不变。rebase develop 后使用新增 inspect 配合实际窗口操作，补齐 Bash → Read、普通非零退出、沙箱拒绝、执行中 Stop 和重启不重放验收；状态与证据统一见 [Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。
 
-系统上下文核心支持完整基线／增量，正式 Responses 的工具新增及指令更新已联调；工具删除／同名替换在适配入口明确拒绝，动态工具开放前仍须解决。固定集合上的 Bash 新增不涉及删除／替换，不为此回退全量工具声明；具体边界见[正式生成接线](2026-09-28-agent-chat/model-types.md#正式生成接线与适配边界2026-10-18)。
+系统上下文核心支持完整基线与增量。Responses 已通过真实模型验证工具增删改，Chat Completions 和 Claude 已通过请求编码回归。各协议的能力开关和回退方式见[工具变化的模型适配](2026-09-28-agent-chat/model-types.md#工具变化的模型适配2026-11-20)。
 
 2026-10-25 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路和产品窗口验收。旧会话只追加两个工具与对应规则，既有记录前缀不变；真实搜索、无匹配、非法模式及重启不重放证据见 [搜索交付结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。02g 临时计划已删除。
 
@@ -100,6 +100,8 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 ## Outcome
 
+2026-11-20，Pi 升至 1.5.2，删除和同名更新可以通过正式 worker。Responses 实际代理通过新增、删除和同名更新验证，对应缓存命中 2,944、3,200 和 3,328 tokens。Chat Completions 与 Claude 通过本地请求捕获验证。保留通用 Responses 的 API Key WebSocket 补丁，流式参数增量解析由上游实现。见[工具变化的模型适配](2026-09-28-agent-chat/model-types.md#工具变化的模型适配2026-11-20)。
+
 2026-11-19，02m 资源加载完成验收。prometheus 的 Quick Chat 通过自然语言加载命令和显示工具详情，规则与命令更新在下一 Run 生效。实际停止和重启恢复通过，删除验收资源后下一 Run 撤销规则及命令目录条目。实际行为见[资源使用说明](../../../crates/xw-agent/docs/resources.md)，证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#agent-资源加载2026-11-17)。
 
 2026-11-19 普通聊天 Run 的工具声明按起始边界从系统上下文重建，精简 JSONL 的同时兼容既有 v2 记录。持久化回归验证了连续 Run 省略副本、工具声明替换后按各轮恢复，以及辅助生成独立配置和故障恢复。Agent Rust 测试、原生模块构建及 Gateway／worker 集成测试均通过。字段语义见[历史格式](2026-09-28-agent-chat/history-format.md#inputrunturngen-与消息)。
@@ -120,7 +122,7 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 2026-10-25 前台 Bash 已完成代码接入、自动／真实模型与产品窗口验收；迁移边界、测试和窗口／重启证据见 [Bash 结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。第一阶段计划已收尾。没有引入后台接口、执行策略 UI、RequestPermission 或 preset。
 
-2026-10-18 至 2026-10-19 已完成系统上下文记录／恢复、基础提示词片段装配和生产文件工具闭环。默认 cwd 为 `<root>/quick-chat/<session-id>/`，指令和工具声明经已提交的有序系统记录进入模型；正式 addon／Gateway／worker／真实模型和 Quick Chat 产品入口均有验收。工具删除／同名替换在核心可记录、恢复，但当前模型适配明确拒绝，未以全量重写降级。已提交并合入 develop 的结果、验证范围与迁移差异统一维护在[本批交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。
+2026-10-18 至 2026-10-19 已完成系统上下文记录／恢复、基础提示词片段装配和生产文件工具闭环。默认 cwd 为 `<root>/quick-chat/<session-id>/`，指令和工具声明经已提交的有序系统记录进入模型；正式 addon／Gateway／worker／真实模型和 Quick Chat 产品入口均有验收。当时核心已可记录和恢复工具删除／同名替换，模型适配在 2026-11-20 的 Pi 升级批次接入。已提交并合入 develop 的结果、验证范围与迁移差异统一维护在[本批交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。
 
 截至 2026-10-07，已交付可跨重启使用的文本 Agent Chat：多轮文本／思考、停止／错误、模型与思考切换、自动／主动生成及手动设置标题、会话列表／切换／归档／恢复／删除和自动维护。Quick Chat 不再直接调用 Llm.Generate，新建保留旧会话，启动恢复最后更新的未归档会话。composer 外部右上方 chip 样式已由用户确认。
 

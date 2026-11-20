@@ -19,9 +19,10 @@ allowBuilds:
   protobufjs: false
   # Squirrel.Windows is not a configured packaging target.
   electron-winstaller: false
-patchedDependencies:
-  '@earendil-works/pi-ai@0.87.1': patches/@earendil-works__pi-ai@0.87.1.patch
-
 # Keep Vite's optional tsx peer aligned with the desktop toolchain.
 overrides:
   tsx: 4.23.13
+patchedDependencies:
+  '@earendil-works/pi-ai@1.5.2': patches/@earendil-works__pi-ai@1.5.2.patch
+  '@earendil-works/pi-schema@1.5.2': patches/@earendil-works__pi-schema@1.5.2.patch
+  '@earendil-works/pi-telemetry@1.5.2': patches/@earendil-works__pi-telemetry@1.5.2.patch
