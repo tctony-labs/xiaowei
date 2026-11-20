@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/desktop/launcher.proto.
  */
 export const file_xiaowei_desktop_launcher: GenFile = /*@__PURE__*/
-  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3AvbGF1bmNoZXIucHJvdG8SD3hpYW93ZWkuZGVza3RvcCJDCg5MYXVuY2hlck9wZW5lZBIrCgRtb2RlGAIgASgOMh0ueGlhb3dlaS5kZXNrdG9wLkxhdW5jaGVyTW9kZUoECAEQAiIlChRMYXVuY2hlclF1ZXJ5UmVxdWVzdBINCgVxdWVyeRgBIAEoCSKtAQoLTGF1bmNoZXJIaXQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSDQoFbGFiZWwYBCABKAkSDQoFc2NvcmUYBSABKAESLwoGcmFuZ2VzGAYgAygLMh8ueGlhb3dlaS5kZXNrdG9wLkhpZ2hsaWdodFJhbmdlEhUKCGljb25fdXJsGAcgASgJSACIAQFCCwoJX2ljb25fdXJsIlkKFkxhdW5jaGVyU2VhcmNoUmVzcG9uc2USDQoFdG9rZW4YASABKA0SKgoEaGl0cxgDIAMoCzIcLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlckhpdEoECAIQAyIqCg1SZXN1bHRSZXF1ZXN0Eg0KBXRva2VuGAEgASgNEgoKAmlkGAIgASgJIlIKD0V4ZWN1dGVSZXNwb25zZRIwCgRtb2RlGAIgASgOMh0ueGlhb3dlaS5kZXNrdG9wLkxhdW5jaGVyTW9kZUgAiAEBQgcKBV9tb2RlSgQIARACImwKE1VwZGF0ZUxheW91dFJlcXVlc3QSFAoMcmVzdWx0X2NvdW50GAEgASgNEjAKBG1vZGUYAyABKA4yHS54aWFvd2VpLmRlc2t0b3AuTGF1bmNoZXJNb2RlSACIAQFCBwoFX21vZGVKBAgCEAMqggEKDExhdW5jaGVyTW9kZRIdChlMQVVOQ0hFUl9NT0RFX1VOU1BFQ0lGSUVEEAASGAoUTEFVTkNIRVJfTU9ERV9TRUFSQ0gQARIbChdMQVVOQ0hFUl9NT0RFX0NMSVBCT0FSRBACEhwKGExBVU5DSEVSX01PREVfUVVJQ0tfQ0hBVBADMvcCCghMYXVuY2hlchJXCgVRdWVyeRIlLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlclF1ZXJ5UmVxdWVzdBonLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlclNlYXJjaFJlc3BvbnNlEksKB0V4ZWN1dGUSHi54aWFvd2VpLmRlc2t0b3AuUmVzdWx0UmVxdWVzdBogLnhpYW93ZWkuZGVza3RvcC5FeGVjdXRlUmVzcG9uc2USNgoESGlkZRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJMCgxVcGRhdGVMYXlvdXQSJC54aWFvd2VpLmRlc2t0b3AuVXBkYXRlTGF5b3V0UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRI/Cg1SZXNldFBvc2l0aW9uEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5YgZwcm90bzM", [file_google_protobuf_empty, file_xiaowei_desktop_search]);
+  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3AvbGF1bmNoZXIucHJvdG8SD3hpYW93ZWkuZGVza3RvcCJDCg5MYXVuY2hlck9wZW5lZBIrCgRtb2RlGAIgASgOMh0ueGlhb3dlaS5kZXNrdG9wLkxhdW5jaGVyTW9kZUoECAEQAiIlChRMYXVuY2hlclF1ZXJ5UmVxdWVzdBINCgVxdWVyeRgBIAEoCSKtAQoLTGF1bmNoZXJIaXQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSDQoFbGFiZWwYBCABKAkSDQoFc2NvcmUYBSABKAESLwoGcmFuZ2VzGAYgAygLMh8ueGlhb3dlaS5kZXNrdG9wLkhpZ2hsaWdodFJhbmdlEhUKCGljb25fdXJsGAcgASgJSACIAQFCCwoJX2ljb25fdXJsIlkKFkxhdW5jaGVyU2VhcmNoUmVzcG9uc2USDQoFdG9rZW4YASABKA0SKgoEaGl0cxgDIAMoCzIcLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlckhpdEoECAIQAyIqCg1SZXN1bHRSZXF1ZXN0Eg0KBXRva2VuGAEgASgNEgoKAmlkGAIgASgJIlIKD0V4ZWN1dGVSZXNwb25zZRIwCgRtb2RlGAIgASgOMh0ueGlhb3dlaS5kZXNrdG9wLkxhdW5jaGVyTW9kZUgAiAEBQgcKBV9tb2RlSgQIARACImwKE1VwZGF0ZUxheW91dFJlcXVlc3QSFAoMcmVzdWx0X2NvdW50GAEgASgNEjAKBG1vZGUYAyABKA4yHS54aWFvd2VpLmRlc2t0b3AuTGF1bmNoZXJNb2RlSACIAQFCBwoFX21vZGVKBAgCEAMiIgoQTGF1bmNoZXJQaW5TdGF0ZRIOCgZwaW5uZWQYASABKAgqggEKDExhdW5jaGVyTW9kZRIdChlMQVVOQ0hFUl9NT0RFX1VOU1BFQ0lGSUVEEAASGAoUTEFVTkNIRVJfTU9ERV9TRUFSQ0gQARIbChdMQVVOQ0hFUl9NT0RFX0NMSVBCT0FSRBACEhwKGExBVU5DSEVSX01PREVfUVVJQ0tfQ0hBVBADMpYECghMYXVuY2hlchJXCgVRdWVyeRIlLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlclF1ZXJ5UmVxdWVzdBonLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlclNlYXJjaFJlc3BvbnNlEksKB0V4ZWN1dGUSHi54aWFvd2VpLmRlc2t0b3AuUmVzdWx0UmVxdWVzdBogLnhpYW93ZWkuZGVza3RvcC5FeGVjdXRlUmVzcG9uc2USNgoESGlkZRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJMCgxVcGRhdGVMYXlvdXQSJC54aWFvd2VpLmRlc2t0b3AuVXBkYXRlTGF5b3V0UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRI/Cg1SZXNldFBvc2l0aW9uEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkgKC0dldFBpblN0YXRlEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GiEueGlhb3dlaS5kZXNrdG9wLkxhdW5jaGVyUGluU3RhdGUSUwoLU2V0UGluU3RhdGUSIS54aWFvd2VpLmRlc2t0b3AuTGF1bmNoZXJQaW5TdGF0ZRohLnhpYW93ZWkuZGVza3RvcC5MYXVuY2hlclBpblN0YXRlYgZwcm90bzM", [file_google_protobuf_empty, file_xiaowei_desktop_search]);
 
 /**
  * @generated from message xiaowei.desktop.LauncherOpened
@@ -189,6 +189,28 @@ export const UpdateLayoutRequestSchema: GenMessage<UpdateLayoutRequest> = /*@__P
   messageDesc(file_xiaowei_desktop_launcher, 6);
 
 /**
+ * Returned by the pin RPCs and published to the launcher when the state changes.
+ *
+ * @generated from message xiaowei.desktop.LauncherPinState
+ */
+export type LauncherPinState = Message<"xiaowei.desktop.LauncherPinState"> & {
+  /**
+   * The user's pin is shared by all modes of the launcher window and lasts until app exit.
+   * When true, the launcher stays above ordinary windows and ignores transient dismissal.
+   *
+   * @generated from field: bool pinned = 1;
+   */
+  pinned: boolean;
+};
+
+/**
+ * Describes the message xiaowei.desktop.LauncherPinState.
+ * Use `create(LauncherPinStateSchema)` to create a new message.
+ */
+export const LauncherPinStateSchema: GenMessage<LauncherPinState> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_launcher, 7);
+
+/**
  * @generated from enum xiaowei.desktop.LauncherMode
  */
 export enum LauncherMode {
@@ -266,6 +288,22 @@ export const Launcher: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.Launcher.GetPinState
+   */
+  getPinState: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof LauncherPinStateSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.Launcher.SetPinState
+   */
+  setPinState: {
+    methodKind: "unary";
+    input: typeof LauncherPinStateSchema;
+    output: typeof LauncherPinStateSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_xiaowei_desktop_launcher, 0);

@@ -135,6 +135,52 @@ function trackedLauncher(t: TestContext) {
   return { launcher, ordinaryWindows, dock };
 }
 
+test("the window pin persists across modes and only prevents transient dismissal", async (t) => {
+  const { launcher } = trackedLauncher(t);
+  await launcher.create();
+  const target = window as unknown as BrowserWindow;
+  assert.throws(() => launcher.pinState({} as BrowserWindow, true), /Not a launcher window/);
+  assert.equal(launcher.pinState(target), false);
+  await launcher.showMode("quick-chat");
+  assert.equal(window.alwaysOnTop, false);
+  assert.equal(launcher.pinState(target, true), true);
+
+  for (const mode of ["quick-chat", "search", "clipboard"] as const) {
+    await launcher.showMode(mode);
+    assert.equal(launcher.pinState(target), true);
+    assert.equal(window.alwaysOnTop, true);
+    window.focused = false;
+    window.emit("blur");
+    launcher.hideTransient();
+    assert.equal(window.visible, true);
+    assert.equal(window.focused, false);
+  }
+
+  await launcher.hideAndRestore();
+  assert.equal(window.visible, false);
+  assert.equal(launcher.pinState(target), true);
+  launcher.setPinned(false);
+  launcher.setPinned(true);
+  assert.equal(launcher.snapshot().pinned, true);
+  assert.equal(window.visible, false);
+  assert.equal(window.focused, false);
+
+  await launcher.showMode("quick-chat");
+  assert.equal(launcher.pinState(target, false), false);
+  assert.equal(window.alwaysOnTop, false);
+  window.focused = false;
+  window.emit("blur");
+  assert.equal(window.visible, true);
+
+  for (const mode of ["search", "clipboard"] as const) {
+    await launcher.showMode(mode);
+    assert.equal(window.alwaysOnTop, true);
+    window.focused = false;
+    window.emit("blur");
+    assert.equal(window.visible, false);
+  }
+});
+
 test("Launcher starts hidden on macOS; repeated Tray calls preserve presentation and focus source", async () => {
   let captures = 0;
   let restores = 0;

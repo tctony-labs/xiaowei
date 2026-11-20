@@ -3,6 +3,7 @@ import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   LauncherMode,
   LauncherOpenedSchema,
+  LauncherPinStateSchema,
   LauncherQueryRequestSchema,
   OpenSettingsRequestSchema,
   ResultRequestSchema,
@@ -33,6 +34,9 @@ export function Launcher({
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
+  const [pinned, setPinned] = useState<boolean>();
+  const [pinPending, setPinPending] = useState(true);
+  const pinRevision = useRef(0);
   const chat = useQuickChat(services, chatOpen && chatExpanded && !clipboardOpen);
   const lastLayoutMode = useRef(LauncherMode.SEARCH);
   const [query, setQuery] = useState("");
@@ -44,6 +48,42 @@ export function Launcher({
   const revision = useRef(0);
   const executing = useRef(false);
   const pending = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    let subscription: Subscription | undefined;
+    setPinPending(true);
+    void (async () => {
+      const handle = await gateway.subscribe(
+        LauncherPinStateSchema.typeName,
+        undefined,
+        (bytes) => {
+          if (!active) return;
+          pinRevision.current += 1;
+          setPinned(fromBinary(LauncherPinStateSchema, bytes).pinned);
+        },
+        true,
+      );
+      if (!active) {
+        handle.close();
+        return;
+      }
+      subscription = handle;
+      const before = pinRevision.current;
+      const state = await api.getPinState(create(EmptySchema));
+      if (active && before === pinRevision.current) setPinned(state.pinned);
+    })()
+      .catch((error) => {
+        if (active) console.error("Launcher pin state unavailable", error);
+      })
+      .finally(() => {
+        if (active) setPinPending(false);
+      });
+    return () => {
+      active = false;
+      subscription?.close();
+    };
+  }, [api, gateway]);
 
   const changeQuery = useCallback((value: string) => {
     revision.current += 1;
@@ -169,6 +209,21 @@ export function Launcher({
       .catch((error) => console.error("Launcher position failed", error));
   }
 
+  async function togglePin() {
+    if (pinPending) return;
+    setPinPending(true);
+    try {
+      const before = pinRevision.current;
+      const current = pinned ?? (await api.getPinState(create(EmptySchema))).pinned;
+      const state = await api.setPinState(create(LauncherPinStateSchema, { pinned: !current }));
+      if (before === pinRevision.current) setPinned(state.pinned);
+    } catch (error) {
+      console.error("Launcher pin update failed", error);
+    } finally {
+      setPinPending(false);
+    }
+  }
+
   async function execute(index: number) {
     const hit = response.hits[index];
     if (!hit || pending.current || executing.current) return;
@@ -185,14 +240,6 @@ export function Launcher({
       executing.current = false;
     }
   }
-  if (clipboardOpen)
-    return (
-      <ClipboardPage
-        onResetPosition={resetPosition}
-        services={services}
-        onBack={() => setClipboardOpen(false)}
-      />
-    );
   const search = (
     <LauncherSearchBar
       embedded
@@ -228,7 +275,13 @@ export function Launcher({
       )}
     </LauncherSearchBar>
   );
-  return (
+  const panel = clipboardOpen ? (
+    <ClipboardPage
+      onResetPosition={resetPosition}
+      services={services}
+      onBack={() => setClipboardOpen(false)}
+    />
+  ) : (
     <QuickChatPanel
       {...chat}
       emptyState={
@@ -257,5 +310,20 @@ export function Launcher({
         setChatOpen(false);
       }}
     />
+  );
+  return (
+    <>
+      {panel}
+      <button
+        type="button"
+        className="launcher-pin"
+        aria-label="置顶窗口"
+        aria-pressed={pinned ?? false}
+        aria-disabled={pinPending}
+        title={pinned ? "取消置顶" : "置顶窗口"}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => void togglePin()}
+      />
+    </>
   );
 }

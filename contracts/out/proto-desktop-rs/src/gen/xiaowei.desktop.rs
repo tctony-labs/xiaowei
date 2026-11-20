@@ -1554,6 +1554,24 @@ impl ::prost::Name for UpdateLayoutRequest {
         "/xiaowei.desktop.UpdateLayoutRequest".into()
     }
 }
+/// Returned by the pin RPCs and published to the launcher when the state changes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct LauncherPinState {
+    /// The user's pin is shared by all modes of the launcher window and lasts until app exit.
+    /// When true, the launcher stays above ordinary windows and ignores transient dismissal.
+    #[prost(bool, tag = "1")]
+    pub pinned: bool,
+}
+impl ::prost::Name for LauncherPinState {
+    const NAME: &'static str = "LauncherPinState";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.LauncherPinState".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.LauncherPinState".into()
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum LauncherMode {

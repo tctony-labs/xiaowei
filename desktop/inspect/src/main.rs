@@ -26,6 +26,8 @@ Commands:
   shortcuts                   Read actual shortcut registration state
   show MODE                   Show search, clipboard or quick-chat (not toggle)
   hide                        Hide Launcher and report focus restoration
+  pin                         Keep Launcher visible above ordinary windows on blur
+  unpin                       Restore the usual window behavior for its mode
   help, --help                Show this help without connecting to an App
   --version                   Show CLI and protocol versions offline
 
@@ -91,6 +93,8 @@ fn parse(args: &[String]) -> Result<Option<Command>, InspectError> {
             ("launcher.show", json!({ "mode": mode }))
         }
         ["hide"] => ("launcher.hide", json!({})),
+        ["pin"] => ("launcher.setPinned", json!({ "pinned": true })),
+        ["unpin"] => ("launcher.setPinned", json!({ "pinned": false })),
         _ => return Err(InspectError::new("USAGE", "Invalid command; use --help")),
     };
     Ok(Some(Command {
@@ -164,6 +168,9 @@ fn render(command: &Command, response: &Response) {
             render_windows(&value["windows"]);
             println!("Dock: {}", value["state"]["dock"]);
             println!("Focus: {}", value["state"]["launcher"]["focus"]);
+            if let Some(pinned) = value["state"]["launcher"]["pinned"].as_bool() {
+                println!("Launcher pinned: {pinned}");
+            }
             if command.name == "hide" {
                 println!("Focus restored: {}", value["focusRestored"]);
             }

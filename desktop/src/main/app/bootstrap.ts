@@ -77,6 +77,7 @@ export function startApplication(moduleDir: string): void {
     focus: process.platform === "darwin" ? createSystemFocus() : undefined,
     register: (window) => gateway?.register(window),
     opened: (window, mode) => gateway?.opened(window, mode),
+    pinChanged: (window, pinned) => gateway?.pinChanged(window, pinned),
   });
   const settingsWindow = createSettingsWindow({
     moduleDir,
@@ -168,6 +169,7 @@ export function startApplication(moduleDir: string): void {
             modeChanged(mode) {
               launcher.modeChanged(mode);
             },
+            pinState: launcher.pinState,
             openSettings: settingsWindow.open,
             windowGeneration: launcher.generation,
             async dismiss(window, restore) {
@@ -233,6 +235,7 @@ export function startApplication(moduleDir: string): void {
             shortcuts: shortcuts.snapshot,
             showLauncher: launcher.showMode,
             hideLauncher: launcher.hideAndRestore,
+            setLauncherPinned: launcher.setPinned,
           }).catch((error: unknown) => {
             console.error("Inspect startup failed", error);
             return undefined;

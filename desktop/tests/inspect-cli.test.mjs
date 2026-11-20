@@ -71,15 +71,22 @@ async function directory(t) {
 
 async function application(t, source) {
   let visible = false;
+  let pinned = false;
   let mode = "search";
   const server = await startApplicationInspect({
     source,
     version: "fixture",
     appPath: source.path,
     dataPath: "/unchanged/shared-data",
-    status: () => ({ launcher: { mode }, dock: { visible: false } }),
+    status: () => ({ launcher: { mode, pinned }, dock: { visible: false } }),
     windows: () => [
-      { id: 1, role: "launcher", visible, focused: visible, alwaysOnTop: mode !== "quick-chat" },
+      {
+        id: 1,
+        role: "launcher",
+        visible,
+        focused: visible,
+        alwaysOnTop: pinned || mode !== "quick-chat",
+      },
     ],
     shortcuts: () => [{ action: "quickChat", accelerator: "Command+Shift+C", state: "suspended" }],
     async showLauncher(next) {
@@ -89,6 +96,9 @@ async function application(t, source) {
     async hideLauncher() {
       visible = false;
       return true;
+    },
+    setLauncherPinned(next) {
+      pinned = next;
     },
   });
   t.after(() => server.close());
@@ -112,11 +122,19 @@ test("real Rust CLI queries and controls the TS owner across a workspace symlink
   assert.equal((await query("identify")).result.dataPath, "/unchanged/shared-data");
   assert.equal((await query("shortcuts")).result[0].state, "suspended");
   assert.ok((await query("capabilities")).result.methods.length > 0);
+  const pinned = await query("pin");
+  assert.equal(pinned.result.state.launcher.pinned, true);
+  assert.equal(pinned.result.windows[0].visible, false);
+  assert.equal(pinned.result.windows[0].focused, false);
   for (const mode of ["quick-chat", "quick-chat", "search", "clipboard"]) {
     const shown = await query("show", mode);
     assert.equal(shown.result.windows[0].visible, true);
     assert.equal(shown.result.state.launcher.mode, mode);
+    assert.equal(shown.result.state.launcher.pinned, true);
   }
+  const unpinned = await query("unpin");
+  assert.equal(unpinned.result.state.launcher.pinned, false);
+  assert.equal(unpinned.result.windows[0].visible, true);
   const hiddenAgain = await query("hide");
   assert.equal(hiddenAgain.result.windows[0].visible, false);
   assert.equal(hiddenAgain.result.focusRestored, true);

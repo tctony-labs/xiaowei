@@ -12,6 +12,7 @@ Electron main 通过 `services/inspect/` 提供当前代码来源的本地 Unix 
 
 - `windows/snapshots.ts` 读取 BrowserWindow 的实际显隐、焦点、置顶、位置及 renderer 加载状态；Launcher 和设置 owner 只提供窗口归属。
 - Launcher 的显式显示入口等待焦点交接，并为原生显示与聚焦提供最多一秒的状态确认；期间关闭、收起或切换到其他模式即停止等待，不重复激活。重复显示保持可见。隐藏入口复用原焦点归还流程，返回实际归还结果；窗口已经隐藏时不再执行归还。
+- 置顶入口复用 Launcher 的图钉状态。它可以在窗口隐藏时设置，实际变化通过 Gateway 同步给界面的图钉。图钉的失焦与层级规则见 [窗口交互](chat-ui.md#产品入口与窗口交互)。
 - focus session 只读快照不重新 capture；Dock owner 区分实际可见、预期可见、弹层导致的延后与系统重试。
 - 快捷键 owner 报告配置与 registry 的实际系统注册，区分菜单暂停和不可用，不改变原注册／恢复策略。
 

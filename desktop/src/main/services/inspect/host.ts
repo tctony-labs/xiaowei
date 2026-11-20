@@ -19,6 +19,7 @@ export async function startApplicationInspect(options: {
   shortcuts(): unknown;
   showLauncher(mode: LauncherMode): Promise<void>;
   hideLauncher(): Promise<boolean | null>;
+  setLauncherPinned(pinned: boolean): void;
 }) {
   const instanceId = randomUUID();
   const source = await resolveInspectSource(options.source);
@@ -105,6 +106,15 @@ export async function startApplicationInspect(options: {
     async run() {
       const focusRestored = await options.hideLauncher();
       return { focusRestored, ...status() };
+    },
+  });
+  methods.set("launcher.setPinned", {
+    description: "Set Launcher pin state without showing or focusing the window",
+    mutates: true,
+    params: { pinned: { type: "boolean", required: true } },
+    run({ pinned }) {
+      options.setLauncherPinned(pinned as boolean);
+      return status();
     },
   });
   return startInspectServer({ source, methods });

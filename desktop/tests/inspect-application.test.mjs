@@ -9,6 +9,7 @@ for (const kind of ["workspace", "app"]) {
     const path = await realpath(await mkdtemp("/tmp/xwi-host-"));
     t.after(() => rm(path, { recursive: true, force: true }));
     let visible = false;
+    let pinned = false;
     let mode = "search";
     let changes = 0;
     const windows = () => [{ role: "launcher", visible, mode }];
@@ -17,7 +18,7 @@ for (const kind of ["workspace", "app"]) {
       version: "fixture",
       appPath: path,
       dataPath: "/unchanged/shared-data",
-      status: () => ({ changes }),
+      status: () => ({ changes, launcher: { pinned } }),
       windows,
       shortcuts: () => [{ action: "quickChat", state: "suspended", registered: false }],
       async showLauncher(requestedMode) {
@@ -30,6 +31,9 @@ for (const kind of ["workspace", "app"]) {
         visible = false;
         changes++;
         return false;
+      },
+      setLauncherPinned(next) {
+        pinned = next;
       },
     });
     t.after(() => server.close());
@@ -50,9 +54,18 @@ for (const kind of ["workspace", "app"]) {
     }
     assert.equal(changes, 0);
     assert.equal(visible, false);
+    const pinMethod = capabilities.methods.find(({ name }) => name === "launcher.setPinned");
+    assert.equal(pinMethod.mutates, true);
+    assert.deepEqual(pinMethod.params.pinned, { type: "boolean", required: true });
+    const pinState = await call("launcher.setPinned", { pinned: true });
+    assert.equal(pinState.state.launcher.pinned, true);
+    assert.equal(pinState.windows[0].visible, false);
     const shown = await call("launcher.show", { mode: "quick-chat" });
     assert.equal(shown.windows[0].visible, true);
     assert.equal(shown.windows[0].mode, "quick-chat");
+    const unpinned = await call("launcher.setPinned", { pinned: false });
+    assert.equal(unpinned.state.launcher.pinned, false);
+    assert.equal(unpinned.windows[0].visible, true);
     assert.equal((await call("shortcut.list"))[0].state, "suspended");
     const hidden = await call("launcher.hide");
     assert.equal(hidden.focusRestored, false);

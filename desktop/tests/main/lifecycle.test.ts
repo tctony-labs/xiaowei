@@ -200,6 +200,7 @@ const actions = {
   restart: async () => {},
   resetPosition() {},
   modeChanged() {},
+  pinState: () => false,
   updateShortcuts() {},
   async openSettings() {
     throw new Error("Unused settings window");

@@ -1,6 +1,6 @@
 # XiaoWei Inspect CLI
 
-`xiaowei-inspect` 通过本地 Unix socket 检查配套运行实例的窗口、焦点、Dock 和快捷键，并经现有窗口入口显示／收起 Launcher。crate 与二进制同名，属于根 Cargo workspace。CLI 不启动 App，查询不会激活窗口。
+`xiaowei-inspect` 通过本地 Unix socket 检查配套运行实例的窗口、焦点、Dock 和快捷键，并经现有窗口入口显示、收起或置顶 Launcher。crate 与二进制同名，属于根 Cargo workspace。CLI 不启动 App，查询不会激活窗口。
 
 ## 开发
 
@@ -13,10 +13,12 @@ just inspect capabilities --json
 just inspect status --json
 just inspect windows
 just inspect shortcuts
+just inspect pin
 just inspect show quick-chat
 just inspect show search
 just inspect show clipboard
 just inspect hide
+just inspect unpin
 ```
 
 默认产物为 `<工作区>/target/debug/xiaowei-inspect`。直接调用开发二进制时需传 `--workspace /absolute/workspace`；目标以规范化的工作区路径确定，与编译时路径和调用者 cwd 无关。
@@ -36,6 +38,8 @@ macOS 包内携带独立二进制，随 App 签名与更新，无需用户安装
 默认输出可读摘要，`--json` 输出单个 JSON 响应。成功响应的业务结果位于 `result`；本地失败返回 `ok: false` 和 `error`。退出码 `0` 表示命令完成，`1` 为运行／连接失败，`2` 为参数错误。
 
 `show` 必须指定模式，等待 owner 完成唤起并检查实际显隐、焦点与模式；重复显示保持可见。`hide` 返回隐藏后的状态与 `focusRestored`：`true` 为已归还，`false` 为未归还，`null` 为窗口已隐藏、无需执行归还。Dock 等系统状态可能异步变化，应检查返回的实际值与 pending／deferred 状态。
+
+自动化操作可能切走焦点时，可先 `pin` 再 `show`。`pin` 和 `unpin` 直接设置同一个窗口图钉，适用于隐藏窗口，返回 `result.state.launcher.pinned`。这一字段表示用户选择的图钉状态，`windows[].alwaysOnTop` 表示实际原生层级。
 
 CLI 只提供当前实现列出的检查与窗口操作。共享数据目录、登录态、Agent／模型配置、单实例锁和开发启动／重启方式均保持现状。
 

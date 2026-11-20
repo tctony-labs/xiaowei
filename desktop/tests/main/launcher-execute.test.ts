@@ -80,6 +80,7 @@ for (const fails of [false, true]) {
       async restart() {},
       resetPosition() {},
       modeChanged() {},
+      pinState: () => false,
       iconUrl: () => "",
       includeChromeBookmarks: async () => false,
     });

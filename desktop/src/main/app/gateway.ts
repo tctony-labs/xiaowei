@@ -174,6 +174,7 @@ export async function createApplicationGateway(
       electron.register(window.webContents);
     },
     opened: launcher.opened,
+    pinChanged: launcher.pinChanged,
     close() {
       closing ??= (async () => {
         electron.close();

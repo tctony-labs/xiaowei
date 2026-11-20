@@ -12,6 +12,8 @@ service Launcher {
   rpc Hide(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc UpdateLayout(UpdateLayoutRequest) returns (google.protobuf.Empty);
   rpc ResetPosition(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc GetPinState(google.protobuf.Empty) returns (LauncherPinState);
+  rpc SetPinState(LauncherPinState) returns (LauncherPinState);
 }
 
 enum LauncherMode {
@@ -65,4 +67,11 @@ message UpdateLayoutRequest {
   uint32 result_count = 1;
   reserved 2;
   optional LauncherMode mode = 3;
+}
+
+// Returned by the pin RPCs and published to the launcher when the state changes.
+message LauncherPinState {
+  // The user's pin is shared by all modes of the launcher window and lasts until app exit.
+  // When true, the launcher stays above ordinary windows and ignores transient dismissal.
+  bool pinned = 1;
 }

@@ -218,6 +218,7 @@ test("search update command invokes System and preserves update window focus", {
       async restart() {},
       resetPosition() {},
       modeChanged() {},
+      pinState: () => false,
       iconUrl: () => "",
       includeChromeBookmarks: async () => false,
     });

@@ -118,6 +118,7 @@ test("launcher tokens and execution are preserved; search does not read icons", 
       modeChanged(mode) {
         actions.push(mode);
       },
+      pinState: () => false,
     },
   );
   const api = bindClient(Launcher, createClient(host.transport(context)));
@@ -279,6 +280,7 @@ test("Launcher web actions use System with original context and preserve failure
     restart: async () => {},
     resetPosition() {},
     modeChanged() {},
+    pinState: () => false,
   });
   const api = bindClient(Launcher, createClient(host.transport(context)));
   const execute = async () => {

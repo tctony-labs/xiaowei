@@ -15,6 +15,7 @@ export function createLauncherWindow(options: {
   moduleDir: string;
   register(window: BrowserWindow): void;
   opened(window: BrowserWindow, mode: LauncherMode): void;
+  pinChanged?(window: BrowserWindow, pinned: boolean): void;
   focus?: ReturnType<typeof createFocusSession>;
   ordinaryWindows?: Pick<
     ReturnType<typeof createOrdinaryWindows>,
@@ -23,6 +24,7 @@ export function createLauncherWindow(options: {
 }) {
   let launcher: BrowserWindow | undefined;
   let launcherMode: LauncherMode = "search";
+  let launcherPinned = false;
   let quitting = false;
   let restoring = false;
   let pendingShow: Promise<void> | undefined;
@@ -57,10 +59,22 @@ export function createLauncherWindow(options: {
     if (launcherMode === mode) return;
     launcherMode = mode;
     if (launcher && !launcher.isDestroyed()) {
-      launcher.setAlwaysOnTop(mode !== "quick-chat");
+      launcher.setAlwaysOnTop(launcherPinned || mode !== "quick-chat");
       if (mode === "quick-chat" && launcher.isVisible()) focusLauncher();
     }
     updateOrdinaryWindow();
+  }
+
+  function setPinned(pinned: boolean): boolean {
+    if (!launcher || launcher.isDestroyed() || quitting)
+      throw new Error("Launcher is not available");
+    if (pinned !== launcherPinned) {
+      if (launcherMode === "quick-chat") launcher.setAlwaysOnTop(pinned);
+      launcherPinned = pinned;
+      console.debug("Launcher pin changed", { mode: launcherMode, pinned });
+      options.pinChanged?.(launcher, pinned);
+    }
+    return launcherPinned;
   }
 
   async function dismiss(restore: boolean): Promise<boolean> {
@@ -133,7 +147,7 @@ export function createLauncherWindow(options: {
       maximizable: false,
       minimizable: false,
       fullscreenable: false,
-      alwaysOnTop: launcherMode !== "quick-chat",
+      alwaysOnTop: launcherPinned || launcherMode !== "quick-chat",
       // Search and clipboard must not activate background settings windows.
       type: process.platform === "darwin" ? "panel" : undefined,
       show: false,
@@ -166,11 +180,12 @@ export function createLauncherWindow(options: {
 
       // macOS main-window changes can emit blur while a floating window stays key.
       const focused = window.isFocused();
-      const retained = focused || launcherMode === "quick-chat";
+      const retained = focused || launcherPinned || launcherMode === "quick-chat";
 
       console.debug("Launcher window blurred", {
         mode: launcherMode,
         focused,
+        pinned: launcherPinned,
         retained,
       });
 
@@ -239,14 +254,20 @@ export function createLauncherWindow(options: {
     },
     snapshot: () => ({
       mode: launcherMode,
+      pinned: launcherPinned,
       ready,
       showPending: Boolean(pendingShow),
       generation,
       focus: options.focus?.snapshot() ?? null,
     }),
     hideTransient() {
-      if (launcherMode !== "quick-chat") void dismiss(false);
+      if (!launcherPinned && launcherMode !== "quick-chat") void dismiss(false);
     },
+    pinState(window: BrowserWindow, pinned?: boolean): boolean {
+      if (window !== launcher || window.isDestroyed()) throw new Error("Not a launcher window");
+      return pinned === undefined ? launcherPinned : setPinned(pinned);
+    },
+    setPinned,
     owns: (window: object) => window === launcher,
     generation: () => generation,
     dismiss,

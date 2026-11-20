@@ -16,6 +16,8 @@
   --color-primary: #00c572;
   --color-primary-bg: #d4f7e6;
   --color-hover: #0000000f;
+  --color-launcher-pin-hover: #15151a0d;
+  --launcher-pin-image: url("./assets/pin-unlock.svg");
   --color-primary-text: #007a46;
   --color-surface: #ffffff;
   --color-ink: #000000d9;
@@ -34,6 +36,8 @@
     --color-clipboard-selected: #00c57233;
     --color-primary-bg: #152b2a;
     --color-hover: #ffffff1f;
+    --color-launcher-pin-hover: #f6f5ff0d;
+    --launcher-pin-image: url("./assets/pin-unlock-dark.svg");
     --color-primary-text: var(--color-primary);
     --color-surface: #141414;
     --color-ink: #ffffffd1;
@@ -50,6 +54,8 @@
   --color-clipboard-selected: #00c57233;
   --color-primary-bg: #152b2a;
   --color-hover: #ffffff1f;
+  --color-launcher-pin-hover: #f6f5ff0d;
+  --launcher-pin-image: url("./assets/pin-unlock-dark.svg");
   --color-primary-text: var(--color-primary);
   --color-surface: #141414;
   --color-ink: #ffffffd1;
@@ -90,6 +96,40 @@ kbd {
 
 .launcher-drag {
   -webkit-app-region: drag;
+}
+
+.launcher-pin {
+  position: fixed;
+  z-index: 30;
+  top: 2px;
+  right: 4px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 0 var(--radius-xl) 0 12px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.launcher-pin:hover {
+  background-color: var(--color-launcher-pin-hover);
+}
+
+.launcher-pin:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: -1px;
+}
+
+.launcher-pin::before {
+  width: 12px;
+  height: 12px;
+  background: center / contain no-repeat var(--launcher-pin-image);
+  content: "";
+}
+
+.launcher-pin[aria-pressed="true"]::before {
+  background-image: url("./assets/pin-lock.svg");
 }
 
 .clipboard-markdown > * + * {

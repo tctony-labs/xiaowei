@@ -10,6 +10,7 @@ import {
   ExecuteResponseSchema,
   LauncherMode,
   LauncherOpenedSchema,
+  LauncherPinStateSchema,
   LauncherSearchResponseSchema,
   Launcher as LauncherService,
   ModelSettings,
@@ -27,13 +28,22 @@ import { Launcher } from "./Launcher";
 
 function preview(clipboardMode = false, noModels = false, smallTextModelRef = "") {
   const host = new GatewayHost();
+  let pinned = false;
   const calls = {
     execute: vi.fn(),
     resize: vi.fn(),
     hide: vi.fn(),
     openSettings: vi.fn(),
     copy: vi.fn(),
+    setPinState: vi.fn(),
   };
+  function changePinState(next: boolean) {
+    pinned = next;
+    launcher.publish(
+      LauncherPinStateSchema.typeName,
+      toBinary(LauncherPinStateSchema, create(LauncherPinStateSchema, { pinned })),
+    );
+  }
   host.registerOwner(
     "system",
     bindHandlers(
@@ -81,6 +91,12 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
         return create(EmptySchema);
       },
       resetPosition: () => create(EmptySchema),
+      getPinState: () => create(LauncherPinStateSchema, { pinned }),
+      setPinState(request) {
+        calls.setPinState(request.pinned);
+        changePinState(request.pinned);
+        return create(LauncherPinStateSchema, { pinned });
+      },
     }),
     [
       {
@@ -89,6 +105,7 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
         validate() {},
         matches: () => true,
       },
+      bindEvent(LauncherPinStateSchema, EmptySchema, "coalesce", () => true),
     ],
   );
 
@@ -158,6 +175,7 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
   return {
     agent,
     calls,
+    changePinState,
     services: createServices(() => host.client({ caller: "test", trusted: true })),
     openMode(mode: LauncherMode) {
       launcher.publish(
@@ -169,6 +187,39 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
 }
 
 afterEach(cleanup);
+
+test("the window pin keeps input focus and follows the launcher between modes", async () => {
+  const app = preview();
+  const canvas = render(<Launcher services={app.services} />);
+  const user = userEvent.setup();
+  const pinButton = canvas.getByRole("button", { name: "置顶窗口" });
+  await waitFor(() => expect(pinButton).toHaveAttribute("aria-disabled", "false"));
+  const input = canvas.getByRole("textbox", { name: "搜索" });
+  expect(input).toHaveFocus();
+
+  await user.click(pinButton);
+  await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "true"));
+  expect(input).toHaveFocus();
+  expect(app.calls.setPinState).toHaveBeenLastCalledWith(true);
+  await user.keyboard("{Escape}");
+  await waitFor(() => expect(app.calls.hide).toHaveBeenCalledOnce());
+
+  await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+  await canvas.findByRole("navigation", { name: "剪贴板视图" });
+  expect(canvas.getByRole("button", { name: "置顶窗口" })).toBe(pinButton);
+  expect(pinButton).toHaveAttribute("aria-pressed", "true");
+
+  await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+  const composer = await canvas.findByRole("textbox", { name: "快速对话输入" });
+  await user.click(pinButton);
+  await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "false"));
+  expect(composer).toHaveFocus();
+  expect(app.calls.setPinState).toHaveBeenLastCalledWith(false);
+
+  await act(async () => app.changePinState(true));
+  expect(pinButton).toHaveAttribute("aria-pressed", "true");
+  expect(app.calls.setPinState).toHaveBeenCalledTimes(2);
+});
 
 test("keyboard selection and composition guard", async () => {
   const search = preview();

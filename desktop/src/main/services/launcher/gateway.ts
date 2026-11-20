@@ -5,6 +5,7 @@ import {
   ExecuteResponseSchema,
   Launcher,
   LauncherOpenedSchema,
+  LauncherPinStateSchema,
   LauncherSearchResponseSchema,
   LocalPathRequestSchema,
   OpenUrlRequestSchema,
@@ -16,6 +17,7 @@ import {
   System,
   LauncherMode as WireMode,
 } from "proto-desktop-ts";
+import type { EventExport } from "xiaowei-gateway";
 import { bindClient, bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
 import { type LauncherMode, launcherHeight } from "../../../shared/launcher-model";
@@ -30,6 +32,7 @@ export interface LauncherActions {
   restart(): Promise<void>;
   resetPosition(window: BrowserWindow): void;
   modeChanged(mode: LauncherMode): void;
+  pinState(window: BrowserWindow, pinned?: boolean): boolean;
   iconUrl(path: string): string;
   includeChromeBookmarks(): Promise<boolean>;
 }
@@ -40,8 +43,33 @@ export function registerSearch(
   actions: LauncherActions,
 ) {
   const states = new WeakMap<CallContext, { token: number; results: Map<string, SearchHit> }>();
-  const opened = new Map<object, { contents: WebContents; sink: EventSink }>();
+  const subscriptions = new Map<object, { name: string; contents: WebContents; sink: EventSink }>();
   let presentation = 0;
+
+  function windowEvent(name: string): EventExport {
+    return {
+      name,
+      policy: "coalesce",
+      async attach(context, _filter, sink) {
+        const key = {};
+        subscriptions.set(key, { name, contents: windowFor(context).webContents, sink });
+        return {
+          close() {
+            subscriptions.delete(key);
+          },
+        };
+      },
+    };
+  }
+
+  function publishWindowEvent(window: BrowserWindow, name: string, bytes: Uint8Array): void {
+    for (const entry of subscriptions.values()) {
+      if (entry.name !== name || entry.contents !== window.webContents) continue;
+      void Promise.resolve()
+        .then(() => entry.sink(bytes))
+        .catch((error) => console.error("Launcher event failed", error));
+    }
+  }
 
   function state(context: CallContext) {
     windowFor(context);
@@ -205,22 +233,16 @@ export function registerSearch(
         window.focus();
         return create(EmptySchema);
       },
-    }),
-    [
-      {
-        name: LauncherOpenedSchema.typeName,
-        policy: "coalesce",
-        async attach(context, _filter, sink) {
-          const key = {};
-          opened.set(key, { contents: windowFor(context).webContents, sink });
-          return {
-            close() {
-              opened.delete(key);
-            },
-          };
-        },
+      getPinState(_request, client) {
+        const pinned = actions.pinState(windowFor(client.context()));
+        return create(LauncherPinStateSchema, { pinned });
       },
-    ],
+      setPinState(request, client) {
+        const pinned = actions.pinState(windowFor(client.context()), request.pinned);
+        return create(LauncherPinStateSchema, { pinned });
+      },
+    }),
+    [windowEvent(LauncherOpenedSchema.typeName), windowEvent(LauncherPinStateSchema.typeName)],
   );
 
   return {
@@ -238,11 +260,11 @@ export function registerSearch(
                 : WireMode.SEARCH,
         }),
       );
-      for (const entry of opened.values())
-        if (entry.contents === window.webContents)
-          void Promise.resolve(entry.sink(bytes)).catch((error) =>
-            console.error("Launcher event failed", error),
-          );
+      publishWindowEvent(window, LauncherOpenedSchema.typeName, bytes);
+    },
+    pinChanged(window: BrowserWindow, pinned: boolean) {
+      const bytes = toBinary(LauncherPinStateSchema, create(LauncherPinStateSchema, { pinned }));
+      publishWindowEvent(window, LauncherPinStateSchema.typeName, bytes);
     },
   };
 }

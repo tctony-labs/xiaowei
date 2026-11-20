@@ -45,6 +45,8 @@ App 在现有窗口和快捷键初始化后挂载 listener。检查入口启动�
 
 显示等待既有焦点交接，并检查实际显隐、焦点与模式；隐藏分别返回实际状态和焦点归还结果。Dock 区分实际可见、预期、延后隐藏及重试；快捷键区分配置、实际系统注册、菜单暂停与不可用，注册行为和默认绑定保持原样。
 
+窗口自动化可以先通过置顶入口保留 Launcher，再显示目标模式。操作顺序与复核方式见 [仓库 inspect 技能](../../skills/inspect-running-app/SKILL.md)。
+
 ### CLI 与打包
 
 `just inspect` 通过 Cargo 增量编译和定位客户端，显式传入当前工作区。正式 CLI 位于 `XiaoWei.app/Contents/Resources/bin/xiaowei-inspect`，从真实可执行路径找到所属 App，符号链接不改变配对。两种入口使用同一份实现，不自动启动 App 或回退到其他实例。
@@ -105,3 +107,9 @@ Agent 的发现、加载、工具调用和权限接入在后续实施前另行�
 - 收起返回 `focusRestored: true`，前台进程回到原来的 cmux；窗口实际隐藏，Dock 最终隐藏且 deferred／pending／retry 全部清零。重复收起返回 null，不改变窗口或 generation。
 
 本次原始 CLI 响应保存在 `/tmp/xiaowei-inspect-runtime-acceptance.json`，末次检查日志为 `/tmp/xiaowei-inspect-runtime-check.log`，新增窗口回归日志为 `/tmp/xiaowei-inspect-launcher-runtime-tests.log`。未执行正式 Developer ID 签名、公证、发布或 packaged GUI 实例验收；包内 release CLI 已通过前述真实 socket fixture 验证。
+
+### 自动化置顶（2026-11-21）
+
+`pin` 和 `unpin` 已接入 Launcher 同一个图钉状态，变更会同步到界面。Rust CLI 与 TS socket 回归覆盖隐藏时置顶、切换模式和取消置顶。Launcher 与 renderer 的回归覆盖失焦保留、窗口层级和界面同步。`just check`、桌面全量回归和 inspect crate 测试通过。
+
+oracle 原生功能验收通过。隐藏时执行 `pin` 保持窗口隐藏，随后显示搜索、剪贴板或 Quick Chat 并将焦点交给 Finder 或 cmux，三个模式均保持可见，WindowServer 层级为 3。点击 Quick Chat 图钉取消置顶后，其窗口失焦仍可见且回到普通层级 0，搜索和剪贴板在取消置顶后失焦收起。主动 `hide` 可收起已置顶的窗口。验收结束后 Launcher 恢复未置顶和隐藏状态，oracle 实例继续运行。按用户要求本次验收聚焦功能。
