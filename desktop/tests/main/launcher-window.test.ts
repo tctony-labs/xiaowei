@@ -317,6 +317,23 @@ test("search and clipboard still hide on blur, including after leaving Quick Cha
   launcher.prepareQuit();
 });
 
+test("opening settings hides search and clipboard but leaves Quick Chat visible", async (t) => {
+  const { launcher, ordinaryWindows } = trackedLauncher(t);
+  await launcher.create();
+  await launcher.dismiss(false);
+
+  for (const mode of ["search", "clipboard", "quick-chat"] as const) {
+    launcher.openMode(mode);
+    await new Promise(setImmediate);
+    assert.equal(window.visible, true, mode);
+
+    launcher.hideTransient();
+    assert.equal(window.visible, mode === "quick-chat", mode);
+  }
+
+  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 1);
+});
+
 test("mode changes restore the window level through shortcuts and renderer requests", async () => {
   const launcher = createLauncherWindow({
     moduleDir: "/unused",
@@ -452,7 +469,7 @@ test("explicit show stops waiting when the presentation is dismissed", async (t)
 
   const showing = assert.rejects(launcher.showMode("quick-chat"), /did not become visible/);
   await new Promise(setImmediate);
-  launcher.hide();
+  await launcher.dismiss(false);
   await showing;
   assert.equal(launcherWindow.visible, false);
   assert.equal(launcherWindow.focused, false);
@@ -526,7 +543,7 @@ test("Dock activation follows visible Quick Chat across both mode-change paths",
   launcher.openMode("clipboard");
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
-  launcher.hide();
+  await launcher.dismiss(false);
   await new Promise(setImmediate);
   assert.equal(dock.visible, false);
 });
@@ -534,7 +551,7 @@ test("Dock activation follows visible Quick Chat across both mode-change paths",
 test("hidden Quick Chat joins on show and leaves tracking on each dismiss path", async (t) => {
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
-  launcher.hide();
+  await launcher.dismiss(false);
   launcher.modeChanged("quick-chat");
   await new Promise(setImmediate);
   assert.equal(dock.visible, false);
@@ -552,7 +569,7 @@ test("hidden Quick Chat joins on show and leaves tracking on each dismiss path",
         },
       });
       assert.equal(prevented, true);
-    } else if (dismiss === "explicit-hide") launcher.hide();
+    } else if (dismiss === "explicit-hide") await launcher.dismiss(false);
     else await launcher.dismiss(true);
     await new Promise(setImmediate);
     assert.equal(window.visible, false);
@@ -572,7 +589,7 @@ test("dismissing Quick Chat preserves Dock for settings and native update window
   ordinaryWindows.register(settings as unknown as BrowserWindow);
   settings.show();
   settings.focus();
-  launcher.hide();
+  await launcher.dismiss(false);
   await new Promise(setImmediate);
   assert.equal(chat.visible, false);
   assert.equal(dock.visible, true);
@@ -584,7 +601,7 @@ test("dismissing Quick Chat preserves Dock for settings and native update window
   settings.destroyed = true;
   settings.emit("closed");
   launcher.show();
-  launcher.hide();
+  await launcher.dismiss(false);
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
   ordinaryWindows.setNativeWindowVisible(false);
@@ -605,13 +622,13 @@ for (const action of ["hide", "renderer-mode", "shortcut-mode"]) {
       });
     await launcher.create();
     launcher.openMode("quick-chat");
-    if (action === "hide") launcher.hide();
+    if (action === "hide") await launcher.dismiss(false);
     else if (action === "renderer-mode") launcher.modeChanged("search");
     else launcher.openMode("clipboard");
     finish();
     await new Promise(setImmediate);
     assert.equal(dock.visible, action !== "hide");
-    launcher.hide();
+    await launcher.dismiss(false);
     await new Promise(setImmediate);
     assert.equal(dock.visible, false);
   });

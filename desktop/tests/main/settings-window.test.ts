@@ -82,14 +82,14 @@ const { createSettingsWindow } = await import("../../src/main/windows/settings.t
 function controller() {
   return createSettingsWindow({
     moduleDir: "/unused/main",
-    hideLauncher() {
+    hideTransientLauncher() {
       focused = null;
     },
     register() {},
   });
 }
 
-test("new settings follow the focused launcher before hiding it, even with the cursor on another display", async () => {
+test("new settings follow the focused search window even with the cursor on another display", async () => {
   focused = { getBounds: () => ({ x: -1800, y: 100, width: 800, height: 71 }) };
   cursorDisplay = primary;
   const window = (await controller().open()) as unknown as FakeWindow;

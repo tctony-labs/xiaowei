@@ -244,8 +244,8 @@ export function createLauncherWindow(options: {
       generation,
       focus: options.focus?.snapshot() ?? null,
     }),
-    hide() {
-      void dismiss(false);
+    hideTransient() {
+      if (launcherMode !== "quick-chat") void dismiss(false);
     },
     owns: (window: object) => window === launcher,
     generation: () => generation,

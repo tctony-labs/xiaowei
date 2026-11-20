@@ -4,20 +4,20 @@ import { restrictNavigation } from "./navigation";
 
 export function createSettingsWindow(options: {
   moduleDir: string;
-  hideLauncher(): void;
+  hideTransientLauncher(): void;
   register(window: BrowserWindow): void;
 }) {
   let settingsWindow: BrowserWindow | undefined;
 
   async function openSettings(): Promise<BrowserWindow> {
-    // Capture the source display before hiding the launcher clears its focus.
+    // Capture the source display before a transient launcher loses focus.
     const source = BrowserWindow.getFocusedWindow();
     const display = source
       ? screen.getDisplayMatching(source.getBounds())
       : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const { workArea } = display;
 
-    options.hideLauncher();
+    options.hideTransientLauncher();
     if (process.platform === "darwin") app.show();
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       if (settingsWindow.isMinimized()) settingsWindow.restore();

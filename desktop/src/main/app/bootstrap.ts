@@ -80,7 +80,7 @@ export function startApplication(moduleDir: string): void {
   });
   const settingsWindow = createSettingsWindow({
     moduleDir,
-    hideLauncher: launcher.hide,
+    hideTransientLauncher: launcher.hideTransient,
     register(window) {
       ordinaryWindows.register(window);
       gateway?.register(window);
