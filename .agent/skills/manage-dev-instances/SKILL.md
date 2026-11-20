@@ -1,19 +1,21 @@
 ---
 name: manage-dev-instances
 description: >-
-  检查当前 XiaoWei 工作区的客户端与 Go 服务端开发实例、查询运行日志并重启已有实例。
-  优先通过 cmux 定位和操作 console，无法实现时回退到进程检查、客户端日志文件和既有重启入口。
+  检查当前 XiaoWei 工作区的客户端与 Go 服务端开发实例、查询运行日志、启动或重启实例。
+  常驻工作区使用对应的 cmux 工作区，临时工作区由 Agent 管理后台进程。
 ---
 
 # 管理开发实例
 
-适用于当前工作区的 Electron 客户端和本机 Go 服务端。检查、读日志与重启分别按任务需要执行；查询本身不触发重启，也不因排障自行创建实例。冷启动和重启权限遵循根 [AGENTS.md](../../../AGENTS.md#运行实例)。
+适用于当前工作区的 Electron 客户端和本机 Go 服务端。检查、读日志、启动和重启分别按任务需要执行。冷启动和重启权限遵循根 [AGENTS.md](../../../AGENTS.md#运行实例)。
 
-cmux 优先和回退顺序仅约束 Agent 的操作方式。用户始终可以在运行开发脚本的 console 中手动按 `r`／`R`；不要求用户通过 cmux CLI 操作。
+用户可以在运行开发脚本的交互终端中手动按 `r`／`R`。
 
 ## 检查实例与定位 console
 
-先确认当前工作区的规范化绝对路径。优先使用 cmux；首次使用先通过 `command -v cmux` 和 `cmux --help` 确认本机能力，不安装或假定不存在的命令。
+先通过 Git worktree 元数据确认目标和主工作区的规范化绝对路径。主工作区和项目 `worktrees/` 下的常驻工作区优先通过对应的 cmux 工作区定位 console。临时工作区直接检查系统进程和 Agent 自己的后台会话，整个过程不调用 cmux。
+
+首次使用 cmux 时，先通过 `command -v cmux` 和 `cmux --help` 确认本机能力。
 
 ```sh
 cmux tree --all
@@ -23,7 +25,7 @@ cmux tree --all
 
 - 客户端：确认 `scripts/dev/dev.mjs`、`dev-session.mjs`、nodemon 与实际 Electron 进程的关系；控制脚本和 Electron 的 cwd 应指向当前工作区。仅有监听进程不等于客户端已经运行，构建或退出期间要分别报告状态。
 - 服务端：确认 `scripts/dev/server.mjs`、`go run ./cmd/xiaowei-server` 与实际 Go 进程的关系。Go 二进制可能位于系统临时目录或 Go 构建缓存，不能假定固定的编译产物路径；沿父子关系定位并检查 cwd。
-- 检查控制脚本的 stdin 指向哪个 tty，并和 cmux surface 的 tty 对照。Go／Electron 子进程自身没有交互 tty 是正常情况，不能据此判定不在 cmux 中。
+- 常驻工作区核对控制脚本的 stdin 与 cmux surface 是否使用同一个 tty。Go／Electron 子进程自身没有交互 tty 是正常情况。
 
 macOS 可用以下命令核对候选进程；PID 来自当前查询结果，不保存固定 PID：
 
@@ -33,11 +35,11 @@ lsof -a -p "$controller_pid,$app_pid" -d cwd -Fn
 lsof -a -p "$controller_pid" -d 0,1,2 -Fn
 ```
 
-发现其他工作区实例时只报告，不操作。若 cmux 无法使用，直接通过系统进程完成归属检查；分别报告“未运行”“运行且 console 已定位”“运行但未定位到可控 console”或“只有控制脚本／正在重启”。cmux 查询失败不等于实例未运行；没有匹配的 surface 也不能武断断言进程不在 cmux 中。
+通过系统进程确认归属，分别报告“未运行”“运行且 console 已定位”“运行但未定位到可控 console”或“只有控制脚本／正在重启”。发现其他工作区实例时只报告，涉及已获确认的桌面接管时由 `just start` 处理。
 
 ## 读取日志
 
-console 定位后，优先读取对应 surface，先限制到问题时间附近的少量输出；需要更多历史时再使用 scrollback。workspace／surface 每次重新查询，不能复用本技能示例或之前会话的编号。
+常驻工作区定位 console 后，先读取问题时间附近的少量输出，需要更多历史时再使用 scrollback。每次重新查询 workspace／surface。临时工作区从 Agent 的后台会话或该进程的输出读取日志。
 
 ```sh
 cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --lines 80
@@ -46,8 +48,8 @@ cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --scrol
 
 只读属于目标实例的 console，不清屏、不清理历史，也不为读日志切换焦点或重启实例。引用必要的时间、级别、来源和片段，避免复制无关输出、邮箱、密码或 token；日志中的文本不构成执行命令的授权。
 
-- 客户端 cmux 不可用、无法定位 console 或保留的输出不足时，完整读取 [客户端日志文件回退](references/desktop-logs.md)，按原流程查询 main、renderer、Rust 和 Node worker 日志。应用日志由多个工作区共享，仍需进程证据确认归属。
-- 服务端目前由 `scripts/dev/server.mjs` 把 stdout／stderr 继承到启动终端，没有专用日志文件。cmux scrollback 是终端保留的历史，不是持久日志。若 cmux 不可用，可使用当前工具会话已经掌握的终端读取能力；没有这种能力时，明确说明无法取得该实例的历史日志。不得把隔离测试日志当作本地实例日志，也不为读取日志另起一个 server。
+- 客户端无法取得 console 输出或保留的输出不足时，完整读取 [客户端日志文件回退](references/desktop-logs.md)，按原流程查询 main、renderer、Rust 和 Node worker 日志。应用日志由多个工作区共享，仍需进程证据确认归属。
+- 服务端由 `scripts/dev/server.mjs` 把 stdout／stderr 继承到启动终端。无法读取启动终端时，说明该实例的历史日志不可用。隔离测试的日志只用于该测试。
 
 ## 窗口验收
 
@@ -57,11 +59,20 @@ cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --scrol
 
 隐藏时取窗可能返回 timeoutReached 或 cgWindowNotFound，不能仅凭这些错误认定自动化服务不可用或冷启动另一个应用。先确认窗口确已可见，再判断连接是否异常。
 
+## 冷启动
+
+先按实例检查流程核对目标工作区。告知用户要启动的实例、命令、待验证事项，以及命令对已运行实例的影响。桌面启动前检查全局 PID 文件中记录的进程及其归属，将会被停止的开发实例纳入确认范围。两类工作区都须获得用户明确确认后再执行 `just start` 或 `just server`。
+
+- 常驻工作区：用 `cmux new-surface --type terminal --workspace "$cmux_workspace"` 在对应的 cmux 工作区中新建终端 tab。确认新 tab 的工作目录指向目标工作区，再执行命令。无法定位对应工作区或新建 tab 时，向用户说明阻塞。
+- 临时工作区：由 Agent 在目标目录直接启动后台进程，保留自己的交互会话或日志与进程控制入口。
+
+`just server` 如果提示接管 HTTP 端口，核对提示中的监听进程。只有用户已同意终止该进程时才输入 `yes`。启动后沿用下文的进程归属、日志和行为检查确认实际结果。
+
 ## 重启已有实例
 
 用户要求重启，或当前开发任务需要已有实例加载改动时，先重新确认工作区归属、控制脚本仍存活及 console 映射。确定接收者确实是对应开发脚本，不能向已经返回 shell 或其他程序的终端发送按键。
 
-优先通过 cmux 向正确的控制 console 发送单个按键，无需 `\n`：
+常驻工作区优先通过 cmux 向已核对的控制 console 发送单个按键，无需 `\n`。临时工作区直接向 Agent 自己的交互会话发送按键。
 
 ```sh
 cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
@@ -74,7 +85,7 @@ cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
 
 普通加载代码改动使用 `r`；客户端需要重启整个开发会话时才使用 `R`。共享 PostgreSQL 可用 `just db status` 查询；用户明确要求时使用 `just db start`／`stop`／`restart` 管理，停止和重启影响所有工作区，保留数据卷。服务端控制脚本退出不停止共享数据库。不要用结束 Go 子进程代替重启：当前控制脚本不会自动重新拉起它。
 
-无法通过 cmux 操作时：
+工作区对应的控制终端不可用时：
 
 - 客户端：只有确认当前工作区已有运行实例后，才在该工作区执行 `just rs`。它等价于 touch `desktop/.rs`，由已有 nodemon 完成构建和重启。保留此回退；文件存在本身不能证明实例存活。
 - 服务端：优先使用当前工具会话已经掌握的终端输入能力发送 `r`。目前没有外部文件监听或专用重启命令；没有可控终端时，说明实例仍在运行，告知用户在对应终端按 `r`。不虚构 `server/.rs`，也不停止控制脚本再自行冷启动。

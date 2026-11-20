@@ -24,7 +24,7 @@ prepare:
     pnpm install --frozen-lockfile
     touch "$stamp"
 
-# Switch the shared development instance to this workspace (user only).
+# Switch the shared desktop development instance to this workspace.
 start:
     #!/usr/bin/env bash
     set -e

@@ -13,7 +13,7 @@ description: >-
 3. 只在当前任务授权范围内执行 `show quick-chat`、`show search`、`show clipboard` 或 `hide`。重复 show 保持显示。首版操作只覆盖 Launcher，不打开设置或调用任意 RPC。
 4. 检查返回的实际窗口、焦点和 Dock 状态。`hide` 返回的 `focusRestored` 分别表示已归还、未归还或无需归还（null）。Dock 的 deferred／pending 不是最终结果；必要时在五秒内有界复查，超时后报告未确认状态，不盲目重放操作。视觉效果、文字和输入法仍需原生 UI 验收。
 
-CLI 自动按代码来源配对，App 在执行前再次校验完整来源。错误应区分未运行、来源／协议错配、参数错误、宿主失败与超时。连接失败时按 [manage-dev-instances](../manage-dev-instances/SKILL.md) 检查实际进程；不冷启动 App、不改连其他来源，也不读写共享数据库来替代检查。
+CLI 自动按代码来源配对，App 在执行前再次校验完整来源。错误应区分未运行、来源／协议错配、参数错误、宿主失败与超时。连接失败时按 [manage-dev-instances](../manage-dev-instances/SKILL.md) 检查实际进程；确需启动开发实例时，按该技能的冷启动流程取得用户确认。不改连其他来源，也不读写共享数据库来替代检查。
 
 `--help` 与 `--version` 可离线读取。开发实例加载改动或重启前，仍需按实例技能核对进程路径、cwd、父子关系及 console；CLI 的身份结果不替代重启归属检查。
 

@@ -24,7 +24,7 @@
 
 仓库开发与排障流程位于 `.agent/skills/`，约定见 [`.agent/skills/README.md`](.agent/skills/README.md)。命中对应任务时，先完整读取该 `SKILL.md`。
 
-- [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)：检查、查询日志或重启当前工作区的客户端与 Go 服务端开发实例时使用；优先通过 cmux 定位并操作 console，无法实现时回退到进程检查、客户端日志文件和既有重启入口。
+- [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)：检查当前工作区的客户端与 Go 服务端开发实例、查询日志、启动或重启时使用。按工作区类型选择 cmux 或 Agent 自己管理的后台进程。
 - [inspect-running-app](.agent/skills/inspect-running-app/SKILL.md)：通过配套 CLI 和本地 socket 检查工作区或 macOS App 实例的窗口、焦点、Dock、模式和快捷键，或执行任务授权的显示／收起；隐藏窗口也可查询。
 - [maintain-gateway-contract](.agent/skills/maintain-gateway-contract/SKILL.md)：修改业务 proto service／消息、Rust 模块依赖的 service、Gateway handler 或 typed client 调用时使用；覆盖生成、接入和验证。
 - [maintain-agent-session](.agent/skills/maintain-agent-session/SKILL.md)：用户要求查看或清理 Agent 会话数据时使用；`Workflow Inpsect` 按 session ID 定位 SQLite／JSONL 数据，`Workflow Clean` 离线清理会话历史。
@@ -33,14 +33,12 @@
 
 ## 运行实例
 
-实例检查、日志读取及重启优先使用 cmux，具体流程与回退方式见 [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)。
-
+- 需要冷启动开发实例时，Agent 先向用户说明目标工作区、启动命令和对现有实例的影响，获得明确确认后再执行。桌面和服务端分别使用 `just start` 和 `just server`。
+- 主工作区和项目 `worktrees/` 下的常驻工作区，在对应的 cmux 工作区中新建终端 tab 并启动，检查、日志和重启优先使用该 console。临时工作区由 Agent 管理后台进程，使用配套 CLI、进程信息和自己的终端会话检查、读日志及重启，不操作 cmux。具体步骤见 [manage-dev-instances](.agent/skills/manage-dev-instances/SKILL.md)。
 - `just start` 使用全局 `~/.xiaowei/.dev.pid`，会停止其中记录的旧开发实例及其子进程，再启动当前工作区；可能影响其他工作区，与旧 `xiaowei-next` 共用此 PID 文件。
-- 服务端入口为 `just server`，由用户冷启动；它先准备本地配置并检查 HTTP 端口，完成接管确认后确保共享 PostgreSQL 就绪，再启动本机 Go 服务端。运行 console 支持 `r` 重启 Go，退出不停止数据库；共享 PostgreSQL 通过 `just db start|stop|restart|status` 独立管理，具体行为见 [服务端本地开发](server/README.md#本地开发)。
-- 冷启动由用户执行。Agent 不运行 `just start`、`pnpm dev`、直接 Electron 启动或冒烟脚本等会创建应用实例的入口。
+- `just server` 先准备本地配置并检查 HTTP 端口，完成接管确认后确保共享 PostgreSQL 就绪，再启动本机 Go 服务端。运行 console 支持 `r` 重启 Go，退出不停止数据库；共享 PostgreSQL 通过 `just db start|stop|restart|status` 独立管理，具体行为见 [服务端本地开发](server/README.md#本地开发)。
 - 重启前先检查活进程，通过进程命令中的绝对路径、cwd 和父子进程关系确认 Electron 与开发监听进程属于当前工作区。不能只凭 `.rs`、PID 文件、端口或应用名称判断实例存活及归属。
 - 只有确认当前工作区有运行实例后，Agent 才能执行 `just rs`；它只 touch `desktop/.rs`，由该工作区 nodemon 依次构建所有 napi 包、main/preload 并重启；构建失败不启动 Electron。
-- 没有实例时，告知用户当前没有实例及待验证事项，等待用户启动；不要自行冷启动或操作其他工作区进程。
 
 ## 工作区及模块
 
