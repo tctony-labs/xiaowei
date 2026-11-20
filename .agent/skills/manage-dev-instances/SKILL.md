@@ -1,19 +1,19 @@
 ---
 name: manage-dev-instances
 description: >-
-  检查当前 XiaoWei 工作区的客户端与 Go 服务端开发实例、查询运行日志、启动或重启实例。
-  常驻工作区使用对应的 cmux 工作区，临时工作区由 Agent 管理后台进程。
+  检查当前 XiaoWei 工作区的客户端与 Go 服务端开发实例、查询日志、启动桌面 App 或重启已有实例。
+  桌面 App 按工作区类型选择 cmux 或 Agent 后台会话，Go 服务端由用户在交互终端启动。
 ---
 
 # 管理开发实例
 
-适用于当前工作区的 Electron 客户端和本机 Go 服务端。检查、读日志、启动和重启分别按任务需要执行。冷启动和重启权限遵循根 [AGENTS.md](../../../AGENTS.md#运行实例)。
+适用于当前工作区的 Electron 客户端和本机 Go 服务端。按任务需要检查实例、读取日志或重启。桌面 App 的冷启动授权和 Go 服务端的启动方式遵循根 [AGENTS.md](../../../AGENTS.md#运行实例)。
 
 用户可以在运行开发脚本的交互终端中手动按 `r`／`R`。
 
 ## 检查实例与定位 console
 
-先通过 Git worktree 元数据确认目标和主工作区的规范化绝对路径。主工作区和项目 `worktrees/` 下的常驻工作区优先通过对应的 cmux 工作区定位 console。临时工作区直接检查系统进程和 Agent 自己的后台会话，整个过程不调用 cmux。
+先通过 Git worktree 元数据确认目标和主工作区的规范化绝对路径。主工作区和项目 `worktrees/` 下的常驻工作区优先通过对应的 cmux 工作区定位 console。临时工作区直接检查系统进程，需要时核对桌面 App 的后台会话或服务端的用户启动终端，整个过程不调用 cmux。
 
 首次使用 cmux 时，先通过 `command -v cmux` 和 `cmux --help` 确认本机能力。
 
@@ -39,7 +39,7 @@ lsof -a -p "$controller_pid" -d 0,1,2 -Fn
 
 ## 读取日志
 
-常驻工作区定位 console 后，先读取问题时间附近的少量输出，需要更多历史时再使用 scrollback。每次重新查询 workspace／surface。临时工作区从 Agent 的后台会话或该进程的输出读取日志。
+常驻工作区定位 console 后，先读取问题时间附近的少量输出，需要更多历史时再使用 scrollback。每次重新查询 workspace／surface。临时工作区从 Agent 的后台会话读取桌面 App 日志，从用户启动的交互终端读取服务端日志。
 
 ```sh
 cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --lines 80
@@ -61,18 +61,22 @@ cmux read-screen --workspace "$cmux_workspace" --surface "$cmux_surface" --scrol
 
 ## 冷启动
 
-先按实例检查流程核对目标工作区。告知用户要启动的实例、命令、待验证事项，以及命令对已运行实例的影响。桌面启动前检查全局 PID 文件中记录的进程及其归属，将会被停止的开发实例纳入确认范围。两类工作区都须获得用户明确确认后再执行 `just start` 或 `just server`。
+### 桌面 App
+
+先按实例检查流程核对目标工作区和全局 PID 文件中记录的进程。告知用户目标工作区、`just start` 命令、待验证事项及会被停止的开发实例。两类工作区都须在获得用户明确授权后执行 `just start`。
 
 - 常驻工作区：用 `cmux new-surface --type terminal --workspace "$cmux_workspace"` 在对应的 cmux 工作区中新建终端 tab。确认新 tab 的工作目录指向目标工作区，再执行命令。无法定位对应工作区或新建 tab 时，向用户说明阻塞。
 - 临时工作区：由 Agent 在目标目录直接启动后台进程，保留自己的交互会话或日志与进程控制入口。
 
-`just server` 如果提示接管 HTTP 端口，核对提示中的监听进程。只有用户已同意终止该进程时才输入 `yes`。启动后沿用下文的进程归属、日志和行为检查确认实际结果。
+### Go 服务端
+
+需要冷启动时，告知用户目标工作区和待验证事项，由用户在该工作区的交互终端自行执行 `just server`。保留启动终端的 TTY，用于由用户确认 HTTP 端口接管和后续按 `r` 重启。启动后可按下文核对进程归属、日志和服务就绪状态。
 
 ## 重启已有实例
 
 用户要求重启，或当前开发任务需要已有实例加载改动时，先重新确认工作区归属、控制脚本仍存活及 console 映射。确定接收者确实是对应开发脚本，不能向已经返回 shell 或其他程序的终端发送按键。
 
-常驻工作区优先通过 cmux 向已核对的控制 console 发送单个按键，无需 `\n`。临时工作区直接向 Agent 自己的交互会话发送按键。
+桌面 App 在常驻工作区优先通过 cmux 向已核对的控制 console 发送单个按键，无需 `\n`。临时工作区的桌面 App 通过 Agent 自己的交互会话重启。Go 服务端的 `r` 发送到用户启动 `just server` 时使用的交互终端。
 
 ```sh
 cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
@@ -88,7 +92,7 @@ cmux send --workspace "$cmux_workspace" --surface "$cmux_surface" 'r'
 工作区对应的控制终端不可用时：
 
 - 客户端：只有确认当前工作区已有运行实例后，才在该工作区执行 `just rs`。它等价于 touch `desktop/.rs`，由已有 nodemon 完成构建和重启。保留此回退；文件存在本身不能证明实例存活。
-- 服务端：优先使用当前工具会话已经掌握的终端输入能力发送 `r`。目前没有外部文件监听或专用重启命令；没有可控终端时，说明实例仍在运行，告知用户在对应终端按 `r`。不虚构 `server/.rs`，也不停止控制脚本再自行冷启动。
+- 服务端：说明实例仍在运行，请用户在原启动终端按 `r`。目前没有外部文件监听或专用重启命令。
 
 发送成功或 `.rs` 已更新只代表重启请求已送出，必须继续验证实际结果：
 
