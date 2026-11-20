@@ -39,8 +39,8 @@ export function LauncherSearchBar({
 
   const content = (
     <>
-      <div aria-hidden="true" className="launcher-drag absolute inset-x-0 top-0 h-4" />
-      <div className="flex h-[65px] shrink-0 items-center gap-2 pl-6 pr-4">
+      <div className="relative flex h-[65px] shrink-0 items-center gap-2 pl-6 pr-4">
+        <div aria-hidden="true" className="launcher-drag absolute inset-x-0 top-0 h-4" />
         <div className="flex min-h-8 min-w-0 flex-1 items-center gap-2">
           {leading}
           <input
