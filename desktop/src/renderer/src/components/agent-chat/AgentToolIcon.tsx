@@ -1,7 +1,8 @@
-import { EditIcon, FilesIcon } from "../ClipboardIcons";
+import { EditIcon } from "../ClipboardIcons";
 import type { AgentToolIconKind } from "./tool-presentation";
 
 const paths = {
+  file: "M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3M5.5 8h5M5.5 11h5",
   web: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM2 8h12M8 2c-4 3-4 9 0 12M8 2c4 3 4 9 0 12",
   todo: "m2 4 1 1 2-2M7 4h7M2 8h3M7 8h7M2 12h3M7 12h7",
   skill: "m8 2 1.5 4.5L14 8l-4.5 1.5L8 14 6.5 9.5 2 8l4.5-1.5L8 2Z",
@@ -15,9 +16,7 @@ const paths = {
 export function AgentToolIcon({ kind }: { kind: AgentToolIconKind }) {
   return (
     <span className="agent-tool-icon" data-icon={kind} aria-hidden="true">
-      {kind === "file" ? (
-        <FilesIcon size={14} />
-      ) : kind === "edit" ? (
+      {kind === "edit" ? (
         <EditIcon />
       ) : (
         <svg

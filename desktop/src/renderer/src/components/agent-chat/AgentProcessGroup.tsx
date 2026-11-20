@@ -1,23 +1,22 @@
 import { AgentToolStatus } from "proto-desktop-ts";
 import { useEffect, useId, useState } from "react";
-import { AgentReasoning, AgentReasoningPreview } from "./AgentReasoning";
+import { AgentReasoning } from "./AgentReasoning";
 import { AgentToolCall } from "./AgentToolCall";
-import { AgentToolIcon } from "./AgentToolIcon";
-import type { AgentWebCallbacks } from "./AgentWebResult";
-import { type AgentProcessBlock, lastReasoningLine } from "./message-blocks";
+import type { AgentWebLinkProps } from "./AgentWebResult";
+import type { AgentProcessBlock } from "./message-blocks";
+import { reasoningPreview } from "./reasoning-preview";
 import { toolGroupPresentation } from "./tool-presentation";
 
 export function AgentProcessGroup({
   blocks,
   complete = false,
   activeBlockId,
-  onCopy,
   onOpenUrl,
 }: {
   blocks: AgentProcessBlock[];
   complete?: boolean;
   activeBlockId?: string;
-} & AgentWebCallbacks) {
+} & AgentWebLinkProps) {
   const contentId = useId();
   const [expanded, setExpanded] = useState(false);
   const multiple = blocks.length > 1;
@@ -27,7 +26,7 @@ export function AgentProcessGroup({
   const activeReasoning = activeBlock?.kind === "reasoning" ? activeBlock : undefined;
   const active = !complete && (tools.active || !!activeReasoning);
   const label = activeReasoning
-    ? `正在思考 ${lastReasoningLine(activeReasoning.text)}`
+    ? `正在思考 ${reasoningPreview(activeReasoning.text)}`.trimEnd()
     : tools.label || "思考过程";
   const failures = calls.filter(
     (call) =>
@@ -51,21 +50,12 @@ export function AgentProcessGroup({
           aria-controls={contentId}
           onClick={() => setExpanded(!expanded)}
         >
-          <AgentToolIcon kind={activeReasoning ? "tools" : tools.icon} />
+          <span className="agent-process-disclosure" aria-hidden="true" />
           <span className={`min-w-0 truncate${active ? " agent-shimmer" : ""}`} title={label}>
-            {activeReasoning ? (
-              <>
-                正在思考 <AgentReasoningPreview text={activeReasoning.text} />
-              </>
-            ) : (
-              label
-            )}
+            {label}
           </span>
           {!active && cancelled && <span>· 已停止</span>}
           {failures > 0 && <span className="text-danger">· {failures} 项异常</span>}
-          <span className="agent-disclosure" aria-hidden="true">
-            ›
-          </span>
         </button>
       )}
       <div id={contentId} className="agent-process-group-content" hidden={multiple && !expanded}>
@@ -77,7 +67,7 @@ export function AgentProcessGroup({
               active={!complete && block.id === activeBlockId}
             />
           ) : (
-            <AgentToolCall key={block.id} call={block.call} onCopy={onCopy} onOpenUrl={onOpenUrl} />
+            <AgentToolCall key={block.id} call={block.call} onOpenUrl={onOpenUrl} />
           ),
         )}
       </div>

@@ -11,7 +11,8 @@ export function AgentTodoList({ todos }: { todos: TodoItem[] }) {
   if (!todos.length) return <p className="text-xs text-muted">（空列表）</p>;
 
   return (
-    <ul className="agent-todos" aria-label="待办清单">
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling.
+    <ul className="agent-todos agent-content-scroll" aria-label="待办清单" tabIndex={0}>
       {todos.map((todo) => (
         <li className="agent-todo" data-status={todo.status} key={todo.id}>
           <span className="agent-todo-status" role="img" aria-label={statuses[todo.status].label}>

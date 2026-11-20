@@ -190,7 +190,6 @@ test.each([
         status,
         output: status === AgentToolStatus.FAILED ? "当前运行没有可用技能" : "已加载技能",
       })}
-      onCopy={vi.fn()}
       onOpenUrl={vi.fn()}
     />,
   );
@@ -252,18 +251,19 @@ test("consecutive questions stay visible between collapsed tool groups", () => {
   expect(container.querySelector(".agent-shimmer")).toBeNull();
 });
 
-test("the first-data waiting label appears at 3 seconds and is cleared by output", () => {
+test("generation dots appear immediately, stay through a slow response and clear on output", () => {
   vi.useFakeTimers();
   const generation = { id: "gen", startedAtMs: Date.now(), receivedContent: false };
   const props = { onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
   const { container, rerender } = render(
     <AgentMessage {...props} generation={generation} message={textMessage("", "generating")} />,
   );
+  const dots = screen.getByRole("status", { name: "模型正在生成" });
+  expect(dots).toBeVisible();
+  expect(dots.children).toHaveLength(3);
+  act(() => vi.advanceTimersByTime(10_000));
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBe(dots);
   expect(screen.queryByText("等待模型响应")).toBeNull();
-  act(() => vi.advanceTimersByTime(2999));
-  expect(screen.queryByText("等待模型响应")).toBeNull();
-  act(() => vi.advanceTimersByTime(1));
-  expect(screen.getByText("等待模型响应")).toBeVisible();
 
   rerender(
     <AgentMessage
@@ -273,31 +273,36 @@ test("the first-data waiting label appears at 3 seconds and is cleared by output
     />,
   );
   act(() => vi.advanceTimersByTime(10_000));
-  expect(screen.queryByText("等待模型响应")).toBeNull();
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
   expect(container.querySelector('[data-streaming="true"]')).not.toBeNull();
 
   rerender(
     <AgentMessage {...props} generation={generation} message={textMessage("正文", "cancelled")} />,
   );
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
   expect(container.querySelector('[data-streaming="true"], .agent-shimmer')).toBeNull();
 });
 
 test.each(["reasoning", "response", "tool-call"] as const)(
-  "paused %s output keeps shimmering without returning to the waiting label",
+  "paused %s uses the indicator for its active visible content",
   (pausedContent) => {
     vi.useFakeTimers();
     const { container } = render(
       <QuickChatMessagesPreview scenario="paused" pausedContent={pausedContent} />,
     );
     act(() => vi.advanceTimersByTime(10_000));
-    expect(screen.queryByText("等待模型响应")).toBeNull();
-    expect(container.querySelector('[data-streaming="true"], .agent-shimmer')).not.toBeNull();
+    const dots = screen.queryByRole("status", { name: "模型正在生成" });
+    if (pausedContent === "tool-call") {
+      expect(dots).toBeVisible();
+    } else {
+      expect(dots).toBeNull();
+      expect(container.querySelector('[data-streaming="true"], .agent-shimmer')).not.toBeNull();
+    }
     expect(screen.queryByLabelText(/· 执行中/)).toBeNull();
   },
 );
 
-test("a new Generate has its own first-data wait and cannot animate an old response", () => {
-  vi.useFakeTimers();
+test("a new Generate shows dots without animating an old response", () => {
   const message = textMessage("上一轮已结束的说明", "generating");
   const props = { onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
   const { container, rerender } = render(
@@ -312,7 +317,7 @@ test("a new Generate has its own first-data wait and cannot animate an old respo
       }}
     />,
   );
-  act(() => vi.advanceTimersByTime(10_000));
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
   rerender(
     <AgentMessage
       {...props}
@@ -321,10 +326,58 @@ test("a new Generate has its own first-data wait and cannot animate an old respo
     />,
   );
   expect(container.querySelector('[data-streaming="true"]')).toBeNull();
-  act(() => vi.advanceTimersByTime(2999));
-  expect(screen.queryByText("等待模型响应")).toBeNull();
-  act(() => vi.advanceTimersByTime(1));
-  expect(screen.getByText("等待模型响应")).toBeVisible();
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
+});
+
+test("generation dots wait until the batch is settled and the model starts again", () => {
+  const read = {
+    id: "read",
+    kind: "tool" as const,
+    call: create(AgentToolCallSchema, { name: "Read", status: AgentToolStatus.PENDING }),
+  };
+  const command = {
+    id: "command",
+    kind: "tool" as const,
+    call: create(AgentToolCallSchema, { name: "Bash", status: AgentToolStatus.PENDING }),
+  };
+  const finishedRead = { ...read, call: { ...read.call, status: AgentToolStatus.COMPLETED } };
+  const finishedCommand = {
+    ...command,
+    call: { ...command.call, status: AgentToolStatus.COMPLETED },
+  };
+  const message: QuickChatMessage = {
+    id: "run",
+    role: "assistant",
+    status: "generating",
+    blocks: [read],
+  };
+  const props = { onCopy: vi.fn(), onOpenUrl: vi.fn() };
+  const generation = { id: "next", startedAtMs: Date.now(), receivedContent: false };
+  const { rerender } = render(<AgentMessage {...props} message={message} />);
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
+
+  for (const blocks of [[finishedRead], [finishedRead, command], [finishedRead, finishedCommand]]) {
+    rerender(<AgentMessage {...props} message={{ ...message, blocks }} />);
+    expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
+  }
+
+  rerender(
+    <AgentMessage
+      {...props}
+      message={{ ...message, blocks: [finishedRead, command] }}
+      generation={generation}
+    />,
+  );
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
+
+  rerender(
+    <AgentMessage
+      {...props}
+      message={{ ...message, blocks: [finishedRead, finishedCommand] }}
+      generation={generation}
+    />,
+  );
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
 });
 
 test.each(["no-content", "reasoning", "tool"] as const)(
@@ -510,6 +563,22 @@ test("a growing group retains tool details but collapses when a response complet
   expect(read).toHaveAttribute("open");
 });
 
+test.each([
+  ["## 定位配置\n先搜索文件。\n\n### 检查超时\n比对默认值。", "检查超时"],
+  ["**定位配置**\n先搜索文件。\n\n**检查超时**\n比对默认值。", "检查超时"],
+  ["## Check configuration\nCompare the default_timeout setting.", "Check configuration"],
+  ["**Check default_timeout**\nCompare the settings.", "Check default_timeout"],
+  ["## 定位配置\n参照 [配置文档](https://example.com)\n---\n<!-- note -->", "参照 配置文档"],
+  ["## Check configuration\nCompare the _default_ setting.", "Compare the default setting."],
+])("collapsed reasoning selects a readable preview from %j", (text, preview) => {
+  render(<AgentReasoning text={text} active={false} />);
+  const summary = screen.getByLabelText("思考过程");
+  expect(summary.querySelector(".agent-reasoning-preview")).toHaveTextContent(preview);
+  expect(summary.lastElementChild).toHaveClass("agent-disclosure");
+  expect(summary.lastElementChild).toHaveAttribute("aria-hidden", "true");
+  expect(summary.querySelector("a")).toBeNull();
+});
+
 test("reasoning preserves expansion during streaming and collapses when finished", () => {
   const text = "**定位配置**\r\n先搜索文件。\r\n\r\n正在读取 **config.json**\r\n<!-- note -->\r\n";
   const { rerender } = render(<AgentReasoning text={text} active />);
@@ -621,12 +690,15 @@ test("completed summary shows only total duration and retains errors in details"
   expect(summary).not.toHaveTextContent(/执行过程|工具调用|异常/);
   expect(screen.getByText("文件读取失败，请先检查文件访问权限。")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "展开执行过程" }));
-  fireEvent.click(screen.getByLabelText("读取 config.json · 失败"));
-  const read = screen
-    .getByLabelText("读取 config.json · 失败")
-    .closest("details") as HTMLDetailsElement;
+  const readSummary = screen.getByLabelText("读取 config.json · 失败");
+  const status = within(readSummary).getByTitle("失败");
+  expect(status.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  expect(status).not.toHaveTextContent("失败");
+  fireEvent.click(readSummary);
+  const read = readSummary.closest("details") as HTMLDetailsElement;
   const output = within(read).getByRole("region", { name: "工具输出" });
   expect(output).toHaveTextContent("文件读取失败");
+  expect(within(read).queryByRole("heading")).toBeNull();
 });
 
 test("completion folds activity and keeps manual expansion through updates", async () => {
@@ -717,7 +789,7 @@ test("streaming fences keep code position through updates and stop", () => {
   const { rerender } = render(
     <AgentMessage {...props} generation={generation} message={textMessage("", "generating")} />,
   );
-  expect(screen.getByRole("status")).toHaveTextContent("…");
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
   const partial = "说明\n\n```ts\nconst timeout =";
   rerender(
     <AgentMessage
@@ -729,7 +801,7 @@ test("streaming fences keep code position through updates and stop", () => {
   const code = screen.getByRole("region", { name: "代码块" });
   code.scrollLeft = 64;
   expect(code).toHaveTextContent("const timeout =");
-  expect(screen.queryByText("等待模型响应")).toBeNull();
+  expect(screen.queryByRole("status", { name: "模型正在生成" })).toBeNull();
   expect(screen.queryByRole("button", { name: "复制回复" })).toBeNull();
 
   const complete = "说明\n\n```ts\nconst timeout = 30;\n```";
@@ -761,13 +833,14 @@ test("Command displays its name and preserves loaded output and failure details"
   expect(screen.getByText("当前运行没有可用命令：周报")).toBeVisible();
 });
 
-test("single tool rows start with an icon and formatted text, with the chevron last", () => {
+test("Read shows the file icon, compact title and details without headings", () => {
   render(
     <AgentToolCall
       call={create(AgentToolCallSchema, {
         name: "Read",
         status: AgentToolStatus.COMPLETED,
         argumentsJson: '{"path":"/workspace/config.json"}',
+        output: "timeout: 30",
       })}
     />,
   );
@@ -780,6 +853,12 @@ test("single tool rows start with an icon and formatted text, with the chevron l
   );
   expect(summary.lastElementChild).toHaveClass("agent-disclosure");
   expect(summary).not.toHaveTextContent(/Read|已完成/);
+  fireEvent.click(summary);
+  expect(screen.getByRole("region", { name: "工具参数" })).toHaveTextContent(
+    "/workspace/config.json",
+  );
+  expect(screen.getByRole("region", { name: "工具输出" })).toHaveTextContent("timeout: 30");
+  expect(screen.queryByRole("heading")).toBeNull();
 });
 
 test("tool completion preserves disclosure state and separates parameters, output and diff", () => {
@@ -838,6 +917,25 @@ test("tool completion preserves disclosure state and separates parameters, outpu
   expect(screen.queryByText(/毫秒|秒/)).toBeNull();
   expect(screen.getByRole("region", { name: "工具输出" })).toHaveTextContent("已更新配置");
   expect(screen.getByRole("region", { name: "文件改动" })).toHaveTextContent("+timeout: 30");
+  expect(screen.getByRole("heading", { name: /^diff/ })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "参数" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "输出" })).toBeNull();
+});
+
+test.each(["", "{}"])("tool details omit the parameters block for %j", (argumentsJson) => {
+  render(
+    <AgentToolCall
+      call={create(AgentToolCallSchema, {
+        name: "Glob",
+        argumentsJson,
+        output: "config.json",
+        status: AgentToolStatus.COMPLETED,
+      })}
+      defaultOpen
+    />,
+  );
+  expect(screen.queryByRole("region", { name: "工具参数" })).toBeNull();
+  expect(screen.getByRole("region", { name: "工具输出" })).toHaveTextContent("config.json");
 });
 
 test.each([
@@ -861,6 +959,7 @@ test.each([
   fireEvent.click(screen.getByLabelText(`执行命令 · ${label}`));
   expect(screen.getByRole("region", { name: "工具参数" })).toHaveTextContent("{invalid");
   expect(screen.getByRole("region", { name: "工具输出" })).toHaveTextContent("无输出");
+  expect(screen.queryByRole("heading")).toBeNull();
   expect(screen.queryByText(/毫秒|秒/)).toBeNull();
 });
 

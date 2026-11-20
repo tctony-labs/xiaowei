@@ -66,19 +66,6 @@ export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGro
   return groups;
 }
 
-export function lastReasoningLine(text: string): string {
-  const lines = text
-    .replace(/<!--[\s\S]*?(?:-->|$)/g, "")
-    .trimEnd()
-    .split(/\r?\n/);
-  return (
-    lines
-      .reverse()
-      .find((line) => line.trim())
-      ?.trim() ?? ""
-  );
-}
-
 export function messageBlocks(items: AgentItem[]): AgentMessageBlock[] {
   return items.flatMap((item): AgentMessageBlock[] => {
     switch (item.content.case) {

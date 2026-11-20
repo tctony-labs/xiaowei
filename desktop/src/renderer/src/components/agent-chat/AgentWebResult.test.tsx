@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { AgentToolCallSchema, AgentToolStatus } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
 import { AgentMessage } from "./AgentMessage";
@@ -18,33 +18,58 @@ function call(metadataJson?: string) {
   });
 }
 
-test("ordered results open safe URLs and copy the original output through callbacks", async () => {
+test("ordered, scrollable results open safe URLs", async () => {
   const onOpenUrl = vi.fn(async () => {});
-  const onCopy = vi.fn(async () => {});
+  const snippet = "summary one ".repeat(80).trimEnd();
   render(
     <AgentWebResult
       call={call(
         JSON.stringify({
           webSearch: {
-            query: "fixture",
+            query: "metadata query",
             provider: "bing",
             results: [
-              { title: "First", url: "https://example.com/page", snippet: "summary one" },
+              { title: "First", url: "https://example.com/page", snippet },
               { title: "Second", url: "javascript:alert(1)", snippet: "summary two" },
             ],
           },
         }),
       )}
       onOpenUrl={onOpenUrl}
-      onCopy={onCopy}
     />,
   );
-  expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Firstexample.comsummary one");
+  const parameters = screen.getByRole("region", { name: "网页工具参数" });
+  const results = screen.getByRole("region", { name: "搜索结果" });
+  expect(parameters).toHaveTextContent("fixture");
+  expect(parameters).toHaveClass("agent-tool-scroll");
+  expect(parameters.nextElementSibling).toBe(results);
+  const items = within(results).getAllByRole("listitem");
+  expect(results).toHaveClass("agent-tool-scroll");
+  expect(results).toHaveAttribute("tabindex", "0");
+  expect(items[0]).toHaveTextContent(`Firstexample.com${snippet}`);
+  expect(items[1]).toHaveTextContent("Secondsummary two");
   expect(screen.queryByRole("link", { name: "Second" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "First" }));
   expect(onOpenUrl).toHaveBeenCalledWith("https://example.com/page");
-  fireEvent.click(screen.getByRole("button", { name: "复制工具结果" }));
-  await waitFor(() => expect(onCopy).toHaveBeenCalledWith("fallback output"));
+  expect(screen.queryByRole("button", { name: "复制工具结果" })).toBeNull();
+
+  onOpenUrl.mockRejectedValueOnce(new Error("open failed"));
+  fireEvent.click(screen.getByRole("link", { name: "First" }));
+  expect(results).not.toContainElement(await screen.findByRole("alert"));
+});
+
+test("search metadata supplies the query when stored arguments omit it", () => {
+  const search = call(
+    JSON.stringify({
+      webSearch: {
+        query: "stored query",
+        results: [{ title: "First", url: "https://example.com/page", snippet: "summary" }],
+      },
+    }),
+  );
+  render(<AgentWebResult call={{ ...search, argumentsJson: "{}" }} />);
+  expect(screen.getByRole("region", { name: "网页工具参数" })).toHaveTextContent("stored query");
+  expect(screen.getByRole("region", { name: "搜索结果" })).toHaveTextContent("First");
 });
 
 test("invalid metadata, empty results and failures retain readable output", () => {
@@ -61,24 +86,53 @@ test("invalid metadata, empty results and failures retain readable output", () =
 });
 
 test("fetch shows its URL, extraction instruction and output; unsafe schemes have no link", () => {
+  const prompt = "Read details ".repeat(80).trimEnd();
   render(
     <AgentWebResult
       call={{
         ...call(),
         name: "WebFetch",
-        argumentsJson: '{"url":"file:///etc/passwd","prompt":"Read details"}',
+        argumentsJson: JSON.stringify({ url: "file:///etc/passwd", prompt }),
       }}
       onOpenUrl={vi.fn()}
     />,
   );
-  expect(screen.getByText("Read details")).toBeVisible();
-  expect(screen.getByText("file:///etc/passwd")).toBeVisible();
+  const parameters = screen.getByRole("region", { name: "网页工具参数" });
+  const instruction = screen.getByRole("region", { name: "提取指令" });
+  const output = screen.getByRole("region", { name: "网页工具输出" });
+  expect(parameters).toHaveClass("agent-content-scroll");
+  expect(parameters).toHaveAttribute("tabindex", "0");
+  expect(parameters).toHaveTextContent("file:///etc/passwd");
+  expect(instruction).toHaveClass("agent-tool-scroll");
+  expect(instruction).toHaveAttribute("tabindex", "0");
+  expect(instruction).toHaveTextContent(prompt);
+  expect(parameters.nextElementSibling).toBe(instruction);
+  expect(instruction.nextElementSibling).toBe(output);
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });
 
-test("message and grouped calls pass URL and copy actions to web result cards", async () => {
+test("fallback queries and raw parameters scroll separately from tool output", () => {
+  const query = "long search query ".repeat(100).trimEnd();
+  const search = call();
+  const { rerender } = render(
+    <AgentWebResult call={{ ...search, argumentsJson: JSON.stringify({ query }) }} />,
+  );
+  const parameters = screen.getByRole("region", { name: "网页工具参数" });
+  const output = screen.getByRole("region", { name: "网页工具输出" });
+  expect(parameters).toHaveClass("agent-tool-scroll");
+  expect(parameters).toHaveAttribute("tabindex", "0");
+  expect(parameters).toHaveTextContent(query);
+  expect(output).toHaveClass("agent-tool-scroll");
+  expect(parameters).not.toContainElement(output);
+
+  const argumentsJson = JSON.stringify(["x".repeat(1000)]);
+  rerender(<AgentWebResult call={{ ...search, argumentsJson }} />);
+  expect(parameters).toHaveTextContent(argumentsJson);
+  expect(output).toHaveTextContent("fallback output");
+});
+
+test("grouped web tools open links and omit the tool copy action", () => {
   const onOpenUrl = vi.fn(async () => {});
-  const onCopy = vi.fn(async () => {});
   render(
     <AgentMessage
       message={{
@@ -99,15 +153,14 @@ test("message and grouped calls pass URL and copy actions to web result cards", 
         ],
       }}
       onOpenUrl={onOpenUrl}
-      onCopy={onCopy}
+      onCopy={vi.fn()}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "展开过程组" }));
   fireEvent.click(screen.getByLabelText("读取网页 https://example.com/ · 已完成"));
   fireEvent.click(screen.getByRole("link"));
   expect(onOpenUrl).toHaveBeenCalledWith("https://example.com/");
-  const details = screen.getByRole("link").closest("details");
-  if (!details) throw new Error("missing fetch tool details");
-  fireEvent.click(within(details).getByRole("button", { name: "复制工具结果" }));
-  await waitFor(() => expect(onCopy).toHaveBeenCalledWith("fallback output"));
+  fireEvent.click(screen.getByLabelText("搜索网络 fixture · 已完成"));
+  expect(screen.getAllByText("fallback output")).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "复制工具结果" })).toBeNull();
 });

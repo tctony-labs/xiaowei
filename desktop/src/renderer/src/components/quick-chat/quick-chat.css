@@ -96,21 +96,72 @@
   display: none;
 }
 
+.agent-generation-dots {
+  display: flex;
+  min-height: 16px;
+  align-items: flex-start;
+  gap: 4px;
+  padding-block-start: 2px;
+  color: var(--color-ink);
+}
+
+.agent-generation-dots > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.28;
+  animation: agent-dot-brighten 1.2s ease-in-out infinite;
+}
+
+.agent-generation-dots > span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.agent-generation-dots > span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes agent-dot-brighten {
+  0%,
+  54%,
+  100% {
+    opacity: 0.28;
+  }
+
+  24% {
+    opacity: 0.9;
+  }
+}
+
 .agent-activity-header {
   border-bottom: 1px solid var(--color-line);
   padding-bottom: 8px;
 }
 
-.agent-activity-toggle {
-  display: inline-flex;
-  max-width: 100%;
-  flex-wrap: wrap;
+.agent-activity-toggle,
+.agent-activity-time,
+.agent-reasoning > summary,
+.agent-tool > summary,
+.agent-interaction-title {
+  display: flex;
+  min-height: 24px;
   align-items: center;
   gap: 6px;
+  padding-block: 2px;
+  line-height: 20px;
+}
+
+.agent-activity-toggle,
+.agent-activity-time {
+  display: inline-flex;
+}
+
+.agent-activity-toggle {
+  max-width: 100%;
   border-radius: 4px;
   color: var(--color-muted);
   font-size: 12px;
-  line-height: 20px;
   text-align: start;
   cursor: pointer;
 }
@@ -302,9 +353,7 @@
 
 .agent-reasoning summary,
 .agent-tool summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  border-radius: 4px;
   list-style: none;
   cursor: pointer;
 }
@@ -332,8 +381,25 @@
   display: none;
 }
 
-.agent-process-group > .agent-activity-toggle {
-  flex-wrap: nowrap;
+.agent-process-group > .agent-activity-toggle + .agent-process-group-content {
+  padding-inline-start: 4px;
+}
+
+.agent-process-disclosure {
+  display: inline-flex;
+  width: 14px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.agent-process-disclosure::before {
+  border-block: 3px solid transparent;
+  border-inline-start: 5px solid currentColor;
+  content: "";
+}
+
+.agent-activity-toggle[aria-expanded="true"] > .agent-process-disclosure::before {
+  transform: rotate(90deg);
 }
 
 .agent-reasoning summary::-webkit-details-marker,
@@ -348,21 +414,19 @@
   line-height: 16px;
 }
 
-.agent-reasoning summary > .agent-disclosure {
-  width: 14px;
-  text-align: center;
-}
-
 .agent-activity-toggle[aria-expanded="true"] .agent-disclosure,
 .agent-reasoning[open] > summary .agent-disclosure,
 .agent-tool[open] > summary .agent-disclosure {
   transform: rotate(90deg);
 }
 
-.agent-reasoning p {
+.agent-reasoning > p {
   max-height: 240px;
   overflow: auto;
-  padding-top: 6px;
+  margin-top: 4px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--color-hover);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -374,12 +438,9 @@
 }
 
 .agent-tool summary {
-  min-height: 28px;
-  border-radius: 4px;
-  padding: 3px 0;
+  color: var(--color-muted);
 }
 
-.agent-tool summary:hover,
 .agent-tool summary:focus-visible,
 .agent-reasoning summary:focus-visible {
   background: var(--color-hover);
@@ -394,7 +455,6 @@
 .agent-tool-label {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -413,8 +473,8 @@
 .agent-tool-details {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .agent-tool-details h4 {
@@ -463,9 +523,14 @@
   text-decoration: line-through;
 }
 
+.agent-content-scroll,
 .agent-tool-scroll {
+  min-width: 0;
   max-height: 240px;
   overflow: auto;
+}
+
+.agent-tool-scroll {
   border-radius: 4px;
   background: var(--color-hover);
 }
@@ -478,7 +543,7 @@
   white-space: pre;
 }
 
-.agent-message :is(a, section[tabindex]):focus-visible {
+.agent-message :is(a, section[tabindex], .agent-content-scroll):focus-visible {
   box-shadow: inset 0 0 0 1px var(--color-primary-text);
 }
 
@@ -506,6 +571,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .agent-generation-dots > span {
+    opacity: 0.65;
+    animation: none;
+  }
+
   .agent-shimmer {
     animation: none;
     background-image: none;
@@ -518,9 +588,6 @@
 }
 
 .agent-interaction-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   list-style: none;
 }
 
@@ -591,6 +658,10 @@
   outline-offset: 2px;
 }
 
+.agent-interaction-options > button:focus-visible {
+  outline-offset: -2px;
+}
+
 .agent-permission-path {
   display: block;
   overflow-wrap: anywhere;
@@ -598,7 +669,7 @@
 
 .agent-web-result {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -606,7 +677,8 @@
 .agent-web-result ol {
   display: grid;
   gap: 12px;
-  padding-left: 20px;
+  padding: 8px;
+  padding-inline-start: 28px;
   list-style: decimal;
 }
 

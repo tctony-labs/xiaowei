@@ -2,6 +2,16 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## Run 反馈与工具详情布局（2026-11-20）
+
+模型等待时在回复末尾显示三点。过程组改用左侧展开三角，组内步骤缩进 4 px。思考行复用思考强度图标，展开正文使用灰底和上下 2 px、左右 6 px 的内边距。网页工具、清单和交互内容的滚动规则见 [Quick Chat](../../../../desktop/docs/chat-ui.md#输入消息与会话操作)。两种网页工具的结果复制按钮和工具行鼠标悬停底色已移除。
+
+全量 renderer 29 个文件、239 项测试及 `just check` 通过。已在当前开发实例的运行中读取新生成状态。另用正式组件和 renderer 样式在 Chrome 检查长内容限高、内部滚动、组内缩进、详情对齐、三点间距、思考正文内边距和悬停底色。工具到模型的完整交接由组件回归覆盖。
+
+思考折叠预览按核对过的 Codex 桌面规则优先显示 Markdown 小标题，复杂格式回退到最后一条可读行。思考行补上尾部箭头，工具行箭头沿用标题颜色。Run 各类标题行统一为 24 px，工具详情距标题 2 px，各内容块间隔 4 px。读取行使用单页文档图标，失败用红色感叹号提示。通用详情展开后直接展示参数与结果，空参数省略参数块。Chrome 使用产品组件核对了明暗主题下的箭头颜色、展开转向、320 px 和 800 px 宽度下的标题行高度，以及失败图标和内容块间距。独立的浏览器验收会话覆盖 13 个工具的成功和失败示例，读取详情和空参数由组件回归覆盖。
+
+2026-11-21 验收时为 WebSearch 的查询词和结构化结果复用通用输出的灰底滚动区。Chrome 核对了查询词位置和内边距、与 WebFetch 输出的底色一致，以及长列表的内部滚动。
+
 ## Agent 资源加载（2026-11-17）
 
 独立 02m 切片已实现 AGENTS.md、rules、commands。规则自动加载并按文件片段同步；canonical／mtime／size 缓存跳过未变文件读取及命令解析，Run 内固定，下一 Run 更新。commands.catalog 与固定 Command(name) 支持自然语言加载，正文走既有 ToolOutcome；不增加 slash UI、输入契约或历史格式。使用方式见 [core 资源说明](../../../../crates/xw-agent/docs/resources.md)，旧版适配见[运行与 UI](runtime-ui.md#agentsmdrules-与-commands2026-11-17)。

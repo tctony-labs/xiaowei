@@ -40,7 +40,11 @@ test.each([false, true])("a single step has only its own disclosure, complete=%s
 });
 
 test("a single thinking step grows into a collapsed group without replacing its details", () => {
-  const thought: AgentProcessBlock = { id: "thought", kind: "reasoning", text: "核对 **配置**。" };
+  const thought: AgentProcessBlock = {
+    id: "thought",
+    kind: "reasoning",
+    text: "**核对配置**\n先读默认值。",
+  };
   const { rerender } = render(<AgentProcessGroup blocks={[thought]} activeBlockId="thought" />);
   const details = screen.getByLabelText("正在思考").closest("details");
   fireEvent.click(screen.getByLabelText("正在思考"));
@@ -51,7 +55,8 @@ test("a single thinking step grows into a collapsed group without replacing its 
     />,
   );
   const toggle = screen.getByRole("button", { name: "展开过程组" });
-  expect(toggle).toHaveTextContent("正在思考 核对 配置。");
+  expect(toggle).toHaveTextContent("正在思考 核对配置");
+  expect(toggle).not.toHaveTextContent("先读默认值");
   expect(toggle).not.toHaveTextContent("**");
   expect(details).not.toBeVisible();
   fireEvent.click(toggle);
@@ -115,8 +120,10 @@ test("mixed calls summarize distinct actions while preserving the individual cal
   );
   const toggle = screen.getByRole("button", { name: "展开过程组" });
   expect(toggle).toHaveTextContent("读取文件、执行命令");
-  expect(toggle.querySelector(".agent-tool-icon")).toHaveAttribute("data-icon", "file");
+  expect(toggle.firstElementChild).toHaveClass("agent-process-disclosure");
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
   fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
   expect(screen.getAllByLabelText("搜索内容 · 已完成")).toHaveLength(2);
 });
 
@@ -133,7 +140,6 @@ test("file changes share a category and summary order is independent of call ord
   );
   const toggle = screen.getByRole("button", { name: "展开过程组" });
   expect(toggle).toHaveTextContent("修改文件、读取文件、执行命令");
-  expect(toggle.querySelector(".agent-tool-icon")).toHaveAttribute("data-icon", "edit");
 
   rerender(<AgentProcessGroup blocks={[tool("glob", "Glob"), tool("grep", "Grep")]} />);
   expect(toggle).toHaveTextContent("读取文件");
