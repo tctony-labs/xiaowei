@@ -60,6 +60,7 @@ fn rule_changes_commit_with_tool_changes_and_survive_reopen_without_a_new_baseli
             id,
             1000,
             SessionMeta {
+                permission_mode: None,
                 model_ref: Some("fixture".into()),
                 provider_name: None,
                 model_name: None,
@@ -137,6 +138,7 @@ fn failed_rule_commit_preserves_the_previous_base_and_tool_set() {
             SessionId::new(),
             1000,
             SessionMeta {
+                permission_mode: None,
                 model_ref: Some("fixture".into()),
                 provider_name: None,
                 model_name: None,

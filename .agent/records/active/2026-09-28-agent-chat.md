@@ -100,6 +100,16 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 ## Outcome
 
+2026-11-20，完成会话权限模式。参考旧版 `d97d45b42bf9bc621e66603ad878cccb97dd990c` 的 `ExecutionPolicy`，沿用两种工作区权限，把旧 `Unrestricted` 对应为 `FullAccess`。统一约束 Write／Edit、Bash 和权限申请；桌面创建显式传 `FullAccess`，缺少模式的旧会话保留 `Interactive` 行为。Run 固定模式，切换只追加权限说明及授权工具的变化。接入和实际行为见 [Agent core](../../../crates/xw-agent/README.md)，文件边界见 [runtime](../../../crates/xw-agent-runtime/README.md)。
+
+Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有精确授权、写盘失败和重试、旧会话及新模式重开。正式 addon／Gateway／worker 验证了默认模式、工作区外写入、无额外权限工具和记录字段。Agent addon 构建、桌面全量测试和 `just check` 通过。Bash 删除清理用例一次返回 writer 锁冲突，单项及整组复测通过，未改清理路径。02n 已移除；UI 切换入口、用户默认设置和实际缓存命中率验证留作后续。
+
+同日用户启动当前工作区后，确认 Electron 已加载当时的 Agent 模块。实际 Quick Chat 新会话 `01a1f840-d4ca-736e-876e-89bcda745972` 通过真实模型完成工作区外的 Write → Edit → Bash → Read → Read，窗口结果与两个临时文件内容一致。基线含 `FullAccess` 说明且未暴露 `RequestPermission`，Bash 日志记录 `FullAccess` 和退出码 0。这次验收使用审核前的草稿历史格式。
+
+审核后，权限模式以独立文件为准。`TestFault::Sync` 覆盖完整权限值已写入但同步失败，关闭并重开后仍使用上一次提交的模式。创建请求按原始模式匹配，覆盖索引与内存入口及切换后的重复请求。沙箱初始化失败返回专门的错误，路径授权提示用于写入拒绝。前一版 v2 读取器成功解析新版服务生成的 11 条实际历史记录。已写入的草稿历史由新版读取器兼容，原始记录保留。见[权限模式提交与恢复](2026-09-28-agent-chat/history-format.md#权限模式提交与恢复)。
+
+审核修复后，相关 Rust 测试、Agent addon 构建、桌面全量测试及 `just check` 均通过。当前工作区的 Electron 已重载新版 addon，Quick Chat 成功恢复上述草稿会话，历史修复字节数为 0。
+
 2026-11-20，Pi 升至 1.5.2，删除和同名更新可以通过正式 worker。Responses 实际代理通过新增、删除和同名更新验证，对应缓存命中 2,944、3,200 和 3,328 tokens。Chat Completions 与 Claude 通过本地请求捕获验证。保留通用 Responses 的 API Key WebSocket 补丁，流式参数增量解析由上游实现。见[工具变化的模型适配](2026-09-28-agent-chat/model-types.md#工具变化的模型适配2026-11-20)。
 
 2026-11-19，02m 资源加载完成验收。prometheus 的 Quick Chat 通过自然语言加载命令和显示工具详情，规则与命令更新在下一 Run 生效。实际停止和重启恢复通过，删除验收资源后下一 Run 撤销规则及命令目录条目。实际行为见[资源使用说明](../../../crates/xw-agent/docs/resources.md)，证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#agent-资源加载2026-11-17)。

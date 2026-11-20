@@ -42,6 +42,7 @@ impl AgentService {
 pub(crate) fn initial_meta(session: &Session) -> domain::SessionMeta {
     let config = session.view.config.as_ref().expect("validated config");
     domain::SessionMeta {
+        permission_mode: None,
         model_ref: Some(config.model_ref.clone()),
         reasoning: config.reasoning.clone(),
         provider_name: (!session.view.provider_name.is_empty())
@@ -107,6 +108,8 @@ impl Session {
         self.requests = restored.requests;
         self.interactions = restored.interactions;
         self.granted_paths = restored.granted_paths;
+        self.permission_mode = restored.permission_mode;
+        self.meta = restored.meta;
         for run in restored.view.runs {
             if !self
                 .view
@@ -148,6 +151,10 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
         reasoning: rebuilt.meta.reasoning.clone(),
     };
     let mut session = Session::new(id, entries[0].timestamp_ms, config);
+    session.permission_mode = journal
+        .permission_mode()
+        .map_err(storage_error)?
+        .unwrap_or_default();
     session.view.cwd = match &entries[0].payload {
         domain::EntryPayload::SessionHeader { cwd: Some(cwd) } => Some(cwd.clone()),
         _ => Some(crate::workspace::prepare(journal.root(), id)?),
@@ -398,6 +405,7 @@ impl Session {
             after_turn_id: None,
         };
         let context = domain::RunContext {
+            permission_mode: None,
             model,
             generation: domain::GenerationParameters {
                 reasoning: execution.generation.reasoning.clone(),

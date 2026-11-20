@@ -1452,6 +1452,7 @@ async fn legacy_header_gets_a_stable_workspace_without_rewriting_the_header() {
             id,
             1000,
             xw_agent_types::SessionMeta {
+                permission_mode: None,
                 model_ref: Some("test".into()),
                 reasoning: None,
                 provider_name: None,
@@ -1462,7 +1463,8 @@ async fn legacy_header_gets_a_stable_workspace_without_rewriting_the_header() {
     let path = journal.path().to_owned();
     let before = std::fs::read(&path).unwrap();
     drop(journal);
-    let service = AgentService::with_rollout(Host::new(vec![]), root.path().into()).unwrap();
+    let host = Host::new(vec![message(&[], "done")]);
+    let service = AgentService::with_rollout(host, root.path().into()).unwrap();
     let view = service
         .read_session(ReadSessionRequest {
             session_id: id.to_string(),
@@ -1472,8 +1474,23 @@ async fn legacy_header_gets_a_stable_workspace_without_rewriting_the_header() {
         .unwrap()
         .session
         .unwrap();
-    assert!(view.cwd.unwrap().ends_with(&format!("quick-chat/{id}")));
-    assert_eq!(std::fs::read(path).unwrap(), before);
+    assert!(
+        view.cwd
+            .as_deref()
+            .unwrap()
+            .ends_with(&format!("quick-chat/{id}"))
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert_eq!(
+        run(&service, &view).await.status,
+        AgentRunStatus::Completed as i32
+    );
+    assert!(std::fs::read(&path).unwrap().starts_with(&before));
+    assert!(entries(root.path()).iter().any(|row| matches!(
+        &row.payload,
+        EntryPayload::SystemContext(xw_agent_types::SystemContextUpdate::Baseline(context))
+            if context.instructions["environment.permissions"].contains("等待用户决定")
+    )));
     service.close().await.unwrap();
 }
 
@@ -1748,6 +1765,7 @@ mod search {
 mod bash {
     use super::*;
     use std::{path::Path, process::Stdio};
+    use xw_agent::PermissionMode;
     use xw_agent_types::{SystemContextUpdate, encode_history};
 
     fn tools(run: &AgentRun) -> Vec<&AgentToolCall> {
@@ -1785,6 +1803,170 @@ mod bash {
                 .success(),
             "child is still alive: {pid}"
         );
+    }
+
+    #[tokio::test]
+    async fn permission_mode_updates_execution_and_context_between_runs_and_restores() {
+        let root = tempfile::tempdir().unwrap();
+        let home = std::env::var_os("HOME").unwrap();
+        let outside = tempfile::tempdir_in(home).unwrap();
+        let write_path = outside.path().join("write.txt");
+        let edit_path = outside.path().join("edit.txt");
+        let bash_path = outside.path().join("bash.txt");
+        let shell_path = bash_path.to_str().unwrap().replace('\'', "'\\''");
+        let write = serde_json::json!({"path": write_path, "contents": "written"}).to_string();
+        let edit = serde_json::json!({
+            "path": edit_path,
+            "old_string": "before",
+            "new_string": "after",
+        })
+        .to_string();
+        let bash = serde_json::json!({
+            "description": "write outside the workspace",
+            "command": format!("printf written > '{shell_path}'"),
+        })
+        .to_string();
+        let request = serde_json::json!({
+            "path": write_path,
+            "is_directory": false,
+            "reason": "stale permission request",
+        })
+        .to_string();
+        let modes = [
+            PermissionMode::Interactive,
+            PermissionMode::UnattendedWorkspace,
+            PermissionMode::FullAccess,
+            PermissionMode::FullAccess,
+            PermissionMode::Interactive,
+        ];
+        let host = Host::new(
+            modes
+                .iter()
+                .flat_map(|mode| {
+                    let mut calls =
+                        vec![("Write", write.as_str()), ("Edit", &edit), ("Bash", &bash)];
+                    if *mode != PermissionMode::Interactive {
+                        calls.push(("RequestPermission", &request));
+                    }
+                    [message(&calls, ""), message(&[], "done")]
+                })
+                .collect(),
+        );
+        let mut service = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let session = create(&service, None).await;
+
+        for (index, mode) in modes.into_iter().enumerate() {
+            if index == 3 {
+                service.close().await.unwrap();
+                service = AgentService::open(host.clone(), root.path().into())
+                    .await
+                    .unwrap();
+            } else if index > 0 {
+                service
+                    .set_session_permission_mode(&session.session_id, mode)
+                    .await
+                    .unwrap();
+            }
+
+            for path in [&write_path, &bash_path] {
+                if path.exists() {
+                    std::fs::remove_file(path).unwrap();
+                }
+            }
+            std::fs::write(&edit_path, "before").unwrap();
+
+            let result = run(&service, &session).await;
+            assert_eq!(result.status, AgentRunStatus::Completed as i32);
+            let calls = tools(&result);
+            let interactive = mode == PermissionMode::Interactive;
+            let full_access = mode == PermissionMode::FullAccess;
+            assert_eq!(calls.len(), if interactive { 3 } else { 4 });
+            let status = if full_access {
+                AgentToolStatus::Completed
+            } else {
+                AgentToolStatus::Failed
+            };
+            for call in &calls[..3] {
+                assert_eq!(call.status, status as i32, "{}", call.output);
+                if interactive {
+                    assert!(call.output.contains("RequestPermission"), "{}", call.output);
+                }
+            }
+            if let Some(stale) = calls.get(3) {
+                assert_eq!(stale.status, AgentToolStatus::Failed as i32);
+                assert!(stale.interaction.is_none());
+            }
+            assert_eq!(write_path.exists(), full_access);
+            assert_eq!(bash_path.exists(), full_access);
+            let edited = std::fs::read_to_string(&edit_path).unwrap();
+            assert_eq!(edited, if full_access { "after" } else { "before" });
+
+            let requests = host.requests.lock().unwrap();
+            for request in &requests[index * 2..][..2] {
+                let context = request
+                    .messages
+                    .iter()
+                    .filter_map(|message| match message {
+                        History::SystemContext { update } => Some(update),
+                        _ => None,
+                    })
+                    .fold(None, |previous, update| {
+                        Some(update.apply(previous.as_ref()).unwrap())
+                    })
+                    .unwrap();
+                let permissions = &context.instructions["environment.permissions"];
+                let expected = match mode {
+                    PermissionMode::Interactive => "等待用户决定",
+                    PermissionMode::UnattendedWorkspace => "不允许申请额外写权限",
+                    PermissionMode::FullAccess => "当前用户的系统权限",
+                };
+                assert!(permissions.contains(expected), "{permissions}");
+                assert_eq!(
+                    context.instructions.contains_key("tool.RequestPermission"),
+                    interactive
+                );
+                assert_eq!(
+                    context
+                        .tools
+                        .iter()
+                        .any(|tool| tool.name == "RequestPermission"),
+                    interactive
+                );
+            }
+        }
+
+        let rows = entries(root.path());
+        assert!(rows.iter().all(|entry| match &entry.payload {
+            EntryPayload::Meta(meta) => meta.permission_mode.is_none(),
+            EntryPayload::RunStarted(run) => run.context.permission_mode.is_none(),
+            _ => true,
+        }));
+        assert!(
+            !rows
+                .iter()
+                .any(|entry| matches!(entry.payload, EntryPayload::InteractionOpened(_)))
+        );
+        let deltas: Vec<_> = rows
+            .iter()
+            .filter_map(|entry| match &entry.payload {
+                EntryPayload::SystemContext(SystemContextUpdate::Delta(delta)) => Some(delta),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(deltas.len(), 3);
+        assert_eq!(deltas[0].tools_removed, ["RequestPermission"]);
+        assert_eq!(deltas[0].instructions_removed, ["tool.RequestPermission"]);
+        assert!(deltas[1].tools_removed.is_empty() && deltas[1].tools_added.is_empty());
+        assert_eq!(deltas[2].tools_added.len(), 1);
+        assert_eq!(deltas[2].tools_added[0].name, "RequestPermission");
+        for delta in deltas {
+            assert!(delta.instructions.contains_key("environment.permissions"));
+            assert!(!delta.instructions.contains_key("tool.Bash"));
+        }
+
+        service.close().await.unwrap();
     }
 
     #[tokio::test]
@@ -1948,6 +2130,12 @@ mod bash {
                 .unwrap();
             let accepted = start(&service, &session).await;
             let pid = child_pid(cwd.path()).await;
+            assert!(matches!(
+                service
+                    .set_session_permission_mode(&session.session_id, PermissionMode::FullAccess)
+                    .await,
+                Err(xw_agent::AgentError::Conflict("session is running"))
+            ));
             match action {
                 "stop" => {
                     service

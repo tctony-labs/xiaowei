@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use xw_agent_types::SessionId;
 
-use crate::{AgentError, protocol::*};
+use crate::{AgentError, PermissionMode, protocol::*};
 
 pub(crate) const MAX_SESSIONS: usize = 16;
 pub(crate) const MAX_CREATIONS: usize = 1024;
@@ -16,6 +16,7 @@ pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T
 pub(crate) struct Session {
     pub tools: Vec<crate::ToolRegistration>,
     pub tool_context: Option<xw_agent_types::SystemContext>,
+    pub permission_mode: PermissionMode,
     pub skills: xw_agent_runtime::tools::skill::SkillSnapshot,
     pub commands: xw_agent_runtime::tools::command::CommandSnapshot,
     pub resource_cache:
@@ -47,6 +48,7 @@ impl Session {
         Self {
             tools: Vec::new(),
             tool_context: None,
+            permission_mode: PermissionMode::default(),
             skills: Default::default(),
             commands: Default::default(),
             resource_cache: Default::default(),
@@ -114,6 +116,7 @@ pub(crate) struct TitleTask {
 
 pub(crate) struct ActiveRun {
     pub run_id: xw_agent_types::RunId,
+    pub permission_mode: PermissionMode,
     pub cancellation: crate::CancellationToken,
     pub done: crate::CancellationToken,
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use futures_util::{StreamExt, stream};
-use xw_agent::{AgentError, InputSource, SourceKind};
+use xw_agent::{AgentError, InputSource, PermissionMode, SourceKind};
 use xw_gateway::{ErrorCode, GatewayError, InvokeRegistration};
 
 use crate::{Agent, gateway_binding::xiaowei_agent_agent_service as api};
@@ -129,12 +129,13 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
                 ready(&agent)?;
                 agent
                     .service
-                    .create_session_with_source(
+                    .create_session_with_permission_mode(
                         request,
                         InputSource {
                             kind: SourceKind::Desktop,
                             principal_id: client.context().caller().to_owned(),
                         },
+                        PermissionMode::FullAccess,
                     )
                     .await
                     .map_err(error)

@@ -4,7 +4,9 @@ use serde::Deserialize;
 use serde_json::json;
 use similar::{ChangeTag, TextDiff};
 use tokio_util::sync::CancellationToken;
-use xw_agent_types::{AgentMessage, ContentBlock, PermissionTarget, ToolDeclaration};
+use xw_agent_types::{
+    AgentMessage, ContentBlock, PermissionMode, PermissionTarget, ToolDeclaration,
+};
 
 use crate::permission;
 
@@ -101,14 +103,21 @@ pub fn declarations() -> Vec<ToolDeclaration> {
 /// One run's executors. Read dedup is rebuilt only from committed successful results.
 pub struct FileTools {
     cwd: PathBuf,
+    mode: PermissionMode,
     grants: Vec<PermissionTarget>,
     reads: HashMap<(PathBuf, usize, Option<usize>), blake3::Hash>,
 }
 
 impl FileTools {
-    pub fn new(cwd: PathBuf, grants: Vec<PermissionTarget>, history: &[AgentMessage]) -> Self {
+    pub fn new(
+        cwd: PathBuf,
+        mode: PermissionMode,
+        grants: Vec<PermissionTarget>,
+        history: &[AgentMessage],
+    ) -> Self {
         let mut tools = Self {
             cwd,
+            mode,
             grants,
             reads: HashMap::new(),
         };
@@ -182,8 +191,12 @@ impl FileTools {
             "Read" => self.read(parse(arguments)?),
             "Write" => {
                 let args: WriteArgs = parse(arguments)?;
-                let path =
-                    permission::check_write(&self.cwd, &self.path(&args.path)?, &self.grants)?;
+                let path = permission::check_write(
+                    &self.cwd,
+                    &self.path(&args.path)?,
+                    self.mode,
+                    &self.grants,
+                )?;
                 let before = if path.exists() {
                     if !path.metadata().map_err(|e| e.to_string())?.is_file() {
                         return Err("只能写入普通文件".into());
@@ -195,7 +208,7 @@ impl FileTools {
                 std::fs::create_dir_all(path.parent().ok_or("文件路径无父目录")?)
                     .map_err(|e| e.to_string())?;
                 // Recheck after creating parents, before writing the final file.
-                let path = permission::check_write(&self.cwd, &path, &self.grants)?;
+                let path = permission::check_write(&self.cwd, &path, self.mode, &self.grants)?;
                 std::fs::write(&path, &args.contents).map_err(|e| e.to_string())?;
                 Ok(ToolOutput {
                     text: format!(
@@ -211,15 +224,19 @@ impl FileTools {
                 if args.old_string.is_empty() {
                     return Err("old_string 不能为空".into());
                 }
-                let path =
-                    permission::check_write(&self.cwd, &self.path(&args.path)?, &self.grants)?;
+                let path = permission::check_write(
+                    &self.cwd,
+                    &self.path(&args.path)?,
+                    self.mode,
+                    &self.grants,
+                )?;
                 let before = read_text(&path)?;
                 let matches = before.matches(&args.old_string).count();
                 if matches == 0 || (matches != 1 && !args.replace_all) {
                     return Err(format!("old_string 匹配 {matches} 次；默认必须唯一匹配"));
                 }
                 let after = before.replace(&args.old_string, &args.new_string);
-                let path = permission::check_write(&self.cwd, &path, &self.grants)?;
+                let path = permission::check_write(&self.cwd, &path, self.mode, &self.grants)?;
                 std::fs::write(&path, &after).map_err(|e| e.to_string())?;
                 Ok(ToolOutput {
                     text: format!("Replaced {matches} occurrence(s) in {}", path.display()),

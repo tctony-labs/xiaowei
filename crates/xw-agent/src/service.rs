@@ -8,7 +8,7 @@ use prost::Message;
 use xw_agent_types::{ClientRequestId, RunId, SessionId};
 
 use crate::{
-    AgentError, AgentHost, EventSubscription, LlmGeneration,
+    AgentError, AgentHost, EventSubscription, LlmGeneration, PermissionMode,
     events::Observer,
     input,
     protocol::*,
@@ -21,11 +21,19 @@ pub(crate) struct State {
     pub(crate) tools: Vec<crate::ToolRegistration>,
     pub(crate) closed: bool,
     pub(crate) sessions: BTreeMap<SessionId, Session>,
-    pub(crate) creations: BTreeMap<ClientRequestId, (SessionId, AgentModelConfig, Option<String>)>,
+    pub(crate) creations: BTreeMap<ClientRequestId, SessionCreation>,
     pub(crate) observers: Vec<Weak<Observer>>,
     pub(crate) viewers: BTreeMap<SessionId, Vec<Weak<()>>>,
     pub(crate) interaction_instance: String,
     pub(crate) interaction_observers: Vec<Arc<crate::interaction_delivery::DeliveryObserver>>,
+}
+
+#[derive(Clone)]
+pub(crate) struct SessionCreation {
+    pub(crate) session_id: SessionId,
+    pub(crate) config: AgentModelConfig,
+    pub(crate) cwd: Option<String>,
+    pub(crate) permission_mode: PermissionMode,
 }
 
 /// Owns memory state and public protocol methods, without a transport registry.
@@ -131,6 +139,7 @@ impl AgentService {
         &self,
         request: CreateSessionRequest,
         source: crate::InputSource,
+        permission_mode: PermissionMode,
     ) -> Result<CreateSessionResponse, AgentError> {
         if source.principal_id.trim().is_empty() {
             return Err(AgentError::InvalidArgument("source.principal_id"));
@@ -143,9 +152,12 @@ impl AgentService {
         input::validate_config(&config)?;
         let info = self.host.get_model_info(config.model_ref.clone()).await;
         let mut state = self.state()?;
-        if let Some((id, original_config, original_cwd)) = state.creations.get(&request_id) {
-            let session = &state.sessions[id];
-            if original_config != &config || original_cwd != &request.cwd {
+        if let Some(creation) = state.creations.get(&request_id) {
+            let session = &state.sessions[&creation.session_id];
+            if creation.config != config
+                || creation.cwd != request.cwd
+                || creation.permission_mode != permission_mode
+            {
                 return Err(AgentError::Conflict("creation config"));
             }
             return Ok(CreateSessionResponse {
@@ -169,6 +181,7 @@ impl AgentService {
         let created_at_ms = now_ms()?;
         let id = SessionId::new();
         let mut session = Session::new(id, created_at_ms, config.clone());
+        session.permission_mode = permission_mode;
         session.view.cwd = crate::workspace::explicit(request.cwd.as_deref())?;
         if session.view.cwd.is_none()
             && let Some(store) = &self.rollout
@@ -180,7 +193,7 @@ impl AgentService {
         session.indexed = self.index.is_some();
         if let Some(store) = &self.rollout {
             let meta = crate::persistence::initial_meta(&session);
-            let journal = store
+            let mut journal = store
                 .create_with_cwd(id, created_at_ms, meta.clone(), session.view.cwd.clone())
                 .map_err(|error| {
                     if request.cwd.is_none() {
@@ -191,6 +204,13 @@ impl AgentService {
                     }
                     crate::persistence::storage_error(error)
                 })?;
+            if let Err(error) = journal.set_permission_mode(permission_mode) {
+                drop(journal);
+                if let Err(cleanup) = store.delete_registered(id, created_at_ms) {
+                    log::error!("Agent failed creation cleanup session={id} error={cleanup}");
+                }
+                return Err(crate::persistence::storage_error(error));
+            }
             session.meta = Some(meta);
             session.journal = Some(journal);
         }
@@ -204,13 +224,19 @@ impl AgentService {
             })),
         };
         state.sessions.insert(id, session);
-        state
-            .creations
-            .insert(request_id, (id, config, request.cwd));
+        state.creations.insert(
+            request_id,
+            SessionCreation {
+                session_id: id,
+                config,
+                cwd: request.cwd,
+                permission_mode,
+            },
+        );
         if self.index.is_none() {
             Self::publish(&mut state, event);
         }
-        log::debug!("Agent session created session={id}");
+        log::debug!("Agent session created session={id} permission_mode={permission_mode:?}");
         Ok(response)
     }
 

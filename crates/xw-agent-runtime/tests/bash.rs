@@ -3,10 +3,28 @@
 use serde_json::json;
 use std::{path::Path, time::Duration};
 use xw_agent_runtime::{CancellationToken, tools::bash};
-use xw_agent_types::PermissionTarget;
+use xw_agent_types::PermissionMode;
 
 fn arguments(command: &str) -> String {
     json!({"description": "验收命令", "command": command}).to_string()
+}
+
+#[tokio::test]
+async fn sandbox_setup_failure_never_suggests_requesting_path_access() {
+    let cwd = tempfile::tempdir().unwrap();
+    let command = "printf 'sandbox-exec: sandbox_apply: Operation not permitted\n' >&2; exit 1";
+    let result = bash::execute(
+        cwd.path(),
+        PermissionMode::Interactive,
+        &[],
+        &arguments(command),
+        CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    assert!(result.is_error);
+    assert!(result.output.text.contains("Bash 沙箱启动失败"));
+    assert!(!result.output.text.contains("RequestPermission"));
 }
 
 async fn wait_file(path: &Path) {
@@ -24,6 +42,7 @@ async fn foreground_output_exit_and_bounded_capture() {
     let root = tempfile::tempdir().unwrap();
     let result = bash::execute(
         root.path(),
+        PermissionMode::FullAccess,
         &[],
         &arguments("printf hello; printf error >&2; exit 7"),
         CancellationToken::new(),
@@ -46,6 +65,7 @@ async fn foreground_output_exit_and_bounded_capture() {
     ] {
         let output = bash::execute(
             root.path(),
+            PermissionMode::FullAccess,
             &[],
             &arguments(command),
             CancellationToken::new(),
@@ -74,6 +94,7 @@ async fn invalid_and_background_parameters_never_execute() {
         assert!(
             bash::execute(
                 root.path(),
+                PermissionMode::FullAccess,
                 &[],
                 &args.to_string(),
                 CancellationToken::new()
@@ -85,52 +106,39 @@ async fn invalid_and_background_parameters_never_execute() {
     let cancelled = CancellationToken::new();
     cancelled.cancel();
     assert!(
-        bash::execute(root.path(), &[], &arguments("touch unexpected"), cancelled)
-            .await
-            .is_err()
+        bash::execute(
+            root.path(),
+            PermissionMode::FullAccess,
+            &[],
+            &arguments("touch unexpected"),
+            cancelled
+        )
+        .await
+        .is_err()
     );
     assert!(!root.path().join("unexpected").exists());
 }
 
 #[tokio::test]
-async fn home_boundary_and_file_grant_are_not_expanded() {
+async fn full_access_writes_outside_cwd_without_a_grant() {
+    let cwd = tempfile::tempdir().unwrap();
     let home = dirs::home_dir().unwrap();
     let outside = tempfile::tempdir_in(&home).unwrap();
-    let target = outside.path().join("allowed");
-    std::fs::write(&target, "old").unwrap();
-    let command = format!("printf allowed > '{}'", target.display());
-    let denied = bash::execute(&home, &[], &arguments(&command), CancellationToken::new())
-        .await
-        .unwrap();
-    assert!(denied.is_error, "{}", denied.output.text);
-    let grants = vec![PermissionTarget {
-        path: target.to_str().unwrap().into(),
-        is_directory: false,
-    }];
-    let allowed = bash::execute(
-        &home,
-        &grants,
+    let target = outside.path().join("output.txt");
+    let path = target.to_str().unwrap().replace('\'', "'\\''");
+    let command = format!("printf outside > '{path}'");
+
+    let result = bash::execute(
+        cwd.path(),
+        PermissionMode::FullAccess,
+        &[],
         &arguments(&command),
         CancellationToken::new(),
     )
     .await
     .unwrap();
-    assert!(!allowed.is_error, "{}", allowed.output.text);
-    assert_eq!(std::fs::read_to_string(&target).unwrap(), "allowed");
-    let sibling = outside.path().join("not-allowed");
-    let command = format!("printf denied > '{}'", sibling.display());
-    assert!(
-        bash::execute(
-            &home,
-            &grants,
-            &arguments(&command),
-            CancellationToken::new()
-        )
-        .await
-        .unwrap()
-        .is_error
-    );
-    assert!(!sibling.exists());
+    assert!(!result.is_error, "{}", result.output.text);
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "outside");
 }
 
 #[tokio::test]
@@ -143,7 +151,9 @@ async fn cancellation_and_timeout_reap_the_child_group_and_preserve_partial_outp
         let args = json!({"description":"test", "timeout_ms":if cancel {30000} else {300},
             "command":"printf partial; /bin/sleep 30 & echo $! > child.pid; wait"})
         .to_string();
-        let task = tokio::spawn(async move { bash::execute(&cwd, &[], &args, worker_token).await });
+        let task = tokio::spawn(async move {
+            bash::execute(&cwd, PermissionMode::FullAccess, &[], &args, worker_token).await
+        });
         wait_file(&root.path().join("child.pid")).await;
         let pid: i32 = std::fs::read_to_string(root.path().join("child.pid"))
             .unwrap()
@@ -173,6 +183,7 @@ async fn successful_shell_does_not_leave_background_children() {
     let root = tempfile::tempdir().unwrap();
     let output = bash::execute(
         root.path(),
+        PermissionMode::FullAccess,
         &[],
         &arguments("/bin/sleep 30 & echo $! > child.pid"),
         CancellationToken::new(),

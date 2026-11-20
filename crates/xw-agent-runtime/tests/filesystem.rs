@@ -1,4 +1,5 @@
 use xw_agent_runtime::tools::FileTools;
+use xw_agent_types::PermissionMode;
 
 use serde_json::json;
 use std::{fs, path::Path, time::SystemTime};
@@ -7,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 #[test]
 fn text_pagination_dedup_exact_edit_and_diff() {
     let root = tempfile::tempdir().unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     tools
         .execute("Write", r#"{"path":"a/file","contents":"a\nb\nb\nc\n"}"#)
         .unwrap();
@@ -54,7 +55,7 @@ fn text_pagination_dedup_exact_edit_and_diff() {
 #[test]
 fn rejects_bad_params_pdf_and_missing_files_with_optional_exception() {
     let root = tempfile::tempdir().unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     for args in [
         r#"{"path":4}"#,
         r#"{"path":"x","offset":0}"#,
@@ -85,7 +86,7 @@ fn permission_follows_symlinks_and_checks_missing_ancestors_before_mkdir() {
     let root = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir_in(dirs::home_dir().unwrap()).unwrap();
     std::os::unix::fs::symlink(outside.path(), root.path().join("escape")).unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     assert!(
         tools
             .execute(
@@ -100,7 +101,12 @@ fn permission_follows_symlinks_and_checks_missing_ancestors_before_mkdir() {
         path: outside.path().to_str().unwrap().into(),
         is_directory: true,
     };
-    let mut tools = FileTools::new(root.path().into(), vec![granted], &[]);
+    let mut tools = FileTools::new(
+        root.path().into(),
+        PermissionMode::Interactive,
+        vec![granted],
+        &[],
+    );
     tools
         .execute(
             "Write",
@@ -124,7 +130,7 @@ fn home_cwd_does_not_grant_home_tree_writes() {
     let home = dirs::home_dir().unwrap();
     let output = tempfile::tempdir_in(&home).unwrap();
     let path = output.path().join("new/sub/file");
-    let mut tools = FileTools::new(home, vec![], &[]);
+    let mut tools = FileTools::new(home, PermissionMode::Interactive, vec![], &[]);
     let args = serde_json::json!({"path": path, "contents": "denied"}).to_string();
     assert!(
         tools
@@ -139,7 +145,7 @@ fn home_cwd_does_not_grant_home_tree_writes() {
 fn output_is_bounded_and_tells_the_model_where_to_continue() {
     let root = tempfile::tempdir().unwrap();
     std::fs::write(root.path().join("large"), "a repeated line\n".repeat(10000)).unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Read", r#"{"path":"large"}"#).unwrap();
     assert!(output.text.len() < 65 * 1024);
     assert!(output.text.contains("continue with offset"));
@@ -166,7 +172,7 @@ fn glob_preserves_recursive_hidden_and_excluded_directory_rules() {
         fixture(root.path(), path, "x");
     }
     fixture(root.path(), ".gitignore", "src/\n");
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Glob", r#"{"pattern":"*.rs"}"#).unwrap();
     assert!(output.text.starts_with("2 file(s) found:"));
     assert!(output.text.contains("a.rs") && output.text.contains("src/b.rs"));
@@ -204,7 +210,7 @@ fn glob_retains_the_newest_five_hundred_matches() {
         file.set_times(fs::FileTimes::new().set_modified(modified))
             .unwrap();
     }
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Glob", r#"{"pattern":"*.txt"}"#).unwrap();
     assert!(output.text.starts_with("500 file(s) shown"));
     assert!(output.text.contains("502 total matches (truncated)"));
@@ -252,7 +258,7 @@ fn grep_preserves_ignore_rules_extension_filters_and_explicit_file_targets() {
     ] {
         fixture(root.path(), path, "hello\nneedle 42\n");
     }
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Grep", r#"{"pattern":"needle"}"#).unwrap();
     assert!(output.text.starts_with("4 match(es):"), "{}", output.text);
     assert!(!output.text.contains(".hidden.rs"));
@@ -288,7 +294,7 @@ fn grep_preserves_ignore_rules_extension_filters_and_explicit_file_targets() {
 #[test]
 fn searches_validate_parameters_and_keep_legacy_no_match_and_io_error_results() {
     let root = tempfile::tempdir().unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     for name in ["Glob", "Grep"] {
         for arguments in [
             r#"{}"#,
@@ -331,7 +337,7 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
     let root = tempfile::tempdir().unwrap();
     fixture(root.path(), "many", &"needle\n".repeat(6000));
     fixture(root.path(), "unicode", &"中".repeat(100_000));
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     for arguments in [
         r#"{"pattern":"needle","path":"many"}"#,
         r#"{"pattern":"中","path":"unicode"}"#,
@@ -357,7 +363,7 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
 fn searches_observe_pre_cancelled_tokens_without_mutating_files() {
     let root = tempfile::tempdir().unwrap();
     fixture(root.path(), "file", "unchanged\n");
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let token = CancellationToken::new();
     token.cancel();
     for name in ["Glob", "Grep"] {
@@ -386,7 +392,7 @@ fn search_reads_outside_cwd_but_does_not_descend_symlink_directories() {
         root.path().join("linked-file.txt"),
     )
     .unwrap();
-    let mut tools = FileTools::new(root.path().into(), vec![], &[]);
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Glob", r#"{"pattern":"*.txt"}"#).unwrap();
     assert!(output.text.contains("linked-file.txt"));
     assert!(!output.text.contains("linked-dir/"));

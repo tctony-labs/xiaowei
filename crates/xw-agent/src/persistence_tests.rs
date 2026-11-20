@@ -18,6 +18,176 @@ struct Host {
 }
 
 #[tokio::test]
+async fn failed_permission_mode_commit_keeps_the_previous_mode_and_recovers_for_retry() {
+    use domain::PermissionMode::{FullAccess, Interactive, UnattendedWorkspace};
+
+    let root = tempfile::tempdir().unwrap();
+    let service =
+        AgentService::with_rollout(Arc::new(Host::default()), root.path().into()).unwrap();
+    let create = || CreateSessionRequest {
+        client_request_id: domain::ClientRequestId::new().to_string(),
+        config: Some(AgentModelConfig {
+            model_ref: "test".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let first = service
+        .create_session(create())
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let second = service
+        .create_session(create())
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let first_id: domain::SessionId = first.session_id.parse().unwrap();
+    let second_id: domain::SessionId = second.session_id.parse().unwrap();
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&first_id)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_next_append(TestFault::Sync);
+
+    assert!(matches!(
+        service
+            .set_session_permission_mode(&first.session_id, FullAccess)
+            .await,
+        Err(AgentError::Persistence)
+    ));
+    assert_eq!(
+        service.state().unwrap().sessions[&first_id].permission_mode,
+        Interactive
+    );
+    service.close().await.unwrap();
+    let service =
+        AgentService::with_rollout(Arc::new(Host::default()), root.path().into()).unwrap();
+    assert_eq!(
+        service.state().unwrap().sessions[&first_id].permission_mode,
+        Interactive
+    );
+
+    for _ in 0..2 {
+        service
+            .set_session_permission_mode(&first.session_id, UnattendedWorkspace)
+            .await
+            .unwrap();
+    }
+    {
+        let state = service.state().unwrap();
+        let first = &state.sessions[&first_id];
+        assert_eq!(first.permission_mode, UnattendedWorkspace);
+        assert_eq!(state.sessions[&second_id].permission_mode, Interactive);
+        let journal = first.journal.as_ref().unwrap();
+        assert_eq!(
+            journal.permission_mode().unwrap(),
+            Some(UnattendedWorkspace)
+        );
+        let metadata: Vec<_> = journal
+            .entries()
+            .iter()
+            .filter_map(|row| match &row.payload {
+                domain::EntryPayload::Meta(meta) => Some(meta),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(metadata.len(), 1);
+        assert_eq!(metadata[0].model_ref.as_deref(), Some("test"));
+        assert_eq!(metadata[0].permission_mode, None);
+    }
+    service
+        .set_session_config(SetSessionConfigRequest {
+            session_id: first.session_id,
+            expected_metadata_revision: first.metadata_revision,
+            config: Some(AgentModelConfig {
+                model_ref: "changed-model".into(),
+                ..Default::default()
+            }),
+        })
+        .await
+        .unwrap();
+    {
+        let state = service.state().unwrap();
+        let first = &state.sessions[&first_id];
+        let meta = first.meta.as_ref().unwrap();
+        assert_eq!(meta.model_ref.as_deref(), Some("changed-model"));
+        assert_eq!(first.permission_mode, UnattendedWorkspace);
+        assert_eq!(meta.permission_mode, None);
+    }
+    service.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn creation_retries_match_the_original_permission_mode() {
+    use domain::PermissionMode::{FullAccess, Interactive};
+
+    for indexed in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let host = Arc::new(Host::default());
+        let service = if indexed {
+            AgentService::open(host, root.path().into()).await.unwrap()
+        } else {
+            AgentService::new(host)
+        };
+        let request = CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let source = InputSource {
+            kind: SourceKind::Internal,
+            principal_id: "test".into(),
+        };
+        let original = service
+            .create_session_with_permission_mode(request.clone(), source.clone(), FullAccess)
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        for current in [FullAccess, Interactive] {
+            service
+                .set_session_permission_mode(&original.session_id, current)
+                .await
+                .unwrap();
+            assert!(matches!(
+                service
+                    .create_session_with_permission_mode(
+                        request.clone(),
+                        source.clone(),
+                        Interactive,
+                    )
+                    .await,
+                Err(AgentError::Conflict("creation config"))
+            ));
+            let retry = service
+                .create_session_with_permission_mode(request.clone(), source.clone(), FullAccess)
+                .await
+                .unwrap()
+                .session
+                .unwrap();
+            assert_eq!(retry.session_id, original.session_id);
+            let id = original.session_id.parse::<domain::SessionId>().unwrap();
+            assert_eq!(
+                service.state().unwrap().sessions[&id].permission_mode,
+                current
+            );
+        }
+        service.close().await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn failed_tool_result_commit_never_generates_again_or_replays_the_write() {
     failed_tool_commit(
         "Write",

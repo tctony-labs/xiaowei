@@ -7,7 +7,7 @@ use std::{
 use futures_util::stream;
 use xw_agent::{
     AgentHost, AgentService, CancellationToken, GenerationEvent, GenerationFuture,
-    GenerationRequest, GenerationStream, InputSource, SourceKind, protocol::*,
+    GenerationRequest, GenerationStream, InputSource, PermissionMode, SourceKind, protocol::*,
 };
 use xw_agent_types::{
     AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason,
@@ -461,6 +461,10 @@ async fn approved_file_scope_updates_write_edit_and_bash_in_run_and_survives_reo
     drop(events);
     verify_recovery_prefixes(&store, &session.session_id);
     let service = AgentService::open(host.clone(), store).await.unwrap();
+    service
+        .set_session_permission_mode(&session.session_id, PermissionMode::UnattendedWorkspace)
+        .await
+        .unwrap();
     let mut events = service
         .subscribe_session(SubscribeSessionRequest {
             session_id: session.session_id.clone(),
