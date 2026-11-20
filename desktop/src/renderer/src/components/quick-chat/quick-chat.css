@@ -348,6 +348,11 @@
   line-height: 16px;
 }
 
+.agent-reasoning summary > .agent-disclosure {
+  width: 14px;
+  text-align: center;
+}
+
 .agent-activity-toggle[aria-expanded="true"] .agent-disclosure,
 .agent-reasoning[open] > summary .agent-disclosure,
 .agent-tool[open] > summary .agent-disclosure {
