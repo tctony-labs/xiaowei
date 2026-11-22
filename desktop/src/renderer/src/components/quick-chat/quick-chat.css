@@ -213,15 +213,16 @@
 
 .agent-markdown {
   min-width: 0;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .agent-markdown > * + * {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .agent-markdown :is(h1, h2, h3, h4, h5, h6) {
-  margin-top: 18px;
+  margin-top: 12px;
   font-weight: 600;
   line-height: 1.5;
 }
@@ -254,7 +255,11 @@
   list-style: decimal;
 }
 
-.agent-markdown :where(li + li, li > p + p) {
+.agent-markdown :where(li + li) {
+  margin-top: 3px;
+}
+
+.agent-markdown :where(li > p + p) {
   margin-top: 4px;
 }
 
@@ -281,7 +286,7 @@
 }
 
 .agent-markdown hr {
-  margin-block: 16px;
+  margin-block: 12px;
   border: 0;
   border-top: 1px solid var(--color-line);
 }
@@ -309,6 +314,7 @@
   padding: 2px 10px;
   color: var(--color-muted);
   font-size: 11px;
+  line-height: 24px;
 }
 
 .agent-code-scroll {
@@ -332,6 +338,7 @@
   min-width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  line-height: 24px;
 }
 
 .agent-markdown :is(th, td) {
