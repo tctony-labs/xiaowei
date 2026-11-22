@@ -42,7 +42,7 @@ ListSessions 从 SQLite 返回摘要（ID、标题／自动生成开关、当前
 
 启动时 Quick Chat 客户端首次初始化查询未归档列表，默认选择 updated_at_ms／session_id 倒序的第一条，用 SubscribeSession 的原子首帧恢复历史和模型／思考选择；列表为空保持空白，不创建会话。仅每个 renderer 客户端初始化一次，之后收起、切换模式或组件重挂载保留用户当前选择，包括主动新建的空白对话。初始化期间禁用发送，失败显示错误，不自动发消息或补建会话。不额外持久化选中会话 ID。
 
-手动改名和用户主动重新生成标题成功提交会推进 updated_at_ms；每轮结束后的自动标题生成保持原时间，同名手动标题的幂等 no-op 和失败也不推进。SessionTitleUpdated 携带实际提交时间，UI 更新摘要排序；Run 迟到结算不得使更新时间倒退。恢复归档继续更新时间，未归档列表可在下一次应用启动选中该会话。
+手动改名和用户主动重新生成标题成功提交会推进 updated_at_ms；自动标题生成保持原时间，同名手动标题的幂等 no-op 和失败也不推进。SessionTitleUpdated 携带实际提交时间，UI 更新摘要排序；Run 迟到结算不得使更新时间倒退。恢复归档继续更新时间，未归档列表可在下一次应用启动选中该会话。
 
 ## 设置归档管理
 
@@ -64,7 +64,11 @@ ListSessions 从 SQLite 返回摘要（ID、标题／自动生成开关、当前
 
 ## 标题维护边界
 
-标题由 xw-agent/title.rs 维护，只保存于核心 SQLite 后投影至 AgentSession，不追加 JSONL Meta 或进入聊天历史。旧版来源为 xiaowei/studio/src/biz/chat/{title,commands,storage}.rs。运行结束且有助手输出、auto_title_enabled=true 时，在 RunCompleted 后启动后台标题任务，不限于 Completed；没有配置小文本模型时跳过，标题失败不改变聊天终态。采样最近最多 3 轮，每轮用户／助手正文分别截断至 600 字符，排除思考正文；清洗引号、首尾句号和 Markdown 加粗标记，标题最多 50 字符。沿用旧中文提示词、temperature=0.8、max_tokens=64、reasoning=off 与 20 秒超时。
+自动标题开启时，有助手输出的 Run 结束后检查最近一页。当前页按最近 50 个 Run 划定。页内有 [标题生成成功记录](history-format.md#标题生成成功记录) 时，距上次成功满 3 个有效轮次就尝试生成；页内查不到记录则本轮就尝试。每次成功时是第 1、4、7…轮；第 4 轮失败时，第 5 轮即可重试。有效轮次只计入有助手输出的已结束 Run，包括保留了输出的失败或停止轮次。当前轮次从会话投影计算，打开或恢复会话本身不触发生成。
+
+主动「更新标题」成功也记录有效轮次，例如第 8 轮重新开启并生成后，第 11 轮再尝试。没有配置小文本模型时跳过，标题失败不改变聊天终态。旧版来源为 xiaowei/studio/src/biz/chat/{title,commands,storage}.rs。
+
+自动和手动生成均采样最近最多 5 个符合条件的轮次。用户正文取该轮的文本输入，助手正文取该轮最后一条有正文的助手消息的所有文本块。每轮用户／助手正文各截断至 600 字符。清洗引号、首尾句号和 Markdown 加粗标记，标题最多 50 字符。沿用旧中文提示词、temperature=0.8、max_tokens=64、reasoning=off 与 20 秒超时。
 
 标题任务通过统一 AgentHost.get_auxiliary_model_ref 查询当次辅助引用；桌面 adapter 调用 ModelSettings.GetAuxiliaryModelRef。引用不保存在 Meta，旧 CreateSession／StartRun／RegenerateTitle 的 title_model_ref 字段已忽略。缺配置或查询失败保留旧标题，不回退聊天模型。所有生成复用 Host.generate，runtime.complete_text 仅接受完整成功终态；EOF、失败、取消和空标题不提交。
 
@@ -74,7 +78,7 @@ Quick Chat 的“更多 → 重命名”调用 SetSessionTitle。服务端去除
 
 ### 持久化与剩余边界
 
-标题及自动生成开关先提交 SQLite，再更新内存并发布事件；失败保留旧标题并报错，不改变聊天 Run。新会话默认开启自动标题；首条 query 的前 15 个 Unicode 字符先保存为初始标题，不单独保存预览或标题来源。辅助标题 Gen 有独立 ID 与运行日志，生命周期／用量暂未写 JSONL；辅助 Gen 的持久记录仍在 02l，不把它计作聊天 Run／Turn。
+标题和自动生成开关先提交 SQLite，再更新内存并发布事件。模型生成成功后尝试追加 JSONL 成功记录；追加失败保留已提交标题，后续按最近一页的实际记录判断。新会话默认开启自动标题；首条 query 的前 15 个 Unicode 字符先保存为初始标题。标题任务的调用过程继续通过运行日志追踪。
 
 ## 工具循环与后续完整运行
 

@@ -53,7 +53,7 @@
 | InterruptRun | session_id + run_id；响应只确认取消请求，终态从 RunCompleted 得到 |
 | SubscribeSession | 必填 session_id，只订阅该会话，响应流首帧 SubscriptionReady 包含指定单个会话完整快照，随后只发送快照之后的业务事件；Rust 直接宿主消费同一个 EventSubscription |
 
-RegenerateTitle 使用 Host 当次查询的辅助引用，旧 title_model_ref 字段已忽略，有限超时等待完整标题；成功设 auto_title_enabled=true 并恢复自动生成，失败保留原标题与开关。手动改名／主动重新生成推进 updated_at_ms，每轮后的自动标题生成保留原时间；结果均通过含提交后 updated_at_ms 的 SessionTitleUpdated 同步到所有观察者，快照和摘要也保存该开关；RPC 响应不覆盖事件缓存。
+RegenerateTitle 使用 Host 当次查询的辅助引用，旧 title_model_ref 字段已忽略，有限超时等待完整标题；成功设 auto_title_enabled=true 并恢复自动生成，失败保留原标题与开关。手动改名／主动重新生成推进 updated_at_ms，自动标题生成保留原时间；结果均通过含提交后 updated_at_ms 的 SessionTitleUpdated 同步到所有观察者，快照和摘要也保存该开关；RPC 响应不覆盖事件缓存。
 
 会话配置在创建时保存并返回。StartRun.config 缺失继承默认，存在时只覆盖当前 Run；SetSessionConfig 单独提交会话默认，reasoning 缺失表示模型默认。ModelSettings 和 provider 解析仍归调用方／LLM 层，core 不读取外部业务设置。业务 UUIDv7 身份与 Gateway 请求 ID 分开，可信来源单独由宿主提供，不由客户端 payload 自报。
 
@@ -123,7 +123,7 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 ### 后续能力（未实现）
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind、ContinueRun 和辅助标题 Gen 持久记录仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind 和 ContinueRun 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
 
 大历史分页由 01f 在现有 Run／Item 框架上扩展，采用核心完整恢复、UI 分页读取的边界。会话冷打开时，核心仍从头顺序读取整个 JSONL，完成校验、恢复及整体状态重建；已加载会话复用核心内存状态。UI 在恢复后的 Run／Item 投影上分页加载历史及读取长内容，分页只限制返回和展示的数据量，不减少核心冷打开时的全量读取，也不改变完整模型上下文的组装。此片不引入磁盘随机读取索引、独立尾部恢复或新增恢复检查点。
 

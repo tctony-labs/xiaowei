@@ -15,6 +15,119 @@ use crate::{
 struct Host {
     calls: Mutex<Vec<GenerationRequest>>,
     pending: Mutex<Option<tokio::sync::mpsc::UnboundedSender<GenerationEvent>>>,
+    auxiliary: Mutex<Option<String>>,
+}
+
+#[tokio::test]
+async fn title_history_write_failure_keeps_the_saved_title_and_allows_another_attempt() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let id = session.session_id.parse::<domain::SessionId>().unwrap();
+    service
+        .set_session_title(SetSessionTitleRequest {
+            session_id: session.session_id.clone(),
+            title: "原先标题".into(),
+        })
+        .await
+        .unwrap();
+
+    let fixture = domain::decode_history(include_str!("../tests/fixtures/text.jsonl")).unwrap();
+    let message = fixture
+        .iter()
+        .find_map(|entry| match &entry.payload {
+            domain::EntryPayload::Message(recorded)
+                if recorded.completeness == domain::MessageCompleteness::Complete =>
+            {
+                match &recorded.message {
+                    domain::AgentMessage::Assistant(message) => Some(message.clone()),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .unwrap();
+    let reply = |text: &'static str| {
+        let mut message = message.clone();
+        message.stop_reason = domain::FinishReason::Stop;
+        message.content = vec![domain::ContentBlock::Text {
+            text: text.into(),
+            signature: None,
+        }];
+        let host = &host;
+        async move {
+            tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                loop {
+                    if let Some(pending) = host.pending.lock().unwrap().take() {
+                        pending.send(GenerationEvent::Finished(message)).unwrap();
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap_or_else(|_| panic!("no model request for {text}"));
+        }
+    };
+    send(&service, request(&session.session_id)).await.unwrap();
+    reply("第一轮正文").await;
+    idle(&service, id).await;
+
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&id)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_next_append(TestFault::Partial);
+    *host.auxiliary.lock().unwrap() = Some("small".into());
+    let (response, ()) = tokio::join!(
+        service.regenerate_title(RegenerateTitleRequest {
+            session_id: session.session_id.clone(),
+            ..Default::default()
+        }),
+        reply("已保存标题"),
+    );
+    assert_eq!(response.unwrap().title, "已保存标题");
+    let stored = service
+        .index
+        .as_ref()
+        .unwrap()
+        .storage
+        .get(&session.session_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.summary.title, "已保存标题");
+    assert!(stored.summary.auto_title_enabled);
+    assert!(
+        crate::title::last_title_in_recent_page(&service.state().unwrap().sessions[&id]).is_none()
+    );
+
+    let attempts = host.calls.lock().unwrap().len();
+    send(&service, request(&session.session_id)).await.unwrap();
+    reply("第二轮正文").await;
+    reply("重试后标题").await;
+    assert_eq!(host.calls.lock().unwrap().len(), attempts + 2);
+    service.close().await.unwrap();
 }
 
 #[tokio::test]
@@ -435,7 +548,8 @@ impl AgentHost for Host {
     }
 
     fn get_auxiliary_model_ref(&self) -> AuxiliaryModelRefFuture {
-        Box::pin(async { Ok(None) })
+        let reference = self.auxiliary.lock().unwrap().clone();
+        Box::pin(async move { Ok(reference) })
     }
 
     fn generate(&self, request: GenerationRequest, _: CancellationToken) -> GenerationFuture {

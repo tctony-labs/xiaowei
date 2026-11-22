@@ -23,7 +23,7 @@
 
 ### 非目标与范围边界
 
-不重写 Pi provider、模型设置或 Gateway，不恢复已明确移除的“在外部对话窗口打开”按钮。本事项不默认扩展为独立聊天窗口、Studio、多人／多 agent 协作、云同步或任意插件平台。
+不重写 Pi provider、模型设置或 Gateway，不恢复已明确移除的“在外部对话窗口打开”按钮。本事项不默认扩展为独立聊天窗口、Studio、多人协作、云同步或任意插件平台。
 
 2026-09-29 用户确认首期保留旧版自动压缩、自动／手动标题生成，输入沿用现有 textarea，展示 Markdown／代码和工具卡片。2026-10-10 用户确认 preset 与技能暂缓；2026-10-18 补充登记 Todo 和 Skill，具体实现范围以后再定，Todo 放在问答／权限之后，Skill 放在工具批次最后。preset 仍暂缓；命令资源加载于 2026-11-17 纳入独立 02m 切片，slash 入口继续留后。附件／图片输入、富文本编辑器、旧会话数据导入及完整旧版工具集仍留到后续。不以“完整”宣称已全面对齐旧版。工具返回的数据仍须保留现有 LLM 契约支持的内容，不能因首期不提供图片输入 UI 而丢失回放元数据。
 
@@ -43,6 +43,15 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 6. 工具非法参数、未知工具、拒绝授权、模型失败、无终态断流、上下文超限及存储失败都有可验证的终态或恢复路径；不能永久停留在“生成中”。
 7. 本轮用户明确跳过 Storybook，直接实现 composer／hint 并经产品验证；通过相关 core、Gateway、存储及 renderer 自动检查，并在 Electron 验证真实模型／工具链路、平台键盘与窗口行为。模拟流、构建通过不能代替产品验收。
 8. 契约、运行循环与持久化设计经过扩展性检查：用户输入接纳与模型调用分离，历史条目有稳定身份，上下文构建不依赖“整个会话数组就是唯一历史”。说明上述后续能力的接入点及迁移路径，不以未实现的空接口或按钮作为验收证据。
+
+### 后续接入
+
+2026-11-22 用户确认补充两项支持，分别跟踪：
+
+- **MCP（Model Context Protocol）**：支持 XiaoWei Agent 通过 MCP 使用外部能力。
+- **Agent-to-Agent**：支持 XiaoWei Agent 与其他 Agent 互通。
+
+两项的接入方式、首批支持范围、实施顺序与验收方式待设计。工作项见[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md#剩余切片)。
 
 ## How
 
@@ -86,7 +95,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，03c 只保留 01f 长输出范围，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。第 5 批 TodoWrite 的最新进展见下文，后续依次为 WebFetch、后台三工具、Skill，Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
 
-PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue、辅助标题记录及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
+PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
 
 2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
 
@@ -99,6 +108,12 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
+
+2026-11-22，用户撤销 02l 的辅助标题生成持久记录。标题模型调用沿用运行日志，标题和自动生成开关保存在 SQLite。自动生成触发轮次与正文取样见[标题维护边界](2026-09-28-agent-chat/runtime-ui.md#标题维护边界)。Rust 持久会话回归验证第 5 轮后重开并在第 6 轮触发，正式 addon 与 worker 集成验证模型请求只带最近 5 个符合条件的轮次。
+
+自动标题节奏收敛为最近一页内距上次成功满 3 个有效轮次触发。SQLite 保存标题和开关，JSONL 只保留生成成功的 Run ID 和轮次。Rust 回归验证重开、重新开启、隔 3 轮尝试和失败后下一轮重试；故障注入验证 JSONL 部分写入失败后保留标题并恢复下一轮。正式 addon 与 worker 集成、Clippy、`just check` 均通过，当前工作区 Electron 已加载新模块。写入失败边界与读取兼容性见[标题生成成功记录](2026-09-28-agent-chat/history-format.md#标题生成成功记录)。
+
+同日 19:28–19:30，从当前工作区 Electron 的 Quick Chat 新建独立验收会话 `01a20304-1d62-73f5-a650-dd285a06ca0f`，使用已配置的真实模型完成 4 轮。第 1、4 轮窗口标题更新且运行日志显示自动生成，第 2、3 轮保留原标题且未启动标题任务。JSONL 仅有第 1、4 轮的 `title_generated`，Run ID 与各自终态匹配。结束后切回原会话，解除临时置顶并收起窗口。重开与写入失败仍由自动回归覆盖。
 
 2026-11-20，完成会话权限模式。参考旧版 `d97d45b42bf9bc621e66603ad878cccb97dd990c` 的 `ExecutionPolicy`，沿用两种工作区权限，把旧 `Unrestricted` 对应为 `FullAccess`。统一约束 Write／Edit、Bash 和权限申请；桌面创建显式传 `FullAccess`，缺少模式的旧会话保留 `Interactive` 行为。Run 固定模式，切换只追加权限说明及授权工具的变化。接入和实际行为见 [Agent core](../../../crates/xw-agent/README.md)，文件边界见 [runtime](../../../crates/xw-agent-runtime/README.md)。
 

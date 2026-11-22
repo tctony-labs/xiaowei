@@ -96,16 +96,27 @@ pub(crate) async fn execute(
             && session.failed_run.is_none()
             && session.view.auto_title_enabled
             && crate::title::has_output(&run)
-            && let Err(error) = crate::title::schedule_title(
-                &mut state,
-                shared.clone(),
-                host,
-                index.clone(),
-                session_id,
-                false,
-            )
+            && let Some(current) = crate::title::title_generation(&session.view.runs)
         {
-            log::debug!("Agent automatic title skipped session={session_id}: {error}");
+            let round = current.round;
+            if crate::title::last_title_in_recent_page(session)
+                .is_none_or(|previous| round.saturating_sub(previous.round) >= 3)
+            {
+                if let Err(error) = crate::title::schedule_title(
+                    &mut state,
+                    shared.clone(),
+                    host,
+                    index.clone(),
+                    session_id,
+                    false,
+                ) {
+                    log::debug!("Agent automatic title skipped session={session_id}: {error}");
+                } else {
+                    log::debug!(
+                        "Agent automatic title scheduled session={session_id} round={round}"
+                    );
+                }
+            }
         }
     }
     if let Some(index) = index {

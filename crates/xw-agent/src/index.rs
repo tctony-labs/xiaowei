@@ -100,7 +100,14 @@ impl AgentService {
             .as_ref()
             .unwrap()
             .entries()
-            .last()
+            .iter()
+            .rev()
+            .find(|entry| {
+                !matches!(
+                    entry.payload,
+                    xw_agent_types::EntryPayload::TitleGenerated(_)
+                )
+            })
             .map_or(stored.updated_at_ms, |entry| entry.timestamp_ms)
             .max(stored.updated_at_ms);
         session.view.archive_revision = stored.archive_revision;
@@ -482,7 +489,7 @@ pub(crate) async fn persist_title(
         update_activity,
         expected,
     } = update;
-    let request = {
+    let (request, generated) = {
         let state = shared.lock().map_err(|_| AgentError::Internal)?;
         if state.closed {
             return Err(AgentError::Closed);
@@ -507,7 +514,8 @@ pub(crate) async fn persist_title(
         if update_activity {
             updated.updated_at_ms = updated.updated_at_ms.max(now_ms()?);
         }
-        updated
+        let generated = expected.and_then(|_| crate::title::title_generation(&session.view.runs));
+        (updated, generated)
     };
     let stored = index.storage.update(request.clone()).await?.summary;
     let response = SetSessionTitleResponse {
@@ -524,6 +532,21 @@ pub(crate) async fn persist_title(
     session.view.auto_title_enabled = auto_title_enabled;
     session.view.metadata_revision = request.metadata_revision;
     session.view.updated_at_ms = session.view.updated_at_ms.max(stored.updated_at_ms);
+    if let Some(generated) = generated
+        && let Some(journal) = &mut session.journal
+    {
+        let round = generated.round;
+        let run_id = generated.run_id;
+        let timestamp = now_ms().unwrap_or(stored.updated_at_ms);
+        if let Err(error) = journal.append(
+            xw_agent_types::EntryPayload::TitleGenerated(generated),
+            timestamp,
+        ) {
+            log::warn!(
+                "Agent title saved without history record session={id} run={run_id} round={round}: {error}"
+            );
+        }
+    }
     AgentService::publish(
         &mut state,
         AgentEvent {

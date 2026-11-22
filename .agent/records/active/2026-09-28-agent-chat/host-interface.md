@@ -78,7 +78,7 @@ generate 只有一次成功／失败终态；失败、取消和无终态断流�
 
 worker 对支持 fetch 注入的 OpenAI Completions／Responses／Codex Responses、Azure Responses、Anthropic 路径观察原响应字节，按跨 chunk 的 LF／CRLF／CR 识别 data event，跳过心跳，不保留正文、不 clone／tee；取消、背压及错误沿原流传播。不可注入的 Google／Vertex、非 SSE／WebSocket 保持未知，不改变 transport。时间至多一次经 Generate PB → Host adapter → runtime 传递，聊天写 GenFirstSseReceived；已采集事实在失败时仍保留。
 
-标题使用同一流的完整收集函数，SQLite 保存最终标题／自动生成开关；辅助标题 Gen 目前有运行日志，但尚未把独立生命周期写入 JSONL，留在标题持久记录后续工作。
+标题使用同一流的完整收集函数，SQLite 保存最终标题／自动生成开关，辅助标题任务通过运行日志追踪。触发和取样规则见[标题维护边界](runtime-ui.md#标题维护边界)。
 
 ## 与客户端协议的区别
 

@@ -1,6 +1,6 @@
 # 00：剩余实施顺序
 
-关联 [record](../../records/active/2026-09-28-agent-chat.md)。本文件只索引未完成切片，不是代码阶段；已交付成果与验证统一见[交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md)。保留原编号，不继续拆分后续计划。
+关联 [record](../../records/active/2026-09-28-agent-chat.md)。本文件索引未完成切片及已确认、待设计的工作。已交付成果与验证统一见[交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md)。保留原切片编号。
 
 ## 当前基线与下一步
 
@@ -40,23 +40,24 @@
 1. 第 6 批网页工具与搜索设置及本轮 Skill 已完成实现与验收，证据见交付结果；资源加载已完成独立验收，下一批推进 02h 的 BgRun／BgOutput／BgStop。preset 继续暂缓。
 2. 01f 的历史读取可独立推进，03a／03c 等其公共接口；不因工具 UI 已完成而放宽完整快照预算。后台工具仍等第 7 批。
 
-工具批次之外，01f／03a（历史读取与展示）、02j（压缩）和 02l（辅助标题记录）可在各自前置满足时独立实施，完整完成后再汇入 03d／04d；本次不将它们插入工具批次。
+历史分页与自动压缩可以排在同一轮并行推进：分页服务负责读取完整原始历史，压缩负责缩减后续模型使用的上下文。历史 UI 与 01f 同组交付；压缩和 Continue 的状态随 03d 接入组合交互。联合验证压缩后仍能分页查看原始历史和长内容。
 
 工具删除／同名替换的 provider 适配须在允许动态工具撤销／替换或依赖此能力的 Skill 之前完成；本批 Skill 使用固定名称字符串 schema，目录和正文走既有指令增量，不依赖工具 schema 替换。原生 Responses Lite 与缓存收益另按真实代理路径验收。这些仍是未完成边界。
 
 ## 剩余切片
 
-| 切片 | 剩余结果 | 前置 |
-| --- | --- | --- |
-| [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
-| [02h](02h-bash-sandbox.md) | 第 7 批后台工具 | 第一阶段前台 Bash 已验收；第 7 批接第 6 批 |
-| [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
-| [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 已交付交互、02h、02j；文件搜索已交付 |
-| [02l](02l-titles.md) | 辅助标题 Gen 的独立持久记录 | 当前标题与 rollout |
-| [03a](03a-history-ui.md) | 历史分页／完整长内容 UI | 01f；复用已交付 Markdown／代码和消息复制 |
-| [03c](03c-tools-interaction-ui.md) | 完整工具长输出 | 01f；现有工具和问答／权限 UI 已交付 |
-| [03d](03d-composed-preview.md) | 新工具／压缩／继续状态的组合 UI 验收 | 03a、03c、02j、02k |
-| [04d](04d-final-acceptance.md) | 全部工具批次的生产接线及完整验收 | 后续工具与 02h–02l、03d；本轮 Skill；01f／03a 的历史边界 |
+| 工作组 | 切片 | 剩余结果 | 前置 |
+| --- | --- | --- | --- |
+| 历史读取与展示 | [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
+| 历史读取与展示 | [03a](03a-history-ui.md) | 历史分页／完整长内容 UI | 01f；复用已交付 Markdown／代码和消息复制 |
+| 历史读取与展示 | [03c](03c-tools-interaction-ui.md) | 完整工具长输出 | 01f；现有工具和问答／权限 UI 已交付 |
+| 工具执行与运行恢复 | [02h](02h-bash-sandbox.md) | 第 7 批后台工具 | 第一阶段前台 Bash 已验收；第 7 批接第 6 批 |
+| 工具执行与运行恢复 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
+| 工具执行与运行恢复 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 已交付交互、02h、02j；文件搜索已交付 |
+| 产品联调与验收 | [03d](03d-composed-preview.md) | 新工具／压缩／继续状态的组合 UI 验收 | 03a、03c、02j、02k |
+| 产品联调与验收 | [04d](04d-final-acceptance.md) | 首期工具批次的生产接线及完整验收 | 02h、02j、02k、03d；本轮 Skill；01f／03a 的历史边界 |
+| 外部接入 | [MCP](../../records/active/2026-09-28-agent-chat.md#后续接入) | MCP 外部能力接入 | 待设计，依赖与排期待定 |
+| 外部接入 | [Agent-to-Agent](../../records/active/2026-09-28-agent-chat.md#后续接入) | Agent 间互通 | 待设计，依赖与排期待定 |
 
 ## 实施约束
 

@@ -5,17 +5,21 @@ use std::{
 
 use tokio::sync::oneshot;
 use xw_agent_runtime::{GenerationRequest, complete_text};
-use xw_agent_types::{AgentMessage as ModelMessage, ContentBlock, GenId, SessionId, UserMessage};
+use xw_agent_types::{
+    AgentMessage as ModelMessage, ContentBlock, EntryPayload, GenId, RunId, SessionId,
+    TitleGenerated, UserMessage,
+};
 
 use crate::{
     AgentError, AgentHost, AgentService, CancellationToken, LlmGeneration,
     protocol::*,
     service::{State, now_ms},
-    session::{TitleTask, parse_id},
+    session::{Session, TitleTask, parse_id},
 };
 
 const SYSTEM_PROMPT: &str = "你是会话标题生成器。根据下方对话历史生成一个 6-15 字的简洁中文标题，\
 概括整段对话的核心主题。仅输出标题本身，不要带引号、句号、emoji 或任何解释。";
+const TITLE_HISTORY_PAGE_RUNS: usize = 50;
 
 impl AgentService {
     pub(crate) fn set_title_loaded(
@@ -273,6 +277,7 @@ pub(crate) fn schedule_title(
                         session.view = previous_view;
                         return Err(error);
                     }
+                    session.last_unjournaled_title = title_generation(&session.view.runs);
                     Ok(RegenerateTitleResponse {
                         title,
                         metadata_revision: session.view.metadata_revision,
@@ -320,9 +325,51 @@ pub(crate) fn has_output(run: &AgentRun) -> bool {
     })
 }
 
+fn is_title_round(run: &AgentRun) -> bool {
+    run.status != i32::from(AgentRunStatus::InProgress) && has_output(run)
+}
+
+pub(crate) fn title_generation(runs: &[AgentRun]) -> Option<TitleGenerated> {
+    let mut rounds = runs.iter().filter(|run| is_title_round(run));
+    let run_id = rounds.next_back()?.run_id.parse().ok()?;
+    Some(TitleGenerated {
+        run_id,
+        round: rounds.count() as u32 + 1,
+    })
+}
+
+pub(crate) fn last_title_in_recent_page(session: &Session) -> Option<&TitleGenerated> {
+    let runs = &session.view.runs;
+    let page = &runs[runs.len().saturating_sub(TITLE_HISTORY_PAGE_RUNS)..];
+    let first_run_id = page.first()?.run_id.parse::<RunId>().ok()?;
+    let in_page = |title: &TitleGenerated| {
+        let run_id = title.run_id.to_string();
+        page.iter().any(|run| run.run_id == run_id)
+    };
+    if let Some(journal) = &session.journal {
+        let recent = journal.entries().iter().rev().take_while(|entry| {
+            !matches!(&entry.payload, EntryPayload::RunStarted(run) if run.run_id == first_run_id)
+        });
+        for entry in recent {
+            if let EntryPayload::TitleGenerated(title) = &entry.payload
+                && in_page(title)
+            {
+                return Some(title);
+            }
+        }
+    }
+    session
+        .last_unjournaled_title
+        .as_ref()
+        .filter(|title| in_page(title))
+}
+
 fn build_prompt(runs: &[AgentRun]) -> String {
     let mut rounds = Vec::new();
     for run in runs.iter().rev() {
+        if !is_title_round(run) {
+            continue;
+        }
         let user = run
             .items
             .iter()
@@ -342,20 +389,27 @@ fn build_prompt(runs: &[AgentRun]) -> String {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        let assistant = run
-            .items
-            .iter()
-            .filter_map(|item| match &item.content {
-                Some(agent_item::Content::AgentMessage(message)) => Some(message.text.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        if !has_output(run) || run.status == i32::from(AgentRunStatus::InProgress) {
-            continue;
-        }
+
+        let last_text_gen = run.items.iter().rev().find_map(|item| match &item.content {
+            Some(agent_item::Content::AgentMessage(message)) if !message.text.is_empty() => {
+                item.gen_id.as_deref()
+            }
+            _ => None,
+        });
+        let assistant = last_text_gen.map_or_else(String::new, |gen_id| {
+            run.items
+                .iter()
+                .filter(|item| item.gen_id.as_deref() == Some(gen_id))
+                .filter_map(|item| match &item.content {
+                    Some(agent_item::Content::AgentMessage(message)) => Some(message.text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        });
+
         rounds.push((user, assistant));
-        if rounds.len() == 3 {
+        if rounds.len() == 5 {
             break;
         }
     }
@@ -397,8 +451,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn title_prompt_keeps_last_three_rounds_with_bounded_body_text_only() {
-        let runs = (1..=4)
+    fn success_outside_the_latest_run_page_does_not_set_the_cadence() {
+        let mut session = Session::new(SessionId::new(), 1, AgentModelConfig::default());
+        session.view.runs = (0..=TITLE_HISTORY_PAGE_RUNS)
+            .map(|_| AgentRun {
+                run_id: RunId::new().to_string(),
+                ..Default::default()
+            })
+            .collect();
+        session.last_unjournaled_title = Some(TitleGenerated {
+            run_id: session.view.runs[0].run_id.parse().unwrap(),
+            round: 1,
+        });
+        assert!(last_title_in_recent_page(&session).is_none());
+
+        session.view.runs.pop();
+        assert_eq!(last_title_in_recent_page(&session).unwrap().round, 1);
+    }
+
+    #[test]
+    fn title_prompt_keeps_last_five_rounds_and_last_assistant_message() {
+        let runs = (1..=6)
             .map(|n| AgentRun {
                 status: AgentRunStatus::Completed.into(),
                 items: vec![
@@ -417,6 +490,21 @@ mod tests {
                         ..Default::default()
                     },
                     AgentItem {
+                        gen_id: Some("intermediate".into()),
+                        content: Some(agent_item::Content::AgentMessage(AgentMessage {
+                            text: "intermediate text".into(),
+                        })),
+                        ..Default::default()
+                    },
+                    AgentItem {
+                        gen_id: Some("last".into()),
+                        content: Some(agent_item::Content::AgentMessage(AgentMessage {
+                            text: "final text".into(),
+                        })),
+                        ..Default::default()
+                    },
+                    AgentItem {
+                        gen_id: Some("last".into()),
                         content: Some(agent_item::Content::AgentMessage(AgentMessage {
                             text: "答".repeat(700),
                         })),
@@ -428,9 +516,14 @@ mod tests {
             .collect::<Vec<_>>();
         let prompt = build_prompt(&runs);
         assert!(!prompt.contains("q1"));
-        assert!(prompt.find("q2").unwrap() < prompt.find("q4").unwrap());
+        assert!(prompt.find("q2").unwrap() < prompt.find("q6").unwrap());
+        assert!(!prompt.contains("intermediate text"));
         assert!(!prompt.contains("private reasoning"));
-        assert_eq!(prompt.matches('答').count(), 1800);
+        assert_eq!(prompt.matches("final text").count(), 5);
+        assert_eq!(
+            prompt.matches('答').count(),
+            5 * (600 - "final text\n".len())
+        );
         assert_eq!(
             clean_title(&format!("**{}。**", "题".repeat(80)))
                 .chars()

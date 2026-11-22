@@ -39,7 +39,7 @@ async function ageSession(root, sessionId, timestamp) {
   return path;
 }
 
-test("formal Agent owns SQLite and archive/delete; titles never append JSONL", async () => {
+test("formal Agent owns SQLite and archive/delete; manual renames keep history intact", async () => {
   const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient } = await import("xiaowei-gateway");

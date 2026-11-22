@@ -45,7 +45,8 @@ pub use rollout::{
     GenFirstSseReceived, GenPurpose, GenStarted, GenStatus, InputAccepted, InputCancelReason,
     InputCancelled, InputConsumed, JournalEntry, MessageCompleteness, ProviderToolKey,
     RecordedMessage, RunEnd, RunStarted, RunStatus, SafeError, SessionMeta, SessionSummary,
-    TitleSource, ToolIntent, ToolOutcome, ToolStatus, TurnEnded, TurnStarted, TurnStatus,
+    TitleGenerated, TitleSource, ToolIntent, ToolOutcome, ToolStatus, TurnEnded, TurnStarted,
+    TurnStatus,
 };
 
 pub use validation::{

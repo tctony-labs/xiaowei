@@ -11,7 +11,8 @@ use xw_agent::{
     GenerationRequest, GenerationStream, InputSource, SourceKind, protocol::*,
 };
 use xw_agent_types::{
-    AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason, InputId,
+    AgentMessage as History, AssistantMessage, ClientRequestId, ContentBlock, FinishReason,
+    InputId, TokenUsage, UsageCost,
 };
 
 #[derive(Default)]
@@ -31,7 +32,22 @@ fn message(text: &str) -> AssistantMessage {
             text: text.into(),
             signature: Some("signature".into()),
         }],
-        usage: Default::default(),
+        usage: Some(TokenUsage {
+            input: 1,
+            output: 1,
+            cache_read: 0,
+            cache_write: 0,
+            total: 2,
+            reasoning: None,
+            cache_write_1h: None,
+            cost: Some(UsageCost {
+                input: 0.0,
+                output: 0.0,
+                cache_read: 0.0,
+                cache_write: 0.0,
+                total: 0.0,
+            }),
+        }),
         stop_reason: FinishReason::Stop,
         timestamp_ms: 1,
         response_id: None,
@@ -146,7 +162,10 @@ async fn wait_for(model: &Model, count: usize) {
         }
     })
     .await
-    .unwrap();
+    .unwrap_or_else(|_| {
+        let requests = model.requests.lock().unwrap();
+        panic!("received {} of {count} model requests", requests.len());
+    });
 }
 
 async fn title_event(observer: &mut xw_agent::EventSubscription) -> SessionTitleUpdated {
@@ -238,13 +257,118 @@ async fn automatic_title_is_after_run_completion_and_shared_by_observers_and_rec
     };
     assert_eq!(ready.session.unwrap().title, "自动标题");
     send(&service, &session).await;
-    wait_for(&model, 4).await;
+    wait_for(&model, 3).await;
     assert_eq!(
         model.requests.lock().unwrap()[2].messages.len(),
         4,
         "title prompt must not enter chat history"
     );
     service.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn automatic_title_cadence_is_derived_from_restored_runs() {
+    let root = tempfile::tempdir().unwrap();
+    let model = Arc::new(Model::default());
+    *model.auxiliary.lock().unwrap() = Some("small".into());
+    let mut service = AgentService::open(model.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "chat".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+
+    let mut titles = 0;
+    for round in 1..=15 {
+        if matches!(round, 4 | 9) {
+            service.close().await.unwrap();
+            service = AgentService::open(model.clone(), root.path().into())
+                .await
+                .unwrap();
+        }
+        let mut observer = service
+            .subscribe_session(SubscribeSessionRequest {
+                session_id: session.session_id.clone(),
+            })
+            .await
+            .unwrap();
+        send_text(&service, &session, &format!("问题 {round}")).await;
+        let completed = tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if let Some(agent_event::Payload::RunCompleted(completed)) =
+                    observer.recv().await.unwrap().unwrap().payload
+                {
+                    break completed.run.unwrap();
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            completed.status,
+            i32::from(AgentRunStatus::Completed),
+            "round {round}: {:?}",
+            completed.error
+        );
+
+        if matches!(round, 1 | 4 | 11 | 12 | 15) {
+            titles += 1;
+            wait_for(&model, round + titles).await;
+            if round == 11 {
+                model.titles.lock().unwrap()[titles - 1]
+                    .try_send(Ok(GenerationEvent::Finished(message(""))))
+                    .unwrap();
+                continue;
+            }
+            let title = format!("自动标题 {round}");
+            model.titles.lock().unwrap()[titles - 1]
+                .try_send(Ok(GenerationEvent::Finished(message(&title))))
+                .unwrap();
+            loop {
+                if title_event(&mut observer).await.title == title {
+                    break;
+                }
+            }
+        }
+
+        if round == 4 {
+            service
+                .set_session_title(SetSessionTitleRequest {
+                    session_id: session.session_id.clone(),
+                    title: "手动标题".into(),
+                })
+                .await
+                .unwrap();
+        }
+        if round == 8 {
+            titles += 1;
+            let (regenerated, ()) = tokio::join!(
+                service.regenerate_title(RegenerateTitleRequest {
+                    session_id: session.session_id.clone(),
+                    ..Default::default()
+                }),
+                async {
+                    wait_for(&model, round + titles).await;
+                    model.titles.lock().unwrap()[titles - 1]
+                        .try_send(Ok(GenerationEvent::Finished(message("重新开启"))))
+                        .unwrap();
+                }
+            );
+            assert_eq!(regenerated.unwrap().title, "重新开启");
+        }
+    }
+    service.close().await.unwrap();
+    assert_eq!(model.titles.lock().unwrap().len(), titles);
 }
 
 #[tokio::test]
@@ -487,8 +611,14 @@ async fn setting_title_cancels_stale_generation_and_protects_future_runs_until_r
         .unwrap();
     assert_eq!(regeneration.await.unwrap().unwrap().title, "重新生成标题");
     assert!(read(&service, &session).auto_title_enabled);
-    send(&service, &session).await;
-    wait_for(&model, 7).await;
+    for count in 6..=8 {
+        send(&service, &session).await;
+        wait_for(&model, count).await;
+        while read(&service, &session).status != i32::from(AgentSessionStatus::Idle) {
+            tokio::task::yield_now().await;
+        }
+    }
+    wait_for(&model, 9).await;
     assert_eq!(
         model.requests.lock().unwrap().last().unwrap().max_tokens,
         Some(64)

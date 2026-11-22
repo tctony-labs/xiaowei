@@ -331,4 +331,4 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 
 正文 Markdown、代码块、原文复制和有序工具展示已于 2026-10-25 接产品并验收；问答／权限本批的窗口链路和已知平台验收边界见上文。
 
-剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)：历史分页 UI／大历史读取、后续工具批次、自动压缩、显式继续、辅助标题 Gen 记录及对应 UI／完整产品验收。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 仅保留已确认设计边界。
+剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)：历史分页 UI／大历史读取、后续工具批次、自动压缩、显式继续及对应 UI／完整产品验收。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 仅保留已确认设计边界。

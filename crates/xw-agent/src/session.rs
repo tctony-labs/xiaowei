@@ -41,6 +41,7 @@ pub(crate) struct Session {
     pub active: Option<ActiveRun>,
     pub title_tasks: std::collections::BTreeMap<xw_agent_types::GenId, TitleTask>,
     pub current_title_task: Option<xw_agent_types::GenId>,
+    pub last_unjournaled_title: Option<xw_agent_types::TitleGenerated>,
 }
 
 impl Session {
@@ -76,6 +77,7 @@ impl Session {
             },
             title_tasks: Default::default(),
             current_title_task: None,
+            last_unjournaled_title: None,
             deletion_announced: false,
             history: Vec::new(),
             granted_paths: Vec::new(),

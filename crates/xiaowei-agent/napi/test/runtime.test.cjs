@@ -59,9 +59,11 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
           choices: [{ index: 0, delta, finish_reason }],
         })}\n\n`,
       );
+    // Keep this cancel case deterministic for the title cadence check below.
+    if (text === "cancel") return;
     send({ role: "assistant", reasoning_content: "thinking" });
     send({ content: "partial" });
-    if (text === "cancel" || text === "close") return;
+    if (text === "close") return;
     if (text === "eof") {
       outgoing.end();
       return;
@@ -260,6 +262,26 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
         { partial: true },
       ),
     );
+    const automaticRun = await send("auto-title", undefined, "test");
+    const automaticEvents = await Promise.all(observers.map(waitTitle));
+    assert.deepEqual(automaticEvents[0], automaticEvents[1]);
+    assert.equal(automaticEvents[0].title, "partial-answer");
+    assert.equal(automaticEvents[0].autoTitleEnabled, true);
+    assert.ok(automaticEvents[0].updatedAtMs > 0n);
+    assert.equal(automaticEvents[0].updatedAtMs, automaticRun.final.completedAtMs);
+    const titleInput = requests.at(-1).messages.at(-1).content;
+    const titlePrompt = typeof titleInput === "string" ? titleInput : titleInput[0].text;
+    assert.match(titlePrompt, /用户: second\n[\s\S]*用户: auto-title\n/);
+    assert.doesNotMatch(titlePrompt, /用户: (first|http-error|cancel)\n/);
+    const afterAutomatic = (
+      await api.readSession(
+        create(pb.ReadSessionRequestSchema, {
+          sessionId: session.sessionId,
+        }),
+      )
+    ).session;
+    assert.equal(afterAutomatic.updatedAtMs, automaticEvents[0].updatedAtMs);
+    await new Promise((resolve) => setTimeout(resolve, 2));
     const manual = await api.regenerateTitle(
       create(pb.RegenerateTitleRequestSchema, {
         sessionId: session.sessionId,
@@ -269,27 +291,12 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(manual.title, "partial-answer");
     const manualEvents = await Promise.all(observers.map(waitTitle));
     assert.deepEqual(manualEvents[0], manualEvents[1]);
-    assert.ok(manualEvents[0].updatedAtMs > snapshot.session.updatedAtMs);
+    assert.ok(manualEvents[0].updatedAtMs > afterAutomatic.updatedAtMs);
     assert.equal(requests.at(-1).max_tokens, 64);
     assert.equal(requests.at(-1).temperature, 0.8);
     // Pi maps the system instruction to developer for this reasoning model.
     assert.equal(requests.at(-1).messages[0].role, "developer");
     assert.equal(requests.at(-1).messages.length, 2);
-    const automaticRun = await send("auto-title", undefined, "test");
-    const automaticEvents = await Promise.all(observers.map(waitTitle));
-    assert.deepEqual(automaticEvents[0], automaticEvents[1]);
-    assert.equal(automaticEvents[0].title, "partial-answer");
-    assert.equal(automaticEvents[0].autoTitleEnabled, true);
-    assert.ok(automaticEvents[0].updatedAtMs > 0n);
-    assert.equal(automaticEvents[0].updatedAtMs, automaticRun.final.completedAtMs);
-    const afterAutomatic = (
-      await api.readSession(
-        create(pb.ReadSessionRequestSchema, {
-          sessionId: session.sessionId,
-        }),
-      )
-    ).session;
-    assert.equal(afterAutomatic.updatedAtMs, automaticEvents[0].updatedAtMs);
     await new Promise((resolve) => setTimeout(resolve, 2));
     const generationCount = requests.length;
     const setTitle = await api.setSessionTitle(
@@ -303,7 +310,7 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     assert.equal(setTitle.title, "手写标题");
     assert.equal(setEvents[0].metadataRevision, setTitle.metadataRevision);
     assert.equal(setEvents[0].autoTitleEnabled, false);
-    assert.ok(setEvents[0].updatedAtMs > afterAutomatic.updatedAtMs);
+    assert.ok(setEvents[0].updatedAtMs > manualEvents[0].updatedAtMs);
     assert.equal(
       (
         await api.readSession(
@@ -549,6 +556,12 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     }
 
     assert.ok(records.some((entry) => entry.payload.type === "gen_first_sse_received"));
+    const titleRecords = records.filter((entry) => entry.payload.type === "title_generated");
+    assert.equal(titleRecords.length, 3);
+    assert.deepEqual(titleRecords[0].payload.data, {
+      run_id: automaticRun.final.runId,
+      round: 6,
+    });
     const metadata = records.filter((entry) => entry.payload.type === "meta");
     assert.equal(metadata.length, 1, "unchanged model selection must not append another Meta");
     for (const entry of metadata) {

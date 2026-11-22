@@ -690,6 +690,7 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
             run.context_tokens.is_none_or(|n| n <= MAX_SAFE_INTEGER),
             "context_tokens",
         )?,
+        EntryPayload::TitleGenerated(title) => value(title.round > 0, "round")?,
         EntryPayload::InputCancelled(_) => {}
     }
     Ok(())
@@ -1628,6 +1629,11 @@ impl<'a> History<'a> {
                 self.runs.get_mut(&run.run_id).expect("checked").1 = Some(end);
                 self.active_run = None;
                 self.last_run_end = Some(end);
+            }
+            EntryPayload::TitleGenerated(title) => {
+                let (_, end) = reference(self.runs.get(&title.run_id), "run_id")?;
+                transition(end.is_some_and(|end| end.had_assistant_output), "run_id")?;
+                value(title.round as usize <= self.runs.len(), "round")?;
             }
             EntryPayload::Compacted(compacted) => {
                 self.compaction(entry.entry_id, compacted)?;

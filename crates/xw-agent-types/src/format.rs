@@ -286,7 +286,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
     let data = member(member(&mut stored, "payload")?, "data")?;
     match &entry.payload {
         EntryPayload::SessionHeader { .. } => {}
-        EntryPayload::Meta(_) | EntryPayload::SystemContext(_) => {}
+        EntryPayload::Meta(_)
+        | EntryPayload::SystemContext(_)
+        | EntryPayload::TitleGenerated(_) => {}
         EntryPayload::RunStarted(run) => {
             let context = member(data, "context")?;
             context_encode(context)?;
@@ -431,7 +433,7 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
     match kind.as_str() {
-        "meta" | "system_context" => {}
+        "meta" | "system_context" | "title_generated" => {}
         "run_started" => {
             if member(data, "context")?.get("tools").is_none() {
                 let boundary = get(data, "base_context")?;

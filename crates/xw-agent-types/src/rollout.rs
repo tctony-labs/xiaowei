@@ -367,6 +367,13 @@ pub enum GenPurpose {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TitleGenerated {
+    pub run_id: RunId,
+    pub round: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     tag = "type",
     content = "data",
@@ -398,6 +405,7 @@ pub enum EntryPayload {
     InteractionExpired(InteractionExpired),
     Compacted(Compacted),
     RunEnd(RunEnd),
+    TitleGenerated(TitleGenerated),
 }
 
 impl<'de> Deserialize<'de> for GenPurpose {

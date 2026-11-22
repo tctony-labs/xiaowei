@@ -61,6 +61,7 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `gen_ended` | `gen_id`、`status`、可选抢占原因、实际结束时间、停止原因、用量、上下文测量、单调耗时、思考耗时、安全错误 | assistant_message_id 从 Message 恢复。与 Message 完全相同的已知 usage／stop reason 省略；独立观测保留。正常结束时间等于外层则省略；恢复未知结束时间必须显式 null |
 | `turn_ended` | `turn_id`、`status`、可选抢占原因、单调耗时、安全错误／`error_ref` | final_gen_id 从最后一个所属 Conversation Gen 重建；不能指向工具提取 Gen |
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
+| `title_generated` | `run_id`、`round` | 指向已结束且有助手输出的 Run，`round` 是累计有效轮次。仅用于自动标题节奏 |
 
 `RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步，其中包含当时生效的权限说明。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
 
@@ -83,6 +84,10 @@ Gen 开始／正常结束由 runtime 采集，首 SSE 时间来自执行宿主 w
 内部观测时间仅在与外层相等时省略；真实差异保留。墙钟回拨不改变文件顺序，duration_ms 使用单调时钟，不能由墙钟差猜测。context_tokens 是单独测量，不能自动等同 usage.input 或 usage.total；辅助模型测量不覆盖聊天上下文测量。
 
 Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子终态向父终态传播时，父记录可使用 `error_ref` 引用已提交的因果错误记录；不同错误保留各自正文。抢占终态／InteractionExpired 显式保存 preempting_input_id，不从后续输入推断。
+
+### 标题生成成功记录
+
+模型生成的标题和自动生成开关写入 SQLite 后，尽力追加 `title_generated`。记录只含 Run ID 和有效轮次，标题文本、调用详情和用量由现有存储及日志处理。追加失败保留 SQLite 已保存的标题，未完整落盘的尾部沿用现有修复流程。匹配范围与重试规则见[标题维护边界](runtime-ui.md#标题维护边界)。该记录不参与聊天上下文或活动时间计算。较旧的 v2 读取器遇到此记录会拒绝读取该会话，保留原文件。
 
 ## 工具、Interaction 与压缩
 
@@ -142,12 +147,12 @@ xw-agent 直接管理 `<root>/sessions.sqlite`，xiaowei-agent 只传目录及 H
 
 | 表 | 字段 | 用途 |
 | --- | --- | --- |
-| `session` | `session_id`、`title`、`auto_title_enabled`、`created_at_ms`、`updated_at_ms`、`archived`、`archive_revision`、`deleting` | 8 列，会话目录、标题与管理状态；archive revision 持久化，deleting 支持定向清理 |
+| `session` | `session_id`、`title`、`auto_title_enabled`、`created_at_ms`、`updated_at_ms`、`archived`、`archive_revision`、`deleting` | 会话目录、标题与管理状态；archive revision 持久化，deleting 支持定向清理 |
 | `meta` | `key TEXT PRIMARY KEY NOT NULL`、`value TEXT NOT NULL` | KV，保存 retention.archive_after_days／retention.delete_after_days；新库默认 3／0 |
 
 metadata_revision 只存在当前服务实例的 Session 内存，冷恢复从 1 开始；不写 SQLite 或 JSONL，不维护独立 index_revision。当前服务 gate 串行元信息持久操作，公共快照／列表提供当前内存版本；未加载会话列表为 1。重连到重启服务后客户端必须获取新快照并丢弃旧待提交请求／版本，不能跨实例比较。archive_revision 继续约束持久归档状态。
 
-标题与 auto_title_enabled 只存 SQLite，不参与模型历史。首 query 前 15 个 Unicode 字符作初始标题（空白归一），无 first_input_preview。手动改名关闭自动标题，主动重新生成成功重新启用。普通发送、手动改名／主动生成、取消归档推进 updated_at_ms；Run 后自动标题保留原时间。Quick Chat 启动选择最后更新的未归档会话，不单独保存选中 ID。
+标题和 `auto_title_enabled` 只存 SQLite。部分开发数据库的旧 `last_title_generated_round` 列保留原值，节奏从 [JSONL 成功记录](#标题生成成功记录) 判断。首 query 前 15 个 Unicode 字符作初始标题（空白归一），无 first_input_preview。普通发送、手动改名／主动生成、取消归档推进 updated_at_ms；Run 后自动标题保留原时间。Quick Chat 启动选择最后更新的未归档会话，不单独保存选中 ID。
 
 列表按 updated_at_ms DESC／session_id DESC 分页，默认 50、最大 100，query 匹配标题；continuation 是列表位置，不是事件 cursor。标题、自动生成开关及归档状态无法仅从 JSONL 恢复，SQLite 不能随意删除重建。
 
