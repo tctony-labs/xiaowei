@@ -61,6 +61,12 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
       );
     // Keep this cancel case deterministic for the title cadence check below.
     if (text === "cancel") return;
+    if (text === "paged-content") {
+      for (let index = 0; index < 5; index++) send({ content: "历史🙂".repeat(6000) });
+      send({}, "stop");
+      outgoing.end("data: [DONE]\n\n");
+      return;
+    }
     send({ role: "assistant", reasoning_content: "thinking" });
     send({ content: "partial" });
     if (text === "close") return;
@@ -567,6 +573,63 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
     for (const entry of metadata) {
       assert.equal(Object.hasOwn(entry.payload.data, "archived"), false);
     }
+
+    const paginationStream = await streamApi.subscribeSession(
+      create(pb.SubscribeSessionRequestSchema, { sessionId: session.sessionId }),
+    );
+    await paginationStream.next();
+    for (let index = 0; index < 13; index++) {
+      const text = index === 12 ? "paged-content" : `history ${index}`;
+      const { run } = await api.startRun(
+        create(pb.StartRunRequestSchema, {
+          sessionId: session.sessionId,
+          inputId: id(),
+          input: [{ content: { case: "text", value: text } }],
+        }),
+      );
+      await terminals(paginationStream, run.runId);
+    }
+    await paginationStream.cancel();
+    const pageStream = await streamApi.subscribeSession(
+      create(pb.SubscribeSessionRequestSchema, { sessionId: session.sessionId }),
+    );
+    const latest = (await pageStream.next()).value.payload.value.session;
+    assert.equal(latest.runs.length, 20);
+    assert.ok(latest.runsContinuation);
+    const earlier = (
+      await api.readSessionRuns(
+        create(pb.ReadSessionRunsRequestSchema, {
+          sessionId: session.sessionId,
+          continuation: latest.runsContinuation,
+        }),
+      )
+    ).session;
+    assert.deepEqual(
+      earlier.runs.map(({ runId }) => runId),
+      restoredSession.runs.slice(0, 2).map(({ runId }) => runId),
+    );
+    assert.equal(earlier.runsContinuation, "");
+    const lastRun = latest.runs.at(-1);
+    const reply = lastRun.items.find((item) => item.content.case === "agentMessage");
+    assert.deepEqual(reply.shortenedFields, [pb.AgentItemField.TEXT]);
+    let offset = 0n;
+    const parts = [];
+    do {
+      const chunk = await api.readItemContent(
+        create(pb.ReadItemContentRequestSchema, {
+          sessionId: session.sessionId,
+          runId: lastRun.runId,
+          itemId: reply.itemId,
+          field: pb.AgentItemField.TEXT,
+          offset,
+        }),
+      );
+      parts.push(chunk.text);
+      offset = chunk.nextOffset;
+    } while (offset !== undefined);
+    assert.ok(parts.length > 1);
+    assert.equal(parts.join(""), "历史🙂".repeat(30_000));
+    await pageStream.cancel();
   } finally {
     await agent.close();
     await endpoint?.close();

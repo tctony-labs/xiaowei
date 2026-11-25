@@ -171,6 +171,21 @@
   color: var(--color-ink);
 }
 
+.agent-history-load {
+  color: var(--color-primary-text);
+  cursor: pointer;
+}
+
+.agent-history-load:hover,
+.agent-history-load:focus-visible {
+  text-decoration: underline;
+}
+
+.agent-history-load:disabled {
+  color: var(--color-muted);
+  cursor: default;
+}
+
 .agent-message-actions {
   display: flex;
   min-height: 22px;

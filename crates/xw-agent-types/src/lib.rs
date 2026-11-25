@@ -19,8 +19,8 @@ pub use context::{
 };
 
 pub use format::{
-    FormatError, HISTORY_VERSION, decode_deletion_marker, decode_entry, decode_history,
-    encode_deletion_marker, encode_entry, encode_history,
+    FormatError, HISTORY_VERSION, decode_deletion_marker, decode_entry, decode_entry_fields,
+    decode_history, encode_deletion_marker, encode_entry, encode_history,
 };
 
 pub use ids::{

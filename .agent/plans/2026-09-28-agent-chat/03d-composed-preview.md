@@ -1,6 +1,6 @@
 # 03d：工具、压缩与继续的组合 UI 确认
 
-前置：[03a](03a-history-ui.md)、[03c](03c-tools-interaction-ui.md)、[02j](02j-compaction.md)、[02k](02k-continue-recovery.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[02j](02j-compaction.md)、[02k](02k-continue-recovery.md)。历史分页及长工具内容已[验收](../../records/active/2026-09-28-agent-chat/implementation-results.md#大历史与长工具内容窗口验收2026-11-25)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：在现有 Quick Chat 组合新增工具／交互、压缩与继续状态，确认产品接入所需的新交互；已交付文本与 chip 不重新验收。
 
@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/QuickChatChatPreview.tsx、QuickChatLauncherPreview.tsx` | 维护 Storybook 与组件测试共用的内存 fixture；产品复用现有面板与 composer |
 | 修改 | `desktop/src/renderer/src/components/quick-chat/` 对应产品组件／测试 | 直接接入现有 transition／标题栏，保留组件回归，不新增独立预览入口 |
-| 修改 | `desktop/src/renderer/src/components/quick-chat/quick-chat.css` 及 03c 新增组件 | 加入压缩、继续、标题任务与完整异常场景，复用已确认组件 |
+| 修改 | `desktop/src/renderer/src/components/quick-chat/quick-chat.css` 及现有工具组件 | 加入压缩、继续、标题任务与完整异常场景，复用已确认组件 |
 
 ## 实施顺序
 

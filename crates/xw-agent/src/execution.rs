@@ -37,13 +37,7 @@ impl AgentService {
                 if original != &request {
                     return Err(AgentError::Conflict("input identity"));
                 }
-                let run = session
-                    .view
-                    .runs
-                    .iter()
-                    .find(|run| run.input_id == request.input_id)
-                    .cloned()
-                    .ok_or(AgentError::Conflict("input accepted without a run"))?;
+                let run = session.previously_accepted_run(input_id)?;
                 return Ok(StartRunResponse { run: Some(run) });
             }
             let config = request
@@ -116,13 +110,7 @@ impl AgentService {
             if original != &request {
                 return Err(AgentError::Conflict("input identity"));
             }
-            let run = session
-                .view
-                .runs
-                .iter()
-                .find(|run| run.input_id == request.input_id)
-                .cloned()
-                .ok_or(AgentError::Conflict("input accepted without a run"))?;
+            let run = session.previously_accepted_run(input_id)?;
             return Ok(StartRunResponse { run: Some(run) });
         }
         if session.active.is_some() {
@@ -229,10 +217,12 @@ impl AgentService {
             started_at_ms,
             items: vec![AgentItem {
                 item_id: BlockId::new().to_string(),
+                history_index: Some(0),
                 gen_id: None,
                 content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                     content: request.input.clone(),
                 })),
+                ..Default::default()
             }],
             ..Default::default()
         };
@@ -364,6 +354,7 @@ pub(crate) fn display_item(
         item_id,
         gen_id: Some(gen_id),
         content: Some(content),
+        ..Default::default()
     })
 }
 

@@ -152,9 +152,37 @@ function menuPanel(overrides: Partial<QuickChatPanelProps> = {}) {
     onOpenMessageUrl: vi.fn(async () => {}),
     ...overrides,
   };
-  render(<QuickChatPanel {...props} />);
-  return props;
+  const view = render(<QuickChatPanel {...props} />);
+  return { ...props, rerender: view.rerender };
 }
+
+test("prepending an earlier page keeps the previous message at the same viewport position", async () => {
+  let messageTop = 35;
+  const load = vi.fn(async () => {
+    messageTop += 135;
+    props.rerender(
+      <QuickChatPanel
+        {...props}
+        historyHasMore={false}
+        messages={[{ id: "older", role: "user", text: "Older" }, ...props.messages]}
+      />,
+    );
+  });
+  const props = menuPanel({ historyHasMore: true, onLoadOlderRuns: load });
+  const scroller = screen.getByRole("region", { name: "对话消息" });
+  scroller.scrollTop = 10;
+  fireEvent.scroll(scroller);
+  const message = screen.getByRole("article", { name: "用户消息" });
+  vi.spyOn(message, "getClientRects").mockReturnValue([new DOMRect()] as unknown as DOMRectList);
+  vi.spyOn(message, "getBoundingClientRect").mockImplementation(
+    () => new DOMRect(0, messageTop - scroller.scrollTop, 300, 20),
+  );
+
+  await act(async () => fireEvent.click(screen.getByRole("button", { name: "加载更早对话" })));
+  expect(load).toHaveBeenCalledOnce();
+  expect(within(scroller).getByText("Older")).toBeVisible();
+  expect(scroller.scrollTop).toBe(145);
+});
 
 test("unimplemented title actions show a toast in a conversation without pretending to edit", () => {
   menuPanel();

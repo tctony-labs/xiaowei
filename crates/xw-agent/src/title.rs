@@ -6,8 +6,8 @@ use std::{
 use tokio::sync::oneshot;
 use xw_agent_runtime::{GenerationRequest, complete_text};
 use xw_agent_types::{
-    AgentMessage as ModelMessage, ContentBlock, EntryPayload, GenId, RunId, SessionId,
-    TitleGenerated, UserMessage,
+    AgentMessage as ModelMessage, ContentBlock, EntryPayload, GenId, SessionId, TitleGenerated,
+    UserMessage,
 };
 
 use crate::{
@@ -133,7 +133,14 @@ pub(crate) fn schedule_title(
         .ok_or(AgentError::NotFound("session"))?;
     let generation: Arc<dyn LlmGeneration> = Arc::new(crate::host::HostGeneration(host.clone()));
     session.available()?;
-    let prompt = build_prompt(&session.view.runs);
+    let mut recent = session
+        .title_run_indices()
+        .rev()
+        .take(5)
+        .map(|(index, _)| session.display_run(index))
+        .collect::<Result<Vec<_>, _>>()?;
+    recent.reverse();
+    let prompt = build_prompt(&recent);
     if prompt.is_empty() {
         return Err(AgentError::TitleGeneration("没有可用于生成标题的对话轮次"));
     }
@@ -277,7 +284,7 @@ pub(crate) fn schedule_title(
                         session.view = previous_view;
                         return Err(error);
                     }
-                    session.last_unjournaled_title = title_generation(&session.view.runs);
+                    session.last_unjournaled_title = title_generation(session);
                     Ok(RegenerateTitleResponse {
                         title,
                         metadata_revision: session.view.metadata_revision,
@@ -325,13 +332,13 @@ pub(crate) fn has_output(run: &AgentRun) -> bool {
     })
 }
 
-fn is_title_round(run: &AgentRun) -> bool {
+pub(crate) fn is_title_round(run: &AgentRun) -> bool {
     run.status != i32::from(AgentRunStatus::InProgress) && has_output(run)
 }
 
-pub(crate) fn title_generation(runs: &[AgentRun]) -> Option<TitleGenerated> {
-    let mut rounds = runs.iter().filter(|run| is_title_round(run));
-    let run_id = rounds.next_back()?.run_id.parse().ok()?;
+pub(crate) fn title_generation(session: &Session) -> Option<TitleGenerated> {
+    let mut rounds = session.title_run_indices();
+    let (_, run_id) = rounds.next_back()?;
     Some(TitleGenerated {
         run_id,
         round: rounds.count() as u32 + 1,
@@ -339,13 +346,10 @@ pub(crate) fn title_generation(runs: &[AgentRun]) -> Option<TitleGenerated> {
 }
 
 pub(crate) fn last_title_in_recent_page(session: &Session) -> Option<&TitleGenerated> {
-    let runs = &session.view.runs;
-    let page = &runs[runs.len().saturating_sub(TITLE_HISTORY_PAGE_RUNS)..];
-    let first_run_id = page.first()?.run_id.parse::<RunId>().ok()?;
-    let in_page = |title: &TitleGenerated| {
-        let run_id = title.run_id.to_string();
-        page.iter().any(|run| run.run_id == run_id)
-    };
+    let first_run_id =
+        session.run_id_at(session.run_count().saturating_sub(TITLE_HISTORY_PAGE_RUNS))?;
+    let in_page =
+        |title: &TitleGenerated| session.recent_run_index(title.run_id, TITLE_HISTORY_PAGE_RUNS);
     if let Some(journal) = &session.journal {
         let recent = journal.entries().iter().rev().take_while(|entry| {
             !matches!(&entry.payload, EntryPayload::RunStarted(run) if run.run_id == first_run_id)
@@ -449,6 +453,7 @@ fn clean_title(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use xw_agent_types::RunId;
 
     #[test]
     fn success_outside_the_latest_run_page_does_not_set_the_cadence() {

@@ -110,9 +110,10 @@ impl AgentService {
             .sessions
             .get(&id)
             .filter(|session| !session.deleted())
-            .ok_or(AgentError::NotFound("session"))?
-            .view
-            .clone();
+            .ok_or(AgentError::NotFound("session"))?;
+        let emitted_at_ms = now_ms()?;
+        let session =
+            session.history_page(true, "", crate::history::SessionFrame::Ready(emitted_at_ms))?;
         state.observers.retain(|observer| {
             observer
                 .upgrade()
@@ -122,7 +123,7 @@ impl AgentService {
             return Err(AgentError::ResourceExhausted("observers"));
         }
         let initial = AgentEvent {
-            emitted_at_ms: now_ms()?,
+            emitted_at_ms,
             payload: Some(agent_event::Payload::SubscriptionReady(SubscriptionReady {
                 session: Some(session),
             })),
@@ -284,29 +285,37 @@ impl AgentService {
         &self,
         request: ReadSessionRequest,
     ) -> Result<ReadSessionResponse, AgentError> {
-        let id: SessionId = parse_id(&request.session_id, "session_id")?;
+        self.read_loaded_page(&request.session_id, request.include_runs, "")
+    }
+
+    pub(crate) fn read_loaded_page(
+        &self,
+        session_id: &str,
+        include_runs: bool,
+        continuation: &str,
+    ) -> Result<ReadSessionResponse, AgentError> {
+        let id: SessionId = parse_id(session_id, "session_id")?;
         let state = self.state()?;
         let session = state
             .sessions
             .get(&id)
             .filter(|session| !session.deleted())
             .map(|session| {
-                let mut view = session.view.clone();
-                if !request.include_runs {
-                    view.runs.clear();
-                }
-                view
-            });
-        if session
-            .as_ref()
-            .is_some_and(|session| session.encoded_len() > 1024 * 1024)
-        {
-            return Err(AgentError::ResourceExhausted("session snapshot"));
-        }
-        Ok(ReadSessionResponse {
+                session.history_page(
+                    include_runs,
+                    continuation,
+                    crate::history::SessionFrame::Read,
+                )
+            })
+            .transpose()?;
+        let response = ReadSessionResponse {
             found: session.is_some(),
             session,
-        })
+        };
+        if response.encoded_len() > crate::history::PAGE_BYTES {
+            return Err(AgentError::ResourceExhausted("session snapshot"));
+        }
+        Ok(response)
     }
 
     pub(crate) async fn delete_loaded(
@@ -362,6 +371,7 @@ impl AgentService {
                 .map_err(crate::persistence::storage_error)?;
         }
         session.journal = None;
+        session.display_history = None;
         session.deletion_announced = true;
         session.history.clear();
         session.view.runs.clear();
@@ -476,7 +486,33 @@ impl AgentService {
         Ok(())
     }
 
-    pub(crate) fn publish(state: &mut State, event: AgentEvent) {
+    pub(crate) fn publish(state: &mut State, mut event: AgentEvent) {
+        let item = match &mut event.payload {
+            Some(agent_event::Payload::ItemStarted(value)) => {
+                Some((&value.session_id, &value.run_id, &mut value.item))
+            }
+            Some(agent_event::Payload::ItemCompleted(value)) => {
+                Some((&value.session_id, &value.run_id, &mut value.item))
+            }
+            _ => None,
+        };
+        if let Some((session_id, run_id, item)) = item {
+            *item = item.take().map(|mut item| {
+                item.history_index = session_id
+                    .parse::<SessionId>()
+                    .ok()
+                    .and_then(|id| state.sessions.get(&id))
+                    .and_then(|session| session.view.runs.last())
+                    .filter(|run| run.run_id == *run_id)
+                    .and_then(|run| {
+                        run.items
+                            .iter()
+                            .position(|entry| entry.item_id == item.item_id)
+                    })
+                    .and_then(|index| u32::try_from(index).ok());
+                crate::history::preview(item)
+            });
+        }
         if matches!(
             &event.payload,
             Some(
@@ -575,6 +611,7 @@ mod tests {
                         content: Some(agent_item::Content::AgentMessage(AgentMessage {
                             text: "before".into(),
                         })),
+                        ..Default::default()
                     }],
                     ..Default::default()
                 });

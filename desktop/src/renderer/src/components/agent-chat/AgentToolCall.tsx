@@ -1,4 +1,5 @@
 import { AgentToolStatus, type AgentToolCall as ToolCall } from "proto-desktop-ts";
+import { AgentItemPreviewButton } from "./AgentItemPreviewButton";
 import { AgentTodoList } from "./AgentTodoList";
 import { AgentToolIcon } from "./AgentToolIcon";
 import { type AgentWebLinkProps, AgentWebResult } from "./AgentWebResult";
@@ -18,9 +19,11 @@ export function AgentToolCall({
   call,
   defaultOpen,
   onOpenUrl,
+  onLoadFull,
 }: {
   call: ToolCall;
   defaultOpen?: boolean;
+  onLoadFull?: () => Promise<unknown>;
 } & AgentWebLinkProps) {
   const status = statusLabels[call.status] ?? "状态未知";
   const active = call.status === AgentToolStatus.PENDING;
@@ -75,7 +78,7 @@ export function AgentToolCall({
         </span>
       </summary>
       <div className="agent-tool-details">
-        {call.name === "WebFetch" || call.name === "WebSearch" ? (
+        {!onLoadFull && (call.name === "WebFetch" || call.name === "WebSearch") ? (
           <AgentWebResult call={call} onOpenUrl={onOpenUrl} />
         ) : todos !== undefined ? (
           <AgentTodoList todos={todos} />
@@ -96,6 +99,7 @@ export function AgentToolCall({
             </section>
           </>
         )}
+        {onLoadFull && <AgentItemPreviewButton onLoad={onLoadFull} />}
         {typeof diff?.unified === "string" && (
           <div>
             <h4>

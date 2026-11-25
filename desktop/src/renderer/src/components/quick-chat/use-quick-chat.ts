@@ -172,6 +172,14 @@ export function useQuickChat(services: Services, viewing = false) {
 
   return {
     messages: client.messages,
+    historyHasMore: !!client.session?.runsContinuation,
+    historyLoading: client.historyLoading,
+    historyError: client.historyError,
+    onLoadOlderRuns: () => client.loadOlderRuns(),
+    itemPages: client.itemPages,
+    onLoadRunItems: (runId: string) => client.loadRunItems(runId),
+    onLoadItemContent: (...input: Parameters<typeof client.loadItemContent>) =>
+      client.loadItemContent(...input),
     sessionId: client.session?.sessionId ?? null,
     title: client.session?.title || undefined,
     onRename: (title: string) => void client.setTitle(title).catch(() => {}),

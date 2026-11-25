@@ -4,6 +4,7 @@ import {
   type AgentInteraction,
   AgentInteractionAnswerSchema,
   AgentInteractionStatus,
+  AgentItemField,
   type AgentModelConfig,
   type AgentSession,
   type AgentSessionSummary,
@@ -14,7 +15,10 @@ import {
   InterruptRunRequestSchema,
   ListSessionsRequestSchema,
   ObserveInteractionsRequestSchema,
+  ReadItemContentRequestSchema,
+  ReadRunItemsRequestSchema,
   ReadSessionRequestSchema,
+  ReadSessionRunsRequestSchema,
   RegenerateTitleRequestSchema,
   type RespondInteractionRequest,
   RespondInteractionRequestSchema,
@@ -26,7 +30,7 @@ import {
 } from "proto-desktop-ts";
 import { GatewayFailure } from "xiaowei-gateway";
 import type { Services } from "../../services";
-import { applyAgentEvent, chatMessages } from "./agent-events";
+import { applyAgentEvent, chatMessages, mergeItems } from "./agent-events";
 import { agentIdentity } from "./identity";
 import type { InteractionForm } from "./message-blocks";
 
@@ -67,6 +71,9 @@ export class AgentChatClient {
   sessions: AgentSessionSummary[] = [];
   sessionsLoading = false;
   sessionsContinuation = "";
+  historyLoading = false;
+  historyError = "";
+  readonly itemPages = new Map<string, { loading: boolean; error: string }>();
   private pending?: { inputId: string; text: string };
   private acceptedRun?: { sessionId: string; runId: string };
   private terminalWaiters = new Set<Observer>();
@@ -116,6 +123,143 @@ export class AgentChatClient {
       });
     }
     return messages;
+  }
+
+  async loadOlderRuns() {
+    const sessionId = this.session?.sessionId;
+    const continuation = this.session?.runsContinuation;
+    if (!sessionId || !continuation || this.historyLoading) return;
+    const generation = this.generation;
+    this.historyLoading = true;
+    this.historyError = "";
+    this.notify();
+    try {
+      const { session: page } = await this.services
+        .getAgent()
+        .readSessionRuns(create(ReadSessionRunsRequestSchema, { sessionId, continuation }));
+      const current = this.session;
+      if (this.generation !== generation || current?.sessionId !== sessionId) return;
+      if (!page || page.sessionId !== sessionId) throw new Error("Missing session history page");
+      const known = new Set(current.runs.map((run) => run.runId));
+      this.session = {
+        ...current,
+        runsContinuation: page.runsContinuation,
+        runs: [...page.runs.filter((run) => !known.has(run.runId)), ...current.runs],
+      };
+    } catch {
+      if (this.generation === generation) this.historyError = "加载历史失败，请重试。";
+    } finally {
+      if (this.generation === generation) {
+        this.historyLoading = false;
+        this.notify();
+      }
+    }
+  }
+
+  async loadRunItems(runId: string) {
+    const sessionId = this.session?.sessionId;
+    const continuation = this.session?.runs.find((run) => run.runId === runId)?.itemsContinuation;
+    if (!sessionId || !continuation || this.itemPages.get(runId)?.loading) return;
+    const generation = this.generation;
+    this.itemPages.set(runId, { loading: true, error: "" });
+    this.notify();
+    try {
+      const page = await this.services
+        .getAgent()
+        .readRunItems(create(ReadRunItemsRequestSchema, { sessionId, runId, continuation }));
+      const current = this.session;
+      if (this.generation !== generation || current?.sessionId !== sessionId) return;
+      this.session = {
+        ...current,
+        runs: current.runs.map((run) =>
+          run.runId === runId
+            ? {
+                ...run,
+                items: mergeItems(run.items, page.items),
+                itemsContinuation: page.continuation,
+              }
+            : run,
+        ),
+      };
+      this.itemPages.delete(runId);
+    } catch {
+      if (this.generation === generation) {
+        this.itemPages.set(runId, { loading: false, error: "加载过程失败，请重试。" });
+      }
+    } finally {
+      if (this.generation === generation) this.notify();
+    }
+  }
+
+  async loadItemContent(runId: string, itemId: string, fields: readonly AgentItemField[]) {
+    const generation = this.generation;
+    const sessionId = this.session?.sessionId;
+    if (!sessionId) throw new Error("Missing session");
+    const values = new Map<AgentItemField, string>();
+    for (const field of fields) {
+      const chunks = [];
+      let offset = 0n;
+      for (;;) {
+        const result = await this.services
+          .getAgent()
+          .readItemContent(
+            create(ReadItemContentRequestSchema, { sessionId, runId, itemId, field, offset }),
+          );
+        if (this.generation !== generation) throw new Error("Observation replaced");
+        chunks.push(result.text);
+        if (result.nextOffset === undefined) break;
+        if (result.nextOffset <= offset) throw new Error("Invalid content continuation");
+        offset = result.nextOffset;
+      }
+      values.set(field, chunks.join(""));
+    }
+    const current = this.session;
+    if (this.generation !== generation || current?.sessionId !== sessionId) {
+      throw new Error("Observation replaced");
+    }
+    this.session = {
+      ...current,
+      runs: current.runs.map((run) => {
+        if (run.runId !== runId) return run;
+        return {
+          ...run,
+          items: run.items.map((item) => {
+            if (item.itemId !== itemId) return item;
+            const full = {
+              ...item,
+              shortenedFields: item.shortenedFields.filter((field) => !values.has(field)),
+            };
+            switch (full.content.case) {
+              case "agentMessage":
+              case "reasoning":
+                full.content = {
+                  ...full.content,
+                  value: {
+                    ...full.content.value,
+                    text: values.get(AgentItemField.TEXT) ?? full.content.value.text,
+                  },
+                } as typeof full.content;
+                break;
+              case "toolCall":
+                full.content = {
+                  case: "toolCall",
+                  value: {
+                    ...full.content.value,
+                    argumentsJson:
+                      values.get(AgentItemField.TOOL_ARGUMENTS) ?? full.content.value.argumentsJson,
+                    output: values.get(AgentItemField.TOOL_OUTPUT) ?? full.content.value.output,
+                    metadataJson:
+                      values.get(AgentItemField.TOOL_METADATA) ?? full.content.value.metadataJson,
+                  },
+                };
+            }
+            return full;
+          }),
+        };
+      }),
+    };
+    this.notify();
+    return values;
   }
 
   get busy() {
@@ -380,6 +524,9 @@ export class AgentChatClient {
         this.error = this.feedback.get(sessionId)?.error ?? "";
       }
       this.session = first.value.payload.value.session;
+      this.historyLoading = false;
+      this.historyError = "";
+      this.itemPages.clear();
       void this.connectInteractions(generation, sessionId, true);
       if (!this.pending || this.session.runs.some((run) => run.inputId === this.pending?.inputId))
         this.error = "";

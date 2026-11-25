@@ -324,6 +324,63 @@ impl AgentService {
         self.subscribe_loaded(request)
     }
 
+    pub async fn read_session_runs(
+        &self,
+        request: ReadSessionRunsRequest,
+    ) -> Result<ReadSessionResponse, AgentError> {
+        if request.continuation.is_empty() {
+            return Err(AgentError::InvalidArgument("continuation"));
+        }
+        let _gate = if let Some(index) = &self.index {
+            let gate = index.gate.lock().await;
+            self.require(&request.session_id).await?;
+            Some(gate)
+        } else {
+            None
+        };
+        self.read_loaded_page(&request.session_id, true, &request.continuation)
+    }
+
+    pub async fn read_run_items(
+        &self,
+        request: ReadRunItemsRequest,
+    ) -> Result<ReadRunItemsResponse, AgentError> {
+        let id = parse_id(&request.session_id, "session_id")?;
+        let _gate = if let Some(index) = &self.index {
+            let gate = index.gate.lock().await;
+            self.require(&request.session_id).await?;
+            Some(gate)
+        } else {
+            None
+        };
+        self.state()?
+            .sessions
+            .get(&id)
+            .filter(|session| !session.deleted())
+            .ok_or(AgentError::NotFound("session"))?
+            .read_run_items(request)
+    }
+
+    pub async fn read_item_content(
+        &self,
+        request: ReadItemContentRequest,
+    ) -> Result<ReadItemContentResponse, AgentError> {
+        let id = parse_id(&request.session_id, "session_id")?;
+        let _gate = if let Some(index) = &self.index {
+            let gate = index.gate.lock().await;
+            self.require(&request.session_id).await?;
+            Some(gate)
+        } else {
+            None
+        };
+        self.state()?
+            .sessions
+            .get(&id)
+            .filter(|session| !session.deleted())
+            .ok_or(AgentError::NotFound("session"))?
+            .read_item_content(request)
+    }
+
     pub async fn start_run(
         &self,
         request: StartRunRequest,
@@ -339,7 +396,7 @@ impl AgentService {
         let initial = {
             let state = self.state()?;
             let session = &state.sessions[&id];
-            if session.view.runs.is_empty() && session.view.title.is_empty() {
+            if session.run_count() == 0 && session.view.title.is_empty() {
                 let text = request
                     .input
                     .iter()
@@ -514,7 +571,7 @@ pub(crate) async fn persist_title(
         if update_activity {
             updated.updated_at_ms = updated.updated_at_ms.max(now_ms()?);
         }
-        let generated = expected.and_then(|_| crate::title::title_generation(&session.view.runs));
+        let generated = expected.and_then(|_| crate::title::title_generation(session));
         (updated, generated)
     };
     let stored = index.storage.update(request.clone()).await?.summary;

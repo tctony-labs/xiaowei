@@ -18,6 +18,12 @@ pub mod xiaowei_agent_agent_service {
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.ListSessions", xw_gateway::MethodKind::Unary);
     pub const READ_SESSION: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::ReadSessionRequest, proto_agent_rs::xiaowei::agent::ReadSessionResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.ReadSession", xw_gateway::MethodKind::Unary);
+    pub const READ_SESSION_RUNS: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::ReadSessionRunsRequest, proto_agent_rs::xiaowei::agent::ReadSessionResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.ReadSessionRuns", xw_gateway::MethodKind::Unary);
+    pub const READ_RUN_ITEMS: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::ReadRunItemsRequest, proto_agent_rs::xiaowei::agent::ReadRunItemsResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.ReadRunItems", xw_gateway::MethodKind::Unary);
+    pub const READ_ITEM_CONTENT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::ReadItemContentRequest, proto_agent_rs::xiaowei::agent::ReadItemContentResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.ReadItemContent", xw_gateway::MethodKind::Unary);
     pub const SET_SESSION_CONFIG: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::SetSessionConfigRequest, proto_agent_rs::xiaowei::agent::SetSessionConfigResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.SetSessionConfig", xw_gateway::MethodKind::Unary);
     pub const SET_SESSION_TITLE: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::SetSessionTitleRequest, proto_agent_rs::xiaowei::agent::SetSessionTitleResponse> =

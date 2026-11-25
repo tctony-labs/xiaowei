@@ -1,7 +1,7 @@
 use xw_agent_rollout::{Journal, RolloutError, WriterState};
 use xw_agent_types::{
-    ContextBoundary, EntryPayload, JournalEntry, SystemContext, SystemContextDelta,
-    SystemContextUpdate, ValidationError,
+    EntryPayload, JournalEntry, SystemContext, SystemContextDelta, SystemContextUpdate,
+    ValidationError,
 };
 
 /// Compares named content, without changing the caller's committed state.
@@ -76,12 +76,17 @@ pub fn sync_system_context(
         return Err(RolloutError::NeedsCheck);
     }
 
-    let boundary = ContextBoundary {
-        through_entry_id: journal.entries().last().map(|entry| entry.entry_id),
-        after_turn_id: None,
-    };
-    let rebuilt = crate::rebuild_context(journal.entries(), &boundary)?;
-    let Some(update) = plan_system_context_update(rebuilt.system_context.as_ref(), desired)? else {
+    let mut previous = None;
+    for entry in journal.entries() {
+        match &entry.payload {
+            EntryPayload::SystemContext(update) => {
+                previous = Some(update.apply(previous.as_ref())?)
+            }
+            EntryPayload::Compacted(compacted) => previous = compacted.system_context.clone(),
+            _ => {}
+        }
+    }
+    let Some(update) = plan_system_context_update(previous.as_ref(), desired)? else {
         return Ok(None);
     };
 

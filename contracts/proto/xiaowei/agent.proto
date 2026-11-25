@@ -11,6 +11,9 @@ service Agent {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc ReadSession(ReadSessionRequest) returns (ReadSessionResponse);
+  rpc ReadSessionRuns(ReadSessionRunsRequest) returns (ReadSessionResponse);
+  rpc ReadRunItems(ReadRunItemsRequest) returns (ReadRunItemsResponse);
+  rpc ReadItemContent(ReadItemContentRequest) returns (ReadItemContentResponse);
   // Commits session defaults immediately; an active run retains its own snapshot.
   // Stale expected_metadata_revision is conflict. Observe SessionConfigUpdated.
   rpc SetSessionConfig(SetSessionConfigRequest) returns (SetSessionConfigResponse);
@@ -138,6 +141,18 @@ message AgentItem {
   }
   // Generating response identity for assistant/reasoning/tool items; absent for user input.
   optional string gen_id = 6;
+  // Display fields shortened for transport. ReadItemContent returns stored text.
+  repeated AgentItemField shortened_fields = 7;
+  // Zero-based chronological position within the Run for paged Items.
+  optional uint32 history_index = 8;
+}
+
+enum AgentItemField {
+  AGENT_ITEM_FIELD_UNSPECIFIED = 0;
+  AGENT_ITEM_FIELD_TEXT = 1;
+  AGENT_ITEM_FIELD_TOOL_ARGUMENTS = 2;
+  AGENT_ITEM_FIELD_TOOL_OUTPUT = 3;
+  AGENT_ITEM_FIELD_TOOL_METADATA = 4;
 }
 
 // Current conversation Generate, including opening/queueing and gaps between content blocks.
@@ -177,6 +192,10 @@ message AgentRun {
   // present even when that response contains no visible text. Select matching Item.gen_id
   // for the final reply; earlier responses remain process content. Rebuilt from the journal.
   optional string final_gen_id = 12;
+  // Opaque ReadRunItems continuation. Empty when all Items are included.
+  string items_continuation = 13;
+  // True when this continuation reads earlier Items from a live Run's first page.
+  bool items_continuation_is_older = 14;
 }
 
 message AgentSession {
@@ -189,9 +208,8 @@ message AgentSession {
   // to a restarted service and discard pending requests using an old revision.
   // Changes only when session metadata/default configuration changes.
   uint64 metadata_revision = 5;
-  // Complete retained display history, grouped by run/item. ReadSession includes
-  // it only with include_runs=true; SubscriptionReady always includes it.
-  // These are display projections, not messages for constructing model history.
+  // One display history page in chronological order, at most 20 Runs.
+  // Each Run includes its first page, at most 20 Items in chronological order.
   repeated AgentRun runs = 6;
   // Empty until a title has been set or generated. Does not enter chat history.
   string title = 7;
@@ -210,6 +228,8 @@ message AgentSession {
   int64 updated_at_ms = 15;
   // Absolute working directory; absent for a rootless text-only session.
   optional string cwd = 16;
+  // Opaque ReadSession continuation for earlier Runs. Empty at the start.
+  string runs_continuation = 17;
 }
 
 // Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
@@ -275,9 +295,7 @@ message ListSessionsResponse {
 
 message ReadSessionRequest {
   string session_id = 1;
-  // False reads metadata only; true includes all retained runs and their items.
-  // Standalone point-in-time query. Do not merge this response into a live event
-  // cache: use the atomic initial snapshot from SubscribeSession.
+  // False reads metadata only. True includes the most recent Run page.
   bool include_runs = 2;
 }
 
@@ -285,6 +303,42 @@ message ReadSessionResponse {
   // False for unknown or deleted sessions; session is then absent.
   bool found = 1;
   AgentSession session = 2;
+}
+
+message ReadSessionRunsRequest {
+  string session_id = 1;
+  // Required continuation. Merge only the returned Runs into a live cache.
+  string continuation = 2;
+}
+
+message ReadRunItemsRequest {
+  string session_id = 1;
+  string run_id = 2;
+  // Required continuation from the Run or the previous Item page. Completed
+  // Runs read forward. A continuation issued while active keeps reading backward.
+  string continuation = 3;
+}
+
+message ReadRunItemsResponse {
+  // Chronological order, at most 20 Items. Every history reply is at most 1 MiB encoded.
+  repeated AgentItem items = 1;
+  string continuation = 2;
+}
+
+message ReadItemContentRequest {
+  string session_id = 1;
+  string run_id = 2;
+  string item_id = 3;
+  AgentItemField field = 4;
+  // UTF-8 byte offset, initially zero. Must be on a character boundary.
+  uint64 offset = 5;
+}
+
+message ReadItemContentResponse {
+  // At most 256 KiB, ending on a UTF-8 character boundary.
+  string text = 1;
+  // Absent at end of content.
+  optional uint64 next_offset = 2;
 }
 
 message SetSessionConfigRequest {
@@ -372,11 +426,10 @@ message SubscribeSessionRequest {
 }
 
 // First frame: full public state of the requested session, including retained
-// runs/items. Session is always present on a successfully opened subscription.
+// runs and their first Item pages. Session is present on every successful open.
 // Snapshot and registration use the same serial boundary; earlier events are
 // not replayed. Later deletion/run/item changes follow on this stream.
-// Reject subscription with resource-exhausted if initial state exceeds its
-// frame budget; never truncate state or yield an already-invalid subscription.
+// The encoded AgentEvent is at most 1 MiB. The active Run is always included.
 message SubscriptionReady {
   AgentSession session = 1;
 }
@@ -399,7 +452,7 @@ message RunStarted {
 
 message RunCompleted {
   string session_id = 1;
-  // Final run status and complete public items, including any partial display.
+  // Final Run state and recent Items. Merge with Items already received.
   AgentRun run = 2;
 }
 

@@ -1,4 +1,4 @@
-import type { AgentInteraction, AgentItem, AgentToolCall } from "proto-desktop-ts";
+import type { AgentInteraction, AgentItem, AgentItemField, AgentToolCall } from "proto-desktop-ts";
 
 export interface InteractionForm {
   text: string;
@@ -15,11 +15,17 @@ export interface InteractionControls {
   onRespond: (id: string, allow?: boolean) => void;
 }
 
-export type AgentMessageBlock =
+export type LoadAgentItem = (
+  itemId: string,
+  fields: readonly AgentItemField[],
+) => Promise<ReadonlyMap<AgentItemField, string>>;
+
+export type AgentMessageBlock = { shortenedFields?: AgentItemField[] } & (
   | { id: string; kind: "text"; text: string }
   | { id: string; kind: "reasoning"; text: string }
   | { id: string; kind: "tool"; call: AgentToolCall }
-  | { id: string; kind: "interaction"; interaction: AgentInteraction };
+  | { id: string; kind: "interaction"; interaction: AgentInteraction }
+);
 
 export type AgentToolBlock = Extract<AgentMessageBlock, { kind: "tool" }>;
 
@@ -35,7 +41,7 @@ export interface AgentGenerationState {
 
 export type AgentMessageGroup =
   | Exclude<AgentMessageBlock, AgentProcessBlock>
-  | { id: string; kind: "todo"; call: AgentToolCall }
+  | { id: string; kind: "todo"; call: AgentToolCall; shortenedFields?: AgentItemField[] }
   | { id: string; kind: "process"; blocks: AgentProcessBlock[]; complete: boolean };
 
 export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGroup[] {
@@ -49,7 +55,7 @@ export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGro
     if (block.kind === "text" || block.kind === "interaction" || todo) {
       if (previous?.kind === "process") previous.complete = true;
       if (todo) {
-        groups.push({ id: block.id, kind: "todo", call: block.call });
+        groups.push({ ...block, kind: "todo" });
       } else if (block.kind === "text" || block.kind === "interaction") {
         groups.push(block);
       }
@@ -68,18 +74,19 @@ export function groupMessageBlocks(blocks: AgentMessageBlock[]): AgentMessageGro
 
 export function messageBlocks(items: AgentItem[]): AgentMessageBlock[] {
   return items.flatMap((item): AgentMessageBlock[] => {
+    const preview = item.shortenedFields.length ? { shortenedFields: item.shortenedFields } : {};
     switch (item.content.case) {
       case "agentMessage":
-        return [{ id: item.itemId, kind: "text", text: item.content.value.text }];
+        return [{ id: item.itemId, kind: "text", text: item.content.value.text, ...preview }];
       case "reasoning":
-        return [{ id: item.itemId, kind: "reasoning", text: item.content.value.text }];
+        return [{ id: item.itemId, kind: "reasoning", text: item.content.value.text, ...preview }];
       case "toolCall":
         if (item.content.value.interaction?.request.case) {
           return [
             { id: item.itemId, kind: "interaction", interaction: item.content.value.interaction },
           ];
         }
-        return [{ id: item.itemId, kind: "tool", call: item.content.value }];
+        return [{ id: item.itemId, kind: "tool", call: item.content.value, ...preview }];
       default:
         return [];
     }

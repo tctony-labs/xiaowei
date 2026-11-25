@@ -1,9 +1,10 @@
 import { AgentToolStatus } from "proto-desktop-ts";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { AgentItemPreviewButton } from "./AgentItemPreviewButton";
 import { AgentReasoning } from "./AgentReasoning";
 import { AgentToolCall } from "./AgentToolCall";
 import type { AgentWebLinkProps } from "./AgentWebResult";
-import type { AgentProcessBlock } from "./message-blocks";
+import type { AgentProcessBlock, LoadAgentItem } from "./message-blocks";
 import { reasoningPreview } from "./reasoning-preview";
 import { toolGroupPresentation } from "./tool-presentation";
 
@@ -12,13 +13,18 @@ export function AgentProcessGroup({
   complete = false,
   activeBlockId,
   onOpenUrl,
+  onLoadItem,
+  openItems,
 }: {
   blocks: AgentProcessBlock[];
   complete?: boolean;
   activeBlockId?: string;
+  onLoadItem?: LoadAgentItem;
+  openItems?: Set<string>;
 } & AgentWebLinkProps) {
   const contentId = useId();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => blocks.some((block) => openItems?.has(block.id)));
+  const wasComplete = useRef(complete);
   const multiple = blocks.length > 1;
   const calls = blocks.flatMap((block) => (block.kind === "tool" ? [block.call] : []));
   const tools = toolGroupPresentation(calls);
@@ -35,8 +41,12 @@ export function AgentProcessGroup({
   const cancelled = calls.some((call) => call.status === AgentToolStatus.CANCELLED);
 
   useEffect(() => {
-    if (complete) setExpanded(false);
-  }, [complete]);
+    if (complete && !wasComplete.current) {
+      setExpanded(false);
+      for (const block of blocks) openItems?.delete(block.id);
+    }
+    wasComplete.current = complete;
+  }, [blocks, complete, openItems]);
 
   return (
     <div className="agent-process-group">
@@ -48,7 +58,13 @@ export function AgentProcessGroup({
           aria-expanded={expanded}
           aria-busy={active}
           aria-controls={contentId}
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => {
+            setExpanded(!expanded);
+            for (const block of blocks) {
+              if (expanded) openItems?.delete(block.id);
+              else openItems?.add(block.id);
+            }
+          }}
         >
           <span className="agent-process-disclosure" aria-hidden="true" />
           <span className={`min-w-0 truncate${active ? " agent-shimmer" : ""}`} title={label}>
@@ -59,17 +75,21 @@ export function AgentProcessGroup({
         </button>
       )}
       <div id={contentId} className="agent-process-group-content" hidden={multiple && !expanded}>
-        {blocks.map((block) =>
-          block.kind === "reasoning" ? (
-            <AgentReasoning
-              key={block.id}
-              text={block.text}
-              active={!complete && block.id === activeBlockId}
-            />
+        {blocks.map((block) => {
+          const fields = block.shortenedFields;
+          const load =
+            fields?.length && onLoadItem ? () => onLoadItem(block.id, fields) : undefined;
+          return block.kind === "reasoning" ? (
+            <div key={block.id} data-chat-anchor={block.id}>
+              <AgentReasoning text={block.text} active={!complete && block.id === activeBlockId} />
+              {load && <AgentItemPreviewButton onLoad={load} />}
+            </div>
           ) : (
-            <AgentToolCall key={block.id} call={block.call} onOpenUrl={onOpenUrl} />
-          ),
-        )}
+            <div key={block.id} data-chat-anchor={block.id}>
+              <AgentToolCall call={block.call} onOpenUrl={onOpenUrl} onLoadFull={load} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

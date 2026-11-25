@@ -4,6 +4,7 @@ import type {
   AgentGenerationState,
   AgentMessageBlock,
   InteractionControls,
+  LoadAgentItem,
 } from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
@@ -22,6 +23,7 @@ export interface QuickChatMessage {
   timestampMs?: bigint;
   status?: "generating" | "complete" | "cancelled" | "failed";
   error?: string;
+  moreItems?: "older" | "newer";
 }
 
 export interface QuickChatPanelProps extends ComposerControlsProps {
@@ -31,6 +33,16 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   messages: QuickChatMessage[];
   onCopyMessageText: (text: string) => Promise<void>;
   onOpenMessageUrl: (url: string) => Promise<void>;
+  historyHasMore?: boolean;
+  historyLoading?: boolean;
+  historyError?: string;
+  onLoadOlderRuns?: () => Promise<void>;
+  itemPages?: ReadonlyMap<string, { loading: boolean; error: string }>;
+  onLoadRunItems?: (runId: string) => Promise<void>;
+  onLoadItemContent?: (
+    runId: string,
+    ...input: Parameters<LoadAgentItem>
+  ) => ReturnType<LoadAgentItem>;
   sessionId?: string | null;
   onCopySessionId?: (id: string) => Promise<void>;
   title?: string;
@@ -64,6 +76,7 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
 
 // No sessions, persistence or Gateway connection here: the page adapter owns the conversation.
 export function QuickChatPanel(props: QuickChatPanelProps) {
+  const { onLoadOlderRuns, onLoadRunItems, onLoadItemContent } = props;
   const composer = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const scroll = useRef<HTMLElement>(null);
@@ -71,6 +84,11 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const scrollPosition = useRef(0);
   const sessionScroll = useRef(new Map<string, { position: number; follow: boolean }>());
   const scrollSession = useRef(props.sessionId ?? "");
+  const [historyAnchor, setHistoryAnchor] = useState<{
+    sessionId: string;
+    id: string;
+    offset: number;
+  }>();
   const [composerHeight, setComposerHeight] = useState(65);
   const canSend = props.questionReply
     ? !props.loading && !props.questionReply.submitting && props.questionReply.canSubmit
@@ -113,12 +131,38 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
       scrollSession.current = sessionId;
     }
     if (!props.messages.length) followOutput.current = true;
-    if (scroll.current && props.expanded) {
-      scroll.current.scrollTop = followOutput.current
-        ? scroll.current.scrollHeight
-        : scrollPosition.current;
+    const element = scroll.current;
+    if (element && props.expanded) {
+      let position = followOutput.current ? element.scrollHeight : scrollPosition.current;
+      if (historyAnchor?.sessionId === sessionId) {
+        const anchor = Array.from(element.querySelectorAll<HTMLElement>("[data-chat-anchor]")).find(
+          (candidate) => candidate.dataset.chatAnchor === historyAnchor.id,
+        );
+        if (anchor?.getClientRects().length) {
+          position = element.scrollTop + anchor.getBoundingClientRect().top - historyAnchor.offset;
+          scrollPosition.current = position;
+        }
+      }
+      element.scrollTop = position;
     }
-  }, [props.messages, props.expanded, props.sessionId]);
+    if (historyAnchor) setHistoryAnchor(undefined);
+  }, [props.messages, props.expanded, props.sessionId, historyAnchor]);
+
+  async function loadPage(load: () => Promise<void>) {
+    const element = scroll.current;
+    const top = element?.getBoundingClientRect().top ?? 0;
+    const anchors = Array.from(element?.querySelectorAll<HTMLElement>("[data-chat-anchor]") ?? []);
+    const anchor = anchors.find(
+      (candidate) =>
+        candidate.getClientRects().length && candidate.getBoundingClientRect().top >= top,
+    );
+    const id = anchor?.dataset.chatAnchor;
+    const offset = anchor?.getBoundingClientRect().top;
+    const sessionId = props.sessionId ?? "";
+    followOutput.current = false;
+    await load();
+    if (id && offset !== undefined) setHistoryAnchor({ id, offset, sessionId });
+  }
 
   function send() {
     if (!canSend) return;
@@ -279,7 +323,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                     element.scrollHeight - element.clientHeight - element.scrollTop < 40;
                 }
               }}
-              className={`min-h-0 flex-1 px-4 ${animating ? "overflow-hidden" : "overflow-y-auto"}`}
+              className={`min-h-0 flex-1 px-4 [overflow-anchor:none] ${animating ? "overflow-hidden" : "overflow-y-auto"}`}
             >
               {!props.messages.length && props.emptyState ? (
                 <div className="flex min-h-full items-center justify-center py-8">
@@ -287,6 +331,19 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3 py-3">
+                  {props.historyHasMore && onLoadOlderRuns && (
+                    <div className="text-center text-xs text-muted">
+                      <button
+                        type="button"
+                        className="agent-history-load"
+                        disabled={props.historyLoading}
+                        onClick={() => void loadPage(onLoadOlderRuns)}
+                      >
+                        {props.historyLoading ? "正在加载…" : "加载更早对话"}
+                      </button>
+                      {props.historyError && <p role="alert">{props.historyError}</p>}
+                    </div>
+                  )}
                   {!props.messages.length && !props.error && (
                     <p className="py-6 text-center text-sm text-muted">
                       {props.loading ? "正在加载模型" : "输入问题开始对话"}
@@ -295,6 +352,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                   {props.messages.map((message) => (
                     <article
                       key={message.id}
+                      data-chat-anchor={message.id}
                       aria-label={message.role === "user" ? "用户消息" : "助手消息"}
                       className={
                         message.role === "user"
@@ -309,6 +367,17 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         onCopy={props.onCopyMessageText}
                         onOpenUrl={props.onOpenMessageUrl}
                         interactions={props.interactions}
+                        itemPage={props.itemPages?.get(message.id)}
+                        loadMoreItems={
+                          onLoadRunItems
+                            ? () => void loadPage(() => onLoadRunItems(message.id))
+                            : undefined
+                        }
+                        onLoadItem={
+                          onLoadItemContent
+                            ? (id, fields) => onLoadItemContent(message.id, id, fields)
+                            : undefined
+                        }
                       />
                     </article>
                   ))}

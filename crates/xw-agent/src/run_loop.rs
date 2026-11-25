@@ -83,7 +83,7 @@ pub(crate) async fn execute(
             &mut state,
             event(agent_event::Payload::RunCompleted(RunCompleted {
                 session_id: session_id.to_string(),
-                run: Some(run.clone()),
+                run: Some(crate::history::completed_run(&run)),
             })),
         );
         log::debug!(
@@ -96,7 +96,7 @@ pub(crate) async fn execute(
             && session.failed_run.is_none()
             && session.view.auto_title_enabled
             && crate::title::has_output(&run)
-            && let Some(current) = crate::title::title_generation(&session.view.runs)
+            && let Some(current) = crate::title::title_generation(session)
         {
             let round = current.round;
             if crate::title::last_title_in_recent_page(session)
@@ -118,6 +118,22 @@ pub(crate) async fn execute(
                 }
             }
         }
+        let session = state
+            .sessions
+            .get_mut(&session_id)
+            .expect("settled session");
+        if session.failed_run.is_none() {
+            match session.archive_display() {
+                Ok(()) => {
+                    if let Some(journal) = &mut session.journal {
+                        journal.release_completed_contents();
+                    }
+                }
+                Err(error) => {
+                    log::warn!("Agent display index update delayed session={session_id}: {error}");
+                }
+            }
+        }
     }
     if let Some(index) = index {
         let _gate = index.gate.lock().await;
@@ -136,22 +152,12 @@ async fn drive(
     let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
-        let todo_metadata = session
-            .view
-            .runs
-            .iter()
-            .rev()
-            .flat_map(|run| run.items.iter().rev())
-            .find_map(|item| match &item.content {
-                Some(agent_item::Content::ToolCall(tool))
-                    if tool.name == "TodoWrite"
-                        && tool.status == AgentToolStatus::Completed as i32 =>
-                {
-                    Some(tool.metadata_json.clone())
-                }
-                _ => None,
-            })
-            .flatten();
+        let todo_metadata = crate::history::latest_todo(&session.view.runs).unwrap_or_else(|| {
+            session
+                .display_history
+                .as_ref()
+                .and_then(|history| history.todo_metadata.clone())
+        });
         (
             session.view.cwd.clone(),
             session
@@ -788,6 +794,7 @@ pub(crate) fn tool_item(
             duration_ms: outcome.and_then(|o| o.duration_ms),
             interaction: None,
         })),
+        ..Default::default()
     }
 }
 

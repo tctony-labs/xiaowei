@@ -39,6 +39,9 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
     let archive = agent.clone();
     let list = agent.clone();
     let read = agent.clone();
+    let read_runs = agent.clone();
+    let read_run_items = agent.clone();
+    let read_item_content = agent.clone();
     let set_title = agent.clone();
     let set_config = agent.clone();
     let delete = agent.clone();
@@ -153,6 +156,35 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
             async move {
                 ready(&agent)?;
                 agent.service.read_session(request).await.map_err(error)
+            }
+        }),
+        api::READ_SESSION_RUNS.handler(move |request, _| {
+            let agent = read_runs.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .read_session_runs(request)
+                    .await
+                    .map_err(error)
+            }
+        }),
+        api::READ_RUN_ITEMS.handler(move |request, _| {
+            let agent = read_run_items.clone();
+            async move {
+                ready(&agent)?;
+                agent.service.read_run_items(request).await.map_err(error)
+            }
+        }),
+        api::READ_ITEM_CONTENT.handler(move |request, _| {
+            let agent = read_item_content.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .read_item_content(request)
+                    .await
+                    .map_err(error)
             }
         }),
         api::SET_SESSION_CONFIG.handler(move |request, _| {

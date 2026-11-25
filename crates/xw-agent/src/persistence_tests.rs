@@ -508,7 +508,7 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
         {
             let state = service.state().unwrap();
             let recovered = &state.sessions[&id];
-            let completed = recovered.view.runs[0].items.iter().any(|item| {
+            let completed = recovered.display_run(0).unwrap().items.iter().any(|item| {
                 matches!(&item.content, Some(agent_item::Content::ToolCall(tool))
                 if tool.status == AgentToolStatus::Completed as i32)
             });
@@ -853,7 +853,7 @@ async fn a_failed_permission_decision_never_grants_or_resumes_and_recovery_close
         let mut state = service.state().unwrap();
         let session = state.sessions.get_mut(&id).unwrap();
         session.prepare_writer().unwrap();
-        for item in &session.view.runs[0].items {
+        for item in &session.display_run(0).unwrap().items {
             if let Some(agent_item::Content::ToolCall(tool)) = &item.content {
                 assert_eq!(
                     tool.interaction.as_ref().unwrap().status,

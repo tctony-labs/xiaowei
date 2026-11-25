@@ -32,11 +32,21 @@ import {
   type StartRunRequest,
   StartRunResponseSchema,
 } from "proto-desktop-ts";
-import { bindHandlers, bindStreamHandlers, GatewayFailure } from "xiaowei-gateway";
+import {
+  bindHandlers,
+  bindStreamHandlers,
+  GatewayFailure,
+  type ServiceHandlers,
+} from "xiaowei-gateway";
 import { GatewayHost } from "xiaowei-gateway/host";
 import { agentIdentity } from "./identity";
 
-export function agentFixture(host = new GatewayHost()) {
+type HistoryHandlers = Pick<
+  ServiceHandlers<typeof Agent>,
+  "readSessionRuns" | "readRunItems" | "readItemContent"
+>;
+
+export function agentFixture(host = new GatewayHost(), history: Partial<HistoryHandlers> = {}) {
   let session: AgentSession | undefined;
   const sessions = new Map<string, AgentSession>();
   const creations = new Map<string, AgentSession>();
@@ -85,6 +95,7 @@ export function agentFixture(host = new GatewayHost()) {
       ...run.items.filter((item) => item.content.case === "toolCall"),
       {
         $typeName: "xiaowei.agent.AgentItem",
+        shortenedFields: [],
         itemId: agentIdentity(),
         genId,
         content: {
@@ -94,6 +105,7 @@ export function agentFixture(host = new GatewayHost()) {
       },
       {
         $typeName: "xiaowei.agent.AgentItem",
+        shortenedFields: [],
         itemId: agentIdentity(),
         genId,
         content: { case: "agentMessage", value: { $typeName: "xiaowei.agent.AgentMessage", text } },
@@ -240,6 +252,15 @@ export function agentFixture(host = new GatewayHost()) {
           session: session ? clone(AgentSessionSchema, session) : undefined,
         });
       },
+      readSessionRuns() {
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "no fixture page" });
+      },
+      readRunItems() {
+        throw new GatewayFailure({ code: "INVALID_ARGUMENT", message: "no fixture page" });
+      },
+      readItemContent() {
+        throw new GatewayFailure({ code: "NOT_FOUND", message: "no fixture content" });
+      },
       setSessionConfig(request) {
         if (failConfig) {
           failConfig = false;
@@ -365,6 +386,7 @@ export function agentFixture(host = new GatewayHost()) {
         interrupted++;
         return create(InterruptRunResponseSchema, { found: true, cancellationRequested: true });
       },
+      ...history,
     }),
     ...bindStreamHandlers(Agent, {
       observeInteractions(request, client) {
@@ -542,6 +564,7 @@ export function agentFixture(host = new GatewayHost()) {
       });
       const item = {
         $typeName: "xiaowei.agent.AgentItem" as const,
+        shortenedFields: [],
         itemId: agentIdentity(),
         genId,
         content: {

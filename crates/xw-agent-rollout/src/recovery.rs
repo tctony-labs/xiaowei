@@ -1,10 +1,10 @@
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
+    io::{BufRead, BufReader, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
-use xw_agent_types::{FormatError, JournalEntry, SessionId, decode_entry, validate_history};
+use xw_agent_types::{FormatError, JournalEntry, SessionId, decode_entry_fields, validate_history};
 
 use crate::{Result, RolloutError};
 
@@ -16,7 +16,7 @@ pub struct Repair {
 
 fn decode(line: &[u8], history: &[JournalEntry]) -> Result<JournalEntry> {
     let text = std::str::from_utf8(line).map_err(|_| RolloutError::InvalidHistory)?;
-    decode_entry(text, history).map_err(|error| match error {
+    decode_entry_fields(text, history).map_err(|error| match error {
         FormatError::UnsupportedVersion { .. } => RolloutError::UnsupportedVersion,
         _ => RolloutError::InvalidHistory,
     })
@@ -28,34 +28,25 @@ pub(crate) fn read_and_repair(
     session_id: SessionId,
 ) -> Result<(Vec<JournalEntry>, Repair)> {
     file.seek(SeekFrom::Start(0))?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes)?;
-    let committed = bytes
-        .iter()
-        .rposition(|byte| *byte == b'\n')
-        .map_or(0, |index| index + 1);
+    let mut reader = BufReader::new(&mut *file);
+    let mut committed = 0;
+    let mut line = Vec::new();
     let mut entries = Vec::new();
-    for line in bytes[..committed]
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-    {
-        let entry = decode(line, &entries)?;
+    loop {
+        line.clear();
+        let len = reader.read_until(b'\n', &mut line)?;
+        if line.last() != Some(&b'\n') {
+            break;
+        }
+        let entry = decode(&line[..len - 1], &entries)?;
         if entry.session_id != session_id {
             return Err(RolloutError::InvalidHistory);
         }
         entries.push(entry);
+        committed += len as u64;
     }
-    // Empty complete lines are corruption too, not padding to skip.
-    if bytes[..committed]
-        .iter()
-        .filter(|byte| **byte == b'\n')
-        .count()
-        != entries.len()
-    {
-        return Err(RolloutError::InvalidHistory);
-    }
-    validate_history(&entries)?;
-    let tail = &bytes[committed..];
+    validate_history(&entries).map_err(|_| RolloutError::InvalidHistory)?;
+    let tail = line.as_slice();
     if tail.is_empty() {
         return Ok((entries, Repair::default()));
     }
@@ -63,9 +54,9 @@ pub(crate) fn read_and_repair(
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(tail) {
         if value.is_object() {
             let entry = decode(tail, &entries)?;
-            let mut candidate = entries.clone();
-            candidate.push(entry);
-            validate_history(&candidate)?;
+            entries.push(entry);
+            validate_history(&entries).map_err(|_| RolloutError::InvalidHistory)?;
+            entries.pop();
         } else {
             return Err(RolloutError::InvalidHistory);
         }
@@ -81,7 +72,7 @@ pub(crate) fn read_and_repair(
         .open(&diagnostic_path)?;
     diagnostic.write_all(tail)?;
     diagnostic.sync_all()?;
-    file.set_len(committed as u64)?;
+    file.set_len(committed)?;
     file.sync_data()?;
     file.seek(SeekFrom::End(0))?;
     Ok((

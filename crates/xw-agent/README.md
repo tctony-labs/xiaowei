@@ -4,11 +4,11 @@
 
 传输无关的 Agent App Server，使用 `proto-agent-rs` 的 Agent 请求／响应与公共视图。内部复用 `xw-agent-types`，通过本包的统一 `AgentHost` 接收生成、模型信息与辅助模型引用；不依赖 Gateway、napi、ModelSettings 或 Storage。
 
-从包根使用 `AgentService`、`AgentError`、`EventSubscription`、`SubscriptionError` 与 `protocol`。先创建会话，再以必填 `session_id` 调用 `subscribe_session`；第一帧 `SubscriptionReady` 已携带该单个会话完整快照，并与观察者登记原子完成；随后顺序消费快照之后的直接业务事件。未知／已删除会话返回 `AgentError::NotFound`。订阅过载明确返回 `Lagged` 并结束，需要重新订阅并用新首帧替换缓存。独立 `read_session` 只用于查询，不能覆盖活跃事件缓存。关闭观察者不关闭服务，宿主通过 `close().await` 释放服务并唤醒观察者。
+从包根使用 `AgentService`、`AgentError`、`EventSubscription`、`SubscriptionError` 与 `protocol`。先创建会话，再以必填 `session_id` 调用 `subscribe_session`；第一帧 `SubscriptionReady` 已携带该会话元信息与最新 Run 页，并与观察者登记原子完成；随后顺序消费快照之后的直接业务事件。未知／已删除会话返回 `AgentError::NotFound`。订阅过载明确返回 `Lagged` 并结束，需要重新订阅并用新首帧替换缓存。独立 `read_session` 只用于查询，不能覆盖活跃事件缓存。关闭观察者不关闭服务，宿主通过 `close().await` 释放服务并唤醒观察者。
 
 `AgentService::new` 提供内存模式，`AgentService::open(host, root).await` 打开核心自有的 `sessions.sqlite` 与 rollout 文件层；宿主只传目录和模型 Host，不接存储 Gateway。正常启动／列表仅查 SQLite；打开登记会话时按需校验 JSONL、结算遗留运行、恢复历史与配置，不执行旧模型请求。`with_rollout` 仅保留显式 legacy fixture 的文件模式。所有会话控制方法使用同一公开服务入口。会话支持模型配置、幂等创建、单个活动 Run、完整公共历史和有界事件订阅。`start_run` 原子接纳稳定 input ID，立即返回 Run；重复原请求复用同一 Run，冲突请求不修改状态。后台执行多 Turn 工具循环；完整成功 AssistantMessage 与已提交工具结果进入后续上下文，失败／取消保留用户输入和部分显示。`interrupt_run` 指定准确 Run，终态通过 RunCompleted 确认。异步删除和关闭取消并等待任务；持久模式关闭后可从同一根目录重开；内存模式关闭后历史丢失。
 
-每会话模型历史加原始幂等请求的编码字节合计不超过 8 MiB，显示投影不超过 8 MiB，Run／输入关联最多 1024 项；不会静默淘汰身份。ReadSession 完整结果和订阅首帧超出 1 MiB 编码预算时明确 ResourceExhausted；订阅积压受 64 帧／1 MiB 限制。较大历史的分页属于后续工作。生成过程仅记录安全身份、阶段和耗时，不输出正文。
+模型历史和原始幂等请求合计受 8 MiB 编码预算限制，Run／输入关联最多 1024 项。展示历史冷开时从 JSONL 建立磁盘索引，按 Run／Item 分页，并支持长字段的分片读取。订阅首帧和每次历史响应最多 1 MiB，实时订阅另有 256 帧／1 MiB 积压预算。分页和恢复规则见 [Agent 控制协议](../../.agent/records/active/2026-09-28-agent-chat/control-api.md#重新打开会话的显示历史)。
 
 公共视图保留当前 Generate 的身份、开始时间、是否收到内容及活跃 Item，随同一有序订阅同步；工具执行期间没有活跃 Generate。响应 Item 关联其 Gen，正常终态明确最后一次无工具 response 的归属，允许最终回复为空。历史从既有 Journal 重建这些关联，不新增存储格式或模型 phase 要求；renderer 不必根据末块或正文位置猜测等待、流光与最终回答。
 

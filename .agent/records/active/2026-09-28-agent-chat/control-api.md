@@ -1,6 +1,6 @@
 # App Server 控制协议与客户端同步
 
-> 当前文本控制已接入 JSONL 基础持久化；会话选择独立提交，重开可恢复文本 Run／Item。SQLite 列表分页、归档与删除已接入；工具 Item 已接执行与恢复；历史分页、其他工具与交互仍是后续范围，实际宿主边界见 [Host](host-interface.md)。
+> 当前文本控制已接入 JSONL 基础持久化；会话选择独立提交，重开可恢复文本 Run／Item。SQLite 列表分页、归档与删除已接入；工具 Item 已接执行与恢复；历史分页和长内容读取已接入，实际宿主边界见 [Host](host-interface.md)。
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
@@ -123,11 +123,7 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 ### 后续能力（未实现）
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind 和 ContinueRun 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
-
-大历史分页由 01f 在现有 Run／Item 框架上扩展，采用核心完整恢复、UI 分页读取的边界。会话冷打开时，核心仍从头顺序读取整个 JSONL，完成校验、恢复及整体状态重建；已加载会话复用核心内存状态。UI 在恢复后的 Run／Item 投影上分页加载历史及读取长内容，分页只限制返回和展示的数据量，不减少核心冷打开时的全量读取，也不改变完整模型上下文的组装。此片不引入磁盘随机读取索引、独立尾部恢复或新增恢复检查点。
-
-持久内容不能截断，客户端读取需要明确有界；公共 snapshot／分页规则围绕已恢复投影及实时订阅确定，不采用旧 GetMessages／ReadChanges 方案，不继续细拆。MVP 的 ReadSession 完整响应／订阅首帧受 1 MiB 编码预算约束，超额明确失败；没有增大通用上限或截断历史。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind 和 ContinueRun 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。
 
 私有 SessionCatalog 只在核心内部使用；登记是 INSERT，更新只针对已有未删除行，并在服务串行边界按内存 metadata revision 校验，不通过 Upsert 复活记录。归档 revision 独立校验，普通更新不能重置归档状态。标题／自动生成开关、管理状态以 SQLite 为准，不将数据库视为可删除重建的缓存。
 
@@ -138,18 +134,20 @@ SQLite 字段及权威状态边界统一见[历史格式](history-format.md#会�
 
 投影沿用旧 Projector 的按身份更新思想，展示消息与模型回放分离。当前 execution／events 维护在途公共视图，recovery 重建历史视图；UI 投影不回写模型历史，不要求新增另一套 projection／changes 模块。
 
-当前采用直接 AgentEvent 流，每订阅最多 64 帧／1 MiB 编码字节；超限返回 SubscriptionError::Lagged 并结束流，Gateway 集成映射 resource-exhausted。各观察者互不影响，关闭订阅不停止运行。会话、Run／Item 生命周期和文本／思考事件都有真实生产者。
+AgentEvent 首帧使用独立的 1 MiB 编码预算。实时积压每订阅最多 256 帧且最多 1 MiB 编码字节，超限返回 SubscriptionError::Lagged 并结束流，Gateway 映射为 resource-exhausted。各观察者独立，关闭订阅不停止运行。
 
-订阅登记、初始快照与变更使用同一服务锁：SubscriptionReady 首帧包含指定 Session 的完整 Run／Item 状态，后续帧只包含快照之后的变化。客户端以首帧替换缓存，随后顺序应用事件；断连或 lag 时重新订阅，旧流的迟到回调用本地订阅代次隔离。没有公开 AgentViewCursor、instance ID 或事件 revision；metadata revision 仅用于当前服务实例内的元信息写操作校验，冷恢复从 1 开始；连接到重启服务后须获取新快照，不能复用旧待提交请求及版本。初始完整快照超过 1 MiB 时直接拒绝订阅，不截断内容或保留观察者。
+订阅首帧、登记和事件发布共用服务锁。SubscriptionReady 包含会话元信息和最新 Run 页，之后只发快照之后的变化。客户端接收首帧后按稳定 ID 应用事件及合并历史页，Run 终态更新保留已加载的过程和仍可用的 Item 游标。断线或 lag 后尝试一次重新订阅，以新首帧恢复缓存。客户端用订阅代次隔离迟到的旧事件和分页响应。metadata revision 仍是服务实例内的元信息写入版本，冷恢复从 1 开始。
 
 ### 单会话订阅范围
 
-SubscribeSession.session_id 必填且须为 UUIDv7，只观察该会话。SubscriptionReady.session 为单个完整快照，成功订阅时必定存在；缺失／非法 ID 返回参数错误，未知／已删除会话返回 NotFound，不打开空流，也不占用观察者容量。调用顺序为 CreateSession → SubscribeSession(session_id) → 接收首帧 → StartRun。其他 Session 的事件不会混入该订阅。
+SubscribeSession.session_id 必填且须为 UUIDv7，只观察该会话。SubscriptionReady.session 为单个会话的分页快照，成功订阅时必定存在；缺失／非法 ID 返回参数错误，未知／已删除会话返回 NotFound，不打开空流，也不占用观察者容量。调用顺序为 CreateSession → SubscribeSession(session_id) → 接收首帧 → StartRun。其他 Session 的事件不会混入该订阅。
 
 删除与登记沿同一服务锁收敛：删除先发生则订阅失败，登记先发生则首帧仍含原状态，随后收到该 SessionDeleted。其他会话的创建与删除不改变本订阅；全会话观察不属于当前公共 API。
 
 ### 重新打开会话的显示历史
 
-ReadSessionResponse.session.runs[].items[] 是完整已保留的 UI 投影，include_runs=true 时返回；false 只查询会话元信息。需要继续观察时直接 SubscribeSession，其首帧 session 始终包括该会话完整公共 runs／items，然后接后续事件。客户端按结构恢复显示，不重执行历史工具或重新调用模型，也不将 UI 投影当作下一轮模型上下文。
+ReadSession 的 include_runs=false 只读取元信息，true 读取最新 Run 页。ReadSessionRuns 按游标继续向更早的 Run 读取。每页按从新到旧选取至多 20 个 Run，返回时按时间正序。每个 Run 带至多 20 个 Item 的首页。运行中从最新过程向前翻，已完成的 Run 从最早过程向后翻。首页保留用户输入，已完成的 Run 优先保留最终回复的文本。运行中拿到的向前游标在 Run 结束后继续可用。
 
-当前 App Server 已实现真实执行和投影写入；客户端断线自动尝试一次重订阅，用首帧替换显示缓存，失败可通过后续操作重新同步；不会无限重连或重发控制命令。该恢复已包含 Agent.open 的文本 JSONL 重建；应用重启后从会话列表选择目标并订阅首帧，Quick Chat 已自动恢复最后更新的未归档会话；历史分页仍未实现。
+ReadSession、ReadSessionRuns、ReadRunItems 和 SubscriptionReady 以完整 Protobuf 包的 1 MiB 编码大小为上限。遇到放不进本页的下一个 Run 就停在该边界。首个 Run 的首页过大时缩小其 Item 页。超长的正文、思考及工具字段携带明确预览标记，ReadItemContent 按稳定身份分片读取已保存内容，每片最多 256 KiB，沿 UTF-8 字符边界切分。展示游标只用于历史翻页。
+
+JSONL 是持久历史。冷打开逐行扫描并校验已提交前缀，构建临时磁盘展示索引，首次恢复仍会暂存旧格式解码所需的记录。后续翻页按索引定位 Run 和 Item，已结束 Run 的完整展示不会常驻核心内存。核心继续保有模型上下文、输入幂等数据及编解码所需的结构信息。磁盘索引保存已解码的展示数据及 Item 偏移，服务关闭时回收，重开依照 JSONL 重建。模型上下文的独立上限继续生效。

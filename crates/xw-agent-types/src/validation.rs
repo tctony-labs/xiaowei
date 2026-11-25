@@ -1818,12 +1818,26 @@ impl<'a> History<'a> {
 
 /// Validates a committed prefix, including legal unfinished states. Does not recover or execute it.
 pub fn validate_history(entries: &[JournalEntry]) -> Result<(), ValidationError> {
-    if entries.is_empty() {
+    validate_entries(entries.iter())
+}
+
+pub(crate) fn validate_appended_entry(
+    entries: &[JournalEntry],
+    entry: &JournalEntry,
+) -> Result<(), ValidationError> {
+    validate_entries(entries.iter().chain(std::iter::once(entry)))
+}
+
+fn validate_entries<'a>(
+    entries: impl Iterator<Item = &'a JournalEntry>,
+) -> Result<(), ValidationError> {
+    let mut entries = entries.peekable();
+    let Some(first) = entries.peek() else {
         return Ok(());
-    }
-    let session_id = entries[0].session_id;
+    };
+    let session_id = first.session_id;
     let mut history = History::default();
-    for (index, entry) in entries.iter().enumerate() {
+    for (index, entry) in entries.enumerate() {
         let result: Result<(), ValidationError> = (|| {
             validate_entry(entry)?;
             ownership(entry.session_id == session_id, "session_id")?;

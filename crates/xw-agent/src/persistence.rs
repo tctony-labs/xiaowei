@@ -98,6 +98,9 @@ impl Session {
             return Err(AgentError::Conflict("failed run is settling"));
         }
         journal.check_after_failure().map_err(storage_error)?;
+        journal
+            .restore_completed_contents()
+            .map_err(storage_error)?;
         crate::recovery::settle_with_tools(journal, self.failed_run, now_ms()?, &self.tools)
             .map_err(storage_error)?;
         self.failed_run = None;
@@ -110,19 +113,10 @@ impl Session {
         self.granted_paths = restored.granted_paths;
         self.permission_mode = restored.permission_mode;
         self.meta = restored.meta;
-        for run in restored.view.runs {
-            if !self
-                .view
-                .runs
-                .iter()
-                .any(|current| current.run_id == run.run_id)
-            {
-                self.view.runs.push(run);
-            }
-        }
-        for id in self.interactions.keys().copied().collect::<Vec<_>>() {
-            crate::interactive::project(self, id);
-        }
+        self.display_history = None;
+        self.view.runs = restored.view.runs;
+        self.archive_display()?;
+        self.journal.as_mut().unwrap().release_completed_contents();
         Ok(())
     }
 }
@@ -130,6 +124,12 @@ impl Session {
 pub(crate) fn restore(journal: Journal) -> Result<Session, AgentError> {
     let mut session = project(&journal)?;
     session.journal = Some(journal);
+    session.archive_display()?;
+    session
+        .journal
+        .as_mut()
+        .unwrap()
+        .release_completed_contents();
     Ok(session)
 }
 
@@ -204,6 +204,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                         content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                             content,
                         })),
+                        ..Default::default()
                     }],
                     ..Default::default()
                 });
@@ -261,6 +262,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                             item_id: id.to_string(),
                             gen_id: message.gen_id.map(|id| id.to_string()),
                             content: Some(content),
+                            ..Default::default()
                         });
                     }
                 }

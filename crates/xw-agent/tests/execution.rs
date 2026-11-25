@@ -58,7 +58,22 @@ impl AgentHost for Model {
                 api: "api".into(),
                 provider: "provider".into(),
                 model_id: "upstream".into(),
-                usage: None,
+                usage: Some(xw_agent_types::TokenUsage {
+                    input: 12,
+                    output: 4,
+                    cache_read: 0,
+                    cache_write: 0,
+                    total: 16,
+                    reasoning: None,
+                    cache_write_1h: None,
+                    cost: Some(xw_agent_types::UsageCost {
+                        input: 0.,
+                        output: 0.,
+                        cache_read: 0.,
+                        cache_write: 0.,
+                        total: 0.,
+                    }),
+                }),
                 stop_reason: FinishReason::Stop,
                 timestamp_ms: 1,
                 response_id: Some("response-id".into()),
@@ -391,4 +406,80 @@ async fn retained_idempotency_inputs_share_the_history_budget_and_rejection_does
         .unwrap();
     assert_eq!(view.config, session.config);
     service.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn history_pages_survive_cold_reopen_and_a_new_run_does_not_move_an_older_cursor() {
+    let directory = tempfile::tempdir().unwrap();
+    let model = Arc::new(Model::default());
+    let service = AgentService::with_rollout(model.clone(), directory.path().into()).unwrap();
+    let session = create(&service);
+    let subscribe = SubscribeSessionRequest {
+        session_id: session.session_id.clone(),
+    };
+    let mut stream = service.subscribe_session(subscribe.clone()).await.unwrap();
+    stream.recv().await.unwrap().unwrap();
+
+    let mut ids = Vec::new();
+    for n in 0..23 {
+        let accepted = service
+            .start_run(request(&session, &format!("run {n}")), source("a"))
+            .await
+            .unwrap()
+            .run
+            .unwrap();
+        ids.push(accepted.run_id);
+        let completed = terminal(&mut stream).await;
+        assert_eq!(completed.status, AgentRunStatus::Completed as i32);
+    }
+    service.close().await.unwrap();
+    let service = AgentService::with_rollout(model.clone(), directory.path().into()).unwrap();
+
+    let mut stream = service.subscribe_session(subscribe).await.unwrap();
+    let ready = stream.recv().await.unwrap().unwrap();
+    let Some(agent_event::Payload::SubscriptionReady(ready)) = ready.payload else {
+        panic!("expected session snapshot");
+    };
+    let newest = ready.session.unwrap();
+    assert_eq!(
+        newest
+            .runs
+            .iter()
+            .map(|run| &run.run_id)
+            .collect::<Vec<_>>(),
+        ids[3..].iter().collect::<Vec<_>>()
+    );
+    assert!(newest.runs.iter().all(|run| run.items.len() == 2));
+
+    let accepted = service
+        .start_run(request(&session, "another"), source("b"))
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+    assert_eq!(terminal(&mut stream).await.run_id, accepted.run_id);
+    let earlier = service
+        .read_session_runs(ReadSessionRunsRequest {
+            session_id: session.session_id,
+            continuation: newest.runs_continuation,
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    assert_eq!(
+        earlier
+            .runs
+            .iter()
+            .map(|run| &run.run_id)
+            .collect::<Vec<_>>(),
+        ids[..3].iter().collect::<Vec<_>>()
+    );
+    assert!(earlier.runs_continuation.is_empty());
+    let calls = model.requests.lock().unwrap();
+    assert!(calls.last().unwrap().messages.iter().any(|message| {
+        matches!(message, History::Assistant(assistant) if assistant.content.iter().any(|block| {
+            matches!(block, ContentBlock::Text { text, .. } if text == "authoritative final")
+        }))
+    }));
 }

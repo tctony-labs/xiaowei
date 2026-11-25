@@ -151,6 +151,12 @@ pub struct AgentItem {
     /// Generating response identity for assistant/reasoning/tool items; absent for user input.
     #[prost(string, optional, tag = "6")]
     pub gen_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// Display fields shortened for transport. ReadItemContent returns stored text.
+    #[prost(enumeration = "AgentItemField", repeated, tag = "7")]
+    pub shortened_fields: ::prost::alloc::vec::Vec<i32>,
+    /// Zero-based chronological position within the Run for paged Items.
+    #[prost(uint32, optional, tag = "8")]
+    pub history_index: ::core::option::Option<u32>,
     #[prost(oneof = "agent_item::Content", tags = "2, 3, 4, 5")]
     pub content: ::core::option::Option<agent_item::Content>,
 }
@@ -234,6 +240,12 @@ pub struct AgentRun {
     /// for the final reply; earlier responses remain process content. Rebuilt from the journal.
     #[prost(string, optional, tag = "12")]
     pub final_gen_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// Opaque ReadRunItems continuation. Empty when all Items are included.
+    #[prost(string, tag = "13")]
+    pub items_continuation: ::prost::alloc::string::String,
+    /// True when this continuation reads earlier Items from a live Run's first page.
+    #[prost(bool, tag = "14")]
+    pub items_continuation_is_older: bool,
 }
 impl ::prost::Name for AgentRun {
     const NAME: &'static str = "AgentRun";
@@ -261,9 +273,8 @@ pub struct AgentSession {
     /// Changes only when session metadata/default configuration changes.
     #[prost(uint64, tag = "5")]
     pub metadata_revision: u64,
-    /// Complete retained display history, grouped by run/item. ReadSession includes
-    /// it only with include_runs=true; SubscriptionReady always includes it.
-    /// These are display projections, not messages for constructing model history.
+    /// One display history page in chronological order, at most 20 Runs.
+    /// Each Run includes its first page, at most 20 Items in chronological order.
     #[prost(message, repeated, tag = "6")]
     pub runs: ::prost::alloc::vec::Vec<AgentRun>,
     /// Empty until a title has been set or generated. Does not enter chat history.
@@ -293,6 +304,9 @@ pub struct AgentSession {
     /// Absolute working directory; absent for a rootless text-only session.
     #[prost(string, optional, tag = "16")]
     pub cwd: ::core::option::Option<::prost::alloc::string::String>,
+    /// Opaque ReadSession continuation for earlier Runs. Empty at the start.
+    #[prost(string, tag = "17")]
+    pub runs_continuation: ::prost::alloc::string::String,
 }
 impl ::prost::Name for AgentSession {
     const NAME: &'static str = "AgentSession";
@@ -449,9 +463,7 @@ impl ::prost::Name for ListSessionsResponse {
 pub struct ReadSessionRequest {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
-    /// False reads metadata only; true includes all retained runs and their items.
-    /// Standalone point-in-time query. Do not merge this response into a live event
-    /// cache: use the atomic initial snapshot from SubscribeSession.
+    /// False reads metadata only. True includes the most recent Run page.
     #[prost(bool, tag = "2")]
     pub include_runs: bool,
 }
@@ -481,6 +493,106 @@ impl ::prost::Name for ReadSessionResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.ReadSessionResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReadSessionRunsRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Required continuation. Merge only the returned Runs into a live cache.
+    #[prost(string, tag = "2")]
+    pub continuation: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ReadSessionRunsRequest {
+    const NAME: &'static str = "ReadSessionRunsRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ReadSessionRunsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ReadSessionRunsRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReadRunItemsRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub run_id: ::prost::alloc::string::String,
+    /// Required continuation from the Run or the previous Item page. Completed
+    /// Runs read forward. A continuation issued while active keeps reading backward.
+    #[prost(string, tag = "3")]
+    pub continuation: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ReadRunItemsRequest {
+    const NAME: &'static str = "ReadRunItemsRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ReadRunItemsRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ReadRunItemsRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReadRunItemsResponse {
+    /// Chronological order, at most 20 Items. Every history reply is at most 1 MiB encoded.
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<AgentItem>,
+    #[prost(string, tag = "2")]
+    pub continuation: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ReadRunItemsResponse {
+    const NAME: &'static str = "ReadRunItemsResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ReadRunItemsResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ReadRunItemsResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReadItemContentRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub run_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub item_id: ::prost::alloc::string::String,
+    #[prost(enumeration = "AgentItemField", tag = "4")]
+    pub field: i32,
+    /// UTF-8 byte offset, initially zero. Must be on a character boundary.
+    #[prost(uint64, tag = "5")]
+    pub offset: u64,
+}
+impl ::prost::Name for ReadItemContentRequest {
+    const NAME: &'static str = "ReadItemContentRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ReadItemContentRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ReadItemContentRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ReadItemContentResponse {
+    /// At most 256 KiB, ending on a UTF-8 character boundary.
+    #[prost(string, tag = "1")]
+    pub text: ::prost::alloc::string::String,
+    /// Absent at end of content.
+    #[prost(uint64, optional, tag = "2")]
+    pub next_offset: ::core::option::Option<u64>,
+}
+impl ::prost::Name for ReadItemContentResponse {
+    const NAME: &'static str = "ReadItemContentResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ReadItemContentResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ReadItemContentResponse".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -691,11 +803,10 @@ impl ::prost::Name for SubscribeSessionRequest {
     }
 }
 /// First frame: full public state of the requested session, including retained
-/// runs/items. Session is always present on a successfully opened subscription.
+/// runs and their first Item pages. Session is present on every successful open.
 /// Snapshot and registration use the same serial boundary; earlier events are
 /// not replayed. Later deletion/run/item changes follow on this stream.
-/// Reject subscription with resource-exhausted if initial state exceeds its
-/// frame budget; never truncate state or yield an already-invalid subscription.
+/// The encoded AgentEvent is at most 1 MiB. The active Run is always included.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SubscriptionReady {
     #[prost(message, optional, tag = "1")]
@@ -767,7 +878,7 @@ impl ::prost::Name for RunStarted {
 pub struct RunCompleted {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
-    /// Final run status and complete public items, including any partial display.
+    /// Final Run state and recent Items. Merge with Items already received.
     #[prost(message, optional, tag = "2")]
     pub run: ::core::option::Option<AgentRun>,
 }
@@ -1631,6 +1742,41 @@ impl AgentToolStatus {
             "AGENT_TOOL_STATUS_CANCELLED" => Some(Self::Cancelled),
             "AGENT_TOOL_STATUS_SKIPPED" => Some(Self::Skipped),
             "AGENT_TOOL_STATUS_RESULT_UNKNOWN" => Some(Self::ResultUnknown),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum AgentItemField {
+    Unspecified = 0,
+    Text = 1,
+    ToolArguments = 2,
+    ToolOutput = 3,
+    ToolMetadata = 4,
+}
+impl AgentItemField {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "AGENT_ITEM_FIELD_UNSPECIFIED",
+            Self::Text => "AGENT_ITEM_FIELD_TEXT",
+            Self::ToolArguments => "AGENT_ITEM_FIELD_TOOL_ARGUMENTS",
+            Self::ToolOutput => "AGENT_ITEM_FIELD_TOOL_OUTPUT",
+            Self::ToolMetadata => "AGENT_ITEM_FIELD_TOOL_METADATA",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "AGENT_ITEM_FIELD_UNSPECIFIED" => Some(Self::Unspecified),
+            "AGENT_ITEM_FIELD_TEXT" => Some(Self::Text),
+            "AGENT_ITEM_FIELD_TOOL_ARGUMENTS" => Some(Self::ToolArguments),
+            "AGENT_ITEM_FIELD_TOOL_OUTPUT" => Some(Self::ToolOutput),
+            "AGENT_ITEM_FIELD_TOOL_METADATA" => Some(Self::ToolMetadata),
             _ => None,
         }
     }

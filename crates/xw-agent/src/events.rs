@@ -11,13 +11,14 @@ use crate::{
     protocol::{AgentEvent, agent_event},
 };
 
-const MAX_PENDING: usize = 64;
+const MAX_PENDING: usize = 256;
 const MAX_PENDING_BYTES: usize = 1024 * 1024;
 
 #[derive(Default)]
 struct Pending {
     closed: bool,
     lagged: bool,
+    initial: Option<AgentEvent>,
     events: VecDeque<AgentEvent>,
     bytes: usize,
 }
@@ -38,12 +39,13 @@ impl Observer {
     }
 
     // Called under the service state lock before observer registration. Fail
-    // explicitly if the complete snapshot cannot fit; no observer is retained.
+    // explicitly if the snapshot cannot fit. Its frame has an independent budget.
     pub fn initialize(&self, event: AgentEvent) -> Result<(), AgentError> {
         if event.encoded_len() > MAX_PENDING_BYTES {
             return Err(AgentError::ResourceExhausted("subscription snapshot"));
         }
-        self.publish(event);
+        self.pending.lock().unwrap().initial = Some(event);
+        self.wake.notify_one();
         Ok(())
     }
 
@@ -91,6 +93,7 @@ impl Observer {
         }
         let bytes = event.encoded_len();
         if pending.events.len() >= MAX_PENDING || pending.bytes + bytes > MAX_PENDING_BYTES {
+            pending.initial = None;
             pending.events.clear();
             pending.bytes = 0;
             pending.lagged = true;
@@ -119,6 +122,7 @@ impl Observer {
     pub fn close(&self) {
         let mut pending = self.pending.lock().unwrap();
         pending.closed = true;
+        pending.initial = None;
         pending.events.clear();
         pending.bytes = 0;
         drop(pending);
@@ -148,6 +152,9 @@ impl EventSubscription {
                 if pending.lagged {
                     pending.lagged = false;
                     return Some(Err(SubscriptionError::Lagged));
+                }
+                if let Some(initial) = pending.initial.take() {
+                    return Some(Ok(initial));
                 }
                 if let Some(event) = pending.events.pop_front() {
                     pending.bytes -= event.encoded_len();
@@ -256,6 +263,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn initial_frame_does_not_consume_the_live_queue_budget() {
+        let observer = Arc::new(Observer::new("target".into()));
+        let initial = delta(&"a".repeat(MAX_PENDING_BYTES - 128));
+        observer.initialize(initial.clone()).unwrap();
+        for _ in 0..256 {
+            observer.publish(delta("after snapshot"));
+        }
+        assert!(!observer.is_closed());
+        let mut stream = EventSubscription { observer };
+        assert_eq!(stream.recv().await, Some(Ok(initial)));
+        assert_eq!(stream.recv().await, Some(Ok(delta("after snapshot"))));
+    }
+
+    #[tokio::test]
     async fn slow_subscriber_lags_without_blocking_another_subscriber() {
         let slow = Arc::new(Observer::new("target".into()));
         let fast = Arc::new(Observer::new("target".into()));
@@ -266,12 +287,15 @@ mod tests {
             observer: fast.clone(),
         };
 
-        for _ in 0..MAX_PENDING + 1 {
+        for _ in 0..256 {
             let event = delta("next");
             slow.publish(event.clone());
             fast.publish(event.clone());
             assert_eq!(fast_stream.recv().await, Some(Ok(event)));
         }
+        assert!(!slow.is_closed());
+
+        slow.publish(delta("overflow"));
         assert_eq!(
             slow_stream.recv().await,
             Some(Err(SubscriptionError::Lagged))

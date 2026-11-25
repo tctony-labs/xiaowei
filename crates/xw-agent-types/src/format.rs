@@ -269,10 +269,10 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
             version: entry.schema_version,
         });
     }
-    let mut candidate = history.to_vec();
-    candidate.push(entry.clone());
-    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure {
-        path: Some(error.path),
+    crate::validation::validate_appended_entry(history, entry).map_err(|error| {
+        FormatError::InvalidStructure {
+            path: Some(error.path),
+        }
     })?;
     let mut stored = serde_json::to_value(entry).map_err(|_| invalid())?;
     remove(&mut stored, &["sequence"])?;
@@ -400,6 +400,21 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
 
 /// Restores omitted ownership and configuration from the preceding file records.
 pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry, FormatError> {
+    let entry = decode_entry_fields(line, history)?;
+    crate::validation::validate_appended_entry(history, &entry).map_err(|error| {
+        FormatError::InvalidStructure {
+            path: Some(error.path),
+        }
+    })?;
+    Ok(entry)
+}
+
+/// Restores a record's stored fields for a sequential scan. The caller must validate
+/// the assembled committed prefix before using it.
+pub fn decode_entry_fields(
+    line: &str,
+    history: &[JournalEntry],
+) -> Result<JournalEntry, FormatError> {
     if history.is_empty() {
         #[derive(Deserialize)]
         struct Header {
@@ -429,7 +444,7 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
         } else if payload["data"].get("cwd").and_then(Value::as_str).is_none() {
             return Err(invalid());
         }
-        return decode_stored(stored, history);
+        return decode_stored(stored);
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
     match kind.as_str() {
@@ -641,6 +656,7 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             put(data, "revision", 2)?;
         }
         "compacted" => {
+            validate_history(history).map_err(|_| invalid())?;
             absent(
                 data,
                 &[
@@ -712,20 +728,15 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             error,
         )?;
     }
-    decode_stored(stored, history)
+    decode_stored(stored)
 }
 
-fn decode_stored(stored: Value, history: &[JournalEntry]) -> Result<JournalEntry, FormatError> {
+fn decode_stored(stored: Value) -> Result<JournalEntry, FormatError> {
     let entry: JournalEntry = serde_json::from_value(stored.clone()).map_err(|_| invalid())?;
     check_object_shapes(
         &stored,
         &serde_json::to_value(&entry).map_err(|_| invalid())?,
     )?;
-    let mut candidate = history.to_vec();
-    candidate.push(entry.clone());
-    validate_history(&candidate).map_err(|error| FormatError::InvalidStructure {
-        path: Some(error.path),
-    })?;
     Ok(entry)
 }
 

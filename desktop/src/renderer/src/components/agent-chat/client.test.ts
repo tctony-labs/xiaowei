@@ -2,12 +2,20 @@ import { create } from "@bufbuild/protobuf";
 import { waitFor } from "@testing-library/react";
 import {
   AgentInteractionStatus,
+  AgentItemField,
   AgentModelConfigSchema,
   AgentPermissionRequestSchema,
   AgentQuestionSchema,
   AgentRunStatus,
+  AgentSessionSchema,
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
+  type ReadItemContentResponse,
+  ReadItemContentResponseSchema,
+  type ReadRunItemsResponse,
+  ReadRunItemsResponseSchema,
+  type ReadSessionResponse,
+  ReadSessionResponseSchema,
 } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
 import { createServices } from "../../services";
@@ -16,6 +24,14 @@ import { agentIdentity } from "./identity";
 import { agentFixture } from "./test-fixture";
 
 const config = create(AgentModelConfigSchema, { modelRef: "test" });
+
+function deferred<T>() {
+  let resolve = (_value: T) => {};
+  const promise = new Promise<T>((accept) => {
+    resolve = accept;
+  });
+  return { promise, resolve };
+}
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -441,4 +457,100 @@ test("Quick Chat lists only ordinary sessions after archiving the current conver
   expect(client.session).toBeUndefined();
   expect(client.sessions).toEqual([]);
   close();
+});
+
+test("older history merges into the live stream and an Item page survives completion", async () => {
+  const history = deferred<ReadSessionResponse>();
+  const items = deferred<ReadRunItemsResponse>();
+  const fixture = agentFixture(undefined, {
+    readSessionRuns: () => history.promise,
+    readRunItems: () => items.promise,
+  });
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("current", config);
+  await waitFor(() => expect(client.session?.runs).toHaveLength(1));
+  const session = client.session;
+  if (!session) throw new Error("Missing session");
+  const live = session.runs[0];
+  session.runsContinuation = "older-runs";
+  live.itemsContinuation = "older-items";
+  live.itemsContinuationIsOlder = true;
+  live.items[0].historyIndex = 0;
+
+  const olderRun = { runId: agentIdentity(), inputId: agentIdentity() };
+  const runPage = create(ReadSessionResponseSchema, {
+    found: true,
+    session: { sessionId: session.sessionId, title: "obsolete", runs: [olderRun] },
+  });
+  const extra = create(ReadRunItemsResponseSchema, {
+    items: [
+      {
+        itemId: agentIdentity(),
+        historyIndex: 1,
+        content: { case: "reasoning", value: { text: "older process" } },
+      },
+    ],
+  });
+
+  const loadingRuns = client.loadOlderRuns();
+  const loadingItems = client.loadRunItems(live.runId);
+  fixture.finish();
+  await waitFor(() => expect(client.session?.runs[0].status).toBe(AgentRunStatus.COMPLETED));
+  history.resolve(runPage);
+  items.resolve(extra);
+  await Promise.all([loadingRuns, loadingItems]);
+  expect(client.session?.title).not.toBe("obsolete");
+  expect(client.session?.runs.map(({ runId }) => runId)).toEqual([olderRun.runId, live.runId]);
+  expect(client.session?.runs[1].items).toContainEqual(extra.items[0]);
+  expect(client.session?.runs[1].itemsContinuation).toBe("");
+  close();
+});
+
+test("full content joins byte chunks and a stale answer cannot change the current session", async () => {
+  const chunk = deferred<ReadItemContentResponse>();
+  const offsets: bigint[] = [];
+  const fixture = agentFixture(undefined, {
+    readItemContent(request) {
+      offsets.push(request.offset);
+      if (offsets.length === 1) {
+        return create(ReadItemContentResponseSchema, { text: "中", nextOffset: 3n });
+      }
+      if (offsets.length === 2) return create(ReadItemContentResponseSchema, { text: "🙂" });
+      return chunk.promise;
+    },
+  });
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const sessionId = agentIdentity();
+  const runId = agentIdentity();
+  const itemId = agentIdentity();
+  client.session = create(AgentSessionSchema, {
+    sessionId,
+    runs: [
+      {
+        runId,
+        items: [
+          {
+            itemId,
+            shortenedFields: [AgentItemField.TEXT],
+            content: { case: "agentMessage", value: { text: "中" } },
+          },
+        ],
+      },
+    ],
+  });
+  expect(
+    (await client.loadItemContent(runId, itemId, [AgentItemField.TEXT])).get(AgentItemField.TEXT),
+  ).toBe("中🙂");
+  expect(offsets).toEqual([0n, 3n]);
+  expect(client.session.runs[0].items[0].shortenedFields).toEqual([]);
+
+  const loading = client.loadItemContent(runId, itemId, [AgentItemField.TEXT]);
+  client.session = create(AgentSessionSchema, { sessionId: agentIdentity() });
+  const assertion = expect(loading).rejects.toThrow("Observation replaced");
+  chunk.resolve(create(ReadItemContentResponseSchema, { text: "old" }));
+  await assertion;
+  expect(client.session.runs).toEqual([]);
 });

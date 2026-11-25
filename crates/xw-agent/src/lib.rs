@@ -5,6 +5,7 @@ mod context_sync;
 mod error;
 mod events;
 mod execution;
+mod history;
 mod host;
 mod index;
 mod input;

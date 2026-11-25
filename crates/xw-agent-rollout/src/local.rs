@@ -6,7 +6,8 @@ use std::{
 
 use chrono::{DateTime, Datelike};
 use xw_agent_types::{
-    EntryId, EntryPayload, JournalEntry, PermissionMode, Sequence, SessionId, encode_entry,
+    AgentMessage, ContentBlock, EntryId, EntryPayload, JournalEntry, PermissionMode, Sequence,
+    SessionId, encode_entry,
 };
 
 use crate::{Repair, Result, RolloutError, recovery::read_and_repair, writer_lock::WriterLock};
@@ -61,6 +62,7 @@ impl RolloutStore {
             file,
             _lock: lock,
             entries: Vec::new(),
+            released: 0,
             committed_bytes: 0,
             state: WriterState::Ready,
             #[cfg(any(test, feature = "test-support"))]
@@ -115,6 +117,7 @@ impl RolloutStore {
                 file,
                 _lock: lock,
                 entries,
+                released: 0,
                 committed_bytes,
                 state: WriterState::Ready,
                 #[cfg(any(test, feature = "test-support"))]
@@ -290,6 +293,7 @@ pub struct Journal {
     file: File,
     _lock: WriterLock,
     entries: Vec<JournalEntry>,
+    released: usize,
     committed_bytes: u64,
     state: WriterState,
     #[cfg(any(test, feature = "test-support"))]
@@ -343,8 +347,46 @@ impl Journal {
         Ok(())
     }
 
+    /// After release_completed_contents, archived records only retain codec and
+    /// validation data. Restore the full prefix before rebuilding model or display state.
     pub fn entries(&self) -> &[JournalEntry] {
         &self.entries
+    }
+
+    /// Drops large committed fields once the caller has projected the settled prefix.
+    /// The caller must only invoke this with no active Run or Generate.
+    pub fn release_completed_contents(&mut self) {
+        for entry in &mut self.entries[self.released..] {
+            match &mut entry.payload {
+                EntryPayload::InputAccepted(input) => release_message(&mut input.message.message),
+                EntryPayload::Message(message) => release_message(&mut message.message),
+                EntryPayload::ToolIntent(intent) => intent.arguments_json = "{}".into(),
+                EntryPayload::ToolOutcome(outcome) => {
+                    release_message(&mut outcome.result.message);
+                    outcome.metadata_json = None;
+                }
+                EntryPayload::RunStarted(run) => run.context.tools = Vec::new(),
+                EntryPayload::GenStarted(generation) => {
+                    if let Some(context) = &mut generation.context {
+                        context.tools = Vec::new();
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.released = self.entries.len();
+    }
+
+    /// Used by failure recovery, which needs the original committed payloads.
+    pub fn restore_completed_contents(&mut self) -> Result<()> {
+        if self.released == 0 {
+            return Ok(());
+        }
+        let (entries, _) = read_and_repair(&mut self.file, &self.path, self.id)?;
+        self.file.seek(SeekFrom::End(0))?;
+        self.entries = entries;
+        self.released = 0;
+        Ok(())
     }
     pub fn root(&self) -> &Path {
         &self.root
@@ -479,11 +521,46 @@ impl Journal {
         let (entries, _) = read_and_repair(&mut self.file, &self.path, self.id)?;
         self.file.seek(SeekFrom::End(0))?;
         self.entries = entries;
+        self.released = 0;
         self.state = WriterState::Ready;
         Ok(Repair {
             discarded_bytes: tail.len() as u64,
             diagnostic_path,
         })
+    }
+}
+
+fn release_message(message: &mut AgentMessage) {
+    let blocks = match message {
+        AgentMessage::User(message) => &mut message.content,
+        AgentMessage::Assistant(message) => &mut message.content,
+        AgentMessage::ToolResult(message) => {
+            message.details_json = None;
+            &mut message.content
+        }
+        AgentMessage::SystemContext { .. } => return,
+    };
+    for block in blocks {
+        match block {
+            ContentBlock::Text { text, signature }
+            | ContentBlock::Thinking {
+                text, signature, ..
+            } => {
+                *text = String::new();
+                *signature = None;
+            }
+            ContentBlock::ToolCall {
+                arguments_json,
+                thought_signature,
+                ..
+            } => {
+                if arguments_json.is_some() {
+                    *arguments_json = Some("{}".into());
+                }
+                *thought_signature = None;
+            }
+            ContentBlock::Image { data, .. } => *data = vec![0],
+        }
     }
 }
 

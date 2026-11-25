@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use xw_agent_runtime::tools::{AgentTool, RecoveryPolicy};
-use xw_agent_types::{AgentMessage, ContextBoundary, SystemContext, ToolDeclaration};
+use xw_agent_types::{AgentMessage, EntryPayload, SystemContext, ToolDeclaration};
 
 use crate::{AgentError, PermissionMode, session::Session};
 
@@ -131,6 +131,11 @@ pub(crate) fn context(session: &Session) -> Result<SystemContext, AgentError> {
 pub(crate) fn planned_update(
     session: &Session,
 ) -> Result<Option<xw_agent_types::SystemContextUpdate>, AgentError> {
+    crate::plan_system_context_update(applied_context(session)?.as_ref(), &context(session)?)
+        .map_err(|_| AgentError::Internal)
+}
+
+fn applied_context(session: &Session) -> Result<Option<SystemContext>, AgentError> {
     let mut previous = None;
     for message in &session.history {
         if let AgentMessage::SystemContext { update } = message {
@@ -141,8 +146,7 @@ pub(crate) fn planned_update(
             );
         }
     }
-    crate::plan_system_context_update(previous.as_ref(), &context(session)?)
-        .map_err(|_| AgentError::Internal)
+    Ok(previous)
 }
 
 pub(crate) fn synchronize(
@@ -151,17 +155,16 @@ pub(crate) fn synchronize(
 ) -> Result<Vec<ToolDeclaration>, AgentError> {
     let desired = context(session)?;
     if let Some(journal) = &mut session.journal {
-        crate::sync_system_context(journal, &desired, at)
-            .map_err(crate::persistence::storage_error)?;
-        let boundary = ContextBoundary {
-            through_entry_id: journal.entries().last().map(|e| e.entry_id),
-            after_turn_id: None,
-        };
-        let rebuilt = crate::rebuild_context(journal.entries(), &boundary)
-            .map_err(|_| AgentError::Persistence)?;
-        session.history = rebuilt.messages;
+        if let Some(entry) = crate::sync_system_context(journal, &desired, at)
+            .map_err(crate::persistence::storage_error)?
+            && let EntryPayload::SystemContext(update) = entry.payload
+        {
+            session.history.push(AgentMessage::SystemContext { update });
+        }
         // Use the exact declarations projected into the model history after synchronization.
-        return Ok(rebuilt.system_context.ok_or(AgentError::Persistence)?.tools);
+        return Ok(applied_context(session)?
+            .ok_or(AgentError::Persistence)?
+            .tools);
     }
 
     if let Some(update) = planned_update(session)? {
