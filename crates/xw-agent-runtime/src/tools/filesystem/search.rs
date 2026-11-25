@@ -1,15 +1,16 @@
 use std::{
     collections::HashSet,
-    fs::File,
+    fs::{self, File},
     io::{self, Read},
     path::Path,
+    sync::Mutex,
     time::SystemTime,
 };
 
 use globset::Glob;
 use grep_regex::RegexMatcher;
 use grep_searcher::{Searcher, sinks::UTF8};
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, WalkState};
 use serde::Deserialize;
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
@@ -28,6 +29,17 @@ const LISTING_BYTES: usize = MAX_OUTPUT_BYTES - 256;
 struct GlobArgs {
     pattern: String,
     path: Option<String>,
+    #[serde(default, rename = "type")]
+    entry_type: GlobEntryType,
+    max_depth: Option<usize>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum GlobEntryType {
+    #[default]
+    File,
+    Directory,
 }
 
 #[derive(Deserialize)]
@@ -43,8 +55,9 @@ pub fn declarations() -> Vec<ToolDeclaration> {
         (
             "Glob",
             concat!(
-                "Find files matching a glob pattern, newest modification time first. ",
-                "Returns up to 500 files. Relative paths use cwd. ",
+                "Find files or directories matching a glob pattern, ",
+                "newest modification time first. ",
+                "Returns up to 500 paths. Relative paths use cwd. ",
                 "Skips hidden entries unless named literally, node_modules and target; ",
                 "does not apply gitignore. Refine the pattern if results are truncated.",
             ),
@@ -53,11 +66,27 @@ pub fn declarations() -> Vec<ToolDeclaration> {
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Glob pattern, e.g. **/*.rs. A missing **/ is prepended."
+                        "description": concat!(
+                            "Glob pattern against the relative path. ",
+                            "A missing **/ is prepended, and * can match /."
+                        )
                     },
                     "path": {
                         "type": "string",
                         "description": "Directory to search; defaults to cwd."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["file", "directory"],
+                        "description": "Entry type to find. Defaults to file."
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": concat!(
+                            "Maximum depth from path. Its direct children are at depth 1. ",
+                            "Defaults to unlimited."
+                        )
                     }
                 },
                 "required": ["pattern"],
@@ -111,7 +140,7 @@ pub(super) fn execute(
     if name == "Glob" {
         let args: GlobArgs = parse(arguments)?;
         let root = tools.path(args.path.as_deref().unwrap_or("."))?;
-        glob(&root, &args.pattern, cancellation)
+        glob(&root, args, cancellation)
     } else {
         let args: GrepArgs = parse(arguments)?;
         let root = tools.path(args.path.as_deref().unwrap_or("."))?;
@@ -121,13 +150,13 @@ pub(super) fn execute(
 
 fn glob(
     root: &Path,
-    pattern: &str,
+    args: GlobArgs,
     cancellation: &CancellationToken,
 ) -> Result<ToolOutput, String> {
-    let pattern = if pattern.starts_with("**/") {
-        pattern.to_owned()
+    let pattern = if args.pattern.starts_with("**/") {
+        args.pattern
     } else {
-        format!("**/{pattern}")
+        format!("**/{}", args.pattern)
     };
     let matcher = Glob::new(&pattern)
         .map_err(|error| format!("Invalid glob pattern: {error}"))?
@@ -140,7 +169,11 @@ fn glob(
     let mut total = 0;
     let mut skipped_errors = 0;
 
-    for entry in WalkDir::new(root).into_iter().filter_entry(|entry| {
+    let mut walker = WalkDir::new(root);
+    if let Some(max_depth) = args.max_depth {
+        walker = walker.max_depth(max_depth);
+    }
+    for entry in walker.into_iter().filter_entry(|entry| {
         if entry.depth() == 0 {
             return true;
         }
@@ -158,7 +191,11 @@ fn glob(
             }
         };
         let path = entry.path();
-        if !path.is_file() || !matcher.is_match(path.strip_prefix(root).unwrap_or(path)) {
+        let matches_type = match args.entry_type {
+            GlobEntryType::File => path.is_file(),
+            GlobEntryType::Directory => entry.depth() > 0 && entry.file_type().is_dir(),
+        };
+        if !matches_type || !matcher.is_match(path.strip_prefix(root).unwrap_or(path)) {
             continue;
         }
         total += 1;
@@ -190,15 +227,20 @@ fn glob(
         shown += 1;
     }
     let truncated = shown < total;
+    let kind = match args.entry_type {
+        GlobEntryType::File => ("files", "file(s)"),
+        GlobEntryType::Directory => ("directories", "directory match(es)"),
+    };
     let text = if total == 0 {
-        "No files found matching the pattern.".into()
+        format!("No {} found matching the pattern.", kind.0)
     } else if truncated {
         format!(
-            "{shown} file(s) shown (newest by mtime) out of {total} total matches \
-             (truncated) — refine the pattern for fewer results.\n{listing}"
+            "{shown} {} shown (newest by mtime) out of {total} total matches \
+             (truncated) — refine the pattern for fewer results.\n{listing}",
+            kind.1,
         )
     } else {
-        format!("{total} file(s) found:\n{listing}")
+        format!("{total} {} found:\n{listing}", kind.1)
     };
     Ok(output(
         "Glob",
@@ -217,10 +259,18 @@ fn grep(
 ) -> Result<ToolOutput, String> {
     let matcher =
         RegexMatcher::new(&args.pattern).map_err(|error| format!("Invalid regex: {error}"))?;
-    let mut results = GrepResults::default();
+    let metadata = fs::metadata(root).map_err(|error| {
+        if error.kind() == io::ErrorKind::NotFound {
+            format!("Search path does not exist: {}", root.display())
+        } else {
+            format!("Unable to inspect search path {}: {error}", root.display())
+        }
+    })?;
+    let results = Mutex::new(GrepResults::default());
+    let stop = cancellation.child_token();
 
-    if root.is_file() {
-        results.search_file(&matcher, root, cancellation)?;
+    if metadata.is_file() {
+        search_file(&mut Searcher::new(), &matcher, root, &stop, &results);
     } else {
         let mut walker = WalkBuilder::new(root);
         walker.hidden(true).git_ignore(true);
@@ -236,29 +286,40 @@ fn grep(
             types.select("custom");
             walker.types(types.build().map_err(|error| error.to_string())?);
         }
-        for entry in walker.build() {
-            check_cancelled(cancellation)?;
-            if results.truncated {
-                break;
-            }
-            match entry {
-                Ok(entry) if entry.path().is_file() => {
-                    results.search_file(&matcher, entry.path(), cancellation)?;
+        walker.build_parallel().run(|| {
+            let mut searcher = Searcher::new();
+            let search = &results;
+            let stop = &stop;
+            let matcher = &matcher;
+            Box::new(move |entry| {
+                if stop.is_cancelled() {
+                    return WalkState::Quit;
                 }
-                Err(_) => results.skipped_errors += 1,
-                _ => {}
-            }
-        }
+                match entry {
+                    Ok(entry) if entry.path().is_file() => {
+                        search_file(&mut searcher, matcher, entry.path(), stop, search);
+                    }
+                    Err(_) => search.lock().unwrap().skipped_errors += 1,
+                    _ => {}
+                }
+                if stop.is_cancelled() {
+                    WalkState::Quit
+                } else {
+                    WalkState::Continue
+                }
+            })
+        });
     }
     check_cancelled(cancellation)?;
+    let results = results.into_inner().unwrap();
     let shown = results.lines.len();
-    let text = if shown == 0 {
-        "No matches found.".into()
-    } else if results.truncated {
+    let text = if results.truncated {
         format!(
             "at least {shown} matches (truncated) — refine pattern or path.\n{}",
             results.lines.join("\n")
         )
+    } else if shown == 0 {
+        "No matches found.".into()
     } else {
         format!("{shown} match(es):\n{}", results.lines.join("\n"))
     };
@@ -281,53 +342,62 @@ struct GrepResults {
 }
 
 impl GrepResults {
-    fn search_file(
-        &mut self,
-        matcher: &RegexMatcher,
-        path: &Path,
-        cancellation: &CancellationToken,
-    ) -> Result<(), String> {
-        check_cancelled(cancellation)?;
-        let reader = match File::open(path) {
-            Ok(file) if file.metadata().is_ok_and(|metadata| metadata.is_file()) => {
-                SearchReader { file, cancellation }
-            }
-            _ => {
-                self.skipped_errors += 1;
-                return Ok(());
-            }
-        };
-        let result = Searcher::new().search_reader(
-            matcher,
-            reader,
-            UTF8(|line_number, line| {
-                if cancellation.is_cancelled() {
-                    return Ok(false);
-                }
-                let prefix = format!("{}:{line_number}:", path.display());
-                let remaining = LISTING_BYTES.saturating_sub(self.bytes + prefix.len() + 1);
-                if remaining == 0 {
-                    self.truncated = true;
-                    return Ok(false);
-                }
-                let line = line.trim_end();
-                let mut end = line.len().min(remaining);
-                while !line.is_char_boundary(end) {
-                    end -= 1;
-                }
-                let matched = format!("{prefix}{}", &line[..end]);
-                self.bytes += matched.len() + 1;
-                self.lines.push(matched);
-                self.truncated = end < line.len() || self.lines.len() >= MAX_GREP_MATCHES;
-                Ok(!self.truncated)
-            }),
-        );
-        check_cancelled(cancellation)?;
-        if result.is_err() {
-            // Legacy searches skip unreadable/non-UTF-8 files, retaining any earlier matches.
-            self.skipped_errors += 1;
+    fn push(&mut self, prefix: &str, line: &str) {
+        let remaining = LISTING_BYTES.saturating_sub(self.bytes + prefix.len() + 1);
+        if remaining == 0 {
+            self.truncated = true;
+            return;
         }
-        Ok(())
+        let mut end = line.len().min(remaining);
+        while !line.is_char_boundary(end) {
+            end -= 1;
+        }
+        let matched = format!("{prefix}{}", &line[..end]);
+        self.bytes += matched.len() + 1;
+        self.lines.push(matched);
+        self.truncated = end < line.len() || self.lines.len() >= MAX_GREP_MATCHES;
+    }
+}
+
+fn search_file(
+    searcher: &mut Searcher,
+    matcher: &RegexMatcher,
+    path: &Path,
+    stop: &CancellationToken,
+    results: &Mutex<GrepResults>,
+) {
+    if stop.is_cancelled() {
+        return;
+    }
+    let reader = match File::open(path) {
+        Ok(file) if file.metadata().is_ok_and(|metadata| metadata.is_file()) => SearchReader {
+            file,
+            cancellation: stop,
+        },
+        _ => {
+            results.lock().unwrap().skipped_errors += 1;
+            return;
+        }
+    };
+    let outcome = searcher.search_reader(
+        matcher,
+        reader,
+        UTF8(|line_number, line| {
+            let prefix = format!("{}:{line_number}:", path.display());
+            let mut results = results.lock().unwrap();
+            if stop.is_cancelled() {
+                return Ok(false);
+            }
+            results.push(&prefix, line.trim_end());
+            if results.truncated {
+                stop.cancel();
+            }
+            Ok(!results.truncated)
+        }),
+    );
+    if outcome.is_err() && !stop.is_cancelled() {
+        // Legacy searches skip unreadable/non-UTF-8 files, retaining any earlier matches.
+        results.lock().unwrap().skipped_errors += 1;
     }
 }
 

@@ -161,11 +161,11 @@ for (const scenario of scenarios) {
     {
       timeout: live ? 180000 : 30000,
     },
-    () => exerciseScenario(scenario),
+    (t) => exerciseScenario(scenario, t),
   );
 }
 
-async function exerciseScenario(scenario) {
+async function exerciseScenario(scenario, t) {
   const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
@@ -249,6 +249,20 @@ async function exerciseScenario(scenario) {
   }
   const parent = scenario.outsideWorkspace ? homedir() : tmpdir();
   const root = await mkdtemp(join(parent, ".xiaowei-file-acceptance-"));
+  if (!live && scenario.name === "foreground Bash") {
+    const directory = join(root, "embedded bin");
+    await mkdir(directory);
+    await writeFile(join(directory, "rg"), "#!/bin/sh\nprintf 'embedded-rg\\n'\n", {
+      mode: 0o755,
+    });
+    const previous = process.env.XIAOWEI_AGENT_BIN_DIR;
+    process.env.XIAOWEI_AGENT_BIN_DIR = directory;
+    t.after(() => {
+      if (previous === undefined) delete process.env.XIAOWEI_AGENT_BIN_DIR;
+      else process.env.XIAOWEI_AGENT_BIN_DIR = previous;
+    });
+    calls[0][1].command = `rg --version && { ${calls[0][1].command}; }`;
+  }
   const skillDescription = "Read a local reference and create a file. ".repeat(12);
   if (scenario.command) {
     await mkdir(join(root, "commands"));
@@ -482,6 +496,8 @@ async function exerciseScenario(scenario) {
       }
       if (scenario.name === "foreground Bash") {
         assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
+        assert.ok(requests[1].messages.at(-1).content.includes("embedded-rg"));
+        assert.ok(JSON.stringify(requests[0].messages[0].content).includes("rg --files"));
       }
       if (scenario.name === "file search") {
         assert.ok(requests[2].messages.at(-1).content.includes("search-acceptance.txt"));

@@ -143,6 +143,10 @@ async function fixture(t) {
   const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
   mkdirSync(dirname(inspect), { recursive: true });
   writeFileSync(inspect, "native CLI fixture", { mode: 0o755 });
+  writeFileSync(join(dirname(inspect), "rg"), "rg fixture", { mode: 0o755 });
+  for (const name of ["LICENSE-MIT", "UNLICENSE"]) {
+    write(join(app, "Contents/Resources/licenses/ripgrep", name), "license");
+  }
   return { app, desktop, files };
 }
 

@@ -202,6 +202,31 @@ fn glob_preserves_recursive_hidden_and_excluded_directory_rules() {
 }
 
 #[test]
+fn glob_finds_empty_project_directories_with_a_depth_limit() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("XiaoWei/xw-ios")).unwrap();
+    fs::create_dir_all(root.path().join("nested/other/xw-ios")).unwrap();
+    fixture(root.path(), "xw-ios", "");
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
+
+    let files = tools.execute("Glob", r#"{"pattern":"xw-ios"}"#).unwrap();
+    assert!(files.text.starts_with("1 file(s) found:"));
+    assert!(!files.text.contains("XiaoWei/xw-ios"));
+
+    let directories = tools
+        .execute(
+            "Glob",
+            r#"{"pattern":"xw-ios","type":"directory","max_depth":2}"#,
+        )
+        .unwrap();
+    assert!(directories.text.contains("XiaoWei/xw-ios"));
+    assert!(!directories.text.contains("nested/other/xw-ios"));
+    let metadata: serde_json::Value =
+        serde_json::from_str(&directories.metadata_json.unwrap()).unwrap();
+    assert_eq!(metadata["search"]["matches"], 1);
+}
+
+#[test]
 fn glob_retains_the_newest_five_hundred_matches() {
     let root = tempfile::tempdir().unwrap();
     for index in 0..502 {
@@ -308,11 +333,23 @@ fn searches_validate_parameters_and_keep_legacy_no_match_and_io_error_results() 
                 "{name}: {arguments}"
             );
         }
-        for arguments in [r#"{"pattern":"x"}"#, r#"{"pattern":"x","path":"missing"}"#] {
-            let output = tools.execute(name, arguments).unwrap();
-            assert!(output.text.starts_with("No "));
-        }
+        let output = tools.execute(name, r#"{"pattern":"x"}"#).unwrap();
+        assert!(output.text.starts_with("No "));
     }
+    let missing = r#"{"pattern":"x","path":"missing"}"#;
+    assert!(
+        tools
+            .execute("Glob", missing)
+            .unwrap()
+            .text
+            .starts_with("No ")
+    );
+    assert!(
+        tools
+            .execute("Grep", missing)
+            .unwrap_err()
+            .contains("Search path does not exist")
+    );
     assert!(tools.execute("Glob", r#"{"pattern":"["}"#).is_err());
     assert!(tools.execute("Grep", r#"{"pattern":"("}"#).is_err());
     assert!(
@@ -337,10 +374,13 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
     let root = tempfile::tempdir().unwrap();
     fixture(root.path(), "many", &"needle\n".repeat(6000));
     fixture(root.path(), "unicode", &"中".repeat(100_000));
+    fixture(root.path(), "multi/first", &"needle\n".repeat(3000));
+    fixture(root.path(), "multi/second", &"needle\n".repeat(3000));
     let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     for arguments in [
         r#"{"pattern":"needle","path":"many"}"#,
         r#"{"pattern":"中","path":"unicode"}"#,
+        r#"{"pattern":"needle","path":"multi"}"#,
     ] {
         let output = tools.execute("Grep", arguments).unwrap();
         assert!(output.text.len() <= 64 * 1024);
@@ -348,6 +388,7 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
         let metadata: serde_json::Value =
             serde_json::from_str(&output.metadata_json.unwrap()).unwrap();
         assert_eq!(metadata["search"]["truncated"], true);
+        assert_eq!(metadata["search"]["skipped_errors"], 0);
         assert!(metadata["search"]["shown"].as_u64().unwrap() <= 5000);
     }
     let long = "x".repeat(180);

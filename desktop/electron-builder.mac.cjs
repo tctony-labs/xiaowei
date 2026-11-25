@@ -1,4 +1,5 @@
 const base = require("./electron-builder.json");
+const { embeddedBinDirectory, embeddedRgLicenses } = require("../scripts/embedded-rg.mjs");
 const { feedUrl, publicKey, sparkleDirectory } = require("../scripts/release/sparkle.mjs");
 const { signingConfiguration } = require("../scripts/release/signing.mjs");
 const signed = process.env.XIAOWEI_MAC_SIGNED === "1";
@@ -30,6 +31,8 @@ module.exports = {
       from: process.env.XIAOWEI_INSPECT_BINARY ?? "../target/release/xiaowei-inspect",
       to: "bin/xiaowei-inspect",
     },
+    { from: `${embeddedBinDirectory}/rg`, to: "bin/rg" },
+    { from: embeddedRgLicenses, to: "licenses/ripgrep", filter: ["LICENSE-MIT", "UNLICENSE"] },
     { from: `${sparkleDirectory}/LICENSE`, to: "Sparkle-LICENSE" },
   ],
   extraFiles: [
@@ -38,7 +41,7 @@ module.exports = {
   dmg: { writeUpdateInfo: false, sign: signed },
   mac: {
     ...base.mac,
-    binaries: ["Contents/Resources/bin/xiaowei-inspect"],
+    binaries: ["Contents/Resources/bin/xiaowei-inspect", "Contents/Resources/bin/rg"],
     electronLanguages: ["zh_CN", "en"],
     type: "distribution",
     target: [
@@ -51,9 +54,9 @@ module.exports = {
     notarize: false,
     entitlements: "resources/entitlements.mac.plist",
     entitlementsInherit: "resources/entitlements.mac.plist",
-    // Parent signatures seal resources; native modules, inspect and ShipIt need signing.
+    // Parent signatures seal resources; executable helpers and native modules need signing.
     // Signing binary data separately stores signatures in xattrs that Sparkle cannot diff.
-    signIgnore: ["/Resources/(?!.*\\.node$|ShipIt$|bin/xiaowei-inspect$)"],
+    signIgnore: ["/Resources/(?!.*\\.node$|ShipIt$|bin/(?:xiaowei-inspect|rg)$)"],
     extendInfo: {
       SUFeedURL: feedUrl,
       SUPublicEDKey: publicKey(process.env.SPARKLE_ED_PUBLIC_KEY),

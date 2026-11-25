@@ -4,11 +4,25 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { resolveConfig } from "electron-vite";
 import { createServer } from "vite";
+import { ensureEmbeddedRg } from "../embedded-rg.mjs";
 import { forwardOutput } from "./dev-output.mjs";
 import { stopProcessGroup } from "./dev-process.mjs";
 
 const require = createRequire(import.meta.url);
 function startWatcher(url) {
+  const env = {
+    ...(process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: "1" } : {}),
+    ...process.env,
+    ELECTRON_RENDERER_URL: url,
+  };
+  if (process.platform === "darwin") {
+    delete env.XIAOWEI_AGENT_BIN_DIR;
+    try {
+      env.XIAOWEI_AGENT_BIN_DIR = ensureEmbeddedRg();
+    } catch (error) {
+      console.warn(`Embedded rg unavailable in development: ${error.message}`);
+    }
+  }
   // Isolate nodemon and all application descendants from the terminal process group.
   return spawn(
     process.execPath,
@@ -26,11 +40,7 @@ function startWatcher(url) {
     {
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...(process.stdout.isTTY && !process.env.NO_COLOR ? { FORCE_COLOR: "1" } : {}),
-        ...process.env,
-        ELECTRON_RENDERER_URL: url,
-      },
+      env,
     },
   );
 }
