@@ -1,6 +1,6 @@
 # 客户端 Rust 迁移方案
 
-本方案承载 [iOS 客户端与设备授权](../2026-10-25-ios-client.md) 的独立前置迁移任务，覆盖 xwapi 迁移与 AccountService 的共享逻辑提取。01、02 的共享核心与桌面接入已完成，后续契约重组和迁移遗留清理也已完成自动回归及 Hermes 现场验收。后续独立切片已建立移动 Rust 功能模块与双语言绑定，结果见[移动接入](mobile-module-interface.md)；iOS 工程与平台验收见主 record 的 Outcome。主事项已于 2026-10-26 按用户要求进入 active，下文保留各轮前置迁移当时的状态与验证记录，后续实施以主 record 为准。
+本方案承载 [Flutter 移动客户端与设备授权](../2026-10-25-mobile-development.md) 的独立前置迁移任务，覆盖 xwapi 迁移与 AccountService 的共享逻辑提取。01、02 的共享核心与桌面接入已完成，后续契约重组和迁移遗留清理也已完成自动回归及 Hermes 现场验收。后续独立切片已建立移动 Rust 功能模块与双语言绑定，结果见[移动接入](mobile-module-interface.md)；iOS 工程与平台验收见主 record 的 Outcome。主事项已于 2026-10-26 按用户要求进入 active，下文保留各轮前置迁移当时的状态与验证记录，后续实施以主 record 为准。
 
 ## 范围与边界
 

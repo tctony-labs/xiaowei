@@ -177,3 +177,13 @@ build:
 # Clean build outputs; the main workspace also cleans its linked worktrees/ workspaces.
 clean:
     node scripts/clean.mjs
+
+# Run the Flutter app on an iOS device or simulator.
+[positional-arguments]
+ios target="":
+    @node scripts/mobile/dev.mjs ios "$1"
+
+# Run the Flutter app on an Android device or emulator.
+[positional-arguments]
+android target="":
+    @node scripts/mobile/dev.mjs android "$1"

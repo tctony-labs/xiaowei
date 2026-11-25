@@ -1,4 +1,8 @@
-//! Swift and Kotlin adapters for the mobile Rust entry point.
+//! Platform bindings for the mobile Rust entry point.
+#[cfg(feature = "flutter")]
+mod flutter;
+#[cfg(feature = "flutter")]
+mod frb_generated;
 mod types;
 
 use std::sync::Arc;
