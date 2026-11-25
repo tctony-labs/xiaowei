@@ -33,9 +33,13 @@ export function createLauncherWindow(options: {
   let requestedMode: LauncherMode | "toggle" | undefined;
   let generation = 0;
 
+  function isPinnedQuickChat(): boolean {
+    return launcherPinned && launcherMode === "quick-chat";
+  }
+
   function focusLauncher(): void {
     if (!launcher || launcher.isDestroyed()) return;
-    if (process.platform === "darwin" && launcherMode === "quick-chat") {
+    if (process.platform === "darwin" && isPinnedQuickChat()) {
       app.focus({ steal: true });
     }
     launcher.focus();
@@ -44,7 +48,7 @@ export function createLauncherWindow(options: {
   function updateOrdinaryWindow(): void {
     if (!launcher || launcher.isDestroyed()) return;
     const visible = launcher.isVisible();
-    const ordinary = visible && launcherMode === "quick-chat";
+    const ordinary = visible && isPinnedQuickChat();
     if (ordinary) {
       options.ordinaryWindows?.register(launcher);
       options.ordinaryWindows?.setTransientWindowVisible(false);
@@ -58,9 +62,8 @@ export function createLauncherWindow(options: {
   function modeChanged(mode: LauncherMode): void {
     if (launcherMode === mode) return;
     launcherMode = mode;
-    if (launcher && !launcher.isDestroyed()) {
-      launcher.setAlwaysOnTop(launcherPinned || mode !== "quick-chat");
-      if (mode === "quick-chat" && launcher.isVisible()) focusLauncher();
+    if (isPinnedQuickChat() && launcher && !launcher.isDestroyed() && launcher.isVisible()) {
+      focusLauncher();
     }
     updateOrdinaryWindow();
   }
@@ -69,8 +72,8 @@ export function createLauncherWindow(options: {
     if (!launcher || launcher.isDestroyed() || quitting)
       throw new Error("Launcher is not available");
     if (pinned !== launcherPinned) {
-      if (launcherMode === "quick-chat") launcher.setAlwaysOnTop(pinned);
       launcherPinned = pinned;
+      updateOrdinaryWindow();
       console.debug("Launcher pin changed", { mode: launcherMode, pinned });
       options.pinChanged?.(launcher, pinned);
     }
@@ -147,7 +150,7 @@ export function createLauncherWindow(options: {
       maximizable: false,
       minimizable: false,
       fullscreenable: false,
-      alwaysOnTop: launcherPinned || launcherMode !== "quick-chat",
+      alwaysOnTop: true,
       // Search and clipboard must not activate background settings windows.
       type: process.platform === "darwin" ? "panel" : undefined,
       show: false,
@@ -180,7 +183,7 @@ export function createLauncherWindow(options: {
 
       // macOS main-window changes can emit blur while a floating window stays key.
       const focused = window.isFocused();
-      const retained = focused || launcherPinned || launcherMode === "quick-chat";
+      const retained = focused || launcherPinned;
 
       console.debug("Launcher window blurred", {
         mode: launcherMode,
@@ -261,7 +264,7 @@ export function createLauncherWindow(options: {
       focus: options.focus?.snapshot() ?? null,
     }),
     hideTransient() {
-      if (!launcherPinned && launcherMode !== "quick-chat") void dismiss(false);
+      if (!launcherPinned) void dismiss(false);
     },
     pinState(window: BrowserWindow, pinned?: boolean): boolean {
       if (window !== launcher || window.isDestroyed()) throw new Error("Not a launcher window");
