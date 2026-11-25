@@ -62,6 +62,22 @@ pub struct InputCancelled {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct InputRouted {
+    pub input_id: InputId,
+    pub mode: InputMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_run_id: Option<RunId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InputEdited {
+    pub input_id: InputId,
+    pub message: RecordedMessage,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunStarted {
     pub run_id: RunId,
     pub cause: RunCause,
@@ -85,8 +101,6 @@ pub struct TurnEnded {
     pub status: TurnStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub final_gen_id: Option<GenId>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preempting_input_id: Option<InputId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -122,8 +136,6 @@ pub struct GenFirstSseReceived {
 pub struct GenEnded {
     pub gen_id: GenId,
     pub status: GenStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preempting_input_id: Option<InputId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ended_at_ms: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -224,6 +236,8 @@ pub struct ToolOutcome {
     pub settled_by_run_id: Option<RunId>,
 }
 
+pub const COMPACTION_SUMMARY_PREFIX: &str = "Summary of the earlier conversation:\n\n";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Compacted {
@@ -302,6 +316,7 @@ pub enum TitleSource {
 pub enum InputCancelReason {
     Recovery,
     SessionClosing,
+    User,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -311,7 +326,6 @@ pub enum TurnStatus {
     Failed,
     Aborted,
     Interrupted,
-    Preempted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -321,7 +335,6 @@ pub enum GenStatus {
     Failed,
     Aborted,
     Interrupted,
-    Preempted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,6 +402,8 @@ pub enum EntryPayload {
     Meta(SessionMeta),
     SystemContext(SystemContextUpdate),
     InputAccepted(InputAccepted),
+    InputRouted(InputRouted),
+    InputEdited(InputEdited),
     InputConsumed(InputConsumed),
     InputCancelled(InputCancelled),
     RunStarted(RunStarted),

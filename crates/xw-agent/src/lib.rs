@@ -1,7 +1,9 @@
 //! Transport-independent Agent App Server with an owned SQLite catalog and authoritative JSONL history.
 mod catalog;
+mod compaction;
 mod context;
 mod context_sync;
+mod continuation;
 mod error;
 mod events;
 mod execution;
@@ -16,6 +18,7 @@ mod persistence;
 #[cfg(test)]
 mod persistence_tests;
 mod prompts;
+mod queue;
 mod recovery;
 mod resources;
 mod retention;

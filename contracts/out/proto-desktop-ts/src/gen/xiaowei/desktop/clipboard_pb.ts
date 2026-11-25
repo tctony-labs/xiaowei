@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/desktop/clipboard.proto.
  */
 export const file_xiaowei_desktop_clipboard: GenFile = /*@__PURE__*/
-  fileDesc("Ch94aWFvd2VpL2Rlc2t0b3AvY2xpcGJvYXJkLnByb3RvEg94aWFvd2VpLmRlc2t0b3Ai3QMKDUNsaXBib2FyZEl0ZW0SCgoCaWQYASABKAQSLAoEa2luZBgSIAEoDjIeLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRLaW5kEhkKDHByZXZpZXdfdGV4dBgOIAEoCUgAiAEBEhkKEXByZXZpZXdfdHJ1bmNhdGVkGBEgASgIEg0KBXBhdGhzGAUgAygJEhIKBXdpZHRoGAYgASgNSAGIAQESEwoGaGVpZ2h0GAcgASgNSAKIAQESFQoNY3JlYXRlZF9hdF9tcxgPIAEoAxIXCg9sYXN0X3VzZWRfYXRfbXMYECABKAMSFQoNdXBkYXRlZF9hdF9tcxgTIAEoAxIRCgl1c2VfY291bnQYCiABKA0SEAoIZmF2b3JpdGUYCyABKAgSEwoGcmVtYXJrGAwgASgJSAOIAQESGAoLY2F0ZWdvcnlfaWQYDSABKARIBIgBAUIPCg1fcHJldmlld190ZXh0QggKBl93aWR0aEIJCgdfaGVpZ2h0QgkKB19yZW1hcmtCDgoMX2NhdGVnb3J5X2lkSgQIAhADSgQIAxAESgQIBBAFSgQICBAJSgQICRAKUgppbWFnZV9wYXRoUgR0ZXh0UgpjcmVhdGVkX2F0UgxsYXN0X3VzZWRfYXQiPAoRQ2xpcGJvYXJkQ2F0ZWdvcnkSCgoCaWQYASABKAQSDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCSISChBDbGlwYm9hcmRDaGFuZ2VkIo4CChRDbGlwYm9hcmRMaXN0T3B0aW9ucxISCgVxdWVyeRgBIAEoCUgAiAEBEhsKDmZhdm9yaXRlc19vbmx5GAIgASgISAGIAQESMQoEa2luZBgHIAEoDjIeLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRLaW5kSAKIAQESGAoLY2F0ZWdvcnlfaWQYBCABKARIA4gBARISCgVsaW1pdBgFIAEoDUgEiAEBEhMKBm9mZnNldBgGIAEoDUgFiAEBQggKBl9xdWVyeUIRCg9fZmF2b3JpdGVzX29ubHlCBwoFX2tpbmRCDgoMX2NhdGVnb3J5X2lkQggKBl9saW1pdEIJCgdfb2Zmc2V0SgQIAxAEIiIKFENsaXBib2FyZEl0ZW1SZXF1ZXN0EgoKAmlkGAEgASgEIiYKGENsaXBib2FyZENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBCIvCg9GYXZvcml0ZVJlcXVlc3QSCgoCaWQYASABKAQSEAoIZmF2b3JpdGUYAiABKAgiJgoTU2V0RmF2b3JpdGVSZXNwb25zZRIPCgd1cGRhdGVkGAEgASgIIi4KFVB1cmdlT3JkaW5hcnlSZXNwb25zZRIVCg1kZWxldGVkX2NvdW50GAEgASgNIkgKE0NsaXBib2FyZENhdGVnb3JpZXMSMQoFaXRlbXMYASADKAsyIi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnkiSgoTU2F2ZUNhdGVnb3J5UmVxdWVzdBIPCgJpZBgBIAEoBEgAiAEBEgwKBG5hbWUYAiABKAkSDQoFY29sb3IYAyABKAlCBQoDX2lkIi4KEFNldFJlbWFya1JlcXVlc3QSCgoCaWQYASABKAQSDgoGcmVtYXJrGAIgASgJIkoKElNldENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBBIYCgtjYXRlZ29yeV9pZBgCIAEoBEgAiAEBQg4KDF9jYXRlZ29yeV9pZCJEChhDbGlwYm9hcmRSZXNvdXJjZVJlcXVlc3QSCgoCaWQYASABKAQSEgoFaW5kZXgYAiABKA1IAIgBAUIICgZfaW5kZXgi2AIKD0NsaXBib2FyZEVudGl0eRIKCgJpZBgBIAEoBBIMCgRraW5kGAIgASgJEhEKBHRleHQYAyABKAlIAIgBARINCgVwYXRocxgEIAMoCRISCgV3aWR0aBgFIAEoDUgBiAEBEhMKBmhlaWdodBgGIAEoDUgCiAEBEhUKDWNyZWF0ZWRfYXRfbXMYByABKAMSFwoPbGFzdF91c2VkX2F0X21zGAggASgDEhEKCXVzZV9jb3VudBgJIAEoDRIQCghmYXZvcml0ZRgKIAEoCBITCgZyZW1hcmsYCyABKAlIA4gBARIYCgtjYXRlZ29yeV9pZBgMIAEoBEgEiAEBEgwKBGhhc2gYDSABKAkSFQoNdXBkYXRlZF9hdF9tcxgOIAEoA0IHCgVfdGV4dEIICgZfd2lkdGhCCQoHX2hlaWdodEIJCgdfcmVtYXJrQg4KDF9jYXRlZ29yeV9pZCIxChNBdHRhY2htZW50UmVmZXJlbmNlEgwKBGtpbmQYASABKAkSDAoEaGFzaBgCIAEoCSJsChhEZWxldGVkQ2xpcGJvYXJkRW50aXRpZXMSFQoNZGVsZXRlZF9jb3VudBgBIAEoDRI5CgthdHRhY2htZW50cxgCIAMoCzIkLnhpYW93ZWkuZGVza3RvcC5BdHRhY2htZW50UmVmZXJlbmNlIj8KDkNsaXBib2FyZEl0ZW1zEi0KBWl0ZW1zGAEgAygLMh4ueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW0iPAoMT3B0aW9uYWxJdGVtEiwKBGl0ZW0YASABKAsyHi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbSIgChBSZWFkVGV4dFJlc3BvbnNlEgwKBHRleHQYASABKAkiIAoRUmVhZEltYWdlUmVzcG9uc2USCwoDcG5nGAEgASgMIiEKDkRlbGV0ZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiLQoUQ2xlYXJIaXN0b3J5UmVzcG9uc2USFQoNZGVsZXRlZF9jb3VudBgBIAEoDSItChNQdXJnZUV4cGlyZWRSZXF1ZXN0EhYKDnJldGVudGlvbl9kYXlzGAEgASgFIisKFUNsaXBib2FyZFN0b3JhZ2VVc2FnZRISCgp1c2VkX2J5dGVzGAEgASgEIisKD0VkaXRUZXh0UmVxdWVzdBIKCgJpZBgBIAEoBBIMCgR0ZXh0GAIgASgJIlYKF0NvcHlSZXNvdXJjZVBhdGhSZXF1ZXN0EgoKAmlkGAEgASgEEhIKBWluZGV4GAIgASgNSACIAQESEQoJZGlyZWN0b3J5GAMgASgIQggKBl9pbmRleCK7AQodQ2FwdHVyZUNsaXBib2FyZEVudGl0eVJlcXVlc3QSDAoEaGFzaBgBIAEoCRIMCgRraW5kGAIgASgJEhEKBHRleHQYAyABKAlIAIgBARINCgVwYXRocxgEIAMoCRISCgV3aWR0aBgFIAEoDUgBiAEBEhMKBmhlaWdodBgGIAEoDUgCiAEBEhUKDWNyZWF0ZWRfYXRfbXMYByABKANCBwoFX3RleHRCCAoGX3dpZHRoQgkKB19oZWlnaHQiSQoTQ2xpcGJvYXJkRW50aXR5TGlzdBIyCghlbnRpdGllcxgBIAMoCzIgLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHkiTQoeU2VhcmNoQ2xpcGJvYXJkRW50aXRpZXNSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEhIKBWxpbWl0GAIgASgNSACIAQFCCAoGX2xpbWl0IlcKEkNsaXBib2FyZEVudGl0eUhpdBIwCgZlbnRpdHkYASABKAsyIC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5Eg8KB3NuaXBwZXQYAiABKAkiSAoTQ2xpcGJvYXJkRW50aXR5SGl0cxIxCgRoaXRzGAEgAygLMiMueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEVudGl0eUhpdCJLChdPcHRpb25hbENsaXBib2FyZEVudGl0eRIwCgZlbnRpdHkYASABKAsyIC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5Ij0KG1RvdWNoQ2xpcGJvYXJkRW50aXR5UmVxdWVzdBIKCgJpZBgBIAEoBBISCgp1c2VkX2F0X21zGAIgASgDImwKHkVkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVxdWVzdBIKCgJpZBgBIAEoBBIMCgRoYXNoGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEdGV4dBgEIAEoCRIUCgxlZGl0ZWRfYXRfbXMYBSABKAMilgEKH0VkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVzcG9uc2USMAoGZW50aXR5GAEgASgLMiAueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEVudGl0eRJBChNwcmV2aW91c19hdHRhY2htZW50GAIgASgLMiQueGlhb3dlaS5kZXNrdG9wLkF0dGFjaG1lbnRSZWZlcmVuY2UiMgodUHVyZ2VDbGlwYm9hcmRFbnRpdGllc1JlcXVlc3QSEQoJY3V0b2ZmX21zGAEgASgDIioKGkNsaXBib2FyZEVudGl0eUhhc2hSZXF1ZXN0EgwKBGhhc2gYASABKAkiMgocQ2xpcGJvYXJkRW50aXR5SGFzaFJlZmVyZW5jZRISCgpyZWZlcmVuY2VkGAEgASgIKnsKDUNsaXBib2FyZEtpbmQSHgoaQ0xJUEJPQVJEX0tJTkRfVU5TUEVDSUZJRUQQABIXChNDTElQQk9BUkRfS0lORF9URVhUEAESGAoUQ0xJUEJPQVJEX0tJTkRfSU1BR0UQAhIXChNDTElQQk9BUkRfS0lORF9GSUxFEAMyuw0KDENsaXBib2FyZEJpehJOCgRMaXN0EiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZExpc3RPcHRpb25zGh8ueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1zEksKA0dldBIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBodLnhpYW93ZWkuZGVza3RvcC5PcHRpb25hbEl0ZW0SVAoIUmVhZFRleHQSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaIS54aWFvd2VpLmRlc2t0b3AuUmVhZFRleHRSZXNwb25zZRJWCglSZWFkSW1hZ2USJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaIi54aWFvd2VpLmRlc2t0b3AuUmVhZEltYWdlUmVzcG9uc2USRQoEQ29weRIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJHCgZTZWxlY3QSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSUAoGRGVsZXRlEiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1SZXF1ZXN0Gh8ueGlhb3dlaS5kZXNrdG9wLkRlbGV0ZVJlc3BvbnNlElUKC1NldEZhdm9yaXRlEiAueGlhb3dlaS5kZXNrdG9wLkZhdm9yaXRlUmVxdWVzdBokLnhpYW93ZWkuZGVza3RvcC5TZXRGYXZvcml0ZVJlc3BvbnNlEk0KDENsZWFySGlzdG9yeRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRolLnhpYW93ZWkuZGVza3RvcC5DbGVhckhpc3RvcnlSZXNwb25zZRJPCg1QdXJnZU9yZGluYXJ5EhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GiYueGlhb3dlaS5kZXNrdG9wLlB1cmdlT3JkaW5hcnlSZXNwb25zZRJcCgxQdXJnZUV4cGlyZWQSJC54aWFvd2VpLmRlc2t0b3AuUHVyZ2VFeHBpcmVkUmVxdWVzdBomLnhpYW93ZWkuZGVza3RvcC5QdXJnZU9yZGluYXJ5UmVzcG9uc2USTgoMU3RvcmFnZVVzYWdlEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GiYueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZFN0b3JhZ2VVc2FnZRJKCgpDYXRlZ29yaWVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GiQueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZENhdGVnb3JpZXMSWAoMU2F2ZUNhdGVnb3J5EiQueGlhb3dlaS5kZXNrdG9wLlNhdmVDYXRlZ29yeVJlcXVlc3QaIi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnkSUwoORGVsZXRlQ2F0ZWdvcnkSKS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnlSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkYKCVNldFJlbWFyaxIhLnhpYW93ZWkuZGVza3RvcC5TZXRSZW1hcmtSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkwKCEVkaXRUZXh0EiAueGlhb3dlaS5kZXNrdG9wLkVkaXRUZXh0UmVxdWVzdBoeLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtEkoKC1NldENhdGVnb3J5EiMueGlhb3dlaS5kZXNrdG9wLlNldENhdGVnb3J5UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJRCgxPcGVuUmVzb3VyY2USKS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkUmVzb3VyY2VSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElMKDlJldmVhbFJlc291cmNlEikueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZFJlc291cmNlUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJUChBDb3B5UmVzb3VyY2VQYXRoEigueGlhb3dlaS5kZXNrdG9wLkNvcHlSZXNvdXJjZVBhdGhSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5MrALCgxDbGlwYm9hcmREYW8SWwoHQ2FwdHVyZRIuLnhpYW93ZWkuZGVza3RvcC5DYXB0dXJlQ2xpcGJvYXJkRW50aXR5UmVxdWVzdBogLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHkSUwoETGlzdBIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRMaXN0T3B0aW9ucxokLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHlMaXN0El8KBlNlYXJjaBIvLnhpYW93ZWkuZGVza3RvcC5TZWFyY2hDbGlwYm9hcmRFbnRpdGllc1JlcXVlc3QaJC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5SGl0cxJWCgNHZXQSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaKC54aWFvd2VpLmRlc2t0b3AuT3B0aW9uYWxDbGlwYm9hcmRFbnRpdHkSTQoFVG91Y2gSLC54aWFvd2VpLmRlc2t0b3AuVG91Y2hDbGlwYm9hcmRFbnRpdHlSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElUKC1NldEZhdm9yaXRlEiAueGlhb3dlaS5kZXNrdG9wLkZhdm9yaXRlUmVxdWVzdBokLnhpYW93ZWkuZGVza3RvcC5TZXRGYXZvcml0ZVJlc3BvbnNlEkYKCVNldFJlbWFyaxIhLnhpYW93ZWkuZGVza3RvcC5TZXRSZW1hcmtSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkoKC1NldENhdGVnb3J5EiMueGlhb3dlaS5kZXNrdG9wLlNldENhdGVnb3J5UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJKCgpDYXRlZ29yaWVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GiQueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZENhdGVnb3JpZXMSWAoMU2F2ZUNhdGVnb3J5EiQueGlhb3dlaS5kZXNrdG9wLlNhdmVDYXRlZ29yeVJlcXVlc3QaIi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnkSUwoORGVsZXRlQ2F0ZWdvcnkSKS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnlSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5Em0KCEVkaXRUZXh0Ei8ueGlhb3dlaS5kZXNrdG9wLkVkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVxdWVzdBowLnhpYW93ZWkuZGVza3RvcC5FZGl0Q2xpcGJvYXJkRW50aXR5VGV4dFJlc3BvbnNlEloKBkRlbGV0ZRIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBopLnhpYW93ZWkuZGVza3RvcC5EZWxldGVkQ2xpcGJvYXJkRW50aXRpZXMSbwoSUHVyZ2VPcmRpbmFyeUJhdGNoEi4ueGlhb3dlaS5kZXNrdG9wLlB1cmdlQ2xpcGJvYXJkRW50aXRpZXNSZXF1ZXN0GikueGlhb3dlaS5kZXNrdG9wLkRlbGV0ZWRDbGlwYm9hcmRFbnRpdGllcxJWChFDbGVhckhpc3RvcnlCYXRjaBIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRopLnhpYW93ZWkuZGVza3RvcC5EZWxldGVkQ2xpcGJvYXJkRW50aXRpZXMSbAoOSGFzaFJlZmVyZW5jZWQSKy54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5SGFzaFJlcXVlc3QaLS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5SGFzaFJlZmVyZW5jZWIGcHJvdG8z", [file_google_protobuf_empty]);
+  fileDesc("Ch94aWFvd2VpL2Rlc2t0b3AvY2xpcGJvYXJkLnByb3RvEg94aWFvd2VpLmRlc2t0b3Ai3QMKDUNsaXBib2FyZEl0ZW0SCgoCaWQYASABKAQSLAoEa2luZBgSIAEoDjIeLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRLaW5kEhkKDHByZXZpZXdfdGV4dBgOIAEoCUgAiAEBEhkKEXByZXZpZXdfdHJ1bmNhdGVkGBEgASgIEg0KBXBhdGhzGAUgAygJEhIKBXdpZHRoGAYgASgNSAGIAQESEwoGaGVpZ2h0GAcgASgNSAKIAQESFQoNY3JlYXRlZF9hdF9tcxgPIAEoAxIXCg9sYXN0X3VzZWRfYXRfbXMYECABKAMSFQoNdXBkYXRlZF9hdF9tcxgTIAEoAxIRCgl1c2VfY291bnQYCiABKA0SEAoIZmF2b3JpdGUYCyABKAgSEwoGcmVtYXJrGAwgASgJSAOIAQESGAoLY2F0ZWdvcnlfaWQYDSABKARIBIgBAUIPCg1fcHJldmlld190ZXh0QggKBl93aWR0aEIJCgdfaGVpZ2h0QgkKB19yZW1hcmtCDgoMX2NhdGVnb3J5X2lkSgQIAhADSgQIAxAESgQIBBAFSgQICBAJSgQICRAKUgppbWFnZV9wYXRoUgR0ZXh0UgpjcmVhdGVkX2F0UgxsYXN0X3VzZWRfYXQiPAoRQ2xpcGJvYXJkQ2F0ZWdvcnkSCgoCaWQYASABKAQSDAoEbmFtZRgCIAEoCRINCgVjb2xvchgDIAEoCSISChBDbGlwYm9hcmRDaGFuZ2VkIo4CChRDbGlwYm9hcmRMaXN0T3B0aW9ucxISCgVxdWVyeRgBIAEoCUgAiAEBEhsKDmZhdm9yaXRlc19vbmx5GAIgASgISAGIAQESMQoEa2luZBgHIAEoDjIeLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRLaW5kSAKIAQESGAoLY2F0ZWdvcnlfaWQYBCABKARIA4gBARISCgVsaW1pdBgFIAEoDUgEiAEBEhMKBm9mZnNldBgGIAEoDUgFiAEBQggKBl9xdWVyeUIRCg9fZmF2b3JpdGVzX29ubHlCBwoFX2tpbmRCDgoMX2NhdGVnb3J5X2lkQggKBl9saW1pdEIJCgdfb2Zmc2V0SgQIAxAEIiIKFENsaXBib2FyZEl0ZW1SZXF1ZXN0EgoKAmlkGAEgASgEIiYKGENsaXBib2FyZENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBCIvCg9GYXZvcml0ZVJlcXVlc3QSCgoCaWQYASABKAQSEAoIZmF2b3JpdGUYAiABKAgiJgoTU2V0RmF2b3JpdGVSZXNwb25zZRIPCgd1cGRhdGVkGAEgASgIIi4KFVB1cmdlT3JkaW5hcnlSZXNwb25zZRIVCg1kZWxldGVkX2NvdW50GAEgASgNIkgKE0NsaXBib2FyZENhdGVnb3JpZXMSMQoFaXRlbXMYASADKAsyIi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcnkiSgoTU2F2ZUNhdGVnb3J5UmVxdWVzdBIPCgJpZBgBIAEoBEgAiAEBEgwKBG5hbWUYAiABKAkSDQoFY29sb3IYAyABKAlCBQoDX2lkIi4KEFNldFJlbWFya1JlcXVlc3QSCgoCaWQYASABKAQSDgoGcmVtYXJrGAIgASgJIkoKElNldENhdGVnb3J5UmVxdWVzdBIKCgJpZBgBIAEoBBIYCgtjYXRlZ29yeV9pZBgCIAEoBEgAiAEBQg4KDF9jYXRlZ29yeV9pZCJEChhDbGlwYm9hcmRSZXNvdXJjZVJlcXVlc3QSCgoCaWQYASABKAQSEgoFaW5kZXgYAiABKA1IAIgBAUIICgZfaW5kZXgi2AIKD0NsaXBib2FyZEVudGl0eRIKCgJpZBgBIAEoBBIMCgRraW5kGAIgASgJEhEKBHRleHQYAyABKAlIAIgBARINCgVwYXRocxgEIAMoCRISCgV3aWR0aBgFIAEoDUgBiAEBEhMKBmhlaWdodBgGIAEoDUgCiAEBEhUKDWNyZWF0ZWRfYXRfbXMYByABKAMSFwoPbGFzdF91c2VkX2F0X21zGAggASgDEhEKCXVzZV9jb3VudBgJIAEoDRIQCghmYXZvcml0ZRgKIAEoCBITCgZyZW1hcmsYCyABKAlIA4gBARIYCgtjYXRlZ29yeV9pZBgMIAEoBEgEiAEBEgwKBGhhc2gYDSABKAkSFQoNdXBkYXRlZF9hdF9tcxgOIAEoA0IHCgVfdGV4dEIICgZfd2lkdGhCCQoHX2hlaWdodEIJCgdfcmVtYXJrQg4KDF9jYXRlZ29yeV9pZCIxChNBdHRhY2htZW50UmVmZXJlbmNlEgwKBGtpbmQYASABKAkSDAoEaGFzaBgCIAEoCSJsChhEZWxldGVkQ2xpcGJvYXJkRW50aXRpZXMSFQoNZGVsZXRlZF9jb3VudBgBIAEoDRI5CgthdHRhY2htZW50cxgCIAMoCzIkLnhpYW93ZWkuZGVza3RvcC5BdHRhY2htZW50UmVmZXJlbmNlIj8KDkNsaXBib2FyZEl0ZW1zEi0KBWl0ZW1zGAEgAygLMh4ueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW0iPAoMT3B0aW9uYWxJdGVtEiwKBGl0ZW0YASABKAsyHi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbSIgChBSZWFkVGV4dFJlc3BvbnNlEgwKBHRleHQYASABKAkiIAoRUmVhZEltYWdlUmVzcG9uc2USCwoDcG5nGAEgASgMIi8KEUNsaXBib2FyZEltYWdlT2NyEhEKBHRleHQYASABKAlIAIgBAUIHCgVfdGV4dCIzCh9OZXh0Q2xpcGJvYXJkSW1hZ2VGb3JPY3JSZXF1ZXN0EhAKCGFmdGVyX2lkGAEgASgEIlYKIE5leHRDbGlwYm9hcmRJbWFnZUZvck9jclJlc3BvbnNlEg8KAmlkGAEgASgESACIAQESEQoEaGFzaBgCIAEoCUgBiAEBQgUKA19pZEIHCgVfaGFzaCI8CiBDb21wbGV0ZUNsaXBib2FyZEltYWdlT2NyUmVxdWVzdBIKCgJpZBgBIAEoBBIMCgR0ZXh0GAIgASgJIjQKIUNvbXBsZXRlQ2xpcGJvYXJkSW1hZ2VPY3JSZXNwb25zZRIPCgd1cGRhdGVkGAEgASgIIiEKDkRlbGV0ZVJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiLQoUQ2xlYXJIaXN0b3J5UmVzcG9uc2USFQoNZGVsZXRlZF9jb3VudBgBIAEoDSItChNQdXJnZUV4cGlyZWRSZXF1ZXN0EhYKDnJldGVudGlvbl9kYXlzGAEgASgFIisKFUNsaXBib2FyZFN0b3JhZ2VVc2FnZRISCgp1c2VkX2J5dGVzGAEgASgEIisKD0VkaXRUZXh0UmVxdWVzdBIKCgJpZBgBIAEoBBIMCgR0ZXh0GAIgASgJIlYKF0NvcHlSZXNvdXJjZVBhdGhSZXF1ZXN0EgoKAmlkGAEgASgEEhIKBWluZGV4GAIgASgNSACIAQESEQoJZGlyZWN0b3J5GAMgASgIQggKBl9pbmRleCK7AQodQ2FwdHVyZUNsaXBib2FyZEVudGl0eVJlcXVlc3QSDAoEaGFzaBgBIAEoCRIMCgRraW5kGAIgASgJEhEKBHRleHQYAyABKAlIAIgBARINCgVwYXRocxgEIAMoCRISCgV3aWR0aBgFIAEoDUgBiAEBEhMKBmhlaWdodBgGIAEoDUgCiAEBEhUKDWNyZWF0ZWRfYXRfbXMYByABKANCBwoFX3RleHRCCAoGX3dpZHRoQgkKB19oZWlnaHQiSQoTQ2xpcGJvYXJkRW50aXR5TGlzdBIyCghlbnRpdGllcxgBIAMoCzIgLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHkiTQoeU2VhcmNoQ2xpcGJvYXJkRW50aXRpZXNSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEhIKBWxpbWl0GAIgASgNSACIAQFCCAoGX2xpbWl0IlcKEkNsaXBib2FyZEVudGl0eUhpdBIwCgZlbnRpdHkYASABKAsyIC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5Eg8KB3NuaXBwZXQYAiABKAkiSAoTQ2xpcGJvYXJkRW50aXR5SGl0cxIxCgRoaXRzGAEgAygLMiMueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEVudGl0eUhpdCJLChdPcHRpb25hbENsaXBib2FyZEVudGl0eRIwCgZlbnRpdHkYASABKAsyIC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5Ij0KG1RvdWNoQ2xpcGJvYXJkRW50aXR5UmVxdWVzdBIKCgJpZBgBIAEoBBISCgp1c2VkX2F0X21zGAIgASgDImwKHkVkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVxdWVzdBIKCgJpZBgBIAEoBBIMCgRoYXNoGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEdGV4dBgEIAEoCRIUCgxlZGl0ZWRfYXRfbXMYBSABKAMilgEKH0VkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVzcG9uc2USMAoGZW50aXR5GAEgASgLMiAueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEVudGl0eRJBChNwcmV2aW91c19hdHRhY2htZW50GAIgASgLMiQueGlhb3dlaS5kZXNrdG9wLkF0dGFjaG1lbnRSZWZlcmVuY2UiMgodUHVyZ2VDbGlwYm9hcmRFbnRpdGllc1JlcXVlc3QSEQoJY3V0b2ZmX21zGAEgASgDIioKGkNsaXBib2FyZEVudGl0eUhhc2hSZXF1ZXN0EgwKBGhhc2gYASABKAkiMgocQ2xpcGJvYXJkRW50aXR5SGFzaFJlZmVyZW5jZRISCgpyZWZlcmVuY2VkGAEgASgIKnsKDUNsaXBib2FyZEtpbmQSHgoaQ0xJUEJPQVJEX0tJTkRfVU5TUEVDSUZJRUQQABIXChNDTElQQk9BUkRfS0lORF9URVhUEAESGAoUQ0xJUEJPQVJEX0tJTkRfSU1BR0UQAhIXChNDTElQQk9BUkRfS0lORF9GSUxFEAMylg4KDENsaXBib2FyZEJpehJOCgRMaXN0EiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZExpc3RPcHRpb25zGh8ueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1zEksKA0dldBIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBodLnhpYW93ZWkuZGVza3RvcC5PcHRpb25hbEl0ZW0SVAoIUmVhZFRleHQSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaIS54aWFvd2VpLmRlc2t0b3AuUmVhZFRleHRSZXNwb25zZRJWCglSZWFkSW1hZ2USJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaIi54aWFvd2VpLmRlc2t0b3AuUmVhZEltYWdlUmVzcG9uc2USWQoMUmVhZEltYWdlT2NyEiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GiIueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEltYWdlT2NyEkUKBENvcHkSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSRwoGU2VsZWN0EiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElAKBkRlbGV0ZRIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBofLnhpYW93ZWkuZGVza3RvcC5EZWxldGVSZXNwb25zZRJVCgtTZXRGYXZvcml0ZRIgLnhpYW93ZWkuZGVza3RvcC5GYXZvcml0ZVJlcXVlc3QaJC54aWFvd2VpLmRlc2t0b3AuU2V0RmF2b3JpdGVSZXNwb25zZRJNCgxDbGVhckhpc3RvcnkSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaJS54aWFvd2VpLmRlc2t0b3AuQ2xlYXJIaXN0b3J5UmVzcG9uc2USTwoNUHVyZ2VPcmRpbmFyeRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRomLnhpYW93ZWkuZGVza3RvcC5QdXJnZU9yZGluYXJ5UmVzcG9uc2USXAoMUHVyZ2VFeHBpcmVkEiQueGlhb3dlaS5kZXNrdG9wLlB1cmdlRXhwaXJlZFJlcXVlc3QaJi54aWFvd2VpLmRlc2t0b3AuUHVyZ2VPcmRpbmFyeVJlc3BvbnNlEk4KDFN0b3JhZ2VVc2FnZRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRomLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRTdG9yYWdlVXNhZ2USSgoKQ2F0ZWdvcmllcxIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRokLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRDYXRlZ29yaWVzElgKDFNhdmVDYXRlZ29yeRIkLnhpYW93ZWkuZGVza3RvcC5TYXZlQ2F0ZWdvcnlSZXF1ZXN0GiIueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZENhdGVnb3J5ElMKDkRlbGV0ZUNhdGVnb3J5EikueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZENhdGVnb3J5UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJGCglTZXRSZW1hcmsSIS54aWFvd2VpLmRlc2t0b3AuU2V0UmVtYXJrUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJMCghFZGl0VGV4dBIgLnhpYW93ZWkuZGVza3RvcC5FZGl0VGV4dFJlcXVlc3QaHi54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkSXRlbRJKCgtTZXRDYXRlZ29yeRIjLnhpYW93ZWkuZGVza3RvcC5TZXRDYXRlZ29yeVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSUQoMT3BlblJlc291cmNlEikueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZFJlc291cmNlUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJTCg5SZXZlYWxSZXNvdXJjZRIpLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRSZXNvdXJjZVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSVAoQQ29weVJlc291cmNlUGF0aBIoLnhpYW93ZWkuZGVza3RvcC5Db3B5UmVzb3VyY2VQYXRoUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eTL+DQoMQ2xpcGJvYXJkRGFvElsKB0NhcHR1cmUSLi54aWFvd2VpLmRlc2t0b3AuQ2FwdHVyZUNsaXBib2FyZEVudGl0eVJlcXVlc3QaIC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5ElMKBExpc3QSJS54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkTGlzdE9wdGlvbnMaJC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkRW50aXR5TGlzdBJfCgZTZWFyY2gSLy54aWFvd2VpLmRlc2t0b3AuU2VhcmNoQ2xpcGJvYXJkRW50aXRpZXNSZXF1ZXN0GiQueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEVudGl0eUhpdHMSVgoDR2V0EiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GigueGlhb3dlaS5kZXNrdG9wLk9wdGlvbmFsQ2xpcGJvYXJkRW50aXR5ElkKDFJlYWRJbWFnZU9jchIlLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJdGVtUmVxdWVzdBoiLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRJbWFnZU9jchJ2Cg9OZXh0SW1hZ2VGb3JPY3ISMC54aWFvd2VpLmRlc2t0b3AuTmV4dENsaXBib2FyZEltYWdlRm9yT2NyUmVxdWVzdBoxLnhpYW93ZWkuZGVza3RvcC5OZXh0Q2xpcGJvYXJkSW1hZ2VGb3JPY3JSZXNwb25zZRJ5ChBDb21wbGV0ZUltYWdlT2NyEjEueGlhb3dlaS5kZXNrdG9wLkNvbXBsZXRlQ2xpcGJvYXJkSW1hZ2VPY3JSZXF1ZXN0GjIueGlhb3dlaS5kZXNrdG9wLkNvbXBsZXRlQ2xpcGJvYXJkSW1hZ2VPY3JSZXNwb25zZRJNCgVUb3VjaBIsLnhpYW93ZWkuZGVza3RvcC5Ub3VjaENsaXBib2FyZEVudGl0eVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSVQoLU2V0RmF2b3JpdGUSIC54aWFvd2VpLmRlc2t0b3AuRmF2b3JpdGVSZXF1ZXN0GiQueGlhb3dlaS5kZXNrdG9wLlNldEZhdm9yaXRlUmVzcG9uc2USRgoJU2V0UmVtYXJrEiEueGlhb3dlaS5kZXNrdG9wLlNldFJlbWFya1JlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSSgoLU2V0Q2F0ZWdvcnkSIy54aWFvd2VpLmRlc2t0b3AuU2V0Q2F0ZWdvcnlSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkoKCkNhdGVnb3JpZXMSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaJC54aWFvd2VpLmRlc2t0b3AuQ2xpcGJvYXJkQ2F0ZWdvcmllcxJYCgxTYXZlQ2F0ZWdvcnkSJC54aWFvd2VpLmRlc2t0b3AuU2F2ZUNhdGVnb3J5UmVxdWVzdBoiLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRDYXRlZ29yeRJTCg5EZWxldGVDYXRlZ29yeRIpLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRDYXRlZ29yeVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSbQoIRWRpdFRleHQSLy54aWFvd2VpLmRlc2t0b3AuRWRpdENsaXBib2FyZEVudGl0eVRleHRSZXF1ZXN0GjAueGlhb3dlaS5kZXNrdG9wLkVkaXRDbGlwYm9hcmRFbnRpdHlUZXh0UmVzcG9uc2USWgoGRGVsZXRlEiUueGlhb3dlaS5kZXNrdG9wLkNsaXBib2FyZEl0ZW1SZXF1ZXN0GikueGlhb3dlaS5kZXNrdG9wLkRlbGV0ZWRDbGlwYm9hcmRFbnRpdGllcxJvChJQdXJnZU9yZGluYXJ5QmF0Y2gSLi54aWFvd2VpLmRlc2t0b3AuUHVyZ2VDbGlwYm9hcmRFbnRpdGllc1JlcXVlc3QaKS54aWFvd2VpLmRlc2t0b3AuRGVsZXRlZENsaXBib2FyZEVudGl0aWVzElYKEUNsZWFySGlzdG9yeUJhdGNoEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GikueGlhb3dlaS5kZXNrdG9wLkRlbGV0ZWRDbGlwYm9hcmRFbnRpdGllcxJsCg5IYXNoUmVmZXJlbmNlZBIrLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHlIYXNoUmVxdWVzdBotLnhpYW93ZWkuZGVza3RvcC5DbGlwYm9hcmRFbnRpdHlIYXNoUmVmZXJlbmNlYgZwcm90bzM", [file_google_protobuf_empty]);
 
 /**
  * History summary. ReadText and ReadImage return the complete content.
@@ -153,7 +153,7 @@ export const ClipboardChangedSchema: GenMessage<ClipboardChanged> = /*@__PURE__*
  */
 export type ClipboardListOptions = Message<"xiaowei.desktop.ClipboardListOptions"> & {
   /**
-   * Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+   * Empty selects the ordinary list. Nonempty searches text, OCR, remarks and paths:
    * whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
    * At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
    *
@@ -611,6 +611,111 @@ export const ReadImageResponseSchema: GenMessage<ReadImageResponse> = /*@__PURE_
   messageDesc(file_xiaowei_desktop_clipboard, 20);
 
 /**
+ * @generated from message xiaowei.desktop.ClipboardImageOcr
+ */
+export type ClipboardImageOcr = Message<"xiaowei.desktop.ClipboardImageOcr"> & {
+  /**
+   * Absent until recognition succeeds. Empty when the image contains no recognized text.
+   *
+   * @generated from field: optional string text = 1;
+   */
+  text?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.ClipboardImageOcr.
+ * Use `create(ClipboardImageOcrSchema)` to create a new message.
+ */
+export const ClipboardImageOcrSchema: GenMessage<ClipboardImageOcr> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_clipboard, 21);
+
+/**
+ * @generated from message xiaowei.desktop.NextClipboardImageForOcrRequest
+ */
+export type NextClipboardImageForOcrRequest = Message<"xiaowei.desktop.NextClipboardImageForOcrRequest"> & {
+  /**
+   * Select the first pending image after this ID. Zero starts at the oldest.
+   *
+   * @generated from field: uint64 after_id = 1;
+   */
+  afterId: bigint;
+};
+
+/**
+ * Describes the message xiaowei.desktop.NextClipboardImageForOcrRequest.
+ * Use `create(NextClipboardImageForOcrRequestSchema)` to create a new message.
+ */
+export const NextClipboardImageForOcrRequestSchema: GenMessage<NextClipboardImageForOcrRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_clipboard, 22);
+
+/**
+ * @generated from message xiaowei.desktop.NextClipboardImageForOcrResponse
+ */
+export type NextClipboardImageForOcrResponse = Message<"xiaowei.desktop.NextClipboardImageForOcrResponse"> & {
+  /**
+   * Both fields are absent when there are no more pending images after the cursor.
+   *
+   * @generated from field: optional uint64 id = 1;
+   */
+  id?: bigint | undefined;
+
+  /**
+   * @generated from field: optional string hash = 2;
+   */
+  hash?: string | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.NextClipboardImageForOcrResponse.
+ * Use `create(NextClipboardImageForOcrResponseSchema)` to create a new message.
+ */
+export const NextClipboardImageForOcrResponseSchema: GenMessage<NextClipboardImageForOcrResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_clipboard, 23);
+
+/**
+ * @generated from message xiaowei.desktop.CompleteClipboardImageOcrRequest
+ */
+export type CompleteClipboardImageOcrRequest = Message<"xiaowei.desktop.CompleteClipboardImageOcrRequest"> & {
+  /**
+   * @generated from field: uint64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * An empty result also completes recognition. Timestamps and use count stay intact.
+   *
+   * @generated from field: string text = 2;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message xiaowei.desktop.CompleteClipboardImageOcrRequest.
+ * Use `create(CompleteClipboardImageOcrRequestSchema)` to create a new message.
+ */
+export const CompleteClipboardImageOcrRequestSchema: GenMessage<CompleteClipboardImageOcrRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_clipboard, 24);
+
+/**
+ * @generated from message xiaowei.desktop.CompleteClipboardImageOcrResponse
+ */
+export type CompleteClipboardImageOcrResponse = Message<"xiaowei.desktop.CompleteClipboardImageOcrResponse"> & {
+  /**
+   * False if the image was removed or its recognition was already completed.
+   *
+   * @generated from field: bool updated = 1;
+   */
+  updated: boolean;
+};
+
+/**
+ * Describes the message xiaowei.desktop.CompleteClipboardImageOcrResponse.
+ * Use `create(CompleteClipboardImageOcrResponseSchema)` to create a new message.
+ */
+export const CompleteClipboardImageOcrResponseSchema: GenMessage<CompleteClipboardImageOcrResponse> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_clipboard, 25);
+
+/**
  * @generated from message xiaowei.desktop.DeleteResponse
  */
 export type DeleteResponse = Message<"xiaowei.desktop.DeleteResponse"> & {
@@ -627,7 +732,7 @@ export type DeleteResponse = Message<"xiaowei.desktop.DeleteResponse"> & {
  * Use `create(DeleteResponseSchema)` to create a new message.
  */
 export const DeleteResponseSchema: GenMessage<DeleteResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 21);
+  messageDesc(file_xiaowei_desktop_clipboard, 26);
 
 /**
  * @generated from message xiaowei.desktop.ClearHistoryResponse
@@ -646,7 +751,7 @@ export type ClearHistoryResponse = Message<"xiaowei.desktop.ClearHistoryResponse
  * Use `create(ClearHistoryResponseSchema)` to create a new message.
  */
 export const ClearHistoryResponseSchema: GenMessage<ClearHistoryResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 22);
+  messageDesc(file_xiaowei_desktop_clipboard, 27);
 
 /**
  * @generated from message xiaowei.desktop.PurgeExpiredRequest
@@ -665,7 +770,7 @@ export type PurgeExpiredRequest = Message<"xiaowei.desktop.PurgeExpiredRequest">
  * Use `create(PurgeExpiredRequestSchema)` to create a new message.
  */
 export const PurgeExpiredRequestSchema: GenMessage<PurgeExpiredRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 23);
+  messageDesc(file_xiaowei_desktop_clipboard, 28);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardStorageUsage
@@ -684,7 +789,7 @@ export type ClipboardStorageUsage = Message<"xiaowei.desktop.ClipboardStorageUsa
  * Use `create(ClipboardStorageUsageSchema)` to create a new message.
  */
 export const ClipboardStorageUsageSchema: GenMessage<ClipboardStorageUsage> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 24);
+  messageDesc(file_xiaowei_desktop_clipboard, 29);
 
 /**
  * @generated from message xiaowei.desktop.EditTextRequest
@@ -706,7 +811,7 @@ export type EditTextRequest = Message<"xiaowei.desktop.EditTextRequest"> & {
  * Use `create(EditTextRequestSchema)` to create a new message.
  */
 export const EditTextRequestSchema: GenMessage<EditTextRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 25);
+  messageDesc(file_xiaowei_desktop_clipboard, 30);
 
 /**
  * @generated from message xiaowei.desktop.CopyResourcePathRequest
@@ -733,7 +838,7 @@ export type CopyResourcePathRequest = Message<"xiaowei.desktop.CopyResourcePathR
  * Use `create(CopyResourcePathRequestSchema)` to create a new message.
  */
 export const CopyResourcePathRequestSchema: GenMessage<CopyResourcePathRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 26);
+  messageDesc(file_xiaowei_desktop_clipboard, 31);
 
 /**
  * @generated from message xiaowei.desktop.CaptureClipboardEntityRequest
@@ -780,7 +885,7 @@ export type CaptureClipboardEntityRequest = Message<"xiaowei.desktop.CaptureClip
  * Use `create(CaptureClipboardEntityRequestSchema)` to create a new message.
  */
 export const CaptureClipboardEntityRequestSchema: GenMessage<CaptureClipboardEntityRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 27);
+  messageDesc(file_xiaowei_desktop_clipboard, 32);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardEntityList
@@ -797,7 +902,7 @@ export type ClipboardEntityList = Message<"xiaowei.desktop.ClipboardEntityList">
  * Use `create(ClipboardEntityListSchema)` to create a new message.
  */
 export const ClipboardEntityListSchema: GenMessage<ClipboardEntityList> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 28);
+  messageDesc(file_xiaowei_desktop_clipboard, 33);
 
 /**
  * Internal bounded recall for subsequent ranking; this is not the panel list API.
@@ -826,7 +931,7 @@ export type SearchClipboardEntitiesRequest = Message<"xiaowei.desktop.SearchClip
  * Use `create(SearchClipboardEntitiesRequestSchema)` to create a new message.
  */
 export const SearchClipboardEntitiesRequestSchema: GenMessage<SearchClipboardEntitiesRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 29);
+  messageDesc(file_xiaowei_desktop_clipboard, 34);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardEntityHit
@@ -840,7 +945,7 @@ export type ClipboardEntityHit = Message<"xiaowei.desktop.ClipboardEntityHit"> &
   entity?: ClipboardEntity | undefined;
 
   /**
-   * Plain-text context from indexed text, remark and paths, without highlight markup.
+   * Plain-text context from indexed text, OCR, remarks and paths, without highlight markup.
    * FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
    * Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
    *
@@ -854,7 +959,7 @@ export type ClipboardEntityHit = Message<"xiaowei.desktop.ClipboardEntityHit"> &
  * Use `create(ClipboardEntityHitSchema)` to create a new message.
  */
 export const ClipboardEntityHitSchema: GenMessage<ClipboardEntityHit> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 30);
+  messageDesc(file_xiaowei_desktop_clipboard, 35);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardEntityHits
@@ -873,7 +978,7 @@ export type ClipboardEntityHits = Message<"xiaowei.desktop.ClipboardEntityHits">
  * Use `create(ClipboardEntityHitsSchema)` to create a new message.
  */
 export const ClipboardEntityHitsSchema: GenMessage<ClipboardEntityHits> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 31);
+  messageDesc(file_xiaowei_desktop_clipboard, 36);
 
 /**
  * @generated from message xiaowei.desktop.OptionalClipboardEntity
@@ -890,7 +995,7 @@ export type OptionalClipboardEntity = Message<"xiaowei.desktop.OptionalClipboard
  * Use `create(OptionalClipboardEntitySchema)` to create a new message.
  */
 export const OptionalClipboardEntitySchema: GenMessage<OptionalClipboardEntity> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 32);
+  messageDesc(file_xiaowei_desktop_clipboard, 37);
 
 /**
  * @generated from message xiaowei.desktop.TouchClipboardEntityRequest
@@ -912,7 +1017,7 @@ export type TouchClipboardEntityRequest = Message<"xiaowei.desktop.TouchClipboar
  * Use `create(TouchClipboardEntityRequestSchema)` to create a new message.
  */
 export const TouchClipboardEntityRequestSchema: GenMessage<TouchClipboardEntityRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 33);
+  messageDesc(file_xiaowei_desktop_clipboard, 38);
 
 /**
  * @generated from message xiaowei.desktop.EditClipboardEntityTextRequest
@@ -949,7 +1054,7 @@ export type EditClipboardEntityTextRequest = Message<"xiaowei.desktop.EditClipbo
  * Use `create(EditClipboardEntityTextRequestSchema)` to create a new message.
  */
 export const EditClipboardEntityTextRequestSchema: GenMessage<EditClipboardEntityTextRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 34);
+  messageDesc(file_xiaowei_desktop_clipboard, 39);
 
 /**
  * @generated from message xiaowei.desktop.EditClipboardEntityTextResponse
@@ -971,7 +1076,7 @@ export type EditClipboardEntityTextResponse = Message<"xiaowei.desktop.EditClipb
  * Use `create(EditClipboardEntityTextResponseSchema)` to create a new message.
  */
 export const EditClipboardEntityTextResponseSchema: GenMessage<EditClipboardEntityTextResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 35);
+  messageDesc(file_xiaowei_desktop_clipboard, 40);
 
 /**
  * @generated from message xiaowei.desktop.PurgeClipboardEntitiesRequest
@@ -991,7 +1096,7 @@ export type PurgeClipboardEntitiesRequest = Message<"xiaowei.desktop.PurgeClipbo
  * Use `create(PurgeClipboardEntitiesRequestSchema)` to create a new message.
  */
 export const PurgeClipboardEntitiesRequestSchema: GenMessage<PurgeClipboardEntitiesRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 36);
+  messageDesc(file_xiaowei_desktop_clipboard, 41);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardEntityHashRequest
@@ -1008,7 +1113,7 @@ export type ClipboardEntityHashRequest = Message<"xiaowei.desktop.ClipboardEntit
  * Use `create(ClipboardEntityHashRequestSchema)` to create a new message.
  */
 export const ClipboardEntityHashRequestSchema: GenMessage<ClipboardEntityHashRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 37);
+  messageDesc(file_xiaowei_desktop_clipboard, 42);
 
 /**
  * @generated from message xiaowei.desktop.ClipboardEntityHashReference
@@ -1025,7 +1130,7 @@ export type ClipboardEntityHashReference = Message<"xiaowei.desktop.ClipboardEnt
  * Use `create(ClipboardEntityHashReferenceSchema)` to create a new message.
  */
 export const ClipboardEntityHashReferenceSchema: GenMessage<ClipboardEntityHashReference> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_clipboard, 38);
+  messageDesc(file_xiaowei_desktop_clipboard, 43);
 
 /**
  * Clipboard record and category IDs must be in 1..=9223372036854775807.
@@ -1095,6 +1200,14 @@ export const ClipboardBiz: GenService<{
     methodKind: "unary";
     input: typeof ClipboardItemRequestSchema;
     output: typeof ReadImageResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.ClipboardBiz.ReadImageOcr
+   */
+  readImageOcr: {
+    methodKind: "unary";
+    input: typeof ClipboardItemRequestSchema;
+    output: typeof ClipboardImageOcrSchema;
   },
   /**
    * @generated from rpc xiaowei.desktop.ClipboardBiz.Copy
@@ -1286,6 +1399,30 @@ export const ClipboardDao: GenService<{
     methodKind: "unary";
     input: typeof ClipboardItemRequestSchema;
     output: typeof OptionalClipboardEntitySchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.ClipboardDao.ReadImageOcr
+   */
+  readImageOcr: {
+    methodKind: "unary";
+    input: typeof ClipboardItemRequestSchema;
+    output: typeof ClipboardImageOcrSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.ClipboardDao.NextImageForOcr
+   */
+  nextImageForOcr: {
+    methodKind: "unary";
+    input: typeof NextClipboardImageForOcrRequestSchema;
+    output: typeof NextClipboardImageForOcrResponseSchema;
+  },
+  /**
+   * @generated from rpc xiaowei.desktop.ClipboardDao.CompleteImageOcr
+   */
+  completeImageOcr: {
+    methodKind: "unary";
+    input: typeof CompleteClipboardImageOcrRequestSchema;
+    output: typeof CompleteClipboardImageOcrResponseSchema;
   },
   /**
    * @generated from rpc xiaowei.desktop.ClipboardDao.Touch

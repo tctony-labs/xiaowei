@@ -337,3 +337,28 @@ test("a clipboard failure shows a retry toast instead of claiming the ID was cop
   expect(screen.queryByText("已复制")).toBeNull();
   expect(screen.queryByRole("button", { name: "重命名" })).toBeNull();
 });
+
+test("a failed file link shows a window toast outside the conversation", async () => {
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const href = "/tmp/source.h#L19";
+  const props = menuPanel({
+    messages: [
+      {
+        id: "answer",
+        role: "assistant",
+        blocks: [{ id: "file-link", kind: "text", text: `[文件](${href})` }],
+      },
+    ],
+    onOpenMessageUrl: vi.fn(async () => {
+      throw new Error("open failed");
+    }),
+  });
+  const messages = screen.getByRole("region", { name: "对话消息" });
+  fireEvent.click(within(messages).getByRole("link", { name: "文件" }));
+  expect(props.onOpenMessageUrl).toHaveBeenCalledExactlyOnceWith(href);
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("链接打开失败，请重试。");
+  expect(messages).not.toContainElement(alert);
+  expect(alert.parentElement).toBe(document.body);
+  expect(alert).toHaveClass("fixed", "left-1/2", "top-[30px]", "-translate-x-1/2");
+});

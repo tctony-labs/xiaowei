@@ -39,6 +39,34 @@ impl DaoClient {
             .entity)
     }
 
+    pub async fn read_image_ocr(&self, id: u64) -> Result<pb::ClipboardImageOcr> {
+        Ok(methods::READ_IMAGE_OCR
+            .call(&self.client(), pb::ClipboardItemRequest { id })
+            .await?)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub async fn next_image_for_ocr(&self, after_id: u64) -> Result<Option<(u64, String)>> {
+        let candidate = methods::NEXT_IMAGE_FOR_OCR
+            .call(
+                &self.client(),
+                pb::NextClipboardImageForOcrRequest { after_id },
+            )
+            .await?;
+        Ok(candidate.id.zip(candidate.hash))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub async fn complete_image_ocr(&self, id: u64, text: String) -> Result<bool> {
+        Ok(methods::COMPLETE_IMAGE_OCR
+            .call(
+                &self.client(),
+                pb::CompleteClipboardImageOcrRequest { id, text },
+            )
+            .await?
+            .updated)
+    }
+
     pub async fn touch(&self, id: u64, used_at_ms: i64) -> Result<()> {
         methods::TOUCH
             .call(

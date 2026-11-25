@@ -14,6 +14,7 @@ pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T
 }
 
 pub(crate) struct Session {
+    pub background: std::sync::Arc<xw_agent_runtime::tools::bash::BackgroundShells>,
     pub tools: Vec<crate::ToolRegistration>,
     pub tool_context: Option<xw_agent_types::SystemContext>,
     pub permission_mode: PermissionMode,
@@ -33,12 +34,16 @@ pub(crate) struct Session {
     pub failed_run: Option<xw_agent_types::RunId>,
     pub deletion_announced: bool,
     pub history: Vec<xw_agent_types::AgentMessage>,
+    pub summary_index: Option<usize>,
     pub granted_paths: Vec<xw_agent_types::PermissionTarget>,
     pub interactions: std::collections::BTreeMap<
         xw_agent_types::InteractionId,
         crate::interactive::InteractionRecord,
     >,
     pub requests: std::collections::BTreeMap<xw_agent_types::InputId, StartRunRequest>,
+    pub queue: Vec<crate::queue::PendingInput>,
+    pub dispatching: Option<xw_agent_types::InputId>,
+    pub dispatch_manual: bool,
     pub active: Option<ActiveRun>,
     pub title_tasks: std::collections::BTreeMap<xw_agent_types::GenId, TitleTask>,
     pub current_title_task: Option<xw_agent_types::GenId>,
@@ -48,6 +53,7 @@ pub(crate) struct Session {
 impl Session {
     pub fn new(id: SessionId, created_at_ms: i64, config: AgentModelConfig) -> Self {
         Self {
+            background: Default::default(),
             tools: Vec::new(),
             tool_context: None,
             permission_mode: PermissionMode::default(),
@@ -82,9 +88,13 @@ impl Session {
             last_unjournaled_title: None,
             deletion_announced: false,
             history: Vec::new(),
+            summary_index: None,
             granted_paths: Vec::new(),
             interactions: Default::default(),
             requests: Default::default(),
+            queue: Vec::new(),
+            dispatching: None,
+            dispatch_manual: false,
             active: None,
         }
     }
@@ -123,4 +133,6 @@ pub(crate) struct ActiveRun {
     pub permission_mode: PermissionMode,
     pub cancellation: crate::CancellationToken,
     pub done: crate::CancellationToken,
+    pub committed: bool,
+    pub first_inputs: Vec<xw_agent_types::InputId>,
 }

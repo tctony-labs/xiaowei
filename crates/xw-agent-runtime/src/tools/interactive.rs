@@ -132,7 +132,8 @@ pub fn validate_answer(
                 return Err("回答须包含有效选项或非空文字".into());
             }
         }
-        (InteractionRequest::Permission { .. }, InteractionAnswer::Permission { .. }) => {}
+        (InteractionRequest::Permission { .. }, InteractionAnswer::Permission { .. })
+        | (InteractionRequest::ToolExecution { .. }, InteractionAnswer::ToolExecution { .. }) => {}
         _ => return Err("回答类型与交互请求不符".into()),
     }
     Ok(())
@@ -178,6 +179,14 @@ pub fn result(
                 "；不得绕过拒绝或反复请求。"
             },
         ),
+        (InteractionRequest::ToolExecution { .. }, InteractionAnswer::ToolExecution { allow }) => {
+            if *allow {
+                "用户确认执行本次工具调用"
+            } else {
+                "用户拒绝重复执行工具"
+            }
+            .into()
+        }
         _ => unreachable!("validated answer"),
     };
     Ok(ToolOutput {

@@ -142,6 +142,7 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
       get: unused,
       readText: unused,
       readImage: unused,
+      readImageOcr: unused,
       copy: unused,
       select: unused,
       delete: unused,
@@ -221,6 +222,37 @@ test("the window pin keeps input focus and follows the launcher between modes", 
   expect(app.calls.setPinState).toHaveBeenCalledTimes(2);
 });
 
+test.each([
+  ["MacIntel", "Meta", "Control", "⌘⇧P"],
+  ["Win32", "Control", "Meta", "Ctrl+Shift+P"],
+])("the pin shortcut uses the platform modifier on %s", async (platform, key, otherKey, hint) => {
+  const platformMock = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+  try {
+    const app = preview();
+    const canvas = render(<Launcher services={app.services} />);
+    const user = userEvent.setup();
+    const pinButton = canvas.getByRole("button", { name: "置顶窗口" });
+    const input = canvas.getByRole("textbox", { name: "搜索" });
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-disabled", "false"));
+
+    expect(pinButton).toHaveAttribute("title", hint);
+
+    const shortcut = `{${key}>}{Shift>}[KeyP]{/Shift}{/${key}}`;
+    await user.keyboard(shortcut);
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "true"));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("");
+
+    await user.keyboard(shortcut);
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "false"));
+
+    await user.keyboard(`{${otherKey}>}{Shift>}[KeyP]{/Shift}{/${otherKey}}`);
+    expect(app.calls.setPinState.mock.calls).toEqual([[true], [false]]);
+  } finally {
+    platformMock.mockRestore();
+  }
+});
+
 test("keyboard selection and composition guard", async () => {
   const search = preview();
   const canvas = render(<Launcher services={search.services} />);
@@ -291,6 +323,48 @@ test("open clipboard after subscription is ready and return with Backspace", asy
     ),
   );
   expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
+});
+
+test("Quick Chat restores composer focus after switching from clipboard and reopening", async () => {
+  const app = preview();
+  const canvas = render(<Launcher services={app.services} />);
+  const user = userEvent.setup();
+  await waitFor(() =>
+    expect(canvas.getByRole("button", { name: "置顶窗口" })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    ),
+  );
+
+  await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+  await canvas.findByRole("navigation", { name: "剪贴板视图" });
+
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  try {
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+    const composer = canvas.getByRole("textbox", { name: "快速对话输入" });
+    const newChat = canvas.getByRole("button", { name: "新建对话" });
+    const finishPresentation = () => {
+      act(() => {
+        // Chromium can move focus to the first button before the window is painted.
+        newChat.focus();
+        vi.advanceTimersToNextFrame();
+      });
+      expect(composer).toHaveFocus();
+    };
+
+    finishPresentation();
+    await user.keyboard("draft");
+
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+    fireEvent.focus(window);
+    finishPresentation();
+    await user.keyboard(" more");
+    expect(composer).toHaveValue("draft more");
+  } finally {
+    canvas.unmount();
+    vi.useRealTimers();
+  }
 });
 
 test("empty search opens native chat layout, sends through Agent and preserves history when collapsed", async () => {

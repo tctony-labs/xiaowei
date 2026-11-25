@@ -28,6 +28,9 @@ interface SelectProps<T extends string | number> {
   /** Portal 菜单使用的完整控件边界；指定时严格匹配其宽度。 */
   menuAnchorRef?: React.RefObject<HTMLElement | null>;
   menuPlacement?: "top" | "bottom";
+  /** Portal 菜单最多显示的选项行数。 */
+  menuMaxRows?: number;
+  focusFirstOption?: boolean;
 }
 
 export default function Select<T extends string | number>({
@@ -46,6 +49,8 @@ export default function Select<T extends string | number>({
   menuPortal = false,
   menuAnchorRef,
   menuPlacement = "bottom",
+  menuMaxRows,
+  focusFirstOption = false,
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [portalPosition, setPortalPosition] = useState<React.CSSProperties>({});
@@ -73,10 +78,15 @@ export default function Select<T extends string | number>({
     const updatePosition = () => {
       const rect = (menuAnchorRef?.current ?? buttonRef.current)?.getBoundingClientRect();
       if (!rect) return;
+      // Each option is 32 px tall. The menu adds 4 px of padding above and below.
+      const heightLimit = menuMaxRows === undefined ? undefined : menuMaxRows * 32 + 8;
       setPortalPosition({
         ...(menuPlacement === "top"
-          ? { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(0, rect.top - 12) }
-          : { top: rect.bottom + 4 }),
+          ? {
+              bottom: window.innerHeight - rect.top + 4,
+              maxHeight: Math.min(heightLimit ?? Infinity, Math.max(0, rect.top - 12)),
+            }
+          : { top: rect.bottom + 4, maxHeight: heightLimit }),
         right: window.innerWidth - rect.right,
         ...(menuAnchorRef ? { width: rect.width } : { minWidth: rect.width }),
       });
@@ -88,14 +98,14 @@ export default function Select<T extends string | number>({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [menuPortal, open, menuAnchorRef, menuPlacement]);
+  }, [menuPortal, open, menuAnchorRef, menuPlacement, menuMaxRows]);
 
   // 菜单先处理键盘，外层弹窗在 window 冒泡阶段处理未消费的事件。
   useEffect(() => {
     if (!open) return;
     const buttons = () => Array.from(menuRef.current?.querySelectorAll("button") ?? []);
     const selectedIndex = options.findIndex((option) => option.value === value);
-    buttons()[Math.max(0, selectedIndex)]?.focus();
+    buttons()[focusFirstOption ? 0 : Math.max(0, selectedIndex)]?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
@@ -120,7 +130,7 @@ export default function Select<T extends string | number>({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, options, value]);
+  }, [open, options, value, focusFirstOption]);
 
   return (
     <div ref={containerRef} className={`relative inline-block ${className ?? ""}`}>

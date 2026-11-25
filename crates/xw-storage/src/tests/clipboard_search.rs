@@ -224,6 +224,100 @@ async fn baseline_database_is_backfilled_and_reopen_does_not_duplicate_index() {
 }
 
 #[tokio::test]
+async fn image_ocr_is_indexed_on_the_original_image_and_survives_reopening() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("db.sqlite");
+    let db = Arc::new(Database::open(&path).await.unwrap());
+    let registry = clipboard_migrations::registry();
+    let migration = registry
+        .migrations
+        .iter()
+        .position(|migration| migration.name == "20261125000000_clipboard_image_ocr")
+        .unwrap();
+    for migration in registry.migrations[migration..].iter().rev() {
+        db.rollback(DatabaseRollback {
+            name: migration.name.clone(),
+            migrations: registry.migrations.clone(),
+        })
+        .await
+        .unwrap();
+    }
+    let dao = ClipboardDao::new(db.clone());
+    let image = dao
+        .capture(pb::CaptureClipboardEntityRequest {
+            hash: "historical-image".into(),
+            kind: "image".into(),
+            width: Some(640),
+            height: Some(480),
+            created_at_ms: 123,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    db.close().await;
+
+    let db = Arc::new(Database::open(&path).await.unwrap());
+    let dao = ClipboardDao::new(db.clone());
+    let request = pb::ClipboardItemRequest { id: image.id };
+    assert_eq!(dao.read_image_ocr(request).await.unwrap().text, None);
+    let next = dao.next_image_for_ocr(Default::default()).await.unwrap();
+    assert_eq!(next.id, Some(image.id));
+    assert_eq!(next.hash.as_deref(), Some(image.hash.as_str()));
+    let text = "剪贴板识别\nCobalt orchard";
+    let complete = pb::CompleteClipboardImageOcrRequest {
+        id: image.id,
+        text: text.into(),
+    };
+    assert!(
+        dao.complete_image_ocr(complete.clone())
+            .await
+            .unwrap()
+            .updated
+    );
+    assert!(
+        !dao.complete_image_ocr(complete.clone())
+            .await
+            .unwrap()
+            .updated
+    );
+    assert_eq!(dao.get(request).await.unwrap().entity.unwrap(), image);
+    assert_eq!(
+        dao.next_image_for_ocr(Default::default()).await.unwrap().id,
+        None
+    );
+    dao.set_remark(pb::SetRemarkRequest {
+        id: image.id,
+        remark: "project".into(),
+    })
+    .await
+    .unwrap();
+    db.close().await;
+
+    let db = Arc::new(Database::open(&path).await.unwrap());
+    let dao = ClipboardDao::new(db.clone());
+    assert_eq!(
+        dao.read_image_ocr(request).await.unwrap().text.as_deref(),
+        Some(text)
+    );
+    assert_eq!(search(&dao, "project 剪贴板 orch").await, vec![image.id]);
+    let hits = dao
+        .search(pb::SearchClipboardEntitiesRequest {
+            query: "orchard".into(),
+            limit: None,
+        })
+        .await
+        .unwrap()
+        .hits;
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].entity.as_ref().unwrap().id, image.id);
+    assert!(hits[0].snippet.contains("Cobalt orchard"));
+    dao.delete(request).await.unwrap();
+    assert!(!dao.complete_image_ocr(complete).await.unwrap().updated);
+    assert!(search(&dao, "orchard").await.is_empty());
+    db.close().await;
+}
+
+#[tokio::test]
 async fn recall_returns_entities_and_plain_snippets_through_typed_gateway() {
     use crate::gateway_binding::xiaowei_desktop_clipboard_dao_service as methods;
     use xw_gateway::{CallContext, ErrorCode, XwInvokeRegistry};

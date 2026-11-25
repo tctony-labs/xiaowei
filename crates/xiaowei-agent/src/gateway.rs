@@ -47,7 +47,13 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
     let delete = agent.clone();
     let title = agent.clone();
     let start = agent.clone();
+    let resume = agent.clone();
     let interrupt = agent.clone();
+    let queue = agent.clone();
+    let edit_queued = agent.clone();
+    let steer = agent.clone();
+    let interrupt_input = agent.clone();
+    let remove_queued = agent.clone();
     let get_policy = agent.clone();
     let set_policy = agent.clone();
     let viewing = agent.clone();
@@ -286,6 +292,23 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
                     .map_err(error)
             }
         }),
+        api::CONTINUE_RUN.handler(move |request, client| {
+            let agent = resume.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .continue_run(
+                        request,
+                        InputSource {
+                            kind: SourceKind::Desktop,
+                            principal_id: client.context().caller().to_owned(),
+                        },
+                    )
+                    .await
+                    .map_err(error)
+            }
+        }),
         api::START_RUN.handler(move |request, client| {
             let agent = start.clone();
             async move {
@@ -308,6 +331,65 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
             async move {
                 ready(&agent)?;
                 agent.service.interrupt_run(request).map_err(error)
+            }
+        }),
+        api::QUEUE_INPUT.handler(move |request, client| {
+            let agent = queue.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .queue_input(
+                        request,
+                        InputSource {
+                            kind: SourceKind::Desktop,
+                            principal_id: client.context().caller().to_owned(),
+                        },
+                    )
+                    .await
+                    .map_err(error)
+            }
+        }),
+        api::EDIT_QUEUED_INPUT.handler(move |request, client| {
+            let agent = edit_queued.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .edit_queued_input(
+                        request,
+                        InputSource {
+                            kind: SourceKind::Desktop,
+                            principal_id: client.context().caller().to_owned(),
+                        },
+                    )
+                    .await
+                    .map_err(error)
+            }
+        }),
+        api::STEER_INPUT.handler(move |request, _| {
+            let agent = steer.clone();
+            async move {
+                ready(&agent)?;
+                agent.service.steer_input(request).await.map_err(error)
+            }
+        }),
+        api::INTERRUPT_INPUT.handler(move |request, _| {
+            let agent = interrupt_input.clone();
+            async move {
+                ready(&agent)?;
+                agent.service.interrupt_input(request).await.map_err(error)
+            }
+        }),
+        api::REMOVE_QUEUED_INPUT.handler(move |request, _| {
+            let agent = remove_queued.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .remove_queued_input(request)
+                    .await
+                    .map_err(error)
             }
         }),
     ]

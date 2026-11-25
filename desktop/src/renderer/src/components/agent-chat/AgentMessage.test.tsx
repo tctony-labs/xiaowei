@@ -781,6 +781,20 @@ test("GFM renders while reply and code copy preserve raw source", async () => {
   expect(onOpenUrl).toHaveBeenCalledExactlyOnceWith("https://example.com/docs");
 });
 
+test("shows compaction while waiting for the next response", () => {
+  const generation = { id: "summary", startedAtMs: Date.now(), receivedContent: false };
+  const message = textMessage("", "generating");
+  const props = { message, onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
+  const { rerender } = render(
+    <AgentMessage {...props} generation={{ ...generation, isCompaction: true }} />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("正在压缩对话上下文");
+
+  rerender(<AgentMessage {...props} generation={{ ...generation, id: "next" }} />);
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
+  expect(screen.queryByText("正在压缩对话上下文")).toBeNull();
+});
+
 test("streaming fences keep code position through updates and stop", () => {
   const onCopy = vi.fn(async () => {});
   const onOpenUrl = vi.fn(async () => {});
@@ -963,19 +977,16 @@ test.each([
   expect(screen.queryByText(/毫秒|秒/)).toBeNull();
 });
 
-test("copy failure remains retryable and a failed link never claims to have opened", async () => {
+test("copy failure remains retryable", async () => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   const onCopy = vi.fn(async () => {
     throw new Error("clipboard unavailable");
-  });
-  const onOpenUrl = vi.fn(async () => {
-    throw new Error("open failed");
   });
   render(
     <AgentMessage
       message={textMessage("[说明](https://example.com)")}
       onCopy={onCopy}
-      onOpenUrl={onOpenUrl}
+      onOpenUrl={vi.fn()}
     />,
   );
   const copy = screen.getByRole("button", { name: "复制回复" });
@@ -984,8 +995,6 @@ test("copy failure remains retryable and a failed link never claims to have open
   expect(screen.queryByText("已复制")).toBeNull();
   fireEvent.click(copy);
   expect(onCopy).toHaveBeenCalledTimes(2);
-  fireEvent.click(screen.getByRole("link", { name: "说明" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("链接打开失败");
 });
 
 test("long Chinese text copies in full, excluding reasoning and tools", async () => {

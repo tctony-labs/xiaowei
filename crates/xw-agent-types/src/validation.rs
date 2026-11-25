@@ -86,6 +86,25 @@ fn source(source: &InputSource) -> Result<(), ValidationError> {
     value(!source.principal_id.is_empty(), "source.principal_id")
 }
 
+/// Compares repeat requests without relying on the order of JSON object keys.
+pub fn same_tool_effect(name: &str, left: &str, right: &str) -> bool {
+    if matches!(name, "Bash" | "BgRun") {
+        // The command determines the effect. Display descriptions can change across attempts.
+        #[derive(serde::Deserialize)]
+        struct Command {
+            command: String,
+        }
+        let (Ok(left), Ok(right)) = (
+            serde_json::from_str::<Command>(left),
+            serde_json::from_str::<Command>(right),
+        ) else {
+            return false;
+        };
+        return left.command == right.command;
+    }
+    crate::system_context::same_json(left, right)
+}
+
 fn json_raw<'a>(json: &'a str, object: bool, path: &str) -> Result<&'a RawValue, ValidationError> {
     let parsed = serde_json::from_str::<&RawValue>(json);
     value(parsed.is_ok(), path)?;
@@ -452,10 +471,6 @@ pub(crate) fn system_context_update(update: &SystemContextUpdate) -> Result<(), 
     }
 }
 
-fn preempt_field(is_preempted: bool, input: Option<InputId>) -> Result<(), ValidationError> {
-    value(is_preempted == input.is_some(), "preempting_input_id")
-}
-
 pub fn validate_entry(entry: &JournalEntry) -> Result<(), ValidationError> {
     validate_payload(entry).map_err(|mut error| {
         error.entry_id = Some(entry.entry_id);
@@ -500,7 +515,7 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
             }
             source(&input.source)?;
             value(
-                matches!(input.mode, InputMode::Steering | InputMode::Preempt)
+                matches!(input.mode, InputMode::Steering | InputMode::Interrupt)
                     == input.expected_run_id.is_some(),
                 "expected_run_id",
             )?;
@@ -525,6 +540,26 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
                 unique(&mut ids, id, "input_ids")?;
             }
         }
+        EntryPayload::InputRouted(input) => {
+            value(input.mode != InputMode::Send, "mode")?;
+            value(
+                matches!(input.mode, InputMode::Steering | InputMode::Interrupt)
+                    == input.expected_run_id.is_some(),
+                "expected_run_id",
+            )?;
+        }
+        EntryPayload::InputEdited(input) => {
+            recorded(&input.message)?;
+            ownership(
+                matches!(input.message.message, AgentMessage::User(_))
+                    && input.message.input_id == Some(input.input_id)
+                    && input.message.run_id.is_none()
+                    && input.message.turn_id.is_none()
+                    && input.message.gen_id.is_none()
+                    && input.message.completeness == MessageCompleteness::Complete,
+                "message",
+            )?;
+        }
         EntryPayload::RunStarted(run) => {
             context(&run.context)?;
             match &run.cause {
@@ -537,10 +572,6 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
         }
         EntryPayload::TurnStarted(turn) => value(turn.ordinal > 0, "ordinal")?,
         EntryPayload::TurnEnded(turn) => {
-            preempt_field(
-                turn.status == TurnStatus::Preempted,
-                turn.preempting_input_id,
-            )?;
             value(
                 turn.status != TurnStatus::Completed || turn.final_gen_id.is_some(),
                 "final_gen_id",
@@ -584,10 +615,6 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
             timestamp(first.received_at_ms, "received_at_ms")?
         }
         EntryPayload::GenEnded(generation) => {
-            preempt_field(
-                generation.status == GenStatus::Preempted,
-                generation.preempting_input_id,
-            )?;
             value(
                 generation.status == GenStatus::Interrupted || generation.ended_at_ms.is_some(),
                 "ended_at_ms",
@@ -659,10 +686,6 @@ fn validate_payload(entry: &JournalEntry) -> Result<(), ValidationError> {
         }
         EntryPayload::InteractionExpired(interaction) => {
             value(interaction.revision == 2, "revision")?;
-            preempt_field(
-                interaction.reason == InteractionExpireReason::Preempted,
-                interaction.preempting_input_id,
-            )?;
         }
         EntryPayload::Compacted(compacted) => {
             if let Some(context) = &compacted.system_context {
@@ -793,6 +816,8 @@ struct History<'a> {
     system_context: Option<SystemContext>,
     entries: HashMap<EntryId, usize>,
     inputs: HashMap<InputId, (&'a InputAccepted, bool)>,
+    input_routes: HashMap<InputId, (InputMode, Option<RunId>)>,
+    input_messages: HashMap<InputId, &'a RecordedMessage>,
     runs: HashMap<RunId, (&'a RunStarted, Option<&'a RunEnd>)>,
     turns: HashMap<TurnId, (&'a TurnStarted, Option<&'a TurnEnded>)>,
     gens: HashMap<GenId, (&'a GenStarted, Option<&'a GenEnded>)>,
@@ -813,7 +838,6 @@ struct History<'a> {
     consumed_inputs: HashSet<InputId>,
     continue_requests: HashSet<(&'a String, ClientRequestId)>,
     ended_turn_entries: HashMap<TurnId, EntryId>,
-    interaction_preempts: HashMap<TurnId, InputId>,
     message_entries: HashMap<MessageId, EntryId>,
     effective: Vec<(EntryId, usize, &'a AgentMessage)>,
 }
@@ -876,16 +900,6 @@ impl<'a> History<'a> {
             self.closed_tools(turn.turn_id)?;
         }
         Ok(())
-    }
-
-    fn preempt(&self, input_id: InputId, run_id: RunId) -> Result<(), ValidationError> {
-        let (input, finished) =
-            reference(self.inputs.get(&input_id).copied(), "preempting_input_id")?;
-        ownership(
-            input.mode == InputMode::Preempt && input.expected_run_id == Some(run_id),
-            "preempting_input_id",
-        )?;
-        transition(!finished, "preempting_input_id")
     }
 
     fn message(&mut self, msg: &'a RecordedMessage) -> Result<(), ValidationError> {
@@ -989,8 +1003,28 @@ impl<'a> History<'a> {
                 }
                 self.message(&input.message)?;
                 self.inputs.insert(input.input_id, (input, false));
+                self.input_routes
+                    .insert(input.input_id, (input.mode, input.expected_run_id));
+                self.input_messages.insert(input.input_id, &input.message);
                 self.input_positions
                     .insert(input.input_id, entry.sequence.0 as usize);
+            }
+            EntryPayload::InputRouted(input) => {
+                let (accepted, done) =
+                    reference(self.inputs.get(&input.input_id).copied(), "input_id")?;
+                transition(!done && accepted.mode != InputMode::Send, "input_id")?;
+                if let Some(run_id) = input.expected_run_id {
+                    transition(self.active_run == Some(run_id), "expected_run_id")?;
+                }
+                self.input_routes
+                    .insert(input.input_id, (input.mode, input.expected_run_id));
+            }
+            EntryPayload::InputEdited(input) => {
+                let (accepted, done) =
+                    reference(self.inputs.get(&input.input_id).copied(), "input_id")?;
+                transition(!done && accepted.mode != InputMode::Send, "input_id")?;
+                self.message(&input.message)?;
+                self.input_messages.insert(input.input_id, &input.message);
             }
             EntryPayload::InputConsumed(input) => {
                 let turn = self.turn(input.turn_id)?;
@@ -1006,19 +1040,40 @@ impl<'a> History<'a> {
                 let run = self.run(input.run_id)?;
                 let mut previous_sequence = 0;
                 for id in &input.input_ids {
-                    let (accepted, finished) =
-                        reference(self.inputs.get(id).copied(), "input_ids")?;
+                    let (_, finished) = reference(self.inputs.get(id).copied(), "input_ids")?;
                     transition(!finished, "input_ids")?;
                     let position = self.input_positions[id];
                     transition(position > previous_sequence, "input_ids")?;
                     previous_sequence = position;
-                    match accepted.mode {
+                    if turn.ordinal == 1 && matches!(run.cause, RunCause::Continue { .. }) {
+                        let original = match self.origin(run) {
+                            RunCause::Send { input_id }
+                            | RunCause::Queued { input_id }
+                            | RunCause::Interrupt { input_id, .. } => input_id == id,
+                            RunCause::FollowUp { input_ids } => input_ids.contains(id),
+                            RunCause::Continue { .. } => unreachable!(),
+                        };
+                        ownership(original, "input_ids")?;
+                        continue;
+                    }
+                    let (mode, target) = self.input_routes[id];
+                    match mode {
                         InputMode::Send => ownership(
                             matches!(self.origin(run), RunCause::Send { input_id } if input_id == id)
                                 && turn.ordinal == 1,
                             "input_ids",
                         )?,
                         InputMode::FollowUp => {
+                            if matches!(
+                                self.origin(run),
+                                RunCause::Queued { input_id } if input_id == id
+                            ) {
+                                ownership(
+                                    input.input_ids.len() == 1 && turn.ordinal == 1,
+                                    "input_ids",
+                                )?;
+                                continue;
+                            }
                             let RunCause::FollowUp { input_ids } = self.origin(run) else {
                                 return ownership(false, "input_ids");
                             };
@@ -1026,29 +1081,35 @@ impl<'a> History<'a> {
                                 input_ids == &input.input_ids && turn.ordinal == 1,
                                 "input_ids",
                             )?;
-                            let earlier = self.inputs.iter().any(|(candidate, (input, done))| {
+                            let earlier = self.inputs.iter().any(|(candidate, (_, done))| {
                                 !done
-                                    && input.mode == InputMode::FollowUp
+                                    && self.input_routes[candidate].0 == InputMode::FollowUp
                                     && self.input_positions[candidate] < position
                                     && !input_ids.contains(candidate)
                             });
                             transition(!earlier, "input_ids")?;
                         }
-                        InputMode::Steering | InputMode::Preempt => {
-                            ownership(accepted.expected_run_id == Some(input.run_id), "input_ids")?;
+                        InputMode::Steering => {
+                            ownership(target == Some(input.run_id), "input_ids")?;
                             // Acceptance between Turns is legal; no fabricated interrupted Turn is required.
                             let accepted_at = self.input_positions[id];
                             let current_at = self.turn_positions[&turn.turn_id];
                             transition(accepted_at < current_at, "input_ids")?;
                         }
+                        InputMode::Interrupt => ownership(
+                            matches!(
+                                self.origin(run),
+                                RunCause::Interrupt { input_id, .. } if input_id == id
+                            ) && turn.ordinal == 1,
+                            "input_ids",
+                        )?,
                     }
                 }
                 for id in &input.input_ids {
-                    let accepted = self.inputs[id].0;
                     self.effective.push((
                         entry.entry_id,
                         entry.sequence.0 as usize,
-                        &accepted.message.message,
+                        &self.input_messages[id].message,
                     ));
                     self.inputs.get_mut(id).expect("checked").1 = true;
                     self.consumed_inputs.insert(*id);
@@ -1091,16 +1152,40 @@ impl<'a> History<'a> {
                         let mut last = 0;
                         for id in input_ids {
                             unique(&mut seen, id, "cause.input_ids")?;
-                            let (input, done) =
+                            let (_, done) =
                                 reference(self.inputs.get(id).copied(), "cause.input_ids")?;
                             transition(
                                 !done
-                                    && input.mode == InputMode::FollowUp
+                                    && self.input_routes[id].0 == InputMode::FollowUp
                                     && self.input_positions[id] > last,
                                 "cause.input_ids",
                             )?;
                             last = self.input_positions[id];
                         }
+                    }
+                    RunCause::Interrupt {
+                        input_id,
+                        previous_run_id,
+                    } => {
+                        let (_, done) =
+                            reference(self.inputs.get(input_id).copied(), "cause.input_id")?;
+                        transition(
+                            !done
+                                && self.input_routes[input_id]
+                                    == (InputMode::Interrupt, Some(*previous_run_id))
+                                && self
+                                    .last_run_end
+                                    .is_some_and(|end| end.run_id == *previous_run_id),
+                            "cause.input_id",
+                        )?;
+                    }
+                    RunCause::Queued { input_id } => {
+                        let (_, done) =
+                            reference(self.inputs.get(input_id).copied(), "cause.input_id")?;
+                        transition(
+                            !done && self.input_routes[input_id].0 == InputMode::FollowUp,
+                            "cause.input_id",
+                        )?;
                     }
                     RunCause::Continue {
                         previous_run_id,
@@ -1206,6 +1291,10 @@ impl<'a> History<'a> {
                             let run = self.run(turn.run_id)?;
                             let origin_inputs = match self.origin(run) {
                                 RunCause::Send { input_id } => std::slice::from_ref(input_id),
+                                RunCause::Interrupt { input_id, .. } => {
+                                    std::slice::from_ref(input_id)
+                                }
+                                RunCause::Queued { input_id } => std::slice::from_ref(input_id),
                                 RunCause::FollowUp { input_ids } => input_ids.as_slice(),
                                 RunCause::Continue { .. } => unreachable!(),
                             };
@@ -1292,9 +1381,6 @@ impl<'a> History<'a> {
             }
             EntryPayload::GenEnded(end) => {
                 let generation = self.generation(end.gen_id)?;
-                if let Some(input) = end.preempting_input_id {
-                    self.preempt(input, reference(generation.run_id, "preempting_input_id")?)?;
-                }
                 if let Some(id) = end.assistant_message_id {
                     let msg = reference(self.messages.get(&id).copied(), "assistant_message_id")?;
                     ownership(
@@ -1496,13 +1582,29 @@ impl<'a> History<'a> {
                     else {
                         return transition(false, "request");
                     };
+                    let mut ancestors = HashSet::new();
+                    let mut previous = previous_run_id;
+                    loop {
+                        ancestors.insert(previous);
+                        let RunCause::Continue {
+                            previous_run_id, ..
+                        } = self.runs[&previous].0.cause
+                        else {
+                            break;
+                        };
+                        previous = previous_run_id;
+                    }
                     transition(
                         self.tools.values().any(|(old, outcome)| {
-                            old.key.run_id == previous_run_id
+                            ancestors.contains(&old.key.run_id)
                                 && old.tool_name == tool.tool_name
-                                && outcome.is_some_and(|outcome| {
-                                    outcome.status == ToolStatus::ResultUnknown
-                                })
+                                && outcome
+                                    .is_some_and(|result| result.status != ToolStatus::Skipped)
+                                && same_tool_effect(
+                                    &tool.tool_name,
+                                    &old.arguments_json,
+                                    &tool.arguments_json,
+                                )
                         }),
                         "request",
                     )?;
@@ -1528,16 +1630,11 @@ impl<'a> History<'a> {
                     .1 = true;
             }
             EntryPayload::InteractionExpired(expired) => {
-                let (opened, done) = reference(
+                let (_, done) = reference(
                     self.interactions.get(&expired.interaction_id).copied(),
                     "interaction_id",
                 )?;
                 transition(!done, "interaction_id")?;
-                if let Some(input) = expired.preempting_input_id {
-                    self.preempt(input, opened.run_id)?;
-                    self.interaction_preempts
-                        .insert(self.tools[&opened.tool_id].0.key.turn_id, input);
-                }
                 self.interactions
                     .get_mut(&expired.interaction_id)
                     .expect("checked")
@@ -1556,25 +1653,11 @@ impl<'a> History<'a> {
                     if end.status == TurnStatus::Completed {
                         transition(gen_end.status == GenStatus::Completed, "status")?;
                     }
-                    if let Some(trigger) = gen_end.preempting_input_id
-                        && end.status == TurnStatus::Preempted
-                    {
-                        ownership(
-                            end.preempting_input_id == Some(trigger),
-                            "preempting_input_id",
-                        )?;
-                    }
                 } else {
                     transition(
                         end.final_gen_id.is_none() && end.status != TurnStatus::Completed,
                         "final_gen_id",
                     )?;
-                }
-                if let Some(input) = end.preempting_input_id {
-                    self.preempt(input, turn.run_id)?;
-                    if let Some(trigger) = self.interaction_preempts.get(&turn.turn_id) {
-                        ownership(*trigger == input, "preempting_input_id")?;
-                    }
                 }
                 if end.status != TurnStatus::Interrupted {
                     self.closed_tools(turn.turn_id)?;
@@ -1620,8 +1703,8 @@ impl<'a> History<'a> {
                         "status",
                     )?;
                     transition(
-                        !self.inputs.values().any(|(input, done)| {
-                            !done && input.expected_run_id == Some(run.run_id)
+                        !self.inputs.iter().any(|(id, (_, done))| {
+                            !done && self.input_routes[id].1 == Some(run.run_id)
                         }),
                         "input_ids",
                     )?;

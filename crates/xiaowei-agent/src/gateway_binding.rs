@@ -38,8 +38,20 @@ pub mod xiaowei_agent_agent_service {
         xw_gateway::binding::StreamMethod::new("xiaowei.agent.Agent.TrackSessionViewing");
     pub const START_RUN: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::StartRunRequest, proto_agent_rs::xiaowei::agent::StartRunResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.StartRun", xw_gateway::MethodKind::Unary);
+    pub const CONTINUE_RUN: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::ContinueRunRequest, proto_agent_rs::xiaowei::agent::ContinueRunResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.ContinueRun", xw_gateway::MethodKind::Unary);
     pub const INTERRUPT_RUN: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::InterruptRunRequest, proto_agent_rs::xiaowei::agent::InterruptRunResponse> =
         xw_gateway::binding::Method::new("xiaowei.agent.Agent.InterruptRun", xw_gateway::MethodKind::Unary);
+    pub const QUEUE_INPUT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::QueueInputRequest, proto_agent_rs::xiaowei::agent::QueueInputResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.QueueInput", xw_gateway::MethodKind::Unary);
+    pub const EDIT_QUEUED_INPUT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::EditQueuedInputRequest, proto_agent_rs::xiaowei::agent::QueueMutationResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.EditQueuedInput", xw_gateway::MethodKind::Unary);
+    pub const STEER_INPUT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::QueuedInputActionRequest, proto_agent_rs::xiaowei::agent::QueueMutationResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.SteerInput", xw_gateway::MethodKind::Unary);
+    pub const INTERRUPT_INPUT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::QueuedInputActionRequest, proto_agent_rs::xiaowei::agent::QueueMutationResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.InterruptInput", xw_gateway::MethodKind::Unary);
+    pub const REMOVE_QUEUED_INPUT: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::QueuedInputActionRequest, proto_agent_rs::xiaowei::agent::QueueMutationResponse> =
+        xw_gateway::binding::Method::new("xiaowei.agent.Agent.RemoveQueuedInput", xw_gateway::MethodKind::Unary);
     pub const OBSERVE_INTERACTIONS: xw_gateway::binding::StreamMethod<proto_agent_rs::xiaowei::agent::ObserveInteractionsRequest, proto_agent_rs::xiaowei::agent::InteractionDeliveryEvent> =
         xw_gateway::binding::StreamMethod::new("xiaowei.agent.Agent.ObserveInteractions");
     pub const ACKNOWLEDGE_INTERACTION: xw_gateway::binding::Method<proto_agent_rs::xiaowei::agent::AcknowledgeInteractionRequest, proto_agent_rs::xiaowei::agent::AcknowledgeInteractionResponse> =

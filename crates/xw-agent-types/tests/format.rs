@@ -408,7 +408,6 @@ fn propagated_error_is_saved_once_but_terminal_status_and_duration_stay_independ
             turn_id,
             status: TurnStatus::Failed,
             final_gen_id: Some(gen_id),
-            preempting_input_id: None,
             duration_ms: Some(21),
             error: Some(error.clone()),
         }),

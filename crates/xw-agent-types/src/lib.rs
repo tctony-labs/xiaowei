@@ -41,16 +41,17 @@ pub use message::{
 pub use system_context::{SystemContext, SystemContextDelta, SystemContextUpdate};
 
 pub use rollout::{
-    Compacted, CompactionTrigger, ContextBudgetSnapshot, DeletionMarker, EntryPayload, GenEnded,
-    GenFirstSseReceived, GenPurpose, GenStarted, GenStatus, InputAccepted, InputCancelReason,
-    InputCancelled, InputConsumed, JournalEntry, MessageCompleteness, ProviderToolKey,
-    RecordedMessage, RunEnd, RunStarted, RunStatus, SafeError, SessionMeta, SessionSummary,
-    TitleGenerated, TitleSource, ToolIntent, ToolOutcome, ToolStatus, TurnEnded, TurnStarted,
-    TurnStatus,
+    COMPACTION_SUMMARY_PREFIX, Compacted, CompactionTrigger, ContextBudgetSnapshot, DeletionMarker,
+    EntryPayload, GenEnded, GenFirstSseReceived, GenPurpose, GenStarted, GenStatus, InputAccepted,
+    InputCancelReason, InputCancelled, InputConsumed, InputEdited, InputRouted, JournalEntry,
+    MessageCompleteness, ProviderToolKey, RecordedMessage, RunEnd, RunStarted, RunStatus,
+    SafeError, SessionMeta, SessionSummary, TitleGenerated, TitleSource, ToolIntent, ToolOutcome,
+    ToolStatus, TurnEnded, TurnStarted, TurnStatus,
 };
 
 pub use validation::{
-    ValidationCode, ValidationError, validate_entry, validate_history, validate_model_context,
+    ValidationCode, ValidationError, same_tool_effect, validate_entry, validate_history,
+    validate_model_context,
 };
 
 pub use generation::{GenerationError, GenerationEvent, GenerationRequest};

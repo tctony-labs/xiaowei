@@ -29,10 +29,6 @@ class FakeWindow extends EventEmitter {
     window = this;
   }
 
-  setAlwaysOnTop(alwaysOnTop: boolean) {
-    this.alwaysOnTop = alwaysOnTop;
-  }
-
   isDestroyed() {
     return this.destroyed;
   }
@@ -142,7 +138,7 @@ test("the window pin persists across modes and only prevents transient dismissal
   assert.throws(() => launcher.pinState({} as BrowserWindow, true), /Not a launcher window/);
   assert.equal(launcher.pinState(target), false);
   await launcher.showMode("quick-chat");
-  assert.equal(window.alwaysOnTop, false);
+  assert.equal(window.alwaysOnTop, true);
   assert.equal(launcher.pinState(target, true), true);
 
   for (const mode of ["quick-chat", "search", "clipboard"] as const) {
@@ -167,10 +163,10 @@ test("the window pin persists across modes and only prevents transient dismissal
 
   await launcher.showMode("quick-chat");
   assert.equal(launcher.pinState(target, false), false);
-  assert.equal(window.alwaysOnTop, false);
+  assert.equal(window.alwaysOnTop, true);
   window.focused = false;
   window.emit("blur");
-  assert.equal(window.visible, true);
+  assert.equal(window.visible, false);
 
   for (const mode of ["search", "clipboard"] as const) {
     await launcher.showMode(mode);
@@ -293,8 +289,10 @@ test("macOS shortcut toggles take input focus without activating background sett
 });
 
 for (const selection of ["before-create", "before-ready", "shortcut", "renderer"]) {
-  test(`Quick Chat (${selection}) survives blur and preserves its focus source`, async () => {
+  test(`unpinned Quick Chat (${selection}) hides on blur without restoring focus`, async () => {
     applicationActive = false;
+    const sourceProcess = process.pid + 10000;
+    foreground = sourceProcess;
     let restores = 0;
     let abandoned = 0;
     const launcher = createLauncherWindow({
@@ -330,13 +328,15 @@ for (const selection of ["before-create", "before-ready", "shortcut", "renderer"
       launcher.show();
     }
     await new Promise(setImmediate);
-    assert.equal(window.alwaysOnTop, false);
+    assert.equal(window.alwaysOnTop, true);
     assert.equal(applicationActive, true);
+    assert.equal(foreground, process.platform === "darwin" ? sourceProcess : process.pid);
     window.focused = false;
     window.emit("blur");
-    assert.equal(window.visible, true);
-    assert.equal(abandoned, 0);
+    assert.equal(window.visible, false);
+    assert.equal(abandoned, 1);
     assert.equal(restores, 0);
+    await launcher.showMode("quick-chat");
     await launcher.dismiss(true);
     assert.equal(window.visible, false);
     assert.equal(restores, 1);
@@ -363,7 +363,7 @@ test("search and clipboard still hide on blur, including after leaving Quick Cha
   launcher.prepareQuit();
 });
 
-test("opening settings hides search and clipboard but leaves Quick Chat visible", async (t) => {
+test("opening settings hides the unpinned Launcher in every mode", async (t) => {
   const { launcher, ordinaryWindows } = trackedLauncher(t);
   await launcher.create();
   await launcher.dismiss(false);
@@ -374,13 +374,13 @@ test("opening settings hides search and clipboard but leaves Quick Chat visible"
     assert.equal(window.visible, true, mode);
 
     launcher.hideTransient();
-    assert.equal(window.visible, mode === "quick-chat", mode);
+    assert.equal(window.visible, false, mode);
   }
 
-  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 1);
+  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 0);
 });
 
-test("mode changes restore the window level through shortcuts and renderer requests", async () => {
+test("the Launcher stays above ordinary windows through both mode-change paths", async () => {
   const launcher = createLauncherWindow({
     moduleDir: "/unused",
     register() {},
@@ -393,7 +393,7 @@ test("mode changes restore the window level through shortcuts and renderer reque
     for (const mode of ["quick-chat", "search", "quick-chat", "clipboard"] as const) {
       change(mode);
       await new Promise(setImmediate);
-      assert.equal(window.alwaysOnTop, mode !== "quick-chat", mode);
+      assert.equal(window.alwaysOnTop, true, mode);
     }
   }
   launcher.prepareQuit();
@@ -404,14 +404,6 @@ for (const source of ["shortcut", "renderer"]) {
     const { launcher, dock } = trackedLauncher(t);
     await launcher.create();
     const launcherWindow = window;
-    const setLevel = launcherWindow.setAlwaysOnTop.bind(launcherWindow);
-    launcherWindow.setAlwaysOnTop = (alwaysOnTop) => {
-      setLevel(alwaysOnTop);
-      if (alwaysOnTop) {
-        // macOS main-window status can change while this window remains key.
-        setImmediate(() => launcherWindow.emit("blur"));
-      }
-    };
 
     for (const mode of ["search", "clipboard"] as const) {
       launcher.openMode("quick-chat");
@@ -419,12 +411,13 @@ for (const source of ["shortcut", "renderer"]) {
       const generation = launcher.generation();
       if (source === "shortcut") launcher.openMode(mode);
       else launcher.modeChanged(mode);
-      await new Promise(setImmediate);
+      // macOS main-window status can change while this window remains key.
+      launcherWindow.emit("blur");
       assert.equal(launcherWindow.alwaysOnTop, true);
       assert.equal(launcherWindow.visible, true);
       assert.equal(launcherWindow.focused, true);
       assert.equal(launcher.generation(), generation);
-      assert.equal(dock.visible, true);
+      assert.equal(dock.visible, false);
 
       launcherWindow.focused = false;
       launcherWindow.emit("blur");
@@ -546,14 +539,25 @@ test("explicit show rejects unready windows and cancelled focus capture", async 
   launcher.prepareQuit();
 });
 
-test("Quick Chat requested before creation joins Dock tracking on its first show", async (t) => {
-  const { launcher, dock } = trackedLauncher(t);
+test("unpinned Quick Chat requested before creation opens without showing the Dock", async (t) => {
+  const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
+  dock.show = async () => {
+    dock.visible = true;
+    // The macOS activation policy change can take focus from the new panel.
+    await new Promise(setImmediate);
+    window.focused = false;
+    window.emit("blur");
+  };
+
   launcher.openMode("quick-chat");
   assert.equal(dock.visible, false);
   await launcher.create();
   await new Promise(setImmediate);
   assert.equal(window.visible, true);
-  assert.equal(dock.visible, true);
+  assert.equal(window.focused, true);
+  assert.equal(dock.visible, false);
+  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 0);
+  assert.equal(ordinaryWindows.snapshot().transientWindowVisible, true);
 });
 
 test("Dock activation follows visible Quick Chat across both mode-change paths", async (t) => {
@@ -564,6 +568,11 @@ test("Dock activation follows visible Quick Chat across both mode-change paths",
   assert.equal(dock.visible, false);
 
   launcher.openMode("quick-chat");
+  await new Promise(setImmediate);
+  assert.equal(dock.visible, false);
+  assert.equal(ordinaryWindows.focused(), undefined);
+
+  launcher.setPinned(true);
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
   assert.equal(ordinaryWindows.focused(), window);
@@ -586,6 +595,11 @@ test("Dock activation follows visible Quick Chat across both mode-change paths",
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
   assert.equal(ordinaryWindows.focused(), window);
+  launcher.setPinned(false);
+  await new Promise(setImmediate);
+  assert.equal(dock.visible, true);
+  assert.equal(ordinaryWindows.snapshot().hideDeferred, true);
+  assert.equal(ordinaryWindows.focused(), undefined);
   launcher.openMode("clipboard");
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
@@ -594,10 +608,11 @@ test("Dock activation follows visible Quick Chat across both mode-change paths",
   assert.equal(dock.visible, false);
 });
 
-test("hidden Quick Chat joins on show and leaves tracking on each dismiss path", async (t) => {
+test("pinned Quick Chat joins on show and leaves tracking on every explicit dismiss path", async (t) => {
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
   await launcher.dismiss(false);
+  launcher.setPinned(true);
   launcher.modeChanged("quick-chat");
   await new Promise(setImmediate);
   assert.equal(dock.visible, false);
@@ -630,6 +645,7 @@ test("dismissing Quick Chat preserves Dock for settings and native update window
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
   const chat = window;
+  launcher.setPinned(true);
   launcher.openMode("quick-chat");
   const settings = new FakeWindow();
   ordinaryWindows.register(settings as unknown as BrowserWindow);
@@ -667,6 +683,7 @@ for (const action of ["hide", "renderer-mode", "shortcut-mode"]) {
         };
       });
     await launcher.create();
+    launcher.setPinned(true);
     launcher.openMode("quick-chat");
     if (action === "hide") await launcher.dismiss(false);
     else if (action === "renderer-mode") launcher.modeChanged("search");
@@ -695,6 +712,7 @@ for (const source of ["shortcut", "renderer"]) {
     };
 
     for (const mode of ["search", "clipboard"] as const) {
+      launcher.setPinned(true);
       launcher.openMode("quick-chat");
       await new Promise(setImmediate);
       const generation = launcher.generation();
@@ -711,6 +729,7 @@ for (const source of ["shortcut", "renderer"]) {
       assert.equal(dock.visible, true);
 
       // The user's real app switch still dismisses the transient window.
+      launcher.setPinned(false);
       applicationActive = false;
       launcherWindow.focused = false;
       launcherWindow.emit("blur");

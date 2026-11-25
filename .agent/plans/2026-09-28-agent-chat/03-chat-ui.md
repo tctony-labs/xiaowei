@@ -6,7 +6,7 @@
 
 | 切片 | 剩余结果 | 前置 |
 | --- | --- | --- |
-| [03d](03d-composed-preview.md) | 工具／压缩／继续状态的组合交互确认 | 02j、02k |
+| [03d](03d-composed-preview.md) | 工具／压缩／继续状态的组合交互确认 | 已交付分页、压缩与 Continue |
 
 2026-10-26 问答／权限工具与对应 UI 已完成本批验收，双入口、停止和恢复证据见[本批结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，真实 IME 的完整平台复核继续随 04d 保留。
 

@@ -60,6 +60,7 @@ fn builtin_declarations(has_cwd: bool, permission_mode: PermissionMode) -> Vec<T
         if let Some(bash) = xw_agent_runtime::tools::bash::declaration() {
             tools.push(bash);
         }
+        tools.extend(xw_agent_runtime::tools::bash::background_declarations());
         tools.extend(xw_agent_runtime::tools::search_declarations());
         tools.extend(
             xw_agent_runtime::tools::interactive::declarations()

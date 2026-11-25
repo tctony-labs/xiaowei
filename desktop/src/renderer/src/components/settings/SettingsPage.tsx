@@ -118,12 +118,13 @@ export function SettingsPage({
     };
   }, [services]);
 
-  async function update(change: UpdateSettingsRequest["change"]): Promise<void> {
+  async function update(change: UpdateSettingsRequest["change"]): Promise<boolean> {
     setError("");
     try {
       const next = await api.update(create(UpdateSettingsRequestSchema, { change }));
       setSnapshot(next);
       applyTheme(next.theme);
+      return true;
     } catch (cause) {
       setError(`保存失败：${String(cause)}`);
       try {
@@ -131,6 +132,7 @@ export function SettingsPage({
       } catch (reloadError) {
         console.error("Settings reload failed", reloadError);
       }
+      return false;
     }
   }
 
@@ -184,8 +186,10 @@ export function SettingsPage({
               theme: themeValue(snapshot.theme),
               autostart: snapshot.autostart,
               bookmarks: snapshot.includeChromeBookmarks,
+              sourceEditor: snapshot.sourceEditor,
             }}
             accountSection={<AccountSettingsSection services={services} />}
+            onSourceEditorChange={(value) => update({ case: "sourceEditor", value })}
             onChange={(values) => {
               if (values.theme !== themeValue(snapshot.theme)) {
                 const theme = {

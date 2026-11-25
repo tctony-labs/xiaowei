@@ -1,4 +1,6 @@
 // Storybook and test fixture. Product code uses the view components with its own data and callbacks.
+import { create } from "@bufbuild/protobuf";
+import { EditorPreferenceSchema, EditorPreset } from "proto-desktop-ts";
 import { type ReactNode, useEffect, useState } from "react";
 import { AboutSettings } from "./AboutSettings";
 import { AgentSettings, type AgentValues } from "./AgentSettings";
@@ -224,6 +226,19 @@ export function SettingsPreview(props: PreviewProps) {
           <GeneralSettings
             values={general}
             accountSection={props.accountSection}
+            onSourceEditorChange={async ({ choice }) => {
+              if (!choice.case) return false;
+              setGeneral((current) => ({
+                ...current,
+                sourceEditor: create(
+                  EditorPreferenceSchema,
+                  choice.case === "preset"
+                    ? { selected: choice.value, custom: current.sourceEditor?.custom }
+                    : { selected: EditorPreset.CUSTOM, custom: choice.value },
+                ),
+              }));
+              return true;
+            }}
             onChange={(next) => {
               setGeneral(next);
               if (next.theme !== general.theme) document.documentElement.dataset.theme = next.theme;

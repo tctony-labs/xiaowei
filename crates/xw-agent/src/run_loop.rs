@@ -7,7 +7,12 @@ use std::{
 
 use prost::Message;
 use tokio::sync::mpsc;
-use xw_agent_runtime::{RunRequest, RunStatus, execute_text, tools::FileTools};
+use xw_agent_runtime::{
+    RunRequest, RunStatus,
+    context_budget::{ContextBudget, ContextSample, context_tokens},
+    execute_text,
+    tools::FileTools,
+};
 use xw_agent_types as domain;
 
 use crate::{
@@ -21,27 +26,48 @@ use crate::{
     service::{State, now_ms},
 };
 
+pub(crate) struct RunPlan {
+    pub request: RunRequest,
+    pub model: domain::ModelDescriptor,
+    pub sample: Option<ContextSample>,
+    pub pending_first: Option<Vec<(domain::InputId, domain::AgentMessage)>>,
+}
+
 pub(crate) async fn execute(
+    dispatcher: AgentService,
     shared: Arc<Mutex<State>>,
     index: Option<Arc<IndexAccess>>,
     host: Arc<dyn AgentHost>,
     generation: Arc<dyn LlmGeneration>,
-    mut request: RunRequest,
+    mut plan: RunPlan,
     cancellation: CancellationToken,
     done: CancellationToken,
 ) {
     let _done = done.drop_guard();
     let started = Instant::now();
-    let session_id = request.session_id;
+    let session_id = plan.request.session_id;
     let result = drive(
         &shared,
         host.clone(),
         generation,
-        &mut request,
+        &mut plan,
         &cancellation,
         started,
     )
     .await;
+    let request = &plan.request;
+    if cancellation.is_cancelled() {
+        let pending = shared
+            .lock()
+            .unwrap()
+            .sessions
+            .get(&session_id)
+            .map(|session| session.background.cancel(Some(request.run_id)))
+            .unwrap_or_default();
+        for shell in pending {
+            shell.cancelled().await;
+        }
+    }
     let failed_commit = result.is_err();
     let (status, error) = match result {
         Ok((RunStatus::Completed, _)) => (AgentRunStatus::Completed, None),
@@ -49,8 +75,10 @@ pub(crate) async fn execute(
         Ok((RunStatus::Failed, error)) => (AgentRunStatus::Failed, error),
         Err(error) => (AgentRunStatus::Failed, Some(error.to_string())),
     };
+    let mut dispatch = None;
     {
         let mut state = shared.lock().unwrap();
+        let closed = state.closed;
         let Some(session) = state.sessions.get_mut(&session_id) else {
             return;
         };
@@ -76,9 +104,40 @@ pub(crate) async fn execute(
         }
         run.completed_at_ms = Some(now_ms().unwrap_or_default());
         let run = run.clone();
-        session.active = None;
+        let reserved_inputs = session
+            .active
+            .take()
+            .is_some_and(|run| !run.first_inputs.is_empty());
+        let released_dispatch = session.dispatching == Some(request.input_id);
+        if released_dispatch {
+            session.dispatching = None;
+            session.dispatch_manual = false;
+        }
         session.view.status = AgentSessionStatus::Idle.into();
         session.view.updated_at_ms = session.view.updated_at_ms.max(run.completed_at_ms.unwrap());
+        if !closed && !failed_commit && session.failed_run.is_none() && !session.frozen {
+            let next = if status == AgentRunStatus::Interrupted {
+                session.queue.iter().find(|input| {
+                    input.mode == domain::InputMode::Interrupt
+                        && input.target == Some(request.run_id)
+                })
+            } else if status == AgentRunStatus::Completed {
+                session
+                    .queue
+                    .first()
+                    .filter(|input| input.mode == domain::InputMode::FollowUp)
+            } else {
+                None
+            };
+            if let Some(input) = next {
+                let id = input.accepted.input_id;
+                session.dispatching = Some(id);
+                dispatch = Some(id);
+            }
+        }
+        if released_dispatch || reserved_inputs {
+            crate::queue::publish(&mut state, session_id);
+        }
         AgentService::publish(
             &mut state,
             event(agent_event::Payload::RunCompleted(RunCompleted {
@@ -139,17 +198,73 @@ pub(crate) async fn execute(
         let _gate = index.gate.lock().await;
         let _ = crate::index::flush(&shared, &index, session_id).await;
     }
+    if let Some(input_id) = dispatch {
+        crate::queue::dispatch(&dispatcher, session_id, input_id).await;
+    }
 }
 
 async fn drive(
     shared: &Arc<Mutex<State>>,
     host: Arc<dyn AgentHost>,
     generation: Arc<dyn LlmGeneration>,
-    request: &mut RunRequest,
+    plan: &mut RunPlan,
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed) = {
+    let RunPlan {
+        request,
+        model,
+        sample,
+        pending_first,
+    } = plan;
+    if let Some(inputs) = pending_first.take() {
+        let (ids, upcoming): (Vec<_>, Vec<_>) = inputs.into_iter().unzip();
+        let result = crate::compaction::compact_if_needed(
+            shared,
+            request,
+            model,
+            &upcoming,
+            sample,
+            None,
+            generation.clone(),
+            cancellation,
+        )
+        .await?;
+        let mut state = shared.lock().unwrap();
+        if cancellation.is_cancelled() || result.is_err() {
+            drop(state);
+            return settle_preflight(shared, request, cancellation, result, started, 0);
+        }
+        let session = state.sessions.get_mut(&request.session_id).unwrap();
+        let at = now_ms()?;
+        session.record_first_turn(request, &ids, at)?;
+        session.history.extend(upcoming);
+        request.generation.messages = session.history.clone();
+        crate::queue::finish_dispatch(session, request.input_id);
+        session
+            .queue
+            .retain(|input| !ids.contains(&input.accepted.input_id));
+        session
+            .active
+            .as_mut()
+            .expect("active Run")
+            .first_inputs
+            .clear();
+        let update = opening_generation(session, request, at);
+        crate::queue::publish(&mut state, request.session_id);
+        AgentService::publish(&mut state, event(update));
+    }
+    let (
+        cwd,
+        permission_mode,
+        history,
+        mut grants,
+        todo_metadata,
+        registered,
+        exposed,
+        shells,
+        repeat_guard,
+    ) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
         let todo_metadata = crate::history::latest_todo(&session.view.runs).unwrap_or_else(|| {
@@ -174,6 +289,8 @@ async fn drive(
                 .into_iter()
                 .map(|tool| tool.name)
                 .collect::<std::collections::BTreeSet<_>>(),
+            session.background.clone(),
+            crate::continuation::repeat_guard(session, request.run_id),
         )
     };
     let mut todos = xw_agent_runtime::tools::todo::TodoWrite::restore(todo_metadata.as_deref())
@@ -318,7 +435,17 @@ async fn drive(
                     .items
                     .truncate(base_items);
             }
-            if let Some(message) = &outcome.message {
+            if let Some(message) = &outcome.message
+                && outcome.status == RunStatus::Completed
+            {
+                *sample = message
+                    .usage
+                    .as_ref()
+                    .and_then(context_tokens)
+                    .map(|tokens| ContextSample {
+                        tokens,
+                        offset: request.generation.messages.len(),
+                    });
                 session
                     .history
                     .push(domain::AgentMessage::Assistant(message.clone()));
@@ -374,12 +501,60 @@ async fn drive(
                 commit_intent(shared, &intent)?;
                 used += 1;
                 let began = Instant::now();
-                let skipped = cancellation.is_cancelled() || status == RunStatus::Failed;
+                let steering = {
+                    let state = shared.lock().unwrap();
+                    state.sessions[&request.session_id]
+                        .queue
+                        .iter()
+                        .any(|input| {
+                            input.mode == domain::InputMode::Steering
+                                && input.target == Some(request.run_id)
+                        })
+                };
+                let mut skipped =
+                    cancellation.is_cancelled() || status == RunStatus::Failed || steering;
+                let mut skip_reason = if steering {
+                    "收到补充指令，工具未执行"
+                } else {
+                    "运行已停止，工具未执行"
+                };
+                if !skipped
+                    && namespace.is_none()
+                    && exposed.contains(name)
+                    && repeat_guard.iter().any(|old| {
+                        old.tool_name == *name
+                            && domain::same_tool_effect(
+                                name,
+                                &old.arguments_json,
+                                &intent.arguments_json,
+                            )
+                    })
+                {
+                    let answer = crate::interactive::wait(
+                        shared,
+                        request.session_id,
+                        &intent,
+                        domain::InteractionRequest::ToolExecution {
+                            reason: "此前运行已尝试相同操作。请确认是否再次执行。".into(),
+                        },
+                        cancellation,
+                    )
+                    .await?;
+                    if cancellation.is_cancelled() || answer.is_none() {
+                        skipped = true;
+                    } else if !matches!(
+                        answer,
+                        Some(domain::InteractionAnswer::ToolExecution { allow: true })
+                    ) {
+                        skipped = true;
+                        skip_reason = "用户拒绝重复执行此工具";
+                    }
+                }
                 let mut execution_cancelled = false;
                 let mut execution_failed = false;
                 let mut execution_result_unknown = false;
                 let result = if skipped {
-                    Err("运行已停止，工具未执行".into())
+                    Err(skip_reason.into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
                 } else if name == "RequestPermission"
@@ -457,18 +632,38 @@ async fn drive(
                             }
                         }
                     }
-                } else if name == "Bash"
+                } else if matches!(name.as_str(), "Bash" | "BgRun" | "BgOutput" | "BgStop")
                     && let Some(cwd) = &cwd
                 {
-                    match xw_agent_runtime::tools::bash::execute(
-                        std::path::Path::new(cwd),
-                        permission_mode,
-                        &grants,
-                        &intent.arguments_json,
-                        cancellation.clone(),
-                    )
-                    .await
-                    {
+                    let cwd = std::path::Path::new(cwd);
+                    let arguments = &intent.arguments_json;
+                    let outcome = match name.as_str() {
+                        "BgRun" => {
+                            shells
+                                .run(
+                                    (request.run_id, intent.tool_id),
+                                    cwd,
+                                    permission_mode,
+                                    &grants,
+                                    arguments,
+                                    cancellation,
+                                )
+                                .await
+                        }
+                        "BgOutput" => shells.output(arguments).await,
+                        "BgStop" => shells.stop(arguments).await,
+                        _ => {
+                            xw_agent_runtime::tools::bash::execute(
+                                cwd,
+                                permission_mode,
+                                &grants,
+                                arguments,
+                                cancellation.clone(),
+                            )
+                            .await
+                        }
+                    };
+                    match outcome {
                         Ok(outcome) => {
                             execution_cancelled = outcome.cancelled;
                             execution_failed = outcome.is_error;
@@ -479,14 +674,14 @@ async fn drive(
                         }
                         Err(xw_agent_runtime::tools::bash::BashError::ResultUnknown(cause)) => {
                             log::error!(
-                                "Agent Bash outcome unknown run={} tool={}: {cause}",
+                                "Agent {name} outcome unknown run={} tool={}: {cause}",
                                 request.run_id,
                                 intent.tool_id
                             );
                             execution_result_unknown = true;
                             status = RunStatus::Failed;
-                            error = Some("Bash 执行结果未知".into());
-                            Err(format!("Bash 执行结果未知：{cause}"))
+                            error = Some(format!("{name} 执行结果未知"));
+                            Err(format!("{name} 执行结果未知：{cause}"))
                         }
                     }
                 } else if let Some(tools) = &tools {
@@ -524,7 +719,7 @@ async fn drive(
                             domain::ToolStatus::Cancelled
                         } else if skipped {
                             domain::ToolStatus::Skipped
-                        } else if matches!(name.as_str(), "Bash" | "Glob" | "Grep")
+                        } else if matches!(name.as_str(), "Bash" | "BgRun" | "Glob" | "Grep")
                             && cancellation.is_cancelled()
                         {
                             domain::ToolStatus::Cancelled
@@ -535,14 +730,19 @@ async fn drive(
                         None,
                     ),
                 };
-                commit_result(
+                if let Err(error) = commit_result(
                     shared,
                     &intent,
                     tool_status,
                     text,
                     metadata,
                     (!skipped).then(|| began.elapsed().as_millis() as u64),
-                )?;
+                ) {
+                    if name == "BgRun" {
+                        shells.cancel_shell(intent.tool_id).await;
+                    }
+                    return Err(error);
+                }
                 loaded_skill |= name == "Skill" && tool_status == domain::ToolStatus::Completed;
             }
         }
@@ -584,18 +784,49 @@ async fn drive(
             settle_run(
                 shared,
                 request,
-                status,
+                &mut status,
                 error.as_deref(),
                 started.elapsed().as_millis() as u64,
                 used,
             )?;
             return Ok((status, error));
         }
+        let result = crate::compaction::compact_if_needed(
+            shared,
+            request,
+            model,
+            &[],
+            sample,
+            request.turn_id,
+            generation.clone(),
+            cancellation,
+        )
+        .await?;
+        if cancellation.is_cancelled() || result.is_err() {
+            return settle_preflight(shared, request, cancellation, result, started, used);
+        }
         ordinal += 1;
         request.turn_id = Some(domain::TurnId::new());
         request.gen_id = domain::GenId::new();
         request.message_id = domain::MessageId::new();
-        start_next(shared, request, ordinal)?;
+        let result = start_next(
+            shared,
+            request,
+            ordinal,
+            &model.budget,
+            *sample,
+            cancellation,
+        )?;
+        if result != Ok(true) {
+            return settle_preflight(
+                shared,
+                request,
+                cancellation,
+                result.map(|_| ()),
+                started,
+                used,
+            );
+        }
     }
 }
 
@@ -799,10 +1030,36 @@ pub(crate) fn tool_item(
 }
 
 fn failure(error: Option<&str>) -> Option<domain::SafeError> {
-    error.map(|_| domain::SafeError {
-        code: "run_failed".into(),
-        message: "运行失败，请检查工具结果或模型配置后重试".into(),
+    error.map(|message| {
+        crate::compaction::public_error(message).unwrap_or_else(|| domain::SafeError {
+            code: "run_failed".into(),
+            message: "运行失败，请检查工具结果或模型配置后重试".into(),
+        })
     })
+}
+
+fn settle_preflight(
+    shared: &Mutex<State>,
+    request: &RunRequest,
+    cancellation: &CancellationToken,
+    result: Result<(), &'static str>,
+    started: Instant,
+    used: u32,
+) -> Result<(RunStatus, Option<String>), AgentError> {
+    let (mut status, error) = if cancellation.is_cancelled() {
+        (RunStatus::Cancelled, None)
+    } else {
+        (RunStatus::Failed, result.err().map(str::to_owned))
+    };
+    settle_run(
+        shared,
+        request,
+        &mut status,
+        error.as_deref(),
+        started.elapsed().as_millis() as u64,
+        used,
+    )?;
+    Ok((status, error))
 }
 
 fn settle_turn(
@@ -826,7 +1083,6 @@ fn settle_turn(
                     RunStatus::Cancelled => domain::TurnStatus::Aborted,
                 },
                 final_gen_id: Some(request.gen_id),
-                preempting_input_id: None,
                 duration_ms: Some(elapsed),
                 error: failure(error),
             }),
@@ -838,13 +1094,44 @@ fn settle_turn(
 fn settle_run(
     shared: &Mutex<State>,
     request: &RunRequest,
-    status: RunStatus,
+    status: &mut RunStatus,
     error: Option<&str>,
     elapsed: u64,
     used: u32,
 ) -> Result<(), AgentError> {
     let mut state = shared.lock().unwrap();
     let session = state.sessions.get_mut(&request.session_id).unwrap();
+    if session
+        .active
+        .as_ref()
+        .is_some_and(|active| active.cancellation.is_cancelled())
+        && *status == RunStatus::Completed
+    {
+        *status = RunStatus::Cancelled;
+    }
+    for position in 0..session.queue.len() {
+        let input = &session.queue[position];
+        let targets_run = input.target == Some(request.run_id);
+        let unconsumed_interrupt = session.dispatching == Some(input.accepted.input_id)
+            && input.mode == domain::InputMode::Interrupt;
+        if (targets_run
+            && (input.mode == domain::InputMode::Steering
+                || (*status == RunStatus::Failed && input.mode == domain::InputMode::Interrupt)))
+            || unconsumed_interrupt
+        {
+            let input_id = session.queue[position].accepted.input_id;
+            session.append(
+                domain::EntryPayload::InputRouted(domain::InputRouted {
+                    input_id,
+                    mode: domain::InputMode::FollowUp,
+                    expected_run_id: None,
+                }),
+                now_ms()?,
+            )?;
+            session.queue[position].mode = domain::InputMode::FollowUp;
+            session.queue[position].target = None;
+        }
+    }
     let had_assistant_output = session.view.runs.last().unwrap().items.iter().any(|item| {
         matches!(
             item.content,
@@ -856,7 +1143,7 @@ fn settle_run(
     session.append(
         domain::EntryPayload::RunEnd(domain::RunEnd {
             run_id: request.run_id,
-            status: match status {
+            status: match *status {
                 RunStatus::Completed => domain::RunStatus::Completed,
                 RunStatus::Failed => domain::RunStatus::Failed,
                 RunStatus::Cancelled => domain::RunStatus::Aborted,
@@ -869,6 +1156,8 @@ fn settle_run(
         }),
         now_ms()?,
     )?;
+    session.active.as_mut().expect("active Run").committed = true;
+    crate::queue::publish(&mut state, request.session_id);
     Ok(())
 }
 
@@ -876,18 +1165,28 @@ fn start_next(
     shared: &Mutex<State>,
     request: &mut RunRequest,
     ordinal: u32,
-) -> Result<(), AgentError> {
+    model_budget: &domain::ModelBudget,
+    sample: Option<ContextSample>,
+    cancellation: &CancellationToken,
+) -> Result<Result<bool, &'static str>, AgentError> {
     let mut state = shared.lock().unwrap();
+    if cancellation.is_cancelled() {
+        return Ok(Ok(false));
+    }
     let session = state.sessions.get_mut(&request.session_id).unwrap();
+    let upcoming =
+        crate::queue::steering_input(session, request.run_id).map(|input| &input.message.message);
+    let budget = ContextBudget::new(
+        model_budget,
+        sample,
+        &session.history,
+        upcoming.map_or(&[], std::slice::from_ref),
+    );
+    if budget.projected > budget.hard_limit {
+        return Ok(Err(crate::compaction::INPUT_LIMIT));
+    }
     let at = now_ms()?;
-    let boundary = domain::ContextBoundary {
-        through_entry_id: session
-            .journal
-            .as_ref()
-            .and_then(|j| j.entries().last())
-            .map(|e| e.entry_id),
-        after_turn_id: None,
-    };
+    let mut boundary = session.boundary(None);
     session.append(
         domain::EntryPayload::TurnStarted(domain::TurnStarted {
             turn_id: request.turn_id.expect("conversation Turn"),
@@ -897,6 +1196,43 @@ fn start_next(
         }),
         at,
     )?;
+    let mut inserted = None;
+    if let Some(position) = session.queue.iter().position(|input| {
+        input.mode == domain::InputMode::Steering && input.target == Some(request.run_id)
+    }) {
+        let input = session.queue[position].clone();
+        let consumed = session.append(
+            domain::EntryPayload::InputConsumed(domain::InputConsumed {
+                input_ids: vec![input.accepted.input_id],
+                run_id: request.run_id,
+                turn_id: request.turn_id.expect("conversation Turn"),
+                boundary: boundary.clone(),
+            }),
+            at,
+        )?;
+        if let Some(consumed) = consumed {
+            boundary.through_entry_id = Some(consumed.entry_id);
+        }
+        session.history.push(input.message.message.clone());
+        let item = AgentItem {
+            item_id: input.message.block_ids[0].to_string(),
+            gen_id: None,
+            content: Some(agent_item::Content::UserMessage(AgentUserMessage {
+                content: input.view().input,
+                input_id: Some(input.accepted.input_id.to_string()),
+            })),
+            ..Default::default()
+        };
+        session
+            .view
+            .runs
+            .last_mut()
+            .expect("active Run")
+            .items
+            .push(item.clone());
+        session.queue.remove(position);
+        inserted = Some(item);
+    }
     session.append(
         domain::EntryPayload::GenStarted(domain::GenStarted {
             gen_id: request.gen_id,
@@ -911,13 +1247,32 @@ fn start_next(
         at,
     )?;
     request.generation.messages = session.history.clone();
+    let update = opening_generation(session, request, at);
+    if let Some(item) = inserted {
+        AgentService::publish(
+            &mut state,
+            event(agent_event::Payload::ItemCompleted(ItemCompleted {
+                session_id: request.session_id.to_string(),
+                run_id: request.run_id.to_string(),
+                item: Some(item),
+            })),
+        );
+        crate::queue::publish(&mut state, request.session_id);
+    }
+    AgentService::publish(&mut state, event(update));
+    Ok(Ok(true))
+}
+
+fn opening_generation(
+    session: &mut crate::session::Session,
+    request: &RunRequest,
+    at: i64,
+) -> agent_event::Payload {
     let run = session.view.runs.last_mut().expect("active Run");
     run.generation = Some(AgentGeneration {
         gen_id: request.gen_id.to_string(),
         started_at_ms: at,
         ..Default::default()
     });
-    let update = generation_update(request.session_id, run);
-    AgentService::publish(&mut state, event(update));
-    Ok(())
+    generation_update(request.session_id, run)
 }

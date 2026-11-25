@@ -8,11 +8,16 @@ import type {
 } from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
-import QuickChatTitleBar, { type QuickChatSessionItem } from "./QuickChatTitleBar";
+import { QuickChatQueue, type QuickChatQueuedInput } from "./QuickChatQueue";
+import QuickChatTitleBar, {
+  type QuickChatSessionItem,
+  type QuickChatTitleBarHandle,
+} from "./QuickChatTitleBar";
 import { QuickChatTransition } from "./QuickChatTransition";
 
 export interface QuickChatMessage {
   id: string;
+  runId?: string;
   role: "user" | "assistant";
   // User input only; assistant responses retain their ordered blocks.
   text?: string;
@@ -28,6 +33,7 @@ export interface QuickChatMessage {
 
 export interface QuickChatPanelProps extends ComposerControlsProps {
   expanded: boolean;
+  focusRequest?: number;
   search: ReactNode;
   searchHeight?: number;
   messages: QuickChatMessage[];
@@ -68,14 +74,24 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onStop: () => void;
+  continueRunId?: string;
+  onContinue?: () => void;
   onNewConversation: () => void;
   onCollapse: () => void;
   interactions?: InteractionControls;
   questionReply?: { submitting: boolean; canSubmit: boolean };
+  queueBlocked?: boolean;
+  queuePending?: boolean;
+  queuedInputs?: QuickChatQueuedInput[];
+  onSteerQueuedInput?: (id: string) => void;
+  onInterruptQueuedInput?: (id: string) => void;
+  onEditQueuedInput?: (id: string, text: string) => Promise<boolean>;
+  onRemoveQueuedInput?: (id: string) => void;
 }
 
 // No sessions, persistence or Gateway connection here: the page adapter owns the conversation.
 export function QuickChatPanel(props: QuickChatPanelProps) {
+  const titleBar = useRef<QuickChatTitleBarHandle>(null);
   const { onLoadOlderRuns, onLoadRunItems, onLoadItemContent } = props;
   const composer = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
@@ -90,23 +106,43 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
     offset: number;
   }>();
   const [composerHeight, setComposerHeight] = useState(65);
+  const showStop =
+    props.generating && (!props.onSteerQueuedInput || !props.draft.trim() || props.queueBlocked);
   const canSend = props.questionReply
     ? !props.loading && !props.questionReply.submitting && props.questionReply.canSubmit
     : props.configured &&
       !!props.draft.trim() &&
-      !props.generating &&
+      (!props.generating || (!!props.onSteerQueuedInput && !props.queueBlocked)) &&
       !props.loading &&
-      !props.configSaving;
+      !props.configSaving &&
+      !props.queuePending;
   const title =
     props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
+  const focusRequest = props.expanded ? (props.focusRequest ?? 0) : null;
   useLayoutEffect(() => {
-    if (!props.expanded) return;
-    const focus = () => composer.current?.focus();
+    if (focusRequest === null) return;
+    let frame: number | undefined;
+    const focus = () => {
+      composer.current?.focus();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+
+      // Chromium can restore another element's focus after the window focus event.
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        if (document.visibilityState === "visible" && document.hasFocus()) {
+          composer.current?.focus();
+        }
+      });
+    };
+
     focus();
     window.addEventListener("focus", focus);
-    return () => window.removeEventListener("focus", focus);
-  }, [props.expanded]);
+    return () => {
+      window.removeEventListener("focus", focus);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [focusRequest]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measure the controlled draft after each edit.
   useLayoutEffect(() => {
@@ -176,6 +212,18 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
     composer.current?.focus();
   }
 
+  async function openMessageLink(url: string) {
+    const session = scrollSession.current;
+    try {
+      await props.onOpenMessageUrl(url);
+    } catch {
+      console.warn("Agent chat link open failed");
+      if (scrollSession.current === session) {
+        titleBar.current?.showErrorToast("链接打开失败，请重试。");
+      }
+    }
+  }
+
   const input = (
     <div className="relative shrink-0 border-t border-subtle" style={{ height: composerHeight }}>
       <div className="flex min-h-16 items-center gap-2 px-6 py-3">
@@ -198,19 +246,31 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
             if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              send();
+              const first = props.queuedInputs?.[0];
+              if (
+                props.generating &&
+                !props.questionReply &&
+                !props.queueBlocked &&
+                !props.draft.trim() &&
+                first
+              ) {
+                if (first.mode === "steering") props.onInterruptQueuedInput?.(first.id);
+                else if (first.mode === "follow-up") props.onSteerQueuedInput?.(first.id);
+              } else {
+                send();
+              }
             }
           }}
         />
         <button
           type="button"
-          aria-label={props.questionReply ? "提交回答" : props.generating ? "停止生成" : "发送消息"}
-          disabled={props.questionReply ? !canSend : !props.generating && !canSend}
-          onClick={props.generating && !props.questionReply ? props.onStop : send}
+          aria-label={props.questionReply ? "提交回答" : showStop ? "停止生成" : "发送消息"}
+          disabled={props.questionReply ? !canSend : !showStop && !canSend}
+          onClick={showStop && !props.questionReply ? props.onStop : send}
           className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primary
             text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {props.generating && !props.questionReply ? (
+          {showStop && !props.questionReply ? (
             <span className="size-3 rounded-sm bg-current" />
           ) : (
             <svg
@@ -279,8 +339,9 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         composer={input}
       >
         {(animating) => (
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="relative flex h-full min-h-0 flex-col">
             <QuickChatTitleBar
+              ref={titleBar}
               convId={props.sessionId ?? null}
               title={title}
               autoTitle={false}
@@ -365,7 +426,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         generation={message.generation}
                         finalResponseBlockIds={message.finalResponseBlockIds}
                         onCopy={props.onCopyMessageText}
-                        onOpenUrl={props.onOpenMessageUrl}
+                        onOpenUrl={openMessageLink}
                         interactions={props.interactions}
                         itemPage={props.itemPages?.get(message.id)}
                         loadMoreItems={
@@ -375,10 +436,22 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         }
                         onLoadItem={
                           onLoadItemContent
-                            ? (id, fields) => onLoadItemContent(message.id, id, fields)
+                            ? (id, fields) =>
+                                onLoadItemContent(message.runId ?? message.id, id, fields)
                             : undefined
                         }
                       />
+                      {props.onContinue &&
+                        !props.generating &&
+                        message.id === props.continueRunId && (
+                          <button
+                            type="button"
+                            className="agent-interaction-option"
+                            onClick={props.onContinue}
+                          >
+                            继续运行
+                          </button>
+                        )}
                     </article>
                   ))}
                   {props.emptyState && (
@@ -403,6 +476,20 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
               </div>
             )}
             {props.onModelChange && <QuickChatComposerControls {...props} />}
+            {props.onSteerQueuedInput &&
+              props.onInterruptQueuedInput &&
+              props.onEditQueuedInput &&
+              props.onRemoveQueuedInput && (
+                <QuickChatQueue
+                  items={props.queuedInputs ?? []}
+                  draft={props.draft}
+                  onSteer={props.onSteerQueuedInput}
+                  onInterrupt={props.onInterruptQueuedInput}
+                  onEdit={props.onEditQueuedInput}
+                  onRemove={props.onRemoveQueuedInput}
+                  onRecoverEdit={props.onDraftChange}
+                />
+              )}
           </div>
         )}
       </QuickChatTransition>

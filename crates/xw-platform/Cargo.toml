@@ -15,3 +15,11 @@ objc2-app-kit = { version = "0.3", features = [
     "NSBitmapImageRep",
 ] }
 objc2-foundation = { version = "0.3", features = ["NSString", "NSFileManager", "NSBundle", "NSError"] }
+objc2-vision = { version = "0.3", default-features = false, features = [
+    "std",
+    "VNObservation",
+    "VNRecognizeTextRequest",
+    "VNRequest",
+    "VNRequestHandler",
+    "objc2-image-io",
+] }

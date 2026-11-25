@@ -154,6 +154,29 @@ if (process.platform === "darwin") {
   });
 }
 
+if (process.platform === "darwin" && !live) {
+  scenarios.push({
+    name: "background Bash",
+    background: true,
+    file: "background-acceptance.txt",
+    calls: [
+      [
+        "BgRun",
+        {
+          description: "Start a shell with a temporary output file",
+          command:
+            "printf 'hello\\nxiaowei\\n' > background-acceptance.txt; " +
+            "printf '%s' $$ > shell.pid; printf shell-started; exec sleep 60",
+        },
+      ],
+      ["BgOutput", { bash_id: "" }],
+      ["BgStop", { bash_id: "" }],
+      ["Read", { path: "background-acceptance.txt" }],
+    ],
+    prompt: "Exercise the background shell tools.",
+  });
+}
+
 for (const scenario of scenarios) {
   const provider = live ? "live model" : "Pi provider";
   test(
@@ -161,11 +184,11 @@ for (const scenario of scenarios) {
     {
       timeout: live ? 180000 : 30000,
     },
-    () => exerciseScenario(scenario),
+    (t) => exerciseScenario(scenario, t),
   );
 }
 
-async function exerciseScenario(scenario) {
+async function exerciseScenario(scenario, t) {
   const pb = await import("proto-desktop-ts");
   const { create } = await import("@bufbuild/protobuf");
   const { bindClient, bindStreamClient } = await import("xiaowei-gateway");
@@ -189,6 +212,13 @@ async function exerciseScenario(scenario) {
         })}\n\n`,
       );
     if (call) {
+      const args = { ...call[1] };
+      if (args.bash_id === "") {
+        const result = requests[1].messages.at(-1).content;
+        const id = result.match(/^\[([a-f0-9-]{36})\] status=running/);
+        assert.ok(id, result);
+        args.bash_id = id[1];
+      }
       send({
         role: "assistant",
         tool_calls: [
@@ -200,7 +230,7 @@ async function exerciseScenario(scenario) {
           },
         ],
       });
-      send({ tool_calls: [{ index: 0, function: { arguments: JSON.stringify(call[1]) } }] });
+      send({ tool_calls: [{ index: 0, function: { arguments: JSON.stringify(args) } }] });
       send({}, "tool_calls");
     } else {
       send({ role: "assistant", content: "hello\nxiaowei\n" });
@@ -249,6 +279,20 @@ async function exerciseScenario(scenario) {
   }
   const parent = scenario.outsideWorkspace ? homedir() : tmpdir();
   const root = await mkdtemp(join(parent, ".xiaowei-file-acceptance-"));
+  if (!live && scenario.name === "foreground Bash") {
+    const directory = join(root, "embedded bin");
+    await mkdir(directory);
+    await writeFile(join(directory, "rg"), "#!/bin/sh\nprintf 'embedded-rg\\n'\n", {
+      mode: 0o755,
+    });
+    const previous = process.env.XIAOWEI_AGENT_BIN_DIR;
+    process.env.XIAOWEI_AGENT_BIN_DIR = directory;
+    t.after(() => {
+      if (previous === undefined) delete process.env.XIAOWEI_AGENT_BIN_DIR;
+      else process.env.XIAOWEI_AGENT_BIN_DIR = previous;
+    });
+    calls[0][1].command = `rg --version && { ${calls[0][1].command}; }`;
+  }
   const skillDescription = "Read a local reference and create a file. ".repeat(12);
   if (scenario.command) {
     await mkdir(join(root, "commands"));
@@ -416,6 +460,21 @@ async function exerciseScenario(scenario) {
       assert.equal(metadata.bash.is_background, false);
       assert.equal(metadata.bash.cancelled, false);
     }
+    if (scenario.background) {
+      const started = JSON.parse(tools[0].metadataJson).bg_run;
+      const output = JSON.parse(tools[1].metadataJson).bg_output;
+      const stopped = JSON.parse(tools[2].metadataJson).bg_stop;
+      assert.equal(started.bash_id, tools[0].toolId);
+      assert.equal(started.status, "running");
+      assert.ok(tools[0].output.includes("shell-started"));
+      assert.equal(output.bash_id, started.bash_id);
+      assert.equal(output.status, "running");
+      assert.equal(output.delta_bytes, 0);
+      assert.equal(stopped.bash_id, started.bash_id);
+      assert.equal(stopped.status, "killed");
+      const pid = Number(await readFile(join(session.cwd, "shell.pid"), "utf8"));
+      assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+    }
     if (scenario.name === "file search") {
       assert.ok(tools[1].output.includes("fixtures/search-acceptance.txt"));
       assert.ok(tools[2].output.includes("search-acceptance.txt:2:xiaowei"));
@@ -459,7 +518,7 @@ async function exerciseScenario(scenario) {
         "WebFetch",
         "WebSearch",
       ];
-      if (process.platform === "darwin") expected.push("Bash");
+      if (process.platform === "darwin") expected.push("Bash", "BgRun", "BgOutput", "BgStop");
       assert.deepEqual(requests[0].tools.map((tool) => tool.function.name).sort(), expected.sort());
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("小微"));
       assert.ok(JSON.stringify(requests[0].messages[0].content).includes("当前用户的系统权限"));
@@ -482,6 +541,8 @@ async function exerciseScenario(scenario) {
       }
       if (scenario.name === "foreground Bash") {
         assert.ok(requests[1].messages.at(-1).content.includes("shell-output"));
+        assert.ok(requests[1].messages.at(-1).content.includes("embedded-rg"));
+        assert.ok(JSON.stringify(requests[0].messages[0].content).includes("rg --files"));
       }
       if (scenario.name === "file search") {
         assert.ok(requests[2].messages.at(-1).content.includes("search-acceptance.txt"));

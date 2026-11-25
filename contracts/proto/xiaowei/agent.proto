@@ -33,7 +33,14 @@ service Agent {
   rpc TrackSessionViewing(TrackSessionViewingRequest) returns (stream SessionViewingReady);
   // Accepts one run per session; returns immediately, completion follows on SubscribeSession.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Continues an interrupted or failed Run in the same session.
+  rpc ContinueRun(ContinueRunRequest) returns (ContinueRunResponse);
   rpc InterruptRun(InterruptRunRequest) returns (InterruptRunResponse);
+  rpc QueueInput(QueueInputRequest) returns (QueueInputResponse);
+  rpc EditQueuedInput(EditQueuedInputRequest) returns (QueueMutationResponse);
+  rpc SteerInput(QueuedInputActionRequest) returns (QueueMutationResponse);
+  rpc InterruptInput(QueuedInputActionRequest) returns (QueueMutationResponse);
+  rpc RemoveQueuedInput(QueuedInputActionRequest) returns (QueueMutationResponse);
   // Per-caller delivery, independent of the shared session observation. Ready first,
   // then current pending requests and 20-second heartbeats. Closing never stops a run.
   rpc ObserveInteractions(ObserveInteractionsRequest) returns (stream InteractionDeliveryEvent);
@@ -94,6 +101,8 @@ message AgentUserInput {
 
 message AgentUserMessage {
   repeated AgentUserInput content = 1;
+  // Stable identity of the consumed input, including steering in an existing Run.
+  optional string input_id = 2;
 }
 
 message AgentMessage {
@@ -155,7 +164,7 @@ enum AgentItemField {
   AGENT_ITEM_FIELD_TOOL_METADATA = 4;
 }
 
-// Current conversation Generate, including opening/queueing and gaps between content blocks.
+// Current conversation or compaction Generate, including opening and gaps between content blocks.
 // Tool declarations count as received content but are not executable tool Items yet.
 message AgentGeneration {
   string gen_id = 1;
@@ -163,6 +172,8 @@ message AgentGeneration {
   bool received_content = 3;
   // Absent while waiting or emitting a tool declaration; never points to an older Generate.
   optional string active_item_id = 4;
+  // True while a summary is generated for context compaction. Summary text is internal.
+  bool is_compaction = 5;
 }
 
 enum AgentRunStatus {
@@ -175,6 +186,7 @@ enum AgentRunStatus {
 
 message AgentRun {
   string run_id = 1;
+  // Empty for a Continue Run. Its originating input belongs to the earlier Run.
   string input_id = 2;
   AgentRunStatus status = 3;
   AgentModelConfig config = 4;
@@ -192,10 +204,12 @@ message AgentRun {
   // present even when that response contains no visible text. Select matching Item.gen_id
   // for the final reply; earlier responses remain process content. Rebuilt from the journal.
   optional string final_gen_id = 12;
+  // Present for a Continue Run. Identifies the preceding Run in the same session.
+  optional string continued_from_run_id = 13;
   // Opaque ReadRunItems continuation. Empty when all Items are included.
-  string items_continuation = 13;
+  string items_continuation = 14;
   // True when this continuation reads earlier Items from a live Run's first page.
-  bool items_continuation_is_older = 14;
+  bool items_continuation_is_older = 15;
 }
 
 message AgentSession {
@@ -228,8 +242,12 @@ message AgentSession {
   int64 updated_at_ms = 15;
   // Absolute working directory; absent for a rootless text-only session.
   optional string cwd = 16;
+  // Ordered inputs accepted but not yet consumed by a Run.
+  repeated QueuedInput queued_inputs = 17;
+  // Last automatic queue dispatch failure, cleared on the next queue change.
+  optional string queue_error = 18;
   // Opaque ReadSession continuation for earlier Runs. Empty at the start.
-  string runs_continuation = 17;
+  string runs_continuation = 19;
 }
 
 // Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
@@ -548,6 +566,7 @@ message AgentEvent {
     SessionArchivedUpdated session_archived_updated = 14;
     GenerationUpdated generation_updated = 15;
     InteractionUpdated interaction_updated = 16;
+    QueueUpdated queue_updated = 17;
   }
 }
 
@@ -577,6 +596,18 @@ message StartRunResponse {
   AgentRun run = 1;
 }
 
+message ContinueRunRequest {
+  string session_id = 1;
+  // Latest unsuccessful Run. The session must be idle.
+  string previous_run_id = 2;
+  // Canonical UUIDv7. A matching retry by the same caller returns the accepted Run.
+  string client_request_id = 3;
+}
+
+message ContinueRunResponse {
+  AgentRun run = 1;
+}
+
 message InterruptRunRequest {
   string session_id = 1;
   // Targets exactly this run; a stale request must not interrupt a newer run.
@@ -587,6 +618,56 @@ message InterruptRunResponse {
   bool found = 1;
   // Acknowledges cancellation only. Await RunCompleted for final status.
   bool cancellation_requested = 2;
+}
+
+enum QueuedInputMode {
+  QUEUED_INPUT_MODE_UNSPECIFIED = 0;
+  QUEUED_INPUT_MODE_FOLLOW_UP = 1;
+  QUEUED_INPUT_MODE_STEERING = 2;
+  QUEUED_INPUT_MODE_INTERRUPTING = 3;
+}
+
+message QueuedInput {
+  string input_id = 1;
+  repeated AgentUserInput input = 2;
+  QueuedInputMode mode = 3;
+  // Target Run for steering or interrupt. Absent for follow-up.
+  optional string run_id = 4;
+}
+
+message QueueUpdated {
+  string session_id = 1;
+  // Complete authoritative FIFO snapshot, including an empty queue.
+  repeated QueuedInput queued_inputs = 2;
+  optional string error = 3;
+}
+
+message QueueInputRequest {
+  string session_id = 1;
+  string input_id = 2;
+  repeated AgentUserInput input = 3;
+}
+
+message QueueInputResponse {
+  QueuedInput input = 1;
+}
+
+message EditQueuedInputRequest {
+  string session_id = 1;
+  string input_id = 2;
+  repeated AgentUserInput input = 3;
+}
+
+message QueuedInputActionRequest {
+  string session_id = 1;
+  string input_id = 2;
+  // Required by steer and by interrupt while running; must match the active Run.
+  // For interrupt on an idle session, absent sends this queued input in a new Run.
+  optional string run_id = 3;
+}
+
+message QueueMutationResponse {
+  repeated QueuedInput queued_inputs = 1;
 }
 
 message RegenerateTitleRequest {
@@ -632,10 +713,20 @@ message AgentPermissionAnswer {
   bool allow = 1;
 }
 
+message AgentToolExecutionRequest {
+  string reason = 1;
+}
+
+message AgentToolExecutionAnswer {
+  // True authorizes one specific pending call.
+  bool allow = 1;
+}
+
 message AgentInteractionAnswer {
   oneof answer {
     AgentQuestionAnswer question = 1;
     AgentPermissionAnswer permission = 2;
+    AgentToolExecutionAnswer tool_execution = 3;
   }
 }
 
@@ -660,6 +751,7 @@ message AgentInteraction {
   oneof request {
     AgentQuestion question = 3;
     AgentPermissionRequest permission = 4;
+    AgentToolExecutionRequest tool_execution = 9;
   }
   AgentInteractionStatus status = 5;
   // Present only when resolved. Permission refusal is a valid resolved answer.

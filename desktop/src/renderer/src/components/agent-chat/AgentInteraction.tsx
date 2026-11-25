@@ -1,6 +1,7 @@
 import {
   AgentInteractionExpireReason,
   AgentInteractionStatus,
+  type AgentToolCall,
   type AgentInteraction as View,
 } from "proto-desktop-ts";
 import { AgentToolIcon } from "./AgentToolIcon";
@@ -9,16 +10,20 @@ import type { InteractionControls } from "./message-blocks";
 export function AgentInteraction({
   view,
   controls,
+  call,
 }: {
   view: View;
   controls?: InteractionControls;
+  call?: AgentToolCall;
 }) {
   const pending = view.status === AgentInteractionStatus.PENDING;
   const form = controls?.form(view.interactionId);
   const disabled = !controls || !pending || !!form?.submitting || !!form?.uncertain;
   const question = view.request.case === "question" ? view.request.value : undefined;
   const permission = view.request.case === "permission" ? view.request.value : undefined;
+  const repeat = view.request.case === "toolExecution" ? view.request.value : undefined;
   const answer = view.answer?.answer;
+  const label = question ? "向你提问" : repeat ? "确认重复执行" : "请求写入权限";
   const selected =
     answer?.case === "question" ? answer.value.selectedIndices : (form?.selectedIndices ?? []);
   const text = answer?.case === "question" ? (answer.value.text ?? "") : (form?.text ?? "");
@@ -28,7 +33,7 @@ export function AgentInteraction({
     .filter(Boolean)
     .join("；");
   const summary = resolved
-    ? answer?.case === "permission"
+    ? answer?.case === "permission" || answer?.case === "toolExecution"
       ? answer.value.allow
         ? "已批准"
         : "已拒绝"
@@ -39,7 +44,9 @@ export function AgentInteraction({
         : "已失效"
       : question
         ? "等待你回复"
-        : "等待授权";
+        : repeat
+          ? "等待确认"
+          : "等待授权";
   const content = (
     <div className="agent-interaction-content">
       {question && (
@@ -150,6 +157,36 @@ export function AgentInteraction({
           )}
         </>
       )}
+      {repeat && (
+        <>
+          <p className="whitespace-pre-wrap break-words">{repeat.reason}</p>
+          {call && (
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard scrolling.
+            <section className="agent-content-scroll" aria-label="工具参数" tabIndex={0}>
+              <p>{call.name}</p>
+              <pre className="whitespace-pre-wrap break-all">{call.argumentsJson}</pre>
+            </section>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="agent-interaction-submit"
+              disabled={disabled}
+              onClick={() => controls?.onRespond(view.interactionId, true)}
+            >
+              {form?.submitting ? "提交中…" : "再次执行"}
+            </button>
+            <button
+              type="button"
+              className="agent-interaction-option"
+              disabled={disabled}
+              onClick={() => controls?.onRespond(view.interactionId, false)}
+            >
+              跳过
+            </button>
+          </div>
+        </>
+      )}
       {pending && form?.error && (
         <p role="alert" className="text-xs text-danger">
           {form.error}
@@ -170,7 +207,7 @@ export function AgentInteraction({
   const title = (
     <>
       <AgentToolIcon kind={question ? "question" : "permission"} />
-      <span className="shrink-0">{question ? "向你提问" : "请求写入权限"}</span>
+      <span className="shrink-0">{label}</span>
       <span className="min-w-0 truncate text-xs text-muted" title={summary}>
         · {summary}
       </span>
@@ -178,7 +215,10 @@ export function AgentInteraction({
   );
 
   return pending ? (
-    <section className="agent-interaction" aria-label={question ? "待回答问题" : "待授权请求"}>
+    <section
+      className="agent-interaction"
+      aria-label={question ? "待回答问题" : repeat ? "确认重复执行" : "待授权请求"}
+    >
       <div className="agent-interaction-title">{title}</div>
       {content}
     </section>

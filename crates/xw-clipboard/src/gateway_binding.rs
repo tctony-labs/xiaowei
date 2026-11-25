@@ -9,6 +9,8 @@ pub mod xiaowei_desktop_clipboard_biz_service {
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardBiz.ReadText", xw_gateway::MethodKind::Unary);
     pub const READ_IMAGE: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, proto_desktop_rs::xiaowei::desktop::ReadImageResponse> =
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardBiz.ReadImage", xw_gateway::MethodKind::Unary);
+    pub const READ_IMAGE_OCR: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, proto_desktop_rs::xiaowei::desktop::ClipboardImageOcr> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardBiz.ReadImageOcr", xw_gateway::MethodKind::Unary);
     pub const COPY: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardBiz.Copy", xw_gateway::MethodKind::Unary);
     pub const SELECT: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, ()> =
@@ -54,6 +56,12 @@ pub mod xiaowei_desktop_clipboard_dao_service {
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.Search", xw_gateway::MethodKind::Unary);
     pub const GET: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, proto_desktop_rs::xiaowei::desktop::OptionalClipboardEntity> =
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.Get", xw_gateway::MethodKind::Unary);
+    pub const READ_IMAGE_OCR: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::ClipboardItemRequest, proto_desktop_rs::xiaowei::desktop::ClipboardImageOcr> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.ReadImageOcr", xw_gateway::MethodKind::Unary);
+    pub const NEXT_IMAGE_FOR_OCR: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::NextClipboardImageForOcrRequest, proto_desktop_rs::xiaowei::desktop::NextClipboardImageForOcrResponse> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.NextImageForOcr", xw_gateway::MethodKind::Unary);
+    pub const COMPLETE_IMAGE_OCR: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::CompleteClipboardImageOcrRequest, proto_desktop_rs::xiaowei::desktop::CompleteClipboardImageOcrResponse> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.CompleteImageOcr", xw_gateway::MethodKind::Unary);
     pub const TOUCH: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::TouchClipboardEntityRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.ClipboardDao.Touch", xw_gateway::MethodKind::Unary);
     pub const SET_FAVORITE: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::FavoriteRequest, proto_desktop_rs::xiaowei::desktop::SetFavoriteResponse> =
@@ -97,6 +105,8 @@ pub mod xiaowei_desktop_system_service {
         xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenUrl", xw_gateway::MethodKind::Unary);
     pub const OPEN_PATH: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::LocalPathRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenPath", xw_gateway::MethodKind::Unary);
+    pub const OPEN_FILE_LINK: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::OpenFileLinkRequest, ()> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenFileLink", xw_gateway::MethodKind::Unary);
     pub const REVEAL_PATH: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::LocalPathRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.System.RevealPath", xw_gateway::MethodKind::Unary);
     pub const CHECK_FOR_UPDATES: xw_gateway::binding::Method<(), ()> =

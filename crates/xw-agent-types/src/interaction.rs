@@ -35,8 +35,6 @@ pub struct InteractionExpired {
     pub interaction_id: InteractionId,
     pub revision: u64,
     pub reason: InteractionExpireReason,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub preempting_input_id: Option<InputId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,7 +43,6 @@ pub enum InteractionExpireReason {
     Stopped,
     SessionClosing,
     Recovery,
-    Preempted,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

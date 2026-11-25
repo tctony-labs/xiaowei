@@ -41,6 +41,12 @@ main、LLM worker、preload 和 renderer 的 JS／TS 由 electron-vite 构建到
 
 构建边界由 `scripts/dev/desktop-source-resolution.test.mjs` 验证，允许的外部入口仅为宿主和两个 native 包；`desktop/tests/llm/bundled-worker.test.mjs` 在工作区外、不复制 SDK node_modules 的条件下验证十种 provider chunk、HTTP/SSE、WebSocket、失败、取消和关闭。
 
+### Agent 命令行工具
+
+开发启动和打包的 app 阶段共用 [ripgrep 准备脚本](../../scripts/embedded-rg.mjs)。脚本按 macOS 架构下载版本锁定的上游预编译包，验证 SHA‑256，并把可执行文件放到当前工作区的 `desktop/.embedded/bin/rg`。各工作区的缓存独立，macOS 开发启动在缓存有效时直接复用。开发准备失败会记录警告，Agent 仍可使用系统 PATH 上的 rg 或内置搜索。
+
+打包要求准备成功。electron-builder 把 rg 放到 `Contents/Resources/bin/rg` 并签名，两份上游许可证位于 `Contents/Resources/licenses/ripgrep/`。打包检查权限、架构、签名、系统依赖、版本和许可证。开发和安装包分别将工作区的 `desktop/.embedded/bin` 与 `process.resourcesPath/bin` 交给 Agent。搜索命令和 Bash 子进程的 PATH 查找顺序见 [Agent runtime](../../crates/xw-agent-runtime/README.md#bash)。
+
 ### 体积维护与优化边界
 
 正式 `v0.1.2` 的体积测量保存在 [体积优化归档](../../.agent/records/archived/2026-10-16-release-size.md#正式-v011-与-v012-对比)，作为比较 baseline；测量操作见技能参考。归档是历史快照，当前构建行为以源码及本文为准。

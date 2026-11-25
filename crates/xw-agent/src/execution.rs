@@ -1,7 +1,10 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+};
 
 use prost::Message;
-use xw_agent_runtime::{GenerationRequest, RunRequest};
+use xw_agent_runtime::{GenerationRequest, RunRequest, context_budget::ContextBudget};
 use xw_agent_types::{
     AgentMessage as ModelMessage, BlockId, ContentBlock, GenId, InputId, MessageId, RunId,
     SessionId, TurnId, UserMessage,
@@ -33,7 +36,9 @@ impl AgentService {
                 .get(&id)
                 .filter(|s| !s.deleted())
                 .ok_or(AgentError::NotFound("session"))?;
-            if let Some(original) = session.requests.get(&input_id) {
+            if let Some(original) = session.requests.get(&input_id)
+                && (session.dispatching != Some(input_id) || session.active.is_some())
+            {
                 if original != &request {
                     return Err(AgentError::Conflict("input identity"));
                 }
@@ -51,11 +56,27 @@ impl AgentService {
                 session.resource_cache.clone(),
             )
         };
+        let (skills, resources) = self.snapshot_resources(cwd, resource_cache).await?;
+        let info = self.host.get_model_info(config.model_ref.clone()).await;
+        self.accept_run(request, source, config, info, skills, resources)
+    }
+
+    pub(crate) async fn snapshot_resources(
+        &self,
+        cwd: Option<String>,
+        resource_cache: Arc<Mutex<xw_agent_runtime::resources::ResourceCache>>,
+    ) -> Result<
+        (
+            xw_agent_runtime::tools::skill::SkillSnapshot,
+            xw_agent_runtime::resources::ResourceSnapshot,
+        ),
+        AgentError,
+    > {
         let user_root = self
             .rollout
             .as_ref()
             .map(|store| store.root().to_path_buf());
-        let (skills, resources) = if cwd.is_some() || user_root.is_some() {
+        let snapshots = if cwd.is_some() || user_root.is_some() {
             let runtime = tokio::runtime::Handle::try_current()
                 .map_err(|_| AgentError::ExecutionUnavailable)?;
             runtime
@@ -83,8 +104,7 @@ impl AgentService {
         } else {
             (Default::default(), Default::default())
         };
-        let info = self.host.get_model_info(config.model_ref.clone()).await;
-        self.accept_run(request, source, config, info, skills, resources)
+        Ok(snapshots)
     }
 
     fn accept_run(
@@ -106,7 +126,9 @@ impl AgentService {
             .ok_or(AgentError::NotFound("session"))?;
         session.available()?;
         session.prepare_writer()?;
-        if let Some(original) = session.requests.get(&input_id) {
+        if let Some(original) = session.requests.get(&input_id)
+            && (session.dispatching != Some(input_id) || session.active.is_some())
+        {
             if original != &request {
                 return Err(AgentError::Conflict("input identity"));
             }
@@ -116,6 +138,26 @@ impl AgentService {
         if session.active.is_some() {
             return Err(AgentError::Conflict("session is running"));
         }
+        if session
+            .dispatching
+            .is_some_and(|pending| pending != input_id)
+        {
+            return Err(AgentError::Conflict("queued input dispatching"));
+        }
+        let queued = if session.dispatching == Some(input_id) {
+            let queued = session
+                .queue
+                .iter()
+                .find(|entry| entry.accepted.input_id == input_id)
+                .cloned()
+                .ok_or(AgentError::Conflict("input not queued"))?;
+            if queued.view().input != request.input {
+                return Err(AgentError::Conflict("queued input changed"));
+            }
+            Some(queued)
+        } else {
+            None
+        };
         if crate::tool_registry::has_unclosed_calls(&session.history) {
             return Err(AgentError::Conflict(
                 "previous tool results remain unresolved",
@@ -191,7 +233,10 @@ impl AgentService {
         if let Some(update) = crate::tool_registry::planned_update(session)? {
             history.push(ModelMessage::SystemContext { update });
         }
-        history.push(user);
+        let user = queued
+            .as_ref()
+            .map_or(user, |input| input.message.message.clone());
+        history.push(user.clone());
         let history_bytes = serde_json::to_vec(&history)
             .map_err(|_| AgentError::Internal)?
             .len();
@@ -201,6 +246,9 @@ impl AgentService {
             ));
         }
         let tools = crate::tool_registry::synchronize(session, started_at_ms)?;
+        let user_block_id = queued
+            .as_ref()
+            .map_or_else(BlockId::new, |entry| entry.message.block_ids[0]);
         let mut run = AgentRun {
             run_id: run_id.to_string(),
             input_id: input_id.to_string(),
@@ -216,17 +264,18 @@ impl AgentService {
                 .unwrap_or_default(),
             started_at_ms,
             items: vec![AgentItem {
-                item_id: BlockId::new().to_string(),
+                item_id: user_block_id.to_string(),
                 history_index: Some(0),
                 gen_id: None,
                 content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                     content: request.input.clone(),
+                    input_id: Some(input_id.to_string()),
                 })),
                 ..Default::default()
             }],
             ..Default::default()
         };
-        let execution = RunRequest {
+        let mut execution = RunRequest {
             session_id: id,
             input_id,
             run_id,
@@ -235,72 +284,131 @@ impl AgentService {
             message_id: MessageId::new(),
             generation: GenerationRequest {
                 session_id: id,
+                isolate_provider_session: false,
                 model_ref: config.model_ref,
                 reasoning: config.reasoning,
                 temperature: None,
                 max_tokens: None,
                 system_prompt: String::new(),
-                messages: history.clone(),
+                messages: Vec::new(),
             },
         };
-        run.generation = Some(AgentGeneration {
-            gen_id: execution.gen_id.to_string(),
-            started_at_ms,
-            ..Default::default()
-        });
-        let budget = queried
-            .as_ref()
-            .map(|info| xw_agent_types::ModelBudget {
-                context_window: info.capabilities.context_window,
-                max_output_tokens: info.capabilities.max_output_tokens,
-                source: xw_agent_types::BudgetSource::Host,
-            })
-            .unwrap_or_default();
-        let descriptor = xw_agent_types::ModelDescriptor {
-            model_ref: execution.generation.model_ref.clone(),
-            provider_name: queried.as_ref().map(|info| info.provider_name.clone()),
-            model_name: queried.as_ref().map(|info| info.model_name.clone()),
-            capabilities: queried.map(|info| info.capabilities),
-            budget,
-        };
-        if let Err(error) = session.record_start(
+        let descriptor = model_descriptor(&execution.generation.model_ref, queried);
+        let sample = crate::compaction::previous_sample(session, &descriptor.model_ref);
+        let input_budget = ContextBudget::new(
+            &descriptor.budget,
+            sample,
+            &session.history,
+            std::slice::from_ref(&user),
+        );
+        let defer_first_turn = crate::compaction::needs_preflight(session, &input_budget);
+        let manual = session.dispatch_manual;
+        let run_entry_id = match session.record_start(
             &request,
             source,
             &execution,
-            run.items[0]
-                .item_id
-                .parse()
-                .map_err(|_| AgentError::Internal)?,
-            descriptor,
+            user_block_id,
+            descriptor.clone(),
             tools,
+            queued.as_ref(),
+            manual,
         ) {
-            session.failed_run = Some(run_id);
-            return Err(error);
+            Ok(entry_id) => entry_id,
+            Err(error) => {
+                session.failed_run = Some(run_id);
+                return Err(error);
+            }
+        };
+        if queued.is_some() {
+            run.items[0].item_id = crate::persistence::run_input_item_id(
+                session,
+                input_id,
+                user_block_id,
+                run_entry_id,
+            );
         }
+        let pending_first = if defer_first_turn {
+            Some(vec![(input_id, user)])
+        } else {
+            if let Err(error) = session.record_first_turn(&execution, &[input_id], started_at_ms) {
+                session.failed_run = Some(run_id);
+                return Err(error);
+            }
+            session.history.push(user);
+            execution.generation.messages = session.history.clone();
+            run.generation = Some(AgentGeneration {
+                gen_id: execution.gen_id.to_string(),
+                started_at_ms,
+                ..Default::default()
+            });
+            crate::queue::finish_dispatch(session, input_id);
+            None
+        };
+        if queued.is_none() {
+            session.requests.insert(input_id, request);
+        }
+        self.launch_run(
+            &mut state,
+            run.clone(),
+            crate::run_loop::RunPlan {
+                request: execution,
+                model: descriptor,
+                sample,
+                pending_first,
+            },
+            queued.is_some(),
+            handle,
+        );
+        log::debug!(
+            "Agent Run accepted session={id} input={input_id} run={run_id} \
+             permission_mode={permission_mode:?}"
+        );
+        Ok(StartRunResponse { run: Some(run) })
+    }
+
+    pub(crate) fn launch_run(
+        &self,
+        state: &mut crate::service::State,
+        run: AgentRun,
+        plan: crate::run_loop::RunPlan,
+        queue_changed: bool,
+        handle: tokio::runtime::Handle,
+    ) {
+        let id = plan.request.session_id;
+        let session = state.sessions.get_mut(&id).expect("loaded session");
         let cancellation = CancellationToken::new();
         let done = CancellationToken::new();
         session.active = Some(ActiveRun {
-            run_id,
-            permission_mode,
+            run_id: plan.request.run_id,
+            permission_mode: session.permission_mode,
             cancellation: cancellation.clone(),
             done: done.clone(),
+            committed: false,
+            first_inputs: plan
+                .pending_first
+                .iter()
+                .flatten()
+                .map(|(id, _)| *id)
+                .collect(),
         });
-        session.history = history;
         session.cancel_titles();
-        session.requests.insert(input_id, request);
+        session.view.updated_at_ms = run.started_at_ms;
         session.view.status = AgentSessionStatus::Running.into();
         session.view.runs.push(run.clone());
         let warning = crate::model::warning_event(session);
         let revision = session.view.metadata_revision;
         let title_model_ref = session.view.title_model_ref.clone();
         Self::publish(
-            &mut state,
+            state,
             event(agent_event::Payload::SessionModelInfoWarningUpdated(
                 warning,
             )),
         );
+        if queue_changed {
+            crate::queue::publish(state, id);
+        }
         Self::publish(
-            &mut state,
+            state,
             event(agent_event::Payload::RunStarted(RunStarted {
                 session_id: id.to_string(),
                 run: Some(run.clone()),
@@ -313,19 +421,36 @@ impl AgentService {
         let generation = self.generation.clone();
         let host = self.host.clone();
         handle.spawn(crate::run_loop::execute(
+            self.dispatch_handle(),
             shared,
             index,
             host,
             generation,
-            execution,
+            plan,
             cancellation,
             done,
         ));
-        log::debug!(
-            "Agent Run accepted session={id} input={input_id} run={run_id} \
-             permission_mode={permission_mode:?}"
-        );
-        Ok(StartRunResponse { run: Some(run) })
+    }
+}
+
+pub(crate) fn model_descriptor(
+    model_ref: &str,
+    queried: Option<xw_agent_types::ModelInfo>,
+) -> xw_agent_types::ModelDescriptor {
+    let budget = queried
+        .as_ref()
+        .map(|info| xw_agent_types::ModelBudget {
+            context_window: info.capabilities.context_window,
+            max_output_tokens: info.capabilities.max_output_tokens,
+            source: xw_agent_types::BudgetSource::Host,
+        })
+        .unwrap_or_default();
+    xw_agent_types::ModelDescriptor {
+        model_ref: model_ref.to_owned(),
+        provider_name: queried.as_ref().map(|info| info.provider_name.clone()),
+        model_name: queried.as_ref().map(|info| info.model_name.clone()),
+        capabilities: queried.map(|info| info.capabilities),
+        budget,
     }
 }
 

@@ -29,7 +29,7 @@ pub(crate) struct DisplayHistory {
 
 struct RunSlot {
     id: RunId,
-    input_id: InputId,
+    input_id: Option<InputId>,
     header_offset: u64,
     items_offset: u64,
     item_count: usize,
@@ -69,7 +69,11 @@ impl DisplayHistory {
 
         self.runs.push(RunSlot {
             id: run.run_id.parse().map_err(|_| AgentError::Internal)?,
-            input_id: run.input_id.parse().map_err(|_| AgentError::Internal)?,
+            input_id: if run.input_id.is_empty() {
+                None
+            } else {
+                Some(run.input_id.parse().map_err(|_| AgentError::Internal)?)
+            },
             header_offset,
             items_offset,
             item_count: run.items.len(),
@@ -175,6 +179,7 @@ fn run_header(run: &AgentRun) -> AgentRun {
         model_name: run.model_name.clone(),
         generation: run.generation.clone(),
         final_gen_id: run.final_gen_id.clone(),
+        continued_from_run_id: run.continued_from_run_id.clone(),
         ..Default::default()
     }
 }
@@ -295,18 +300,40 @@ impl Session {
             .view
             .runs
             .iter()
+            .rev()
             .find(|run| run.input_id.parse::<InputId>().ok() == Some(input_id))
         {
             return first_items(&RunSource::Live(run), false, fits_run_response)
                 .map(|(run, _)| run);
         }
         if let Some(history) = &self.display_history
-            && let Some(run) = history.runs.iter().find(|run| run.input_id == input_id)
+            && let Some(run) = history
+                .runs
+                .iter()
+                .rev()
+                .find(|run| run.input_id == Some(input_id))
         {
             return first_items(&RunSource::Disk(history, run), false, fits_run_response)
                 .map(|(run, _)| run);
         }
         Err(AgentError::Conflict("input accepted without a run"))
+    }
+
+    pub(crate) fn has_run_for_input(&self, input_id: InputId) -> bool {
+        self.view
+            .runs
+            .iter()
+            .any(|run| run.input_id.parse::<InputId>().ok() == Some(input_id))
+            || self.display_history.as_ref().is_some_and(|history| {
+                history
+                    .runs
+                    .iter()
+                    .any(|run| run.input_id == Some(input_id))
+            })
+    }
+
+    pub(crate) fn run_page(&self, run_id: &str) -> Result<AgentRun, AgentError> {
+        first_items(&self.find_run(run_id)?, false, fits_run_response).map(|(run, _)| run)
     }
 
     pub(crate) fn archive_display(&mut self) -> Result<(), AgentError> {
@@ -318,6 +345,10 @@ impl Session {
             .get_or_insert_with(DisplayHistory::default);
         while let Some(run) = self.view.runs.first() {
             if run.status == AgentRunStatus::InProgress as i32 {
+                break;
+            }
+            if self.view.runs.len() == 1 && run.status != AgentRunStatus::Completed as i32 {
+                // Continue may settle tool calls on the latest unsuccessful Run.
                 break;
             }
             history.append(run, journal.path().parent().ok_or(AgentError::Internal)?)?;
@@ -496,6 +527,8 @@ fn session_header(view: &AgentSession) -> AgentSession {
         archive_revision: view.archive_revision,
         updated_at_ms: view.updated_at_ms,
         cwd: view.cwd.clone(),
+        queued_inputs: view.queued_inputs.clone(),
+        queue_error: view.queue_error.clone(),
         ..Default::default()
     }
 }

@@ -88,6 +88,43 @@ message ShortcutConfiguration {
   ShortcutBinding quick_chat = 3;
 }
 
+enum EditorPreset {
+  EDITOR_PRESET_UNSPECIFIED = 0;
+  EDITOR_PRESET_SYSTEM = 1;
+  EDITOR_PRESET_VS_CODE = 2;
+  EDITOR_PRESET_CURSOR = 3;
+  EDITOR_PRESET_ZED = 4;
+  EDITOR_PRESET_TEXTMATE = 5;
+  EDITOR_PRESET_BBEDIT = 6;
+  EDITOR_PRESET_EMACS = 7;
+  EDITOR_PRESET_MAC_VIM = 8;
+  EDITOR_PRESET_SUBLIME_TEXT = 9;
+  EDITOR_PRESET_NOVA = 10;
+  EDITOR_PRESET_CUSTOM = 11;
+}
+
+message CustomEditor {
+  // Shell command template for a file without a source location. Requires %file.
+  string open_file = 1;
+  // Shell command template for a source location. Requires %file and %line.
+  string open_at_line = 2;
+}
+
+message EditorPreference {
+  EditorPreset selected = 1;
+  // Retained when a built-in editor is selected. Required when selected is CUSTOM.
+  CustomEditor custom = 2;
+}
+
+message UpdateEditorPreference {
+  oneof choice {
+    // Selects a built-in editor and retains the saved custom commands.
+    EditorPreset preset = 1;
+    // Saves the two commands and selects the custom editor in the same update.
+    CustomEditor custom = 2;
+  }
+}
+
 message SettingsSnapshot {
   ThemeMode theme = 1;
   bool autostart = 2;
@@ -98,6 +135,8 @@ message SettingsSnapshot {
   // Allowed values: 1, 7, 15, 30, -1 (permanent). Default: 30.
   int32 clipboard_retention_days = 7;
   WebSearchSettings web_search = 8;
+  // Absent uses the operating system's default application.
+  EditorPreference source_editor = 9;
 }
 
 message SettingsChanged {
@@ -118,5 +157,6 @@ message UpdateSettingsRequest {
     // Saves the selection even when no key exists; unspecified is rejected.
     WebSearchProvider web_search_provider = 8;
     WebSearchApiKeyUpdate web_search_api_key = 9;
+    UpdateEditorPreference source_editor = 10;
   }
 }

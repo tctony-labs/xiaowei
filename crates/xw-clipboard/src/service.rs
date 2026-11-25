@@ -1,6 +1,7 @@
 use crate::gateway_binding::xiaowei_desktop_settings_service as settings;
 use crate::{ClipboardCategory, ClipboardData, ClipboardItem, ListOptions, Result, Store};
 use prost::{Message, Name};
+use proto_desktop_rs::xiaowei::desktop::ClipboardImageOcr;
 use proto_desktop_rs::xiaowei::desktop::SettingsChanged;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -27,6 +28,8 @@ struct State {
     clipboard: Box<dyn ClipboardBackend>,
     last_count: Option<i64>,
     last_hash: Option<String>,
+    #[cfg(target_os = "macos")]
+    ocr_ready: Arc<tokio::sync::Notify>,
 }
 
 struct ClipboardChange {
@@ -49,6 +52,8 @@ struct Worker {
 struct ServiceLifecycle {
     closed: bool,
     worker: Option<LifecycleWorker>,
+    #[cfg(target_os = "macos")]
+    ocr: Option<Worker>,
 }
 
 struct LifecycleWorker {
@@ -82,6 +87,8 @@ impl Service {
                 clipboard: Box::new(clipboard),
                 last_count: None,
                 last_hash: None,
+                #[cfg(target_os = "macos")]
+                ocr_ready: Arc::default(),
             })),
             worker: Mutex::new(None),
             on_change: Arc::new(on_change),
@@ -124,6 +131,23 @@ impl Service {
         if let Err(error) = self.apply_monitoring(current.clipboard_enabled).await {
             subscription.close();
             return Err(error);
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let (store, ready) = {
+                let state = self.state.lock().await;
+                (state.store.clone(), state.ocr_ready.clone())
+            };
+            let on_change = self.on_change.clone();
+            let (stop, cancelled) = oneshot::channel();
+            let thread = tokio::spawn(async move {
+                tokio::select! {
+                    biased;
+                    _ = cancelled => {}
+                    _ = crate::ocr::run(store, &ready, || on_change()) => {}
+                }
+            });
+            lifecycle.ocr = Some(Worker { stop, thread });
         }
         let service = Arc::downgrade(self);
         let (stop, mut cancelled) = oneshot::channel();
@@ -182,6 +206,11 @@ impl Service {
     pub async fn stop_services(&self) -> Result<()> {
         let mut lifecycle = self.lifecycle.lock().await;
         lifecycle.closed = true;
+        #[cfg(target_os = "macos")]
+        if let Some(worker) = lifecycle.ocr.take() {
+            let _ = worker.stop.send(());
+            worker.thread.await?;
+        }
         if let Some(worker) = lifecycle.worker.take() {
             worker.subscription.close();
             let _ = worker.stop.send(());
@@ -331,6 +360,10 @@ impl Service {
 
     pub async fn data(&self, id: i64) -> Result<ClipboardData> {
         self.state.lock().await.store.data(id).await
+    }
+
+    pub async fn read_image_ocr(&self, id: i64) -> Result<ClipboardImageOcr> {
+        self.state.lock().await.store.read_image_ocr(id).await
     }
 
     pub async fn copy(&self, id: i64) -> Result<()> {
@@ -523,6 +556,10 @@ async fn poll(state: &Mutex<State>) -> std::result::Result<bool, PollError> {
         .map_err(PollError::Save)?;
     state.last_count = Some(change.count);
     state.last_hash = Some(change.hash);
+    #[cfg(target_os = "macos")]
+    if item.kind == "image" {
+        state.ocr_ready.notify_one();
+    }
     log::debug!("Clipboard history saved id={} kind={}", item.id, item.kind);
     Ok(true)
 }

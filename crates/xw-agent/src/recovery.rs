@@ -83,7 +83,7 @@ pub fn inspect_recovery(
 }
 
 /// Settle basic interrupted lifecycles, without executing models/tools or inventing results.
-/// Unknown tools remain unknown; Continue policy is a later runtime responsibility.
+/// Closing unknown calls belongs to explicit Continue.
 pub fn settle_interrupted(
     journal: &mut Journal,
     known_failed_run: Option<RunId>,
@@ -123,7 +123,6 @@ pub(crate) fn settle_with_tools(
                 interaction_id: *id,
                 revision: revision + 1,
                 reason: InteractionExpireReason::Recovery,
-                preempting_input_id: None,
             }),
             recovered_at_ms,
         )?;
@@ -138,7 +137,6 @@ pub(crate) fn settle_with_tools(
             EntryPayload::GenEnded(GenEnded {
                 gen_id: *id,
                 status: GenStatus::Interrupted,
-                preempting_input_id: None,
                 ended_at_ms: None,
                 stop_reason: None,
                 assistant_message_id: message.map(|message| message.message_id),
@@ -157,9 +155,31 @@ pub(crate) fn settle_with_tools(
             recovered_at_ms,
         )?;
     }
+    // Acceptance may have stopped after RunStarted or after writing a synthetic intent.
+    // Finish closing the predecessor's calls before terminating the interrupted Continue.
+    for entry in &entries {
+        if let EntryPayload::RunStarted(run) = &entry.payload
+            && state.runs.contains(&run.run_id)
+            && let RunCause::Continue {
+                previous_run_id, ..
+            } = run.cause
+        {
+            crate::continuation::settle_calls(
+                journal,
+                previous_run_id,
+                run.run_id,
+                recovered_at_ms,
+            )?;
+        }
+    }
     // Session-local tools have no unknown external side effect. Rebuild interactive
     // results from durable answers; uncommitted TodoWrite updates are cancelled.
     for id in &state.tools {
+        if journal.entries().iter().any(|entry| {
+            matches!(&entry.payload, EntryPayload::ToolOutcome(outcome) if outcome.tool_id == *id)
+        }) {
+            continue;
+        }
         let Some(intent) = entries
             .iter()
             .find_map(|entry| match &entry.payload {
@@ -251,7 +271,6 @@ pub(crate) fn settle_with_tools(
                 turn_id: *id,
                 status: TurnStatus::Interrupted,
                 final_gen_id,
-                preempting_input_id: None,
                 duration_ms: None,
                 error: None,
             }),
@@ -268,7 +287,9 @@ pub(crate) fn settle_with_tools(
             .count() as u32;
         let had_assistant_output = entries.iter().any(|entry| {
             matches!(&entry.payload,
-            EntryPayload::Message(message) if message.run_id == Some(*id))
+                EntryPayload::Message(message)
+                    if message.run_id == Some(*id) && message.turn_id.is_some()
+            )
         });
         let failed = known_failed_run == Some(*id);
         journal.append(
@@ -290,6 +311,38 @@ pub(crate) fn settle_with_tools(
             }),
             recovered_at_ms,
         )?;
+    }
+    let mut routes = BTreeMap::new();
+    for entry in journal.entries() {
+        match &entry.payload {
+            EntryPayload::InputAccepted(input) if input.mode != InputMode::Send => {
+                routes.insert(input.input_id, (input.mode, input.expected_run_id));
+            }
+            EntryPayload::InputRouted(input) => {
+                routes.insert(input.input_id, (input.mode, input.expected_run_id));
+            }
+            EntryPayload::InputConsumed(input) => {
+                for id in &input.input_ids {
+                    routes.remove(id);
+                }
+            }
+            EntryPayload::InputCancelled(input) => {
+                routes.remove(&input.input_id);
+            }
+            _ => {}
+        }
+    }
+    for (input_id, (_, target)) in routes {
+        if target.is_some() {
+            journal.append(
+                EntryPayload::InputRouted(InputRouted {
+                    input_id,
+                    mode: InputMode::FollowUp,
+                    expected_run_id: None,
+                }),
+                recovered_at_ms,
+            )?;
+        }
     }
     inspect_recovery(journal.entries()).map_err(|_| xw_agent_rollout::RolloutError::InvalidHistory)
 }

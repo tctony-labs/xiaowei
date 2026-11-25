@@ -401,7 +401,7 @@ impl ::prost::Name for ClipboardChanged {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClipboardListOptions {
-    /// Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+    /// Empty selects the ordinary list. Nonempty searches text, OCR, remarks and paths:
     /// whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
     /// At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
     #[prost(string, optional, tag = "1")]
@@ -735,6 +735,90 @@ impl ::prost::Name for ReadImageResponse {
         "/xiaowei.desktop.ReadImageResponse".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardImageOcr {
+    /// Absent until recognition succeeds. Empty when the image contains no recognized text.
+    #[prost(string, optional, tag = "1")]
+    pub text: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for ClipboardImageOcr {
+    const NAME: &'static str = "ClipboardImageOcr";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.ClipboardImageOcr".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.ClipboardImageOcr".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NextClipboardImageForOcrRequest {
+    /// Select the first pending image after this ID. Zero starts at the oldest.
+    #[prost(uint64, tag = "1")]
+    pub after_id: u64,
+}
+impl ::prost::Name for NextClipboardImageForOcrRequest {
+    const NAME: &'static str = "NextClipboardImageForOcrRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.NextClipboardImageForOcrRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.NextClipboardImageForOcrRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NextClipboardImageForOcrResponse {
+    /// Both fields are absent when there are no more pending images after the cursor.
+    #[prost(uint64, optional, tag = "1")]
+    pub id: ::core::option::Option<u64>,
+    #[prost(string, optional, tag = "2")]
+    pub hash: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for NextClipboardImageForOcrResponse {
+    const NAME: &'static str = "NextClipboardImageForOcrResponse";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.NextClipboardImageForOcrResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.NextClipboardImageForOcrResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CompleteClipboardImageOcrRequest {
+    #[prost(uint64, tag = "1")]
+    pub id: u64,
+    /// An empty result also completes recognition. Timestamps and use count stay intact.
+    #[prost(string, tag = "2")]
+    pub text: ::prost::alloc::string::String,
+}
+impl ::prost::Name for CompleteClipboardImageOcrRequest {
+    const NAME: &'static str = "CompleteClipboardImageOcrRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CompleteClipboardImageOcrRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CompleteClipboardImageOcrRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CompleteClipboardImageOcrResponse {
+    /// False if the image was removed or its recognition was already completed.
+    #[prost(bool, tag = "1")]
+    pub updated: bool,
+}
+impl ::prost::Name for CompleteClipboardImageOcrResponse {
+    const NAME: &'static str = "CompleteClipboardImageOcrResponse";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CompleteClipboardImageOcrResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CompleteClipboardImageOcrResponse".into()
+    }
+}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteResponse {
     /// True if a record existed and was deleted; false if it was already absent.
@@ -903,7 +987,7 @@ pub struct ClipboardEntityHit {
     /// Always present on successful recall; large-text content is still the stored summary.
     #[prost(message, optional, tag = "1")]
     pub entity: ::core::option::Option<ClipboardEntity>,
-    /// Plain-text context from indexed text, remark and paths, without highlight markup.
+    /// Plain-text context from indexed text, OCR, remarks and paths, without highlight markup.
     /// FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
     /// Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
     #[prost(string, tag = "2")]
@@ -1102,6 +1186,23 @@ impl ::prost::Name for LocalPathRequest {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.desktop.LocalPathRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct OpenFileLinkRequest {
+    /// An absolute local path or local file URL, optionally ending in a one-based
+    /// #L<line> or :<line> suffix.
+    #[prost(string, tag = "1")]
+    pub href: ::prost::alloc::string::String,
+}
+impl ::prost::Name for OpenFileLinkRequest {
+    const NAME: &'static str = "OpenFileLinkRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.OpenFileLinkRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.OpenFileLinkRequest".into()
     }
 }
 /// Notification only, delivered to the destination settings window. The host
@@ -1843,6 +1944,70 @@ impl ::prost::Name for ShortcutConfiguration {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CustomEditor {
+    /// Shell command template for a file without a source location. Requires %file.
+    #[prost(string, tag = "1")]
+    pub open_file: ::prost::alloc::string::String,
+    /// Shell command template for a source location. Requires %file and %line.
+    #[prost(string, tag = "2")]
+    pub open_at_line: ::prost::alloc::string::String,
+}
+impl ::prost::Name for CustomEditor {
+    const NAME: &'static str = "CustomEditor";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CustomEditor".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CustomEditor".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EditorPreference {
+    #[prost(enumeration = "EditorPreset", tag = "1")]
+    pub selected: i32,
+    /// Retained when a built-in editor is selected. Required when selected is CUSTOM.
+    #[prost(message, optional, tag = "2")]
+    pub custom: ::core::option::Option<CustomEditor>,
+}
+impl ::prost::Name for EditorPreference {
+    const NAME: &'static str = "EditorPreference";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.EditorPreference".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.EditorPreference".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct UpdateEditorPreference {
+    #[prost(oneof = "update_editor_preference::Choice", tags = "1, 2")]
+    pub choice: ::core::option::Option<update_editor_preference::Choice>,
+}
+/// Nested message and enum types in `UpdateEditorPreference`.
+pub mod update_editor_preference {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Choice {
+        /// Selects a built-in editor and retains the saved custom commands.
+        #[prost(enumeration = "super::EditorPreset", tag = "1")]
+        Preset(i32),
+        /// Saves the two commands and selects the custom editor in the same update.
+        #[prost(message, tag = "2")]
+        Custom(super::CustomEditor),
+    }
+}
+impl ::prost::Name for UpdateEditorPreference {
+    const NAME: &'static str = "UpdateEditorPreference";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.UpdateEditorPreference".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.UpdateEditorPreference".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SettingsSnapshot {
     #[prost(enumeration = "ThemeMode", tag = "1")]
     pub theme: i32,
@@ -1861,6 +2026,9 @@ pub struct SettingsSnapshot {
     pub clipboard_retention_days: i32,
     #[prost(message, optional, tag = "8")]
     pub web_search: ::core::option::Option<WebSearchSettings>,
+    /// Absent uses the operating system's default application.
+    #[prost(message, optional, tag = "9")]
+    pub source_editor: ::core::option::Option<EditorPreference>,
 }
 impl ::prost::Name for SettingsSnapshot {
     const NAME: &'static str = "SettingsSnapshot";
@@ -1893,7 +2061,7 @@ pub struct UpdateSettingsRequest {
     /// Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
     #[prost(
         oneof = "update_settings_request::Change",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
     )]
     pub change: ::core::option::Option<update_settings_request::Change>,
 }
@@ -1921,6 +2089,8 @@ pub mod update_settings_request {
         WebSearchProvider(i32),
         #[prost(message, tag = "9")]
         WebSearchApiKey(super::WebSearchApiKeyUpdate),
+        #[prost(message, tag = "10")]
+        SourceEditor(super::UpdateEditorPreference),
     }
 }
 impl ::prost::Name for UpdateSettingsRequest {
@@ -1996,6 +2166,62 @@ impl ThemeMode {
             "THEME_MODE_SYSTEM" => Some(Self::System),
             "THEME_MODE_LIGHT" => Some(Self::Light),
             "THEME_MODE_DARK" => Some(Self::Dark),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum EditorPreset {
+    Unspecified = 0,
+    System = 1,
+    VsCode = 2,
+    Cursor = 3,
+    Zed = 4,
+    Textmate = 5,
+    Bbedit = 6,
+    Emacs = 7,
+    MacVim = 8,
+    SublimeText = 9,
+    Nova = 10,
+    Custom = 11,
+}
+impl EditorPreset {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "EDITOR_PRESET_UNSPECIFIED",
+            Self::System => "EDITOR_PRESET_SYSTEM",
+            Self::VsCode => "EDITOR_PRESET_VS_CODE",
+            Self::Cursor => "EDITOR_PRESET_CURSOR",
+            Self::Zed => "EDITOR_PRESET_ZED",
+            Self::Textmate => "EDITOR_PRESET_TEXTMATE",
+            Self::Bbedit => "EDITOR_PRESET_BBEDIT",
+            Self::Emacs => "EDITOR_PRESET_EMACS",
+            Self::MacVim => "EDITOR_PRESET_MAC_VIM",
+            Self::SublimeText => "EDITOR_PRESET_SUBLIME_TEXT",
+            Self::Nova => "EDITOR_PRESET_NOVA",
+            Self::Custom => "EDITOR_PRESET_CUSTOM",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EDITOR_PRESET_UNSPECIFIED" => Some(Self::Unspecified),
+            "EDITOR_PRESET_SYSTEM" => Some(Self::System),
+            "EDITOR_PRESET_VS_CODE" => Some(Self::VsCode),
+            "EDITOR_PRESET_CURSOR" => Some(Self::Cursor),
+            "EDITOR_PRESET_ZED" => Some(Self::Zed),
+            "EDITOR_PRESET_TEXTMATE" => Some(Self::Textmate),
+            "EDITOR_PRESET_BBEDIT" => Some(Self::Bbedit),
+            "EDITOR_PRESET_EMACS" => Some(Self::Emacs),
+            "EDITOR_PRESET_MAC_VIM" => Some(Self::MacVim),
+            "EDITOR_PRESET_SUBLIME_TEXT" => Some(Self::SublimeText),
+            "EDITOR_PRESET_NOVA" => Some(Self::Nova),
+            "EDITOR_PRESET_CUSTOM" => Some(Self::Custom),
             _ => None,
         }
     }

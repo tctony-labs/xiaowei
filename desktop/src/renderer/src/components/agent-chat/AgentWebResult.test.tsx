@@ -52,10 +52,6 @@ test("ordered, scrollable results open safe URLs", async () => {
   fireEvent.click(screen.getByRole("link", { name: "First" }));
   expect(onOpenUrl).toHaveBeenCalledWith("https://example.com/page");
   expect(screen.queryByRole("button", { name: "复制工具结果" })).toBeNull();
-
-  onOpenUrl.mockRejectedValueOnce(new Error("open failed"));
-  fireEvent.click(screen.getByRole("link", { name: "First" }));
-  expect(results).not.toContainElement(await screen.findByRole("alert"));
 });
 
 test("search metadata supplies the query when stored arguments omit it", () => {

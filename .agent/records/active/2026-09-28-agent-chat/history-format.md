@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本与 Read／Write／Edit 工具生产者已接入；Interaction、压缩的实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
+当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本、工具、交互与自动压缩均已接入持久历史。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
 
 ## 系统上下文记录（核心记录／恢复已实现）
 
@@ -12,7 +12,7 @@
 
 系统记录不依附 Run／Gen，不伪装用户输入或助手 Message；外层身份、顺序与时间复用普通 entry。首次空基线仍是一条明确记录；已有基线时禁止再次追加 baseline，实际无变化的 delta 也拒绝。Conversation Gen 未结束或工具结果未闭合时禁止更新，包括模型已返回完整工具调用、ToolIntent 尚未提交的前缀。
 
-`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动压缩的实际触发、生成和提交接线仍属于 02j。
+`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动触发规则与生产验证见[上下文预算与自动压缩](implementation-results.md#上下文预算与自动压缩)。
 
 ## 编码边界、SessionHeader 与 Meta
 
@@ -67,9 +67,9 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 
 `RunStarted.context.tools` 可从 `base_context.through_entry_id` 指向的历史位置重建时，编码器省略该字段。读取以该边界内最近的基线或压缩快照为起点，依序应用其后的增量，再把声明补回完整领域对象并校验。显式保存的列表按原值读取，包括空列表；没有可用基线时必须显式保存。辅助 Gen 的独立 `context.tools` 仍显式保存。格式版本仍为 v2，既有文件可直接读取，读取新写入的精简条目需要更新后的 reader。
 
-InputMode 为 FollowUp／Steering／Preempt（另有普通 Send）。FollowUp 按接纳顺序由下一 Run 消费；Steering 在工具之间的安全检查点生效，尚未启动的批次工具结算 skipped 后进入同 Run 后续 Turn；Preempt 先打断当前 Gen／工具，完成抢占结算后进入同 Run 后续 Turn。Steering／Preempt 必须指向活动 Run。当前公共 RPC／运行调度只接纳 Send，其余模式保留类型与历史校验，没有提前提供空调度或 UI。
+InputMode 为 FollowUp／Steering／Interrupt（另有普通 Send）。FollowUp 按接纳顺序由后续 Run 逐条消费；Steering 在工具之间的安全检查点生效，尚未启动的批次工具结算 skipped 后进入同 Run 后续 Turn，若 Run 已结束仍未消费则恢复为 FollowUp。Interrupt 指向活动 Run，结束旧 Run 后以选中的输入启动新 Run。接纳、编辑、路由变更和消费均写入历史；重启重建待处理队列，不自动重发。
 
-RunCause 为 Send、非空有序 FollowUp 批次或 Continue（关联旧 Run、独立 client_request_id 与认证后的 source）。Continue 必须先结算旧 Run，不复用其 ID。InputSource 使用 Desktop／Cli／Remote／Internal 与稳定 principal_id；不保存 transport token，Remote 类型不等于手机功能已交付。
+RunCause 为 Send、非空有序 FollowUp、Interrupt（关联被打断的旧 Run）、Queued（空闲时显式发送待处理输入）或 Continue（关联旧 Run、独立 client_request_id 与认证后的 source）。每条自动 FollowUp 启动一个 Run；Continue 必须先结算旧 Run，不复用其 ID。InputSource 使用 Desktop／Cli／Remote／Internal 与稳定 principal_id；不保存 transport token，Remote 类型不等于手机功能已交付。
 
 Session → Run → Turn 表示执行归属，Input 独立接纳；Item 是公共展示投影。我们的 Run 对应 Codex App Server Turn，一个本项目 Turn 包括生成及其工具结果。显式重试可在同 Turn 产生多个 Gen，前次须失败且未执行工具；本期没有自动重试功能。
 
@@ -83,7 +83,7 @@ Gen 开始／正常结束由 runtime 采集，首 SSE 时间来自执行宿主 w
 
 内部观测时间仅在与外层相等时省略；真实差异保留。墙钟回拨不改变文件顺序，duration_ms 使用单调时钟，不能由墙钟差猜测。context_tokens 是单独测量，不能自动等同 usage.input 或 usage.total；辅助模型测量不覆盖聊天上下文测量。
 
-Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子终态向父终态传播时，父记录可使用 `error_ref` 引用已提交的因果错误记录；不同错误保留各自正文。抢占终态／InteractionExpired 显式保存 preempting_input_id，不从后续输入推断。
+Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子终态向父终态传播时，父记录可使用 `error_ref` 引用已提交的因果错误记录；不同错误保留各自正文。
 
 ### 标题生成成功记录
 
@@ -97,12 +97,12 @@ Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子
 | `tool_outcome` | `tool_id`、`status`、`result`、可选 `error`／`metadata_json`／`duration_ms`／`elapsed_ms`／`queue_duration_ms`／`settled_by_run_id` | 从 intent 恢复 key、角色和工具关联，is_error 从状态恢复；result 保存 message_id／block_ids、正文及真实执行元信息 |
 | `interaction_opened` | `interaction_id`、`tool_id`、`request` | 从 Tool 恢复 Run，初始 revision=1 |
 | `interaction_resolved` | `interaction_id`、`client_request_id`、`source`、`answer` | 终态 revision=2；与 Expired 互斥，首个有效决定提交后才生效 |
-| `interaction_expired` | `interaction_id`、`reason`、可选 `preempting_input_id` | 终态 revision=2；迟到决定不能复活 |
-| `compacted` | `gen_id`、`replaced_through_entry_id`、`replacement_history`、`trigger`、可选 `tokens_before`／`estimated_tokens_before` | 从 Gen 取得归属／边界及预算，从 GenEnded 取得单调耗时；从有效历史取得前一检查点和保留后缀，从 replacement_history 派生 summary |
+| `interaction_expired` | `interaction_id`、`reason` | 终态 revision=2；迟到决定不能复活 |
+| `compacted` | `gen_id`、`replaced_through_entry_id`、`replacement_history`、`trigger`、可选 `tokens_before`／`estimated_tokens_before` | 从 Gen 取得归属／边界及预算，从 GenEnded 取得单调耗时；从有效历史取得前一检查点和保留后缀，从 replacement_history 的最后一条摘要消息提取 summary，旧记录仍按替换历史文本派生 |
 
 工具调用须来自成功完整 Conversation Gen，provider call ID 仅在该 Gen 内唯一；内部 ToolId 独立。结果与执行状态在同一 entry 提交，参数非法／未知工具也形成明确结果。duration、elapsed、queue duration 分别表示执行、整体经过和排队，不能互相替代；执行 metadata_json 与模型 details_json 分开保留。
 
-ToolIntent 无 Outcome 表示副作用可能发生，不能自动重试。后续 Continue 可结算旧 ResultUnknown，尚未建立 intent 的旧调用可明确 Skipped；settled_by_run_id 关联当前 Continue Run，不能假装旧工具成功执行。旧配对闭合后才能开始新的 Turn／Gen。
+ToolIntent 无 Outcome 表示副作用可能发生，不能自动重试。显式 Continue 结算旧 ResultUnknown，尚未建立 intent 的旧调用可明确 Skipped；settled_by_run_id 关联当前 Continue Run，不能假装旧工具成功执行。旧配对闭合后才能开始新的 Turn／Gen。
 
 InteractionRequest 为 Question、Permission 或 ToolExecution；回答类型匹配、索引有界且不重复，单选至多一个，并允许自由文本。PermissionTarget 由服务端解析，客户端不能扩大授权路径。ToolExecution 用于 Continue 后模型重新提出等价副作用时确认，不重新执行旧 intent。送达 ACK、客户端连接和 observer 状态只放内存。
 
@@ -129,7 +129,7 @@ FormatError 区分 UnsupportedVersion 与 InvalidStructure，ValidationError 返
 1. main 解析绝对路径 `XIAOWEI_AGENT_HOME`，默认 `~/.xiaowei`，直接传给 Agent.open，不添加 agent 子目录。文件位于 `<root>/sessions/YYYY/MM/<session-id>.jsonl`，年月来自创建时间 UTC，不从 UUID 推测。自有目录为 `<root>/quick-chat/<session-id>/`，创建与清理规则见[会话工作目录](#会话工作目录)。模型设置在同根的 models.json；其他业务数据保持原目录。
 2. xw-agent-rollout 取得跨进程独占写锁后读取／修复。锁覆盖可写 Journal 生命周期，不抢占其他宿主。完整行、换行、flush／sync_data 成功后才推进确认边界并发布持久状态，多行不是原子事务。live cache 使用同一 compact codec 重建，和文件重开结果一致。
 3. 冷打开或 NeedsCheck 后的下一次使用才重新检查文件，正常 query 不重扫。末端截断／未提交换行的合法记录保存 tail 诊断后截断，不提升为提交；未知版本／字段、完整非法记录和中间损坏保留报错，不跳过。
-4. 必需记录写盘失败立即使整个 Run 失败并取消生成，提示用户排除磁盘空间／权限问题。没有补写队列、恢复按钮或自动重发；下一条 query 必要时清理失败尾部、结算旧 Run，成功才接纳新输入，仍不可写则报错。
+4. 必需记录写盘失败立即使整个 Run 失败并取消生成，提示用户排除磁盘空间／权限问题。会话再次写入时先修复失败尾部并结算旧 Run。用户可用 Continue 从持久边界恢复，剩余调用在新生成前按状态结算。
 5. 文件层只管理读取／修复／提交，业务恢复归 xw-agent。核心识别未完成 Input／Run／Turn／Gen／工具／Interaction，追加基本中断终态；当前实例已知写盘失败可补 Failed，冷打开未知原因补 Interrupted。实际 Gen 结束时间未知保持 null，不重执行历史模型或工具。
 6. 有效上下文按稳定 entry 边界、适用检查点和后缀重建；公共投影恢复 Run／Item 和原 input 请求身份。完整 Assistant 来源、签名和统计来自历史响应，不能从当前模型补猜。
 

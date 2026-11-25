@@ -44,6 +44,7 @@ pub struct AgentService {
     pub(crate) rollout: Option<xw_agent_rollout::RolloutStore>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) maintenance: Mutex<Option<crate::retention::MaintenanceTask>>,
+    pub(crate) owner: bool,
 }
 
 impl AgentService {
@@ -64,6 +65,22 @@ impl AgentService {
                 interaction_observers: Vec::new(),
             })),
             maintenance: Mutex::new(None),
+            owner: true,
+        }
+    }
+
+    pub(crate) fn dispatch_handle(&self) -> Self {
+        Self {
+            generation: self.generation.clone(),
+            host: self.host.clone(),
+            index: self.index.clone(),
+            rollout: self
+                .rollout
+                .as_ref()
+                .map(|store| xw_agent_rollout::RolloutStore::new(store.root())),
+            state: self.state.clone(),
+            maintenance: Mutex::new(None),
+            owner: false,
         }
     }
 
@@ -352,6 +369,7 @@ impl AgentService {
                 a.cancellation.cancel();
                 done.push(a.done.clone());
             }
+            done.extend(session.background.cancel(None));
             done
         };
         for done in done {
@@ -404,7 +422,10 @@ impl AgentService {
             .runs
             .iter()
             .any(|r| r.run_id == run_id.to_string());
-        let active = session.active.as_ref().filter(|a| a.run_id == run_id);
+        let active = session
+            .active
+            .as_ref()
+            .filter(|a| a.run_id == run_id && !a.committed);
         if let Some(active) = active {
             active.cancellation.cancel();
         }
@@ -423,6 +444,7 @@ impl AgentService {
                 if let Some(active) = &session.active {
                     active.cancellation.cancel();
                 }
+                session.background.cancel(None);
             }
         }
     }
@@ -446,6 +468,7 @@ impl AgentService {
                         active.cancellation.cancel();
                         done.push(active.done.clone());
                     }
+                    done.extend(session.background.cancel(None));
                     done
                 })
                 .collect::<Vec<_>>()
@@ -468,6 +491,7 @@ impl AgentService {
             if let Some(active) = &session.active {
                 active.cancellation.cancel();
             }
+            session.background.cancel(None);
         }
         for observer in state
             .observers
@@ -538,6 +562,9 @@ impl AgentService {
 
 impl Drop for AgentService {
     fn drop(&mut self) {
+        if !self.owner {
+            return;
+        }
         self.cancel_maintenance();
         let _ = self.close_state();
     }

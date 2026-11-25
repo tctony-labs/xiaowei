@@ -2,6 +2,8 @@ mod dao;
 pub mod gateway;
 #[allow(dead_code)]
 mod gateway_binding;
+#[cfg(target_os = "macos")]
+mod ocr;
 mod paste;
 mod resources;
 mod service;

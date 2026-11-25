@@ -353,14 +353,19 @@ impl Journal {
         &self.entries
     }
 
-    /// Drops large committed fields once the caller has projected the settled prefix.
+    /// Drops large committed fields before the latest Run. Keep its contents for
+    /// Continue and context sampling. Accepted inputs and original tool arguments
+    /// remain available for queue dispatch and validation of subsequent appends.
     /// The caller must only invoke this with no active Run or Generate.
     pub fn release_completed_contents(&mut self) {
-        for entry in &mut self.entries[self.released..] {
+        let end = self
+            .entries
+            .iter()
+            .rposition(|entry| matches!(entry.payload, EntryPayload::RunStarted(_)))
+            .unwrap_or(0);
+        for entry in &mut self.entries[self.released..end] {
             match &mut entry.payload {
-                EntryPayload::InputAccepted(input) => release_message(&mut input.message.message),
                 EntryPayload::Message(message) => release_message(&mut message.message),
-                EntryPayload::ToolIntent(intent) => intent.arguments_json = "{}".into(),
                 EntryPayload::ToolOutcome(outcome) => {
                     release_message(&mut outcome.result.message);
                     outcome.metadata_json = None;
@@ -374,7 +379,7 @@ impl Journal {
                 _ => {}
             }
         }
-        self.released = self.entries.len();
+        self.released = end;
     }
 
     /// Used by failure recovery, which needs the original committed payloads.
@@ -550,15 +555,8 @@ fn release_message(message: &mut AgentMessage) {
                 *signature = None;
             }
             ContentBlock::ToolCall {
-                arguments_json,
-                thought_signature,
-                ..
-            } => {
-                if arguments_json.is_some() {
-                    *arguments_json = Some("{}".into());
-                }
-                *thought_signature = None;
-            }
+                thought_signature, ..
+            } => *thought_signature = None,
             ContentBlock::Image { data, .. } => *data = vec![0],
         }
     }

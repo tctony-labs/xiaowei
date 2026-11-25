@@ -5,8 +5,10 @@ mod web_search;
 
 use crate::Database;
 use proto_desktop_rs::xiaowei::desktop::{
-    update_settings_request::Change, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot,
-    ShortcutBinding, ShortcutConfiguration, ThemeMode, UpdateSettingsRequest,
+    update_editor_preference::Choice, update_settings_request::Change, CustomEditor,
+    EditorPreference, EditorPreset, KvEntry, KvPrefix, SettingsChanged, SettingsSnapshot,
+    ShortcutBinding, ShortcutConfiguration, ThemeMode, UpdateEditorPreference,
+    UpdateSettingsRequest,
 };
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -185,6 +187,7 @@ fn defaults(platform: &str) -> SettingsSnapshot {
         clipboard_auto_paste: false,
         clipboard_retention_days: 30,
         web_search: Some(web_search::Stored::default().snapshot()),
+        source_editor: None,
     }
 }
 
@@ -300,6 +303,74 @@ fn shortcuts_json(config: &ShortcutConfiguration) -> Value {
     })
 }
 
+fn valid_editor_commands(custom: &CustomEditor) -> bool {
+    let valid = |command: &str, with_line| {
+        command.len() <= 4096
+            && !command.contains('\0')
+            && command.contains("%file")
+            && command.contains("%line") == with_line
+    };
+    valid(&custom.open_file, false) && valid(&custom.open_at_line, true)
+}
+
+fn editor_json(preference: &EditorPreference) -> Value {
+    json!({
+        "selected": preference.selected().as_str_name(),
+        "custom": preference.custom.as_ref().map(|custom| json!({
+            "openFile": custom.open_file,
+            "openAtLine": custom.open_at_line,
+        })),
+    })
+}
+
+fn editor_from_json(value: &Value) -> Option<EditorPreference> {
+    let name = value
+        .get("selected")
+        .and_then(Value::as_str)
+        .or(value.as_str())?;
+    let selected = EditorPreset::from_str_name(name)?;
+    let custom = value.get("custom").and_then(|custom| {
+        let commands = CustomEditor {
+            open_file: custom.get("openFile")?.as_str()?.to_owned(),
+            open_at_line: custom.get("openAtLine")?.as_str()?.to_owned(),
+        };
+        valid_editor_commands(&commands).then_some(commands)
+    });
+    if selected == EditorPreset::Unspecified
+        || (selected == EditorPreset::Custom && custom.is_none())
+    {
+        return None;
+    }
+    Some(EditorPreference {
+        selected: selected as i32,
+        custom,
+    })
+}
+
+fn update_editor_preference(
+    previous: Option<&EditorPreference>,
+    update: UpdateEditorPreference,
+) -> Result<EditorPreference, &'static str> {
+    let (selected, custom) = match update.choice {
+        Some(Choice::Preset(value)) => {
+            let preset = EditorPreset::try_from(value).map_err(|_| "Invalid editor preset")?;
+            if matches!(preset, EditorPreset::Unspecified | EditorPreset::Custom) {
+                return Err("Invalid editor preset");
+            }
+            (preset, previous.and_then(|value| value.custom.clone()))
+        }
+        Some(Choice::Custom(commands)) if valid_editor_commands(&commands) => {
+            (EditorPreset::Custom, Some(commands))
+        }
+        _ => return Err("Invalid editor configuration"),
+    };
+
+    Ok(EditorPreference {
+        selected: selected as i32,
+        custom,
+    })
+}
+
 fn apply_stored(snapshot: &mut SettingsSnapshot, name: &str, value: Value) {
     match name {
         "webSearch" => {
@@ -348,6 +419,7 @@ fn apply_stored(snapshot: &mut SettingsSnapshot, name: &str, value: Value) {
                 snapshot.clipboard_retention_days = value as i32;
             }
         }
+        "sourceEditor" => snapshot.source_editor = editor_from_json(&value),
         _ => {}
     }
 }
@@ -398,6 +470,12 @@ fn changed(
             }
             next.clipboard_retention_days = value;
             ("clipboardRetentionDays", json!(value))
+        }
+        Change::SourceEditor(value) => {
+            let preference = update_editor_preference(previous.source_editor.as_ref(), value)?;
+            let json = editor_json(&preference);
+            next.source_editor = Some(preference);
+            ("sourceEditor", json)
         }
         Change::WebSearchProvider(_) | Change::WebSearchApiKey(_) => unreachable!("handled above"),
     };

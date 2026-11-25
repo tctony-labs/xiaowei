@@ -27,6 +27,9 @@ service System {
   // Missing targets and host errors fail the call; success does not wait for the application
   // to exit.
   rpc OpenPath(LocalPathRequest) returns (google.protobuf.Empty);
+  // Open an existing local file in the configured editor, optionally at a source line.
+  // An unset editor preference uses the system default application.
+  rpc OpenFileLink(OpenFileLinkRequest) returns (google.protobuf.Empty);
   // Reveal an existing target in the system file manager.
   // Success means the host accepted the request, not that the file manager confirmed selection.
   rpc RevealPath(LocalPathRequest) returns (google.protobuf.Empty);
@@ -52,6 +55,12 @@ enum SettingsAnchor {
 message LocalPathRequest {
   // Absolute path without NUL bytes. The target must exist.
   string path = 1;
+}
+
+message OpenFileLinkRequest {
+  // An absolute local path or local file URL, optionally ending in a one-based
+  // #L<line> or :<line> suffix.
+  string href = 1;
 }
 
 // Notification only, delivered to the destination settings window. The host

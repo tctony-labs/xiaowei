@@ -31,7 +31,7 @@
 
 2026-10-18 用户明确暂不实现旧 Read 的 PDF 能力，登记为后续工作；当前 Read 实现与验收范围为文本。PDF 的解析及输出接入以后另行确定，不作为当前批次或本事项现有完成标准的前置。
 
-follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩展空间，不默认要求交付相应功能或 UI。旧版已经具备的相关机制先核对再复用，不一概当成缺失能力，也不为预留能力提前引入通用调度框架或完整分支系统。
+Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；rewind、fork 仍保留扩展空间，不提前引入通用调度框架或完整分支系统。
 
 ### 完成标准
 
@@ -79,9 +79,9 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 ## Current work
 
-02m 资源加载已完成窗口与重启验收。后台工具仍按总实施顺序进入 02h，slash 入口留待后续。
+02h、02j 与 02k 已完成。02m 资源加载已完成窗口与重启验收，slash 入口留待后续。
 
-2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。下一工具批恢复为后台三工具；旧内置业务技能留随对应业务迁移，preset 继续暂缓。
+2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。旧内置业务技能留随对应业务迁移，preset 继续暂缓。
 
 截至 2026-10-25，02e＋第一批 Read／Write／Edit 已实现、验证并提交，已合入 develop；当前工作目录、系统提示词、顺序工具循环、持久结果、恢复与最小工具展示均在正式产品链路中。提交对应关系、自动检查与 2026-10-19 窗口验收统一见[交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。02e 临时计划已删除，不再将生产接线列为后续任务。
 
@@ -93,9 +93,9 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-25 用户要求进入问答／权限工具之前，先实施 03a 的 Markdown／代码／复制与 03c 的有序现有工具 UI。本批已接实际 Quick Chat，移除旧 Run 聚合展示及预览专用分派；Harness 的当前 Generate、活跃 Item 与最终回复归属经公开快照／事件接到 renderer，历史关联由既有 Journal 重建。自动测试、正式原生链路及浏览器检查通过，当前工作区实际 sol 模型的工具分组、Markdown、系统复制、停止、失败、文件 diff 和重启不重放均已验收。源码依据和适配见 [核对表](2026-09-28-agent-chat/runtime-ui.md#参考行为逐项核对)，实际证据见[交付结果](2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。问答／权限卡片已随第 4 批完成。
 
-2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。第 5 批 TodoWrite 的最新进展见下文，后续依次为 WebFetch、后台三工具、Skill，Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
+2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
 
-PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。压缩、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
+PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Interrupt 的接入与验收进行中；rewind／fork、CLI 与手机 transport 保留设计边界。
 
 2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
 
@@ -103,13 +103,21 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 用户进一步明确搜索配置／Token 归 desktop Settings，创建工具或服务时传入明文 Key，请求时不读取设置或解密；按当前源构造具体 provider 并返回 dyn SearchTool，由 xiaowei-agent 组装 WebSearch 再传入 core；本模块监听 SettingsChanged 更新共享 provider，已有 session 后续搜索透明切源且暴露不变，不提供 Apply 接口。
 
-默认工具集按 ID 更新只影响本进程后续 session；用户确认重启后可按当前配置重新装配。第 6 批的独立 Web crate、通用注入与 session 快照、Settings／装配、辅助生成隔离与恢复、设置页及结果卡片已实现，Rust、Gateway、contracts、全量 desktop、tooling 和静态检查通过。2026-10-28 已补齐实际 Tavily 完整链路、搜索／网页请求／提取三个阶段的 Stop，以及重启后历史不重放、配置保留和继续查询；保留用户配置的 Tavily／浅色，02i 已删除。详情见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。没有 Agent 配置存储接口或多源 Key 工具配置；下一工具批为 02h 的后台三工具，历史分页、压缩、Continue 与 Skill 等范围保持。
+默认工具集按 ID 更新只影响本进程后续 session；用户确认重启后可按当前配置重新装配。第 6 批的独立 Web crate、通用注入与 session 快照、Settings／装配、辅助生成隔离与恢复、设置页及结果卡片已实现，Rust、Gateway、contracts、全量 desktop、tooling 和静态检查通过。2026-10-28 已补齐实际 Tavily 完整链路、搜索／网页请求／提取三个阶段的 Stop，以及重启后历史不重放、配置保留和继续查询；保留用户配置的 Tavily／浅色，02i 已删除。详情见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。没有 Agent 配置存储接口或多源 Key 工具配置。
 
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
 
 2026-11-25，01f／03a／03c 完成磁盘历史索引、两级分页、实时合并和长工具内容读取的实现与验收。隔离的原生 Quick Chat 窗口通过大历史翻页、窄窗口深色主题、长参数错误重试及冷启动恢复，03a／03c 计划已收尾。数据和证据见[窗口验收](2026-09-28-agent-chat/implementation-results.md#大历史与长工具内容窗口验收2026-11-25)。
+
+02k 已接入显式 Continue、旧调用恢复和重复副作用确认。窗口、真实 Bash、故障注入及重开验证见[显式继续与工具副作用保护](2026-09-28-agent-chat/implementation-results.md#显式继续与工具副作用保护)。
+
+02j 已接入上下文预算、自动压缩和持久检查点。触发条件、提交边界及验证证据见[上下文预算与自动压缩](2026-09-28-agent-chat/implementation-results.md#上下文预算与自动压缩)。
+
+2026-11-25，02h 后台三工具已实现并通过真实子进程、会话、正式 addon 和 worker 验证。[后台 Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#后台-bash-三工具2026-11-25)记录验收和迁移差异。已移除 02h 临时计划，真实模型和窗口组合验收随 04d 继续。
+
+2026-11-25，桌面已接入随包提供的 ripgrep，Glob 目录查找和 Grep 并行搜索已完成验收。[搜索验收结果](2026-09-28-agent-chat/implementation-results.md#桌面本地搜索2026-11-25)记录了打包和真实 Quick Chat 测试。
 
 2026-11-22，用户撤销 02l 的辅助标题生成持久记录。标题模型调用沿用运行日志，标题和自动生成开关保存在 SQLite。自动生成触发轮次与正文取样见[标题维护边界](2026-09-28-agent-chat/runtime-ui.md#标题维护边界)。Rust 持久会话回归验证第 5 轮后重开并在第 6 轮触发，正式 addon 与 worker 集成验证模型请求只带最近 5 个符合条件的轮次。
 
@@ -157,4 +165,4 @@ Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有
 
 上述里程碑与工具批次的自动检查、真实数据、窗口证据和剩余验收分别见[交付证据](2026-09-28-agent-chat/implementation-results.md)。本日 Bash 的新验证与之前文件工具的历史验收分别记录。
 
-上述文本里程碑不等于完整工具闭环完成。现已补齐前六批工具及 Markdown／代码块、消息复制和有序工具展示；第 4 批问答／权限已完成本批功能链路与窗口验收，真实 IME 的完整平台复核继续随 04d 保留。后续工具批次、压缩和 Continue 仍待完成。原有其他窗口操作的验收限制以交付证据为准，不能用集成测试或启动日志替代。事项继续位于 active，保留未完成范围的计划。
+上述文本里程碑不等于完整工具闭环完成。现已补齐前七批工具及 Markdown／代码块、消息复制和有序工具展示；第 4 批问答／权限已完成本批功能链路与窗口验收，真实 IME 的完整平台复核继续随 04d 保留。原有其他窗口操作的验收限制以交付证据为准，不能用集成测试或启动日志替代。事项继续位于 active，保留未完成范围的计划。

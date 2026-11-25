@@ -341,6 +341,20 @@ async fn failed_todo_commits_never_publish_state_or_replay_updates() {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn failed_background_start_result_reaps_the_shell_before_the_run_settles() {
+    let args = serde_json::json!({
+        "description": "start a shell whose result cannot commit",
+        "command": concat!(
+            "printf once > committed-side-effect; ",
+            "printf '%s' $$ > shell.pid; exec sleep 60",
+        ),
+    })
+    .to_string();
+    failed_tool_commit("BgRun", &args, 3, true).await;
+}
+
 #[tokio::test]
 async fn failed_skill_commits_recover_only_durable_loads() {
     for after in [3, 4] {
@@ -498,6 +512,18 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
     } else {
         assert!(!file.exists());
     }
+    if name == "BgRun" {
+        let pid = std::fs::read_to_string(file.with_file_name("shell.pid")).unwrap();
+        assert!(
+            !std::process::Command::new("/bin/kill")
+                .args(["-0", &pid])
+                .stderr(std::process::Stdio::null())
+                .status()
+                .unwrap()
+                .success(),
+            "uncommitted shell still alive: {pid}"
+        );
+    }
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
@@ -592,7 +618,7 @@ async fn send(
 }
 
 async fn idle(service: &AgentService, id: domain::SessionId) {
-    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    tokio::time::timeout(std::time::Duration::from_secs(6), async {
         while service.state().unwrap().sessions[&id].active.is_some() {
             tokio::task::yield_now().await;
         }
@@ -873,4 +899,277 @@ async fn a_failed_permission_decision_never_grants_or_resumes_and_recovery_close
             .all(|record| !record.pending())
     );
     assert_eq!(host.calls.lock().unwrap().len(), 1);
+}
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn continuation_recovers_unknown_and_unstarted_shell_calls_after_a_second_write_failure() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let session = service
+        .create_session(CreateSessionRequest {
+            client_request_id: domain::ClientRequestId::new().to_string(),
+            config: Some(AgentModelConfig {
+                model_ref: "test".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    let session_id: domain::SessionId = session.session_id.parse().unwrap();
+    let cwd = std::path::Path::new(session.cwd.as_ref().unwrap());
+    let first = send(&service, request(&session.session_id))
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+
+    let fixture = domain::decode_history(include_str!("../tests/fixtures/tools.jsonl")).unwrap();
+    let template = fixture
+        .iter()
+        .find_map(|entry| match &entry.payload {
+            domain::EntryPayload::Message(recorded) => match &recorded.message {
+                domain::AgentMessage::Assistant(message) => Some(message.clone()),
+                _ => None,
+            },
+            _ => None,
+        })
+        .unwrap();
+    let bash = |id: &str, command: &str, description: &str| domain::ContentBlock::ToolCall {
+        id: id.into(),
+        name: "Bash".into(),
+        arguments_json: Some(
+            serde_json::json!({ "command": command, "description": description }).to_string(),
+        ),
+        thought_signature: None,
+        namespace: None,
+    };
+    let reply = |blocks| domain::AssistantMessage {
+        stop_reason: domain::FinishReason::ToolUse,
+        content: blocks,
+        ..template.clone()
+    };
+    let send_response = |count, response| {
+        let host = host.clone();
+        async move {
+            tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                loop {
+                    if host.calls.lock().unwrap().len() >= count
+                        && let Some(pending) = host.pending.lock().unwrap().take()
+                    {
+                        pending.send(GenerationEvent::Finished(response)).unwrap();
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .expect("expected model call");
+        }
+    };
+    let fail_after = |service: &AgentService, count| {
+        service
+            .state()
+            .unwrap()
+            .sessions
+            .get_mut(&session_id)
+            .unwrap()
+            .journal
+            .as_mut()
+            .unwrap()
+            .fail_append_after(count, TestFault::Partial);
+    };
+    let source = || InputSource {
+        kind: SourceKind::Cli,
+        principal_id: "test".into(),
+    };
+    let command = "printf x >> effect";
+    fail_after(&service, 3);
+    send_response(
+        1,
+        reply(vec![
+            bash("first-effect", command, "append once"),
+            bash("unstarted", "printf y > unstarted", "must not run"),
+        ]),
+    )
+    .await;
+    idle(&service, session_id).await;
+    assert_eq!(std::fs::read_to_string(cwd.join("effect")).unwrap(), "x");
+    assert!(!cwd.join("unstarted").exists());
+    service.close().await.unwrap();
+
+    let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
+    let continuation = ContinueRunRequest {
+        session_id: session.session_id.clone(),
+        previous_run_id: first.run_id.clone(),
+        client_request_id: domain::ClientRequestId::new().to_string(),
+    };
+    // RunStarted, ResultUnknown and the synthetic intent commit; Skipped fails.
+    fail_after(&service, 3);
+    assert!(matches!(
+        service.continue_run(continuation.clone(), source()).await,
+        Err(AgentError::Persistence)
+    ));
+    assert_eq!(host.calls.lock().unwrap().len(), 1);
+    let repaired = service
+        .continue_run(continuation, source())
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+    assert_eq!(repaired.status, AgentRunStatus::Failed as i32);
+    {
+        let state = service.state().unwrap();
+        let current = &state.sessions[&session_id];
+        domain::validate_history(current.journal.as_ref().unwrap().entries()).unwrap();
+        let original = current.display_run(0).unwrap();
+        let statuses = original
+            .items
+            .iter()
+            .filter_map(|item| match &item.content {
+                Some(agent_item::Content::ToolCall(tool)) => Some(tool.status),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            statuses,
+            [
+                AgentToolStatus::ResultUnknown as i32,
+                AgentToolStatus::Skipped as i32
+            ]
+        );
+    }
+
+    let mut events = service
+        .subscribe_session(SubscribeSessionRequest {
+            session_id: session.session_id.clone(),
+        })
+        .await
+        .unwrap();
+    let next = service
+        .continue_run(
+            ContinueRunRequest {
+                session_id: session.session_id.clone(),
+                previous_run_id: repaired.run_id,
+                client_request_id: domain::ClientRequestId::new().to_string(),
+            },
+            source(),
+        )
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+    send_response(
+        2,
+        reply(vec![bash(
+            "retry-effect",
+            command,
+            "changed display description",
+        )]),
+    )
+    .await;
+
+    async fn next_approval(events: &mut crate::EventSubscription) -> AgentInteraction {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                let event = events.recv().await.unwrap().unwrap();
+                if let Some(agent_event::Payload::InteractionUpdated(update)) = event.payload
+                    && let Some(view) = update.interaction
+                    && view.status == AgentInteractionStatus::Pending as i32
+                {
+                    break view;
+                }
+            }
+        })
+        .await
+        .unwrap()
+    }
+    let approval = next_approval(&mut events).await;
+    assert!(matches!(
+        approval.request,
+        Some(agent_interaction::Request::ToolExecution(_))
+    ));
+    assert_eq!(std::fs::read_to_string(cwd.join("effect")).unwrap(), "x");
+    service
+        .interrupt_run(InterruptRunRequest {
+            session_id: session.session_id.clone(),
+            run_id: next.run_id.clone(),
+        })
+        .unwrap();
+    idle(&service, session_id).await;
+    assert!(matches!(
+        service
+            .respond_interaction(
+                RespondInteractionRequest {
+                    session_id: session.session_id.clone(),
+                    interaction_id: approval.interaction_id,
+                    expected_revision: 1,
+                    client_request_id: domain::ClientRequestId::new().to_string(),
+                    answer: Some(AgentInteractionAnswer {
+                        answer: Some(agent_interaction_answer::Answer::ToolExecution(
+                            AgentToolExecutionAnswer { allow: true }
+                        )),
+                    }),
+                },
+                source()
+            )
+            .await,
+        Err(AgentError::Conflict(_))
+    ));
+    assert_eq!(std::fs::read_to_string(cwd.join("effect")).unwrap(), "x");
+    assert!(!cwd.join("unstarted").exists());
+    assert_eq!(host.calls.lock().unwrap().len(), 2);
+
+    service
+        .continue_run(
+            ContinueRunRequest {
+                session_id: session.session_id.clone(),
+                previous_run_id: next.run_id,
+                client_request_id: domain::ClientRequestId::new().to_string(),
+            },
+            source(),
+        )
+        .await
+        .unwrap();
+    send_response(
+        3,
+        reply(vec![bash("confirmed-effect", command, "one more")]),
+    )
+    .await;
+    let fresh = next_approval(&mut events).await;
+    assert_eq!(std::fs::read_to_string(cwd.join("effect")).unwrap(), "x");
+    service
+        .respond_interaction(
+            RespondInteractionRequest {
+                session_id: session.session_id,
+                interaction_id: fresh.interaction_id,
+                expected_revision: 1,
+                client_request_id: domain::ClientRequestId::new().to_string(),
+                answer: Some(AgentInteractionAnswer {
+                    answer: Some(agent_interaction_answer::Answer::ToolExecution(
+                        AgentToolExecutionAnswer { allow: true },
+                    )),
+                }),
+            },
+            source(),
+        )
+        .await
+        .unwrap();
+    let final_answer = domain::AssistantMessage {
+        stop_reason: domain::FinishReason::Stop,
+        content: vec![domain::ContentBlock::Text {
+            text: "confirmed".into(),
+            signature: None,
+        }],
+        ..template.clone()
+    };
+    send_response(4, final_answer).await;
+    idle(&service, session_id).await;
+    assert_eq!(std::fs::read_to_string(cwd.join("effect")).unwrap(), "xx");
+    assert!(!cwd.join("unstarted").exists());
+    service.close().await.unwrap();
 }

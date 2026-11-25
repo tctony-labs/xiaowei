@@ -1,7 +1,8 @@
-//! Foreground Bash. Process ownership stays here; journal ownership stays in core.
+//! Bash process ownership. Journal ownership stays in core.
+mod background;
 mod sandbox;
 
-use std::{path::Path, process::Stdio, sync::OnceLock, time::Duration};
+use std::{env, path::Path, process::Stdio, sync::OnceLock, time::Duration};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -9,12 +10,15 @@ use serde_json::json;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use xw_agent_types::{PermissionMode, PermissionTarget, ToolDeclaration};
 
+pub use background::{BackgroundShells, background_declarations};
+
 use super::ToolOutput;
 use crate::CancellationToken;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
-const MAX_OUTPUT_BYTES: usize = 64 * 1024;
-const MAX_OUTPUT_CHARS: usize = 30_000;
+const MAX_STREAM_BYTES: usize = 8 * 1024;
+const MAX_OUTPUT_CHARS: usize = 7_500;
+const SANDBOX_SETUP_FAILED: &str = "Bash 沙箱启动失败，命令未执行";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -72,36 +76,20 @@ pub async fn execute(
     let not_started = |message: &str| BashError::NotStarted(message.into());
     let args: Arguments =
         serde_json::from_str(arguments).map_err(|_| not_started("Bash 参数无效"))?;
-    if args.command.trim().is_empty() || args.description.trim().is_empty() {
-        return Err(not_started("Bash command 与 description 不能为空"));
-    }
-    if let Some(reason) = denied(&args.command) {
-        return Err(not_started(reason));
-    }
     let timeout_ms = args
         .timeout_ms
         .unwrap_or(DEFAULT_TIMEOUT_MS)
         .clamp(100, 600_000);
-    let mut command =
-        sandbox::command(cwd, mode, grants, &args.command).map_err(BashError::NotStarted)?;
-    if cancellation.is_cancelled() {
-        return Err(not_started("运行已停止，命令未执行"));
-    }
-    command.current_dir(cwd).kill_on_drop(true);
-    #[cfg(unix)]
-    command.process_group(0);
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
     let started = std::time::Instant::now();
-    let mut child = command
-        .spawn()
-        .map_err(|error| BashError::NotStarted(format!("无法启动 Bash：{error}")))?;
-    let mut group = ProcessGroup {
-        pid: child.id().expect("spawned child has a PID"),
-        armed: true,
-    };
+    let (mut child, mut group) = spawn(
+        cwd,
+        mode,
+        grants,
+        &args.command,
+        &args.description,
+        &cancellation,
+        [Stdio::piped(), Stdio::piped()],
+    )?;
     let stdout = tokio::spawn(read_capped(child.stdout.take().expect("piped stdout")));
     let stderr = tokio::spawn(read_capped(child.stderr.take().expect("piped stderr")));
     let mut cancelled = false;
@@ -112,26 +100,7 @@ pub async fn execute(
         _ = tokio::time::sleep(Duration::from_millis(timeout_ms)) => { timed_out = true; None }
         status = child.wait() => Some(status),
     };
-    // Also reap same-group descendants after a shell exits (including `command &`).
-    group.terminate().await.map_err(BashError::ResultUnknown)?;
-    // Reap an exited shell before the final group signal. Darwin may report EPERM
-    // when a group contains only an unreaped zombie.
-    let reaped = child
-        .try_wait()
-        .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
-    group.kill().map_err(BashError::ResultUnknown)?;
-    let exit = match exit {
-        Some(exit) => exit,
-        None => match reaped {
-            Some(exit) => Ok(exit),
-            None => child.wait().await,
-        },
-    }
-    .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
-    group
-        .wait_terminated()
-        .await
-        .map_err(BashError::ResultUnknown)?;
+    let exit = reap(child, &mut group, exit).await?;
     let (stdout, stderr) = tokio::join!(reader_result(stdout), reader_result(stderr));
     let (stdout, stdout_bytes) = stdout.map_err(BashError::ResultUnknown)?;
     let (stderr, stderr_bytes) = stderr.map_err(BashError::ResultUnknown)?;
@@ -152,9 +121,8 @@ pub async fn execute(
         stderr
     );
     let (combined, char_truncated) = truncate(&combined);
-    let truncated = char_truncated
-        || stdout_bytes > MAX_OUTPUT_BYTES / 2
-        || stderr_bytes > MAX_OUTPUT_BYTES / 2;
+    let truncated =
+        char_truncated || stdout_bytes > MAX_STREAM_BYTES || stderr_bytes > MAX_STREAM_BYTES;
     let combined = if truncated && !char_truncated {
         format!("{combined}\n[output truncated at capture limit]")
     } else {
@@ -165,15 +133,9 @@ pub async fn execute(
     } else if timed_out {
         format!("Timeout after {timeout_ms}ms")
     } else if sandbox_setup_failed {
-        "Bash 沙箱启动失败，命令未执行".into()
-    } else if sandbox_denied && mode == PermissionMode::Interactive {
-        concat!(
-            "沙箱拒绝写入：权限不足，操作未获授权。",
-            "若确需写入当前范围外的路径，可调用 RequestPermission 申请该路径的权限。"
-        )
-        .into()
+        SANDBOX_SETUP_FAILED.into()
     } else if sandbox_denied {
-        "沙箱拒绝写入：权限不足，操作未获授权".into()
+        sandbox_denied_message(mode).into()
     } else {
         format!(
             "Exit: {}",
@@ -212,6 +174,103 @@ pub async fn execute(
     })
 }
 
+fn sandbox_denied_message(mode: PermissionMode) -> &'static str {
+    if mode == PermissionMode::Interactive {
+        concat!(
+            "沙箱拒绝写入：权限不足，操作未获授权。",
+            "若确需写入当前范围外的路径，可调用 RequestPermission 申请该路径的权限。"
+        )
+    } else {
+        "沙箱拒绝写入：权限不足，操作未获授权"
+    }
+}
+
+fn spawn(
+    cwd: &Path,
+    mode: PermissionMode,
+    grants: &[PermissionTarget],
+    script: &str,
+    description: &str,
+    cancellation: &CancellationToken,
+    [stdout, stderr]: [Stdio; 2],
+) -> Result<(tokio::process::Child, ProcessGroup), BashError> {
+    if script.trim().is_empty() || description.trim().is_empty() {
+        return Err(BashError::NotStarted(
+            "Bash command 与 description 不能为空".into(),
+        ));
+    }
+    if let Some(reason) = denied(script) {
+        return Err(BashError::NotStarted(reason.into()));
+    }
+    let mut command = sandbox::command(cwd, mode, grants, script).map_err(BashError::NotStarted)?;
+    if cancellation.is_cancelled() {
+        return Err(BashError::NotStarted("运行已停止，命令未执行".into()));
+    }
+    if let Some(directory) = env::var_os("XIAOWEI_AGENT_BIN_DIR")
+        && Path::new(&directory).is_absolute()
+    {
+        let inherited = env::var_os("PATH");
+        let paths = std::iter::once(directory.into())
+            .chain(inherited.as_deref().into_iter().flat_map(env::split_paths));
+        match env::join_paths(paths) {
+            Ok(path) => {
+                command.env("PATH", path);
+            }
+            Err(error) => {
+                log::warn!("Unable to prepend the embedded Agent command directory: {error}")
+            }
+        }
+    }
+    command.current_dir(cwd).kill_on_drop(true);
+    #[cfg(unix)]
+    command.process_group(0);
+    command.stdin(Stdio::null()).stdout(stdout).stderr(stderr);
+    let child = command
+        .spawn()
+        .map_err(|error| BashError::NotStarted(format!("无法启动 Bash：{error}")))?;
+    let group = ProcessGroup {
+        pid: child.id().expect("spawned child has a PID"),
+        armed: true,
+    };
+    Ok((child, group))
+}
+
+async fn reap(
+    mut child: tokio::process::Child,
+    group: &mut ProcessGroup,
+    exit: Option<std::io::Result<std::process::ExitStatus>>,
+) -> Result<std::process::ExitStatus, BashError> {
+    // Reap first if exit raced cancellation; a zombie leader can make Darwin report EPERM.
+    let initial = child
+        .try_wait()
+        .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
+    if let Err(error) = group.terminate().await {
+        if initial.is_some() || !child.try_wait().is_ok_and(|status| status.is_some()) {
+            return Err(BashError::ResultUnknown(error));
+        }
+        group.terminate().await.map_err(BashError::ResultUnknown)?;
+    }
+    // Reap an exited shell before the final group signal. Darwin may report EPERM
+    // when a group contains only an unreaped zombie.
+    let reaped = child
+        .try_wait()
+        .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
+    group.kill().map_err(BashError::ResultUnknown)?;
+    let exit = match exit {
+        Some(exit) => exit,
+        None => match reaped {
+            Some(exit) => Ok(exit),
+            None => child.wait().await,
+        },
+    }
+    .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
+    group
+        .wait_terminated()
+        .await
+        .map_err(BashError::ResultUnknown)?;
+    Ok(exit)
+}
+
 async fn read_capped(mut reader: impl AsyncRead + Unpin) -> std::io::Result<(String, usize)> {
     let mut bytes = Vec::new();
     let mut total = 0;
@@ -221,7 +280,7 @@ async fn read_capped(mut reader: impl AsyncRead + Unpin) -> std::io::Result<(Str
         if count == 0 {
             break;
         }
-        let keep = count.min((MAX_OUTPUT_BYTES / 2).saturating_sub(bytes.len()));
+        let keep = count.min(MAX_STREAM_BYTES.saturating_sub(bytes.len()));
         bytes.extend_from_slice(&chunk[..keep]);
         total += count;
     }

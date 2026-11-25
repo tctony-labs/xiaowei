@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { rgVersion } from "../embedded-rg.mjs";
 import {
   localUpdateAppId,
   localUpdateDirectory,
@@ -64,6 +65,7 @@ export function packageMac({
 
   if (steps.includes("app")) {
     ensureSparkle();
+    run(process.execPath, [fileURLToPath(new URL("../embedded-rg.mjs", import.meta.url))]);
     const built = run(
       "cargo",
       ["build", "--locked", "--release", "-p", "xiaowei-inspect", "--message-format=json"],
@@ -199,6 +201,18 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
       throw new Error(`Packaged inspect CLI failed ${option} acceptance`);
     }
   }
+  const ripgrep = join(app, "Contents/Resources/bin/rg");
+  run("lipo", [ripgrep, "-verify_arch", "arm64"]);
+  run("codesign", ["--verify", "--strict", ripgrep]);
+  if (signed) verifySignedCode(ripgrep, signingTeam);
+  verifySystemDependencies(ripgrep, "rg");
+  const rgProbe = run(ripgrep, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  if (!rgProbe.stdout?.split("\n")[0].startsWith(`ripgrep ${rgVersion} `)) {
+    throw new Error("Packaged rg version mismatch");
+  }
   for (const name of ["xiaowei-agent", "xiaowei-rust"]) {
     const binary = join(
       app,
@@ -230,7 +244,7 @@ function verifyPackagedApp({ app, version, key, localTest, signed, signingTeam }
     }
     console.info(`Developer ID signatures and hardened runtime verified: team=${signingTeam}`);
   }
-  console.info("Packaged app and inspect CLI signatures, version and native runtime verified");
+  console.info("Packaged app and CLI signatures, versions and native runtime verified");
 }
 
 function verifySystemDependencies(binary, name) {

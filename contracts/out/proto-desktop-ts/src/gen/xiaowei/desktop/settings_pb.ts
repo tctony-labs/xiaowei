@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/desktop/settings.proto.
  */
 export const file_xiaowei_desktop_settings: GenFile = /*@__PURE__*/
-  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3Avc2V0dGluZ3MucHJvdG8SD3hpYW93ZWkuZGVza3RvcCLUAQoRV2ViU2VhcmNoU2V0dGluZ3MSPQoRc2VsZWN0ZWRfcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISPgoSZWZmZWN0aXZlX3Byb3ZpZGVyGAIgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyEkAKFGNvbmZpZ3VyZWRfcHJvdmlkZXJzGAMgAygOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyIl4KFVdlYlNlYXJjaEFwaUtleVVwZGF0ZRI0Cghwcm92aWRlchgBIAEoDjIiLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hQcm92aWRlchIPCgdhcGlfa2V5GAIgASgJImoKIEdldFdlYlNlYXJjaFJ1bnRpbWVDb25maWdSZXF1ZXN0EjkKCHByb3ZpZGVyGAEgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVySACIAQFCCwoJX3Byb3ZpZGVyInAKFldlYlNlYXJjaFJ1bnRpbWVDb25maWcSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISFAoHYXBpX2tleRgCIAEoCUgAiAEBQgoKCF9hcGlfa2V5IlQKHFRlc3RXZWJTZWFyY2hQcm92aWRlclJlcXVlc3QSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXIihwEKG1dlYlNlYXJjaFByb3ZpZGVyVGVzdFJlc3VsdBIKCgJvaxgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgNEhkKDHNhbXBsZV90aXRsZRgDIAEoCUgAiAEBEhIKBWVycm9yGAQgASgJSAGIAQFCDwoNX3NhbXBsZV90aXRsZUIICgZfZXJyb3IiHwoPU2hvcnRjdXRCaW5kaW5nEgwKBGtleXMYASADKAkisgEKFVNob3J0Y3V0Q29uZmlndXJhdGlvbhIuCgRtYWluGAEgASgLMiAueGlhb3dlaS5kZXNrdG9wLlNob3J0Y3V0QmluZGluZxIzCgljbGlwYm9hcmQYAiABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nEjQKCnF1aWNrX2NoYXQYAyABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nIsACChBTZXR0aW5nc1NuYXBzaG90EikKBXRoZW1lGAEgASgOMhoueGlhb3dlaS5kZXNrdG9wLlRoZW1lTW9kZRIRCglhdXRvc3RhcnQYAiABKAgSIAoYaW5jbHVkZV9jaHJvbWVfYm9va21hcmtzGAMgASgIEjkKCXNob3J0Y3V0cxgEIAEoCzImLnhpYW93ZWkuZGVza3RvcC5TaG9ydGN1dENvbmZpZ3VyYXRpb24SGQoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAgSHAoUY2xpcGJvYXJkX2F1dG9fcGFzdGUYBiABKAgSIAoYY2xpcGJvYXJkX3JldGVudGlvbl9kYXlzGAcgASgFEjYKCndlYl9zZWFyY2gYCCABKAsyIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoU2V0dGluZ3MiRgoPU2V0dGluZ3NDaGFuZ2VkEjMKCHNuYXBzaG90GAEgASgLMiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3QirgMKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIrCgV0aGVtZRgBIAEoDjIaLnhpYW93ZWkuZGVza3RvcC5UaGVtZU1vZGVIABITCglhdXRvc3RhcnQYAiABKAhIABIiChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAhIABI7CglzaG9ydGN1dHMYBCABKAsyJi54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRDb25maWd1cmF0aW9uSAASGwoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAhIABIeChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCEgAEiIKGGNsaXBib2FyZF9yZXRlbnRpb25fZGF5cxgHIAEoBUgAEkEKE3dlYl9zZWFyY2hfcHJvdmlkZXIYCCABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXJIABJEChJ3ZWJfc2VhcmNoX2FwaV9rZXkYCSABKAsyJi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoQXBpS2V5VXBkYXRlSABCCAoGY2hhbmdlKrUBChFXZWJTZWFyY2hQcm92aWRlchIjCh9XRUJfU0VBUkNIX1BST1ZJREVSX1VOU1BFQ0lGSUVEEAASHAoYV0VCX1NFQVJDSF9QUk9WSURFUl9CSU5HEAESHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9UQVZJTFkQAhIdChlXRUJfU0VBUkNIX1BST1ZJREVSX0JSQVZFEAMSHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9TRVJQRVIQBCppCglUaGVtZU1vZGUSGgoWVEhFTUVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVRIRU1FX01PREVfU1lTVEVNEAESFAoQVEhFTUVfTU9ERV9MSUdIVBACEhMKD1RIRU1FX01PREVfREFSSxADMpADCghTZXR0aW5ncxJACgNHZXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaIS54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NTbmFwc2hvdBJTCgZVcGRhdGUSJi54aWFvd2VpLmRlc2t0b3AuVXBkYXRlU2V0dGluZ3NSZXF1ZXN0GiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3QSdwoZR2V0V2ViU2VhcmNoUnVudGltZUNvbmZpZxIxLnhpYW93ZWkuZGVza3RvcC5HZXRXZWJTZWFyY2hSdW50aW1lQ29uZmlnUmVxdWVzdBonLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hSdW50aW1lQ29uZmlnEnQKFVRlc3RXZWJTZWFyY2hQcm92aWRlchItLnhpYW93ZWkuZGVza3RvcC5UZXN0V2ViU2VhcmNoUHJvdmlkZXJSZXF1ZXN0GiwueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyVGVzdFJlc3VsdGIGcHJvdG8z", [file_google_protobuf_empty]);
+  fileDesc("Ch54aWFvd2VpL2Rlc2t0b3Avc2V0dGluZ3MucHJvdG8SD3hpYW93ZWkuZGVza3RvcCLUAQoRV2ViU2VhcmNoU2V0dGluZ3MSPQoRc2VsZWN0ZWRfcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISPgoSZWZmZWN0aXZlX3Byb3ZpZGVyGAIgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyEkAKFGNvbmZpZ3VyZWRfcHJvdmlkZXJzGAMgAygOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVyIl4KFVdlYlNlYXJjaEFwaUtleVVwZGF0ZRI0Cghwcm92aWRlchgBIAEoDjIiLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hQcm92aWRlchIPCgdhcGlfa2V5GAIgASgJImoKIEdldFdlYlNlYXJjaFJ1bnRpbWVDb25maWdSZXF1ZXN0EjkKCHByb3ZpZGVyGAEgASgOMiIueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFByb3ZpZGVySACIAQFCCwoJX3Byb3ZpZGVyInAKFldlYlNlYXJjaFJ1bnRpbWVDb25maWcSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXISFAoHYXBpX2tleRgCIAEoCUgAiAEBQgoKCF9hcGlfa2V5IlQKHFRlc3RXZWJTZWFyY2hQcm92aWRlclJlcXVlc3QSNAoIcHJvdmlkZXIYASABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXIihwEKG1dlYlNlYXJjaFByb3ZpZGVyVGVzdFJlc3VsdBIKCgJvaxgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgNEhkKDHNhbXBsZV90aXRsZRgDIAEoCUgAiAEBEhIKBWVycm9yGAQgASgJSAGIAQFCDwoNX3NhbXBsZV90aXRsZUIICgZfZXJyb3IiHwoPU2hvcnRjdXRCaW5kaW5nEgwKBGtleXMYASADKAkisgEKFVNob3J0Y3V0Q29uZmlndXJhdGlvbhIuCgRtYWluGAEgASgLMiAueGlhb3dlaS5kZXNrdG9wLlNob3J0Y3V0QmluZGluZxIzCgljbGlwYm9hcmQYAiABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nEjQKCnF1aWNrX2NoYXQYAyABKAsyIC54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRCaW5kaW5nIjcKDEN1c3RvbUVkaXRvchIRCglvcGVuX2ZpbGUYASABKAkSFAoMb3Blbl9hdF9saW5lGAIgASgJInIKEEVkaXRvclByZWZlcmVuY2USLwoIc2VsZWN0ZWQYASABKA4yHS54aWFvd2VpLmRlc2t0b3AuRWRpdG9yUHJlc2V0Ei0KBmN1c3RvbRgCIAEoCzIdLnhpYW93ZWkuZGVza3RvcC5DdXN0b21FZGl0b3IihAEKFlVwZGF0ZUVkaXRvclByZWZlcmVuY2USLwoGcHJlc2V0GAEgASgOMh0ueGlhb3dlaS5kZXNrdG9wLkVkaXRvclByZXNldEgAEi8KBmN1c3RvbRgCIAEoCzIdLnhpYW93ZWkuZGVza3RvcC5DdXN0b21FZGl0b3JIAEIICgZjaG9pY2Ui+gIKEFNldHRpbmdzU25hcHNob3QSKQoFdGhlbWUYASABKA4yGi54aWFvd2VpLmRlc2t0b3AuVGhlbWVNb2RlEhEKCWF1dG9zdGFydBgCIAEoCBIgChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAgSOQoJc2hvcnRjdXRzGAQgASgLMiYueGlhb3dlaS5kZXNrdG9wLlNob3J0Y3V0Q29uZmlndXJhdGlvbhIZChFjbGlwYm9hcmRfZW5hYmxlZBgFIAEoCBIcChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCBIgChhjbGlwYm9hcmRfcmV0ZW50aW9uX2RheXMYByABKAUSNgoKd2ViX3NlYXJjaBgIIAEoCzIiLnhpYW93ZWkuZGVza3RvcC5XZWJTZWFyY2hTZXR0aW5ncxI4Cg1zb3VyY2VfZWRpdG9yGAkgASgLMiEueGlhb3dlaS5kZXNrdG9wLkVkaXRvclByZWZlcmVuY2UiRgoPU2V0dGluZ3NDaGFuZ2VkEjMKCHNuYXBzaG90GAEgASgLMiEueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzU25hcHNob3Qi8AMKFVVwZGF0ZVNldHRpbmdzUmVxdWVzdBIrCgV0aGVtZRgBIAEoDjIaLnhpYW93ZWkuZGVza3RvcC5UaGVtZU1vZGVIABITCglhdXRvc3RhcnQYAiABKAhIABIiChhpbmNsdWRlX2Nocm9tZV9ib29rbWFya3MYAyABKAhIABI7CglzaG9ydGN1dHMYBCABKAsyJi54aWFvd2VpLmRlc2t0b3AuU2hvcnRjdXRDb25maWd1cmF0aW9uSAASGwoRY2xpcGJvYXJkX2VuYWJsZWQYBSABKAhIABIeChRjbGlwYm9hcmRfYXV0b19wYXN0ZRgGIAEoCEgAEiIKGGNsaXBib2FyZF9yZXRlbnRpb25fZGF5cxgHIAEoBUgAEkEKE3dlYl9zZWFyY2hfcHJvdmlkZXIYCCABKA4yIi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXJIABJEChJ3ZWJfc2VhcmNoX2FwaV9rZXkYCSABKAsyJi54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoQXBpS2V5VXBkYXRlSAASQAoNc291cmNlX2VkaXRvchgKIAEoCzInLnhpYW93ZWkuZGVza3RvcC5VcGRhdGVFZGl0b3JQcmVmZXJlbmNlSABCCAoGY2hhbmdlKrUBChFXZWJTZWFyY2hQcm92aWRlchIjCh9XRUJfU0VBUkNIX1BST1ZJREVSX1VOU1BFQ0lGSUVEEAASHAoYV0VCX1NFQVJDSF9QUk9WSURFUl9CSU5HEAESHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9UQVZJTFkQAhIdChlXRUJfU0VBUkNIX1BST1ZJREVSX0JSQVZFEAMSHgoaV0VCX1NFQVJDSF9QUk9WSURFUl9TRVJQRVIQBCppCglUaGVtZU1vZGUSGgoWVEhFTUVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVRIRU1FX01PREVfU1lTVEVNEAESFAoQVEhFTUVfTU9ERV9MSUdIVBACEhMKD1RIRU1FX01PREVfREFSSxADKs8CCgxFZGl0b3JQcmVzZXQSHQoZRURJVE9SX1BSRVNFVF9VTlNQRUNJRklFRBAAEhgKFEVESVRPUl9QUkVTRVRfU1lTVEVNEAESGQoVRURJVE9SX1BSRVNFVF9WU19DT0RFEAISGAoURURJVE9SX1BSRVNFVF9DVVJTT1IQAxIVChFFRElUT1JfUFJFU0VUX1pFRBAEEhoKFkVESVRPUl9QUkVTRVRfVEVYVE1BVEUQBRIYChRFRElUT1JfUFJFU0VUX0JCRURJVBAGEhcKE0VESVRPUl9QUkVTRVRfRU1BQ1MQBxIZChVFRElUT1JfUFJFU0VUX01BQ19WSU0QCBIeChpFRElUT1JfUFJFU0VUX1NVQkxJTUVfVEVYVBAJEhYKEkVESVRPUl9QUkVTRVRfTk9WQRAKEhgKFEVESVRPUl9QUkVTRVRfQ1VTVE9NEAsykAMKCFNldHRpbmdzEkAKA0dldBIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRohLnhpYW93ZWkuZGVza3RvcC5TZXR0aW5nc1NuYXBzaG90ElMKBlVwZGF0ZRImLnhpYW93ZWkuZGVza3RvcC5VcGRhdGVTZXR0aW5nc1JlcXVlc3QaIS54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NTbmFwc2hvdBJ3ChlHZXRXZWJTZWFyY2hSdW50aW1lQ29uZmlnEjEueGlhb3dlaS5kZXNrdG9wLkdldFdlYlNlYXJjaFJ1bnRpbWVDb25maWdSZXF1ZXN0GicueGlhb3dlaS5kZXNrdG9wLldlYlNlYXJjaFJ1bnRpbWVDb25maWcSdAoVVGVzdFdlYlNlYXJjaFByb3ZpZGVyEi0ueGlhb3dlaS5kZXNrdG9wLlRlc3RXZWJTZWFyY2hQcm92aWRlclJlcXVlc3QaLC54aWFvd2VpLmRlc2t0b3AuV2ViU2VhcmNoUHJvdmlkZXJUZXN0UmVzdWx0YgZwcm90bzM", [file_google_protobuf_empty]);
 
 /**
  * @generated from message xiaowei.desktop.WebSearchSettings
@@ -221,6 +221,89 @@ export const ShortcutConfigurationSchema: GenMessage<ShortcutConfiguration> = /*
   messageDesc(file_xiaowei_desktop_settings, 7);
 
 /**
+ * @generated from message xiaowei.desktop.CustomEditor
+ */
+export type CustomEditor = Message<"xiaowei.desktop.CustomEditor"> & {
+  /**
+   * Shell command template for a file without a source location. Requires %file.
+   *
+   * @generated from field: string open_file = 1;
+   */
+  openFile: string;
+
+  /**
+   * Shell command template for a source location. Requires %file and %line.
+   *
+   * @generated from field: string open_at_line = 2;
+   */
+  openAtLine: string;
+};
+
+/**
+ * Describes the message xiaowei.desktop.CustomEditor.
+ * Use `create(CustomEditorSchema)` to create a new message.
+ */
+export const CustomEditorSchema: GenMessage<CustomEditor> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 8);
+
+/**
+ * @generated from message xiaowei.desktop.EditorPreference
+ */
+export type EditorPreference = Message<"xiaowei.desktop.EditorPreference"> & {
+  /**
+   * @generated from field: xiaowei.desktop.EditorPreset selected = 1;
+   */
+  selected: EditorPreset;
+
+  /**
+   * Retained when a built-in editor is selected. Required when selected is CUSTOM.
+   *
+   * @generated from field: xiaowei.desktop.CustomEditor custom = 2;
+   */
+  custom?: CustomEditor | undefined;
+};
+
+/**
+ * Describes the message xiaowei.desktop.EditorPreference.
+ * Use `create(EditorPreferenceSchema)` to create a new message.
+ */
+export const EditorPreferenceSchema: GenMessage<EditorPreference> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 9);
+
+/**
+ * @generated from message xiaowei.desktop.UpdateEditorPreference
+ */
+export type UpdateEditorPreference = Message<"xiaowei.desktop.UpdateEditorPreference"> & {
+  /**
+   * @generated from oneof xiaowei.desktop.UpdateEditorPreference.choice
+   */
+  choice: {
+    /**
+     * Selects a built-in editor and retains the saved custom commands.
+     *
+     * @generated from field: xiaowei.desktop.EditorPreset preset = 1;
+     */
+    value: EditorPreset;
+    case: "preset";
+  } | {
+    /**
+     * Saves the two commands and selects the custom editor in the same update.
+     *
+     * @generated from field: xiaowei.desktop.CustomEditor custom = 2;
+     */
+    value: CustomEditor;
+    case: "custom";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message xiaowei.desktop.UpdateEditorPreference.
+ * Use `create(UpdateEditorPreferenceSchema)` to create a new message.
+ */
+export const UpdateEditorPreferenceSchema: GenMessage<UpdateEditorPreference> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_settings, 10);
+
+/**
  * @generated from message xiaowei.desktop.SettingsSnapshot
  */
 export type SettingsSnapshot = Message<"xiaowei.desktop.SettingsSnapshot"> & {
@@ -265,6 +348,13 @@ export type SettingsSnapshot = Message<"xiaowei.desktop.SettingsSnapshot"> & {
    * @generated from field: xiaowei.desktop.WebSearchSettings web_search = 8;
    */
   webSearch?: WebSearchSettings | undefined;
+
+  /**
+   * Absent uses the operating system's default application.
+   *
+   * @generated from field: xiaowei.desktop.EditorPreference source_editor = 9;
+   */
+  sourceEditor?: EditorPreference | undefined;
 };
 
 /**
@@ -272,7 +362,7 @@ export type SettingsSnapshot = Message<"xiaowei.desktop.SettingsSnapshot"> & {
  * Use `create(SettingsSnapshotSchema)` to create a new message.
  */
 export const SettingsSnapshotSchema: GenMessage<SettingsSnapshot> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 8);
+  messageDesc(file_xiaowei_desktop_settings, 11);
 
 /**
  * @generated from message xiaowei.desktop.SettingsChanged
@@ -291,7 +381,7 @@ export type SettingsChanged = Message<"xiaowei.desktop.SettingsChanged"> & {
  * Use `create(SettingsChangedSchema)` to create a new message.
  */
 export const SettingsChangedSchema: GenMessage<SettingsChanged> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 9);
+  messageDesc(file_xiaowei_desktop_settings, 12);
 
 /**
  * @generated from message xiaowei.desktop.UpdateSettingsRequest
@@ -358,6 +448,12 @@ export type UpdateSettingsRequest = Message<"xiaowei.desktop.UpdateSettingsReque
      */
     value: WebSearchApiKeyUpdate;
     case: "webSearchApiKey";
+  } | {
+    /**
+     * @generated from field: xiaowei.desktop.UpdateEditorPreference source_editor = 10;
+     */
+    value: UpdateEditorPreference;
+    case: "sourceEditor";
   } | { case: undefined; value?: undefined };
 };
 
@@ -366,7 +462,7 @@ export type UpdateSettingsRequest = Message<"xiaowei.desktop.UpdateSettingsReque
  * Use `create(UpdateSettingsRequestSchema)` to create a new message.
  */
 export const UpdateSettingsRequestSchema: GenMessage<UpdateSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_settings, 10);
+  messageDesc(file_xiaowei_desktop_settings, 13);
 
 /**
  * @generated from enum xiaowei.desktop.WebSearchProvider
@@ -434,6 +530,77 @@ export enum ThemeMode {
  */
 export const ThemeModeSchema: GenEnum<ThemeMode> = /*@__PURE__*/
   enumDesc(file_xiaowei_desktop_settings, 1);
+
+/**
+ * @generated from enum xiaowei.desktop.EditorPreset
+ */
+export enum EditorPreset {
+  /**
+   * @generated from enum value: EDITOR_PRESET_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_SYSTEM = 1;
+   */
+  SYSTEM = 1,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_VS_CODE = 2;
+   */
+  VS_CODE = 2,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_CURSOR = 3;
+   */
+  CURSOR = 3,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_ZED = 4;
+   */
+  ZED = 4,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_TEXTMATE = 5;
+   */
+  TEXTMATE = 5,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_BBEDIT = 6;
+   */
+  BBEDIT = 6,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_EMACS = 7;
+   */
+  EMACS = 7,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_MAC_VIM = 8;
+   */
+  MAC_VIM = 8,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_SUBLIME_TEXT = 9;
+   */
+  SUBLIME_TEXT = 9,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_NOVA = 10;
+   */
+  NOVA = 10,
+
+  /**
+   * @generated from enum value: EDITOR_PRESET_CUSTOM = 11;
+   */
+  CUSTOM = 11,
+}
+
+/**
+ * Describes the enum xiaowei.desktop.EditorPreset.
+ */
+export const EditorPresetSchema: GenEnum<EditorPreset> = /*@__PURE__*/
+  enumDesc(file_xiaowei_desktop_settings, 2);
 
 /**
  * @generated from service xiaowei.desktop.Settings

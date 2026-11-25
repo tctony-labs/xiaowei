@@ -144,6 +144,9 @@ pub fn registrations(service: &Arc<Service>) -> Vec<InvokeRegistration> {
                 _ => Err("Clipboard item is not an image".into()),
             }
         }),
+        handler(service, &methods::READ_IMAGE_OCR, |s, r| async move {
+            s.read_image_ocr(id(r.id)?).await
+        }),
         handler(service, &methods::COPY, |s, r| async move {
             s.copy(id(r.id)?).await?;
             Ok(())

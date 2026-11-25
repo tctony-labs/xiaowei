@@ -387,7 +387,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
                 "duration_ms",
             ],
         )?,
-        EntryPayload::InputCancelled(_) => {}
+        EntryPayload::InputCancelled(_)
+        | EntryPayload::InputRouted(_)
+        | EntryPayload::InputEdited(_) => {}
     }
     if let Some((cause, error)) = error_cause(history, &entry.payload)
         && data.get("error") == Some(&serde_json::to_value(error).map_err(|_| invalid())?)
@@ -568,7 +570,8 @@ pub fn decode_entry_fields(
             let id: RunId = get(data, "run_id")?;
             let had_output = history.iter().any(|entry| {
                 matches!(&entry.payload,
-                    EntryPayload::Message(message) if message.run_id == Some(id)
+                    EntryPayload::Message(message)
+                        if message.run_id == Some(id) && message.turn_id.is_some()
                 )
             });
             let tools = history
@@ -675,20 +678,31 @@ pub fn decode_entry_fields(
                 _ => None,
             })?;
             let replacement: Vec<AgentMessage> = get(data, "replacement_history")?;
-            let summary = replacement
-                .iter()
-                .flat_map(|message| match message {
-                    AgentMessage::SystemContext { .. } => &[][..],
-                    AgentMessage::User(message) => message.content.as_slice(),
-                    AgentMessage::Assistant(message) => message.content.as_slice(),
-                    AgentMessage::ToolResult(message) => message.content.as_slice(),
-                })
-                .filter_map(|block| match block {
-                    ContentBlock::Text { text, .. } => Some(text.as_str()),
+            let tagged_summary = match replacement.last() {
+                Some(AgentMessage::User(user)) => match user.content.as_slice() {
+                    [ContentBlock::Text { text, .. }] => {
+                        text.strip_prefix(COMPACTION_SUMMARY_PREFIX)
+                    }
                     _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+                },
+                _ => None,
+            };
+            let summary = tagged_summary.map(str::to_owned).unwrap_or_else(|| {
+                replacement
+                    .iter()
+                    .flat_map(|message| match message {
+                        AgentMessage::SystemContext { .. } => &[][..],
+                        AgentMessage::User(message) => message.content.as_slice(),
+                        AgentMessage::Assistant(message) => message.content.as_slice(),
+                        AgentMessage::ToolResult(message) => message.content.as_slice(),
+                    })
+                    .filter_map(|block| match block {
+                        ContentBlock::Text { text, .. } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            });
             let (previous, kept) = crate::validation::compaction_references(
                 history,
                 &generation.boundary,
@@ -710,7 +724,7 @@ pub fn decode_entry_fields(
             )?;
             put(data, "duration_ms", end.duration_ms)?;
         }
-        "input_cancelled" => {}
+        "input_cancelled" | "input_routed" | "input_edited" => {}
         _ => return Err(invalid()),
     }
     let error_ref = object(data)?.remove("error_ref");

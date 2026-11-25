@@ -29,7 +29,7 @@
 
 发送路径为 pending → 服务端持久接纳并广播 Input → 消费并关联 Run → Item／模型与工具变化 → 终态。后续 follow-up 由服务确认队列顺序，消费时才关联新的 run；取消／重排也通过服务命令。steering 指定预期活动 run，服务接纳后仍可等待安全边界，实际消费时才发布 applied boundary；接纳不等于已影响模型。两端均观察相同 Input／Run／Item／Interaction 变化，而不是仅同步 LLM 文本。
 
-首期仍只接纳普通发送，运行中发送明确冲突；queue／steer RPC、排队状态、手机 UI 与网络 adapter 不提前实现。未来功能扩展同一个 Input、JSONL 恢复和变化契约。重连重新订阅，以首帧完整快照替换缓存；不续传旧事件。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
+队列与插入复用同一个 Input、JSONL 恢复和变化契约；手机 UI 与网络 adapter 尚未实现。重连重新订阅，以首帧完整快照替换缓存；不续传旧事件。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
 
 ## 共享 Agent 控制 API
 
@@ -40,7 +40,7 @@
 | 公共实体／方法 | 已定义的语义 |
 | --- | --- |
 | AgentSession | ID、model_ref／optional reasoning 配置、idle／running／deleted、时间、metadata revision、title／auto_title_enabled、可选 cwd 和完整 runs |
-| AgentRun | 对应 Codex Turn；run／input ID、有效模型配置、状态、items、开始／结束时间与安全错误 |
+| AgentRun | run／input ID、有效模型配置、状态、items、开始／结束时间与安全错误；Continue Run 另含 continued_from_run_id |
 | AgentItem | 稳定 item ID，oneof user_message／agent_message／reasoning／tool_call；显示内容与模型回放分开 |
 | CreateSession | client_request_id + 必填 config + 可选已有绝对 cwd；省略时创建自有目录，仅在当前服务实例内幂等创建、同键不同原始配置或目录选择冲突；重启后通过 session_id 重开会话，不从 SQLite 或 JSONL 恢复创建去重 |
 | ListSessions | 返回不含运行历史的会话摘要，包含标题、自动生成开关、创建／更新时间、归档状态与 revision；archived 与标题 query 过滤、默认 50／最大 100、continuation 绑定两种过滤条件；菜单／设置页按需刷新 |
@@ -50,6 +50,7 @@
 | SetSessionArchived | session_id + archived + expected_archive_revision；停止并结算后归档，归档后禁止打开／修改，取消归档才可恢复 |
 | SetSessionConfig | config + expected_metadata_revision；独立提交会话选择并发布 SessionConfigUpdated |
 | StartRun | session_id、input_id、有序结构化 input、可选完整 config；响应为原子接纳的 Run，不等待模型完成 |
+| ContinueRun | session_id、previous_run_id 和 client_request_id；只接受会话最后一个未成功的 Run，同调用方重试返回已接纳的关联 Run |
 | InterruptRun | session_id + run_id；响应只确认取消请求，终态从 RunCompleted 得到 |
 | SubscribeSession | 必填 session_id，只订阅该会话，响应流首帧 SubscriptionReady 包含指定单个会话完整快照，随后只发送快照之后的业务事件；Rust 直接宿主消费同一个 EventSubscription |
 
@@ -119,11 +120,11 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 等待用户时原 Run 仍 InProgress，当前 generation 为空；模型流已经结束，等待不占用 Generate 或长时间 unary RPC。有效回答／批准／拒绝提交后成为原工具的结果，再继续同一 Run，不发送新的 StartRun。停止与决定在现有串行边界竞争：停止已生效则不再接纳决定；决定先提交则保留真实结果。展示保留已解决卡片的回答摘要，不再保留可操作按钮。
 
-内部历史类型已明确 InputMode（Send／FollowUp／Steering／Preempt）、expected_run_id、按接纳 sequence 的 FIFO、消费 Run／Turn 和 boundary；公共 queue／steer 方法和状态仍等功能实际实现时加入。其来源、排序和消费由服务确认；不能只加 UI 标志。本期公共 API 只接纳普通发送，不提前生成后续 RPC 或空调度实现。
+输入队列由 Agent 权威维护：QueueInput 接纳 Follow-up，EditQueuedInput 更新待处理文本，SteerInput 指向当前 Run，InterruptInput 在运行中停止指定 Run 并发送选中项，在空闲时显式发送选中项，RemoveQueuedInput 移除待处理项。AgentSession 快照和 QueueUpdated 事件提供有序队列及自动发送错误；消费后的用户 Item 包含 input_id。失败、停止和重启后保留未消费输入，不自动重发。Steering 和 Run 收尾在会话锁内串行判定，运行结束前未消费的 Steering 回到 Follow-up。
 
 ### 后续能力（未实现）
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind 和 ContinueRun 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答、权限和继续运行时的重复工具确认；Fork／Rewind 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。
 
 私有 SessionCatalog 只在核心内部使用；登记是 INSERT，更新只针对已有未删除行，并在服务串行边界按内存 metadata revision 校验，不通过 Upsert 复活记录。归档 revision 独立校验，普通更新不能重置归档状态。标题／自动生成开关、管理状态以 SQLite 为准，不将数据库视为可删除重建的缓存。
 
@@ -150,4 +151,4 @@ ReadSession 的 include_runs=false 只读取元信息，true 读取最新 Run �
 
 ReadSession、ReadSessionRuns、ReadRunItems 和 SubscriptionReady 以完整 Protobuf 包的 1 MiB 编码大小为上限。遇到放不进本页的下一个 Run 就停在该边界。首个 Run 的首页过大时缩小其 Item 页。超长的正文、思考及工具字段携带明确预览标记，ReadItemContent 按稳定身份分片读取已保存内容，每片最多 256 KiB，沿 UTF-8 字符边界切分。展示游标只用于历史翻页。
 
-JSONL 是持久历史。冷打开逐行扫描并校验已提交前缀，构建临时磁盘展示索引，首次恢复仍会暂存旧格式解码所需的记录。后续翻页按索引定位 Run 和 Item，已结束 Run 的完整展示不会常驻核心内存。核心继续保有模型上下文、输入幂等数据及编解码所需的结构信息。磁盘索引保存已解码的展示数据及 Item 偏移，服务关闭时回收，重开依照 JSONL 重建。模型上下文的独立上限继续生效。
+JSONL 是持久历史。冷打开逐行扫描并校验已提交前缀，构建临时磁盘展示索引，首次恢复仍会暂存旧格式解码所需的记录。后续翻页按索引定位 Run 和 Item，已结束 Run 的完整展示转入磁盘索引。尚可 Continue 的最后一个未成功 Run 保留在内存，供恢复时更新工具卡片。核心继续保有模型上下文、输入幂等数据及编解码所需的结构信息。磁盘索引保存已解码的展示数据及 Item 偏移，服务关闭时回收，重开依照 JSONL 重建。模型上下文的独立上限继续生效。

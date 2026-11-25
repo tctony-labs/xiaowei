@@ -72,7 +72,7 @@ impl ToolDeclaration {
     }
 }
 
-fn same_json(left: &str, right: &str) -> bool {
+pub(crate) fn same_json(left: &str, right: &str) -> bool {
     use serde_json::value::RawValue;
 
     let (Ok(left), Ok(right)) = (

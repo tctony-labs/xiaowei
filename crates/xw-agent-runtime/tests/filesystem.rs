@@ -147,8 +147,54 @@ fn output_is_bounded_and_tells_the_model_where_to_continue() {
     std::fs::write(root.path().join("large"), "a repeated line\n".repeat(10000)).unwrap();
     let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     let output = tools.execute("Read", r#"{"path":"large"}"#).unwrap();
-    assert!(output.text.len() < 65 * 1024);
-    assert!(output.text.contains("continue with offset"));
+    let (body, footer) = output.text.rsplit_once("\n... ").unwrap();
+    assert!(body.len() < 16 * 1024);
+    assert!(footer.contains("continue with offset"));
+}
+
+#[test]
+fn read_pages_skip_large_lines_and_preserve_utf8_across_chunks() {
+    let root = tempfile::tempdir().unwrap();
+    let skipped = "x".repeat(4 * 1024 * 1024);
+    let selected = format!("{}界", "a".repeat(8191));
+    let input = format!("{skipped}\n{selected}\r\nlast\r");
+    fs::write(root.path().join("large"), input).unwrap();
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
+
+    let error = tools.execute("Read", r#"{"path":"large"}"#).unwrap_err();
+    assert!(error.contains("单行内容超过读取输出上限"));
+    let output = tools
+        .execute("Read", r#"{"path":"large","offset":2,"limit":1}"#)
+        .unwrap();
+    assert_eq!(
+        output.text,
+        format!(
+            "... 1 lines not shown ...\n     2|{selected}\n... 1 lines not shown; \
+             continue with offset 3 ...\n"
+        )
+    );
+    let output = tools
+        .execute("Read", r#"{"path":"large","offset":3}"#)
+        .unwrap();
+    assert_eq!(output.text, "... 2 lines not shown ...\n     3|last\r\n");
+    let output = tools
+        .execute("Read", r#"{"path":"large","offset":10}"#)
+        .unwrap();
+    assert_eq!(output.text, "... 3 lines not shown ...\n");
+}
+
+#[test]
+fn read_validates_source_past_the_requested_page() {
+    let root = tempfile::tempdir().unwrap();
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
+    let path = root.path().join("file");
+    let args = r#"{"path":"file","limit":1}"#;
+    fs::write(&path, b"valid\n\xE7\x95").unwrap();
+    assert!(tools.execute("Read", args).unwrap_err().contains("UTF-8"));
+
+    let file = fs::File::create(path).unwrap();
+    file.set_len(16 * 1024 * 1024 + 1).unwrap();
+    assert!(tools.execute("Read", args).unwrap_err().contains("16 MiB"));
 }
 
 fn fixture(root: &Path, path: &str, contents: &str) {
@@ -199,6 +245,31 @@ fn glob_preserves_recursive_hidden_and_excluded_directory_rules() {
         .execute("Glob", r#"{"pattern":"*.json","path":".cfg"}"#)
         .unwrap();
     assert!(output.text.starts_with("1 file(s) found:"));
+}
+
+#[test]
+fn glob_finds_empty_project_directories_with_a_depth_limit() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("XiaoWei/xw-ios")).unwrap();
+    fs::create_dir_all(root.path().join("nested/other/xw-ios")).unwrap();
+    fixture(root.path(), "xw-ios", "");
+    let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
+
+    let files = tools.execute("Glob", r#"{"pattern":"xw-ios"}"#).unwrap();
+    assert!(files.text.starts_with("1 file(s) found:"));
+    assert!(!files.text.contains("XiaoWei/xw-ios"));
+
+    let directories = tools
+        .execute(
+            "Glob",
+            r#"{"pattern":"xw-ios","type":"directory","max_depth":2}"#,
+        )
+        .unwrap();
+    assert!(directories.text.contains("XiaoWei/xw-ios"));
+    assert!(!directories.text.contains("nested/other/xw-ios"));
+    let metadata: serde_json::Value =
+        serde_json::from_str(&directories.metadata_json.unwrap()).unwrap();
+    assert_eq!(metadata["search"]["matches"], 1);
 }
 
 #[test]
@@ -308,11 +379,23 @@ fn searches_validate_parameters_and_keep_legacy_no_match_and_io_error_results() 
                 "{name}: {arguments}"
             );
         }
-        for arguments in [r#"{"pattern":"x"}"#, r#"{"pattern":"x","path":"missing"}"#] {
-            let output = tools.execute(name, arguments).unwrap();
-            assert!(output.text.starts_with("No "));
-        }
+        let output = tools.execute(name, r#"{"pattern":"x"}"#).unwrap();
+        assert!(output.text.starts_with("No "));
     }
+    let missing = r#"{"pattern":"x","path":"missing"}"#;
+    assert!(
+        tools
+            .execute("Glob", missing)
+            .unwrap()
+            .text
+            .starts_with("No ")
+    );
+    assert!(
+        tools
+            .execute("Grep", missing)
+            .unwrap_err()
+            .contains("Search path does not exist")
+    );
     assert!(tools.execute("Glob", r#"{"pattern":"["}"#).is_err());
     assert!(tools.execute("Grep", r#"{"pattern":"("}"#).is_err());
     assert!(
@@ -337,10 +420,13 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
     let root = tempfile::tempdir().unwrap();
     fixture(root.path(), "many", &"needle\n".repeat(6000));
     fixture(root.path(), "unicode", &"中".repeat(100_000));
+    fixture(root.path(), "multi/first", &"needle\n".repeat(3000));
+    fixture(root.path(), "multi/second", &"needle\n".repeat(3000));
     let mut tools = FileTools::new(root.path().into(), PermissionMode::Interactive, vec![], &[]);
     for arguments in [
         r#"{"pattern":"needle","path":"many"}"#,
         r#"{"pattern":"中","path":"unicode"}"#,
+        r#"{"pattern":"needle","path":"multi"}"#,
     ] {
         let output = tools.execute("Grep", arguments).unwrap();
         assert!(output.text.len() <= 64 * 1024);
@@ -348,6 +434,7 @@ fn search_output_limits_bound_many_matches_and_one_long_unicode_line() {
         let metadata: serde_json::Value =
             serde_json::from_str(&output.metadata_json.unwrap()).unwrap();
         assert_eq!(metadata["search"]["truncated"], true);
+        assert_eq!(metadata["search"]["skipped_errors"], 0);
         assert!(metadata["search"]["shown"].as_u64().unwrap() <= 5000);
     }
     let long = "x".repeat(180);

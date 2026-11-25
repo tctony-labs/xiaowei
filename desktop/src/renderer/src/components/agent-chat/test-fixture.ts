@@ -14,12 +14,17 @@ import {
   AgentSessionSchema,
   AgentSessionStatus,
   AgentSessionSummarySchema,
+  ContinueRunResponseSchema,
   CreateSessionResponseSchema,
   DeleteSessionResponseSchema,
   type InteractionDeliveryEvent,
   InteractionDeliveryEventSchema,
   InterruptRunResponseSchema,
   ListSessionsResponseSchema,
+  QueuedInputMode,
+  QueuedInputSchema,
+  QueueInputResponseSchema,
+  QueueMutationResponseSchema,
   ReadSessionResponseSchema,
   RegenerateTitleResponseSchema,
   type RespondInteractionRequest,
@@ -55,6 +60,9 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
   let deleted = 0;
   let disconnected = 0;
   let lostResponse = false;
+  let lostQueueResponse = false;
+  let steerGate: Promise<void> | undefined;
+  let releaseSteer: (() => void) | undefined;
   let failBeforeAcceptance = false;
   let failList = false;
   let failConfig = false;
@@ -91,7 +99,7 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
     session.updatedAtMs =
       run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
     run.items = [
-      run.items[0],
+      ...run.items.filter((item) => item.content.case === "userMessage"),
       ...run.items.filter((item) => item.content.case === "toolCall"),
       {
         $typeName: "xiaowei.agent.AgentItem",
@@ -335,6 +343,36 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
         });
         return create(DeleteSessionResponseSchema, { results });
       },
+      continueRun(request) {
+        const target = sessions.get(request.sessionId);
+        const previous = target?.runs.at(-1);
+        if (!target || !previous || previous.runId !== request.previousRunId) {
+          throw new GatewayFailure({ code: "CONFLICT", message: "run changed" });
+        }
+        const run = create(AgentRunSchema, {
+          runId: agentIdentity(),
+          continuedFromRunId: previous.runId,
+          status: AgentRunStatus.IN_PROGRESS,
+          config: previous.config,
+          startedAtMs: BigInt(Date.now()),
+          generation: { genId: agentIdentity(), startedAtMs: BigInt(Date.now()) },
+        });
+        target.runs.push(run);
+        target.status = AgentSessionStatus.RUNNING;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "runStarted",
+              value: {
+                sessionId: target.sessionId,
+                run,
+                sessionMetadataRevision: target.metadataRevision,
+              },
+            },
+          }),
+        );
+        return create(ContinueRunResponseSchema, { run });
+      },
       startRun(request) {
         const session = sessions.get(request.sessionId);
         if (!session) throw new Error("No session");
@@ -385,6 +423,96 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
       interruptRun() {
         interrupted++;
         return create(InterruptRunResponseSchema, { found: true, cancellationRequested: true });
+      },
+      queueInput(request) {
+        const target = sessions.get(request.sessionId);
+        if (!target) throw new GatewayFailure({ code: "NOT_FOUND", message: "session" });
+        let input = target.queuedInputs.find((entry) => entry.inputId === request.inputId);
+        if (!input) {
+          input = create(QueuedInputSchema, {
+            inputId: request.inputId,
+            input: request.input,
+            mode: QueuedInputMode.FOLLOW_UP,
+          });
+          target.queuedInputs.push(input);
+          emit(
+            create(AgentEventSchema, {
+              payload: {
+                case: "queueUpdated",
+                value: { sessionId: target.sessionId, queuedInputs: target.queuedInputs },
+              },
+            }),
+          );
+        }
+        if (lostQueueResponse) {
+          lostQueueResponse = false;
+          throw new GatewayFailure({ code: "TIMEOUT", message: "lost response" });
+        }
+        return create(QueueInputResponseSchema, { input });
+      },
+      editQueuedInput(request) {
+        const target = sessions.get(request.sessionId);
+        const input = target?.queuedInputs.find((entry) => entry.inputId === request.inputId);
+        if (!target || !input) throw new GatewayFailure({ code: "NOT_FOUND", message: "input" });
+        input.input = request.input;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "queueUpdated",
+              value: { sessionId: target.sessionId, queuedInputs: target.queuedInputs },
+            },
+          }),
+        );
+        return create(QueueMutationResponseSchema, { queuedInputs: target.queuedInputs });
+      },
+      async steerInput(request) {
+        const target = sessions.get(request.sessionId);
+        const input = target?.queuedInputs.find((entry) => entry.inputId === request.inputId);
+        if (!target || !input) throw new GatewayFailure({ code: "NOT_FOUND", message: "input" });
+        input.mode = QueuedInputMode.STEERING;
+        input.runId = request.runId;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "queueUpdated",
+              value: { sessionId: target.sessionId, queuedInputs: target.queuedInputs },
+            },
+          }),
+        );
+        await steerGate;
+        return create(QueueMutationResponseSchema, { queuedInputs: target.queuedInputs });
+      },
+      interruptInput(request) {
+        const target = sessions.get(request.sessionId);
+        const input = target?.queuedInputs.find((entry) => entry.inputId === request.inputId);
+        if (!target || !input) throw new GatewayFailure({ code: "NOT_FOUND", message: "input" });
+        input.mode = QueuedInputMode.INTERRUPTING;
+        input.runId = request.runId;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "queueUpdated",
+              value: { sessionId: target.sessionId, queuedInputs: target.queuedInputs },
+            },
+          }),
+        );
+        return create(QueueMutationResponseSchema, { queuedInputs: target.queuedInputs });
+      },
+      removeQueuedInput(request) {
+        const target = sessions.get(request.sessionId);
+        if (!target) throw new GatewayFailure({ code: "NOT_FOUND", message: "session" });
+        target.queuedInputs = target.queuedInputs.filter(
+          (entry) => entry.inputId !== request.inputId,
+        );
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "queueUpdated",
+              value: { sessionId: target.sessionId, queuedInputs: target.queuedInputs },
+            },
+          }),
+        );
+        return create(QueueMutationResponseSchema, { queuedInputs: target.queuedInputs });
       },
       ...history,
     }),
@@ -627,6 +755,18 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
         observing: observers.size,
         interactionsObserving: interactionObservers.size,
       };
+    },
+    holdSteerResponse() {
+      steerGate = new Promise<void>((resolve) => {
+        releaseSteer = resolve;
+      });
+      return () => {
+        releaseSteer?.();
+        steerGate = undefined;
+      };
+    },
+    loseQueueResponse() {
+      lostQueueResponse = true;
     },
     loseResponse() {
       lostResponse = true;

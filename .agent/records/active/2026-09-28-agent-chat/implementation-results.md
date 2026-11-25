@@ -2,6 +2,46 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 显式继续与工具副作用保护
+
+02k 接入 Quick Chat 的「继续运行」和 typed ContinueRun。可继续当前空闲会话中最后一个已停止或失败的 Run。使用原 Run 的模型选择开启关联的新 Run。业务请求 ID 在重开后仍幂等。首次生成前中断且已接纳的原输入由 Continue 消费一次，已消费的上下文直接复用，包括压缩检查点。
+
+继续前按持久事实闭合旧工具配对。已存结果继续使用，只有意图的调用结算为结果未知，还未记录意图的调用结算为跳过。连续 Continue 沿原 Run 链保护有副作用的等价调用。重复 Bash／BgRun 按实际命令判断，其它工具比较 JSON 参数。确认只授权当前调用，拒绝或停止保留原副作用次数，重启失效仍待决的交互。接口与持久边界见[控制协议](control-api.md)和[历史格式](history-format.md)。
+
+Rust 注入真实 Bash 已写文件但工具结果落盘失败，再在 Continue 补写跳过结果时注入第二次失败。重开及重试正确补齐未知和跳过结果，迟到批准被拒，新确认只执行一次。另覆盖首轮压缩前中断、原输入只消费一次、重开后的 Continue 幂等和已提交压缩检查点。正式 addon、Gateway 与 Pi worker 回归覆盖 Stop 后后台子进程回收、重开、重复命令确认和文件保持一个字节。
+
+在 `atlas` 的实际 Quick Chat 用真实 `terra` 验收。Bash 成功追加一次后，从窗口停止第二条 Bash，重启 Electron，再点「继续运行」。原生窗口显示重复命令及参数，选择「跳过」后收到 `02K-RESUMED-4817`。原输入在窗口和 JSONL 中各只有一次，验收文件仍为单字节 `x`。专用会话 `01a211dd-2a1b-774b-b2d4-a3b1abf2127a` 已归档以备复核。 Rust、`just check`、契约及桌面全套测试通过，正式 Agent addon 已重建。
+
+## 上下文预算与自动压缩
+
+02j 在首个聊天 Turn 前及工具全部结算后的 Turn 之间检查预算。按 Run 固定所选模型及其窗口和最大输出。输入估算取完整上下文估算和同模型最近实测加新增消息估算的较大值。实测输入按 Pi 的未缓存输入、缓存读取和缓存写入合计。达到窗口的 80% 或输入超过「窗口减最大输出」时尝试一次压缩。
+
+摘要使用同一模型发起独立生成，最多 4,096 tokens，实际限额也受模型与 Pi 的窗口约束。摘要 prompt 要求保留当前目标、决策、路径、工具结果和待办，区分已观测与未知结果。摘要请求带历史消息与当前系统指令，无工具定义和聊天 provider 会话键。替换上下文由一份当前系统基线、预算内最多约 20,000 tokens 的近期用户文本及摘要组成。当前尚未消费的输入仍由聊天 Turn 单独接纳。
+
+原始消息与工具结果留在 Journal。摘要生成及用量单独记录，检查点落盘后才切换有效上下文并使旧聊天测量失效。取消、空摘要、压缩后仍超限或检查点写入失败结束当前 Run，保留原有效历史。确认写入失败时修复未提交尾部。压缩前未消费的排队输入保留，重开不会自动发送。历史格式和恢复边界见[历史格式](history-format.md#系统上下文记录核心记录恢复已实现)。
+
+Rust 回归覆盖软／硬预算边界、缓存 token、两处触发、同一会话再次压缩、工具配对、当前基线与后续增量、取消和写入故障、队列幂等及完整对话投影。正式 addon 经 Gateway 和打包 Pi worker 对本地 HTTP 模型验证请求、会话隔离、检查点重开和公开压缩状态。相关 Rust 测试、`just check`、`pnpm contracts:test`、`pnpm --dir desktop test` 及 Agent debug addon 重建通过。压缩与 Continue 的组合交互继续由 [03d](../../../plans/2026-09-28-agent-chat/03d-composed-preview.md) 和 [04d](../../../plans/2026-09-28-agent-chat/04d-final-acceptance.md) 跟踪。
+
+使用隔离 Agent 目录和用户配置中的真实 `terra` 模型补验。测试模型窗口为 24,000 tokens，第二轮估算 19,484 tokens，超过 19,200 的软阈值。两次会话加载共写入一个 `auto_pre_run` 检查点，摘要 Gen 与聊天使用同一模型。首轮 JSONL 前缀的 SHA-256 在压缩前后相同，只有摘要保留了后两轮所需的测试标记，重开后能够正确回答且没有再次压缩。此次记录验证覆盖真实 provider、Gateway、addon 和持久重开。
+
+在 `atlas` 的实际 Quick Chat 完成窗口与应用重启验收。窗口显示「正在压缩对话上下文」，压缩结束后真实 `terra` 返回 `SECOND:LAN-TING-6109`，原始 `FIRST:LAN-TING-6109` 仍能在消息列表查看。Electron 重启后恢复两条回复，未附加历史写入；再次从窗口发送指令获得 `REOPEN:LAN-TING-6109`。三个 Run 均 Completed，整个会话只有一个 `auto_pre_run` 检查点，唯有摘要保留了后续回复所需标记。测试使用隔离目录与 24,000 token 窗口，完成后切回正常开发配置。
+
+## 后台 Bash 三工具（2026-11-25）
+
+第 7 批在 macOS 接入 BgRun、BgOutput 和 BgStop。以旧版 `d97d45b4` 的 Bash 后台分支、输出游标和回收规则为迁移参考。独立 BgRun 返回本次 ToolId 作为任务 ID，短命令退出后也保留该 ID。初始等候最多 2 秒。随后参考 Claude Code 2.1.327，把 stdout 和 stderr 在启动时接到同一个临时文件。增量读取使用独立文件偏移，文件大小由进程监控定期检查。工具行为和进程生命周期分别见 [runtime](../../../../crates/xw-agent-runtime/README.md#后台-bash) 与 [Agent core](../../../../crates/xw-agent/README.md)。
+
+Rust 回归用真实 shell 验证两个描述符指向同一文件、交错输出、增量、自然退出与退出码、文件超限回收、5 个活跃进程上限及子进程组回收。会话回归验证 Stop 只清当前 Run、删除与关闭回收任务、结果写入失败回收未交付任务、重开只还原历史，以及旧会话仅追加三条工具声明与一条规则。Agent addon 经正式 Gateway、worker 和 Pi provider 绑定本地模型 fixture 执行 BgRun → BgOutput → BgStop → Read，核对文件内容及 PID 退出。Rust 测试及 `just check` 通过。真实模型与产品窗口组合验收由 [04d](../../../plans/2026-09-28-agent-chat/04d-final-acceptance.md) 跟踪。
+
+输出边界回归用 68 KiB ASCII 日志校验跳过 4 KiB、读取 64 KiB、正文首尾各保留 3,750 字符及下次调用只返回新增内容。文件阈值回归校验恰好 128 MiB 时进程存活，再写 1 字节后报告失败并回收进程。 [后台 Bash 回归](../../../../crates/xw-agent-runtime/tests/background.rs)
+
+## 桌面本地搜索（2026-11-25）
+
+桌面搜索入口和兜底工具的当前行为见 [Agent runtime](../../../../crates/xw-agent-runtime/README.md#本地搜索)，下载、资源路径和签名见 [macOS 打包](../../../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。
+
+- `just check`、Agent core 和 runtime 的 Rust 回归、Agent NAPI 工具循环及打包工具回归通过。并行 Grep 回归覆盖多文件共享输出上限、取消和错误分类。
+- 本地 macOS arm64 ad-hoc App 构建及包内容检查通过。使用不含系统 rg 的 PATH，从沙箱 Bash 分别调用开发缓存和 App 包中的 rg，两者都完成了内容和文件路径搜索。
+- Hermes 的真实 Quick Chat 上，模型在常规查找中主动使用包版本一致的开发缓存 rg。第二轮显式调用内置工具，Glob 按深度过滤目录，Grep 返回同一命中行，并对不存在的路径给出明确错误。两轮都完成，临时测试文件已清理。
+
 ## Run 反馈与工具详情布局（2026-11-20）
 
 模型等待时在回复末尾显示三点。过程组改用左侧展开三角，组内步骤缩进 4 px。思考行复用思考强度图标，展开正文使用灰底和上下 2 px、左右 6 px 的内边距。网页工具、清单和交互内容的滚动规则见 [Quick Chat](../../../../desktop/docs/chat-ui.md#输入消息与会话操作)。两种网页工具的结果复制按钮和工具行鼠标悬停底色已移除。
@@ -331,7 +371,9 @@ JSONL 采用精简 v2：Header 只写一次，第二条 Meta 保存初始模型�
 
 正文 Markdown、代码块、原文复制和有序工具展示已于 2026-10-25 接产品并验收；问答／权限本批的窗口链路和已知平台验收边界见上文。
 
-剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)：后续工具批次、自动压缩、显式继续及对应 UI／完整产品验收。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 仅保留已确认设计边界。
+2026-11-25 的 FollowUp／Steering／Interrupt 已通过 Agent 持久化与恢复定向测试、桌面完整测试、正式 Agent／Gateway／worker 队列调用链及 `just check`。前端测试覆盖回车、编辑、队列事件与插入消息顺序。用户授权后冷启动主工作区桌面 App，真实模型窗口验证队列浮层、Follow-up 自动启动、工具间隙插入、两次回车停止旧 Run 并启动新 Run；编辑期间队列先被消费时验证未保存内容可放回输入框。测试会话已删除，Launcher 恢复隐藏及未置顶。原生中文输入法组合期间的键盘行为仍待人工复验；自动测试覆盖合成事件保护。
+
+剩余计划见[总实施顺序](../../../plans/2026-09-28-agent-chat/00-implementation-order.md)。
 
 
 ## 会话历史分页与长内容（2026-11-22）

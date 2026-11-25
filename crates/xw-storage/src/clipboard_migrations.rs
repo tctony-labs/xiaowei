@@ -74,6 +74,39 @@ pub fn registry() -> DatabaseMigrations {
                 ],
                 down: vec!["ALTER TABLE clipboard_items DROP COLUMN updated_at".into()],
             },
+            DatabaseMigration {
+                name: "20261125000000_clipboard_image_ocr".into(),
+                up: vec![
+                    "ALTER TABLE clipboard_items ADD COLUMN ocr_text TEXT".into(),
+                    "CREATE INDEX clipboard_images_pending_ocr ON clipboard_items(id)
+                     WHERE kind='image' AND ocr_text IS NULL"
+                        .into(),
+                    "DROP TRIGGER clipboard_fts_au".into(),
+                    // Captures insert with NULL OCR. Recognition writes it through UPDATE.
+                    "CREATE TRIGGER clipboard_fts_au
+                    AFTER UPDATE OF text,remark,paths,ocr_text ON clipboard_items BEGIN
+                        DELETE FROM clipboard_fts WHERE rowid=OLD.id;
+                        INSERT INTO clipboard_fts(rowid,content)
+                        VALUES(NEW.id,coalesce(NEW.text,'') || ' ' || coalesce(NEW.remark,'')
+                            || ' ' || NEW.paths || coalesce(' ' || NEW.ocr_text,''));
+                    END"
+                        .into(),
+                ],
+                down: vec![
+                    "UPDATE clipboard_items SET ocr_text=NULL WHERE ocr_text IS NOT NULL".into(),
+                    "DROP TRIGGER clipboard_fts_au".into(),
+                    "CREATE TRIGGER clipboard_fts_au
+                    AFTER UPDATE OF text,remark,paths ON clipboard_items BEGIN
+                        DELETE FROM clipboard_fts WHERE rowid=OLD.id;
+                        INSERT INTO clipboard_fts(rowid,content)
+                        VALUES(NEW.id,coalesce(NEW.text,'') || ' ' || coalesce(NEW.remark,'')
+                            || ' ' || NEW.paths);
+                    END"
+                        .into(),
+                    "DROP INDEX clipboard_images_pending_ocr".into(),
+                    "ALTER TABLE clipboard_items DROP COLUMN ocr_text".into(),
+                ],
+            },
         ],
     }
 }

@@ -26,6 +26,7 @@ import {
 import { afterEach, expect, test } from "vitest";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { createServices } from "../../services";
+import { AgentMarkdown } from "../agent-chat/AgentMarkdown";
 import { AgentChatClient } from "../agent-chat/client";
 import { agentIdentity } from "../agent-chat/identity";
 import { agentFixture } from "../agent-chat/test-fixture";
@@ -252,6 +253,42 @@ test("message copy and links use typed System calls and propagate host failures"
   expect(opened).toEqual(["https://example.com/docs"]);
 });
 
+test("Markdown source links reach the typed file opener with their location intact", async () => {
+  const app = fixture();
+  const links: string[] = [];
+  app.host.registerOwner(
+    "chat-system",
+    bindHandlers(
+      System,
+      {
+        openFileLink(request) {
+          links.push(request.href);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+
+  function Reply() {
+    const chat = useQuickChat(app.services);
+    return (
+      <AgentMarkdown
+        text={"[WAV](/tmp/wav_pcm_header.h#L19) [File](file:///tmp/source%20file.m:21)"}
+        onCopy={chat.onCopyMessageText}
+        onOpenUrl={chat.onOpenMessageUrl}
+      />
+    );
+  }
+
+  render(<Reply />);
+  fireEvent.click(screen.getByRole("link", { name: "WAV" }));
+  fireEvent.click(screen.getByRole("link", { name: "File" }));
+  await waitFor(() =>
+    expect(links).toEqual(["/tmp/wav_pcm_header.h#L19", "file:///tmp/source%20file.m:21"]),
+  );
+});
+
 test("the product Panel renders and copies final Markdown via System", async () => {
   const app = fixture();
   const copied: string[] = [];
@@ -417,6 +454,35 @@ test("Stop waits for terminal; new conversation retains history after settlement
   await waitFor(() => expect(app.agent.counts.observing).toBe(0));
   expect(app.agent.counts.interrupted).toBe(2);
   expect(app.agent.counts.created).toBe(2);
+});
+
+test("Continue opens a linked response and keeps the original input once", async () => {
+  const app = fixture();
+  function Chat() {
+    return (
+      <QuickChatPanel
+        {...useQuickChat(app.services)}
+        expanded
+        search={<div />}
+        onCollapse={() => {}}
+      />
+    );
+  }
+  render(<Chat />);
+  const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+  fireEvent.change(composer, { target: { value: "original question" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  act(() => app.finish(AgentRunStatus.INTERRUPTED, "partial"));
+  const button = await screen.findByRole("button", { name: "继续运行" });
+  fireEvent.click(button);
+  await waitFor(() => expect(app.agent.session?.runs).toHaveLength(2));
+  expect(screen.getAllByLabelText("用户消息")).toHaveLength(1);
+  act(() => app.finish(AgentRunStatus.COMPLETED, "answer after continuation"));
+  expect(await screen.findByText("answer after continuation")).toBeVisible();
+  expect(screen.getAllByLabelText("用户消息")).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "继续运行" })).toBeNull();
 });
 
 test("no models blocks send; restoring models and missing defaults use first available without updating settings", async () => {
@@ -623,4 +689,33 @@ test("failed selection save keeps the committed model and sending remains possib
   prompt(result, "continue original");
   await waitFor(() => expect(app.requests).toHaveLength(2));
   expect(app.agent.session?.runs[1].config?.modelRef).toBe("model");
+});
+
+test("running conversation sends queued messages and promotes the first with Enter", async () => {
+  const app = fixture();
+  function Chat() {
+    return (
+      <QuickChatPanel
+        {...useQuickChat(app.services)}
+        expanded
+        search={<div />}
+        onCollapse={() => {}}
+      />
+    );
+  }
+  render(<Chat />);
+  const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+  fireEvent.change(composer, { target: { value: "first" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  fireEvent.change(composer, { target: { value: "follow up" } });
+  fireEvent.keyDown(composer, { key: "Enter" });
+  const queue = await screen.findByLabelText("待发送消息");
+  await waitFor(() => expect(within(queue).getByText("follow up")).toBeInTheDocument());
+  expect(composer).toHaveValue("");
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(within(queue).getByText("插入引导")).toBeInTheDocument());
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(within(queue).getByText("正在打断")).toBeInTheDocument());
 });

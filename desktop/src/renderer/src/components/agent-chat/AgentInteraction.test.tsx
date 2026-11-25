@@ -4,6 +4,7 @@ import {
   AgentInteractionAnswerSchema,
   AgentInteractionSchema,
   AgentInteractionStatus,
+  AgentToolCallSchema,
 } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
 import { AgentInteraction } from "./AgentInteraction";
@@ -110,4 +111,37 @@ test("questions and resolved answers scroll independently of the response contro
   );
   fireEvent.click(screen.getByText("向你提问"));
   expect(screen.getByRole("region", { name: "问题内容" })).toHaveTextContent(text);
+});
+
+test("repeat confirmation shows the actual tool arguments before approval", () => {
+  const onRespond = vi.fn();
+  render(
+    <AgentInteraction
+      view={create(AgentInteractionSchema, {
+        interactionId: "repeat",
+        revision: 1n,
+        status: AgentInteractionStatus.PENDING,
+        request: { case: "toolExecution", value: { reason: "此前运行已尝试相同操作。" } },
+      })}
+      call={create(AgentToolCallSchema, {
+        name: "Bash",
+        argumentsJson: '{"command":"printf x >> effect"}',
+      })}
+      controls={{
+        form: () => ({
+          text: "",
+          selectedIndices: [],
+          submitting: false,
+          uncertain: false,
+          error: "",
+        }),
+        onTextChange: () => {},
+        onSelectionChange: () => {},
+        onRespond,
+      }}
+    />,
+  );
+  expect(screen.getByRole("region", { name: "工具参数" })).toHaveTextContent("printf x >> effect");
+  fireEvent.click(screen.getByRole("button", { name: "再次执行" }));
+  expect(onRespond).toHaveBeenCalledExactlyOnceWith("repeat", true);
 });

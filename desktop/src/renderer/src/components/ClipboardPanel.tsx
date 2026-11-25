@@ -46,6 +46,7 @@ export interface ClipboardPanelProps extends ClipboardEditing {
   message?: string;
   previewText?: string;
   previewImage?: string;
+  previewImageText?: string;
   thumbnails?: Record<string, string>;
   previewLoading?: boolean;
   onQueryChange(value: string): void;
@@ -146,6 +147,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
   const list = useRef<HTMLDivElement>(null);
   const rows = useRef(new Map<string, HTMLDivElement>());
   const [renderedId, setRenderedId] = useState<string>();
+  const [imageTextId, setImageTextId] = useState<string>();
   const [dialog, setDialog] = useState<ClipboardDialog>();
   const [fileMenu, setFileMenu] = useState<{ x: number; y: number; id: string; index: number }>();
   const [categoryMenu, setCategoryMenu] = useState<{ x: number; y: number; id: string }>();
@@ -356,6 +358,13 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
   }
   const hideMarkdown = selected?.previewTruncated && !formattedJson;
   const showRendered = renderedId === selected?.id && !hideMarkdown;
+  const hasImageText = selected?.kind === "image" && Boolean(props.previewImageText);
+  if (imageTextId !== undefined && imageTextId !== selected?.id) {
+    setImageTextId(undefined);
+  }
+  const showImageText = hasImageText && imageTextId === selected?.id;
+  const previewModeButton = "cursor-pointer text-sm leading-[22px] text-primary-text";
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: launcher mode keyboard delegation
     <div
@@ -546,19 +555,28 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   {props.previewLoading ? (
                     <p className="p-5 text-sm text-muted">加载中...</p>
                   ) : selected.kind === "image" ? (
-                    <div className="flex h-full items-center justify-center px-5 pt-5">
-                      {props.previewImage && (
-                        <img
-                          src={props.previewImage}
-                          alt="剪贴板图片"
-                          title="双击查看大图"
-                          onDoubleClick={() => {
-                            if (!props.busy) props.onResource(selected.id, "open");
-                          }}
-                          className="max-h-full max-w-full rounded-lg object-contain"
-                        />
-                      )}
-                    </div>
+                    showImageText && props.previewImageText ? (
+                      <p
+                        className={`select-text whitespace-pre-wrap break-words px-5 py-4
+                          text-sm leading-[22px] text-ink-secondary`}
+                      >
+                        <Highlight text={props.previewImageText} query={props.query} />
+                      </p>
+                    ) : (
+                      <div className="flex h-full items-center justify-center px-5 pt-5">
+                        {props.previewImage && (
+                          <img
+                            src={props.previewImage}
+                            alt="剪贴板图片"
+                            title="双击查看大图"
+                            onDoubleClick={() => {
+                              if (!props.busy) props.onResource(selected.id, "open");
+                            }}
+                            className="max-h-full max-w-full rounded-lg object-contain"
+                          />
+                        )}
+                      </div>
+                    )
                   ) : selected.kind === "file" ? (
                     <div className="flex flex-col gap-2 px-5 pt-5">
                       {commonDirectory && (
@@ -660,6 +678,21 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 border-b border-subtle px-5 py-2.5">
+                  {hasImageText && (
+                    <>
+                      <button
+                        type="button"
+                        className={previewModeButton}
+                        onClick={() => setImageTextId(showImageText ? undefined : selected.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") event.stopPropagation();
+                        }}
+                      >
+                        {showImageText ? "查看原图" : "查看文字"}
+                      </button>
+                      <div className="h-[18px] w-px bg-subtle" />
+                    </>
+                  )}
                   {selected.kind === "image" && (
                     <button
                       type="button"
@@ -675,7 +708,7 @@ export function ClipboardPanel(props: ClipboardPanelProps) {
                     <>
                       <button
                         type="button"
-                        className="cursor-pointer text-sm leading-[22px] text-primary-text"
+                        className={previewModeButton}
                         onClick={() => setRenderedId(showRendered ? undefined : selected.id)}
                       >
                         {showRendered

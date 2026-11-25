@@ -20,6 +20,8 @@ cargo test -p xw-agent-runtime --locked
 
 `tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。读取和路径解析沿用系统权限与 symlink 规则，写入范围由本 Run 的权限模式决定。
 
+Read 分块扫描最大 16 MiB 的 UTF-8 文本，验证编码并统计分页剩余行数。单次返回的带行号文本上限为 16 KiB，续读提示另计。如果本页第一行放不下，返回单行超限错误。
+
 Write／Edit 和 Bash 共用 `PermissionMode`。在 `Interactive` 与 `UnattendedWorkspace` 下，工作目录、`/tmp`、`/private/tmp`、`~/tmp` 和已有会话授权可写。cwd 为 home 或其祖先时不开放整棵目录，工作区内 `.git` 不额外禁写。只有 `Interactive` 可发起权限申请。 `FullAccess` 跳过上述路径范围限制，读写仍受系统与当前用户权限约束。
 
 `tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重。
@@ -30,12 +32,36 @@ Write／Edit 和 Bash 共用 `PermissionMode`。在 `Interactive` 与 `Unattende
 
 Skill 的成功结果只返回加载摘要和 `metadata_json.skill` 的名称、目录、hash 与重复加载标识；正文由 core 按已提交结果写入系统上下文，不作为普通工具输出展示。引用文件和脚本仍通过已有 Read／Bash 按真实文件内容读取或执行，不由 Skill 自动执行或授予权限。技能是否已加载、正文更新、撤销及持久恢复均由 core 管理。
 
-`tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 使用 globset／walkdir，自动补 `**/`，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore；只保留修改时间最新的 500 个文件，返回绝对路径，不跟随目录 symlink。Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行；目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 沿用旧版文件类型筛选解释，适用于 `*.rs`、`*.{ts,tsx}` 等表达式；显式文件目标不应用目录忽略或 include 筛选。Grep 不对文件顺序额外排序，最多返回 5000 个匹配行。
+## 本地搜索
+
+有 Bash 时，Agent 用 `rg` 搜内容、用 `rg --files -g '模式'` 查文件。rg 的退出码 1 表示没有匹配。在 Bash 或 rg 不可用时，Agent 可以继续用内置 Grep／Glob。按目录名找目录时，直接用 Glob 的目录模式。
+
+例如，下面的 Glob 参数从会话工作目录查找深度不超过两层的 `demo-project` 目录，空目录也会返回。
+
+```json
+{"pattern":"demo-project","type":"directory","max_depth":2}
+```
+
+`tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 默认查文件，`type: "directory"` 查目录，`max_depth` 从搜索根计算，直接子项深度为 1。Glob 使用 globset／walkdir，自动补 `**/`，`*` 可跨路径分隔符，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore。返回按修改时间从新到旧的最多 500 个绝对路径，不跟随目录 symlink。
+
+Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行。目录遍历和内容搜索并行执行，每个线程复用搜索器，所有线程共享输出上限和取消信号。目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 适用于 `*.rs`、`*.{ts,tsx}` 等文件类型表达式。显式文件目标直接搜索，目标不存在时返回路径错误。Grep 按并行搜索发现的顺序返回，最多返回 5000 个匹配行。
 
 两种搜索的文本输出不超过 64 KiB；数量或字节超限时明确提示缩小范围，单行超长按 UTF-8 边界截断。遍历／文件读取错误按旧版跳过，结果正文与 metadata 标明跳过数量和可能不完整，不能把此时的无匹配当作完整检查。非法参数／模式返回工具错误。`execute_cancellable(name, arguments, cancellation)` 在阻塞池中执行；搜索在遍历及流式读取阶段检查取消，调用方等待实际结束再提交 Cancelled，不在取消后继续生成。原有 execute 入口保留，Read／Write／Edit 已开始的操作仍按实际结果结算。搜索 metadata 包含 matches／shown、truncated 与 skipped_errors；Grep 截断时 matches 是已显示的下界，不是完整匹配总数。
 
+## Bash
+
 `tools::bash::declaration()` 仅在 macOS 提供 Bash 声明，异步 `execute(cwd, mode, grants, arguments, cancellation)` 返回 `BashOutcome`。参数为必填 description／command 与可选 timeout_ms，默认 30 秒，限制到 100 毫秒至 600 秒。受限模式通过绝对路径 `/usr/bin/sandbox-exec` 启动 `/bin/bash -c`，用 [Seatbelt](../xw-sandboxed-exec/README.md) 落实文件写入范围。授权更新适用于下一次 Bash 调用。`FullAccess` 直接启动 `/bin/bash -c`。各模式沿用命令拦截、联网、环境继承和前台执行规则，stdin 关闭。其他平台不注册 Bash，直接执行入口返回不支持错误。
 
-stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
+桌面宿主可以通过绝对路径 `XIAOWEI_AGENT_BIN_DIR` 指定随应用提供的工具目录。Bash 将该目录加入子进程 `PATH` 的首项，其余路径仍有原来的查找顺序。开发缓存和 App 资源路径见[桌面打包说明](../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。
+
+stdout／stderr 并行排空，各保留 8 KiB。合并时 stdout 在前，stderr 在后。正文最多保留 7,500 字符，截断提示另计。metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
 
 取消与超时对独立进程组发送 SIGTERM，500 毫秒后回收已退出 shell 并发送 SIGKILL；正常 shell 退出也清理同组残留子进程，确认进程组消失并收完输出后才返回。无法确认回收或输出结果时返回 `BashError::ResultUnknown`，由 core 记录未知结果与错误原因、跳过余下未执行工具并结束当前 Run；后续用户消息可继续，不自动重放旧调用。进程组清理不承诺管理主动脱离进程组的 daemon。
+
+### 后台 Bash
+
+macOS 会话可以用 `BgRun(command, description)` 启动后台 shell。它沿用前台 Bash 的工作目录、沙箱、环境、命令检查和进程组回收。启动后最多等待 2 秒收集首批输出，短命令可以直接返回退出码。每次启动生成的 `bash_id` 只在当前会话实例内使用，每会话最多同时运行 5 个 shell。
+
+后台进程的 stdout 和 stderr 直接写入同一个匿名临时文件，按实际写入文件的次序合并。运行期间定期检查文件大小，发现超过 128 MiB 时停止进程组并返回失败。临时文件随任务记录释放。
+
+`BgOutput(bash_id)` 按字节偏移返回新增输出和当前状态。单次读取最多取最近 64 KiB 未读原始输出，超过时报告跳过的字节数。正文最多保留 7,500 个字符，截断提示另计。`BgStop(bash_id)` 等待进程组回收并返回终态，剩余输出仍可用 BgOutput 读取。每次启动时会清理超出最近 20 个的已完成任务记录。会话归属和重开行为见 [Agent core](../xw-agent/README.md)。

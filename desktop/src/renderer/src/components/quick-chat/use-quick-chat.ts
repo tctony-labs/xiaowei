@@ -4,14 +4,17 @@ import {
   AgentModelConfigSchema,
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
+  OpenFileLinkRequestSchema,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
+  QueuedInputMode,
   SettingsAnchor,
   WriteClipboardTextRequestSchema,
 } from "proto-desktop-ts";
 import { useEffect, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import { thinkingLevels } from "../../../../shared/llm-models";
+import { isLocalFileLink } from "../../../../shared/local-file-link";
 import type { Services } from "../../services";
 import { agentChatClient } from "../agent-chat/client";
 import { useSessionViewing } from "../agent-chat/use-session-viewing";
@@ -115,7 +118,9 @@ export function useQuickChat(services: Services, viewing = false) {
     !client.initializing &&
     !!selection.modelRef &&
     (!!client.session || (!!snapshot && !initialError));
-  const error = client.session ? client.error : initialError || client.error;
+  const error = client.session
+    ? client.error || client.session.queueError || ""
+    : initialError || client.error;
   const modelLabel = client.session?.modelName
     ? [client.session.providerName, client.session.modelName].filter(Boolean).join("/")
     : selection.modelRef;
@@ -148,9 +153,22 @@ export function useQuickChat(services: Services, viewing = false) {
       await client.respondInteraction(client.pendingQuestion.interactionId);
       return;
     }
-    if (!configured || !client.draft.trim() || client.busy || client.configuring) return;
+    if (
+      !configured ||
+      !client.draft.trim() ||
+      client.configuring ||
+      client.queueChanging ||
+      client.pendingPermission
+    )
+      return;
     const submitted = client.draft;
     try {
+      if (client.busy || client.hasUncertainQueueInput) {
+        if (!client.activeRunId && !client.hasUncertainQueueInput) return;
+        const sessionId = await client.queueInput(submitted);
+        if (client.draftFor(sessionId) === submitted) client.setDraft("", sessionId);
+        return;
+      }
       const sessionId = await client.send(
         submitted,
         create(AgentModelConfigSchema, {
@@ -194,7 +212,12 @@ export function useQuickChat(services: Services, viewing = false) {
     onCopySessionId: copyText,
     onCopyMessageText: copyText,
     onOpenMessageUrl: async (url: string) => {
-      await services.getSystem().openUrl(create(OpenUrlRequestSchema, { url }));
+      const system = services.getSystem();
+      if (isLocalFileLink(url)) {
+        await system.openFileLink(create(OpenFileLinkRequestSchema, { href: url }));
+      } else {
+        await system.openUrl(create(OpenUrlRequestSchema, { url }));
+      }
     },
     sessions: client.sessions.map((session) => ({
       id: session.sessionId,
@@ -230,6 +253,24 @@ export function useQuickChat(services: Services, viewing = false) {
         client.setInteractionSelection(id, indices),
       onRespond: (id: string, allow?: boolean) => void client.respondInteraction(id, allow),
     },
+    queueBlocked: client.pendingPermission,
+    queuePending: client.queueChanging,
+    queuedInputs: (client.session?.queuedInputs ?? []).map((input) => ({
+      id: input.inputId,
+      text: input.input
+        .flatMap((block) => (block.content.case === "text" ? [block.content.value] : []))
+        .join("\n"),
+      mode:
+        input.mode === QueuedInputMode.STEERING
+          ? ("steering" as const)
+          : input.mode === QueuedInputMode.INTERRUPTING
+            ? ("interrupting" as const)
+            : ("follow-up" as const),
+    })),
+    onSteerQueuedInput: (id: string) => void client.steerQueuedInput(id),
+    onInterruptQueuedInput: (id: string) => void client.interruptQueuedInput(id),
+    onEditQueuedInput: (id: string, text: string) => client.changeQueuedInput("edit", id, text),
+    onRemoveQueuedInput: (id: string) => void client.changeQueuedInput("remove", id),
     generating: client.busy,
     configured,
     modelHint,
@@ -252,6 +293,8 @@ export function useQuickChat(services: Services, viewing = false) {
     },
     onSend: () => void send(),
     onStop: () => void client.stop().catch(() => {}),
+    continueRunId: client.continuableRun,
+    onContinue: () => void client.continueRun(),
     onNewConversation: () => {
       setDraftSelection(undefined);
       void client.newConversation().catch(() => {});

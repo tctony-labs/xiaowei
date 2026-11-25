@@ -1,10 +1,12 @@
 import { create, toBinary } from "@bufbuild/protobuf";
 import { EmptySchema } from "@bufbuild/protobuf/wkt";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   ClipboardBiz,
   ClipboardStorageUsageSchema,
+  EditorPreferenceSchema,
+  EditorPreset,
   ModelSettings,
   ModelSettingsChangedSchema,
   ModelSettingsSnapshotSchema,
@@ -75,6 +77,18 @@ test("product settings loads saved values and sends changes and cleanup to servi
               shortcuts: request.change.value,
             });
           }
+          if (request.change.case === "sourceEditor") {
+            const { choice } = request.change.value;
+            snapshot = create(SettingsSnapshotSchema, {
+              ...snapshot,
+              sourceEditor: create(
+                EditorPreferenceSchema,
+                choice.case === "preset"
+                  ? { selected: choice.value, custom: snapshot.sourceEditor?.custom }
+                  : { selected: EditorPreset.CUSTOM, custom: choice.value },
+              ),
+            });
+          }
           return snapshot;
         },
       },
@@ -106,6 +120,70 @@ test("product settings loads saved values and sends changes and cleanup to servi
   await waitFor(() =>
     expect(updates).toHaveBeenCalledWith({ case: "includeChromeBookmarks", value: false }),
   );
+
+  const editor = screen.getByRole("button", { name: "编辑器" });
+  expect(editor).toHaveTextContent("系统默认");
+  const editorBounds = vi
+    .spyOn(editor, "getBoundingClientRect")
+    .mockReturnValue(new DOMRect(0, 300, 90, 24));
+  await userEvent.click(editor);
+  const defaultOption = screen.getByRole("button", { name: "系统默认" });
+  const menu = defaultOption.parentElement;
+  if (!menu) throw new Error("Missing editor menu");
+  expect(defaultOption).toHaveFocus();
+  expect(menu).toHaveStyle({ maxHeight: "200px" });
+  expect(
+    within(menu)
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual([
+    "系统默认",
+    "自定义",
+    "Emacs",
+    "MacVim",
+    "VS Code",
+    "Sublime Text",
+    "Cursor",
+    "Zed",
+    "BBEdit",
+    "Nova",
+  ]);
+  await userEvent.click(screen.getByRole("button", { name: "Zed" }));
+  editorBounds.mockRestore();
+  await waitFor(() => expect(snapshot.sourceEditor?.selected).toBe(EditorPreset.ZED));
+  const openFile = () => screen.getByRole("textbox", { name: "文件" });
+  const openAtLine = () => screen.getByRole("textbox", { name: "文件行" });
+  expect(screen.getByText("zed %file")).toHaveClass("select-none");
+  expect(screen.getByText("zed %file:%line")).toHaveClass("select-none");
+  expect(screen.queryByRole("textbox", { name: "文件" })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "文件行" })).toBeNull();
+  await userEvent.click(editor);
+  await userEvent.click(screen.getByRole("button", { name: "自定义" }));
+  expect(openFile()).toHaveAttribute("type", "text");
+  expect(openAtLine()).toHaveAttribute("type", "text");
+  await userEvent.click(openFile());
+  fireEvent.change(openFile(), { target: { value: "ecp %file" } });
+  await userEvent.tab();
+  expect(openAtLine()).toHaveFocus();
+  expect(snapshot.sourceEditor?.selected).toBe(EditorPreset.ZED);
+
+  fireEvent.change(openAtLine(), { target: { value: "ecp %file %line" } });
+  expect(snapshot.sourceEditor?.selected).toBe(EditorPreset.ZED);
+  await userEvent.tab();
+  await waitFor(() =>
+    expect(snapshot.sourceEditor).toMatchObject({
+      selected: EditorPreset.CUSTOM,
+      custom: { openFile: "ecp %file", openAtLine: "ecp %file %line" },
+    }),
+  );
+  await userEvent.click(editor);
+  await userEvent.click(screen.getByRole("button", { name: "Zed" }));
+  await waitFor(() => expect(snapshot.sourceEditor?.selected).toBe(EditorPreset.ZED));
+  await userEvent.click(editor);
+  await userEvent.click(screen.getByRole("button", { name: "自定义" }));
+  expect(openFile()).toHaveValue("ecp %file");
+  expect(openAtLine()).toHaveValue("ecp %file %line");
+  await waitFor(() => expect(snapshot.sourceEditor?.selected).toBe(EditorPreset.CUSTOM));
 
   await userEvent.click(screen.getByRole("button", { name: "快捷键" }));
   const chat = screen.getByRole("textbox", { name: "录制快速对话快捷键" });

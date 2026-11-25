@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xiaowei/desktop/host.proto.
  */
 export const file_xiaowei_desktop_host: GenFile = /*@__PURE__*/
-  fileDesc("Chp4aWFvd2VpL2Rlc2t0b3AvaG9zdC5wcm90bxIPeGlhb3dlaS5kZXNrdG9wIiAKEExvY2FsUGF0aFJlcXVlc3QSDAoEcGF0aBgBIAEoCSIdChtTZXR0aW5nc05hdmlnYXRpb25SZXF1ZXN0ZWQiRgoTT3BlblNldHRpbmdzUmVxdWVzdBIvCgZhbmNob3IYASABKA4yHy54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NBbmNob3IiUQoeVGFrZVNldHRpbmdzTmF2aWdhdGlvblJlc3BvbnNlEi8KBmFuY2hvchgBIAEoDjIfLnhpYW93ZWkuZGVza3RvcC5TZXR0aW5nc0FuY2hvciImChNTZXRBdXRvc3RhcnRSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgiKQoZV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBIMCgR0ZXh0GAEgASgJIjwKE1RvZ2dsZVRoZW1lUmVzcG9uc2USJQoFdGhlbWUYASABKA4yFi54aWFvd2VpLmRlc2t0b3AuVGhlbWUiHQoOT3BlblVybFJlcXVlc3QSCwoDdXJsGAEgASgJKj8KBVRoZW1lEhUKEVRIRU1FX1VOU1BFQ0lGSUVEEAASDwoLVEhFTUVfTElHSFQQARIOCgpUSEVNRV9EQVJLEAIqVgoOU2V0dGluZ3NBbmNob3ISHwobU0VUVElOR1NfQU5DSE9SX1VOU1BFQ0lGSUVEEAASIwofU0VUVElOR1NfQU5DSE9SX01PREVMX1BST1ZJREVSUxABMoMGCgZTeXN0ZW0STAoMT3BlblNldHRpbmdzEiQueGlhb3dlaS5kZXNrdG9wLk9wZW5TZXR0aW5nc1JlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSYQoWVGFrZVNldHRpbmdzTmF2aWdhdGlvbhIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRovLnhpYW93ZWkuZGVza3RvcC5UYWtlU2V0dGluZ3NOYXZpZ2F0aW9uUmVzcG9uc2USTAoMU2V0QXV0b3N0YXJ0EiQueGlhb3dlaS5kZXNrdG9wLlNldEF1dG9zdGFydFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSPAoKSGlkZVdpbmRvdxIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJYChJXcml0ZUNsaXBib2FyZFRleHQSKi54aWFvd2VpLmRlc2t0b3AuV3JpdGVDbGlwYm9hcmRUZXh0UmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJLCgtUb2dnbGVUaGVtZRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRokLnhpYW93ZWkuZGVza3RvcC5Ub2dnbGVUaGVtZVJlc3BvbnNlEkIKB09wZW5VcmwSHy54aWFvd2VpLmRlc2t0b3AuT3BlblVybFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSRQoIT3BlblBhdGgSIS54aWFvd2VpLmRlc2t0b3AuTG9jYWxQYXRoUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJHCgpSZXZlYWxQYXRoEiEueGlhb3dlaS5kZXNrdG9wLkxvY2FsUGF0aFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSQQoPQ2hlY2tGb3JVcGRhdGVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5YgZwcm90bzM", [file_google_protobuf_empty]);
+  fileDesc("Chp4aWFvd2VpL2Rlc2t0b3AvaG9zdC5wcm90bxIPeGlhb3dlaS5kZXNrdG9wIiAKEExvY2FsUGF0aFJlcXVlc3QSDAoEcGF0aBgBIAEoCSIjChNPcGVuRmlsZUxpbmtSZXF1ZXN0EgwKBGhyZWYYASABKAkiHQobU2V0dGluZ3NOYXZpZ2F0aW9uUmVxdWVzdGVkIkYKE09wZW5TZXR0aW5nc1JlcXVlc3QSLwoGYW5jaG9yGAEgASgOMh8ueGlhb3dlaS5kZXNrdG9wLlNldHRpbmdzQW5jaG9yIlEKHlRha2VTZXR0aW5nc05hdmlnYXRpb25SZXNwb25zZRIvCgZhbmNob3IYASABKA4yHy54aWFvd2VpLmRlc2t0b3AuU2V0dGluZ3NBbmNob3IiJgoTU2V0QXV0b3N0YXJ0UmVxdWVzdBIPCgdlbmFibGVkGAEgASgIIikKGVdyaXRlQ2xpcGJvYXJkVGV4dFJlcXVlc3QSDAoEdGV4dBgBIAEoCSI8ChNUb2dnbGVUaGVtZVJlc3BvbnNlEiUKBXRoZW1lGAEgASgOMhYueGlhb3dlaS5kZXNrdG9wLlRoZW1lIh0KDk9wZW5VcmxSZXF1ZXN0EgsKA3VybBgBIAEoCSo/CgVUaGVtZRIVChFUSEVNRV9VTlNQRUNJRklFRBAAEg8KC1RIRU1FX0xJR0hUEAESDgoKVEhFTUVfREFSSxACKlYKDlNldHRpbmdzQW5jaG9yEh8KG1NFVFRJTkdTX0FOQ0hPUl9VTlNQRUNJRklFRBAAEiMKH1NFVFRJTkdTX0FOQ0hPUl9NT0RFTF9QUk9WSURFUlMQATLRBgoGU3lzdGVtEkwKDE9wZW5TZXR0aW5ncxIkLnhpYW93ZWkuZGVza3RvcC5PcGVuU2V0dGluZ3NSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EmEKFlRha2VTZXR0aW5nc05hdmlnYXRpb24SFi5nb29nbGUucHJvdG9idWYuRW1wdHkaLy54aWFvd2VpLmRlc2t0b3AuVGFrZVNldHRpbmdzTmF2aWdhdGlvblJlc3BvbnNlEkwKDFNldEF1dG9zdGFydBIkLnhpYW93ZWkuZGVza3RvcC5TZXRBdXRvc3RhcnRSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EjwKCkhpZGVXaW5kb3cSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSWAoSV3JpdGVDbGlwYm9hcmRUZXh0EioueGlhb3dlaS5kZXNrdG9wLldyaXRlQ2xpcGJvYXJkVGV4dFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSSwoLVG9nZ2xlVGhlbWUSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaJC54aWFvd2VpLmRlc2t0b3AuVG9nZ2xlVGhlbWVSZXNwb25zZRJCCgdPcGVuVXJsEh8ueGlhb3dlaS5kZXNrdG9wLk9wZW5VcmxSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkUKCE9wZW5QYXRoEiEueGlhb3dlaS5kZXNrdG9wLkxvY2FsUGF0aFJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSTAoMT3BlbkZpbGVMaW5rEiQueGlhb3dlaS5kZXNrdG9wLk9wZW5GaWxlTGlua1JlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSRwoKUmV2ZWFsUGF0aBIhLnhpYW93ZWkuZGVza3RvcC5Mb2NhbFBhdGhSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EkEKD0NoZWNrRm9yVXBkYXRlcxIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eWIGcHJvdG8z", [file_google_protobuf_empty]);
 
 /**
  * Backend-resolved local resource; never a URL or shell command.
@@ -36,6 +36,26 @@ export const LocalPathRequestSchema: GenMessage<LocalPathRequest> = /*@__PURE__*
   messageDesc(file_xiaowei_desktop_host, 0);
 
 /**
+ * @generated from message xiaowei.desktop.OpenFileLinkRequest
+ */
+export type OpenFileLinkRequest = Message<"xiaowei.desktop.OpenFileLinkRequest"> & {
+  /**
+   * An absolute local path or local file URL, optionally ending in a one-based
+   * #L<line> or :<line> suffix.
+   *
+   * @generated from field: string href = 1;
+   */
+  href: string;
+};
+
+/**
+ * Describes the message xiaowei.desktop.OpenFileLinkRequest.
+ * Use `create(OpenFileLinkRequestSchema)` to create a new message.
+ */
+export const OpenFileLinkRequestSchema: GenMessage<OpenFileLinkRequest> = /*@__PURE__*/
+  messageDesc(file_xiaowei_desktop_host, 1);
+
+/**
  * Notification only, delivered to the destination settings window. The host
  * retains the latest pending anchor until that window consumes it.
  *
@@ -49,7 +69,7 @@ export type SettingsNavigationRequested = Message<"xiaowei.desktop.SettingsNavig
  * Use `create(SettingsNavigationRequestedSchema)` to create a new message.
  */
 export const SettingsNavigationRequestedSchema: GenMessage<SettingsNavigationRequested> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 1);
+  messageDesc(file_xiaowei_desktop_host, 2);
 
 /**
  * @generated from message xiaowei.desktop.OpenSettingsRequest
@@ -68,7 +88,7 @@ export type OpenSettingsRequest = Message<"xiaowei.desktop.OpenSettingsRequest">
  * Use `create(OpenSettingsRequestSchema)` to create a new message.
  */
 export const OpenSettingsRequestSchema: GenMessage<OpenSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 2);
+  messageDesc(file_xiaowei_desktop_host, 3);
 
 /**
  * @generated from message xiaowei.desktop.TakeSettingsNavigationResponse
@@ -87,7 +107,7 @@ export type TakeSettingsNavigationResponse = Message<"xiaowei.desktop.TakeSettin
  * Use `create(TakeSettingsNavigationResponseSchema)` to create a new message.
  */
 export const TakeSettingsNavigationResponseSchema: GenMessage<TakeSettingsNavigationResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 3);
+  messageDesc(file_xiaowei_desktop_host, 4);
 
 /**
  * @generated from message xiaowei.desktop.SetAutostartRequest
@@ -104,7 +124,7 @@ export type SetAutostartRequest = Message<"xiaowei.desktop.SetAutostartRequest">
  * Use `create(SetAutostartRequestSchema)` to create a new message.
  */
 export const SetAutostartRequestSchema: GenMessage<SetAutostartRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 4);
+  messageDesc(file_xiaowei_desktop_host, 5);
 
 /**
  * @generated from message xiaowei.desktop.WriteClipboardTextRequest
@@ -123,7 +143,7 @@ export type WriteClipboardTextRequest = Message<"xiaowei.desktop.WriteClipboardT
  * Use `create(WriteClipboardTextRequestSchema)` to create a new message.
  */
 export const WriteClipboardTextRequestSchema: GenMessage<WriteClipboardTextRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 5);
+  messageDesc(file_xiaowei_desktop_host, 6);
 
 /**
  * @generated from message xiaowei.desktop.ToggleThemeResponse
@@ -140,7 +160,7 @@ export type ToggleThemeResponse = Message<"xiaowei.desktop.ToggleThemeResponse">
  * Use `create(ToggleThemeResponseSchema)` to create a new message.
  */
 export const ToggleThemeResponseSchema: GenMessage<ToggleThemeResponse> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 6);
+  messageDesc(file_xiaowei_desktop_host, 7);
 
 /**
  * @generated from message xiaowei.desktop.OpenUrlRequest
@@ -159,7 +179,7 @@ export type OpenUrlRequest = Message<"xiaowei.desktop.OpenUrlRequest"> & {
  * Use `create(OpenUrlRequestSchema)` to create a new message.
  */
 export const OpenUrlRequestSchema: GenMessage<OpenUrlRequest> = /*@__PURE__*/
-  messageDesc(file_xiaowei_desktop_host, 7);
+  messageDesc(file_xiaowei_desktop_host, 8);
 
 /**
  * @generated from enum xiaowei.desktop.Theme
@@ -293,6 +313,17 @@ export const System: GenService<{
   openPath: {
     methodKind: "unary";
     input: typeof LocalPathRequestSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * Open an existing local file in the configured editor, optionally at a source line.
+   * An unset editor preference uses the system default application.
+   *
+   * @generated from rpc xiaowei.desktop.System.OpenFileLink
+   */
+  openFileLink: {
+    methodKind: "unary";
+    input: typeof OpenFileLinkRequestSchema;
     output: typeof EmptySchema;
   },
   /**

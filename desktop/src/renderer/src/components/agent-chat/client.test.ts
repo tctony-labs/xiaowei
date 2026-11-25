@@ -554,3 +554,63 @@ test("full content joins byte chunks and a stale answer cannot change the curren
   await assertion;
   expect(client.session.runs).toEqual([]);
 });
+
+test("queued input and subsequent actions follow the authoritative session events", async () => {
+  const fixture = agentFixture();
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+
+  await client.send("first", config);
+  await waitFor(() => expect(client.activeRunId).toBeTruthy());
+  await client.queueInput("queued");
+  await waitFor(() => expect(client.session?.queuedInputs).toHaveLength(1));
+  const id = client.session?.queuedInputs[0].inputId ?? "";
+
+  await client.changeQueuedInput("edit", id, "edited");
+  await waitFor(() =>
+    expect(client.session?.queuedInputs[0].input[0].content).toMatchObject({
+      case: "text",
+      value: "edited",
+    }),
+  );
+  await client.changeQueuedInput("steer", id);
+  await waitFor(() => expect(client.session?.queuedInputs[0].mode).toBe(2));
+  await client.changeQueuedInput("remove", id);
+  await waitFor(() => expect(client.session?.queuedInputs).toHaveLength(0));
+  close();
+});
+
+test("lost queue acknowledgement is reconciled without creating a second input", async () => {
+  const fixture = agentFixture();
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("first", config);
+  await waitFor(() => expect(client.activeRunId).toBeTruthy());
+  fixture.loseQueueResponse();
+  await expect(client.queueInput("queued")).resolves.toBeTruthy();
+  expect(client.session?.queuedInputs).toHaveLength(1);
+  expect(client.hasUncertainQueueInput).toBe(false);
+  close();
+});
+
+test("a second Enter while steering acknowledgement is pending requests interrupt", async () => {
+  const fixture = agentFixture();
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("first", config);
+  await waitFor(() => expect(client.activeRunId).toBeTruthy());
+  await client.queueInput("queued");
+  await waitFor(() => expect(client.session?.queuedInputs).toHaveLength(1));
+  const id = client.session?.queuedInputs[0].inputId ?? "";
+  const release = fixture.holdSteerResponse();
+  const first = client.steerQueuedInput(id);
+  await waitFor(() => expect(client.session?.queuedInputs[0].mode).toBe(2));
+  await client.interruptQueuedInput(id);
+  release();
+  await first;
+  await waitFor(() => expect(client.session?.queuedInputs[0].mode).toBe(3));
+  close();
+});

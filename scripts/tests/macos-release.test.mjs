@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { rgVersion } from "../embedded-rg.mjs";
 import {
   checkRelease,
   deriveUpdatePublicKey,
@@ -114,6 +115,9 @@ function mockPackaging(t, submission, staplerResult = () => ({ status: 0 }), com
     if (command.endsWith("/bin/xiaowei-inspect")) {
       return { status: 0, stdout: "xiaowei-inspect 0.1.0 (protocol 1)" };
     }
+    if (command.endsWith("/bin/rg")) {
+      return { status: 0, stdout: `ripgrep ${rgVersion} (rev test)\n` };
+    }
     if (command.endsWith("PlistBuddy"))
       return { status: 0, stdout: info[args[1].slice("Print :".length)] };
     if (command === "otool") return { status: 0, stdout: "" };
@@ -162,6 +166,8 @@ test(
     assert.equal(submissions.length, 1);
     assert.equal(submissions[0][3], result.dmg);
     const builders = calls.filter((call) => call.includes("electron-builder"));
+    assert.ok(calls.some((call) => call[1]?.endsWith("/embedded-rg.mjs")));
+    assert.ok(calls.some((call) => call[0].endsWith("/bin/rg") && call[1] === "--version"));
     assert.equal(builders.length, 2);
     assert.ok(builders[0].includes("--dir"));
     assert.equal(builders[1][builders[1].indexOf("--mac") + 1], "dmg");
@@ -779,6 +785,9 @@ test("packaging keeps local HTTP and test identity out of production and enables
     assert.ok(!ignored("App.app/Contents/Resources/app.asar.unpacked/node_modules/rust/rust.node"));
     assert.ok(!ignored("App.app/Contents/Resources/bin/xiaowei-inspect"));
     assert.ok(config.mac.binaries.includes("Contents/Resources/bin/xiaowei-inspect"));
+    assert.ok(!ignored("App.app/Contents/Resources/bin/rg"));
+    assert.ok(config.mac.binaries.includes("Contents/Resources/bin/rg"));
+    assert.ok(config.extraResources.some(({ to }) => to === "bin/rg"));
     assert.ok(!ignored("App.app/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"));
     assert.ok(
       !ignored("App.app/Contents/Frameworks/Squirrel.framework/Versions/A/Resources/ShipIt"),

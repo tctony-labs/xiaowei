@@ -5,13 +5,15 @@ import { create, toBinary } from "@bufbuild/protobuf";
 import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import { app, type BrowserWindow, clipboard, shell } from "electron";
 import {
+  Settings,
   SettingsAnchor,
   SettingsNavigationRequestedSchema,
   System,
   TakeSettingsNavigationResponseSchema,
 } from "proto-desktop-ts";
-import { bindHandlers, type EventSink } from "xiaowei-gateway";
+import { bindClient, bindHandlers, type EventSink } from "xiaowei-gateway";
 import type { CallContext, GatewayHost } from "xiaowei-gateway/host";
+import { openInSourceEditor, resolveFileLink } from "./source-editor";
 
 function webUrl(value: unknown): string {
   if (typeof value !== "string" || value.length > 16384) throw new Error("Invalid URL");
@@ -25,6 +27,17 @@ async function localPath(path: string): Promise<string> {
   if (!isAbsolute(path) || path.includes("\0")) throw new Error("Invalid local path");
   await access(path);
   return path;
+}
+
+async function openWithSystemDefault(path: string): Promise<void> {
+  if (process.platform === "darwin") {
+    // openPath uses synchronous NSWorkspace.openURL on macOS, even with a Promise API.
+    // openExternal uses the completion-handler API, including for validated file URLs.
+    await shell.openExternal(pathToFileURL(path).href);
+  } else {
+    const error = await shell.openPath(path);
+    if (error) throw new Error(error);
+  }
 }
 
 export function registerSystem(
@@ -100,14 +113,14 @@ export function registerSystem(
           return create(EmptySchema);
         },
         async openPath(request) {
-          const path = await localPath(request.path);
-          if (process.platform === "darwin") {
-            // openPath uses synchronous NSWorkspace.openURL on macOS, even with a Promise API.
-            // openExternal uses the completion-handler API, including for validated file URLs.
-            await shell.openExternal(pathToFileURL(path).href);
-          } else {
-            const error = await shell.openPath(path);
-            if (error) throw new Error(error);
+          await openWithSystemDefault(await localPath(request.path));
+          return create(EmptySchema);
+        },
+        async openFileLink(request, client) {
+          const { path, line } = await resolveFileLink(request.href);
+          const settings = await bindClient(Settings, client).get(create(EmptySchema));
+          if (!(await openInSourceEditor(path, line, settings.sourceEditor))) {
+            await openWithSystemDefault(path);
           }
           return create(EmptySchema);
         },
