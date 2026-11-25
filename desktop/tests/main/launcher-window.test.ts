@@ -120,7 +120,6 @@ function trackedLauncher(t: TestContext) {
   const ordinaryWindows = createOrdinaryWindows(dock);
   const launcher = createLauncherWindow({
     moduleDir: "/unused",
-    ordinaryWindows,
     register() {},
     opened() {},
   });
@@ -557,58 +556,33 @@ test("unpinned Quick Chat requested before creation opens without showing the Do
   assert.equal(window.focused, true);
   assert.equal(dock.visible, false);
   assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 0);
-  assert.equal(ordinaryWindows.snapshot().transientWindowVisible, true);
 });
 
-test("Dock activation follows visible Quick Chat across both mode-change paths", async (t) => {
+test("the Launcher stays outside Dock visibility and activation in every mode", async (t) => {
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
-  launcher.show();
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, false);
 
-  launcher.openMode("quick-chat");
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, false);
-  assert.equal(ordinaryWindows.focused(), undefined);
+  for (const pinned of [false, true]) {
+    launcher.setPinned(pinned);
+    for (const mode of ["quick-chat", "search", "clipboard"] as const) {
+      await launcher.showMode(mode);
+      await new Promise(setImmediate);
 
-  launcher.setPinned(true);
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, true);
-  assert.equal(ordinaryWindows.focused(), window);
-  window.focused = false;
-  window.emit("blur");
-  assert.equal(window.visible, true);
-  assert.equal(dock.visible, true);
-  ordinaryWindows.activate();
-  assert.equal(window.focused, true);
-
-  launcher.modeChanged("search");
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, true);
-  assert.equal(ordinaryWindows.focused(), undefined);
-  const shows = window.shows;
-  ordinaryWindows.activate();
-  assert.equal(window.shows, shows);
-
-  launcher.modeChanged("quick-chat");
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, true);
-  assert.equal(ordinaryWindows.focused(), window);
-  launcher.setPinned(false);
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, true);
-  assert.equal(ordinaryWindows.snapshot().hideDeferred, true);
-  assert.equal(ordinaryWindows.focused(), undefined);
-  launcher.openMode("clipboard");
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, true);
-  await launcher.dismiss(false);
-  await new Promise(setImmediate);
-  assert.equal(dock.visible, false);
+      const { ordinaryWindowCount, desiredVisible } = ordinaryWindows.snapshot();
+      assert.equal(ordinaryWindowCount, 0, mode);
+      assert.equal(desiredVisible, false, mode);
+      assert.equal(dock.visible, false, mode);
+      window.focused = false;
+      window.emit("blur");
+      assert.equal(window.visible, pinned, mode);
+      ordinaryWindows.activate();
+      assert.equal(window.focused, false, mode);
+      assert.equal(dock.visible, false, mode);
+    }
+  }
 });
 
-test("pinned Quick Chat joins on show and leaves tracking on every explicit dismiss path", async (t) => {
+test("pinned Quick Chat still closes through every explicit dismiss path", async (t) => {
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
   await launcher.dismiss(false);
@@ -620,7 +594,7 @@ test("pinned Quick Chat joins on show and leaves tracking on every explicit dism
   for (const dismiss of ["shortcut", "close", "explicit-hide", "renderer-hide"]) {
     launcher.show();
     await new Promise(setImmediate);
-    assert.equal(dock.visible, true);
+    assert.equal(dock.visible, false);
     if (dismiss === "shortcut") launcher.openMode("quick-chat");
     else if (dismiss === "close") {
       let prevented = false;
@@ -641,104 +615,32 @@ test("pinned Quick Chat joins on show and leaves tracking on every explicit dism
   }
 });
 
-test("dismissing Quick Chat preserves Dock for settings and native update windows", async (t) => {
+test("closing settings and updates hides the Dock while the Launcher remains visible", async (t) => {
   const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
   await launcher.create();
   const chat = window;
   launcher.setPinned(true);
-  launcher.openMode("quick-chat");
+  await launcher.showMode("quick-chat");
+
   const settings = new FakeWindow();
   ordinaryWindows.register(settings as unknown as BrowserWindow);
   settings.show();
   settings.focus();
-  await launcher.dismiss(false);
   await new Promise(setImmediate);
-  assert.equal(chat.visible, false);
   assert.equal(dock.visible, true);
+  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 1);
   ordinaryWindows.activate();
   assert.equal(settings.focused, true);
-  assert.equal(chat.visible, false);
 
   ordinaryWindows.setNativeWindowVisible(true);
   settings.destroyed = true;
   settings.emit("closed");
-  launcher.show();
-  await launcher.dismiss(false);
   await new Promise(setImmediate);
   assert.equal(dock.visible, true);
+  assert.equal(ordinaryWindows.snapshot().ordinaryWindowCount, 0);
+
   ordinaryWindows.setNativeWindowVisible(false);
   await new Promise(setImmediate);
   assert.equal(dock.visible, false);
+  assert.equal(chat.visible, true);
 });
-
-for (const action of ["hide", "renderer-mode", "shortcut-mode"]) {
-  test(`Quick Chat ${action} while Dock show is pending preserves the latest intent`, async (t) => {
-    const { launcher, dock } = trackedLauncher(t);
-    let finish!: () => void;
-    dock.show = () =>
-      new Promise<void>((resolve) => {
-        finish = () => {
-          dock.visible = true;
-          resolve();
-        };
-      });
-    await launcher.create();
-    launcher.setPinned(true);
-    launcher.openMode("quick-chat");
-    if (action === "hide") await launcher.dismiss(false);
-    else if (action === "renderer-mode") launcher.modeChanged("search");
-    else launcher.openMode("clipboard");
-    finish();
-    await new Promise(setImmediate);
-    assert.equal(dock.visible, action !== "hide");
-    await launcher.dismiss(false);
-    await new Promise(setImmediate);
-    assert.equal(dock.visible, false);
-  });
-}
-
-for (const source of ["shortcut", "renderer"]) {
-  test(`${source} return from chat defers a Dock hide that deactivates the app`, async (t) => {
-    const { launcher, ordinaryWindows, dock } = trackedLauncher(t);
-    await launcher.create();
-    const launcherWindow = window;
-    let deactivations = 0;
-    dock.hide = () => {
-      dock.visible = false;
-      applicationActive = false;
-      launcherWindow.focused = false;
-      deactivations++;
-      launcherWindow.emit("blur");
-    };
-
-    for (const mode of ["search", "clipboard"] as const) {
-      launcher.setPinned(true);
-      launcher.openMode("quick-chat");
-      await new Promise(setImmediate);
-      const generation = launcher.generation();
-      if (source === "shortcut") launcher.openMode(mode);
-      else launcher.modeChanged(mode);
-      await new Promise(setImmediate);
-
-      assert.equal(launcherWindow.visible, true);
-      assert.equal(launcherWindow.focused, true);
-      assert.equal(applicationActive, true);
-      assert.equal(launcherWindow.alwaysOnTop, true);
-      assert.equal(ordinaryWindows.focused(), undefined);
-      assert.equal(launcher.generation(), generation);
-      assert.equal(dock.visible, true);
-
-      // The user's real app switch still dismisses the transient window.
-      launcher.setPinned(false);
-      applicationActive = false;
-      launcherWindow.focused = false;
-      launcherWindow.emit("blur");
-      await new Promise(setImmediate);
-      assert.equal(launcherWindow.visible, false);
-      assert.equal(launcherWindow.focused, false);
-      assert.equal(applicationActive, false);
-      assert.equal(dock.visible, false);
-    }
-    assert.equal(deactivations, 2);
-  });
-}

@@ -57,7 +57,7 @@ runtime 目录必须是当前用户拥有的真实目录，权限不向组或其
 
 `startedAtMs` 为基于主进程 uptime 推算的 Unix 毫秒启动时间；`observedAtMs` 为宿主开始采样的时间，快照不承诺跨 renderer／系统组件原子一致。窗口 ID 只在当前进程有效，坐标使用 Electron DIP。原生 Sparkle UI 不属于 Electron 窗口列表，其显隐通过 Dock owner 的原生窗口标记反映。
 
-Dock 快照同时提供 `visible`、`desiredVisible`、`hideDeferred`、`updatePending` 和 `retryPending`，保留已有弹层和系统延迟规则。焦点快照只读取已有会话与当前前台 PID，不触发 capture。快捷键 `state` 为 `disabled`、`registered`、`suspended` 或 `unavailable`，不推断注册失败时由哪个应用占用。
+Dock 快照用 `visible`、`desiredVisible`、`updatePending` 和 `retryPending` 表示实际显隐、目标显隐及系统调用的进度。为兼容 v1 快照，`hideDeferred` 和 `transientWindowVisible` 固定为 `false`。焦点快照只读取已有会话与当前前台 PID，不触发 capture。快捷键 `state` 为 `disabled`、`registered`、`suspended` 或 `unavailable`，不推断注册失败时由哪个应用占用。
 
 `hide` 的 `focusRestored` 为 `true`、`false` 或 `null`；隐藏完成不代表焦点一定归还，现有防止抢走其他应用焦点的策略继续生效。
 

@@ -58,7 +58,7 @@ macOS 正式包的更新由 `services/update/service.ts` 持有，通过平台 n
 
 更新 service 将 Sparkle 的原生 UI 生命周期通知转交 `windows/ordinary-windows.ts`，与 Electron 普通窗口共同决定 Dock 显隐。交互式检查发起时登记其检查窗口，发起失败则恢复之前状态；会话结束或 service 关闭时清除原生窗口状态。Dock 管理器仅管理可见策略，不接管原生更新窗口。
 
-Launcher owner 将可见且置顶的 Quick Chat 登记到同一个普通窗口追踪器，隐藏、取消置顶或切出聊天时显式移出。追踪器也接受已经显示／聚焦的窗口，并统一负责 Dock 协调与激活轮换。搜索、剪贴板和未置顶的 Quick Chat 作为弹层，只延后已有 Dock 图标的隐藏。产品交互见 [Quick Chat](../../docs/chat-ui.md#产品入口与窗口交互)。
+普通窗口追踪器负责 Dock 显隐和激活轮换。Launcher owner 管理主窗口的显隐、浮动层级和焦点。窗口职责和焦点策略见 [窗口管理](../../docs/window-management.md)。
 
 `services/inspect/` 为工作区开发实例和 macOS 正式包提供按代码来源定位的本地 Unix socket，CLI 查询不会激活窗口；显式窗口操作复用 `windows/` owner。bootstrap 负责启动和退出清理，窗口状态读取归 `windows/snapshots.ts`，焦点、Dock 与实际快捷键注册由各自 owner 提供只读快照。接口不修改数据路径、单实例或开发运行规则，业务调用继续经 typed Gateway。接入边界见 [运行实例检查](../../docs/inspect.md)，配套 Rust CLI 位于 [`desktop/inspect/`](../../inspect/README.md)。
 

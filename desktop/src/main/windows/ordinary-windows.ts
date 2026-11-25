@@ -21,7 +21,6 @@ export function createOrdinaryWindows(
   let recent: OrdinaryWindow | undefined;
   let focused: OrdinaryWindow | undefined;
   let nativeWindowVisible = false;
-  let transientWindowVisible = false;
   let closed = false;
   let dockUpdate: Promise<void> | undefined;
   let dockDirty = false;
@@ -44,13 +43,6 @@ export function createOrdinaryWindows(
         dockDirty = false;
         const visible = nativeWindowVisible || candidates().length > 0;
         if (dock.isVisible() === visible) break;
-
-        // Transforming to an accessory app can deactivate its focused popup.
-        // Keep an existing Dock icon until the transient window is dismissed.
-        if (!visible && transientWindowVisible) {
-          console.debug("Dock hide deferred while a transient window is visible");
-          break;
-        }
 
         if (visible) {
           await dock.show();
@@ -76,11 +68,6 @@ export function createOrdinaryWindows(
 
   return {
     initialize: updateDock,
-    setTransientWindowVisible(visible: boolean) {
-      if (closed || transientWindowVisible === visible) return;
-      transientWindowVisible = visible;
-      updateDock();
-    },
     setNativeWindowVisible(visible: boolean) {
       if (closed || nativeWindowVisible === visible) return;
       nativeWindowVisible = visible;
@@ -145,10 +132,11 @@ export function createOrdinaryWindows(
       return {
         visible,
         desiredVisible,
-        hideDeferred: visible === true && !desiredVisible && transientWindowVisible,
+        // Keep the inspect v1 fields for clients of the existing snapshot.
+        hideDeferred: false,
         ordinaryWindowCount,
         nativeWindowVisible,
-        transientWindowVisible,
+        transientWindowVisible: false,
         updatePending: Boolean(dockUpdate),
         retryPending: Boolean(dockRetry),
       };

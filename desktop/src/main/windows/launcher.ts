@@ -9,7 +9,6 @@ import {
   showLauncherWindow,
 } from "./launcher-shortcuts";
 import { restrictNavigation } from "./navigation";
-import type { createOrdinaryWindows } from "./ordinary-windows";
 
 export function createLauncherWindow(options: {
   moduleDir: string;
@@ -17,10 +16,6 @@ export function createLauncherWindow(options: {
   opened(window: BrowserWindow, mode: LauncherMode): void;
   pinChanged?(window: BrowserWindow, pinned: boolean): void;
   focus?: ReturnType<typeof createFocusSession>;
-  ordinaryWindows?: Pick<
-    ReturnType<typeof createOrdinaryWindows>,
-    "register" | "unregister" | "setTransientWindowVisible"
-  >;
 }) {
   let launcher: BrowserWindow | undefined;
   let launcherMode: LauncherMode = "search";
@@ -45,27 +40,12 @@ export function createLauncherWindow(options: {
     launcher.focus();
   }
 
-  function updateOrdinaryWindow(): void {
-    if (!launcher || launcher.isDestroyed()) return;
-    const visible = launcher.isVisible();
-    const ordinary = visible && isPinnedQuickChat();
-    if (ordinary) {
-      options.ordinaryWindows?.register(launcher);
-      options.ordinaryWindows?.setTransientWindowVisible(false);
-    } else {
-      options.ordinaryWindows?.setTransientWindowVisible(visible);
-      options.ordinaryWindows?.unregister(launcher);
-    }
-    console.debug("Launcher window state changed", { mode: launcherMode, visible, ordinary });
-  }
-
   function modeChanged(mode: LauncherMode): void {
     if (launcherMode === mode) return;
     launcherMode = mode;
     if (isPinnedQuickChat() && launcher && !launcher.isDestroyed() && launcher.isVisible()) {
       focusLauncher();
     }
-    updateOrdinaryWindow();
   }
 
   function setPinned(pinned: boolean): boolean {
@@ -73,7 +53,6 @@ export function createLauncherWindow(options: {
       throw new Error("Launcher is not available");
     if (pinned !== launcherPinned) {
       launcherPinned = pinned;
-      updateOrdinaryWindow();
       console.debug("Launcher pin changed", { mode: launcherMode, pinned });
       options.pinChanged?.(launcher, pinned);
     }
@@ -168,8 +147,6 @@ export function createLauncherWindow(options: {
     configureLauncherWorkspaces(window);
     launcher = window;
     options.register(window);
-    window.on("show", updateOrdinaryWindow);
-    window.on("hide", updateOrdinaryWindow);
     window.once("ready-to-show", () => {
       ready = true;
       resetLauncherPosition();
