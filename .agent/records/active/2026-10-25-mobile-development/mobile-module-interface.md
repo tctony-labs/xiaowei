@@ -1,6 +1,6 @@
 # 移动端 Rust 功能模块：接口决策与前置交付
 
-关联 [iOS 客户端与设备授权](../2026-10-25-ios-client.md)；共享核心与桌面迁移见[客户端 Rust 迁移](client-rust-migration.md)。
+关联 [Flutter 移动客户端与设备授权](../2026-10-25-mobile-development.md)；共享核心与桌面迁移见[客户端 Rust 迁移](client-rust-migration.md)。
 
 ## Why
 

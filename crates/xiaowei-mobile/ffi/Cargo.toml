@@ -8,11 +8,19 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 
 [features]
 bindgen = ["uniffi/cli", "uniffi/cargo-metadata"]
+flutter = ["dep:flutter_rust_bridge", "dep:prost", "dep:proto-server-rs", "dep:uuid"]
 
 [dependencies]
+flutter_rust_bridge = { version = "=2.13.0", optional = true }
+prost = { workspace = true, optional = true }
+proto-server-rs = { path = "../../../contracts/out/proto-server-rs", optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
 xiaowei-mobile = { path = ".." }
 uniffi = { version = "=0.32.2", default-features = false }
 thiserror = "2"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
 [[bin]]
 name = "generate-mobile-bindings"

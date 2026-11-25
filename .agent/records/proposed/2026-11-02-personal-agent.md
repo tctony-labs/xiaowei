@@ -147,7 +147,7 @@ Quick Chat 拟成为云端实例的快捷入口，与手机访问用户有权使
 
 现有本地 Agent、账号和网络连接不等于多实例、共享使用或跨端 Worker 已经实现。服务器与手机的模型、工具及运行资源如何接入，需要按实际能力评估，不能直接将 Electron／napi 装配视为跨平台实现。
 
-现有 [Agent Chat](../active/2026-09-28-agent-chat.md)、[iOS 客户端与设备授权](../active/2026-10-25-ios-client.md) 和[服务器建设](../active/2026-10-11-server-development.md)保留各自已确定的范围。本事项承载 Personal Agent 总体结构及其新增集成；具体实施时再对齐依赖，不重复记录或默认完成原事项尚未交付的能力。
+现有 [Agent Chat](../active/2026-09-28-agent-chat.md)、[Flutter 移动客户端与设备授权](../active/2026-10-25-mobile-development.md) 和[服务器建设](../active/2026-10-11-server-development.md)保留各自已确定的范围。本事项承载 Personal Agent 总体结构及其新增集成；具体实施时再对齐依赖，不重复记录或默认完成原事项尚未交付的能力。
 
 ## Current work
 

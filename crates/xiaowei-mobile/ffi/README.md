@@ -1,6 +1,19 @@
 # xiaowei-mobile-ffi
 
-[`xiaowei-mobile`](../README.md) 的 UniFFI 适配层。Swift 与 Kotlin 使用同一组 Rust 功能和资源 owner；本层只导出对象、转换边界类型和生成绑定，不直接组合 xw-api、持久化登录态或实现账号规则。
+[`xiaowei-mobile`](../README.md) 的语言绑定适配层。Dart、Swift 与 Kotlin 使用同一组 Rust 功能和资源 owner；本层只导出对象、转换边界类型和生成绑定，不直接组合 xw-api、持久化登录态或实现账号规则。
+
+## Flutter 绑定
+
+`flutter` feature 启用 `src/flutter.rs`，与 `flutter_rust_bridge` 2.13.0 生成的 Rust 和 Dart 代码一起供 [Flutter App](../../../mobile/README.md) 使用。账号请求和保存的会话使用现有服务器 proto，由 Rust 适配层编码和校验。Dart 接收操作结果、凭据检查点和连接事件，通过 `cancel`、`settle` 与 `shutdown` 管理操作和凭据交接。
+
+修改桥接接口后，使用项目固定的 Flutter SDK，确保 `cargo-expand` 和同版 `flutter_rust_bridge_codegen` 在 `PATH` 中。从仓库根生成：
+
+```sh
+cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+sh mobile/tool/generate-bindings.sh
+```
+
+iOS 由 Xcode 链接对应目标的静态库。Android 由 Gradle 打包 `arm64-v8a`、`armeabi-v7a` 和 `x86_64` 的共享库。构建与运行步骤见 [Flutter 工程](../../../mobile/README.md#开发与构建)。
 
 ## 构建与生成
 

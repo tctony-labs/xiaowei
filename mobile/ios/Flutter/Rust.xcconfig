@@ -1,0 +1,1 @@
+OTHER_LDFLAGS = $(inherited) -force_load "$(BUILT_PRODUCTS_DIR)/libxiaowei_mobile_ffi.a" -Wl,-export_dynamic -framework Security -framework SystemConfiguration -lresolv

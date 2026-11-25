@@ -27,6 +27,10 @@
   },
   "overrides": [
     {
+      "includes": ["mobile/ios/Runner/Assets.xcassets/**/Contents.json"],
+      "formatter": { "enabled": false }
+    },
+    {
       "includes": ["desktop/src/renderer/src/**/*.tsx", "!**/*.stories.tsx", "!**/*.test.tsx"],
       "linter": {
         "rules": {
