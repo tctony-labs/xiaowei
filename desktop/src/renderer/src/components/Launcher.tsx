@@ -34,6 +34,7 @@ export function Launcher({
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
+  const [chatFocusRequest, setChatFocusRequest] = useState(0);
   const [pinned, setPinned] = useState<boolean>();
   const [pinPending, setPinPending] = useState(true);
   const pinRevision = useRef(0);
@@ -102,9 +103,13 @@ export function Launcher({
     setChatOpen(mode === LauncherMode.QUICK_CHAT);
     if (mode !== LauncherMode.QUICK_CHAT) {
       setChatExpanded(false);
-    } else if (clipboardOpen) {
-      // Clipboard already uses the full panel height; mount chat without a search transition.
-      setChatExpanded(true);
+    } else {
+      // Showing the existing panel may not trigger a renderer window focus event.
+      setChatFocusRequest((current) => current + 1);
+      if (clipboardOpen) {
+        // Clipboard already uses the full panel height; mount chat without a search transition.
+        setChatExpanded(true);
+      }
     }
     const nextClipboardOpen = mode === LauncherMode.CLIPBOARD;
     if (nextClipboardOpen !== clipboardOpen) changeQuery("");
@@ -284,6 +289,7 @@ export function Launcher({
   ) : (
     <QuickChatPanel
       {...chat}
+      focusRequest={chatFocusRequest}
       emptyState={
         chat.noModels ? (
           <QuickChatModelEmptyState

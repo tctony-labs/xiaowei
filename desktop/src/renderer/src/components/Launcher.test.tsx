@@ -294,6 +294,48 @@ test("open clipboard after subscription is ready and return with Backspace", asy
   expect(canvas.queryByRole("navigation", { name: "剪贴板视图" })).toBeNull();
 });
 
+test("Quick Chat restores composer focus after switching from clipboard and reopening", async () => {
+  const app = preview();
+  const canvas = render(<Launcher services={app.services} />);
+  const user = userEvent.setup();
+  await waitFor(() =>
+    expect(canvas.getByRole("button", { name: "置顶窗口" })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    ),
+  );
+
+  await act(async () => app.openMode(LauncherMode.CLIPBOARD));
+  await canvas.findByRole("navigation", { name: "剪贴板视图" });
+
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  try {
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+    const composer = canvas.getByRole("textbox", { name: "快速对话输入" });
+    const newChat = canvas.getByRole("button", { name: "新建对话" });
+    const finishPresentation = () => {
+      act(() => {
+        // Chromium can move focus to the first button before the window is painted.
+        newChat.focus();
+        vi.advanceTimersToNextFrame();
+      });
+      expect(composer).toHaveFocus();
+    };
+
+    finishPresentation();
+    await user.keyboard("draft");
+
+    await act(async () => app.openMode(LauncherMode.QUICK_CHAT));
+    fireEvent.focus(window);
+    finishPresentation();
+    await user.keyboard(" more");
+    expect(composer).toHaveValue("draft more");
+  } finally {
+    canvas.unmount();
+    vi.useRealTimers();
+  }
+});
+
 test("empty search opens native chat layout, sends through Agent and preserves history when collapsed", async () => {
   const app = preview();
   const canvas = render(<Launcher services={app.services} />);

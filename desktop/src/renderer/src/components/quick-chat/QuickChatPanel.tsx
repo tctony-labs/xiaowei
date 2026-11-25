@@ -30,6 +30,7 @@ export interface QuickChatMessage {
 
 export interface QuickChatPanelProps extends ComposerControlsProps {
   expanded: boolean;
+  focusRequest?: number;
   search: ReactNode;
   searchHeight?: number;
   messages: QuickChatMessage[];
@@ -99,13 +100,30 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const title =
     props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
+  const focusRequest = props.expanded ? (props.focusRequest ?? 0) : null;
   useLayoutEffect(() => {
-    if (!props.expanded) return;
-    const focus = () => composer.current?.focus();
+    if (focusRequest === null) return;
+    let frame: number | undefined;
+    const focus = () => {
+      composer.current?.focus();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+
+      // Chromium can restore another element's focus after the window focus event.
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        if (document.visibilityState === "visible" && document.hasFocus()) {
+          composer.current?.focus();
+        }
+      });
+    };
+
     focus();
     window.addEventListener("focus", focus);
-    return () => window.removeEventListener("focus", focus);
-  }, [props.expanded]);
+    return () => {
+      window.removeEventListener("focus", focus);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
+  }, [focusRequest]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measure the controlled draft after each edit.
   useLayoutEffect(() => {
