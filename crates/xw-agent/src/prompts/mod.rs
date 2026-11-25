@@ -80,6 +80,11 @@ pub fn build_chat_system_context(
                 "文件读写优先使用专用工具；命令退出码以工具实际返回为准。",
                 "长任务按需设置超时，停止后不自动重做可能已产生副作用的命令。",
             )),
+            "BgRun" => Some(concat!(
+                "需要跨轮运行的命令用 BgRun 启动，保存返回的 bash_id。",
+                "用 BgOutput 读取新增输出和退出状态，用 BgStop 结束不再需要的进程。",
+                "后台命令遵循与 Bash 相同的权限，任务 ID 只在当前会话实例中有效。",
+            )),
             _ => None,
         };
         if let Some(rule) = rule {

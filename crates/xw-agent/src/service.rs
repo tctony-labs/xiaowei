@@ -360,6 +360,7 @@ impl AgentService {
                 a.cancellation.cancel();
                 done.push(a.done.clone());
             }
+            done.extend(session.background.cancel(None));
             done
         };
         for done in done {
@@ -411,7 +412,10 @@ impl AgentService {
             .runs
             .iter()
             .any(|r| r.run_id == run_id.to_string());
-        let active = session.active.as_ref().filter(|a| a.run_id == run_id);
+        let active = session
+            .active
+            .as_ref()
+            .filter(|a| a.run_id == run_id && !a.committed);
         if let Some(active) = active {
             active.cancellation.cancel();
         }
@@ -430,6 +434,7 @@ impl AgentService {
                 if let Some(active) = &session.active {
                     active.cancellation.cancel();
                 }
+                session.background.cancel(None);
             }
         }
     }
@@ -453,6 +458,7 @@ impl AgentService {
                         active.cancellation.cancel();
                         done.push(active.done.clone());
                     }
+                    done.extend(session.background.cancel(None));
                     done
                 })
                 .collect::<Vec<_>>()
@@ -475,6 +481,7 @@ impl AgentService {
             if let Some(active) = &session.active {
                 active.cancellation.cancel();
             }
+            session.background.cancel(None);
         }
         for observer in state
             .observers

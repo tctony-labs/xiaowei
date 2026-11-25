@@ -207,7 +207,7 @@ runtime 收到 Started、BlockStarted／BlockFinished、正文／思考／参数
 1. **单次 response 与工具执行分开投影符合要求**：正文／思考先投影，合法完整工具调用再逐项执行并追加工具 Item。撤销此前将其归类为“同次生成内工具交错丢序，必须修复”的判断；不改变模型历史的原始内容块及调用／结果配对。
 2. **当前活跃阶段已按 Generate 接线**：公开 Run 及 GenerationUpdated 提供当前 Gen／块生命周期，快照包含相同权威状态；产品与预览共用展示路径，覆盖等待、停顿、工具后新生成及终态，不恢复末块推断。
 3. **最终回答不等于必须存在 final_answer 字段**：这里指本轮正常结束时呈现给用户的最后回复；当前可按结束 Run 的最后一次无工具 Generate 识别，运行中不提前判定。另有 Codex／部分 Responses 输出中的可选 phase 标记，用于细分 commentary 与 final_answer。已安装的 Pi 0.87.1 在 `dist/api/openai-responses-shared.js` 将该 phase 编码进 textSignature，我们的 worker 映射为 TextContent.signature，Rust 模型历史继续保留；公开 AgentMessage 只投影 text，UI 尚未取得该信息。因此“公开 UI 未暴露”不代表 Pi 或底层一定没有。该标记并非所有 provider 的统一保证，不将新增同名字段作为本批展示前置。
-4. **当前没有工具输出流或整批待执行投影**：不展示假实时 stdout，也不将尚未公开的后续声明数量当作已接纳执行数。AskUserQuestion／RequestPermission 已接同 Run 等待与继续；压缩、Continue、后台工具及运行中补充输入仍为后续能力，不混入当前已实现阶段。
+4. **当前没有工具输出流或整批待执行投影**：不展示假实时 stdout，也不将尚未公开的后续声明数量当作已接纳执行数。AskUserQuestion／RequestPermission 已接同 Run 等待与继续；压缩、Continue 及运行中补充输入仍为后续能力，不混入当前已实现阶段。
 
 依据：[Run 接纳与公开投影](../../../../crates/xw-agent/src/execution.rs)、[Run 循环与工具提交](../../../../crates/xw-agent/src/run_loop.rs)、[单次生成与最终消息校验](../../../../crates/xw-agent-runtime/src/text.rs)、[恢复投影](../../../../crates/xw-agent/src/persistence.rs)、[中断恢复](../../../../crates/xw-agent/src/recovery.rs)、[Pi 事件映射](../../../../desktop/src/main/services/llm/worker/events.ts)、[Pi 消息映射](../../../../desktop/src/main/services/llm/worker/messages.ts)及 [renderer 事件投影](../../../../desktop/src/renderer/src/components/agent-chat/agent-events.ts)。自动验证、可控预览与真实 sol 窗口覆盖的范围分别记录在[本批证据](implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。
 

@@ -43,6 +43,18 @@ pub(crate) async fn execute(
         started,
     )
     .await;
+    if cancellation.is_cancelled() {
+        let pending = shared
+            .lock()
+            .unwrap()
+            .sessions
+            .get(&session_id)
+            .map(|session| session.background.cancel(Some(request.run_id)))
+            .unwrap_or_default();
+        for shell in pending {
+            shell.cancelled().await;
+        }
+    }
     let failed_commit = result.is_err();
     let (status, error) = match result {
         Ok((RunStatus::Completed, _)) => (AgentRunStatus::Completed, None),
@@ -159,7 +171,7 @@ async fn drive(
     cancellation: &CancellationToken,
     started: Instant,
 ) -> Result<(RunStatus, Option<String>), AgentError> {
-    let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed) = {
+    let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed, shells) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
         let todo_metadata = session
@@ -194,6 +206,7 @@ async fn drive(
                 .into_iter()
                 .map(|tool| tool.name)
                 .collect::<std::collections::BTreeSet<_>>(),
+            session.background.clone(),
         )
     };
     let mut todos = xw_agent_runtime::tools::todo::TodoWrite::restore(todo_metadata.as_deref())
@@ -493,18 +506,38 @@ async fn drive(
                             }
                         }
                     }
-                } else if name == "Bash"
+                } else if matches!(name.as_str(), "Bash" | "BgRun" | "BgOutput" | "BgStop")
                     && let Some(cwd) = &cwd
                 {
-                    match xw_agent_runtime::tools::bash::execute(
-                        std::path::Path::new(cwd),
-                        permission_mode,
-                        &grants,
-                        &intent.arguments_json,
-                        cancellation.clone(),
-                    )
-                    .await
-                    {
+                    let cwd = std::path::Path::new(cwd);
+                    let arguments = &intent.arguments_json;
+                    let outcome = match name.as_str() {
+                        "BgRun" => {
+                            shells
+                                .run(
+                                    (request.run_id, intent.tool_id),
+                                    cwd,
+                                    permission_mode,
+                                    &grants,
+                                    arguments,
+                                    cancellation,
+                                )
+                                .await
+                        }
+                        "BgOutput" => shells.output(arguments).await,
+                        "BgStop" => shells.stop(arguments).await,
+                        _ => {
+                            xw_agent_runtime::tools::bash::execute(
+                                cwd,
+                                permission_mode,
+                                &grants,
+                                arguments,
+                                cancellation.clone(),
+                            )
+                            .await
+                        }
+                    };
+                    match outcome {
                         Ok(outcome) => {
                             execution_cancelled = outcome.cancelled;
                             execution_failed = outcome.is_error;
@@ -515,14 +548,14 @@ async fn drive(
                         }
                         Err(xw_agent_runtime::tools::bash::BashError::ResultUnknown(cause)) => {
                             log::error!(
-                                "Agent Bash outcome unknown run={} tool={}: {cause}",
+                                "Agent {name} outcome unknown run={} tool={}: {cause}",
                                 request.run_id,
                                 intent.tool_id
                             );
                             execution_result_unknown = true;
                             status = RunStatus::Failed;
-                            error = Some("Bash 执行结果未知".into());
-                            Err(format!("Bash 执行结果未知：{cause}"))
+                            error = Some(format!("{name} 执行结果未知"));
+                            Err(format!("{name} 执行结果未知：{cause}"))
                         }
                     }
                 } else if let Some(tools) = &tools {
@@ -560,7 +593,7 @@ async fn drive(
                             domain::ToolStatus::Cancelled
                         } else if skipped {
                             domain::ToolStatus::Skipped
-                        } else if matches!(name.as_str(), "Bash" | "Glob" | "Grep")
+                        } else if matches!(name.as_str(), "Bash" | "BgRun" | "Glob" | "Grep")
                             && cancellation.is_cancelled()
                         {
                             domain::ToolStatus::Cancelled
@@ -571,14 +604,19 @@ async fn drive(
                         None,
                     ),
                 };
-                commit_result(
+                if let Err(error) = commit_result(
                     shared,
                     &intent,
                     tool_status,
                     text,
                     metadata,
                     (!skipped).then(|| began.elapsed().as_millis() as u64),
-                )?;
+                ) {
+                    if name == "BgRun" {
+                        shells.cancel_shell(intent.tool_id).await;
+                    }
+                    return Err(error);
+                }
                 loaded_skill |= name == "Skill" && tool_status == domain::ToolStatus::Completed;
             }
         }

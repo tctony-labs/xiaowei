@@ -14,6 +14,7 @@ pub(crate) fn parse_id<T: FromStr>(value: &str, field: &'static str) -> Result<T
 }
 
 pub(crate) struct Session {
+    pub background: std::sync::Arc<xw_agent_runtime::tools::bash::BackgroundShells>,
     pub tools: Vec<crate::ToolRegistration>,
     pub tool_context: Option<xw_agent_types::SystemContext>,
     pub permission_mode: PermissionMode,
@@ -50,6 +51,7 @@ pub(crate) struct Session {
 impl Session {
     pub fn new(id: SessionId, created_at_ms: i64, config: AgentModelConfig) -> Self {
         Self {
+            background: Default::default(),
             tools: Vec::new(),
             tool_context: None,
             permission_mode: PermissionMode::default(),

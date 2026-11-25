@@ -6,7 +6,7 @@
 
 持久文本聊天、Header／Meta 精简 v2、核心 SQLite 目录、统一 Host、正式 Gateway／napi、会话管理／标题／模型控件与启动恢复已交付。已完成的会话管理、快照同步、napi、Host 和 composer 计划删除；缺少直接窗口复验的项目集中记录在交付证据，不保留重复实施步骤。
 
-前六批工具与提前实施的 Skill 均已完成实现与约定验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 6 批 Web 工具于 2026-10-28 收尾，Skill 于 2026-11-02 完成；slash command 主动入口另行实施。下一工具批为 02h 的后台三工具；01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成。各工具片继续依赖既有持久化、同一 App Server 与直接事件流。
+前七批工具与提前实施的 Skill 均已完成实现与约定验收，证据统一见[交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md)。第 6 批 Web 工具于 2026-10-28 收尾，Skill 于 2026-11-02 完成；slash command 主动入口另行实施。02h 已完成。01f 大历史读取可独立推进，须在 03a 历史分页 UI 前完成。各工具片继续依赖既有持久化、同一 App Server 与直接事件流。
 
 2026-10-25 依据已提交代码复核：循环所有者为 `crates/xw-agent/src/run_loop.rs`，runtime 提供单次生成收集和工具原语；`tool_registry.rs` 与 `prompts/mod.rs` 分别装配声明和相应规则。后续工具接入这些实际入口，不恢复不存在的 runtime/agent_loop。当前不重新创建已完成的 02e 计划。
 
@@ -24,7 +24,7 @@
 | 4 | AskUserQuestion／RequestPermission 及对应 UI，已完成本批验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26) |
 | 5 | TodoWrite，执行、持久恢复与清单卡片 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27) |
 | 6 | 独立 Web 工具 crate：WebFetch／WebSearch 与搜索源设置，已完成验收 | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27) |
-| 7 | BgRun／BgOutput／BgStop | [02h 命令执行](02h-bash-sandbox.md)第二阶段 |
+| 7 | BgRun／BgOutput／BgStop | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#后台-bash-三工具2026-11-25) |
 | 8（已提前完成） | Skill | [交付证据](../../records/active/2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)；slash command 入口另行实施 |
 
 文件工具先具备既有规则要求的权限检查；RequestPermission 接入前，需要额外授权且没有有效决定的操作返回权限不足，不为调整顺序放宽权限。前台 Bash 不包含后台启动参数或自动转后台行为。
@@ -37,8 +37,8 @@
 
 2026-10-26 第 4 批两个工具、两阶段送达／决定和产品 UI 已实现并完成本批验收，用户手动记录已核对；Stop／草稿、重启失效／不重放、后续新 Run 和明暗主题已补验。02f 已删除，03c 仅保留长输出，真实 IME 平台复核仍在 04d，证据见[本批结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。
 
-1. 第 6 批网页工具与搜索设置及本轮 Skill 已完成实现与验收，证据见交付结果；资源加载已完成独立验收，下一批推进 02h 的 BgRun／BgOutput／BgStop。preset 继续暂缓。
-2. 01f 的历史读取可独立推进，03a／03c 等其公共接口；不因工具 UI 已完成而放宽完整快照预算。后台工具仍等第 7 批。
+1. 后台工具已完成。下一切片为 02j 自动压缩，验收后再推进 02k 显式 Continue。preset 继续暂缓。
+2. 01f 的历史读取可独立推进，03a／03c 等其公共接口；不因工具 UI 已完成而放宽完整快照预算。
 
 历史分页与自动压缩可以排在同一轮并行推进：分页服务负责读取完整原始历史，压缩负责缩减后续模型使用的上下文。历史 UI 与 01f 同组交付；压缩和 Continue 的状态随 03d 接入组合交互。联合验证压缩后仍能分页查看原始历史和长内容。
 
@@ -51,11 +51,10 @@
 | 历史读取与展示 | [01f](01f-history-projection.md) | Run／Item 历史有界分页及长内容读取 | 当前持久会话／投影 |
 | 历史读取与展示 | [03a](03a-history-ui.md) | 历史分页／完整长内容 UI | 01f；复用已交付 Markdown／代码和消息复制 |
 | 历史读取与展示 | [03c](03c-tools-interaction-ui.md) | 完整工具长输出 | 01f；现有工具和问答／权限 UI 已交付 |
-| 工具执行与运行恢复 | [02h](02h-bash-sandbox.md) | 第 7 批后台工具 | 第一阶段前台 Bash 已验收；第 7 批接第 6 批 |
 | 工具执行与运行恢复 | [02j](02j-compaction.md) | 自动压缩及检查点提交 | 已交付工具循环 |
-| 工具执行与运行恢复 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 已交付交互、02h、02j；文件搜索已交付 |
+| 工具执行与运行恢复 | [02k](02k-continue-recovery.md) | 显式 Continue 与副作用保护 | 02j。交互、后台工具及文件搜索已交付 |
 | 产品联调与验收 | [03d](03d-composed-preview.md) | 新工具／压缩／继续状态的组合 UI 验收 | 03a、03c、02j、02k |
-| 产品联调与验收 | [04d](04d-final-acceptance.md) | 首期工具批次的生产接线及完整验收 | 02h、02j、02k、03d；本轮 Skill；01f／03a 的历史边界 |
+| 产品联调与验收 | [04d](04d-final-acceptance.md) | 首期工具批次的生产接线及完整验收 | 02j、02k、03d 及 01f／03a 的历史边界 |
 | 外部接入 | [MCP](../../records/active/2026-09-28-agent-chat.md#后续接入) | MCP 外部能力接入 | 待设计，依赖与排期待定 |
 | 外部接入 | [Agent-to-Agent](../../records/active/2026-09-28-agent-chat.md#后续接入) | Agent 间互通 | 待设计，依赖与排期待定 |
 

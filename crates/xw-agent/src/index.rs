@@ -605,6 +605,7 @@ impl AgentService {
             active.cancellation.cancel();
             done.push(active.done.clone());
         }
+        done.extend(session.background.cancel(None));
         Ok(done)
     }
 
