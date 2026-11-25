@@ -20,6 +20,15 @@ pub fn registrations(dao: &Arc<ClipboardDao>) -> Vec<InvokeRegistration> {
             |s, r| async move { s.search(r).await },
         ),
         handler(dao, &methods::GET, |s, r| async move { s.get(r).await }),
+        handler(dao, &methods::READ_IMAGE_OCR, |s, r| async move {
+            s.read_image_ocr(r).await
+        }),
+        handler(dao, &methods::NEXT_IMAGE_FOR_OCR, |s, r| async move {
+            s.next_image_for_ocr(r).await
+        }),
+        handler(dao, &methods::COMPLETE_IMAGE_OCR, |s, r| async move {
+            s.complete_image_ocr(r).await
+        }),
         handler(dao, &methods::TOUCH, |s, r| async move { s.touch(r).await }),
         handler(dao, &methods::SET_FAVORITE, |s, r| async move {
             s.set_favorite(r).await

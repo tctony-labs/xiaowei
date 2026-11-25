@@ -142,6 +142,7 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
       get: unused,
       readText: unused,
       readImage: unused,
+      readImageOcr: unused,
       copy: unused,
       select: unused,
       delete: unused,

@@ -9,6 +9,7 @@ service ClipboardBiz {
   rpc Get(ClipboardItemRequest) returns (OptionalItem);
   rpc ReadText(ClipboardItemRequest) returns (ReadTextResponse);
   rpc ReadImage(ClipboardItemRequest) returns (ReadImageResponse);
+  rpc ReadImageOcr(ClipboardItemRequest) returns (ClipboardImageOcr);
   rpc Copy(ClipboardItemRequest) returns (google.protobuf.Empty);
   // Copies a selected item, hides the invoking Launcher, then pastes if enabled.
   rpc Select(ClipboardItemRequest) returns (google.protobuf.Empty);
@@ -42,6 +43,10 @@ service ClipboardDao {
   // Invalid input returns InvalidArgument; storage failures are propagated.
   rpc Search(SearchClipboardEntitiesRequest) returns (ClipboardEntityHits);
   rpc Get(ClipboardItemRequest) returns (OptionalClipboardEntity);
+  rpc ReadImageOcr(ClipboardItemRequest) returns (ClipboardImageOcr);
+  rpc NextImageForOcr(NextClipboardImageForOcrRequest) returns (NextClipboardImageForOcrResponse);
+  rpc CompleteImageOcr(CompleteClipboardImageOcrRequest)
+      returns (CompleteClipboardImageOcrResponse);
   rpc Touch(TouchClipboardEntityRequest) returns (google.protobuf.Empty);
   rpc SetFavorite(FavoriteRequest) returns (SetFavoriteResponse);
   rpc SetRemark(SetRemarkRequest) returns (google.protobuf.Empty);
@@ -102,7 +107,7 @@ message ClipboardCategory {
 message ClipboardChanged {}
 
 message ClipboardListOptions {
-  // Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+  // Empty selects the ordinary list. Nonempty searches text, OCR, remarks and paths:
   // whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
   // At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
   optional string query = 1;
@@ -214,6 +219,33 @@ message ReadImageResponse {
   bytes png = 1;
 }
 
+message ClipboardImageOcr {
+  // Absent until recognition succeeds. Empty when the image contains no recognized text.
+  optional string text = 1;
+}
+
+message NextClipboardImageForOcrRequest {
+  // Select the first pending image after this ID. Zero starts at the oldest.
+  uint64 after_id = 1;
+}
+
+message NextClipboardImageForOcrResponse {
+  // Both fields are absent when there are no more pending images after the cursor.
+  optional uint64 id = 1;
+  optional string hash = 2;
+}
+
+message CompleteClipboardImageOcrRequest {
+  uint64 id = 1;
+  // An empty result also completes recognition. Timestamps and use count stay intact.
+  string text = 2;
+}
+
+message CompleteClipboardImageOcrResponse {
+  // False if the image was removed or its recognition was already completed.
+  bool updated = 1;
+}
+
 message DeleteResponse {
   // True if a record existed and was deleted; false if it was already absent.
   bool deleted = 1;
@@ -271,7 +303,7 @@ message SearchClipboardEntitiesRequest {
 message ClipboardEntityHit {
   // Always present on successful recall; large-text content is still the stored summary.
   ClipboardEntity entity = 1;
-  // Plain-text context from indexed text, remark and paths, without highlight markup.
+  // Plain-text context from indexed text, OCR, remarks and paths, without highlight markup.
   // FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
   // Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
   string snippet = 2;

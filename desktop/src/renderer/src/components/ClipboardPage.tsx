@@ -48,6 +48,7 @@ export function ClipboardPage({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState<{ id?: string; text?: string; image?: string }>({});
+  const [imageOcr, setImageOcr] = useState<{ id: string; text?: string }>();
   const version = useRef(0);
   const operation = useRef(false);
   const latestItem = useRef<
@@ -264,6 +265,7 @@ export function ClipboardPage({
     };
   }, [api, imageIds]);
   const selectedKind = items.find((item) => item.id === selectedId)?.kind;
+  const previewVersion = selectedKind === "image" ? 0 : contentVersion;
   // biome-ignore lint/correctness/useExhaustiveDependencies: edits can change full text without changing the item ID
   useEffect(() => {
     let active = true;
@@ -299,6 +301,24 @@ export function ClipboardPage({
     return () => {
       active = false;
       if (url) URL.revokeObjectURL(url);
+    };
+  }, [api, selectedId, selectedKind, previewVersion]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: recognition can finish after selection
+  useEffect(() => {
+    if (!selectedId || selectedKind !== "image") return;
+    const id = selectedId;
+    let active = true;
+    void api
+      .readImageOcr(create(ClipboardItemRequestSchema, { id: BigInt(id) }))
+      .then(({ text }) => {
+        if (active) setImageOcr({ id, text });
+      })
+      .catch((error) => {
+        if (active) console.warn("Clipboard image text read failed", { id, error });
+      });
+    return () => {
+      active = false;
     };
   }, [api, selectedId, selectedKind, contentVersion]);
 
@@ -389,6 +409,7 @@ export function ClipboardPage({
         message={message}
         previewText={preview.id === selectedId ? preview.text : undefined}
         previewImage={preview.id === selectedId ? preview.image : undefined}
+        previewImageText={imageOcr?.id === selectedId ? imageOcr?.text : undefined}
         previewLoading={Boolean(selectedId && preview.id !== selectedId)}
         onQueryChange={(value) => {
           setQuery(value);

@@ -269,15 +269,20 @@ async fn modification_time_upgrade_uses_previous_recency_and_survives_reopening(
     let path = directory.path().join("db.sqlite");
     let database = Database::open(&path).await.unwrap();
     let registry = clipboard_migrations::registry();
-    let migration = registry.migrations.last().unwrap().name.clone();
-    assert_eq!(migration, "20261025000001_clipboard_updated_at");
-    database
-        .rollback(DatabaseRollback {
-            name: migration,
-            migrations: registry.migrations,
-        })
-        .await
+    let migration = registry
+        .migrations
+        .iter()
+        .position(|migration| migration.name == "20261025000001_clipboard_updated_at")
         .unwrap();
+    for migration in registry.migrations[migration..].iter().rev() {
+        database
+            .rollback(DatabaseRollback {
+                name: migration.name.clone(),
+                migrations: registry.migrations.clone(),
+            })
+            .await
+            .unwrap();
+    }
     sqlx::query(
         "INSERT INTO clipboard_items(id,hash,kind,text,created_at,last_used_at,use_count,favorite)
         VALUES(7,'existing','text','keep',10,20,3,1)",

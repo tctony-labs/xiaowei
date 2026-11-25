@@ -2,6 +2,8 @@
 pub mod app_icon;
 pub mod app_name;
 pub mod focus;
+#[cfg(target_os = "macos")]
+pub mod ocr;
 pub mod sparkle;
 
 #[cfg(target_os = "macos")]

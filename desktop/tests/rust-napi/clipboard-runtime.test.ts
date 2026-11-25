@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,8 +9,11 @@ import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
   CaptureClipboardEntityRequestSchema,
   ClipboardBiz,
+  ClipboardChangedSchema,
   ClipboardDao,
   ClipboardItemRequestSchema,
+  ClipboardKind,
+  ClipboardListOptionsSchema,
   EditTextRequestSchema,
   FavoriteRequestSchema,
   Settings,
@@ -114,11 +117,74 @@ test("Rust runtime cleans on retention changes, protects permanent records and s
   }
 });
 
-async function waitFor(check: () => Promise<boolean>) {
-  const deadline = Date.now() + 3000;
+test("macOS Vision indexes an existing clipboard image through the production Gateway", {
+  skip: process.platform !== "darwin",
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "clipboard-ocr-"));
+  const host = new GatewayHost();
+  const db = await Storage.open(join(directory, "db.sqlite"));
+  const daoOwner = await attachRustNapi(host, "dao", db.createClipboardDaoGatewayEndpoint());
+  const settings = host.registerOwner(
+    "settings",
+    bindHandlers(Settings, { get: () => create(SettingsSnapshotSchema) }, { partial: true }),
+    [bindEvent(SettingsChangedSchema, EmptySchema, "coalesce", () => true)],
+  );
+  const attachments = join(directory, "clipboard");
+  const history = await ClipboardHistory.open(attachments, () => {}, directory);
+  const owner = await attachRustNapi(host, "clipboard", history.createGatewayEndpoint());
+  const client = host.client({ caller: "test", trusted: true });
+  const dao = bindClient(ClipboardDao, client);
+  const biz = bindClient(ClipboardBiz, client);
+  let changed = false;
+  const subscription = await client.subscribe(ClipboardChangedSchema.typeName, undefined, () => {
+    changed = true;
+  });
+  try {
+    await history.initialize();
+    const image = await dao.capture(
+      create(CaptureClipboardEntityRequestSchema, {
+        hash: "historical-image",
+        kind: "image",
+        width: 650,
+        height: 190,
+        createdAtMs: 1n,
+      }),
+    );
+    await copyFile(
+      new URL("../fixtures/clipboard-ocr.png", import.meta.url),
+      join(attachments, "images", "historical-image.png"),
+    );
+    const request = create(ClipboardItemRequestSchema, { id: image.id });
+    assert.equal((await biz.readImageOcr(request)).text, undefined);
+    await history.startServices();
+    await waitFor(async () => changed, 60000);
+
+    const { text } = await biz.readImageOcr(request);
+    assert.match(text ?? "", /Cobalt orchard 4729/i);
+    assert.match(text ?? "", /剪贴板识别/);
+    const { items } = await biz.list(
+      create(ClipboardListOptionsSchema, { query: "orchard 剪贴板" }),
+    );
+    assert.equal(items.length, 1);
+    assert.equal(items[0].id, image.id);
+    assert.equal(items[0].kind, ClipboardKind.IMAGE);
+    assert.equal(items[0].previewText, undefined);
+    assert.deepEqual((await dao.get(request)).entity, image);
+  } finally {
+    subscription.close();
+    await owner.close();
+    await history.close();
+    settings.close();
+    await daoOwner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+async function waitFor(check: () => Promise<boolean>, timeout = 3000) {
+  const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  assert.fail("Timed out waiting for Rust retention cleanup");
+  assert.fail("Timed out waiting for clipboard runtime change");
 }

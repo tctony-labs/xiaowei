@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use xw_gateway::invoke::Client;
 
+#[derive(Clone)]
 pub struct Store {
     dao: DaoClient,
     image_dir: PathBuf,
@@ -137,6 +138,24 @@ impl Store {
             .get(record_id(id)?)
             .await?
             .map(|record| self.map(record)))
+    }
+
+    pub(crate) async fn read_image_ocr(&self, id: i64) -> Result<pb::ClipboardImageOcr> {
+        self.dao.read_image_ocr(record_id(id)?).await
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn next_image_for_ocr(&self, after_id: u64) -> Result<Option<(u64, PathBuf)>> {
+        Ok(self
+            .dao
+            .next_image_for_ocr(after_id)
+            .await?
+            .map(|(id, hash)| (id, self.image_dir.join(format!("{hash}.png")))))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn complete_image_ocr(&self, id: u64, text: String) -> Result<bool> {
+        self.dao.complete_image_ocr(id, text).await
     }
 
     pub async fn data(&self, id: i64) -> Result<ClipboardData> {

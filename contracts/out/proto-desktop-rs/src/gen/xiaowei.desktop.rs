@@ -401,7 +401,7 @@ impl ::prost::Name for ClipboardChanged {
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ClipboardListOptions {
-    /// Empty selects the ordinary list. Nonempty searches indexed text, remark and paths:
+    /// Empty selects the ordinary list. Nonempty searches text, OCR, remarks and paths:
     /// whitespace-separated literal phrases are ANDed, with prefix matching on the last term.
     /// At most 4096 UTF-8 bytes; search uses the first 200 bytes at a character boundary.
     #[prost(string, optional, tag = "1")]
@@ -735,6 +735,90 @@ impl ::prost::Name for ReadImageResponse {
         "/xiaowei.desktop.ReadImageResponse".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ClipboardImageOcr {
+    /// Absent until recognition succeeds. Empty when the image contains no recognized text.
+    #[prost(string, optional, tag = "1")]
+    pub text: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for ClipboardImageOcr {
+    const NAME: &'static str = "ClipboardImageOcr";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.ClipboardImageOcr".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.ClipboardImageOcr".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NextClipboardImageForOcrRequest {
+    /// Select the first pending image after this ID. Zero starts at the oldest.
+    #[prost(uint64, tag = "1")]
+    pub after_id: u64,
+}
+impl ::prost::Name for NextClipboardImageForOcrRequest {
+    const NAME: &'static str = "NextClipboardImageForOcrRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.NextClipboardImageForOcrRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.NextClipboardImageForOcrRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct NextClipboardImageForOcrResponse {
+    /// Both fields are absent when there are no more pending images after the cursor.
+    #[prost(uint64, optional, tag = "1")]
+    pub id: ::core::option::Option<u64>,
+    #[prost(string, optional, tag = "2")]
+    pub hash: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for NextClipboardImageForOcrResponse {
+    const NAME: &'static str = "NextClipboardImageForOcrResponse";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.NextClipboardImageForOcrResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.NextClipboardImageForOcrResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CompleteClipboardImageOcrRequest {
+    #[prost(uint64, tag = "1")]
+    pub id: u64,
+    /// An empty result also completes recognition. Timestamps and use count stay intact.
+    #[prost(string, tag = "2")]
+    pub text: ::prost::alloc::string::String,
+}
+impl ::prost::Name for CompleteClipboardImageOcrRequest {
+    const NAME: &'static str = "CompleteClipboardImageOcrRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CompleteClipboardImageOcrRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CompleteClipboardImageOcrRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CompleteClipboardImageOcrResponse {
+    /// False if the image was removed or its recognition was already completed.
+    #[prost(bool, tag = "1")]
+    pub updated: bool,
+}
+impl ::prost::Name for CompleteClipboardImageOcrResponse {
+    const NAME: &'static str = "CompleteClipboardImageOcrResponse";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CompleteClipboardImageOcrResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CompleteClipboardImageOcrResponse".into()
+    }
+}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteResponse {
     /// True if a record existed and was deleted; false if it was already absent.
@@ -903,7 +987,7 @@ pub struct ClipboardEntityHit {
     /// Always present on successful recall; large-text content is still the stored summary.
     #[prost(message, optional, tag = "1")]
     pub entity: ::core::option::Option<ClipboardEntity>,
-    /// Plain-text context from indexed text, remark and paths, without highlight markup.
+    /// Plain-text context from indexed text, OCR, remarks and paths, without highlight markup.
     /// FTS5 selects up to 32 tokens; this is not a byte limit or the full document.
     /// Omitted context is indicated by an ellipsis; one fragment may not cover every query term.
     #[prost(string, tag = "2")]

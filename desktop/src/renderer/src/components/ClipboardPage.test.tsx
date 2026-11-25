@@ -5,9 +5,11 @@ import {
   ClipboardBiz,
   ClipboardCategoriesSchema,
   ClipboardChangedSchema,
+  ClipboardImageOcrSchema,
   ClipboardItemSchema,
   ClipboardItemsSchema,
   ClipboardKind,
+  ReadImageResponseSchema,
   ReadTextResponseSchema,
 } from "proto-desktop-ts";
 import { afterEach, expect, test, vi } from "vitest";
@@ -16,9 +18,14 @@ import { GatewayHost } from "xiaowei-gateway/host";
 import { createServices } from "../services";
 import { ClipboardPage } from "./ClipboardPage";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
-function setup() {
+function setup(withImage = false) {
+  const imageId = 3n;
+  let imageText: string | undefined;
   let rows = [
     create(ClipboardItemSchema, {
       id: 2n,
@@ -36,6 +43,15 @@ function setup() {
       updatedAtMs: 1n,
     }),
   ];
+  if (withImage) {
+    rows.unshift(
+      create(ClipboardItemSchema, {
+        id: imageId,
+        kind: ClipboardKind.IMAGE,
+        lastUsedAtMs: 3n,
+      }),
+    );
+  }
   const host = new GatewayHost();
   const owner = host.registerOwner(
     "clipboard",
@@ -47,7 +63,9 @@ function setup() {
             items: rows
               .filter(
                 (item) =>
-                  (!query || item.previewText?.includes(query)) &&
+                  (!query ||
+                    item.previewText?.includes(query) ||
+                    (item.id === imageId && imageText?.includes(query))) &&
                   (!favoritesOnly || item.favorite) &&
                   (!kind || item.kind === kind) &&
                   (categoryId === undefined || item.categoryId === categoryId),
@@ -60,6 +78,9 @@ function setup() {
           create(ReadTextResponseSchema, {
             text: rows.find((item) => item.id === id)?.previewText,
           }),
+        readImage: () => create(ReadImageResponseSchema, { png: new Uint8Array([1]) }),
+        readImageOcr: ({ id }) =>
+          create(ClipboardImageOcrSchema, { text: id === imageId ? imageText : undefined }),
         editText: ({ id, text }) => {
           const item = rows.find((row) => row.id === id);
           if (!item) throw new Error("Missing clipboard item");
@@ -115,6 +136,10 @@ function setup() {
       rows[1].updatedAtMs = 1726502400000n;
       await publish();
     },
+    async recognizeImage(text: string) {
+      imageText = text;
+      await publish();
+    },
   };
 }
 
@@ -167,6 +192,43 @@ test("metadata refresh preserves manual selection in all", async () => {
       "true",
     ),
   );
+});
+
+test("image preview switches to OCR and search selects the original image", async () => {
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = vi.fn(() => "blob:test-image");
+      static revokeObjectURL = vi.fn();
+    },
+  );
+  const page = setup(true);
+  const preview = within(page.getByRole("region", { name: "内容预览" }));
+  const image = await preview.findByRole("img", { name: "剪贴板图片" });
+  expect(preview.queryByRole("button", { name: "查看文字" })).toBeNull();
+
+  await page.recognizeImage("Cobalt orchard\n剪贴板识别");
+  const toggle = await preview.findByRole("button", { name: "查看文字" });
+  expect(preview.getByRole("img", { name: "剪贴板图片" })).toBe(image);
+  await userEvent.click(toggle);
+  expect(toggle).toHaveAccessibleName("查看原图");
+  expect(preview.getByText(/Cobalt orchard/)).toHaveTextContent("剪贴板识别");
+  expect(preview.queryByRole("img", { name: "剪贴板图片" })).toBeNull();
+  await userEvent.keyboard("{Enter}");
+  expect(toggle).toHaveAccessibleName("查看文字");
+  expect(preview.getByRole("img", { name: "剪贴板图片" })).toBeVisible();
+
+  const search = page.getByRole("textbox", { name: "搜索" });
+  await userEvent.type(search, "orchard");
+  await waitFor(() => expect(page.getAllByRole("option")).toHaveLength(1));
+  expect(page.getByRole("option", { name: "图片" })).toHaveAttribute("aria-selected", "true");
+
+  await userEvent.click(toggle);
+  await userEvent.clear(search);
+  await userEvent.click(await page.findByRole("option", { name: "最新文本" }));
+  expect(preview.queryByRole("button", { name: "查看原图" })).toBeNull();
+  await userEvent.click(page.getByRole("option", { name: "图片" }));
+  expect(await preview.findByRole("button", { name: "查看文字" })).toBeVisible();
 });
 
 test("editing preserves selection and order and displays the modification time", async () => {

@@ -79,6 +79,7 @@ function preview() {
       },
       get: unused,
       readImage: unused,
+      readImageOcr: unused,
       delete: unused,
       clearHistory: unused,
       purgeOrdinary: unused,

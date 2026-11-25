@@ -2,7 +2,7 @@
 
 通用原生系统能力的 Rust 实现，不依赖 Electron、Gateway、napi、项目配置或业务模块，可由本项目及其他 Rust 项目直接依赖。
 
-当前提供应用名称、应用图标、系统主题、macOS 焦点快照和 Sparkle 原生框架桥接能力。`focus` 公开平台分派与快照类型，`macos/focus.rs` 承载应用激活和 AX 窗口操作；调用不申请辅助功能权限。
+当前提供应用名称、应用图标、系统主题、macOS 焦点快照、图片 OCR 和 Sparkle 原生框架桥接能力。`focus` 公开平台分派与快照类型，`macos/focus.rs` 承载应用激活和 AX 窗口操作；调用不申请辅助功能权限。`ocr::recognize_text` 在 macOS 上同步调用 Vision 识别本地图片，调用方在后台线程执行。
 
 ## 调用与复用
 

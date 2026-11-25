@@ -40,7 +40,7 @@ xiaowei/
 | --- | --- |
 | 普通文本 | 完整 UTF-8 文本存入数据库 |
 | 长文本 | 超过 9999 UTF-8 字节时内部类型为 `largeText`；全文写入 `large_text/<hash>`，数据库保留前 500 个字符 |
-| 图片 | PNG 原文件写入 `images/<hash>.png`，数据库保存哈希和尺寸等元数据 |
+| 图片 | PNG 原文件写入 `images/<hash>.png`，数据库保存哈希、尺寸和识别出的文字 |
 | 文件 | 仅保存原路径列表，不复制用户原文件 |
 
 页面契约将普通文本和长文本统一为 `TEXT`，以 `preview_truncated` 区分摘要；`ReadText`／`ReadImage` 按记录 ID 返回完整内容。图片及长文本的读取、复制和外部打开使用持久原文件，路径跨应用重启有效，直至附件被删除。
@@ -71,6 +71,12 @@ xiaowei/
 历史复制成功后计一次使用，并抑制紧随其后的自身回写；下一次仍正常检查剪贴板，允许捕获其他应用在此期间写入的新内容。文件 URL 优先于文本读取，多文件回写时每个文件使用独立的 `NSPasteboardItem`。
 
 读取系统剪贴板失败记 warning，附件或数据库保存失败记 error；同一阶段的连续错误去重，阶段变化或恢复后再次失败会重新记录。保存失败不推进已处理版本和哈希，可在后续轮询重试。
+
+## 图片文字识别
+
+桌面服务启动后在后台逐张处理尚未识别的历史图片。新图片入库后会唤醒识别任务。识别使用 macOS Vision 在本机读取 PNG，语言为简体中文和英语。已有识别结果随同一图片记录复用，成功但无文字的图片也会标记为已处理。识别或结果保存有误的记录会在下次启动后重试。
+
+识别结果写回原图片记录并同步更新全文索引，保留记录的最近使用时间、修改时间和使用次数。图片详情默认显示原图。有识别结果时，工具栏的「查看文字」按钮切换到识别结果，再点「查看原图」切回。识别文字可选中并保留换行。通过文字搜索命中时，结果仍为原图片。
 
 ## 编辑、时间与次数
 
@@ -107,11 +113,11 @@ Storage 在新建或成功保存分类时写入当前 Unix 毫秒，按 `updated
 
 面板调用 `ClipboardDao.List`，空查询返回普通列表，非空查询使用 FTS5。默认每页 50 条，允许 1–100 条；页面分批读取，最多展示 200 条。收藏、图片／文件类型和分类过滤在分页前执行，搜索结果仍按最近使用时间、ID 倒序排列。
 
-`clipboard_fts(content)` 的 rowid 对应记录 ID，使用 `xiaowei std` 分词器。content 拼接数据库正文／长文本摘要、备注和 JSON 文件路径；不扫描长文本附件全文，不包含 OCR 或图片描述。底层连接注册与分词规则见 [Storage 数据库实现](../crates/xw-storage/docs/database.md#fts5-与分词器注册)。
+`clipboard_fts(content)` 的 rowid 对应记录 ID，使用 `xiaowei std` 分词器。content 拼接数据库正文／长文本摘要、备注、JSON 文件路径和图片识别文字。底层连接注册与分词规则见 [Storage 数据库实现](../crates/xw-storage/docs/database.md#fts5-与分词器注册)。
 
 查询最多 4096 UTF-8 字节，FTS 实际使用 UTF-8 字符边界内的前 200 字节。空白分隔的多词按 AND 匹配，引号转义，末词允许前缀匹配；用户输入的 FTS 操作符按字面文本处理。数据库错误正常向调用方传播。
 
-INSERT、UPDATE OF `text`／`remark`／`paths`、DELETE 触发器与业务变更处于同一事务；更新先删旧索引再插入新内容。仅使用次数、分类或收藏变化不重建索引。`20260924000000_clipboard_fts` migration 在同一事务中创建表、触发器、回填历史内容及记录迁移状态；回滚先移除触发器，再移除索引表。
+INSERT、UPDATE OF `text`／`remark`／`paths`／`ocr_text`、DELETE 触发器与业务变更处于同一事务；更新先删旧索引再插入新内容。仅使用次数、分类或收藏变化不重建索引。`20260924000000_clipboard_fts` migration 在同一事务中创建表、触发器、回填历史内容及记录迁移状态；回滚先移除触发器，再移除索引表。
 
 `ClipboardDao.Search` 是内部有界召回接口，返回 `ClipboardEntityHit { entity, snippet }`，与页面 List 分开。查询语义相同，空白查询返回空 hits；limit 默认 100、允许 1–100，无 offset。结果按 FTS5 rank（BM25）升序，同分按最近使用时间、ID 降序；snippet 最多 32 个 FTS token，用省略号表示截断，不含高亮标记，单片段不保证展示分散的全部查询词。
 
@@ -148,12 +154,13 @@ INSERT、UPDATE OF `text`／`remark`／`paths`、DELETE 触发器与业务变更
 
 - `20261025000000_clipboard_category_updated_at` 为旧分类增加修改时间，初始化为 0 表示未知；保留 ID、名称、颜色和归属。
 - `20261025000001_clipboard_updated_at` 为旧记录增加修改时间，使用升级前的 `last_used_at` 近似初始化；不改变原有身份、使用时间、次数或附件，无法恢复真实历史修改时间。
+- `20261125000000_clipboard_image_ocr` 增加图片识别结果和待处理索引，识别任务随后逐张补录。
 
 旧版项目的数据库及附件导入是尚未实现的离线一次性迁移，独立于上述 schema 升级。产品设置不提供导入入口、进度或结果界面，相关范围约定见[设置事项](../.agent/records/active/2026-09-18-settings-ui-inventory.md#how)。
 
 ## 范围与验证入口
 
-普通历史保存在本机，收藏目前为本地标记，数据库未加密；收藏同步由独立事项推进；手机授权入口的前置设计见 [iOS 客户端与设备授权](../.agent/records/active/2026-10-25-ios-client.md)，通用同步机制先于收藏业务接入。OCR、图片描述和图片语义检索由[图片理解 proposal](../.agent/records/proposed/2026-10-25-clipboard-image-understanding.md)承接，当前不展示图片理解入口。
+普通历史保存在本机，收藏目前为本地标记，数据库未加密；收藏同步由独立事项推进；手机授权入口的前置设计见 [iOS 客户端与设备授权](../.agent/records/active/2026-10-25-ios-client.md)，通用同步机制先于收藏业务接入。图片描述和图片语义检索由[图片理解事项](../.agent/records/active/2026-10-25-clipboard-image-understanding.md)跟踪。
 
 全局搜索召回接入、容量上限、来源排除规则、文件失效检查、来源应用元数据、富文本／HTML 格式保真，以及 Windows／Linux 系统剪贴板接入尚未实现，后续独立处理。
 

@@ -151,6 +151,67 @@ impl ClipboardDao {
         })
     }
 
+    pub async fn read_image_ocr(
+        &self,
+        request: pb::ClipboardItemRequest,
+    ) -> Result<pb::ClipboardImageOcr> {
+        let rows = self
+            .database
+            .query(statement(
+                "SELECT ocr_text FROM clipboard_items WHERE id=? AND kind='image'",
+                vec![value(as_id(request.id)?)],
+            ))
+            .await?;
+        let row = rows
+            .rows
+            .first()
+            .ok_or_else(|| invalid("Clipboard image not found"))?;
+        Ok(pb::ClipboardImageOcr {
+            text: Row(row).get(0)?,
+        })
+    }
+
+    pub async fn next_image_for_ocr(
+        &self,
+        request: pb::NextClipboardImageForOcrRequest,
+    ) -> Result<pb::NextClipboardImageForOcrResponse> {
+        let after_id =
+            i64::try_from(request.after_id).map_err(|_| invalid("Invalid OCR cursor"))?;
+        let rows = self
+            .database
+            .query(statement(
+                "SELECT id,hash FROM clipboard_items
+                 WHERE kind='image' AND ocr_text IS NULL AND id>? ORDER BY id LIMIT 1",
+                vec![value(after_id)],
+            ))
+            .await?;
+        let Some(row) = rows.rows.first().map(Row) else {
+            return Ok(pb::NextClipboardImageForOcrResponse::default());
+        };
+        let id = u64::try_from(row.get::<i64>(0)?).map_err(|_| invalid("Invalid record ID"))?;
+        Ok(pb::NextClipboardImageForOcrResponse {
+            id: Some(id),
+            hash: Some(row.get(1)?),
+        })
+    }
+
+    pub async fn complete_image_ocr(
+        &self,
+        request: pb::CompleteClipboardImageOcrRequest,
+    ) -> Result<pb::CompleteClipboardImageOcrResponse> {
+        let result = self
+            .database
+            .execute(statement(
+                "UPDATE clipboard_items SET ocr_text=?1
+                 WHERE id=?2 AND kind='image' AND ocr_text IS NULL",
+                vec![value(request.text), value(as_id(request.id)?)],
+            ))
+            .await?;
+        Ok(pb::CompleteClipboardImageOcrResponse {
+            updated: result.affected_rows > 0,
+        })
+    }
+
     pub async fn touch(&self, request: pb::TouchClipboardEntityRequest) -> Result<()> {
         self.database
             .execute(statement(
