@@ -1,4 +1,9 @@
-use std::{collections::HashMap, io::Read, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufRead, BufReader, Read},
+    path::{Path, PathBuf},
+};
 
 use serde::Deserialize;
 use serde_json::json;
@@ -15,6 +20,7 @@ mod search;
 pub use search::declarations as search_declarations;
 
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_READ_OUTPUT_BYTES: usize = 16 * 1024;
 pub(super) const MAX_OUTPUT_BYTES: usize = 64 * 1024;
 
 #[derive(Debug)]
@@ -258,8 +264,8 @@ impl FileTools {
         {
             return Err("暂不支持读取 PDF 文件".into());
         }
-        let content = match read_text(&path) {
-            Ok(content) => content,
+        let mut text = match open_text(&path).and_then(|file| read_page(file, &args)) {
+            Ok(text) => text,
             Err(_) if args.allow_missing && !path.try_exists().map_err(|e| e.to_string())? => {
                 return Ok(ToolOutput {
                     text: format!("File {} does not exist.", path.display()),
@@ -268,34 +274,6 @@ impl FileTools {
             }
             Err(error) => return Err(error),
         };
-        let lines: Vec<_> = content.lines().collect();
-        let start = args.offset.saturating_sub(1).min(lines.len());
-        let end = start
-            .saturating_add(args.limit.unwrap_or(usize::MAX))
-            .min(lines.len());
-        let mut text = String::new();
-        if start > 0 {
-            text.push_str(&format!("... {start} lines not shown ...\n"));
-        }
-        let mut shown = start;
-        for (index, line) in lines.iter().enumerate().take(end).skip(start) {
-            let next = format!("{:>6}|{line}\n", index + 1);
-            if text.len() + next.len() > MAX_OUTPUT_BYTES {
-                if shown == start {
-                    return Err("单行内容超过读取输出上限".into());
-                }
-                break;
-            }
-            text.push_str(&next);
-            shown = index + 1;
-        }
-        if shown < lines.len() {
-            text.push_str(&format!(
-                "... {} lines not shown; continue with offset {} ...\n",
-                lines.len() - shown,
-                shown + 1
-            ));
-        }
         let key = (path.clone(), args.offset, args.limit);
         let hash = blake3::hash(text.as_bytes());
         if self.reads.get(&key) == Some(&hash) {
@@ -314,22 +292,126 @@ fn parse<T: serde::de::DeserializeOwned>(arguments: &str) -> Result<T, String> {
     serde_json::from_str(arguments).map_err(|_| "工具参数无效，请核对参数名称和类型".into())
 }
 
-fn read_text(path: &std::path::Path) -> Result<String, String> {
+fn open_text(path: &Path) -> Result<File, String> {
     if !path.metadata().map_err(|e| e.to_string())?.is_file() {
         return Err("只能读取普通文本文件".into());
     }
-    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let file = File::open(path).map_err(|e| e.to_string())?;
     if !file.metadata().map_err(|e| e.to_string())?.is_file() {
         return Err("只能读取普通文本文件".into());
     }
+    Ok(file)
+}
+
+fn read_text(path: &Path) -> Result<String, String> {
     let mut content = String::new();
-    file.take(MAX_FILE_BYTES + 1)
+    open_text(path)?
+        .take(MAX_FILE_BYTES + 1)
         .read_to_string(&mut content)
         .map_err(|e| e.to_string())?;
     if content.len() as u64 > MAX_FILE_BYTES {
         return Err("文件超过 16 MiB 读取上限".into());
     }
     Ok(content)
+}
+
+fn read_page(file: File, args: &ReadArgs) -> Result<String, String> {
+    const CHUNK_BYTES: u64 = 8 * 1024;
+
+    let mut reader = BufReader::new(file.take(MAX_FILE_BYTES + 1));
+    let start = args.offset - 1;
+    let mut end = start.saturating_add(args.limit.unwrap_or(usize::MAX));
+    let mut text = if start > 0 {
+        format!("... {start} lines not shown ...\n")
+    } else {
+        String::new()
+    };
+    let mut shown = start;
+    let mut lines = 0;
+    let mut bytes_read = 0;
+    let mut chunk = Vec::new();
+    let mut line = String::new();
+    let mut pending_line = false;
+    let mut oversized_first_line = false;
+
+    loop {
+        // Scan the full file for UTF-8 validation and the exact remaining line count.
+        // Bound each read even if the next newline is megabytes away.
+        let count = reader
+            .by_ref()
+            .take(CHUNK_BYTES)
+            .read_until(b'\n', &mut chunk)
+            .map_err(|error| error.to_string())?;
+        bytes_read += count as u64;
+        if bytes_read > MAX_FILE_BYTES {
+            return Err("文件超过 16 MiB 读取上限".into());
+        }
+        if count == 0 && !pending_line {
+            break;
+        }
+        let complete = count == 0 || chunk.ends_with(b"\n");
+        let valid = match std::str::from_utf8(&chunk) {
+            Ok(part) => part,
+            Err(error) if !complete && error.error_len().is_none() => {
+                std::str::from_utf8(&chunk[..error.valid_up_to()]).expect("valid UTF-8 prefix")
+            }
+            Err(_) => return Err("文件不是有效的 UTF-8 文本".into()),
+        };
+        if (start..end).contains(&lines) {
+            // Reserve room for CRLF before measuring the formatted line.
+            if line.len() + valid.len() <= MAX_READ_OUTPUT_BYTES + 2 {
+                line.push_str(valid);
+            } else {
+                oversized_first_line = shown == start;
+                end = lines;
+                line.clear();
+            }
+        }
+        let valid_bytes = valid.len();
+        chunk.drain(..valid_bytes);
+        pending_line = !complete;
+        if !complete {
+            continue;
+        }
+
+        if (start..end).contains(&lines) {
+            let body = line
+                .strip_suffix("\r\n")
+                .or_else(|| line.strip_suffix('\n'));
+            let next = format!("{:>6}|{}\n", lines + 1, body.unwrap_or(&line));
+            if text.len() + next.len() <= MAX_READ_OUTPUT_BYTES {
+                text.push_str(&next);
+                shown = lines + 1;
+            } else {
+                oversized_first_line = shown == start;
+                end = lines;
+            }
+            line.clear();
+        }
+        lines += 1;
+        if count == 0 {
+            break;
+        }
+    }
+
+    if oversized_first_line {
+        return Err("单行内容超过读取输出上限".into());
+    }
+    if start > lines {
+        return Ok(if lines == 0 {
+            String::new()
+        } else {
+            format!("... {lines} lines not shown ...\n")
+        });
+    }
+    if shown < lines {
+        let remaining = lines - shown;
+        let next = shown + 1;
+        text.push_str(&format!(
+            "... {remaining} lines not shown; continue with offset {next} ...\n"
+        ));
+    }
+    Ok(text)
 }
 
 fn diff(path: &std::path::Path, before: &str, after: &str) -> String {

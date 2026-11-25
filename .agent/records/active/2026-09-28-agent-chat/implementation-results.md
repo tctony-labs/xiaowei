@@ -2,6 +2,14 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 后台 Bash 三工具（2026-11-25）
+
+第 7 批在 macOS 接入 BgRun、BgOutput 和 BgStop。以旧版 `d97d45b4` 的 Bash 后台分支、输出游标和回收规则为迁移参考。独立 BgRun 返回本次 ToolId 作为任务 ID，短命令退出后也保留该 ID。初始等候最多 2 秒。随后参考 Claude Code 2.1.327，把 stdout 和 stderr 在启动时接到同一个临时文件。增量读取使用独立文件偏移，文件大小由进程监控定期检查。工具行为和进程生命周期分别见 [runtime](../../../../crates/xw-agent-runtime/README.md#后台-bash) 与 [Agent core](../../../../crates/xw-agent/README.md)。
+
+Rust 回归用真实 shell 验证两个描述符指向同一文件、交错输出、增量、自然退出与退出码、文件超限回收、5 个活跃进程上限及子进程组回收。会话回归验证 Stop 只清当前 Run、删除与关闭回收任务、结果写入失败回收未交付任务、重开只还原历史，以及旧会话仅追加三条工具声明与一条规则。Agent addon 经正式 Gateway、worker 和 Pi provider 绑定本地模型 fixture 执行 BgRun → BgOutput → BgStop → Read，核对文件内容及 PID 退出。Rust 测试及 `just check` 通过。真实模型与产品窗口组合验收由 [04d](../../../plans/2026-09-28-agent-chat/04d-final-acceptance.md) 跟踪。
+
+输出边界回归用 68 KiB ASCII 日志校验跳过 4 KiB、读取 64 KiB、正文首尾各保留 3,750 字符及下次调用只返回新增内容。文件阈值回归校验恰好 128 MiB 时进程存活，再写 1 字节后报告失败并回收进程。 [后台 Bash 回归](../../../../crates/xw-agent-runtime/tests/background.rs)
+
 ## 桌面本地搜索（2026-11-25）
 
 桌面搜索入口和兜底工具的当前行为见 [Agent runtime](../../../../crates/xw-agent-runtime/README.md#本地搜索)，下载、资源路径和签名见 [macOS 打包](../../../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。

@@ -78,8 +78,22 @@ async fn foreground_output_exit_and_bounded_capture() {
         assert_eq!(metadata["bash"]["stderr_bytes"], stderr);
         assert_eq!(metadata["bash"]["truncated"], true);
         assert!(output.output.text.contains("truncated"));
-        assert!(output.output.text.chars().count() < 31000);
+        assert!(output.output.text.chars().count() < 7_700);
     }
+
+    let output = bash::execute(
+        root.path(),
+        PermissionMode::FullAccess,
+        &[],
+        &arguments("printf '甲%.0s' {1..4000}; printf '乙%.0s' {1..4000} >&2"),
+        CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    let (_, stdout_and_stderr) = output.output.text.split_once('\n').unwrap();
+    assert_eq!(stdout_and_stderr.matches('甲').count(), 8192 / 3);
+    assert_eq!(stdout_and_stderr.matches('乙').count(), 8192 / 3);
+    assert!(stdout_and_stderr.contains("output truncated at capture limit"));
 }
 
 #[tokio::test]

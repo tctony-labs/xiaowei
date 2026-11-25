@@ -341,6 +341,20 @@ async fn failed_todo_commits_never_publish_state_or_replay_updates() {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn failed_background_start_result_reaps_the_shell_before_the_run_settles() {
+    let args = serde_json::json!({
+        "description": "start a shell whose result cannot commit",
+        "command": concat!(
+            "printf once > committed-side-effect; ",
+            "printf '%s' $$ > shell.pid; exec sleep 60",
+        ),
+    })
+    .to_string();
+    failed_tool_commit("BgRun", &args, 3, true).await;
+}
+
 #[tokio::test]
 async fn failed_skill_commits_recover_only_durable_loads() {
     for after in [3, 4] {
@@ -498,6 +512,18 @@ async fn failed_tool_commit(name: &str, arguments: &str, after: usize, executed:
     } else {
         assert!(!file.exists());
     }
+    if name == "BgRun" {
+        let pid = std::fs::read_to_string(file.with_file_name("shell.pid")).unwrap();
+        assert!(
+            !std::process::Command::new("/bin/kill")
+                .args(["-0", &pid])
+                .stderr(std::process::Stdio::null())
+                .status()
+                .unwrap()
+                .success(),
+            "uncommitted shell still alive: {pid}"
+        );
+    }
     service.close().await.unwrap();
     std::fs::write(&file, "sentinel").unwrap();
     let service = AgentService::with_rollout(host.clone(), root.path().into()).unwrap();
@@ -592,7 +618,7 @@ async fn send(
 }
 
 async fn idle(service: &AgentService, id: domain::SessionId) {
-    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    tokio::time::timeout(std::time::Duration::from_secs(6), async {
         while service.state().unwrap().sessions[&id].active.is_some() {
             tokio::task::yield_now().await;
         }

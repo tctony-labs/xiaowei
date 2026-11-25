@@ -20,6 +20,8 @@ cargo test -p xw-agent-runtime --locked
 
 `tools::FileTools` 提供 Read／Write／Edit 的结构化声明和顺序执行原语：文本分页、行号、截断、已提交读取去重、覆盖写入／创建父目录、精确唯一替换及 replace_all。PDF 暂不支持。读取和路径解析沿用系统权限与 symlink 规则，写入范围由本 Run 的权限模式决定。
 
+Read 分块扫描最大 16 MiB 的 UTF-8 文本，验证编码并统计分页剩余行数。单次返回的带行号文本上限为 16 KiB，续读提示另计。如果本页第一行放不下，返回单行超限错误。
+
 Write／Edit 和 Bash 共用 `PermissionMode`。在 `Interactive` 与 `UnattendedWorkspace` 下，工作目录、`/tmp`、`/private/tmp`、`~/tmp` 和已有会话授权可写。cwd 为 home 或其祖先时不开放整棵目录，工作区内 `.git` 不额外禁写。只有 `Interactive` 可发起权限申请。 `FullAccess` 跳过上述路径范围限制，读写仍受系统与当前用户权限约束。
 
 `tools::interactive` 提供 AskUserQuestion／RequestPermission 的声明、严格参数解析、回答校验及结果格式化。问题支持最多 12 个索引选项、单选／多选和自由文字；权限目标须为绝对路径或 `~/` 路径，复用真实路径与 symlink 解析并核对现存目标类型。等待、决定和持久授权由 xw-agent 管理，本包不持有交互状态。批准后调用方通过 `FileTools::set_grants` 更新授权并保留 Read 去重。
@@ -52,6 +54,14 @@ Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与
 
 桌面宿主可以通过绝对路径 `XIAOWEI_AGENT_BIN_DIR` 指定随应用提供的工具目录。Bash 将该目录加入子进程 `PATH` 的首项，其余路径仍有原来的查找顺序。开发缓存和 App 资源路径见[桌面打包说明](../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。
 
-stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
+stdout／stderr 并行排空，各保留 8 KiB。合并时 stdout 在前，stderr 在后。正文最多保留 7,500 字符，截断提示另计。metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
 
 取消与超时对独立进程组发送 SIGTERM，500 毫秒后回收已退出 shell 并发送 SIGKILL；正常 shell 退出也清理同组残留子进程，确认进程组消失并收完输出后才返回。无法确认回收或输出结果时返回 `BashError::ResultUnknown`，由 core 记录未知结果与错误原因、跳过余下未执行工具并结束当前 Run；后续用户消息可继续，不自动重放旧调用。进程组清理不承诺管理主动脱离进程组的 daemon。
+
+### 后台 Bash
+
+macOS 会话可以用 `BgRun(command, description)` 启动后台 shell。它沿用前台 Bash 的工作目录、沙箱、环境、命令检查和进程组回收。启动后最多等待 2 秒收集首批输出，短命令可以直接返回退出码。每次启动生成的 `bash_id` 只在当前会话实例内使用，每会话最多同时运行 5 个 shell。
+
+后台进程的 stdout 和 stderr 直接写入同一个匿名临时文件，按实际写入文件的次序合并。运行期间定期检查文件大小，发现超过 128 MiB 时停止进程组并返回失败。临时文件随任务记录释放。
+
+`BgOutput(bash_id)` 按字节偏移返回新增输出和当前状态。单次读取最多取最近 64 KiB 未读原始输出，超过时报告跳过的字节数。正文最多保留 7,500 个字符，截断提示另计。`BgStop(bash_id)` 等待进程组回收并返回终态，剩余输出仍可用 BgOutput 读取。每次启动时会清理超出最近 20 个的已完成任务记录。会话归属和重开行为见 [Agent core](../xw-agent/README.md)。

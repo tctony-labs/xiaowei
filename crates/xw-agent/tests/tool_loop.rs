@@ -1194,7 +1194,7 @@ async fn real_files_results_and_multiple_turns_survive_reopen_without_reexecutio
         };
         let mut expected = vec!["Read", "Write", "Edit"];
         if cfg!(target_os = "macos") {
-            expected.push("Bash");
+            expected.extend(["Bash", "BgRun", "BgOutput", "BgStop"]);
         }
         expected.extend([
             "Glob",
@@ -1806,6 +1806,162 @@ mod bash {
     }
 
     #[tokio::test]
+    async fn stop_cleans_only_the_current_run_and_delete_cleans_the_session() {
+        let root = tempfile::tempdir().unwrap();
+        let first = serde_json::json!({
+            "description": "start the first shell",
+            "command": "printf '%s' $$ > first.pid; exec sleep 60",
+        })
+        .to_string();
+        let second = serde_json::json!({
+            "description": "start the second shell",
+            "command": "printf '%s' $$ > child.pid; exec sleep 60",
+        })
+        .to_string();
+        let host = Host::new(vec![
+            message(&[("BgRun", &first)], ""),
+            message(&[], "first shell is running"),
+            message(&[("BgRun", &second)], ""),
+            message(
+                &[(
+                    "AskUserQuestion",
+                    r#"{"question":"Continue?","options":[]}"#,
+                )],
+                "",
+            ),
+        ]);
+        let service = AgentService::open(host, root.path().into()).await.unwrap();
+        let session = create(&service, None).await;
+        let cwd = Path::new(session.cwd.as_ref().unwrap());
+        let previous = run(&service, &session).await;
+        assert_eq!(previous.status, AgentRunStatus::Completed as i32);
+        let first_pid = std::fs::read_to_string(cwd.join("first.pid")).unwrap();
+
+        let mut events = service
+            .subscribe_session(SubscribeSessionRequest {
+                session_id: session.session_id.clone(),
+            })
+            .await
+            .unwrap();
+        let active = start(&service, &session).await;
+        let second_pid = child_pid(cwd).await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(agent_event::Payload::InteractionUpdated(update)) =
+                    events.recv().await.unwrap().unwrap().payload
+                    && update.run_id == active.run_id
+                {
+                    break;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            service
+                .interrupt_run(InterruptRunRequest {
+                    session_id: session.session_id.clone(),
+                    run_id: active.run_id,
+                })
+                .unwrap()
+                .cancellation_requested
+        );
+        let stopped = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Some(agent_event::Payload::RunCompleted(end)) =
+                    events.recv().await.unwrap().unwrap().payload
+                {
+                    break end.run.unwrap();
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(stopped.status, AgentRunStatus::Interrupted as i32);
+        assert_eq!(tools(&stopped)[0].status, AgentToolStatus::Completed as i32);
+        assert_child_gone(&second_pid);
+        assert!(
+            std::process::Command::new("/bin/kill")
+                .args(["-0", &first_pid])
+                .status()
+                .unwrap()
+                .success()
+        );
+
+        let current = service
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: false,
+            })
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        let deleted = service
+            .delete_session(DeleteSessionRequest {
+                targets: vec![DeleteSessionTarget {
+                    session_id: session.session_id,
+                    expected_metadata_revision: current.metadata_revision,
+                    expected_archive_revision: None,
+                }],
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            deleted.results[0].status,
+            DeleteSessionStatus::Deleted as i32
+        );
+        assert_child_gone(&first_pid);
+        service.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn close_reaps_the_shell_and_reopen_never_reattaches_its_id() {
+        let root = tempfile::tempdir().unwrap();
+        let command = serde_json::json!({
+            "description": "start the shell",
+            "command": "printf '%s' $$ > child.pid; exec sleep 60",
+        })
+        .to_string();
+        let host = Host::new(vec![
+            message(&[("BgRun", &command)], ""),
+            message(&[], "started"),
+        ]);
+        let service = AgentService::open(host, root.path().into()).await.unwrap();
+        let session = create(&service, None).await;
+        let end = run(&service, &session).await;
+        let shell = tools(&end)[0];
+        assert!(shell.output.contains("status=running"));
+        let pid = child_pid(Path::new(session.cwd.as_ref().unwrap())).await;
+        service.close().await.unwrap();
+        assert_child_gone(&pid);
+
+        let arguments = serde_json::json!({"bash_id": shell.tool_id}).to_string();
+        let host = Host::new(vec![
+            message(&[("BgOutput", &arguments)], ""),
+            message(&[], "checked old ID"),
+        ]);
+        let reopened = AgentService::open(host.clone(), root.path().into())
+            .await
+            .unwrap();
+        let restored = reopened
+            .read_session(ReadSessionRequest {
+                session_id: session.session_id.clone(),
+                include_runs: true,
+            })
+            .await
+            .unwrap()
+            .session
+            .unwrap();
+        assert_eq!(tools(&restored.runs[0])[0], shell);
+        assert!(host.requests.lock().unwrap().is_empty());
+        let end = run(&reopened, &session).await;
+        assert!(tools(&end)[0].output.contains("找不到该后台 shell"));
+        assert_child_gone(&pid);
+        reopened.close().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn permission_mode_updates_execution_and_context_between_runs_and_restores() {
         let root = tempfile::tempdir().unwrap();
         let home = std::env::var_os("HOME").unwrap();
@@ -2413,7 +2569,7 @@ mod bash {
     }
 
     #[tokio::test]
-    async fn file_only_sessions_receive_only_new_tools_once() {
+    async fn sessions_from_before_background_tools_receive_only_new_tools_once() {
         let root = tempfile::tempdir().unwrap();
         let host = Host::new(vec![message(&[], "first"); 4]);
         let service = AgentService::open(host.clone(), root.path().into())
@@ -2424,17 +2580,15 @@ mod bash {
         service.close().await.unwrap();
         let path = journal_path(root.path());
         let mut saved = entries(root.path());
-        // Model a session written by the previous file-only registry.
+        // Model a session written by the registry before background tools.
         for entry in &mut saved {
             if let EntryPayload::SystemContext(SystemContextUpdate::Baseline(context)) =
                 &mut entry.payload
             {
                 context
                     .tools
-                    .retain(|t| !matches!(t.name.as_str(), "Bash" | "Glob" | "Grep"));
-                for name in ["tool.Bash", "tool.Glob", "tool.Grep"] {
-                    context.instructions.remove(name);
-                }
+                    .retain(|t| !matches!(t.name.as_str(), "BgRun" | "BgOutput" | "BgStop"));
+                context.instructions.remove("tool.BgRun");
             }
         }
         let original = encode_history(&saved).unwrap();
@@ -2473,7 +2627,7 @@ mod bash {
                 .iter()
                 .map(|t| t.name.as_str())
                 .collect::<Vec<_>>(),
-            ["Bash", "Glob", "Grep"]
+            ["BgOutput", "BgRun", "BgStop"]
         );
         assert_eq!(
             delta
@@ -2481,7 +2635,7 @@ mod bash {
                 .keys()
                 .map(String::as_str)
                 .collect::<Vec<_>>(),
-            ["tool.Bash", "tool.Glob", "tool.Grep"]
+            ["tool.BgRun"]
         );
         assert!(delta.tools_removed.is_empty());
         assert!(delta.instructions_removed.is_empty());
