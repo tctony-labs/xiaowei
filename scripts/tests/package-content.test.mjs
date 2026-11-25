@@ -45,6 +45,10 @@ async function fixture(
   const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
   await mkdir(dirname(inspect), { recursive: true });
   await writeFile(inspect, "native CLI fixture", { mode: 0o755 });
+  await writeFile(join(dirname(inspect), "rg"), "rg fixture", { mode: 0o755 });
+  const licenses = join(app, "Contents/Resources/licenses/ripgrep");
+  await mkdir(licenses, { recursive: true });
+  for (const name of ["LICENSE-MIT", "UNLICENSE"]) await writeFile(join(licenses, name), "license");
   return { app, archive, files };
 }
 
@@ -64,6 +68,16 @@ test("missing, non-executable or linked inspect CLI fails package acceptance", a
   await writeFile(external, "external", { mode: 0o755 });
   await symlink(external, inspect);
   assert.throws(() => verifyPackageContent(app), /Missing executable inspect CLI/);
+});
+
+test("package acceptance requires executable rg and its licenses", async (t) => {
+  const { app } = await fixture(t);
+  const binary = join(app, "Contents/Resources/bin/rg");
+  await chmod(binary, 0o644);
+  assert.throws(() => verifyPackageContent(app), /Missing executable rg/);
+  await chmod(binary, 0o755);
+  await rm(join(app, "Contents/Resources/licenses/ripgrep/LICENSE-MIT"));
+  assert.throws(() => verifyPackageContent(app), /Missing ripgrep license: LICENSE-MIT/);
 });
 
 for (const path of [

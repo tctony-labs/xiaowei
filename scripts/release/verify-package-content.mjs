@@ -6,10 +6,18 @@ import { extractFile, listPackage, statFile } from "@electron/asar";
 export const nativePackages = ["xiaowei-agent", "xiaowei-rust"];
 
 export function verifyPackageContent(app) {
-  const inspect = join(app, "Contents/Resources/bin/xiaowei-inspect");
-  const binary = lstatSync(inspect, { throwIfNoEntry: false });
-  if (!binary?.isFile() || (binary.mode & 0o100) === 0) {
-    throw new Error("Missing executable inspect CLI in App Resources/bin");
+  for (const name of ["xiaowei-inspect", "rg"]) {
+    const binary = lstatSync(join(app, "Contents/Resources/bin", name), { throwIfNoEntry: false });
+    if (!binary?.isFile() || (binary.mode & 0o100) === 0) {
+      const label = name === "xiaowei-inspect" ? "inspect CLI" : "rg";
+      throw new Error(`Missing executable ${label} in App Resources/bin`);
+    }
+  }
+  for (const name of ["LICENSE-MIT", "UNLICENSE"]) {
+    const license = lstatSync(join(app, "Contents/Resources/licenses/ripgrep", name), {
+      throwIfNoEntry: false,
+    });
+    if (!license?.isFile()) throw new Error(`Missing ripgrep license: ${name}`);
   }
   const archive = join(app, "Contents/Resources/app.asar");
   const required = new Set([
@@ -84,7 +92,7 @@ export function verifyPackageContent(app) {
   verifyUnpacked(`${archive}.unpacked`);
   if (unpacked.size) throw new Error(`Missing unpacked files: ${[...unpacked].join(", ")}`);
   console.info(
-    `Packaged content verified: ${files.length} ASAR files, two native packages and inspect CLI`,
+    `Packaged content verified: ${files.length} ASAR files, native packages, inspect CLI and rg`,
   );
   return files;
 }

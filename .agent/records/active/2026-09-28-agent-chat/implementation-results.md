@@ -2,6 +2,14 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 桌面本地搜索（2026-11-25）
+
+桌面搜索入口和兜底工具的当前行为见 [Agent runtime](../../../../crates/xw-agent-runtime/README.md#本地搜索)，下载、资源路径和签名见 [macOS 打包](../../../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。
+
+- `just check`、Agent core 和 runtime 的 Rust 回归、Agent NAPI 工具循环及打包工具回归通过。并行 Grep 回归覆盖多文件共享输出上限、取消和错误分类。
+- 本地 macOS arm64 ad-hoc App 构建及包内容检查通过。使用不含系统 rg 的 PATH，从沙箱 Bash 分别调用开发缓存和 App 包中的 rg，两者都完成了内容和文件路径搜索。
+- Hermes 的真实 Quick Chat 上，模型在常规查找中主动使用包版本一致的开发缓存 rg。第二轮显式调用内置工具，Glob 按深度过滤目录，Grep 返回同一命中行，并对不存在的路径给出明确错误。两轮都完成，临时测试文件已清理。
+
 ## Run 反馈与工具详情布局（2026-11-20）
 
 模型等待时在回复末尾显示三点。过程组改用左侧展开三角，组内步骤缩进 4 px。思考行复用思考强度图标，展开正文使用灰底和上下 2 px、左右 6 px 的内边距。网页工具、清单和交互内容的滚动规则见 [Quick Chat](../../../../desktop/docs/chat-ui.md#输入消息与会话操作)。两种网页工具的结果复制按钮和工具行鼠标悬停底色已移除。

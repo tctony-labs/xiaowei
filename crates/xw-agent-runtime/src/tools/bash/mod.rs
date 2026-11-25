@@ -1,7 +1,7 @@
 //! Foreground Bash. Process ownership stays here; journal ownership stays in core.
 mod sandbox;
 
-use std::{path::Path, process::Stdio, sync::OnceLock, time::Duration};
+use std::{env, path::Path, process::Stdio, sync::OnceLock, time::Duration};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -86,6 +86,21 @@ pub async fn execute(
         sandbox::command(cwd, mode, grants, &args.command).map_err(BashError::NotStarted)?;
     if cancellation.is_cancelled() {
         return Err(not_started("运行已停止，命令未执行"));
+    }
+    if let Some(directory) = env::var_os("XIAOWEI_AGENT_BIN_DIR")
+        && Path::new(&directory).is_absolute()
+    {
+        let inherited = env::var_os("PATH");
+        let paths = std::iter::once(directory.into())
+            .chain(inherited.as_deref().into_iter().flat_map(env::split_paths));
+        match env::join_paths(paths) {
+            Ok(path) => {
+                command.env("PATH", path);
+            }
+            Err(error) => {
+                log::warn!("Unable to prepend the embedded Agent command directory: {error}")
+            }
+        }
     }
     command.current_dir(cwd).kill_on_drop(true);
     #[cfg(unix)]

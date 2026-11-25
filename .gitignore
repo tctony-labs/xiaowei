@@ -5,6 +5,7 @@ desktop/out/
 desktop/out-test/
 desktop/dist/
 desktop/.sparkle/
+desktop/.embedded/
 server/bin/
 desktop/.rs
 coverage/

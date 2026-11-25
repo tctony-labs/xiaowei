@@ -30,11 +30,27 @@ Write／Edit 和 Bash 共用 `PermissionMode`。在 `Interactive` 与 `Unattende
 
 Skill 的成功结果只返回加载摘要和 `metadata_json.skill` 的名称、目录、hash 与重复加载标识；正文由 core 按已提交结果写入系统上下文，不作为普通工具输出展示。引用文件和脚本仍通过已有 Read／Bash 按真实文件内容读取或执行，不由 Skill 自动执行或授予权限。技能是否已加载、正文更新、撤销及持久恢复均由 core 管理。
 
-`tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 使用 globset／walkdir，自动补 `**/`，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore；只保留修改时间最新的 500 个文件，返回绝对路径，不跟随目录 symlink。Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行；目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 沿用旧版文件类型筛选解释，适用于 `*.rs`、`*.{ts,tsx}` 等表达式；显式文件目标不应用目录忽略或 include 筛选。Grep 不对文件顺序额外排序，最多返回 5000 个匹配行。
+## 本地搜索
+
+有 Bash 时，Agent 用 `rg` 搜内容、用 `rg --files -g '模式'` 查文件。rg 的退出码 1 表示没有匹配。在 Bash 或 rg 不可用时，Agent 可以继续用内置 Grep／Glob。按目录名找目录时，直接用 Glob 的目录模式。
+
+例如，下面的 Glob 参数从会话工作目录查找深度不超过两层的 `demo-project` 目录，空目录也会返回。
+
+```json
+{"pattern":"demo-project","type":"directory","max_depth":2}
+```
+
+`tools::search_declarations()` 提供 Glob／Grep，复用同一 FileTools 与 cwd 路径解析，读取仍受操作系统权限约束。Glob 默认查文件，`type: "directory"` 查目录，`max_depth` 从搜索根计算，直接子项深度为 1。Glob 使用 globset／walkdir，自动补 `**/`，`*` 可跨路径分隔符，跳过 node_modules／target 和未在 pattern 点名的隐藏段，不应用 gitignore。返回按修改时间从新到旧的最多 500 个绝对路径，不跟随目录 symlink。
+
+Grep 使用 grep-regex／grep-searcher／ignore，返回绝对路径、行号与匹配行。目录遍历和内容搜索并行执行，每个线程复用搜索器，所有线程共享输出上限和取消信号。目录搜索沿用 ignore 库的 `.ignore`／Git 忽略规则和默认隐藏过滤，include 类型白名单可放行匹配的隐藏文件。include 适用于 `*.rs`、`*.{ts,tsx}` 等文件类型表达式。显式文件目标直接搜索，目标不存在时返回路径错误。Grep 按并行搜索发现的顺序返回，最多返回 5000 个匹配行。
 
 两种搜索的文本输出不超过 64 KiB；数量或字节超限时明确提示缩小范围，单行超长按 UTF-8 边界截断。遍历／文件读取错误按旧版跳过，结果正文与 metadata 标明跳过数量和可能不完整，不能把此时的无匹配当作完整检查。非法参数／模式返回工具错误。`execute_cancellable(name, arguments, cancellation)` 在阻塞池中执行；搜索在遍历及流式读取阶段检查取消，调用方等待实际结束再提交 Cancelled，不在取消后继续生成。原有 execute 入口保留，Read／Write／Edit 已开始的操作仍按实际结果结算。搜索 metadata 包含 matches／shown、truncated 与 skipped_errors；Grep 截断时 matches 是已显示的下界，不是完整匹配总数。
 
+## Bash
+
 `tools::bash::declaration()` 仅在 macOS 提供 Bash 声明，异步 `execute(cwd, mode, grants, arguments, cancellation)` 返回 `BashOutcome`。参数为必填 description／command 与可选 timeout_ms，默认 30 秒，限制到 100 毫秒至 600 秒。受限模式通过绝对路径 `/usr/bin/sandbox-exec` 启动 `/bin/bash -c`，用 [Seatbelt](../xw-sandboxed-exec/README.md) 落实文件写入范围。授权更新适用于下一次 Bash 调用。`FullAccess` 直接启动 `/bin/bash -c`。各模式沿用命令拦截、联网、环境继承和前台执行规则，stdin 关闭。其他平台不注册 Bash，直接执行入口返回不支持错误。
+
+桌面宿主可以通过绝对路径 `XIAOWEI_AGENT_BIN_DIR` 指定随应用提供的工具目录。Bash 将该目录加入子进程 `PATH` 的首项，其余路径仍有原来的查找顺序。开发缓存和 App 资源路径见[桌面打包说明](../../desktop/docs/macos-packaging-and-updates.md#agent-命令行工具)。
 
 stdout／stderr 并行排空，各保留 32 KiB；合并后最多保留 30000 字符并标注首尾截断，metadata 保存实际输出字节数、退出码、耗时、截断、超时与取消状态。普通非零退出仍是带退出码的成功工具结果；参数／启动错误、检测到沙箱拒绝、超时或取消形成错误。沙箱初始化失败时报告启动错误。`Interactive` 的沙箱写入拒绝提示可针对目标路径调用 `RequestPermission`。
 

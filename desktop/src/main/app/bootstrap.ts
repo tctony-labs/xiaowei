@@ -119,6 +119,7 @@ export function startApplication(moduleDir: string): void {
     const nativeLog = createNativeLogSink(logs.main);
     initializeLogging(!app.isPackaged, nativeLog);
     initializeAgentLogging(!app.isPackaged, nativeLog);
+    if (app.isPackaged) process.env.XIAOWEI_AGENT_BIN_DIR = join(process.resourcesPath, "bin");
     app.on("web-contents-created", (_event, contents) => {
       if (contents.getType() === "window") attachRendererLogging(contents, logs.renderer);
     });

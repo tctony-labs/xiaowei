@@ -109,6 +109,8 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 ## Outcome
 
+2026-11-25，桌面已接入随包提供的 ripgrep，Glob 目录查找和 Grep 并行搜索已完成验收。[搜索验收结果](2026-09-28-agent-chat/implementation-results.md#桌面本地搜索2026-11-25)记录了打包和真实 Quick Chat 测试。
+
 2026-11-22，用户撤销 02l 的辅助标题生成持久记录。标题模型调用沿用运行日志，标题和自动生成开关保存在 SQLite。自动生成触发轮次与正文取样见[标题维护边界](2026-09-28-agent-chat/runtime-ui.md#标题维护边界)。Rust 持久会话回归验证第 5 轮后重开并在第 6 轮触发，正式 addon 与 worker 集成验证模型请求只带最近 5 个符合条件的轮次。
 
 自动标题节奏收敛为最近一页内距上次成功满 3 个有效轮次触发。SQLite 保存标题和开关，JSONL 只保留生成成功的 Run ID 和轮次。Rust 回归验证重开、重新开启、隔 3 轮尝试和失败后下一轮重试；故障注入验证 JSONL 部分写入失败后保留标题并恢复下一轮。正式 addon 与 worker 集成、Clippy、`just check` 均通过，当前工作区 Electron 已加载新模块。写入失败边界与读取兼容性见[标题生成成功记录](2026-09-28-agent-chat/history-format.md#标题生成成功记录)。
