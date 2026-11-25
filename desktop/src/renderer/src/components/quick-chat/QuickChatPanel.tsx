@@ -7,7 +7,10 @@ import type {
 } from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
-import QuickChatTitleBar, { type QuickChatSessionItem } from "./QuickChatTitleBar";
+import QuickChatTitleBar, {
+  type QuickChatSessionItem,
+  type QuickChatTitleBarHandle,
+} from "./QuickChatTitleBar";
 import { QuickChatTransition } from "./QuickChatTransition";
 
 export interface QuickChatMessage {
@@ -64,6 +67,7 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
 
 // No sessions, persistence or Gateway connection here: the page adapter owns the conversation.
 export function QuickChatPanel(props: QuickChatPanelProps) {
+  const titleBar = useRef<QuickChatTitleBarHandle>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const scroll = useRef<HTMLElement>(null);
@@ -130,6 +134,18 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   function newConversation() {
     props.onNewConversation();
     composer.current?.focus();
+  }
+
+  async function openMessageLink(url: string) {
+    const session = scrollSession.current;
+    try {
+      await props.onOpenMessageUrl(url);
+    } catch {
+      console.warn("Agent chat link open failed");
+      if (scrollSession.current === session) {
+        titleBar.current?.showErrorToast("链接打开失败，请重试。");
+      }
+    }
   }
 
   const input = (
@@ -237,6 +253,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         {(animating) => (
           <div className="flex h-full min-h-0 flex-col">
             <QuickChatTitleBar
+              ref={titleBar}
               convId={props.sessionId ?? null}
               title={title}
               autoTitle={false}
@@ -307,7 +324,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         generation={message.generation}
                         finalResponseBlockIds={message.finalResponseBlockIds}
                         onCopy={props.onCopyMessageText}
-                        onOpenUrl={props.onOpenMessageUrl}
+                        onOpenUrl={openMessageLink}
                         interactions={props.interactions}
                       />
                     </article>

@@ -26,6 +26,7 @@ import {
 import { afterEach, expect, test } from "vitest";
 import { bindEvent, bindHandlers } from "xiaowei-gateway";
 import { createServices } from "../../services";
+import { AgentMarkdown } from "../agent-chat/AgentMarkdown";
 import { AgentChatClient } from "../agent-chat/client";
 import { agentIdentity } from "../agent-chat/identity";
 import { agentFixture } from "../agent-chat/test-fixture";
@@ -250,6 +251,42 @@ test("message copy and links use typed System calls and propagate host failures"
   await expect(result.current.onOpenMessageUrl("https://example.com")).rejects.toThrow();
   expect(copied).toEqual([source]);
   expect(opened).toEqual(["https://example.com/docs"]);
+});
+
+test("Markdown source links reach the typed file opener with their location intact", async () => {
+  const app = fixture();
+  const links: string[] = [];
+  app.host.registerOwner(
+    "chat-system",
+    bindHandlers(
+      System,
+      {
+        openFileLink(request) {
+          links.push(request.href);
+          return create(EmptySchema);
+        },
+      },
+      { partial: true },
+    ),
+  );
+
+  function Reply() {
+    const chat = useQuickChat(app.services);
+    return (
+      <AgentMarkdown
+        text={"[WAV](/tmp/wav_pcm_header.h#L19) [File](file:///tmp/source%20file.m:21)"}
+        onCopy={chat.onCopyMessageText}
+        onOpenUrl={chat.onOpenMessageUrl}
+      />
+    );
+  }
+
+  render(<Reply />);
+  fireEvent.click(screen.getByRole("link", { name: "WAV" }));
+  fireEvent.click(screen.getByRole("link", { name: "File" }));
+  await waitFor(() =>
+    expect(links).toEqual(["/tmp/wav_pcm_header.h#L19", "file:///tmp/source%20file.m:21"]),
+  );
 });
 
 test("the product Panel renders and copies final Markdown via System", async () => {

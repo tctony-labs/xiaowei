@@ -1104,6 +1104,23 @@ impl ::prost::Name for LocalPathRequest {
         "/xiaowei.desktop.LocalPathRequest".into()
     }
 }
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct OpenFileLinkRequest {
+    /// An absolute local path or local file URL, optionally ending in a one-based
+    /// #L<line> or :<line> suffix.
+    #[prost(string, tag = "1")]
+    pub href: ::prost::alloc::string::String,
+}
+impl ::prost::Name for OpenFileLinkRequest {
+    const NAME: &'static str = "OpenFileLinkRequest";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.OpenFileLinkRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.OpenFileLinkRequest".into()
+    }
+}
 /// Notification only, delivered to the destination settings window. The host
 /// retains the latest pending anchor until that window consumes it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1843,6 +1860,70 @@ impl ::prost::Name for ShortcutConfiguration {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CustomEditor {
+    /// Shell command template for a file without a source location. Requires %file.
+    #[prost(string, tag = "1")]
+    pub open_file: ::prost::alloc::string::String,
+    /// Shell command template for a source location. Requires %file and %line.
+    #[prost(string, tag = "2")]
+    pub open_at_line: ::prost::alloc::string::String,
+}
+impl ::prost::Name for CustomEditor {
+    const NAME: &'static str = "CustomEditor";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.CustomEditor".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.CustomEditor".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct EditorPreference {
+    #[prost(enumeration = "EditorPreset", tag = "1")]
+    pub selected: i32,
+    /// Retained when a built-in editor is selected. Required when selected is CUSTOM.
+    #[prost(message, optional, tag = "2")]
+    pub custom: ::core::option::Option<CustomEditor>,
+}
+impl ::prost::Name for EditorPreference {
+    const NAME: &'static str = "EditorPreference";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.EditorPreference".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.EditorPreference".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct UpdateEditorPreference {
+    #[prost(oneof = "update_editor_preference::Choice", tags = "1, 2")]
+    pub choice: ::core::option::Option<update_editor_preference::Choice>,
+}
+/// Nested message and enum types in `UpdateEditorPreference`.
+pub mod update_editor_preference {
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Choice {
+        /// Selects a built-in editor and retains the saved custom commands.
+        #[prost(enumeration = "super::EditorPreset", tag = "1")]
+        Preset(i32),
+        /// Saves the two commands and selects the custom editor in the same update.
+        #[prost(message, tag = "2")]
+        Custom(super::CustomEditor),
+    }
+}
+impl ::prost::Name for UpdateEditorPreference {
+    const NAME: &'static str = "UpdateEditorPreference";
+    const PACKAGE: &'static str = "xiaowei.desktop";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.desktop.UpdateEditorPreference".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.desktop.UpdateEditorPreference".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SettingsSnapshot {
     #[prost(enumeration = "ThemeMode", tag = "1")]
     pub theme: i32,
@@ -1861,6 +1942,9 @@ pub struct SettingsSnapshot {
     pub clipboard_retention_days: i32,
     #[prost(message, optional, tag = "8")]
     pub web_search: ::core::option::Option<WebSearchSettings>,
+    /// Absent uses the operating system's default application.
+    #[prost(message, optional, tag = "9")]
+    pub source_editor: ::core::option::Option<EditorPreference>,
 }
 impl ::prost::Name for SettingsSnapshot {
     const NAME: &'static str = "SettingsSnapshot";
@@ -1893,7 +1977,7 @@ pub struct UpdateSettingsRequest {
     /// Exactly one setting changes. Unknown themes and unsupported retention values are rejected.
     #[prost(
         oneof = "update_settings_request::Change",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10"
     )]
     pub change: ::core::option::Option<update_settings_request::Change>,
 }
@@ -1921,6 +2005,8 @@ pub mod update_settings_request {
         WebSearchProvider(i32),
         #[prost(message, tag = "9")]
         WebSearchApiKey(super::WebSearchApiKeyUpdate),
+        #[prost(message, tag = "10")]
+        SourceEditor(super::UpdateEditorPreference),
     }
 }
 impl ::prost::Name for UpdateSettingsRequest {
@@ -1996,6 +2082,62 @@ impl ThemeMode {
             "THEME_MODE_SYSTEM" => Some(Self::System),
             "THEME_MODE_LIGHT" => Some(Self::Light),
             "THEME_MODE_DARK" => Some(Self::Dark),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum EditorPreset {
+    Unspecified = 0,
+    System = 1,
+    VsCode = 2,
+    Cursor = 3,
+    Zed = 4,
+    Textmate = 5,
+    Bbedit = 6,
+    Emacs = 7,
+    MacVim = 8,
+    SublimeText = 9,
+    Nova = 10,
+    Custom = 11,
+}
+impl EditorPreset {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "EDITOR_PRESET_UNSPECIFIED",
+            Self::System => "EDITOR_PRESET_SYSTEM",
+            Self::VsCode => "EDITOR_PRESET_VS_CODE",
+            Self::Cursor => "EDITOR_PRESET_CURSOR",
+            Self::Zed => "EDITOR_PRESET_ZED",
+            Self::Textmate => "EDITOR_PRESET_TEXTMATE",
+            Self::Bbedit => "EDITOR_PRESET_BBEDIT",
+            Self::Emacs => "EDITOR_PRESET_EMACS",
+            Self::MacVim => "EDITOR_PRESET_MAC_VIM",
+            Self::SublimeText => "EDITOR_PRESET_SUBLIME_TEXT",
+            Self::Nova => "EDITOR_PRESET_NOVA",
+            Self::Custom => "EDITOR_PRESET_CUSTOM",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EDITOR_PRESET_UNSPECIFIED" => Some(Self::Unspecified),
+            "EDITOR_PRESET_SYSTEM" => Some(Self::System),
+            "EDITOR_PRESET_VS_CODE" => Some(Self::VsCode),
+            "EDITOR_PRESET_CURSOR" => Some(Self::Cursor),
+            "EDITOR_PRESET_ZED" => Some(Self::Zed),
+            "EDITOR_PRESET_TEXTMATE" => Some(Self::Textmate),
+            "EDITOR_PRESET_BBEDIT" => Some(Self::Bbedit),
+            "EDITOR_PRESET_EMACS" => Some(Self::Emacs),
+            "EDITOR_PRESET_MAC_VIM" => Some(Self::MacVim),
+            "EDITOR_PRESET_SUBLIME_TEXT" => Some(Self::SublimeText),
+            "EDITOR_PRESET_NOVA" => Some(Self::Nova),
+            "EDITOR_PRESET_CUSTOM" => Some(Self::Custom),
             _ => None,
         }
     }

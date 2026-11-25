@@ -1,19 +1,13 @@
-import {
-  Children,
-  createContext,
-  isValidElement,
-  type ReactNode,
-  useContext,
-  useState,
-} from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import { Children, createContext, isValidElement, type ReactNode, useContext } from "react";
+import ReactMarkdown, { type Components, defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { isLocalFileLink } from "../../../../shared/local-file-link";
 import { AgentCopyButton } from "./AgentCopyButton";
 
 interface AgentMarkdownProps {
   text: string;
   onCopy: (text: string) => Promise<void>;
-  onOpenUrl: (url: string) => Promise<void>;
+  onOpenUrl: (url: string) => void;
   streaming?: boolean;
 }
 
@@ -73,30 +67,17 @@ const markdownComponents: Components = {
 };
 
 export function AgentMarkdown({ text, onCopy, onOpenUrl, streaming = false }: AgentMarkdownProps) {
-  const [linkError, setLinkError] = useState(false);
-
-  async function openUrl(url: string) {
-    setLinkError(false);
-    try {
-      await onOpenUrl(url);
-    } catch {
-      console.warn("Agent chat link open failed");
-      setLinkError(true);
-    }
-  }
-
   return (
     <div className="agent-markdown" data-streaming={streaming || undefined} aria-busy={streaming}>
-      <MarkdownActions.Provider value={{ onCopy, onOpenUrl: (url) => void openUrl(url) }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      <MarkdownActions.Provider value={{ onCopy, onOpenUrl }}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={markdownComponents}
+          urlTransform={(href) => (isLocalFileLink(href) ? href : defaultUrlTransform(href))}
+        >
           {text}
         </ReactMarkdown>
       </MarkdownActions.Provider>
-      {linkError && (
-        <p role="alert" className="text-xs text-danger">
-          链接打开失败，请重试。
-        </p>
-      )}
     </div>
   );
 }

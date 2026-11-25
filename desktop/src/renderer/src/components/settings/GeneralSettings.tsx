@@ -1,23 +1,28 @@
+import type { EditorPreference, UpdateEditorPreference } from "proto-desktop-ts";
 import type { ReactNode } from "react";
 import SegmentedControl from "./SegmentedControl";
 import SettingCard from "./SettingCard";
 import SettingRow from "./SettingRow";
 import SettingsTabLayout from "./SettingsTabLayout";
+import { SourceEditorSettings } from "./SourceEditorSettings";
 import Toggle from "./Toggle";
 
 export interface GeneralValues {
   theme: "system" | "light" | "dark";
   autostart: boolean;
   bookmarks: boolean;
+  sourceEditor?: EditorPreference;
 }
 export function GeneralSettings({
   values,
   accountSection,
   onChange,
+  onSourceEditorChange,
 }: {
   values: GeneralValues;
   accountSection?: ReactNode;
   onChange: (values: GeneralValues) => void;
+  onSourceEditorChange: (value: UpdateEditorPreference) => Promise<boolean>;
 }) {
   return (
     <SettingsTabLayout title="通用">
@@ -51,6 +56,7 @@ export function GeneralSettings({
           />
         </SettingRow>
       </SettingCard>
+      <SourceEditorSettings value={values.sourceEditor} onChange={onSourceEditorChange} />
     </SettingsTabLayout>
   );
 }

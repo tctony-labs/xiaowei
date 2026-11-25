@@ -18,7 +18,7 @@ interface AgentMessageProps {
   generation?: AgentGenerationState;
   finalResponseBlockIds?: string[];
   onCopy: (text: string) => Promise<void>;
-  onOpenUrl: (url: string) => Promise<void>;
+  onOpenUrl: (url: string) => void;
   interactions?: InteractionControls;
 }
 

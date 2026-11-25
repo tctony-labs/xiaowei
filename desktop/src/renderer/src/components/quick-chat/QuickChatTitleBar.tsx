@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type Ref, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Modal, { ModalButton } from "../Modal";
 
 export interface QuickChatSessionItem {
@@ -13,7 +14,12 @@ export type QuickChatUnimplementedAction =
   | "archive"
   | "copyId";
 
+export interface QuickChatTitleBarHandle {
+  showErrorToast(text: string): void;
+}
+
 export interface QuickChatTitleBarProps {
+  ref?: Ref<QuickChatTitleBarHandle>;
   convId: string | null;
   title: string;
   autoTitle: boolean;
@@ -51,6 +57,7 @@ const iconButtonClass =
   "qc-dark:hover:bg-neutral-700 qc-dark:hover:text-neutral-100";
 
 export default function QuickChatTitleBar({
+  ref,
   convId,
   title,
   autoTitle,
@@ -94,8 +101,14 @@ export default function QuickChatTitleBar({
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [toast, setToast] = useState<{ text: string } | null>(null);
+  const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const [regenError, setRegenError] = useState<string | null>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({ showErrorToast: (text) => setToast({ text, error: true }) }),
+    [],
+  );
 
   const errorTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const currentSession = useRef(convId);
@@ -704,18 +717,27 @@ export default function QuickChatTitleBar({
           )}
         </div>
 
-        {toast && (
-          <div
-            role="status"
-            className={
-              "pointer-events-none absolute right-3 top-12 z-50 rounded-md bg-neutral-800 " +
-              "px-2.5 py-1 text-xs text-white shadow-lg qc-dark:bg-neutral-200 " +
-              "qc-dark:text-neutral-800"
-            }
-          >
-            {toast.text}
-          </div>
-        )}
+        {toast &&
+          (toast.error ? (
+            createPortal(
+              <div
+                role="alert"
+                className="pointer-events-none fixed left-1/2 top-[30px] z-50 -translate-x-1/2
+                  rounded-md border border-line bg-elevated px-2.5 py-1 text-xs text-danger shadow-lg"
+              >
+                {toast.text}
+              </div>,
+              document.body,
+            )
+          ) : (
+            <div
+              role="status"
+              className="pointer-events-none absolute right-3 top-12 z-50 rounded-md bg-neutral-800
+                px-2.5 py-1 text-xs text-white shadow-lg qc-dark:bg-neutral-200 qc-dark:text-neutral-800"
+            >
+              {toast.text}
+            </div>
+          ))}
         {regenError && (
           <div
             data-no-drag

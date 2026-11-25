@@ -97,6 +97,8 @@ pub mod xiaowei_desktop_system_service {
         xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenUrl", xw_gateway::MethodKind::Unary);
     pub const OPEN_PATH: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::LocalPathRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenPath", xw_gateway::MethodKind::Unary);
+    pub const OPEN_FILE_LINK: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::OpenFileLinkRequest, ()> =
+        xw_gateway::binding::Method::new("xiaowei.desktop.System.OpenFileLink", xw_gateway::MethodKind::Unary);
     pub const REVEAL_PATH: xw_gateway::binding::Method<proto_desktop_rs::xiaowei::desktop::LocalPathRequest, ()> =
         xw_gateway::binding::Method::new("xiaowei.desktop.System.RevealPath", xw_gateway::MethodKind::Unary);
     pub const CHECK_FOR_UPDATES: xw_gateway::binding::Method<(), ()> =

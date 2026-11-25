@@ -13,6 +13,57 @@ fn allow() -> Apply {
 }
 
 #[tokio::test]
+async fn source_editor_preference_persists_and_rejects_invalid_updates() {
+    use proto_desktop_rs::xiaowei::desktop::{
+        update_editor_preference::Choice, CustomEditor, EditorPreset, UpdateEditorPreference,
+    };
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("settings.sqlite");
+    let database = Arc::new(Database::open(&path).await.unwrap());
+    let settings = SettingsService::with_apply(database.clone(), "darwin".into(), allow());
+    assert!(settings.get().await.unwrap().source_editor.is_none());
+
+    let custom = CustomEditor {
+        open_file: "ecp %file".into(),
+        open_at_line: "ecp %file %line".into(),
+    };
+    for (choice, selected) in [
+        (Choice::Custom(custom.clone()), EditorPreset::Custom),
+        (Choice::Preset(EditorPreset::Zed as i32), EditorPreset::Zed),
+    ] {
+        let snapshot = settings
+            .update(UpdateSettingsRequest {
+                change: Some(Change::SourceEditor(UpdateEditorPreference {
+                    choice: Some(choice),
+                })),
+            })
+            .await
+            .unwrap();
+        let preference = snapshot.source_editor.unwrap();
+        assert_eq!(preference.selected(), selected);
+        assert_eq!(preference.custom, Some(custom.clone()));
+    }
+
+    let invalid = settings
+        .update(UpdateSettingsRequest {
+            change: Some(Change::SourceEditor(UpdateEditorPreference {
+                choice: Some(Choice::Preset(0)),
+            })),
+        })
+        .await;
+    assert!(matches!(invalid, Err(SettingsError::InvalidArgument(_))));
+    drop(settings);
+    database.close().await;
+
+    let reopened = Arc::new(Database::open(&path).await.unwrap());
+    let settings = SettingsService::with_apply(reopened, "darwin".into(), allow());
+    let saved = settings.get().await.unwrap().source_editor.unwrap();
+    assert_eq!(saved.selected(), EditorPreset::Zed);
+    assert_eq!(saved.custom, Some(custom));
+}
+
+#[tokio::test]
 async fn search_settings_keep_keys_private_and_refresh_even_when_redacted_values_are_equal() {
     use proto_desktop_rs::xiaowei::desktop::{
         GetWebSearchRuntimeConfigRequest, WebSearchApiKeyUpdate, WebSearchProvider as Provider,

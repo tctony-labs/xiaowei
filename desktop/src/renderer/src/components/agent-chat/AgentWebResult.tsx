@@ -1,10 +1,9 @@
 import { type AgentToolCall, AgentToolStatus } from "proto-desktop-ts";
-import { useState } from "react";
 import { isToolObject, parseToolJson } from "./tool-presentation";
 import { readWebSearch, webUrl } from "./web-presentation";
 
 export interface AgentWebLinkProps {
-  onOpenUrl?: (url: string) => Promise<void>;
+  onOpenUrl?: (url: string) => void;
 }
 
 export function AgentWebResult({
@@ -13,7 +12,6 @@ export function AgentWebResult({
 }: {
   call: AgentToolCall;
 } & AgentWebLinkProps) {
-  const [error, setError] = useState("");
   const args = parseToolJson(call.argumentsJson);
   const validParameters = isToolObject(args);
   const parameters = validParameters ? args : {};
@@ -41,8 +39,7 @@ export function AgentWebResult({
         href={target}
         onClick={(event) => {
           event.preventDefault();
-          setError("");
-          void onOpenUrl(target).catch(() => setError("打开链接失败，请重试"));
+          onOpenUrl(target);
         }}
       >
         {title}
@@ -94,11 +91,6 @@ export function AgentWebResult({
             {call.output || (call.status === AgentToolStatus.PENDING ? "等待执行结果…" : "无结果")}
           </pre>
         </section>
-      )}
-      {error && (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
       )}
     </div>
   );

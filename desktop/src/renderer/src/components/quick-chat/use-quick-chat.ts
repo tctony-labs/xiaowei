@@ -4,6 +4,7 @@ import {
   AgentModelConfigSchema,
   ModelSettingsChangedSchema,
   type ModelSettingsSnapshot,
+  OpenFileLinkRequestSchema,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
   SettingsAnchor,
@@ -12,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import type { Subscription } from "xiaowei-gateway";
 import { thinkingLevels } from "../../../../shared/llm-models";
+import { isLocalFileLink } from "../../../../shared/local-file-link";
 import type { Services } from "../../services";
 import { agentChatClient } from "../agent-chat/client";
 import { useSessionViewing } from "../agent-chat/use-session-viewing";
@@ -186,7 +188,12 @@ export function useQuickChat(services: Services, viewing = false) {
     onCopySessionId: copyText,
     onCopyMessageText: copyText,
     onOpenMessageUrl: async (url: string) => {
-      await services.getSystem().openUrl(create(OpenUrlRequestSchema, { url }));
+      const system = services.getSystem();
+      if (isLocalFileLink(url)) {
+        await system.openFileLink(create(OpenFileLinkRequestSchema, { href: url }));
+      } else {
+        await system.openUrl(create(OpenUrlRequestSchema, { url }));
+      }
     },
     sessions: client.sessions.map((session) => ({
       id: session.sessionId,

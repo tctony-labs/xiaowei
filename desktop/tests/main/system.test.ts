@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,12 +8,16 @@ import { pathToFileURL } from "node:url";
 import { create } from "@bufbuild/protobuf";
 import { EmptySchema } from "@bufbuild/protobuf/wkt";
 import {
+  EditorPreset,
   LocalPathRequestSchema,
+  OpenFileLinkRequestSchema,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
   SetAutostartRequestSchema,
+  Settings,
   SettingsAnchor,
   SettingsNavigationRequestedSchema,
+  SettingsSnapshotSchema,
   System,
   Theme,
   ToggleThemeResponseSchema,
@@ -190,6 +194,100 @@ test("macOS local opening stays pending without blocking other System calls", {
     await opening;
     pendingOpen = undefined;
     notifyOpen = undefined;
+    owner.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("System runs both saved shell templates in zsh with literal file locations", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "system-file-links-"));
+  const file = join(directory, 'WAV "含空格" %line [draft] $tag.h');
+  const trace = join(directory, "arguments");
+  const previousZdotdir = process.env.ZDOTDIR;
+  await writeFile(file, "test");
+  await writeFile(
+    join(directory, ".zshrc"),
+    `setopt SH_WORD_SPLIT GLOB_SUBST
+ecp() {
+  printf '%s\\n' "$@" > "$ZDOTDIR/arguments"
+}
+emacsclient() {
+  ecp "$@"
+}
+`,
+  );
+  process.env.ZDOTDIR = directory;
+  const host = new GatewayHost();
+  const owner = registerSystem(host, () => ({ hide() {} }));
+  const api = bindClient(System, host.client({ caller: "file-link-test", trusted: true }));
+  let snapshot = create(SettingsSnapshotSchema);
+  const settings = host.registerOwner(
+    "settings",
+    bindHandlers(Settings, { get: () => snapshot }, { partial: true }),
+  );
+  const href = pathToFileURL(file).href;
+  const open = (href: string) => api.openFileLink(create(OpenFileLinkRequestSchema, { href }));
+  const received = async () => (await readFile(trace, "utf8")).trimEnd().split("\n");
+  const before = pathCalls.length;
+
+  try {
+    await open(`${href}#L19`);
+    assert.deepEqual(
+      pathCalls.at(-1),
+      process.platform === "darwin" ? ["openExternal", href] : ["open", file],
+    );
+    await open(href);
+    assert.equal(pathCalls.length, before + 2);
+
+    snapshot = create(SettingsSnapshotSchema, {
+      sourceEditor: {
+        selected: EditorPreset.CUSTOM,
+        custom: {
+          openFile: "open_fixture() { ecp %file; }\nopen_fixture",
+          openAtLine: 'ecp "%file" %line %file:%line',
+        },
+      },
+    });
+    await open(`${href}#L19`);
+    assert.deepEqual(await received(), [file, "19", `${file}:19`]);
+    await open(`${href}:27`);
+    assert.deepEqual(await received(), [file, "27", `${file}:27`]);
+
+    await open(href);
+    assert.deepEqual(await received(), [file]);
+
+    snapshot = create(SettingsSnapshotSchema, {
+      sourceEditor: {
+        selected: EditorPreset.CUSTOM,
+        custom: {
+          openFile: `emacsclient --eval '(tctony/ecp-file "%file" :external t)'`,
+          openAtLine: `emacsclient --eval '(tctony/ecp-file-line "%file" %line :external t)'`,
+        },
+      },
+    });
+    await open(href);
+    assert.deepEqual(await received(), [
+      "--eval",
+      `(tctony/ecp-file ${JSON.stringify(file)} :external t)`,
+    ]);
+    await open(`${href}#L19`);
+    assert.deepEqual(await received(), [
+      "--eval",
+      `(tctony/ecp-file-line ${JSON.stringify(file)} 19 :external t)`,
+    ]);
+
+    for (const href of [
+      "https://example.com/file#L19",
+      "file://example.com/file#L19",
+      `${pathToFileURL(join(directory, "missing")).href}#L19`,
+    ]) {
+      await assert.rejects(open(href));
+    }
+    assert.equal(pathCalls.length, before + 2);
+  } finally {
+    if (previousZdotdir === undefined) delete process.env.ZDOTDIR;
+    else process.env.ZDOTDIR = previousZdotdir;
+    settings.close();
     owner.close();
     await rm(directory, { recursive: true, force: true });
   }
