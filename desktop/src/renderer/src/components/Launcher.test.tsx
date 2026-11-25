@@ -222,6 +222,37 @@ test("the window pin keeps input focus and follows the launcher between modes", 
   expect(app.calls.setPinState).toHaveBeenCalledTimes(2);
 });
 
+test.each([
+  ["MacIntel", "Meta", "Control", "⌘⇧P"],
+  ["Win32", "Control", "Meta", "Ctrl+Shift+P"],
+])("the pin shortcut uses the platform modifier on %s", async (platform, key, otherKey, hint) => {
+  const platformMock = vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+  try {
+    const app = preview();
+    const canvas = render(<Launcher services={app.services} />);
+    const user = userEvent.setup();
+    const pinButton = canvas.getByRole("button", { name: "置顶窗口" });
+    const input = canvas.getByRole("textbox", { name: "搜索" });
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-disabled", "false"));
+
+    expect(pinButton).toHaveAttribute("title", hint);
+
+    const shortcut = `{${key}>}{Shift>}[KeyP]{/Shift}{/${key}}`;
+    await user.keyboard(shortcut);
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "true"));
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("");
+
+    await user.keyboard(shortcut);
+    await waitFor(() => expect(pinButton).toHaveAttribute("aria-pressed", "false"));
+
+    await user.keyboard(`{${otherKey}>}{Shift>}[KeyP]{/Shift}{/${otherKey}}`);
+    expect(app.calls.setPinState.mock.calls).toEqual([[true], [false]]);
+  } finally {
+    platformMock.mockRestore();
+  }
+});
+
 test("keyboard selection and composition guard", async () => {
   const search = preview();
   const canvas = render(<Launcher services={search.services} />);

@@ -31,6 +31,7 @@ export function Launcher({
 }) {
   const api = services.getLauncher();
   const gateway = services.getGateway();
+  const isMac = navigator.platform.startsWith("Mac");
   const [clipboardOpen, setClipboardOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
@@ -229,6 +230,24 @@ export function Launcher({
     }
   }
 
+  const onPinKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+
+    const primaryModifier = isMac
+      ? event.metaKey && !event.ctrlKey
+      : event.ctrlKey && !event.metaKey;
+    if (!primaryModifier || !event.shiftKey || event.altKey || event.code !== "KeyP") return;
+
+    event.preventDefault();
+    if (!event.repeat) void togglePin();
+  });
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => onPinKeyDown(event);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   async function execute(index: number) {
     const hit = response.hits[index];
     if (!hit || pending.current || executing.current) return;
@@ -324,9 +343,10 @@ export function Launcher({
         type="button"
         className="launcher-pin"
         aria-label="置顶窗口"
+        aria-keyshortcuts={isMac ? "Meta+Shift+P" : "Control+Shift+P"}
         aria-pressed={pinned ?? false}
         aria-disabled={pinPending}
-        title={pinned ? "取消置顶" : "置顶窗口"}
+        title={isMac ? "⌘⇧P" : "Ctrl+Shift+P"}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => void togglePin()}
       />
