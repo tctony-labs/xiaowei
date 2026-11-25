@@ -323,7 +323,7 @@
 }
 
 .agent-code-block pre {
-  padding: 12px;
+  padding: 4px 12px 12px;
   font-size: 12px;
   line-height: 20px;
   white-space: pre;
