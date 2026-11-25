@@ -47,7 +47,7 @@ WebSocket 验收继续使用原有 `openai-responses` 配置与 base URL。提�
 
 ## 上下文变化的最小适配验证
 
-`verify-context-updates.mjs` 验证 Responses provider 中的有序变化通知，属于 02e 的接入实验。当前 PB 尚不支持系统更新，因此直接复用 worker 的模型转换和 provider 选择，不经过 Gateway／构建后的 worker，不启动应用。无需构建；通过源码条件运行：
+`verify-context-updates.mjs` 是 02e 的接入实验，用源码条件调用 worker 的模型转换和 provider 选择来验证 Responses 有序变化通知。
 
 ```sh
 pnpm --dir desktop exec tsx --conditions=source scripts/verify-context-updates.mjs --config /absolute/path/models.json
@@ -57,4 +57,4 @@ pnpm --dir desktop exec tsx --conditions=source scripts/verify-context-updates.m
 
 调用依次验证初始工具、新增、同名 schema 替换、移除与指令更新、无变化继续及新基线。仅发送合成内容，工具由脚本返回固定结果，无文件／进程工具副作用。失败以非零退出，输出脱敏状态；不会保存实验会话，也不会修改应用设置。基线重建是实验构造，不等于产品压缩已实现。
 
-实验在内存模型上开启 supportsMidConvoSystemMessages，并关闭原生工具新增／搜索路径：变化通知放在消息中，tools 仍由 Pi 生成当前完整集合。它不证明原生工具声明增量、缓存收益或其他接口的兼容性。自动回归见 `tests/llm/context-adaptation.test.mjs`；结果与适用边界维护在 [Agent 同步设计](../../.agent/records/active/2026-09-28-agent-chat/model-types.md#最小适配实验2026-10-11)。
+实验在内存模型上开启 supportsMidConvoSystemMessages，并关闭原生工具新增／搜索路径：变化通知放在消息中，tools 仍由 Pi 生成当前完整集合。它不证明原生工具声明增量、缓存收益或其他接口的兼容性。自动回归见 `tests/llm/context-adaptation.test.mjs`；历史结果见 [Agent 同步实验](../../.agent/records/archived/2026-09-28-agent-chat/model-types.md#最小适配实验2026-10-11)。

@@ -249,11 +249,7 @@ mod resource_tests {
             panic!("expected file update");
         };
         assert_eq!(
-            delta
-                .instructions
-                .keys()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            delta.instructions.keys().collect::<Vec<_>>(),
             ["rules.user.rules/style.md"]
         );
         assert!(delta.instructions_removed.is_empty() && delta.tools_added.is_empty());
@@ -328,12 +324,8 @@ mod resource_tests {
         assert_eq!(delta.tools_added.len(), 1);
         assert_eq!(delta.tools_added[0].name, "Command");
         assert_eq!(
-            delta
-                .instructions
-                .keys()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
-            ["commands.catalog", "tool.Command"]
+            delta.instructions.keys().collect::<Vec<_>>(),
+            ["tool.Command", "commands.catalog"]
         );
         assert!(delta.tools_removed.is_empty() && delta.instructions_removed.is_empty());
     }
@@ -408,7 +400,8 @@ mod resource_tests {
             assert!(
                 !context(&requests[1])
                     .instructions
-                    .values()
+                    .iter()
+                    .map(|(_, content)| content)
                     .any(|text| text.contains("COMMAND-V1"))
             );
         }
@@ -862,11 +855,7 @@ mod todo_tests {
         assert_eq!(changes[0].tools_added.len(), 1);
         assert_eq!(changes[0].tools_added[0].name, "TodoWrite");
         assert_eq!(
-            changes[0]
-                .instructions
-                .keys()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            changes[0].instructions.keys().collect::<Vec<_>>(),
             ["tool.TodoWrite"]
         );
         assert!(changes[0].tools_removed.is_empty());
@@ -1749,11 +1738,7 @@ mod search {
             ["Glob", "Grep"]
         );
         assert_eq!(
-            delta
-                .instructions
-                .keys()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            delta.instructions.keys().collect::<Vec<_>>(),
             ["tool.Glob", "tool.Grep"]
         );
         assert!(delta.tools_removed.is_empty() && delta.instructions_removed.is_empty());
@@ -2630,11 +2615,7 @@ mod bash {
             ["BgOutput", "BgRun", "BgStop"]
         );
         assert_eq!(
-            delta
-                .instructions
-                .keys()
-                .map(String::as_str)
-                .collect::<Vec<_>>(),
+            delta.instructions.keys().collect::<Vec<_>>(),
             ["tool.BgRun"]
         );
         assert!(delta.tools_removed.is_empty());

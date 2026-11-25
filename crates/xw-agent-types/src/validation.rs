@@ -419,15 +419,15 @@ pub(crate) fn system_context(context: &SystemContext) -> Result<(), ValidationEr
     tools(&context.tools)
 }
 
-fn instructions(
-    instructions: &std::collections::BTreeMap<String, String>,
-) -> Result<(), ValidationError> {
-    for (name, content) in instructions {
+fn instructions(instructions: &SystemInstructions) -> Result<(), ValidationError> {
+    let mut seen = HashSet::new();
+    for (name, content) in instructions.iter() {
         value(!name.trim().is_empty(), "system_context.instructions.name")?;
         value(
             !content.trim().is_empty(),
             "system_context.instructions.content",
         )?;
+        unique(&mut seen, name, "system_context.instructions.name")?;
     }
     Ok(())
 }

@@ -1,11 +1,36 @@
-use std::collections::BTreeMap;
-
 use serde_json::json;
 use xw_agent_types::*;
 
+#[test]
+fn legacy_named_instructions_restore_in_the_previous_order() {
+    let mut entries = decode_history(include_str!("fixtures/v2/text.jsonl")).unwrap();
+    let history = entries.clone();
+    append(&mut entries, SystemContextUpdate::Baseline(initial()));
+    let line = encode_entry(entries.last().unwrap(), &history).unwrap();
+    let mut legacy: serde_json::Value = serde_json::from_str(&line).unwrap();
+    legacy["payload"]["data"]["data"]["instructions"] =
+        json!({ "z": "later", "base": "first", "a": "second" });
+    let entry = decode_entry(&legacy.to_string(), &history).unwrap();
+    let EntryPayload::SystemContext(update) = entry.payload else {
+        panic!("expected system context");
+    };
+    let restored = update.apply(None).unwrap();
+    assert_eq!(
+        restored.instructions.keys().collect::<Vec<_>>(),
+        ["a", "base", "z"]
+    );
+    let encoded = serde_json::to_value(update).unwrap();
+    assert_eq!(
+        encoded["data"]["instructions"][1],
+        json!({ "name": "base", "content": "first" })
+    );
+}
+
 fn initial() -> SystemContext {
     SystemContext {
-        instructions: BTreeMap::from([("behavior".into(), "Synthetic instruction.".into())]),
+        instructions: [("behavior".into(), "Synthetic instruction.".into())]
+            .into_iter()
+            .collect(),
         tools: vec![ToolDeclaration {
             name: "Read".into(),
             description: "Synthetic tool.".into(),
@@ -34,7 +59,9 @@ fn new_records_roundtrip_without_rewriting_existing_text_history() {
     append(
         &mut entries,
         SystemContextUpdate::Delta(SystemContextDelta {
-            instructions: BTreeMap::from([("behavior".into(), "Updated behavior.".into())]),
+            instructions: [("behavior".into(), "Updated behavior.".into())]
+                .into_iter()
+                .collect(),
             tools_removed: vec!["Read".into()],
             ..Default::default()
         }),
@@ -123,6 +150,15 @@ fn run_tools_can_be_restored_from_a_compaction_snapshot() {
     };
     compacted.system_context = Some(snapshot.clone());
     let checkpoint_id = checkpoint.entry_id;
+    let prefix = &history[..history.len() - 1];
+    let encoded = encode_entry(history.last().unwrap(), prefix).unwrap();
+    let mut legacy: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+    legacy["payload"]["data"]["system_context"]["instructions"] =
+        json!({ "behavior": "Synthetic instruction." });
+    assert_eq!(
+        decode_entry(&legacy.to_string(), prefix).unwrap(),
+        *history.last().unwrap()
+    );
 
     let input_id = InputId::new();
     let mut accepted = history[2].clone();
@@ -251,7 +287,9 @@ fn diagnostics_do_not_include_instruction_names_content_or_schemas() {
     assert!(!format!("{error:?} {error}").contains("secret"));
 
     baseline = initial();
-    baseline.instructions = BTreeMap::from([("secret instruction".into(), " ".into())]);
+    baseline.instructions = [("secret instruction".into(), " ".into())]
+        .into_iter()
+        .collect();
     let error = baseline.validate().unwrap_err();
     assert!(!format!("{error:?} {error}").contains("secret"));
 }
@@ -289,7 +327,11 @@ fn stored_updates_reject_unknown_fields_duplicate_keys_and_positional_objects() 
         *object = json!(values);
         assert!(decode_entry(&invalid.to_string(), &baseline).is_err());
     }
-    let duplicate = line.replace("\"behavior\":", "\"behavior\":\"old\",\"behavior\":");
+    let duplicate = line.replace(
+        "\"instructions\":[{\"content\":\"Synthetic instruction.\",\"name\":\"behavior\"}]",
+        "\"instructions\":{\"behavior\":\"old\",\"behavior\":\"Synthetic instruction.\"}",
+    );
+    assert_ne!(duplicate, line);
     assert!(decode_entry(&duplicate, &baseline).is_err());
 }
 

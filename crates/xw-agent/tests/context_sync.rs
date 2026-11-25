@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use xw_agent::{plan_system_context_update, rebuild_context, sync_system_context};
 use xw_agent_rollout::{Journal, RolloutError, RolloutStore, TestFault, WriterState};
 use xw_agent_types::*;
@@ -17,10 +15,12 @@ fn tool(name: &str, kind: &str) -> ToolDeclaration {
 
 fn context() -> SystemContext {
     SystemContext {
-        instructions: BTreeMap::from([
+        instructions: [
             ("behavior".into(), "Use the available tools.".into()),
             ("environment".into(), "Synthetic workspace.".into()),
-        ]),
+        ]
+        .into_iter()
+        .collect(),
         tools: vec![tool("Read", "string"), tool("Write", "string")],
     }
 }

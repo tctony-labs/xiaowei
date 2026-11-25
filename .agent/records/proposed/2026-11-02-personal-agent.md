@@ -4,7 +4,7 @@
 
 用户于 2026-11-02 要求阅读 DeepSeek Harness 团队的[《Super-agent 设计探索：迈向更自主的 Agent 系统》](https://mp.weixin.qq.com/s/zoS7GlReWPhfCjENGxXCdg)（2026-10-31），据此起草推进 XiaoWei Personal Agent 的 record。
 
-现有 [Agent Chat](../active/2026-09-28-agent-chat.md) 已建立持久会话、模型与工具循环、权限交互及 Quick Chat 入口。下一步需要让用户围绕事情持续协作，由系统接管任务关联、执行分发和结果汇总，降低手动管理多个 Session 的负担。
+现有 [Agent Chat](../archived/2026-09-28-agent-chat.md) 已建立持久会话、模型与工具循环、权限交互及 Quick Chat 入口。下一步需要让用户围绕事情持续协作，由系统接管任务关联、执行分发和结果汇总，降低手动管理多个 Session 的负担。
 
 文章中的连续交互、Router／Worker 分工、事件驱动和计算与执行环境分离，为本事项提供总体参考。本文结合用户明确的运行位置和角色要求确定结构，不直接照搬文章的完整机制或原型实现。
 
@@ -140,14 +140,14 @@ Quick Chat 拟成为云端实例的快捷入口，与手机访问用户有权使
 | 现有部分 | 在整体结构中的位置 |
 | --- | --- |
 | [Go 服务端](../../../server/README.md) | 提供账号、设备会话、网络与持久化基础；增加实例、成员关系、协调与任务业务 |
-| [Agent Core](../../../crates/xw-agent/README.md) 与 [Agent Chat](../active/2026-09-28-agent-chat.md) | 复用有效的会话、工具循环、历史与交互机制，作为 Worker 和本地 Chat 的执行基础；不同宿主的接入仍需设计 |
+| [Agent Core](../../../crates/xw-agent/README.md) 与 [Agent Chat](../archived/2026-09-28-agent-chat.md) | 复用有效的会话、工具循环、历史与交互机制，作为 Worker 和本地 Chat 的执行基础；不同宿主的接入仍需设计 |
 | [Quick Chat](../../../desktop/docs/quick-chat.md) | 从现有本地聊天入口调整为云端实例入口，支持明确目标实例；本地聊天另有承载位置 |
 | [iOS App](../../../ios/README.md) 与 [移动接入](../../../ios/docs/development.md) | 复用现有 SwiftUI、登录及共享网络基础，增加 Personal Agent 交互和所选手机 Worker 能力 |
 | [xwapi](../../../docs/xwapi.md) | 提供客户端访问服务器的现有基础，后续扩展所需业务接入 |
 
 现有本地 Agent、账号和网络连接不等于多实例、共享使用或跨端 Worker 已经实现。服务器与手机的模型、工具及运行资源如何接入，需要按实际能力评估，不能直接将 Electron／napi 装配视为跨平台实现。
 
-现有 [Agent Chat](../active/2026-09-28-agent-chat.md)、[Flutter 移动客户端与设备授权](../active/2026-10-25-mobile-development.md) 和[服务器建设](../active/2026-10-11-server-development.md)保留各自已确定的范围。本事项承载 Personal Agent 总体结构及其新增集成；具体实施时再对齐依赖，不重复记录或默认完成原事项尚未交付的能力。
+现有 [Agent Chat](../archived/2026-09-28-agent-chat.md)、[Flutter 移动客户端与设备授权](../active/2026-10-25-mobile-development.md) 和[服务器建设](../active/2026-10-11-server-development.md)保留各自已确定的范围。本事项承载 Personal Agent 总体结构及其新增集成；具体实施时再对齐依赖，不重复记录或默认完成原事项尚未交付的能力。
 
 ## Current work
 

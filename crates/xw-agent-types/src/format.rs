@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -70,6 +72,19 @@ fn check_object_shapes(stored: &Value, canonical: &Value) -> Result<(), FormatEr
             }
         }
         _ => {}
+    }
+    Ok(())
+}
+
+fn restore_instruction_order(context: &mut Value) -> Result<(), FormatError> {
+    if let Some(instructions) = context.get_mut("instructions")
+        && instructions.is_object()
+    {
+        // Legacy v2 histories were assembled with BTreeMap key order.
+        let legacy: BTreeMap<String, String> =
+            serde_json::from_value(instructions.take()).map_err(|_| invalid())?;
+        let ordered: SystemInstructions = legacy.into_iter().collect();
+        *instructions = serde_json::to_value(ordered).map_err(|_| invalid())?;
     }
     Ok(())
 }
@@ -450,7 +465,8 @@ pub fn decode_entry_fields(
     }
     let data = member(member(&mut stored, "payload")?, "data")?;
     match kind.as_str() {
-        "meta" | "system_context" | "title_generated" => {}
+        "meta" | "title_generated" => {}
+        "system_context" => restore_instruction_order(member(data, "data")?)?,
         "run_started" => {
             if member(data, "context")?.get("tools").is_none() {
                 let boundary = get(data, "base_context")?;
@@ -659,6 +675,9 @@ pub fn decode_entry_fields(
             put(data, "revision", 2)?;
         }
         "compacted" => {
+            if let Some(context) = data.get_mut("system_context") {
+                restore_instruction_order(context)?;
+            }
             validate_history(history).map_err(|_| invalid())?;
             absent(
                 data,

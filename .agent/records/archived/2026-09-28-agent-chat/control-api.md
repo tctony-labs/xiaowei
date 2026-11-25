@@ -6,22 +6,7 @@
 
 本文区分已实现的持久文本控制协议与后续工具／交互设计。宿主创建／配置／依赖注入接口另见[宿主接口复核](host-interface.md)，不与客户端命令混用。
 
-## 一套 App Server 协议，两种连接（待实施）
-
-手机与桌面 UI 复用请求、响应、事件、交互回应的同一业务定义。桌面 UI 经本地 Gateway／IPC／napi 连接；手机经桌面宿主中的远程虚拟连接；两者最终进入 `xiaowei-agent/src/gateway.rs` 的同一 handler 和服务实例。允许未来纯 Rust 宿主以本地 typed 调用接入同一应用用例，不允许绕过 App Server 直接控制 runtime。
-
-```text
-桌面 UI ←→ 本地连接 ────────┐
-                           ├←→ 同一 App Server 协议入口 ←→ 应用用例 ←→ Agent Core
-手机 UI ←→ 远程虚拟连接 ────┘
-           （终止于桌面宿主）
-```
-
-不再区分“远程命令接入”和“独立状态同步出口”两套业务模块。远程 adapter 在同一逻辑连接上转发 request／response、订阅／通知和交互回应；远程身份由宿主验证后建立调用上下文，不从业务 payload 自报。RPC 响应只回发起连接，公共变化发给所有有权订阅该会话的连接。逻辑请求键是 `(connection ID, RPC request ID)`；网络 hop 可以映射 RPC ID，但不能改写 input ID、其他业务幂等 ID 或其他业务身份。
-
-业务请求／响应和状态事件复用公共契约，并不要求把命令响应与广播事件编码为同一种消息。响应表示该操作的结果；事件表示公共状态发生变化。请求被接纳、实际消费和整轮完成是不同阶段，状态以 App Server／Core 为准。网络已收到或已转发不等于 Agent 已接纳；断连不取消运行，也不自动拒绝待答交互。
-
-首期复用现有 Protobuf + Gateway envelope；不引入第二套 JSON-RPC wire。这里对齐 Codex 的包责任、统一入口和状态所有权，**不承诺 Codex wire 兼容**。网络 frame、配对和版本协商后续设计；传输 adapter 必须支持同一业务方法／事件／错误语义，不能创建手机专属 Send／Queue 协议或转发任意内部 Gateway 能力。
+桌面 UI 经本地 Gateway／IPC／napi 调用 Agent App Server，服务负责请求、订阅和交互决定。 [远程控制提案](../../proposed/2026-11-25-agent-remote-control.md)
 
 ## 客户端本地状态与后续排队／插入边界
 
@@ -29,7 +14,7 @@
 
 发送路径为 pending → 服务端持久接纳并广播 Input → 消费并关联 Run → Item／模型与工具变化 → 终态。后续 follow-up 由服务确认队列顺序，消费时才关联新的 run；取消／重排也通过服务命令。steering 指定预期活动 run，服务接纳后仍可等待安全边界，实际消费时才发布 applied boundary；接纳不等于已影响模型。两端均观察相同 Input／Run／Item／Interaction 变化，而不是仅同步 LLM 文本。
 
-队列与插入复用同一个 Input、JSONL 恢复和变化契约；手机 UI 与网络 adapter 尚未实现。重连重新订阅，以首帧完整快照替换缓存；不续传旧事件。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
+队列与插入复用同一个 Input、JSONL 恢复和变化契约。重连重新订阅，以首帧快照恢复缓存。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
 
 ## 共享 Agent 控制 API
 
@@ -95,7 +80,7 @@ StartRun 返回接纳的 Run，不等待模型。同 input ID／同原始请求�
 
 当前 Gateway 的 Client 只提供 invoke／stream／subscribe，不支持注册 renderer owner 或服务端直接调用客户端 handler；事件 sink 完成也不是可传回服务的业务确认。客户端打开 `Agent.ObserveInteractions` 响应流，服务端逐客户端发送逻辑交互请求；客户端解码并放入本地交互缓存后，立即调用 `Agent.AcknowledgeInteraction` 返回接收确认。这里的确认 RPC 承载第一阶段的回复，不等待用户操作；`Agent.RespondInteraction` 独立承载第二阶段。所有消息仍在同一 `agent.proto` 和同一连接上，不新增手机专属协议。交互请求 stream 仅承担定向投递与接收跟踪，公共审批状态及其解决结果仍复用快照／直接业务事件，不再维护一份同步状态。
 
-快照和公共事件提供共享 Interaction 业务状态；逐 observer 的投递／接收事实留在对应送达流与 ACK 响应中，不写进共享会话快照。instance／observer／delivery 的投递请求关联经对应 stream 返回。设备显示名称后续由可信宿主提供，本期不让 caller 自报手机／桌面身份。
+快照和公共事件提供共享 Interaction 业务状态；逐 observer 的投递／接收事实留在对应送达流与 ACK 响应中，不写进共享会话快照。instance／observer／delivery 的投递请求关联经对应 stream 返回。设备身份与显示名称见[远程控制提案](../../proposed/2026-11-25-agent-remote-control.md)。
 
 模块归属：`xw-agent/src/interactive.rs` 管理审批／问答业务状态、决定校验和持久化；`interaction_delivery.rs` 管理 observer、投递请求、接收事实及关闭；`xiaowei-agent/src/gateway.rs` 注册 stream 和两个 unary 方法。Gateway 管理 transport 请求／流关联，App Server 管理业务 delivery 与 Interaction。napi／main 只适配，renderer 页面适配层消费流并回复，展示组件不执行接收确认或业务 RPC。
 
@@ -112,7 +97,7 @@ StartRun 返回接纳的 Run，不等待模型。同 input ID／同原始请求�
 
 客户端接收确认由流消费适配层自动发送，确认的是数据进入客户端缓存，不表示已经绘制或用户已读。确认失败可以重试同 delivery ID；提交决定可以先于接收确认到达，有效决定同时证明该 caller 收到交互，不能因回执丢失而拒绝。决定验证使用 Interaction 的业务 revision；另一个客户端的接收确认不能导致审批 revision 冲突。第一个通过校验并持久提交的决定被接纳，同一业务幂等 ID／相同决定重试返回原结果，其他竞争决定返回已解决／冲突。
 
-Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到投递或回执只能确认历史接收事实，不重新打开交互或执行工具。重连只补仍 pending 的请求，已解决交互通过快照／变化同步。流结束时旧 observer 不再活跃，旧 observer／服务实例的确认不得记到新观察流；服务在保留的投递记录上幂等处理迟到回执，记录已清理则返回明确过期结果。接收事实是当前实例的有界投递状态，不进入模型历史、不增加每端 JSONL 记录；服务重启清除投递状态并使遗留交互按既有恢复规则失效。稳定设备身份、离线设备清单与跨重启送达审计留到远程控制事项，本期用两个独立逻辑 caller 验证语义。
+Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到投递或回执只能确认历史接收事实，不重新打开交互或执行工具。重连只补仍 pending 的请求，已解决交互通过快照／变化同步。流结束时旧 observer 不再活跃，旧 observer／服务实例的确认不得记到新观察流；服务在保留的投递记录上幂等处理迟到回执，记录已清理则返回明确过期结果。接收事实是当前实例的有界投递状态，不进入模型历史、不增加每端 JSONL 记录；服务重启清除投递状态并使遗留交互按既有恢复规则失效。本期用两个独立逻辑 caller 验证送达语义。
 
 第 4 批已将结构化 Interaction 附在原 AgentToolCall 上，沿用原 ItemId／ToolId，并以 InteractionUpdated 同步 pending／resolved／expired；SubscribeSession 首帧包含相同状态。回应携带 session_id、interaction_id、expected_revision、client_request_id 和 typed answer；Question 为选项索引与可选文字，Permission 只允许 allow，目标和范围取服务已保存的 request。可信 caller 复用 Gateway `client.context().caller()`，不由业务 payload 自报。
 
@@ -122,9 +107,9 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 输入队列由 Agent 权威维护：QueueInput 接纳 Follow-up，EditQueuedInput 更新待处理文本，SteerInput 指向当前 Run，InterruptInput 在运行中停止指定 Run 并发送选中项，在空闲时显式发送选中项，RemoveQueuedInput 移除待处理项。AgentSession 快照和 QueueUpdated 事件提供有序队列及自动发送错误；消费后的用户 Item 包含 input_id。失败、停止和重启后保留未消费输入，不自动重发。Steering 和 Run 收尾在会话锁内串行判定，运行结束前未消费的 Steering 回到 Follow-up。
 
-### 后续能力（未实现）
+### 会话目录和交互接口
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答、权限和继续运行时的重复工具确认；Fork／Rewind 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答、权限和继续运行时的重复工具确认；[Fork 与 Rewind 提案](../../proposed/2026-11-25-agent-fork-rewind.md)独立跟踪。
 
 私有 SessionCatalog 只在核心内部使用；登记是 INSERT，更新只针对已有未删除行，并在服务串行边界按内存 metadata revision 校验，不通过 Upsert 复活记录。归档 revision 独立校验，普通更新不能重置归档状态。标题／自动生成开关、管理状态以 SQLite 为准，不将数据库视为可删除重建的缓存。
 

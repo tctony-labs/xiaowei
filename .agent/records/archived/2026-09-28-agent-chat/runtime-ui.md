@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-基础文本、JSONL、Host、composer、前六批工具及 Skill 已接入；各批窗口及重启验收见[实施结果](implementation-results.md)。真实输入法等平台复核边界见交付结果；后台工具及其他扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
+基础文本、JSONL、Host、composer、首期工具及 Skill 已接入。窗口、重启和真实输入法的验收见[实施结果](implementation-results.md)。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
 ## 显式继续
 
@@ -98,7 +98,7 @@ Run 开始时捕获已提交会话配置中的模型引用、思考强度和独�
 
 当前 `run_loop` 位于拥有 Journal 和公共投影的 xw-agent，runtime 收集单次生成并提供文件原语。默认每 Run 50 次工具调用，不额外限定 Gen 数量；超限、非法完整输出及截断参数不会执行。工具结果失败仍与调用配对并可交给模型处理；必需记录提交失败立即终止，不继续下一次 Generate。已启动文件操作在 blocking pool 执行，停止后等待实际结果，未启动项保存 skipped；不可把停止提示当作已撤销写入。
 
-本批 Read 仅文本，保留编号、分页、输出上限、allow_missing 和读取去重；Write 覆盖并创建父目录，Edit 默认精确唯一匹配，replace_all 显式允许多处替换。写权限先于 mkdir 等副作用检查；默认 cwd、临时目录及有效历史授权可写，home 及其祖先不能作为默认整棵目录授权。未开放的工具／命名空间和非法参数产生关联错误；工作区内 `.git` 不额外禁写，PDF 另列后续。
+本批 Read 仅文本，保留编号、分页、输出上限、allow_missing 和读取去重；Write 覆盖并创建父目录，Edit 默认精确唯一匹配，replace_all 显式允许多处替换。写权限先于 mkdir 等副作用检查；默认 cwd、临时目录及有效历史授权可写，home 及其祖先不能作为默认整棵目录授权。未开放的工具／命名空间和非法参数产生关联错误。工作区内 `.git` 沿用当前写权限规则。
 
 工具 Item 保存 ToolId、Turn／Gen、provider call ID、参数、状态、输出、diff metadata 和实际耗时。恢复展示已提交结果及 result_unknown，普通新 Run 遇到未闭合工具历史返回冲突，等待后续显式 Continue 实施；不会自动重放副作用。
 
@@ -132,7 +132,7 @@ composer 仅在有明确 pending Question 时将发送路由到 RespondInteracti
 
 2026-10-27 用户要求实施 Todo，范围为旧版会话级 TodoWrite 及对应只读清单卡片。核对来源为 `~/Develop/XiaoWei/workspace/src/xiaowei-next`，HEAD `d97d45b42bf9bc621e66603ad878cccb97dd990c`，已完整读取 runtime 的 `tools/core/todo_write.rs`、UI 的 `chat/parts/tools/TodoWrite.tsx`，以及 AssistantMessage 的独立卡片／最新默认展开逻辑和 agent_factory 的提示词。旧仓库存在无关的 bookmark 修改与 `.astra/`，本批未改动旧仓库。
 
-执行与保存方式分别见 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/chat-ui.md)。沿用替换／按 ID 合并、四状态及多项进行中只警告的语义；保留列表顺序和 `todoWrite.todos` 元数据形状。工具随实际注册新增 `tool.TodoWrite` 规则，提示三步及以上任务按需建清单、及时更新、最多一项进行中和完成／取消状态；不加入 Skill 或 preset。
+执行与保存方式分别见 [runtime](../../../../crates/xw-agent-runtime/README.md) 和 [core](../../../../crates/xw-agent/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/chat-ui.md)。沿用替换／按 ID 合并、四状态及多项进行中只警告的语义；保留列表顺序和 `todoWrite.todos` 元数据形状。工具随实际注册新增 `tool.TodoWrite` 规则，提示三步及以上任务按需建清单、及时更新、最多一项进行中和完成／取消状态。
 
 恢复适配以已提交成功 ToolOutcome 的完整结果为准。旧版仅检查最后一次调用参数，最后一次为 merge 时会跳过恢复，也未核对工具是否成功；本批使用核心已恢复的完整投影，失败／跳过不覆盖之前清单，合并和空清单可正确恢复。待办更新没有外部副作用，已提交意图但缺少结果时结算取消；意图提交前失败沿用现有未闭合调用保护，不扩展 Continue。没有新增持久记录类型、数据表、文件、控制 RPC 或另一套运行循环。
 
@@ -215,27 +215,16 @@ runtime 收到 Started、BlockStarted／BlockFinished、正文／思考／参数
 
 依据：[Run 接纳与公开投影](../../../../crates/xw-agent/src/execution.rs)、[Run 循环与工具提交](../../../../crates/xw-agent/src/run_loop.rs)、[单次生成与最终消息校验](../../../../crates/xw-agent-runtime/src/text.rs)、[恢复投影](../../../../crates/xw-agent/src/persistence.rs)、[中断恢复](../../../../crates/xw-agent/src/recovery.rs)、[Pi 事件映射](../../../../desktop/src/main/services/llm/worker/events.ts)、[Pi 消息映射](../../../../desktop/src/main/services/llm/worker/messages.ts)及 [renderer 事件投影](../../../../desktop/src/renderer/src/components/agent-chat/agent-events.ts)。自动验证、可控预览与真实 sol 窗口覆盖的范围分别记录在[本批证据](implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。
 
-## 后续对话控制能力的扩展边界
+## 输入队列与运行控制
 
-这些能力复用同一套会话、运行、输入与历史模型，不分别建立独立的消息通道。输入队列与运行调度已接入；rewind／fork 仍为后续设计。
+输入队列与运行调度复用同一套会话、运行、输入与历史模型。历史回退与分叉由[独立提案](../../proposed/2026-11-25-agent-fork-rewind.md)跟踪。
 
-| 能力 | 后续预期语义 | 本期保留的设计接入点 |
+| 能力 | 语义 | 运行与持久化边界 |
 | --- | --- | --- |
 | `FollowUp` | 当前 Run 正常完成后，按服务确认的 FIFO 逐条消费已接纳输入，每条启动一个新 Run | InputMode／RunCause／消费关系在 01a 定义；失败、取消或达到硬限制时保持待处理，不自动拉起下一 Run。新 Run 重置执行预算；区别于旧版／Pi 在同一 loop 继续的语义 |
 | `Steering`（即时引导） | 在当前 Run 的工具之间检查，下一 Gen 前插入补充指令 | 已启动工具先结算；检查到 steering 后，本批尚未启动工具记录 skipped 结果以闭合配对，再结束 Turn、在同 Run 下一 Turn 消费输入。没有工具间隙且 Run 结束时转为 Follow-up；不修改已发请求，不隐式停止当前工具／审批 |
 | `Interrupt`（打断） | 停止当前 Run，结算后用选中的 query 启动新 Run | 其他排队输入保留顺序；新 Run 使用新的执行预算，空闲时可显式发送选中的待处理消息 |
-| rewind | 将后续对话的上下文起点退回到指定历史边界 | 历史条目具有稳定 ID 与顺序，区分持久记录和当前有效上下文；上下文构建可按明确边界取历史。不得依赖覆盖旧消息或破坏性删除后缀作为唯一实现方式 |
-| fork | 从指定历史边界创建可独立继续的新会话，保留来源关系 | 会话身份与历史条目身份分离，允许记录来源会话和分叉位置；历史内容与运行中状态分离，不能要求复制活跃任务、队列或授权才能继续新会话 |
-
-共同约束：
-
-- **输入状态可辨认**：区分已接收、待消费、已消费与取消；确定消费归属并防止重复。Steering 与 Follow-up 的接纳、编辑和模式变更写入历史，不从文案或发送时间猜测。Run 收尾与输入接纳按会话串行判定：先接纳的 Steering 进入收尾检查，未消费时转为 Follow-up；Run 已终结则拒绝针对该 Run 的迟到操作。重启重建未消费输入，绝不自动发送。
-- **历史边界完整**：rewind／fork 只从可重建的边界产生后续上下文，不截断工具调用／结果配对。优先支持已完成用户轮次边界；更细粒度边界须满足 Turn 工具闭合，不以 GenEnded 代替安全边界。压缩记录须保留所覆盖历史范围与来源，避免未来只能恢复最新摘要而无法解释选定位置。
-- **运行隔离**：在途运行固定其上下文起点与版本；未来 rewind 前须停止并结算当前运行，fork 默认取已提交的历史边界。旧事件仍属于原运行，不得写入退回后的上下文或新会话。并发检查可用 revision／预期历史位置实现，具体字段在契约切片确定。
-- **外部副作用不随历史回退**：rewind 不等于撤销文件修改或已执行操作；fork 不重放历史工具，不继承在途任务或一次性授权。副作用回滚若需要，作为独立能力设计并验收。
-- **存储可演进**：本期可保留线性历史，但须有稳定条目身份、schema 版本和独立的上下文构建入口。未来采用复制历史或共享不可变前缀，在 fork 实施时按数据量与附件生命周期决定；不提前建设 DAG 存储，也不把数据库行号、数组下标或渲染顺序作为业务身份。
-
-扩展性验收以本期真实接口与数据模型为依据，检查上述接入点是否存在，以及增加能力是否需要改写既有历史语义；不为尚未交付的行为编写假实现或声称已完成运行时验证。
+服务区分输入已接收、待消费、已消费与取消。Steering 与 Follow-up 的接纳、编辑和模式变更写入历史。Run 收尾与输入接纳按会话串行判定，运行结束前未消费的 Steering 转为 Follow-up，Run 已终结则拒绝迟到的定向请求。重启恢复未消费输入，等待明确发送。
 
 打断采用停止旧 Run 后启动新 Run 的方式，不保留同一 Run 内抢占继续的模式。取消请求发出后，必须等待旧 Run 和工具安全结算，再发送选中的 query；界面应区分请求中与实际发送。
 
@@ -295,7 +284,7 @@ Codex 还会把未解决的用户交互及部分需持续展示的工具内容�
 | 工具状态与流光 | 正常完成不显示视觉状态标签；执行中的名称／目标、分组摘要、思考末行及当前输出正文使用文字流光。失败／结果未知在名称旁提示，停止／未执行继续明确区分，不在最右侧单列状态 | 浏览器检查完成行可见文本不含“已完成”，失败标签与名称相距 6px；执行中动画时间持续增长，Stop／输出完成后为 0，减少动态效果时为 0 |
 | 视觉与实际接线 | 用户确认调整后的预览并要求接产品，产品与 Storybook 现复用同一展示路径；未声称像素与 Codex 完全一致 | 360 像素视口无整体横向溢出，代码块聚焦后方向键横移已有实际位移证据；实际 Electron 窗口、系统剪贴板、停止／失败、Edit diff 和重开均已验收，重启前后历史及文件摘要相同，详见本批证据 |
 
-正文与代码、思考、现有工具、消息复制、模型选择与发送／停止均已接产品；本轮 composer／hint 按用户要求跳过 Storybook，不重复规划。自动压缩期间复用回复区域显示「正在压缩对话上下文」，摘要内容留在模型上下文和 Journal。压缩与继续的组合状态随 03d 验收。本期按已确认范围保留 textarea，不引入新的编辑器依赖。
+正文与代码、思考、现有工具、消息复制、模型选择与发送／停止均已接产品；本轮 composer／hint 按用户要求跳过 Storybook，不重复规划。自动压缩期间复用回复区域显示「正在压缩对话上下文」，摘要内容留在模型上下文和 Journal。压缩、Continue 与历史分页的组合状态已在隔离 Electron 窗口验收。本期按已确认范围保留 textarea，不引入新的编辑器依赖。 [03d 组合窗口验收](implementation-results.md#03d-组合窗口验收2026-11-25)
 
 ## 可观测性与验证
 

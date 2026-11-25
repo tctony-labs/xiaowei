@@ -8,7 +8,7 @@
 
 2026-10-18 已实现独立 `system_context` 记录及其 v2 编解码／校验和核心恢复入口；首次／压缩后完整基线、后续仅变化、无变化不追加的语义见 [Harness 能力上下文同步](model-types.md#harness-能力上下文同步)。生产生成入口、PB／worker 映射与工具循环已接入；具体 provider 支持边界见[正式生成接线](model-types.md#正式生成接线与适配边界2026-10-18)。
 
-`payload.data` 使用 `type`／`data` 区分两种更新：`baseline` 的 data 为完整 `SystemContext`，含 `instructions`（名称到正文的有序键映射）与 `tools`（ToolDeclaration 列表）；`delta` 的 data 包含非空变化项 `instructions`、`instructions_removed`、`tools_added`、`tools_removed`，空集合省略。指令同名更新直接替换正文；工具同名替换须在同一增量移除旧名并加入完整新定义。工具 schema 原始 JSON 字符串仍原样保存；差异比较忽略对象键顺序和空白，保留数字原始表示，避免大数字舍入隐藏真实变化。
+`payload.data` 使用 `type`／`data` 区分更新。完整 `baseline` 的 `instructions` 是按组装顺序排列的 `{name, content}` 数组，`tools` 保存工具声明列表。`delta` 的 data 包含非空变化项 `instructions`、`instructions_removed`、`tools_added`、`tools_removed`。恢复时同名指令在原位置替换正文，新片段按增量中的顺序追加。旧 v2 历史的指令对象按旧版的键序读取，新记录以数组保存。工具同名替换须在同一增量移除旧名并加入完整新定义。工具 schema 原始 JSON 字符串仍原样保存。差异比较忽略对象键顺序和空白，保留数字原始表示。
 
 系统记录不依附 Run／Gen，不伪装用户输入或助手 Message；外层身份、顺序与时间复用普通 entry。首次空基线仍是一条明确记录；已有基线时禁止再次追加 baseline，实际无变化的 delta 也拒绝。Conversation Gen 未结束或工具结果未闭合时禁止更新，包括模型已返回完整工具调用、ToolIntent 尚未提交的前缀。
 
@@ -63,7 +63,7 @@ optional 字段通常省略，必要时用显式 null 表达未知，具体规�
 | `run_end` | `run_id`、`status`、可选单调耗时、安全错误／`error_ref` | 输出标志、工具次数及最后一个所属 Conversation Gen 的 context_tokens 重建，不再重复保存 |
 | `title_generated` | `run_id`、`round` | 指向已结束且有助手输出的 Run，`round` 是累计有效轮次。仅用于自动标题节奏 |
 
-`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步，其中包含当时生效的权限说明。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。[Preset 已暂缓](agent-presets.md)，不为它扩展 Header 或 RunContext；Header 可包含 cwd，RunContext 仍不包含 agent 身份。
+`RunContext` 保存 model（引用、独立展示名称、可选能力、预算及来源）、generation（有效生成参数）、tools（声明）和 limits。model.capabilities 的窗口／输出上限与 model.budget 相同，仅在 budget 保存一份，解码补回领域能力对象。聊天系统指令通过独立 `system_context` 记录同步，其中包含当时生效的权限说明。工具实例、连接、取消句柄、缓存和完整会话消息仅在内存组装。Header 可包含 cwd，RunContext 仍不包含 agent 身份。
 
 `RunStarted.context.tools` 可从 `base_context.through_entry_id` 指向的历史位置重建时，编码器省略该字段。读取以该边界内最近的基线或压缩快照为起点，依序应用其后的增量，再把声明补回完整领域对象并校验。显式保存的列表按原值读取，包括空列表；没有可用基线时必须显式保存。辅助 Gen 的独立 `context.tools` 仍显式保存。格式版本仍为 v2，既有文件可直接读取，读取新写入的精简条目需要更新后的 reader。
 
@@ -106,7 +106,7 @@ ToolIntent 无 Outcome 表示副作用可能发生，不能自动重试。显式
 
 InteractionRequest 为 Question、Permission 或 ToolExecution；回答类型匹配、索引有界且不重复，单选至多一个，并允许自由文本。PermissionTarget 由服务端解析，客户端不能扩大授权路径。ToolExecution 用于 Continue 后模型重新提出等价副作用时确认，不重新执行旧 intent。送达 ACK、客户端连接和 observer 状态只放内存。
 
-Compaction 必须来自已成功结束的 Compaction Gen，替换范围属于其调用时有效历史，保留工具闭合的后缀。检查点成功提交后才切换有效上下文，原始历史不覆盖；失败不能静默丢弃消息。重放可沿检查点链恢复，rewind／fork 的公共 API／分支 provenance 仍属后续范围。
+Compaction 必须来自已成功结束的 Compaction Gen，替换范围属于其调用时有效历史，保留工具闭合的后缀。检查点成功提交后才切换有效上下文，原始历史不覆盖；失败不能静默丢弃消息。重放可沿检查点链恢复，公共 API 与分支来源由[Fork 与 Rewind 提案](../../proposed/2026-11-25-agent-fork-rewind.md)跟踪。
 
 ## 公开 codec 与校验
 

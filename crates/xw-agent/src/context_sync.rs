@@ -22,14 +22,14 @@ pub fn plan_system_context_update(
     let instructions = desired
         .instructions
         .iter()
-        .filter(|(name, content)| previous.instructions.get(*name) != Some(*content))
-        .map(|(name, content)| (name.clone(), content.clone()))
+        .filter(|(name, content)| previous.instructions.get(name) != Some(*content))
+        .map(|(name, content)| (name.into(), content.into()))
         .collect();
     let instructions_removed = previous
         .instructions
         .keys()
-        .filter(|name| !desired.instructions.contains_key(*name))
-        .cloned()
+        .filter(|name| !desired.instructions.contains_key(name))
+        .map(str::to_owned)
         .collect();
     let mut tools_added: Vec<_> = desired
         .tools

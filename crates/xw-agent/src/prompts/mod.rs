@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
-
-use xw_agent_types::{PermissionMode, SystemContext, ToolDeclaration, ValidationError};
+use xw_agent_types::{
+    PermissionMode, SystemContext, SystemInstructions, ToolDeclaration, ValidationError,
+};
 
 const READ_RULE: &str = concat!(
     "优先使用 Read 读取文件。按任务需要分页读取；",
@@ -24,8 +24,8 @@ const EDIT_RULE: &str = concat!(
 pub fn build_chat_system_context(
     tools: Vec<ToolDeclaration>,
 ) -> Result<SystemContext, ValidationError> {
-    let mut instructions =
-        BTreeMap::from([("base".into(), include_str!("base.md").trim().to_owned())]);
+    let mut instructions = SystemInstructions::default();
+    instructions.insert("base".into(), include_str!("base.md").trim().to_owned());
 
     for tool in &tools {
         let rule = match tool.name.as_str() {

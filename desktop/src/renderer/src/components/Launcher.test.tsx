@@ -26,7 +26,12 @@ import { createServices } from "../services";
 import { agentFixture } from "./agent-chat/test-fixture";
 import { Launcher } from "./Launcher";
 
-function preview(clipboardMode = false, noModels = false, smallTextModelRef = "") {
+function preview(
+  clipboardMode = false,
+  noModels = false,
+  smallTextModelRef = "",
+  beforeQuery?: (value: string) => Promise<void>,
+) {
   const host = new GatewayHost();
   let pinned = false;
   const calls = {
@@ -64,8 +69,9 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
   const launcher = host.registerOwner(
     "launcher",
     bindHandlers(LauncherService, {
-      query: ({ query: value }) =>
-        create(LauncherSearchResponseSchema, {
+      async query({ query: value }) {
+        if (beforeQuery) await beforeQuery(value);
+        return create(LauncherSearchResponseSchema, {
           token: clipboardMode ? 2 : 1,
           hits: !value
             ? []
@@ -75,7 +81,8 @@ function preview(clipboardMode = false, noModels = false, smallTextModelRef = ""
                   { id: "one", title: "微信", provider: "app", label: "应用", score: 100 },
                   { id: "two", title: "微信文档", provider: "bookmark", label: "网页", score: 90 },
                 ],
-        }),
+        });
+      },
       execute(request) {
         calls.execute(request);
         return create(ExecuteResponseSchema, {
@@ -271,6 +278,33 @@ test("keyboard selection and composition guard", async () => {
     expect.objectContaining({ token: 1, id: "two" }),
   );
   await waitFor(() => expect(input).toHaveValue(""));
+});
+
+test("the current selection stays put until replacement search results arrive", async () => {
+  let release = () => {};
+  const delayed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const beforeQuery = vi.fn(async (value: string) => {
+    if (value === "微信文档") await delayed;
+  });
+  const search = preview(false, false, "", beforeQuery);
+  const canvas = render(<Launcher services={search.services} />);
+  const input = canvas.getByRole("textbox", { name: "搜索" });
+  fireEvent.change(input, { target: { value: "微信" } });
+  const second = await canvas.findByRole("option", { name: /微信文档/ });
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  expect(second).toHaveAttribute("aria-selected", "true");
+
+  fireEvent.change(input, { target: { value: "微信文档" } });
+  await waitFor(() => expect(beforeQuery).toHaveBeenCalledWith("微信文档"));
+  expect(second).toHaveAttribute("aria-selected", "true");
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(search.calls.execute).not.toHaveBeenCalled();
+
+  release();
+  const first = canvas.getByRole("option", { name: "微信应用" });
+  await waitFor(() => expect(first).toHaveAttribute("aria-selected", "true"));
 });
 
 test("failed actions keep search results, log errors and allow another dispatch", async () => {
