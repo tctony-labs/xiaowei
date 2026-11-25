@@ -181,7 +181,7 @@ impl ::prost::Name for AgentItem {
         "/xiaowei.agent.AgentItem".into()
     }
 }
-/// Current conversation Generate, including opening/queueing and gaps between content blocks.
+/// Current conversation or compaction Generate, including opening and gaps between content blocks.
 /// Tool declarations count as received content but are not executable tool Items yet.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AgentGeneration {
@@ -194,6 +194,9 @@ pub struct AgentGeneration {
     /// Absent while waiting or emitting a tool declaration; never points to an older Generate.
     #[prost(string, optional, tag = "4")]
     pub active_item_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// True while a summary is generated for context compaction. Summary text is internal.
+    #[prost(bool, tag = "5")]
+    pub is_compaction: bool,
 }
 impl ::prost::Name for AgentGeneration {
     const NAME: &'static str = "AgentGeneration";

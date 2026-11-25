@@ -2,6 +2,20 @@
 
 所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。本文只保留当前成果、关键迁移差异和验证结论；字段、接口与行为分别见[历史格式](history-format.md)、[架构](architecture.md)、[Host](host-interface.md)、[控制协议](control-api.md)及[运行与 UI](runtime-ui.md)。
 
+## 上下文预算与自动压缩
+
+02j 在首个聊天 Turn 前及工具全部结算后的 Turn 之间检查预算。按 Run 固定所选模型及其窗口和最大输出。输入估算取完整上下文估算和同模型最近实测加新增消息估算的较大值。实测输入按 Pi 的未缓存输入、缓存读取和缓存写入合计。达到窗口的 80% 或输入超过「窗口减最大输出」时尝试一次压缩。
+
+摘要使用同一模型发起独立生成，最多 4,096 tokens，实际限额也受模型与 Pi 的窗口约束。摘要 prompt 要求保留当前目标、决策、路径、工具结果和待办，区分已观测与未知结果。摘要请求带历史消息与当前系统指令，无工具定义和聊天 provider 会话键。替换上下文由一份当前系统基线、预算内最多约 20,000 tokens 的近期用户文本及摘要组成。当前尚未消费的输入仍由聊天 Turn 单独接纳。
+
+原始消息与工具结果留在 Journal。摘要生成及用量单独记录，检查点落盘后才切换有效上下文并使旧聊天测量失效。取消、空摘要、压缩后仍超限或检查点写入失败结束当前 Run，保留原有效历史。确认写入失败时修复未提交尾部。压缩前未消费的排队输入保留，重开不会自动发送。历史格式和恢复边界见[历史格式](history-format.md#系统上下文记录核心记录恢复已实现)。
+
+Rust 回归覆盖软／硬预算边界、缓存 token、两处触发、同一会话再次压缩、工具配对、当前基线与后续增量、取消和写入故障、队列幂等及完整对话投影。正式 addon 经 Gateway 和打包 Pi worker 对本地 HTTP 模型验证请求、会话隔离、检查点重开和公开压缩状态。相关 Rust 测试、`just check`、`pnpm contracts:test`、`pnpm --dir desktop test` 及 Agent debug addon 重建通过。压缩与 Continue 的组合交互继续由 [03d](../../../plans/2026-09-28-agent-chat/03d-composed-preview.md) 和 [04d](../../../plans/2026-09-28-agent-chat/04d-final-acceptance.md) 跟踪，历史分页随 [01f](../../../plans/2026-09-28-agent-chat/01f-history-projection.md) 推进。
+
+使用隔离 Agent 目录和用户配置中的真实 `terra` 模型补验。测试模型窗口为 24,000 tokens，第二轮估算 19,484 tokens，超过 19,200 的软阈值。两次会话加载共写入一个 `auto_pre_run` 检查点，摘要 Gen 与聊天使用同一模型。首轮 JSONL 前缀的 SHA-256 在压缩前后相同，只有摘要保留了后两轮所需的测试标记，重开后能够正确回答且没有再次压缩。此次记录验证覆盖真实 provider、Gateway、addon 和持久重开。
+
+在 `atlas` 的实际 Quick Chat 完成窗口与应用重启验收。窗口显示「正在压缩对话上下文」，压缩结束后真实 `terra` 返回 `SECOND:LAN-TING-6109`，原始 `FIRST:LAN-TING-6109` 仍能在消息列表查看。Electron 重启后恢复两条回复，未附加历史写入；再次从窗口发送指令获得 `REOPEN:LAN-TING-6109`。三个 Run 均 Completed，整个会话只有一个 `auto_pre_run` 检查点，唯有摘要保留了后续回复所需标记。测试使用隔离目录与 24,000 token 窗口，完成后切回正常开发配置。
+
 ## 后台 Bash 三工具（2026-11-25）
 
 第 7 批在 macOS 接入 BgRun、BgOutput 和 BgStop。以旧版 `d97d45b4` 的 Bash 后台分支、输出游标和回收规则为迁移参考。独立 BgRun 返回本次 ToolId 作为任务 ID，短命令退出后也保留该 ID。初始等候最多 2 秒。随后参考 Claude Code 2.1.327，把 stdout 和 stderr 在启动时接到同一个临时文件。增量读取使用独立文件偏移，文件大小由进程监控定期检查。工具行为和进程生命周期分别见 [runtime](../../../../crates/xw-agent-runtime/README.md#后台-bash) 与 [Agent core](../../../../crates/xw-agent/README.md)。

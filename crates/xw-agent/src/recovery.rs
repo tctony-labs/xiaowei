@@ -265,7 +265,9 @@ pub(crate) fn settle_with_tools(
             .count() as u32;
         let had_assistant_output = entries.iter().any(|entry| {
             matches!(&entry.payload,
-            EntryPayload::Message(message) if message.run_id == Some(*id))
+                EntryPayload::Message(message)
+                    if message.run_id == Some(*id) && message.turn_id.is_some()
+            )
         });
         let failed = known_failed_run == Some(*id);
         journal.append(

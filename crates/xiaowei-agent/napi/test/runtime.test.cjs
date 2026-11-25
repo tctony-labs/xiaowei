@@ -90,7 +90,8 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
           reasoning: true,
           input: ["text"],
           maxTokens: 4096,
-          contextWindow: 8192,
+          // Keep this lifecycle and title fixture below the compaction threshold.
+          contextWindow: 65_536,
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
           apiKey: "fixture",
           baseUrl: `http://127.0.0.1:${server.address().port}`,

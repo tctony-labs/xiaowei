@@ -1,6 +1,6 @@
 # 宿主接口与会话持久化
 
-所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、持久会话、前六批工具与 Skill 按需加载，以及 composer 模型／思考切换；SQLite 会话目录由核心持有。后台工具、压缩生产及远程 transport 仍后续实施；已交付功能的窗口及重启验收见[实施结果](implementation-results.md)。Skill 沿用现有模型上下文，不扩展 Host 接口。
+所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。当前实现包含统一 Host、持久会话、前七批工具、Skill 按需加载、自动压缩与 composer 模型／思考切换。SQLite 会话目录由核心持有。已交付范围与验收见[实施结果](implementation-results.md)。Skill 沿用现有模型上下文，不扩展 Host 接口。
 
 ## 会话选择与 Run 快照
 
@@ -58,7 +58,7 @@ ModelConfiguration 下发独立 provider_name；SDK 的 provider 与模型 name 
 
 模型不存在、Host 不可用或非法响应分别返回安全错误。读取历史不依赖查询成功，继续调用原 model_ref／reasoning，能发就发，失败给出真实 Run 错误，不自动替换模型。能力未知保持 None，不伪装为不支持；ModelBudget.source 区分 Host 与 Default。
 
-前端共享默认、TS 配置缺省和 Rust 回退均为 `256_000` 上下文／`32_768` 最大输出，不改写显式配置或历史预算，也不强行填写原本缺省的 Generate.max_tokens。预算回退可能影响后续压缩时机；本轮尚未接压缩生产者。
+前端共享默认、TS 配置缺省和 Rust 回退均为 `256_000` 上下文／`32_768` 最大输出，不改写显式配置或历史预算，也不强行填写原本缺省的 Generate.max_tokens。同一 Run 中预算固定，回退值也用于判断自动压缩时机。
 
 ### 查询警告的会话投影与 UI
 

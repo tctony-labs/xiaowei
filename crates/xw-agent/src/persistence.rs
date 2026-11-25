@@ -39,6 +39,21 @@ impl AgentService {
     }
 }
 
+pub(crate) fn run_input_item_id(
+    session: &Session,
+    input_id: domain::InputId,
+    original: domain::BlockId,
+    run_entry_id: Option<domain::EntryId>,
+) -> String {
+    let input_id = input_id.to_string();
+    if session.view.runs.iter().any(|run| run.input_id == input_id) {
+        // A retried queued input has a distinct timeline item for each attempt.
+        run_entry_id.map_or_else(|| domain::BlockId::new().to_string(), |id| id.to_string())
+    } else {
+        original.to_string()
+    }
+}
+
 pub(crate) fn initial_meta(session: &Session) -> domain::SessionMeta {
     let config = session.view.config.as_ref().expect("validated config");
     domain::SessionMeta {
@@ -105,6 +120,7 @@ impl Session {
         // without making it into the live projection. Such an input must never be accepted twice.
         let restored = project(self.journal.as_ref().expect("journal exists"))?;
         self.history = restored.history;
+        self.summary_index = restored.summary_index;
         self.requests = restored.requests;
         self.queue = restored.queue;
         self.view.queued_inputs = restored.view.queued_inputs;
@@ -217,11 +233,13 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                 {
                     for id in &input.input_ids {
                         let message = input_messages[id];
-                        if run
-                            .items
-                            .iter()
-                            .any(|item| item.item_id == message.block_ids[0].to_string())
-                        {
+                        let input_id = id.to_string();
+                        if run.items.iter().any(|item| {
+                            matches!(&item.content,
+                                Some(agent_item::Content::UserMessage(user))
+                                    if user.input_id.as_deref() == Some(&input_id)
+                            )
+                        }) {
                             continue;
                         }
                         let domain::AgentMessage::User(user) = &message.message else {
@@ -231,7 +249,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                             item_id: message.block_ids[0].to_string(),
                             gen_id: None,
                             content: Some(agent_item::Content::UserMessage(AgentUserMessage {
-                                input_id: Some(id.to_string()),
+                                input_id: Some(input_id),
                                 content: user
                                     .content
                                     .iter()
@@ -273,6 +291,12 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                         .collect(),
                     _ => return Err(AgentError::Persistence),
                 };
+                let item_id = run_input_item_id(
+                    &session,
+                    input_id,
+                    message.block_ids[0],
+                    Some(entry.entry_id),
+                );
                 let model = &run.context.model;
                 let reasoning = run.context.generation.reasoning.clone();
                 session.view.runs.push(AgentRun {
@@ -286,7 +310,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     model_name: model.model_name.clone().unwrap_or_default(),
                     started_at_ms: entry.timestamp_ms,
                     items: vec![AgentItem {
-                        item_id: message.block_ids[0].to_string(),
+                        item_id,
                         gen_id: None,
                         content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                             content,
@@ -465,6 +489,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
     }
     session.granted_paths = rebuilt.granted_paths;
     session.history = rebuilt.messages;
+    session.summary_index = rebuilt.summary_index;
     session.view.queued_inputs = session
         .queue
         .iter()
@@ -485,20 +510,13 @@ impl Session {
         tools: Vec<domain::ToolDeclaration>,
         queued: Option<&crate::queue::PendingInput>,
         manual: bool,
-    ) -> Result<(), AgentError> {
+    ) -> Result<Option<domain::EntryId>, AgentError> {
         if self.journal.is_none() {
-            return Ok(());
+            return Ok(None);
         }
         self.prepare_writer()?;
         let started_at = now_ms()?;
-        let boundary = domain::ContextBoundary {
-            through_entry_id: self
-                .journal
-                .as_ref()
-                .and_then(|journal| journal.entries().last())
-                .map(|entry| entry.entry_id),
-            after_turn_id: None,
-        };
+        let boundary = self.boundary(None);
         let context = domain::RunContext {
             permission_mode: None,
             model,
@@ -576,15 +594,45 @@ impl Session {
                 input_id: execution.input_id,
             },
         };
-        self.append(
+        let started = self.append(
             domain::EntryPayload::RunStarted(domain::RunStarted {
                 run_id: execution.run_id,
                 cause,
-                base_context: boundary.clone(),
+                base_context: boundary,
                 context,
             }),
             started_at,
         )?;
+        Ok(started.map(|entry| entry.entry_id))
+    }
+
+    pub(crate) fn boundary(
+        &self,
+        after_turn_id: Option<domain::TurnId>,
+    ) -> domain::ContextBoundary {
+        domain::ContextBoundary {
+            through_entry_id: self
+                .journal
+                .as_ref()
+                .and_then(|journal| journal.entries().last())
+                .map(|entry| entry.entry_id),
+            after_turn_id: if self.journal.is_some() {
+                after_turn_id
+            } else {
+                None
+            },
+        }
+    }
+
+    pub(crate) fn record_first_turn(
+        &mut self,
+        execution: &xw_agent_runtime::RunRequest,
+        started_at: i64,
+    ) -> Result<(), AgentError> {
+        if self.journal.is_none() {
+            return Ok(());
+        }
+        let boundary = self.boundary(None);
         self.append(
             domain::EntryPayload::TurnStarted(domain::TurnStarted {
                 turn_id: execution.turn_id.expect("conversation Turn"),
@@ -703,8 +751,15 @@ impl Session {
                 ended_at_ms: Some(outcome.ended_at_ms),
                 stop_reason,
                 assistant_message_id: recorded_id,
+                context_tokens: (execution.turn_id.is_some()
+                    && outcome.status == xw_agent_runtime::RunStatus::Completed)
+                    .then(|| {
+                        usage
+                            .as_ref()
+                            .and_then(xw_agent_runtime::context_budget::context_tokens)
+                    })
+                    .flatten(),
                 usage,
-                context_tokens: None,
                 duration_ms: Some(outcome.elapsed_ms),
                 reasoning_duration_ms: None,
                 error: error.clone(),

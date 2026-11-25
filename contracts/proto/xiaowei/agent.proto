@@ -147,7 +147,7 @@ message AgentItem {
   optional string gen_id = 6;
 }
 
-// Current conversation Generate, including opening/queueing and gaps between content blocks.
+// Current conversation or compaction Generate, including opening and gaps between content blocks.
 // Tool declarations count as received content but are not executable tool Items yet.
 message AgentGeneration {
   string gen_id = 1;
@@ -155,6 +155,8 @@ message AgentGeneration {
   bool received_content = 3;
   // Absent while waiting or emitting a tool declaration; never points to an older Generate.
   optional string active_item_id = 4;
+  // True while a summary is generated for context compaction. Summary text is internal.
+  bool is_compaction = 5;
 }
 
 enum AgentRunStatus {

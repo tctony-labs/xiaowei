@@ -161,7 +161,12 @@ export function AgentMessage({
             </div>
           );
         })}
-        {showGenerationDots && (
+        {showGenerationDots && generation.isCompaction && (
+          <p role="status" className="text-xs text-muted">
+            正在压缩对话上下文
+          </p>
+        )}
+        {showGenerationDots && !generation.isCompaction && (
           <div className="agent-generation-dots" role="status" aria-label="模型正在生成">
             <span aria-hidden="true" />
             <span aria-hidden="true" />

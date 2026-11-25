@@ -79,7 +79,7 @@ Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；re
 
 ## Current work
 
-02h 已完成，下一切片是 02j 自动压缩。02k 显式 Continue 在 02j 验收后推进。02m 资源加载已完成窗口与重启验收，slash 入口留待后续。
+02h 与 02j 已完成，下一切片是 02k 显式 Continue。02m 资源加载已完成窗口与重启验收，slash 入口留待后续。
 
 2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。旧内置业务技能留随对应业务迁移，preset 继续暂缓。
 
@@ -95,7 +95,7 @@ Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；re
 
 2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，03c 只保留 01f 长输出范围，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
 
-PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Interrupt 的接入与验收进行中；rewind／fork、CLI 与手机 transport 保留设计边界。
+PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Interrupt 的接入与验收进行中；rewind／fork、CLI 与手机 transport 保留设计边界。
 
 2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
 
@@ -108,6 +108,8 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
 
 ## Outcome
+
+02j 已接入上下文预算、自动压缩和持久检查点。触发条件、提交边界及验证证据见[上下文预算与自动压缩](2026-09-28-agent-chat/implementation-results.md#上下文预算与自动压缩)。
 
 2026-11-25，02h 后台三工具已实现并通过真实子进程、会话、正式 addon 和 worker 验证。[后台 Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#后台-bash-三工具2026-11-25)记录验收和迁移差异。已移除 02h 临时计划，真实模型和窗口组合验收随 04d 继续。
 

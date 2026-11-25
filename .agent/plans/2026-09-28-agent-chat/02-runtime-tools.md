@@ -1,10 +1,9 @@
 # 02：运行时与工具阶段索引
 
-关联 [record](../../records/active/2026-09-28-agent-chat.md)与[总实施顺序](00-implementation-order.md)。统一 Host、文本执行、持久化与标题产品能力已交付；本阶段接提示词与工具、交互、压缩及继续。preset 暂缓；前七批工具及提前实施的 Skill 已交付，后续推进自动压缩和显式继续，不重复实现模型／napi 接线。
+关联 [record](../../records/active/2026-09-28-agent-chat.md)与[总实施顺序](00-implementation-order.md)。统一 Host、文本执行、持久化与标题产品能力已交付；本阶段接提示词与工具、交互、压缩及继续。preset 暂缓；前七批工具、提前实施的 Skill 和自动压缩已交付，后续推进显式继续，不重复实现模型／napi 接线。
 
 | 切片 | 剩余结果 | 前置 |
 | --- | --- | --- |
-| [02j](02j-compaction.md) | 自动压缩与持久检查点 | 已交付工具循环 |
 | [02k](02k-continue-recovery.md) | 显式 Continue 及未知副作用保护 | 02j。交互、后台工具及文件搜索已交付 |
 
 工具批次及确切工具集合以[总实施顺序](00-implementation-order.md#工具接入批次)为准，按批整体验收。每片实施前核对旧版及当前文件，再原地收敛；不继续拆分。跨批次计划在阶段完成后回填成果、移除已完成步骤，剩余阶段继续保留。FollowUp／Steering、rewind／fork 与 CLI／手机产品实现不在这些切片交付范围。每片全部完成后回填 record 并删除；全部完成后删除索引。

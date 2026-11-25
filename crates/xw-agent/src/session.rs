@@ -33,6 +33,7 @@ pub(crate) struct Session {
     pub failed_run: Option<xw_agent_types::RunId>,
     pub deletion_announced: bool,
     pub history: Vec<xw_agent_types::AgentMessage>,
+    pub summary_index: Option<usize>,
     pub granted_paths: Vec<xw_agent_types::PermissionTarget>,
     pub interactions: std::collections::BTreeMap<
         xw_agent_types::InteractionId,
@@ -85,6 +86,7 @@ impl Session {
             last_unjournaled_title: None,
             deletion_announced: false,
             history: Vec::new(),
+            summary_index: None,
             granted_paths: Vec::new(),
             interactions: Default::default(),
             requests: Default::default(),

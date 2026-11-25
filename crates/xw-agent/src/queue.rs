@@ -47,7 +47,14 @@ impl PendingInput {
 
 pub(crate) fn publish(state: &mut State, id: domain::SessionId) {
     let session = state.sessions.get_mut(&id).expect("loaded session");
-    session.view.queued_inputs = session.queue.iter().map(PendingInput::view).collect();
+    session.view.queued_inputs = session
+        .queue
+        .iter()
+        .filter(|input| {
+            session.active.is_none() || session.dispatching != Some(input.accepted.input_id)
+        })
+        .map(PendingInput::view)
+        .collect();
     let queued_inputs = session.view.queued_inputs.clone();
     let error = session.view.queue_error.clone();
     AgentService::publish(
@@ -58,6 +65,22 @@ pub(crate) fn publish(state: &mut State, id: domain::SessionId) {
             error,
         })),
     );
+}
+
+pub(crate) fn steering_input(session: &Session, run_id: domain::RunId) -> Option<&PendingInput> {
+    session
+        .queue
+        .iter()
+        .find(|input| input.mode == domain::InputMode::Steering && input.target == Some(run_id))
+}
+
+pub(crate) fn finish_dispatch(session: &mut Session, id: domain::InputId) {
+    if session.dispatching == Some(id) {
+        session.queue.retain(|entry| entry.accepted.input_id != id);
+        session.dispatching = None;
+        session.dispatch_manual = false;
+        session.view.queue_error = None;
+    }
 }
 
 fn recorded(id: domain::InputId, inputs: &[AgentUserInput], at: i64) -> domain::RecordedMessage {

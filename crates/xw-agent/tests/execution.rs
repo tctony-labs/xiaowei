@@ -18,6 +18,11 @@ struct Model {
 impl AgentHost for Model {
     fn get_model_info(&self, model_ref: String) -> xw_agent::ModelInfoFuture {
         Box::pin(async move {
+            let context_window = if model_ref.starts_with("wide-fixture-") {
+                16_000_000
+            } else {
+                256_000
+            };
             Ok(xw_agent::ModelInfo {
                 model_ref,
                 provider_name: "fixture".into(),
@@ -25,7 +30,7 @@ impl AgentHost for Model {
                 capabilities: xw_agent_types::ModelCapabilities {
                     input_modalities: vec![xw_agent_types::InputModality::Text],
                     supports_reasoning: true,
-                    context_window: 256_000,
+                    context_window,
                     max_output_tokens: 32_768,
                 },
             })
@@ -351,7 +356,7 @@ async fn retained_idempotency_inputs_share_the_history_budget_and_rejection_does
     loop {
         let mut input = request(&session, &text);
         input.config = Some(AgentModelConfig {
-            model_ref: format!("model-{accepted}"),
+            model_ref: format!("wide-fixture-{accepted}"),
             reasoning: None,
         });
         match service.start_run(input.clone(), source("a")).await {

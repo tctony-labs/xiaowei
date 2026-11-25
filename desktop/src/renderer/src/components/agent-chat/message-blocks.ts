@@ -30,6 +30,7 @@ export interface AgentGenerationState {
   id: string;
   startedAtMs: number;
   receivedContent: boolean;
+  isCompaction?: boolean;
   activeBlockId?: string;
 }
 

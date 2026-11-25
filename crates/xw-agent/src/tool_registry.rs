@@ -161,6 +161,7 @@ pub(crate) fn synchronize(
         let rebuilt = crate::rebuild_context(journal.entries(), &boundary)
             .map_err(|_| AgentError::Persistence)?;
         session.history = rebuilt.messages;
+        session.summary_index = rebuilt.summary_index;
         // Use the exact declarations projected into the model history after synchronization.
         return Ok(rebuilt.system_context.ok_or(AgentError::Persistence)?.tools);
     }

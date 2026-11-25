@@ -781,6 +781,20 @@ test("GFM renders while reply and code copy preserve raw source", async () => {
   expect(onOpenUrl).toHaveBeenCalledExactlyOnceWith("https://example.com/docs");
 });
 
+test("shows compaction while waiting for the next response", () => {
+  const generation = { id: "summary", startedAtMs: Date.now(), receivedContent: false };
+  const message = textMessage("", "generating");
+  const props = { message, onCopy: vi.fn(async () => {}), onOpenUrl: vi.fn(async () => {}) };
+  const { rerender } = render(
+    <AgentMessage {...props} generation={{ ...generation, isCompaction: true }} />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("正在压缩对话上下文");
+
+  rerender(<AgentMessage {...props} generation={{ ...generation, id: "next" }} />);
+  expect(screen.getByRole("status", { name: "模型正在生成" })).toBeVisible();
+  expect(screen.queryByText("正在压缩对话上下文")).toBeNull();
+});
+
 test("streaming fences keep code position through updates and stop", () => {
   const onCopy = vi.fn(async () => {});
   const onOpenUrl = vi.fn(async () => {});

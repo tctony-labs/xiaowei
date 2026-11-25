@@ -555,7 +555,8 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             let id: RunId = get(data, "run_id")?;
             let had_output = history.iter().any(|entry| {
                 matches!(&entry.payload,
-                    EntryPayload::Message(message) if message.run_id == Some(id)
+                    EntryPayload::Message(message)
+                        if message.run_id == Some(id) && message.turn_id.is_some()
                 )
             });
             let tools = history
@@ -661,20 +662,31 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
                 _ => None,
             })?;
             let replacement: Vec<AgentMessage> = get(data, "replacement_history")?;
-            let summary = replacement
-                .iter()
-                .flat_map(|message| match message {
-                    AgentMessage::SystemContext { .. } => &[][..],
-                    AgentMessage::User(message) => message.content.as_slice(),
-                    AgentMessage::Assistant(message) => message.content.as_slice(),
-                    AgentMessage::ToolResult(message) => message.content.as_slice(),
-                })
-                .filter_map(|block| match block {
-                    ContentBlock::Text { text, .. } => Some(text.as_str()),
+            let tagged_summary = match replacement.last() {
+                Some(AgentMessage::User(user)) => match user.content.as_slice() {
+                    [ContentBlock::Text { text, .. }] => {
+                        text.strip_prefix(COMPACTION_SUMMARY_PREFIX)
+                    }
                     _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+                },
+                _ => None,
+            };
+            let summary = tagged_summary.map(str::to_owned).unwrap_or_else(|| {
+                replacement
+                    .iter()
+                    .flat_map(|message| match message {
+                        AgentMessage::SystemContext { .. } => &[][..],
+                        AgentMessage::User(message) => message.content.as_slice(),
+                        AgentMessage::Assistant(message) => message.content.as_slice(),
+                        AgentMessage::ToolResult(message) => message.content.as_slice(),
+                    })
+                    .filter_map(|block| match block {
+                        ContentBlock::Text { text, .. } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            });
             let (previous, kept) = crate::validation::compaction_references(
                 history,
                 &generation.boundary,

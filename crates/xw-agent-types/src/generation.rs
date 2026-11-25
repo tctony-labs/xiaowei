@@ -4,6 +4,8 @@ use crate::{AgentMessage, AssistantMessage, ContentBlock, SessionId, TokenUsage}
 #[derive(Debug, Clone)]
 pub struct GenerationRequest {
     pub session_id: SessionId,
+    /// Keep this call outside the conversation provider session.
+    pub isolate_provider_session: bool,
     pub model_ref: String,
     pub system_prompt: String,
     pub messages: Vec<AgentMessage>,
