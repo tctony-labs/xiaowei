@@ -1,22 +1,104 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Index};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{ToolDeclaration, ValidationError, validation};
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Instruction {
+    name: String,
+    content: String,
+}
+
+/// Named instructions in prompt order. Replacing a name keeps its existing position.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SystemInstructions(Vec<Instruction>);
+
+impl SystemInstructions {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.0
+            .iter()
+            .map(|entry| (entry.name.as_str(), entry.content.as_str()))
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.iter().map(|(name, _)| name)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn get(&self, name: &str) -> Option<&str> {
+        self.iter()
+            .find_map(|(key, content)| (key == name).then_some(content))
+    }
+
+    pub fn contains_key(&self, name: &str) -> bool {
+        self.get(name).is_some()
+    }
+
+    pub fn insert(&mut self, name: String, content: String) -> Option<String> {
+        if let Some(entry) = self.0.iter_mut().find(|entry| entry.name == name) {
+            return Some(std::mem::replace(&mut entry.content, content));
+        }
+        self.0.push(Instruction { name, content });
+        None
+    }
+
+    pub fn remove(&mut self, name: &str) -> Option<String> {
+        let position = self.0.iter().position(|entry| entry.name == name)?;
+        Some(self.0.remove(position).content)
+    }
+
+    pub fn retain(&mut self, mut keep: impl FnMut(&str) -> bool) {
+        self.0.retain(|entry| keep(&entry.name));
+    }
+}
+
+impl FromIterator<(String, String)> for SystemInstructions {
+    fn from_iter<T: IntoIterator<Item = (String, String)>>(entries: T) -> Self {
+        Self(
+            entries
+                .into_iter()
+                .map(|(name, content)| Instruction { name, content })
+                .collect(),
+        )
+    }
+}
+
+impl Index<&str> for SystemInstructions {
+    type Output = String;
+
+    fn index(&self, name: &str) -> &Self::Output {
+        &self
+            .0
+            .iter()
+            .find(|entry| entry.name == name)
+            .expect("unknown instruction")
+            .content
+    }
+}
+
 /// Model-visible instructions and declarations, without tool instances or provider options.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SystemContext {
-    pub instructions: BTreeMap<String, String>,
+    pub instructions: SystemInstructions,
     pub tools: Vec<ToolDeclaration>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SystemContextDelta {
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub instructions: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "SystemInstructions::is_empty")]
+    pub instructions: SystemInstructions,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub instructions_removed: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -43,9 +125,13 @@ impl SystemContext {
         validation::system_context(self)
     }
 
-    /// Declaration order and JSON object key order do not change a named capability.
+    /// Named changes are incremental. Previously committed positions are kept until a new baseline.
     pub fn has_same_content(&self, other: &Self) -> bool {
-        self.instructions == other.instructions
+        self.instructions.len() == other.instructions.len()
+            && self
+                .instructions
+                .iter()
+                .all(|(name, content)| other.instructions.get(name) == Some(content))
             && self.tools.len() == other.tools.len()
             && self.tools.iter().all(|tool| {
                 other
@@ -144,7 +230,9 @@ impl SystemContextUpdate {
                         "system_context.instructions_removed",
                     )?;
                 }
-                next.instructions.extend(delta.instructions.clone());
+                for (name, content) in delta.instructions.iter() {
+                    next.instructions.insert(name.into(), content.into());
+                }
 
                 for name in &delta.tools_removed {
                     validation::transition(

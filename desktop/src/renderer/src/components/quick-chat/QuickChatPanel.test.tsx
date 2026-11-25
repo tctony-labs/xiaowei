@@ -156,6 +156,35 @@ function menuPanel(overrides: Partial<QuickChatPanelProps> = {}) {
   return { ...props, rerender: view.rerender };
 }
 
+test.each([
+  ["对话模型", "验收模型"],
+  ["思考强度", "高"],
+])("Escape closes the %s menu before collapsing Quick Chat", (control, option) => {
+  const props = menuPanel({
+    modelOptions: [{ value: "test", label: "验收模型" }],
+    selectedModelRef: "test",
+    reasoning: "high",
+    supportedReasoning: ["high"],
+    onModelChange: vi.fn(),
+  });
+  const trigger = screen.getByRole("button", { name: control });
+  fireEvent.click(trigger);
+  const selected = screen.getByRole("button", { name: option });
+  expect(selected).toHaveFocus();
+
+  fireEvent.keyDown(selected, { key: "Escape", isComposing: true, keyCode: 229 });
+  expect(selected).toBeVisible();
+  expect(props.onCollapse).not.toHaveBeenCalled();
+
+  fireEvent.keyDown(selected, { key: "Escape" });
+  expect(screen.queryByRole("button", { name: option })).toBeNull();
+  expect(trigger).toHaveFocus();
+  expect(props.onCollapse).not.toHaveBeenCalled();
+
+  fireEvent.keyDown(trigger, { key: "Escape" });
+  expect(props.onCollapse).toHaveBeenCalledOnce();
+});
+
 test("prepending an earlier page keeps the previous message at the same viewport position", async () => {
   let messageTop = 35;
   const load = vi.fn(async () => {

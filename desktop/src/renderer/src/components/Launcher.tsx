@@ -92,7 +92,6 @@ export function Launcher({
     setQuery(value);
     pending.current = true;
     if (!value.trim()) setResponse({ token: 0, hits: [] });
-    setSelected(0);
     setError("");
   }, []);
 

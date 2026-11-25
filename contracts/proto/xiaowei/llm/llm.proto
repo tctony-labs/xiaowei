@@ -187,10 +187,17 @@ message ChatMessage {
 // Baseline appears once (or after compaction); deltas contain only changed capabilities.
 message SystemContextUpdate {
   bool baseline = 1;
-  map<string, string> instructions = 2;
+  // Unique named instructions in prompt assembly order.
+  repeated SystemInstruction instructions = 2;
   repeated string instructions_removed = 3;
   repeated ToolDefinition tools_added = 4;
   repeated string tools_removed = 5;
+}
+
+message SystemInstruction {
+  // These field numbers preserve the binary layout of the former map entry.
+  string name = 1;
+  string content = 2;
 }
 
 message ToolDefinition {

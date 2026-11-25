@@ -12,6 +12,7 @@ const tool = (name) => ({
   description: name,
   parametersJson: '{"type":"object","properties":{}}',
 });
+const instruction = (name, content) => ({ name, content });
 const system = (update) => ({ message: { case: "systemContext", value: update } });
 const user = (text) => ({
   message: {
@@ -52,11 +53,11 @@ test("formal worker preserves baseline, instruction delta and addition order", a
   const value = request([
     system({
       baseline: true,
-      instructions: { base: "BASE", rule: "OLD" },
+      instructions: [instruction("base", "BASE"), instruction("rule", "OLD")],
       toolsAdded: [tool("Read")],
     }),
     user("before"),
-    system({ instructions: { rule: "NEW" }, toolsAdded: [tool("Write")] }),
+    system({ instructions: [instruction("rule", "NEW")], toolsAdded: [tool("Write")] }),
     user("after"),
   ]);
   const context = toContext(value, false);
@@ -94,10 +95,12 @@ test("formal worker preserves baseline, instruction delta and addition order", a
 });
 
 test("invalid updates and duplicate top-level configuration are rejected", () => {
-  assert.throws(() => toContext(request([system({ instructions: { base: "delta" } })]), false));
+  assert.throws(() =>
+    toContext(request([system({ instructions: [instruction("base", "delta")] })]), false),
+  );
   const initial = system({
     baseline: true,
-    instructions: { base: "BASE" },
+    instructions: [instruction("base", "BASE")],
     toolsAdded: [tool("Read")],
   });
   assert.throws(() => toContext(request([initial, initial, user("x")]), false));
@@ -127,6 +130,42 @@ async function capture(t, config, histories) {
   assert.equal(requests.length, histories.length);
   return requests;
 }
+
+test("Responses preserves the assembled instruction order across turns", async (t) => {
+  const initial = system({
+    baseline: true,
+    instructions: [
+      instruction("base", "BASE"),
+      instruction("tool.RequestPermission", "ASK"),
+      instruction("environment.permissions", "INTERACTIVE"),
+    ],
+    toolsAdded: [tool("Read"), tool("RequestPermission")],
+  });
+  const warm = [initial, user("first turn")];
+  const switched = [
+    ...warm,
+    system({
+      instructions: [
+        instruction("session.note", "UPDATED"),
+        instruction("environment.permissions", "FULL ACCESS"),
+      ],
+      instructionsRemoved: ["tool.RequestPermission"],
+      toolsRemoved: ["RequestPermission"],
+    }),
+    user("second turn"),
+  ];
+
+  const [before, after] = await capture(t, {}, [warm, switched]);
+  assert.deepEqual(after.body.input.slice(0, before.body.input.length), before.body.input);
+  const prompt = before.body.input.find((item) => item.role === "system");
+  assert.equal(prompt.content, "BASE\n\nASK\n\nINTERACTIVE");
+  const delta = after.body.input.at(-1);
+  assert.match(delta.content, /UPDATED[\s\S]*FULL ACCESS/);
+  assert.deepEqual(
+    after.body.tool_choice.tools.map(({ name }) => name),
+    ["Read"],
+  );
+});
 
 const original = [
   system({ baseline: true, toolsAdded: [tool("a"), tool("b"), tool("c")] }),
@@ -240,7 +279,11 @@ test("Responses without an allowlist falls back to the active tools", async (t) 
 test("Claude without inline support still accepts system updates and current tools", async (t) => {
   const config = { api: "anthropic-messages", provider: "anthropic" };
   const [result] = await capture(t, config, [
-    [...replaced, system({ instructions: { policy: "new instruction" } }), user("next")],
+    [
+      ...replaced,
+      system({ instructions: [instruction("policy", "new instruction")] }),
+      user("next"),
+    ],
   ]);
   assert.deepEqual(result.body.tools.map((tool) => tool.name).sort(), ["a", "b", "d"]);
   assert.match(JSON.stringify(result.body.system), /new instruction/);
@@ -281,7 +324,7 @@ test("live provider accepts tool additions, removal and same-name replacement", 
     ).join("\n");
   const scenarios = [
     {
-      update: { baseline: true, instructions: { base }, toolsAdded: [echo] },
+      update: { baseline: true, instructions: [instruction("base", base)], toolsAdded: [echo] },
       prompt: 'Call probe_echo exactly once with text "seven".',
       call: { name: "probe_echo", arguments: { text: "seven" } },
     },
@@ -297,7 +340,9 @@ test("live provider accepts tool additions, removal and same-name replacement", 
     },
     {
       update: {
-        instructions: { marker: "On a marker request, reply UPDATED only. Call no tools." },
+        instructions: [
+          instruction("marker", "On a marker request, reply UPDATED only. Call no tools."),
+        ],
       },
       prompt: "Marker request.",
       text: "UPDATED",

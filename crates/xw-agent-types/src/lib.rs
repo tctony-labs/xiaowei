@@ -38,7 +38,9 @@ pub use message::{
     UsageCost, UserMessage,
 };
 
-pub use system_context::{SystemContext, SystemContextDelta, SystemContextUpdate};
+pub use system_context::{
+    SystemContext, SystemContextDelta, SystemContextUpdate, SystemInstructions,
+};
 
 pub use rollout::{
     COMPACTION_SUMMARY_PREFIX, Compacted, CompactionTrigger, ContextBudgetSnapshot, DeletionMarker,

@@ -69,7 +69,7 @@
 
 远程模型配置通过 Pi service 接产品并经用户验收。models.json 默认随 Agent 根目录保存，支持 XIAOWEI_AGENT_HOME／XIAOWEI_LLM_CONFIG 覆盖；API Key 明文保存在文件，renderer 读取脱敏快照，保存后更新 worker，不监听文件。缺省预算为 256_000／32_768，稳定引用、凭据及故障语义统一见[LLM provider](../../../docs/llm-provider.md#settings-模型配置与持久化)，不再采用原 Storage／系统加密草案。
 
-对话归档已接 Agent 的真实列表、搜索／分页、单条删除／恢复及自动策略，默认三天归档、自动清理关闭。恢复留在设置页 toast，不打开聊天；没有“删除全部”入口。状态与策略由 xw-agent 的 sessions.sqlite 保存，维护任务在 core，页面不重复存储或运行定时器。当前行为和验收限制见[Agent record](2026-09-28-agent-chat.md)。
+对话归档已接 Agent 的真实列表、搜索／分页、单条删除／恢复及自动策略，默认三天归档、自动清理关闭。恢复留在设置页 toast，不打开聊天；没有“删除全部”入口。状态与策略由 xw-agent 的 sessions.sqlite 保存，维护任务在 core，页面不重复存储或运行定时器。 [当前归档行为](../../../desktop/docs/chat-ui.md#会话归档和维护) · [Agent 交付历史](../archived/2026-09-28-agent-chat.md)
 
 [第二部分计划](../../plans/2026-09-18-settings-ui-inventory/02-models-agent-archive.md)只保留本地模型、图片生成和智能体配置等未交付范围。账号登录／云连接、图片内容提取及扩展仍未接产品；预览不表示业务能力已实现。自动更新已接入，建设和验收结果见已归档的 [macOS 事项](../archived/2026-10-12-macos-packaging-update.md)。
 

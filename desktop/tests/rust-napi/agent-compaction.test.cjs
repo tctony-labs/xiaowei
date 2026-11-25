@@ -24,7 +24,7 @@ function id() {
   ].join("-");
 }
 
-test("automatic compaction uses an isolated Pi request and restores the checkpoint", {
+test("automatic compaction restores the checkpoint and preserves older paginated tool details", {
   timeout: 30000,
 }, async () => {
   const { Agent } = require("xiaowei-agent");
@@ -35,27 +35,50 @@ test("automatic compaction uses an isolated Pi request and restores the checkpoi
   const { GatewayHost } = await import("xiaowei-gateway/host");
   const { attachRustNapi } = await import("xiaowei-gateway/rust-napi");
   const { attachWorker } = await import("xiaowei-gateway/worker-host");
+  const { AgentChatClient } = await import("../../src/renderer/src/components/agent-chat/client");
+  const { createServices } = await import("../../src/renderer/src/services");
   const root = await mkdtemp(join(tmpdir(), "xiaowei-compaction-"));
   const requests = [];
   const original = "Original answer retained in the session timeline.";
   const summary = "Keep the confirmed decision and pending work.";
+  const longContents = "old tool content 😀 ".repeat(4_000);
+  const write = { path: "original.txt", contents: longContents };
+  const fillers = 19;
+  const lastBeforeCompaction = 2 + fillers;
+  const responses = new Map([
+    [2, original],
+    [lastBeforeCompaction + 1, summary],
+    [lastBeforeCompaction + 2, "Answer after compaction."],
+    [lastBeforeCompaction + 3, "Answer after reopen."],
+  ]);
   const model = createServer(async (incoming, outgoing) => {
     const chunks = [];
     for await (const chunk of incoming) chunks.push(chunk);
     requests.push(JSON.parse(Buffer.concat(chunks)));
     const sequence = requests.length;
-    const promptTokens = sequence === 1 ? 51_300 : sequence === 2 ? 51_500 : 500;
-    const text = [original, summary, "Answer after compaction.", "Answer after reopen."][
-      sequence - 1
-    ];
+    const promptTokens = sequence === lastBeforeCompaction ? 51_300 : 500;
     const response = { id: `fixture-${sequence}`, model: "chat" };
     outgoing.writeHead(200, { "content-type": "text/event-stream" });
     const send = (event) =>
       outgoing.write(`data: ${JSON.stringify({ ...response, ...event })}\n\n`);
-    send({
-      choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }],
-    });
-    send({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+    if (sequence === 1) {
+      const toolCall = {
+        index: 0,
+        id: "original-write",
+        type: "function",
+        function: { name: "Write", arguments: JSON.stringify(write) },
+      };
+      send({
+        choices: [{ index: 0, delta: { role: "assistant", tool_calls: [toolCall] } }],
+      });
+      send({ choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] });
+    } else {
+      const text = responses.get(sequence) ?? "Short filler response.";
+      send({
+        choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }],
+      });
+      send({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+    }
     send({
       choices: [],
       usage: {
@@ -73,6 +96,7 @@ test("automatic compaction uses an isolated Pi request and restores the checkpoi
   let llm;
   let settings;
   let observer;
+  let closeHistory;
   try {
     model.listen(0, "127.0.0.1");
     await once(model, "listening");
@@ -141,14 +165,18 @@ test("automatic compaction uses an isolated Pi request and restores the checkpoi
           const finished = value.payload.value.run;
           assert.equal(finished.runId, started.runId);
           assert.equal(finished.status, pb.AgentRunStatus.COMPLETED, finished.error);
-          return compacting;
+          return { compacting, runId: finished.runId };
         }
       }
     };
 
     observer = await observe();
-    assert.equal(await run("original instruction"), false);
-    assert.equal(await run("new instruction"), true);
+    const originalRun = await run("original instruction");
+    assert.equal(originalRun.compacting, false);
+    for (let index = 0; index < fillers; index++) {
+      assert.equal((await run(`filler ${index}`)).compacting, false);
+    }
+    assert.equal((await run("new instruction")).compacting, true);
     await observer.cancel();
     observer = undefined;
     await agent.close();
@@ -156,10 +184,11 @@ test("automatic compaction uses an isolated Pi request and restores the checkpoi
     agent = await Agent.open(join(root, "agent"));
     endpoint = await attachRustNapi(host, "agent", agent.createGatewayEndpoint());
     observer = await observe();
-    assert.equal(await run("after reopening"), false);
+    assert.equal((await run("after reopening")).compacting, false);
 
-    assert.equal(requests.length, 4);
-    const [first, compact, after, reopened] = requests;
+    assert.equal(requests.length, lastBeforeCompaction + 3);
+    const [compact, after, reopened] = requests.slice(lastBeforeCompaction);
+    const [first] = requests;
     assert.equal(first.prompt_cache_key, sessionId);
     assert.equal(compact.prompt_cache_key, undefined);
     assert.equal(compact.max_completion_tokens, 4096);
@@ -176,19 +205,36 @@ test("automatic compaction uses an isolated Pi request and restores the checkpoi
       assert.match(messages, /Keep the confirmed decision/);
       assert.doesNotMatch(messages, /Original answer retained/);
     }
-    const raw = await api.readSession(
-      create(pb.ReadSessionRequestSchema, {
-        sessionId,
-        includeRuns: true,
-      }),
+    const history = new AgentChatClient(
+      createServices(() => host.client({ caller: "compaction-history", trusted: true })),
     );
-    const timeline = raw.session.runs
+    closeHistory = history.observe(() => {});
+    await history.switchSession(sessionId);
+    assert.equal(history.session.runs.length, 20);
+    assert.ok(history.session.runs.every((run) => run.runId !== originalRun.runId));
+    await history.loadOlderRuns();
+    assert.equal(history.session.runs.length, 22);
+    const [restoredOriginal] = history.session.runs;
+    assert.equal(restoredOriginal.runId, originalRun.runId);
+    const tool = restoredOriginal.items.find((item) => item.content.case === "toolCall");
+    assert.ok(tool.shortenedFields.includes(pb.AgentItemField.TOOL_ARGUMENTS));
+    const field = pb.AgentItemField.TOOL_ARGUMENTS;
+    const full = await history.loadItemContent(originalRun.runId, tool.itemId, [field]);
+    assert.deepEqual(JSON.parse(full.get(field)), write);
+    const card = history.messages
+      .find((message) => message.id === originalRun.runId)
+      .blocks.find((block) => block.id === tool.itemId);
+    assert.equal(card.kind, "tool");
+    assert.deepEqual(JSON.parse(card.call.argumentsJson), write);
+
+    const timeline = history.session.runs
       .flatMap((run) => run.items)
       .flatMap((item) => (item.content.case === "agentMessage" ? [item.content.value.text] : []))
       .join("\n");
     assert.ok(timeline.includes(original));
     assert.ok(!timeline.includes(summary));
   } finally {
+    closeHistory?.();
     await observer?.cancel().catch(() => {});
     await agent?.close();
     await endpoint?.close();

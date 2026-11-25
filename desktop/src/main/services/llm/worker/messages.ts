@@ -239,10 +239,11 @@ export function toContext(request: GenerateRequest, acceptsImages: boolean): Con
         if (!activeInstructions.delete(name)) invalid("unknown instruction removal");
         sections[name] = null;
       }
-      for (const [name, text] of Object.entries(update.instructions)) {
-        if (!name || !text.trim()) invalid("invalid instruction");
+      for (const { name, content } of update.instructions) {
+        if (!name.trim() || !content.trim() || Object.hasOwn(sections, name))
+          invalid("invalid instruction");
         activeInstructions.add(name);
-        sections[name] = text;
+        sections[name] = content;
       }
       for (const name of update.toolsRemoved) {
         if (!activeTools.delete(name)) invalid("unknown tool removal");

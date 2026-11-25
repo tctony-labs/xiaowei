@@ -15,7 +15,6 @@
 这里的“完整”指用户可持续使用的 agent 对话闭环：发送消息 → 模型生成 → 必要的工具执行／授权 → 工具结果回传 → 后续生成 → 明确终态，并能保存、重新打开和继续会话。首期范围已于 2026-09-29 确定，按下述范围分片实施。
 
 - **Agent Core**：以旧版 Rust 实现为迁移基础，在 renderer 之外持有会话与运行状态，负责系统指令、上下文组装、模型调用、工具循环、取消、失败及运行限制。沿用现有 Rust agent → Gateway → TS LLM worker 的架构方向，参考 Codex 源码完善设计。
-- **Agent Preset（暂缓）**：2026-10-10 用户讨论参考 DSH 的场景提示词、工具集合与内置技能框架后，确认暂缓 preset，技能后移。当前先集中做好 xw-agent 的提示词和实际工具装配；第二种 Agent 模式有实际需求时再提取场景定义，不把 preset ID、会话绑定或新运行快照作为当前前置。
 - **工具执行**：定义工具注册、参数校验、调用与结果关联、错误返回及取消边界；交付实际可用的首批工具，不能仅用 mock 工具作为产品完成依据。需要授权的工具包含请求、允许、拒绝与失效处理。
 - **持久会话**：保存会话元信息、有序消息、工具执行记录、运行终态与必要回放元数据；支持新建、列表、切换、重命名、归档、删除和重新打开后继续对话。自动标题／更新标题与现有预览操作一起接入。
 - **Chat UI**：展示 Markdown／代码、思考内容、工具调用及结果、等待授权、生成中、停止、失败和中断状态；具备输入、发送、停止、消息复制和明确的失败重试入口。会话模型／思考强度选择对接现有设置与模型能力。
@@ -25,13 +24,11 @@
 
 不重写 Pi provider、模型设置或 Gateway，不恢复已明确移除的“在外部对话窗口打开”按钮。本事项不默认扩展为独立聊天窗口、Studio、多人协作、云同步或任意插件平台。
 
-2026-09-29 用户确认首期保留旧版自动压缩、自动／手动标题生成，输入沿用现有 textarea，展示 Markdown／代码和工具卡片。2026-10-10 用户确认 preset 与技能暂缓；2026-10-18 补充登记 Todo 和 Skill，具体实现范围以后再定，Todo 放在问答／权限之后，Skill 放在工具批次最后。preset 仍暂缓；命令资源加载于 2026-11-17 纳入独立 02m 切片，slash 入口继续留后。附件／图片输入、富文本编辑器、旧会话数据导入及完整旧版工具集仍留到后续。不以“完整”宣称已全面对齐旧版。工具返回的数据仍须保留现有 LLM 契约支持的内容，不能因首期不提供图片输入 UI 而丢失回放元数据。
+首期支持自动压缩、自动／手动标题生成、textarea 输入、Markdown／代码和工具卡片。工具返回的数据保留现有 LLM 契约支持的内容和回放元数据。
 
-2026-09-29 规划时已确认首期采用基础工具闭环：文件读写／搜索、Bash、网页读取、用户询问与权限申请；当时将依赖搜索服务配置的 WebSearch、应用专属工具和插件留到后续。2026-10-27 用户将 WebSearch 与搜索源设置加入第 6 批，与 WebFetch 一起实施；实现和验收边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。应用专属工具和插件仍留到后续。
+首期采用基础工具闭环，包含文件读写／搜索、Bash、网页读取、用户询问与权限申请。2026-10-27 用户将 WebSearch 与搜索源设置加入第 6 批，与 WebFetch 一起实施。 [网页工具验收](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)
 
-2026-10-18 用户明确暂不实现旧 Read 的 PDF 能力，登记为后续工作；当前 Read 实现与验收范围为文本。PDF 的解析及输出接入以后另行确定，不作为当前批次或本事项现有完成标准的前置。
-
-Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；rewind、fork 仍保留扩展空间，不提前引入通用调度框架或完整分支系统。
+Read 的实现与验收范围为文本。Follow-up、Steering 和 Interrupt 纳入本期运行控制与 UI 范围。
 
 ### 完成标准
 
@@ -44,25 +41,24 @@ Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；re
 7. 本轮用户明确跳过 Storybook，直接实现 composer／hint 并经产品验证；通过相关 core、Gateway、存储及 renderer 自动检查，并在 Electron 验证真实模型／工具链路、平台键盘与窗口行为。模拟流、构建通过不能代替产品验收。
 8. 契约、运行循环与持久化设计经过扩展性检查：用户输入接纳与模型调用分离，历史条目有稳定身份，上下文构建不依赖“整个会话数组就是唯一历史”。说明上述后续能力的接入点及迁移路径，不以未实现的空接口或按钮作为验收证据。
 
-### 后续接入
+### 后续提案
 
-2026-11-22 用户确认补充两项支持，分别跟踪：
+2026-11-25 从 Agent Chat 拆出四项独立提案。
 
-- **MCP（Model Context Protocol）**：支持 XiaoWei Agent 通过 MCP 使用外部能力。
-- **Agent-to-Agent**：支持 XiaoWei Agent 与其他 Agent 互通。
-
-两项的接入方式、首批支持范围、实施顺序与验收方式待设计。工作项见[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md#剩余切片)。
+- [Agent MCP 接入](../proposed/2026-11-25-agent-mcp.md)
+- [Agent-to-Agent 互通](../proposed/2026-11-25-agent-to-agent.md)
+- [Agent 会话 Fork 与 Rewind](../proposed/2026-11-25-agent-fork-rewind.md)
+- [Agent 远程控制](../proposed/2026-11-25-agent-remote-control.md)
 
 ## How
 
 采用旧版 Rust Agent 迁移路线，复用现有 LLM worker 与 Gateway。当前已交付持久文本聊天、文件读写／搜索、macOS 前台 Bash、问答／权限交互、TodoWrite、网页工具／搜索设置及 Skill 按需加载：Quick Chat 通过 Agent 控制 API 调用 xiaowei-agent／xw-agent；xw-agent 是 App Server，持有权威会话、运行与投影，直接管理 SQLite 会话目录；JSONL 保存模型配置与执行历史。宿主通过统一 AgentHost 提供模型能力，核心不依赖外部业务 service。
 
-详细说明按主题维护在同名目录中，都是本 record 的附属部分，共享同一事项范围与生命周期。字段、协议和行为只在对应专题维护，未实现设计明确标注。
+当前行为维护在 [Agent Core](../../../crates/xw-agent/README.md)、[持久历史](../../../crates/xw-agent-types/README.md)、[Quick Chat](../../../desktop/docs/chat-ui.md) 与 [LLM provider](../../../docs/llm-provider.md)。同名目录保留本事项的设计和验收历史。
 
 | 阅读目的 | 专题 |
 | --- | --- |
-| 模块、依赖与远程控制边界 | [架构与分包](2026-09-28-agent-chat/architecture.md) |
-| preset 暂缓理由、配置生命周期与源码依据 | [Agent Preset（暂缓）](2026-09-28-agent-chat/agent-presets.md) |
+| 模块、依赖与服务生命周期 | [架构与分包](2026-09-28-agent-chat/architecture.md) |
 | 消息、模型能力与运行上下文 | [领域类型](2026-09-28-agent-chat/model-types.md) |
 | JSONL、SQLite 与恢复规则 | [历史格式](2026-09-28-agent-chat/history-format.md) |
 | Host 注入、模型选择、预算与首 SSE | [宿主接口](2026-09-28-agent-chat/host-interface.md) |
@@ -77,37 +73,15 @@ Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；re
 - **基于 TS Pi Agent Core**：讨论过直接复用上游循环与 harness 的方向，用户最终选择旧版 Rust 迁移。此决定不表示 Pi 缺乏工具、队列或持久化能力；本事项不再以替换为 Pi Agent 为前提推进。
 - **直接整体搬入旧 agent 与 UI**：旧版模型协议、宿主和存储边界不同，不能原样接入；先核对业务、恢复和文件生命周期，复用有效语义并显式记录适配差异。
 
-## Current work
-
-02h、02j 与 02k 已完成。02m 资源加载已完成窗口与重启验收，slash 入口留待后续。
-
-2026-11-02 Skill 已按用户确认范围实现并完成本批验收：slash command 主动触发另行实施、移除 name 枚举、每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext；监听与生效边界独立，本批在 Run 开始扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。旧内置业务技能留随对应业务迁移，preset 继续暂缓。
-
-截至 2026-10-25，02e＋第一批 Read／Write／Edit 已实现、验证并提交，已合入 develop；当前工作目录、系统提示词、顺序工具循环、持久结果、恢复与最小工具展示均在正式产品链路中。提交对应关系、自动检查与 2026-10-19 窗口验收统一见[交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。02e 临时计划已删除，不再将生产接线列为后续任务。
-
-2026-10-25 已完成前台 Bash 与 Seatbelt 沙箱、进程组取消／回收、有界输出和未知结果保护；Rust、正式 addon／worker、真实模型及静态检查通过。旧文件工具会话只追加 Bash 和 tool.Bash，原基线／schema 不变。rebase develop 后使用新增 inspect 配合实际窗口操作，补齐 Bash → Read、普通非零退出、沙箱拒绝、执行中 Stop 和重启不重放验收；状态与证据统一见 [Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。
-
-系统上下文核心支持完整基线与增量。Responses 已通过真实模型验证工具增删改，Chat Completions 和 Claude 已通过请求编码回归。各协议的能力开关和回退方式见[工具变化的模型适配](2026-09-28-agent-chat/model-types.md#工具变化的模型适配2026-11-20)。
-
-2026-10-25 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路和产品窗口验收。旧会话只追加两个工具与对应规则，既有记录前缀不变；真实搜索、无匹配、非法模式及重启不重放证据见 [搜索交付结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。02g 临时计划已删除。
-
-2026-10-25 用户要求进入问答／权限工具之前，先实施 03a 的 Markdown／代码／复制与 03c 的有序现有工具 UI。本批已接实际 Quick Chat，移除旧 Run 聚合展示及预览专用分派；Harness 的当前 Generate、活跃 Item 与最终回复归属经公开快照／事件接到 renderer，历史关联由既有 Journal 重建。自动测试、正式原生链路及浏览器检查通过，当前工作区实际 sol 模型的工具分组、Markdown、系统复制、停止、失败、文件 diff 和重启不重放均已验收。源码依据和适配见 [核对表](2026-09-28-agent-chat/runtime-ui.md#参考行为逐项核对)，实际证据见[交付结果](2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。问答／权限卡片已随第 4 批完成。
-
-2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
-
-PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Interrupt 的接入与验收进行中；rewind／fork、CLI 与手机 transport 保留设计边界。
-
-2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
-
-用户要求先出计划，并明确 Web 工具放入独立 crate、可灵活装配；本批由独立 xw-agent-tools-web 提供工具，xiaowei-agent 选取工具注入 core。
-
-用户进一步明确搜索配置／Token 归 desktop Settings，创建工具或服务时传入明文 Key，请求时不读取设置或解密；按当前源构造具体 provider 并返回 dyn SearchTool，由 xiaowei-agent 组装 WebSearch 再传入 core；本模块监听 SettingsChanged 更新共享 provider，已有 session 后续搜索透明切源且暴露不变，不提供 Apply 接口。
-
-默认工具集按 ID 更新只影响本进程后续 session；用户确认重启后可按当前配置重新装配。第 6 批的独立 Web crate、通用注入与 session 快照、Settings／装配、辅助生成隔离与恢复、设置页及结果卡片已实现，Rust、Gateway、contracts、全量 desktop、tooling 和静态检查通过。2026-10-28 已补齐实际 Tavily 完整链路、搜索／网页请求／提取三个阶段的 Stop，以及重启后历史不重放、配置保留和继续查询；保留用户配置的 Tavily／浅色，02i 已删除。详情见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。没有 Agent 配置存储接口或多源 Key 工具配置。
-
-同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。
-
 ## Outcome
+
+2026-11-26 按用户要求归档。首期 Agent Chat 已交付并完成 04d 桌面产品、工具和打包验收。最后一轮把系统指令的组装顺序贯通 Rust、JSONL、Protobuf 和 worker，并通过旧历史恢复、实际权限切换缓存、Rust 和桌面全量测试。 [有序指令验收](2026-09-28-agent-chat/implementation-results.md#有序系统指令协议2026-11-26)
+
+独立的后续能力见[后续提案](#后续提案)。Slash command 主动入口、权限模式切换界面和用户默认设置留待后续需求确定。Claude 的真实端点验收已移到独立计划，原生 Responses Lite 保留已有实测边界。 [Claude 验收计划](../../plans/claude-tool-updates-live.md) · [模型验证范围](2026-09-28-agent-chat/implementation-results.md#验收限制与后续工作)
+
+2026-11-25，04d 完成首期产品与打包验收。补齐真实中文输入法、全局快捷键、原生拖动、搜索和首次设置跳转、会话维护，并修复下拉菜单 Esc 误收起对话和搜索等待期间选中项闪回。最终 macOS arm64 App 包及包内 worker 通过检查，04d 与 04 阶段的临时计划已清理。 [04d 产品与打包验收](2026-09-28-agent-chat/implementation-results.md#04d-产品与打包验收2026-11-25)
+
+2026-11-25，03d 完成压缩后长历史分页、Continue 与延迟 Item 页合并，以及压缩／写盘失败和标题竞争的隔离 Electron 窗口验收。 [03d 组合窗口验收](2026-09-28-agent-chat/implementation-results.md#03d-组合窗口验收2026-11-25)
 
 2026-11-25，01f／03a／03c 完成磁盘历史索引、两级分页、实时合并和长工具内容读取的实现与验收。隔离的原生 Quick Chat 窗口通过大历史翻页、窄窗口深色主题、长参数错误重试及冷启动恢复，03a／03c 计划已收尾。数据和证据见[窗口验收](2026-09-28-agent-chat/implementation-results.md#大历史与长工具内容窗口验收2026-11-25)。
 
@@ -115,7 +89,7 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 02j 已接入上下文预算、自动压缩和持久检查点。触发条件、提交边界及验证证据见[上下文预算与自动压缩](2026-09-28-agent-chat/implementation-results.md#上下文预算与自动压缩)。
 
-2026-11-25，02h 后台三工具已实现并通过真实子进程、会话、正式 addon 和 worker 验证。[后台 Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#后台-bash-三工具2026-11-25)记录验收和迁移差异。已移除 02h 临时计划，真实模型和窗口组合验收随 04d 继续。
+2026-11-25，02h 后台三工具已实现并通过真实子进程、会话、正式 addon 和 worker 验证，04d 补齐真实模型和窗口组合验收。02h 临时计划已清理。 [后台 Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#后台-bash-三工具2026-11-25)
 
 2026-11-25，桌面已接入随包提供的 ripgrep，Glob 目录查找和 Grep 并行搜索已完成验收。[搜索验收结果](2026-09-28-agent-chat/implementation-results.md#桌面本地搜索2026-11-25)记录了打包和真实 Quick Chat 测试。
 
@@ -127,7 +101,7 @@ PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 
 
 2026-11-20，完成会话权限模式。参考旧版 `d97d45b42bf9bc621e66603ad878cccb97dd990c` 的 `ExecutionPolicy`，沿用两种工作区权限，把旧 `Unrestricted` 对应为 `FullAccess`。统一约束 Write／Edit、Bash 和权限申请；桌面创建显式传 `FullAccess`，缺少模式的旧会话保留 `Interactive` 行为。Run 固定模式，切换只追加权限说明及授权工具的变化。接入和实际行为见 [Agent core](../../../crates/xw-agent/README.md)，文件边界见 [runtime](../../../crates/xw-agent-runtime/README.md)。
 
-Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有精确授权、写盘失败和重试、旧会话及新模式重开。正式 addon／Gateway／worker 验证了默认模式、工作区外写入、无额外权限工具和记录字段。Agent addon 构建、桌面全量测试和 `just check` 通过。Bash 删除清理用例一次返回 writer 锁冲突，单项及整组复测通过，未改清理路径。02n 已移除；UI 切换入口、用户默认设置和实际缓存命中率验证留作后续。
+Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有精确授权、写盘失败和重试、旧会话及新模式重开。正式 addon／Gateway／worker 验证了默认模式、工作区外写入、无额外权限工具和记录字段。Agent addon 构建、桌面全量测试和 `just check` 通过。Bash 删除清理用例一次返回 writer 锁冲突，单项及整组复测通过，未改清理路径。02n 已移除，UI 切换入口和用户默认设置仍留作后续。实际缓存已补配对测量。 [缓存实测](2026-09-28-agent-chat/implementation-results.md#权限模式切换与模型缓存2026-11-25)
 
 同日用户启动当前工作区后，确认 Electron 已加载当时的 Agent 模块。实际 Quick Chat 新会话 `01a1f840-d4ca-736e-876e-89bcda745972` 通过真实模型完成工作区外的 Write → Edit → Bash → Read → Read，窗口结果与两个临时文件内容一致。基线含 `FullAccess` 说明且未暴露 `RequestPermission`，Bash 日志记录 `FullAccess` 和退出码 0。这次验收使用审核前的草稿历史格式。
 
@@ -141,9 +115,9 @@ Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有
 
 2026-11-19 普通聊天 Run 的工具声明按起始边界从系统上下文重建，精简 JSONL 的同时兼容既有 v2 记录。持久化回归验证了连续 Run 省略副本、工具声明替换后按各轮恢复，以及辅助生成独立配置和故障恢复。Agent Rust 测试、原生模块构建及 Gateway／worker 集成测试均通过。字段语义见[历史格式](2026-09-28-agent-chat/history-format.md#inputrunturngen-与消息)。
 
-2026-11-02 对话过程折叠调整已实现并完成本批验证，包含运行中与整轮展开后的混合过程组、response 边界收起和单步骤例外。当前规则见 [Quick Chat](../../../desktop/docs/chat-ui.md#对话过程折叠)，自动检查、实际窗口证据及验证边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#思考与工具过程组折叠2026-11-02)。事项其余范围继续位于 active。
+2026-11-02 对话过程折叠调整已实现并完成本批验证，包含运行中与整轮展开后的混合过程组、response 边界收起和单步骤例外。当前规则见 [Quick Chat](../../../desktop/docs/chat-ui.md#对话过程折叠)，自动检查、实际窗口证据及验证边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#思考与工具过程组折叠2026-11-02)。
 
-2026-11-02 Skill 按需加载与 Run 快照已完成实现和约定验收。Rust、正式 addon／Gateway／worker、renderer 与静态检查通过，实际 sol 完成正文 V1 加载和下一 Run 使用 V2，重启恢复历史／SQLite 行／脚本哨兵均未变化。具体证据、单次既有 Bash 用例失败后的复验及平台边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)。slash command 主动触发另行实施，事项其余范围继续位于 active。
+2026-11-02 Skill 按需加载与 Run 快照已完成实现和约定验收。Rust、正式 addon／Gateway／worker、renderer 与静态检查通过，实际 sol 完成正文 V1 加载和下一 Run 使用 V2，重启恢复历史／SQLite 行／脚本哨兵均未变化。具体证据、单次既有 Bash 用例失败后的复验及平台边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)。slash command 主动触发另行实施，
 
 2026-10-28 WebFetch／WebSearch 和搜索设置已完成第 6 批实现与约定验收，02i 已删除。Bing／Tavily 真实链路、三个阶段 Stop、重启历史／配置及后续新查询均通过；构建隔离和生成失败诊断的追加修复也已通过回归并加载到当前工作区实例。验证证据、无凭据的 Brave／Serper 联网边界及迁移适配见[交付证据](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。
 
@@ -165,4 +139,32 @@ Rust 回归覆盖三档写入、撤销的权限调用无法发起审批、既有
 
 上述里程碑与工具批次的自动检查、真实数据、窗口证据和剩余验收分别见[交付证据](2026-09-28-agent-chat/implementation-results.md)。本日 Bash 的新验证与之前文件工具的历史验收分别记录。
 
-上述文本里程碑不等于完整工具闭环完成。现已补齐前七批工具及 Markdown／代码块、消息复制和有序工具展示；第 4 批问答／权限已完成本批功能链路与窗口验收，真实 IME 的完整平台复核继续随 04d 保留。原有其他窗口操作的验收限制以交付证据为准，不能用集成测试或启动日志替代。事项继续位于 active，保留未完成范围的计划。
+### 实施沿革
+
+02h、02j 与 02k 已完成。02m 资源加载已完成窗口与重启验收，slash 入口留待后续。
+
+2026-11-02 Skill 已按用户确认范围实现并完成本批验收。移除 name 枚举，每个 Run 固定技能快照。用户／项目目录、按需正文、更新／删除及恢复均沿用原工具循环与 SystemContext，Run 开始时扫描。自动检查、正式 addon／worker、实际 sol 的正文 V1／V2 与窗口／重启证据见[本批结果](2026-09-28-agent-chat/implementation-results.md#skill-按需加载与-run-快照2026-11-02)，迁移边界见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#skill-加载2026-11-02)。
+
+截至 2026-10-25，02e＋第一批 Read／Write／Edit 已实现、验证并提交，已合入 develop；当前工作目录、系统提示词、顺序工具循环、持久结果、恢复与最小工具展示均在正式产品链路中。提交对应关系、自动检查与 2026-10-19 窗口验收统一见[交付结果](2026-09-28-agent-chat/implementation-results.md#工具循环与文件工具2026-10-18)。02e 临时计划已删除，不再将生产接线列为后续任务。
+
+2026-10-25 已完成前台 Bash 与 Seatbelt 沙箱、进程组取消／回收、有界输出和未知结果保护；Rust、正式 addon／worker、真实模型及静态检查通过。旧文件工具会话只追加 Bash 和 tool.Bash，原基线／schema 不变。rebase develop 后使用新增 inspect 配合实际窗口操作，补齐 Bash → Read、普通非零退出、沙箱拒绝、执行中 Stop 和重启不重放验收；状态与证据统一见 [Bash 交付结果](2026-09-28-agent-chat/implementation-results.md#前台-bash-与-macos-沙箱2026-10-25)。
+
+系统上下文核心支持完整基线与增量。Responses 已通过真实模型验证工具增删改，Chat Completions 和 Claude 已通过请求编码回归。各协议的能力开关和回退方式见[工具变化的模型适配](2026-09-28-agent-chat/model-types.md#工具变化的模型适配2026-11-20)。
+
+2026-10-25 第 3 批 Glob／Grep 已完成实现、自动检查、正式链路和产品窗口验收。旧会话只追加两个工具与对应规则，既有记录前缀不变；真实搜索、无匹配、非法模式及重启不重放证据见 [搜索交付结果](2026-09-28-agent-chat/implementation-results.md#glob-与-grep-文件搜索2026-10-25)。02g 临时计划已删除。
+
+2026-10-25 用户要求进入问答／权限工具之前，先实施 03a 的 Markdown／代码／复制与 03c 的有序现有工具 UI。本批已接实际 Quick Chat，移除旧 Run 聚合展示及预览专用分派；Harness 的当前 Generate、活跃 Item 与最终回复归属经公开快照／事件接到 renderer，历史关联由既有 Journal 重建。自动测试、正式原生链路及浏览器检查通过，当前工作区实际 sol 模型的工具分组、Markdown、系统复制、停止、失败、文件 diff 和重启不重放均已验收。源码依据和适配见 [核对表](2026-09-28-agent-chat/runtime-ui.md#参考行为逐项核对)，实际证据见[交付结果](2026-09-28-agent-chat/implementation-results.md#有序消息与现有工具-ui2026-10-25产品接入与验收)。问答／权限卡片已随第 4 批完成。
+
+2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝，Agent 核对持久记录并补验 Stop、草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。02f 已删除，真实中文输入法已随 04d 验收。重复请求与既有授权的边界见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)，同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。
+
+应用／项目规则及命令资源已通过 02m 验收，FollowUp／Steering／Interrupt 已通过正式链路及产品窗口验收。 [输入队列交付证据](2026-09-28-agent-chat/implementation-results.md#验收限制与后续工作)
+
+2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
+
+用户要求先出计划，并明确 Web 工具放入独立 crate、可灵活装配；本批由独立 xw-agent-tools-web 提供工具，xiaowei-agent 选取工具注入 core。
+
+用户进一步明确搜索配置／Token 归 desktop Settings，创建工具或服务时传入明文 Key，请求时不读取设置或解密；按当前源构造具体 provider 并返回 dyn SearchTool，由 xiaowei-agent 组装 WebSearch 再传入 core；本模块监听 SettingsChanged 更新共享 provider，已有 session 后续搜索透明切源且暴露不变，不提供 Apply 接口。
+
+默认工具集按 ID 更新只影响本进程后续 session；用户确认重启后可按当前配置重新装配。第 6 批的独立 Web crate、通用注入与 session 快照、Settings／装配、辅助生成隔离与恢复、设置页及结果卡片已实现，Rust、Gateway、contracts、全量 desktop、tooling 和静态检查通过。2026-10-28 已补齐实际 Tavily 完整链路、搜索／网页请求／提取三个阶段的 Stop，以及重启后历史不重放、配置保留和继续查询；保留用户配置的 Tavily／浅色，02i 已删除。详情见[本批结果](2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)。没有 Agent 配置存储接口或多源 Key 工具配置。
+
+同轮已处理用户追加的 worker isolation handoff：验证构建及全部 worker 测试改读独立 out-test，正式打包路径保持；源头 provider 与 Gateway 打开／消费失败日志补齐安全诊断。开发产物内容／mtime 不变及实际缺失 chunk 的回归通过，现有实例已按原控制流程重建加载；结果统一见[构建隔离与诊断](2026-09-28-agent-chat/implementation-results.md#验证构建隔离与生成失败诊断)。

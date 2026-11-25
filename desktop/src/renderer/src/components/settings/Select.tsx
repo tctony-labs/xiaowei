@@ -100,7 +100,7 @@ export default function Select<T extends string | number>({
     };
   }, [menuPortal, open, menuAnchorRef, menuPlacement, menuMaxRows]);
 
-  // 菜单先处理键盘，外层弹窗在 window 冒泡阶段处理未消费的事件。
+  // React 会把 Portal 按键冒泡给父组件，菜单在捕获阶段先处理自己的按键。
   useEffect(() => {
     if (!open) return;
     const buttons = () => Array.from(menuRef.current?.querySelectorAll("button") ?? []);
@@ -128,8 +128,8 @@ export default function Select<T extends string | number>({
         items[(next + items.length) % items.length].focus();
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [open, options, value, focusFirstOption]);
 
   return (

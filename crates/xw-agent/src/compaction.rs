@@ -95,8 +95,8 @@ pub(crate) async fn compact_if_needed(
 
     let system_prompt = baseline
         .instructions
-        .values()
-        .map(String::as_str)
+        .iter()
+        .map(|(_, content)| content)
         .collect::<Vec<_>>()
         .join("\n\n");
     let max_tokens = model

@@ -1,3 +1,4 @@
+use prost::Message;
 use proto_llm_rs::xiaowei::llm as pb;
 use xiaowei_agent::message_codec::*;
 use xw_agent_types::{AgentMessage, ContentBlock, UsageCost};
@@ -92,7 +93,16 @@ fn system_context_baseline_and_delta_preserve_named_updates() {
             message: Some(pb::chat_message::Message::SystemContext(
                 pb::SystemContextUpdate {
                     baseline,
-                    instructions: [("base".into(), "中文规则".into())].into(),
+                    instructions: vec![
+                        pb::SystemInstruction {
+                            name: "z-first".into(),
+                            content: "第一条".into(),
+                        },
+                        pb::SystemInstruction {
+                            name: "a-second".into(),
+                            content: "第二条".into(),
+                        },
+                    ],
                     instructions_removed: if baseline { vec![] } else { vec!["old".into()] },
                     tools_added: vec![pb::ToolDefinition {
                         name: "Read".into(),
@@ -123,6 +133,44 @@ fn system_context_baseline_and_delta_preserve_named_updates() {
         decode_message(invalid),
         Err(CodecError::InvalidJson("system_context.baseline"))
     );
+}
+
+#[test]
+fn ordered_instructions_keep_the_old_map_binary_layout() {
+    #[derive(Clone, PartialEq, Message)]
+    struct LegacyUpdate {
+        #[prost(map = "string, string", tag = "2")]
+        instructions: std::collections::HashMap<String, String>,
+    }
+
+    let expected = pb::SystemContextUpdate {
+        instructions: vec![
+            pb::SystemInstruction {
+                name: "z-first".into(),
+                content: "first".into(),
+            },
+            pb::SystemInstruction {
+                name: "a-second".into(),
+                content: "second".into(),
+            },
+        ],
+        ..Default::default()
+    };
+    let encoded = expected.encode_to_vec();
+    assert_eq!(
+        pb::SystemContextUpdate::decode(encoded.as_slice()).unwrap(),
+        expected
+    );
+    let legacy = LegacyUpdate::decode(encoded.as_slice()).unwrap();
+    assert_eq!(legacy.instructions["z-first"], "first");
+    assert_eq!(legacy.instructions["a-second"], "second");
+
+    let legacy_encoded = legacy.encode_to_vec();
+    let decoded = pb::SystemContextUpdate::decode(legacy_encoded.as_slice()).unwrap();
+    assert_eq!(decoded.instructions.len(), 2);
+    for entry in decoded.instructions {
+        assert_eq!(legacy.instructions[&entry.name], entry.content);
+    }
 }
 
 #[test]

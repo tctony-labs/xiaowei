@@ -1,6 +1,6 @@
 # Quick Chat 入口与窗口交互
 
-本文维护 desktop 包内的 Quick Chat 入口、窗口协调、键盘、会话展示、模型选择和设置导航，依据当前实现与 [Agent Chat](../../.agent/records/active/2026-09-28-agent-chat.md) 的交付范围维护。Launcher 搜索与跨包调用链见 [搜索实现](../../docs/search.md)，迁移背景与历史验收见 [Quick Chat record](../../.agent/records/archived/2026-09-24-quick-chat-ui-interaction.md)。
+本文维护 desktop 包内的 Quick Chat 入口、窗口协调、键盘、会话展示、模型选择和设置导航。 [Launcher 搜索](../../docs/search.md) · [Agent Chat 迁移与验收](../../.agent/records/archived/2026-09-28-agent-chat.md)
 
 ## 产品入口与窗口交互
 
@@ -41,7 +41,9 @@
 - 标题栏提供新建、未归档会话列表与分页选择，以及重命名、更新标题、归档、复制 Session ID、删除确认；这些产品回调已连接真实 Agent／系统接口。没有消息时隐藏更多菜单；没有会话或助手回复、聊天生成中或标题生成中，不允许更新标题。当前不展示 workspace、授权路径或会话详情入口。
 - 切换会话不停止旧会话运行；隐藏、收起或取消 UI 观察也不等于停止 Run。只有聊天展开且 document 可见时持有独立的查看保护流，隐藏、最小化、切换或离开聊天时释放，供自动维护判断。
 
-会话管理、运行结算、标题及维护的领域语义统一见 [Agent 运行与 UI](../../.agent/records/active/2026-09-28-agent-chat/runtime-ui.md)，这里仅描述 desktop 的接入与展示。
+### 会话归档和维护
+
+设置的“对话归档”页支持搜索已归档会话、单条恢复和单条删除。恢复后该会话从归档列表移除，并可在 Quick Chat 列表中打开。删除需要确认。自动归档及删除的策略在此页保存，可见会话的查看保护由 Agent 判断。 [会话与维护规则](../../crates/xw-agent/README.md#会话配置标题与维护)
 
 ## 对话过程折叠
 
@@ -62,7 +64,7 @@
 
 空白对话的初始选择由 `useQuickChat` 根据 ModelSettings 快照计算：全局默认引用能在提供方模型列表中找到时使用它，否则取第一个没有 `unavailableReason` 且含模型的提供方的首个模型。已有会话优先使用其保存的配置，空白对话的手动选择暂存于 hook；模型查询失败不替换已有会话的模型引用，而是显示提示。这些选择规则不表示模型已通过真实生成验证。
 
-模型与思考 chip 位于输入区外、其上方的右侧，菜单通过 portal 向上展开。空白对话修改本地选择；已有会话调用 SetSessionConfig，保存期间禁用选择与发送。换模型时只保留新模型支持的思考强度，否则清除覆盖值；当前已保存的强度不在能力列表中时仍展示其选项。Run 的配置快照与持久化语义见 [Agent Host](../../.agent/records/active/2026-09-28-agent-chat/host-interface.md#composer-模型与思考强度切换)。
+模型与思考 chip 位于输入区外、其上方的右侧，菜单通过 portal 向上展开。空白对话修改本地选择；已有会话调用 SetSessionConfig，保存期间禁用选择与发送。换模型时只保留新模型支持的思考强度，否则清除覆盖值；当前已保存的强度不在能力列表中时仍展示其选项。 [Run 的配置快照](../../crates/xw-agent/README.md#会话配置标题与维护)
 
 模型快照先订阅变更再读取初值，并用 revision 与事件到达情况拒绝旧快照覆盖。模型配置加载失败、应用失败或凭据不可用时显示对应错误；已有会话仍可使用其保存的引用发送，由实际调用返回结果。
 
@@ -86,4 +88,4 @@
 - [QuickChatTitleBar.tsx](../src/renderer/src/components/quick-chat/QuickChatTitleBar.tsx)：标题栏与菜单展示。
 - [use-quick-chat.ts](../src/renderer/src/components/quick-chat/use-quick-chat.ts)：Agent 页面适配。
 
-相关组件与 hook 测试与实现并排放置，统一入口见 [桌面测试](../tests/README.md)。预览使用模拟服务，不能代替原生窗口、系统剪贴板或真实 Agent 验收；当前运行证据和剩余复验统一见 [Agent 交付证据](../../.agent/records/active/2026-09-28-agent-chat/implementation-results.md#验收限制与后续工作)。
+相关组件与 hook 测试与实现并排放置。原生窗口、系统剪贴板和真实 Agent 流程有独立的验收证据。 [桌面测试](../tests/README.md) · [Agent Chat 首期验收](../../.agent/records/archived/2026-09-28-agent-chat/implementation-results.md#04d-产品与打包验收2026-11-25)

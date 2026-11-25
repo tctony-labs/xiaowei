@@ -8,7 +8,11 @@
 
 `AgentService::new` 提供内存模式，`AgentService::open(host, root).await` 打开核心自有的 `sessions.sqlite` 与 rollout 文件层；宿主只传目录和模型 Host，不接存储 Gateway。正常启动／列表仅查 SQLite；打开登记会话时按需校验 JSONL、结算遗留运行、恢复历史与配置，不执行旧模型请求。`with_rollout` 仅保留显式 legacy fixture 的文件模式。所有会话控制方法使用同一公开服务入口。会话支持模型配置、幂等创建、单个活动 Run、完整公共历史和有界事件订阅。`start_run` 原子接纳稳定 input ID，立即返回 Run；重复原请求复用同一 Run，冲突请求不修改状态。后台执行多 Turn 工具循环；完整成功 AssistantMessage 与已提交工具结果进入后续上下文，失败／取消保留用户输入和部分显示。`interrupt_run` 指定准确 Run，终态通过 RunCompleted 确认。异步删除和关闭取消并等待任务；持久模式关闭后可从同一根目录重开；内存模式关闭后历史丢失。
 
-模型历史和原始幂等请求合计受 8 MiB 编码预算限制，Run／输入关联最多 1024 项。展示历史冷开时从 JSONL 建立磁盘索引，按 Run／Item 分页，并支持长字段的分片读取。订阅首帧和每次历史响应最多 1 MiB，实时订阅另有 256 帧／1 MiB 积压预算。分页和恢复规则见 [Agent 控制协议](../../.agent/records/active/2026-09-28-agent-chat/control-api.md#重新打开会话的显示历史)。
+## 历史分页与长内容
+
+模型历史和原始幂等请求合计受 8 MiB 编码预算限制，Run／输入关联最多 1024 项。会话冷开时逐行校验 JSONL 并建立临时磁盘展示索引，后续按游标定位 Run 和 Item。旧 Run 的完整展示数据按需从索引读取，索引随服务关闭回收。
+
+订阅首帧和历史查询每页最多 20 个 Run，每个 Run 附最多 20 个 Item 的首页，整条 Protobuf 响应最多 1 MiB。Run 从最新向更早选取，返回时按时间正序。运行中的 Item 从最新向更早翻，已结束的 Run 从过程起点向后翻。长字段可按 Item 身份分片读取，每片最多 256 KiB，沿 UTF-8 字符边界切分。实时订阅另有 256 帧／1 MiB 积压预算。
 
 公共视图保留当前 Generate 的身份、开始时间、是否收到内容及活跃 Item，随同一有序订阅同步；工具执行期间没有活跃 Generate。响应 Item 关联其 Gen，正常终态明确最后一次无工具 response 的归属，允许最终回复为空。历史从既有 Journal 重建这些关联，不新增存储格式或模型 phase 要求；renderer 不必根据末块或正文位置猜测等待、流光与最终回答。
 
@@ -19,13 +23,23 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 
 持久宿主在依赖就绪后调用 `Arc<AgentService>::start_maintenance()` 启动会话维护，或通过 `maintain_sessions().await` 执行单次检查；`close().await` 会先停止维护再关闭数据库。Gateway handler 和桌面绑定由 xiaowei-agent 集成层承担，不在此包注册 routes。
 
+## 会话配置、标题与维护
+
 模型／思考选择通过 `set_session_config` 独立提交，并以 metadata revision 校验冲突。`start_run.config` 只覆盖该 Run，不修改会话默认。运行中切换不会改变已经捕获的配置。模型信息失败保持原引用可发送，警告通过快照／事件同步；实际预算回退为 256_000／32_768，未知能力保持未知。标题任务每次从 Host 查询辅助引用；标题及来源只保存至 SQLite，辅助引用不落 Meta。
 
 `xw-agent-rollout` 负责文件提交和尾部修复，本包负责上下文重建／业务结算。写盘失败终止 Run；下一条 query 在 NeedsCheck writer 上先修复并收尾，成功后开启新 Run，无自动重发。只有 InputAccepted 而未开始 Run 的输入仍保留身份，重试返回冲突，不重新接纳。持久模式列表支持普通／归档过滤和分页；归档先停止结算，取消归档后才能打开。删除先提交 SQLite deleting，再直接清理登记文件和自有 workspace，成功后移除记录；失败保留状态，重开只重试已知删除路径。模型生成的标题提交 SQLite 后尽力追加 `title_generated`；事件只保存 Run ID 和有效轮次，追加失败不影响已保存标题。
 
+自动标题在有助手输出的 Run 结束时检查最近 50 个 Run。页内距上次成功满 3 个有效轮次时尝试生成，页内没有成功记录时本轮即可尝试。手动改名关闭自动标题，主动生成成功后恢复自动标题并记录当前轮次。
+
+自动维护默认三天归档，自动删除默认关闭。活跃查看可通过 `TrackSessionViewing` 登记，流结束时释放；只要还有查看者，自动归档会跳过该会话。维护也跳过活跃 Run 或仍在生成标题的会话。手动归档按会话控制规则停止并结算 Run。
+
+## 系统上下文与工具执行
+
 系统上下文的核心入口为 `plan_system_context_update(previous, desired)` 和 `sync_system_context(journal, desired, timestamp_ms)`：按具名指令与工具内容计算首次基线或变化增量，无变化不写。后者以 Journal 的已提交记录为准，写入失败不推进状态；NeedsCheck 时先由调用方修复，不自动重试。`rebuild_context` 的 `system_context` 返回指定历史边界的当前状态，None 与已建立的空基线不同。生产 `start_run` 已在生成前提交同步结果，`rebuild_context` 将独立系统记录按历史顺序投影进模型请求；跨 Run 无变化不追加，重开不重复基线。
 
 `build_chat_system_context(tools)` 装配[基础提示词](src/prompts/base.md)和实际可用工具的通用规则。`tool_registry` 在会话创建、加载及 Run 启动时根据 cwd 和当前 `PermissionMode` 装配工具与 `environment.permissions`。切换模式只追加已变化的权限说明及 `RequestPermission` 的声明和规则，通用工具定义保持稳定。未变化的后续 Run／重开不重复记录上下文。
+
+指令片段按组装顺序保存和传输。同名更新保留片段原位置，新增片段按增量顺序追加。 [指令与历史格式](../xw-agent-types/README.md)
 
 宿主通过 `create_session_with_permission_mode` 提供初始模式，桌面当前传入 `FullAccess`。同一个创建请求 ID 的重试必须匹配原始模型配置、cwd 和初始模式。`set_session_permission_mode` 在两次 Run 之间更新会话的模式，活跃 Run 返回冲突。
 
@@ -44,6 +58,8 @@ cargo clippy --no-deps -p xw-agent --all-targets --locked -- -D warnings
 `AgentService::open` 在打开存储前，将 root 按进程当前目录转为绝对路径，数据库、rollout 与默认工作目录使用同一根目录，root 无需预先存在。创建持久会话时，默认使用 `<root>/quick-chat/<session-id>/`，可显式指定已有绝对目录。cwd 创建时写入 Header，重开保持稳定；无 cwd 的旧 Header 按固定自有目录回退而不改写。归档保留文件；删除只清理自有目录，外部 cwd 保留。无根目录的内存会话没有 cwd 时只提供文本聊天。
 
 工具循环由本包持有 Journal 的 `run_loop` 编排，runtime 负责单次生成收集、文件原语及 Bash 的进程／沙箱生命周期。每 Run 至多执行 50 次工具调用；完整 TOOL_USE 才执行，意图在副作用前提交，结果提交后才开启下一 Turn／Gen。停止会向 Glob／Grep 传递取消并等待阻塞搜索退出，等待已开始的文件写入实际结算或异步 Bash 回收，余下调用补 skipped，不再生成；删除和关闭等待相同清理。Bash 保留真实退出结果与部分输出，取消显示 Cancelled，超时显示 Failed，普通非零退出仍显示 Completed。Bash 返回 ResultUnknown 时提交带错误原因的未知结果，余下未执行调用补 Skipped，并将当前 Run 结算为 Failed；同一会话可立即或重开后发送新消息，未知结果随历史传给模型，不自动重放旧调用。结果提交失败仍保留未结算意图，沿写盘修复路径处理。公共工具 Item 可由历史重建。
+
+自动压缩在首次生成和工具全部结算后的生成前检查模型上下文预算。已提交的检查点替换模型使用的有效上下文，原始对话继续通过历史分页查看。显式 Continue 从空闲会话中最后一个已停止或失败的 Run 开启关联的新 Run。旧工具意图按已提交的结果结算，重复执行可能有副作用的工具时需要确认。
 
 后台 shell 由会话持有并关联创建它的 Run。正常完成的 Run 可以把任务留给后续 Run。停止会等待当前 Run 启动的 shell 回收，归档、删除和关闭会等待整个会话的 shell 回收，再释放会话资源。`BgRun` 已启动但结果无法提交时，立即回收该 shell，并保留已提交意图的未知结果。Journal 保存工具调用和结果，重开只恢复历史，旧任务 ID 失效。工具和输出限额见 [runtime](../xw-agent-runtime/README.md#后台-bash)。
 

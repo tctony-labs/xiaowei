@@ -6,7 +6,7 @@ pub(crate) fn prepare(session: &mut Session, snapshot: ResourceSnapshot) -> Resu
     let context = session.tool_context.as_mut().ok_or(AgentError::Internal)?;
     context
         .instructions
-        .retain(|key, _| !key.starts_with("rules."));
+        .retain(|key| !key.starts_with("rules."));
 
     if !snapshot.rules.is_empty() {
         let mut index = String::from(

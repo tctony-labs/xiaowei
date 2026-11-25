@@ -381,11 +381,9 @@ impl ::prost::Name for ChatMessage {
 pub struct SystemContextUpdate {
     #[prost(bool, tag = "1")]
     pub baseline: bool,
-    #[prost(map = "string, string", tag = "2")]
-    pub instructions: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    /// Unique named instructions in prompt assembly order.
+    #[prost(message, repeated, tag = "2")]
+    pub instructions: ::prost::alloc::vec::Vec<SystemInstruction>,
     #[prost(string, repeated, tag = "3")]
     pub instructions_removed: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(message, repeated, tag = "4")]
@@ -401,6 +399,24 @@ impl ::prost::Name for SystemContextUpdate {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.llm.SystemContextUpdate".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SystemInstruction {
+    /// These field numbers preserve the binary layout of the former map entry.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub content: ::prost::alloc::string::String,
+}
+impl ::prost::Name for SystemInstruction {
+    const NAME: &'static str = "SystemInstruction";
+    const PACKAGE: &'static str = "xiaowei.llm";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.llm.SystemInstruction".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.llm.SystemInstruction".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]

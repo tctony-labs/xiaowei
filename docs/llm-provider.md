@@ -30,7 +30,7 @@ main 保持唯一全局 GatewayHost；worker 持有本地执行 endpoint，复�
 
 Pi 类型留在模型适配层，自有配置与 Protobuf 不继承 Pi 类型。main 读取文件和环境变量，worker 只消费已解析的模型快照。业务执行配额、超时和流清理由 worker endpoint 持有；main 负责装配、授权和通信转发，不重复计算 service 配额。
 
-Rust Agent 负责动态 system prompt、历史、工具声明与执行、权限、运行循环、重试／恢复和持久化；provider 只声明工具并传回调用结果。Agent 的当前范围与持久格式见 [Agent Chat](../.agent/records/active/2026-09-28-agent-chat.md)，不以一次模型生成的完成代表整轮 Agent 已完成。
+Rust Agent 负责动态 system prompt、历史、工具声明与执行、权限、运行循环、重试／恢复和持久化；provider 只声明工具并传回调用结果。整轮 Agent 的终态由核心结算。 [Agent Core](../crates/xw-agent/README.md) · [持久历史格式](../crates/xw-agent-types/README.md)
 
 ## Gateway 接口
 

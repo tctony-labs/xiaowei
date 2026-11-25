@@ -1,6 +1,6 @@
 # 架构、分包与依赖方向
 
-所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。持久文本聊天、前六批工具和 Skill 已接入并完成各批约定验收，见[交付结果](implementation-results.md)。Skill 的范围与适配见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)；后台工具及远程 transport 尚未实现。
+所属事项：[Agent Chat](../2026-09-28-agent-chat.md)。持久文本聊天、首期工具和 Skill 已接入并完成约定验收。 [交付结果](implementation-results.md)
 
 ## 技术路线与源码参考
 
@@ -16,7 +16,7 @@ XiaoWei 使用的是 Pi 的 LLM provider，未使用 Pi Agent／harness。上下
 
 Codex 的 Thread／Turn／Item 对应我们的 Session／Run／Item；本项目内部 Turn 包含 Gen 及其工具结果。借鉴职责和生命周期，不承诺 Codex wire 兼容或相同产品能力。Pi 的类型与旧字段对齐见[领域类型](model-types.md)。
 
-2026-10-10 用户确认 [Agent Preset 暂缓](agent-presets.md)，技能后移。当前由 xw-agent 持有提示词、通用工具绑定与循环，xiaowei-agent 负责模型协议适配及 Web 装配，runtime 提供原语；以后出现第二种实际模式时再提取 preset，当前不新增身份、注册目录或历史快照字段。
+xw-agent 持有提示词、通用工具绑定与循环，xiaowei-agent 负责模型协议适配及 Web 装配，runtime 提供执行原语。
 
 ## 当前包与职责
 
@@ -68,17 +68,10 @@ flowchart LR
 
 AgentService::open(host, root) 初始化核心自有目录，生产 Node 使用异步 Agent.open(root)。正常启动／列表只读 SQLite，具体会话按需加载；格式和管理规则见[历史格式](history-format.md)。关闭等待维护、运行和标题任务结算／释放 writer，再关闭 endpoint 和 LLM 依赖；初始化失败逆序清理。内存 create 仅保留 fixture 用途。
 
-## CLI 与远程控制边界（未实现）
+## 宿主接入与持久数据
 
-桌面本地客户端和后续 CLI／手机复用同一 App Server 协议。手机连接终止于桌面宿主，由远程虚拟连接转发请求／响应、订阅及交互回应到同一 handler；不直接调用 runtime，不另建手机队列或状态同步业务。远程身份与权限由可信宿主建立，不能信任 payload 自报身份，也不能开放任意内部 Gateway 能力。
+桌面通过统一 App Server 控制 Agent。未来连接运行中桌面 Agent 的客户端，经同一协议入口共享活跃会话。 [远程控制提案](../../proposed/2026-11-25-agent-remote-control.md)
 
-必须区分两种共享：
-
-1. **共享活跃运行**：多个客户端连接同一服务实例，共享一个运行所有者和投影；各自有界订阅、首帧替换缓存，断连不停止运行。跨客户端修改由服务串行化并校验预期 metadata／archive revision 或 run ID；未来交互决定只接纳一次。
-2. **复用持久数据**：独立宿主实现 AgentHost、传相同数据根，前一 writer 完全释放后再接管会话。锁覆盖可写 Journal 生命周期；其他 writer 活跃时返回冲突，不修复尾部、不补中断、不删除其文件。共享 JSONL 不等于共享活跃任务。
-
-Rust CLI 可以直接依赖 xw-agent；控制桌面活跃 Agent 的 CLI 应作为协议客户端。包拆分不意味着已有纯 Rust CLI 产品，当前宿主模型实现仍使用 TS worker。CLI、daemon、网络 transport、配对认证、能力协商、稳定设备身份及断网重连均后续实施。远端路径和工具副作用属于执行宿主，不能自动当作手机本地路径。
-
-首期工具进程隔离拟迁移旧 xw-sandboxed-exec 的 macOS／Seatbelt 能力，尚未创建该包；具体依赖和平台边界在既有工具切片实施时核对，不预建空包。
+独立宿主可以实现 AgentHost 并传入同一数据根，在原 writer 完全释放后接管持久会话。锁覆盖可写 Journal 的生命周期，已有 writer 活跃时返回冲突，避免其他实例修复尾部、补写中断或删除其文件。运行归属于持有 writer 的服务实例。
 
 源码定位：[统一 client](https://github.com/openai/codex/blob/b741e480e203f037ca726bc2a76d99a8e8668e66/codex-rs/app-server-client/src/lib.rs)、[进程内 server](https://github.com/openai/codex/blob/b741e480e203f037ca726bc2a76d99a8e8668e66/codex-rs/app-server/src/in_process.rs)、[公共实体](https://github.com/openai/codex/blob/7f892275e31002f0422477c6219189284560e689/codex-rs/app-server-protocol/src/protocol/v2/thread.rs)、[writer lock](https://github.com/openai/codex/blob/b741e480e203f037ca726bc2a76d99a8e8668e66/codex-rs/rollout/src/writer_lock.rs)。

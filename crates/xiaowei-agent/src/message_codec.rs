@@ -33,7 +33,11 @@ pub fn decode_message(value: pb::ChatMessage) -> Result<AgentMessage, CodecError
                     })
                 })
                 .collect::<Result<Vec<_>, CodecError>>()?;
-            let instructions = update.instructions.into_iter().collect();
+            let instructions = update
+                .instructions
+                .into_iter()
+                .map(|instruction| (instruction.name, instruction.content))
+                .collect();
             let update = if update.baseline {
                 if !update.instructions_removed.is_empty() || !update.tools_removed.is_empty() {
                     return Err(CodecError::InvalidJson("system_context.baseline"));
@@ -107,7 +111,13 @@ pub fn encode_message(value: AgentMessage) -> Result<pb::ChatMessage, CodecError
             };
             pb::chat_message::Message::SystemContext(pb::SystemContextUpdate {
                 baseline,
-                instructions: instructions.into_iter().collect(),
+                instructions: instructions
+                    .iter()
+                    .map(|(name, content)| pb::SystemInstruction {
+                        name: name.into(),
+                        content: content.into(),
+                    })
+                    .collect(),
                 instructions_removed,
                 tools_removed,
                 tools_added: tools

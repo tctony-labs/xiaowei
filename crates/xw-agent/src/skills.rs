@@ -64,7 +64,7 @@ pub(crate) fn prepare(
     let context = session.tool_context.as_mut().ok_or(AgentError::Internal)?;
     context
         .instructions
-        .retain(|key, _| !key.starts_with(BODY_PREFIX));
+        .retain(|key| !key.starts_with(BODY_PREFIX));
     if session.view.cwd.is_some() {
         let mut catalog =
             String::from("可用技能：任务匹配简介或用户点名时，用 Skill 按名称加载正文。\n");

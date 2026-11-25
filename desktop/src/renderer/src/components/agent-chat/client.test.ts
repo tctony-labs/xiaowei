@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { waitFor } from "@testing-library/react";
 import {
+  AgentEventSchema,
   AgentInteractionStatus,
   AgentItemField,
   AgentModelConfigSchema,
@@ -8,6 +9,7 @@ import {
   AgentQuestionSchema,
   AgentRunStatus,
   AgentSessionSchema,
+  AgentToolStatus,
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
   type ReadItemContentResponse,
@@ -129,6 +131,40 @@ test("setting a manual title synchronizes both observers and invalid titles leav
   expect(fixture.titleRequests).toEqual([]);
   firstClose();
   otherClose();
+});
+
+test("a delayed regeneration reply cannot replace a more recent manual title", async () => {
+  const fixture = agentFixture();
+  const base = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const api = base.getAgent();
+  const response = deferred<void>();
+  const regenerateTitle: typeof api.regenerateTitle = (request) => {
+    const rpc = api.regenerateTitle(request);
+    return Object.assign(
+      rpc.then(async (result) => {
+        await response.promise;
+        return result;
+      }),
+      { cancel: () => rpc.cancel() },
+    );
+  };
+  const services = { ...base, getAgent: () => ({ ...api, regenerateTitle }) };
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("generate a title", config);
+  fixture.finish();
+  await waitFor(() => expect(client.busy).toBe(false));
+
+  const generation = client.regenerateTitle();
+  await waitFor(() => expect(client.session?.title).toBe("生成的标题"));
+  await client.setTitle("手写标题");
+  await waitFor(() => expect(client.session?.title).toBe("手写标题"));
+  response.resolve();
+  await generation;
+
+  expect(client.session?.title).toBe("手写标题");
+  expect(client.session?.autoTitleEnabled).toBe(false);
+  close();
 });
 
 test("a failed list refresh preserves the current chat and can be retried", async () => {
@@ -507,6 +543,129 @@ test("older history merges into the live stream and an Item page survives comple
   expect(client.session?.runs[1].itemsContinuation).toBe("");
   close();
 });
+
+test("a page read before Continue preserves live recovery on the original run", async () => {
+  const response = deferred<ReadRunItemsResponse>();
+  const fixture = agentFixture(undefined, { readRunItems: () => response.promise });
+  const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+  const client = new AgentChatClient(services);
+  const close = client.observe(() => {});
+  await client.send("original input", config);
+  fixture.finish(AgentRunStatus.INTERRUPTED);
+  await waitFor(() => expect(client.busy).toBe(false));
+  const session = client.session;
+  if (!session) throw new Error("Missing session");
+  const [original] = session.runs;
+  original.items = original.items.slice(0, 1);
+  original.itemsContinuation = "more-process";
+  const continuationId = agentIdentity();
+  const settled = {
+    itemId: agentIdentity(),
+    historyIndex: 2,
+    content: {
+      case: "toolCall" as const,
+      value: { name: "Bash", status: AgentToolStatus.RESULT_UNKNOWN },
+    },
+  };
+  const loading = client.loadRunItems(original.runId);
+  fixture.emit(
+    create(AgentEventSchema, {
+      payload: {
+        case: "itemCompleted",
+        value: { sessionId: session.sessionId, runId: original.runId, item: settled },
+      },
+    }),
+  );
+  fixture.emit(
+    create(AgentEventSchema, {
+      payload: {
+        case: "runStarted",
+        value: {
+          sessionId: session.sessionId,
+          run: {
+            runId: continuationId,
+            status: AgentRunStatus.IN_PROGRESS,
+            continuedFromRunId: original.runId,
+          },
+        },
+      },
+    }),
+  );
+  await waitFor(() => expect(client.session?.runs).toHaveLength(2));
+  const reasoningId = agentIdentity();
+  response.resolve(
+    create(ReadRunItemsResponseSchema, {
+      items: [
+        {
+          itemId: reasoningId,
+          historyIndex: 1,
+          content: { case: "reasoning", value: { text: "prior process" } },
+        },
+        {
+          ...settled,
+          content: {
+            case: "toolCall",
+            value: { name: "Bash", status: AgentToolStatus.PENDING },
+          },
+        },
+      ],
+    }),
+  );
+  await loading;
+
+  const [updated, continuation] = client.session?.runs ?? [];
+  expect(updated.items.map((item) => item.itemId)).toEqual([
+    original.items[0].itemId,
+    reasoningId,
+    settled.itemId,
+  ]);
+  expect(updated.items[2].content).toMatchObject(settled.content);
+  expect(continuation.items).toEqual([]);
+  expect(client.messages.map(({ role }) => role)).toEqual(["user", "assistant", "assistant"]);
+  close();
+});
+
+test.each(["压缩摘要为空。", "会话记录写入失败。"])(
+  "compaction failure preserves prior history and releases the composer (%s)",
+  async (error) => {
+    const fixture = agentFixture();
+    const services = createServices(() => fixture.host.client({ caller: "test", trusted: true }));
+    const client = new AgentChatClient(services);
+    const close = client.observe(() => {});
+    await client.send("previous input", config);
+    fixture.finish(AgentRunStatus.COMPLETED, "previous response");
+    await waitFor(() => expect(client.busy).toBe(false));
+    await client.send("trigger compaction", config);
+    const sessionId = client.session?.sessionId ?? "";
+    const run = fixture.sessions.get(sessionId)?.runs.at(-1);
+    if (!run?.generation) throw new Error("Missing active generation");
+    fixture.emit(
+      create(AgentEventSchema, {
+        payload: {
+          case: "generationUpdated",
+          value: {
+            sessionId,
+            runId: run.runId,
+            generation: { ...run.generation, isCompaction: true },
+          },
+        },
+      }),
+    );
+    await waitFor(() => expect(client.messages.at(-1)?.generation?.isCompaction).toBe(true));
+    run.error = error;
+    fixture.finish(AgentRunStatus.FAILED, "", "");
+    await waitFor(() => expect(client.busy).toBe(false));
+
+    expect(client.messages[1].blocks).toContainEqual(
+      expect.objectContaining({ kind: "text", text: "previous response" }),
+    );
+    expect(client.messages.at(-1)).toMatchObject({ status: "failed", error });
+    expect(client.messages.at(-1)?.generation).toBeUndefined();
+    await client.send("try again", config);
+    expect(fixture.requests).toHaveLength(3);
+    close();
+  },
+);
 
 test("full content joins byte chunks and a stale answer cannot change the current session", async () => {
   const chunk = deferred<ReadItemContentResponse>();

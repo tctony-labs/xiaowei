@@ -34,13 +34,13 @@ Host 注入接口为 xw-agent 的单个 AgentHost trait，含 generate／get_mod
 
 **完整 RuntimeRunContext 在内存中组装，不整体持久化。** 消息和工具结果从历史重建；权限从已提交决定重建；当前指令／工具状态从独立系统记录重建，工具执行器按当前会话 cwd 和已提交授权组装。取消句柄、provider／工具实例、连接、队列对象、缓存和进程句柄只在内存中，恢复时重新创建。重放指重建状态，绝不重新执行历史模型或工具。
 
-`RunContext` 嵌在 RunStarted 中，Conversation Gen 继承所属 Run；辅助标题／压缩／工具提取 Gen 携带自己的必要配置。没有独立 ContextDefined、ContextId 或 preset 配置引用；完整指令保存在独立系统上下文基线／变化中，不在每个 Run 中重复保存。完整内存上下文由历史和必要执行参数组装，外部设置不整体落盘。[Preset 已暂缓](agent-presets.md)，不新增 RunContext.agent；连接／资源句柄继续仅驻内存。
+`RunContext` 嵌在 RunStarted 中，Conversation Gen 继承所属 Run；辅助标题／压缩／工具提取 Gen 携带自己的必要配置。没有独立 ContextDefined、ContextId 或 preset 配置引用；完整指令保存在独立系统上下文基线／变化中，不在每个 Run 中重复保存。完整内存上下文由历史和必要执行参数组装，外部设置不整体落盘。连接与资源句柄只保留在内存。
 
 Run 只锁定 Agent 选择的 model_ref／reasoning 与 Agent 自己的运行配置；不检测 LM worker 中同引用的配置变化，原配置 token 设计已撤回。Meta 与 Run 配置分别保存 host 提供的 provider_name／model_name（例如 tctony 与 sol），使历史展示独立于当前模型列表；不保存预先拼接的名称，只在最终展示层格式化。凭据、认证 headers、带凭据的连接地址和完整 ModelConfiguration 不落盘；provider 默认值若当前接口未暴露，保持未显式指定。这套格式用于恢复领域历史与说明当时的选择，不承诺重新发送完全相同的 HTTP 请求。
 
 ### Harness 能力上下文同步
 
-2026-10-10 用户明确要求：harness 向模型同步工具、指令及以后技能的变化，采用“完整基线＋后续增量”。这决定模型可见上下文如何构成，不能交给 WebSocket 续接、网络去重或提示词缓存来代替实现。preset 暂缓不影响这一要求；当前先接提示词与工具，技能实现后移。
+2026-10-10 用户明确要求：harness 向模型同步工具、指令及以后技能的变化，采用“完整基线＋后续增量”。这决定模型可见上下文如何构成，不能交给 WebSocket 续接、网络去重或提示词缓存来代替实现。首批提示词与工具先接入，Skill 在后续批次交付。
 
 | 时机 | Harness 写入当前模型上下文的内容 |
 | --- | --- |
@@ -54,7 +54,7 @@ Run 只锁定 Agent 选择的 model_ref／reasoning 与 Agent 自己的运行配
 
 XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复；只调用 `@earendil-works/pi-ai` 0.87.1 的 LLM provider，不使用 Pi Agent／harness。provider 的转换行为是接入时需要验证的事实，不能反过来决定核心何时重写上下文，也不能仅凭默认兼容配置断言模型接口不支持某种更新。
 
-当前 AgentMessage／ChatMessage 已加入 SystemContext 更新投影；生产请求按顺序传递基线／增量，不再只依赖顶层简写。核心记录／恢复与正式接线分别见下节。系统更新由 harness 产生，不记作真实用户输入或模型生成的 Message，也不借 preset 引入新的身份体系。领域记录、持久化编码与 provider 消息结构分别承担自己的职责，不因 Pi 暴露某个字段就要求逐字段照搬到领域与 PB。
+当前 AgentMessage／ChatMessage 已加入 SystemContext 更新投影；生产请求按顺序传递基线／增量，不再只依赖顶层简写。核心记录／恢复与正式接线分别见下节。系统更新由 harness 产生，不记作真实用户输入或模型生成的 Message。领域记录、持久化编码与 provider 消息结构分别承担自己的职责，不因 Pi 暴露某个字段就要求逐字段照搬到领域与 PB。
 
 正式接线将系统上下文记录映射到 Pi SystemMessage：首条提供基线；后续 sections 替换／删除指令片段，toolsAdded／toolsRemoved 表达工具变化。下述请求编码及真实模型实测明确了当前支持边界，见[正式接线](#正式生成接线与适配边界2026-10-18)。可变指令按变化片段更新，新增／替换工具携带完整定义；比较定义内容，避免对象地址或 JSON 键顺序变化产生伪增量。
 
@@ -113,6 +113,10 @@ Pi 1.5.2 接收完整工具变化历史，worker 在组装请求时按「已有�
 Responses 实际代理的六步合成探针覆盖基线、新增、停用、指令更新、无变化和同名更新。一次运行中，新增、停用、同名更新分别命中 2,944、3,200 和 3,328 个缓存 tokens。复跑时三步功能均通过，停用和同名更新仍命中相同数量，新增未命中缓存。其余协议验证覆盖实际 SDK 生成的请求，由本地拦截 HTTP、检查字段及顺序。
 
 Responses 实际代理的 SSE 对照保留相同历史和 `allowed_tools`，只切换 Pi 的停用消息。提示要求在 `probe_lookup` 可用时调用它，否则回复 `UNAVAILABLE`，并禁止调用其他工具。仅传允许名单的两次请求都调用了名单内的 `probe_echo`。加上停用说明的两次请求都回复 `UNAVAILABLE`，工具调用为零。四次请求均未调用已移除的 `probe_lookup`。
+
+2026-11-25 用 `tctony/terra` 的既有地址和凭据，在隔离探针内选择 Chat Completions。兼容路径的六个请求均返回 HTTP 200，顶层工具集合与每一步一致。新增工具实际调用，停用后准确返回 `UNAVAILABLE` 且零工具调用，同名替换后仅用 `count: 7`。另外在隔离配置显式打开 `supportsAllowedTools` 后，前两步成功，第三步发出原生允许名单时端点返回 HTTP 400。该 provider 使用兼容路径。 [六步探针](../../../../desktop/tests/llm/harness-context.test.mjs)
+
+Claude 的真实端点测试延后，单独保留计划。 [Claude 验收计划](../../../plans/claude-tool-updates-live.md)
 
 #### Pi provider 请求编码实测（2026-10-10）
 
@@ -186,7 +190,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 | 使用方式 | 模型发起结构化调用，由执行器校验、执行并返回结果 | 模型按需取得正文与资源；技能可能指导多个工具的组合使用，技能本身不自动增加工具权限 |
 | 压缩后重建 | 精确重建当前可用工具声明，不依赖摘要猜测 schema | 重建简介目录；已加载且仍需遵循的指令、资源内容按技能生命周期处理，不因此把全部技能正文注入 |
 
-技能加载复用工具循环，但“技能目录同步”“正文／资源加载”和“实际工具执行”各自保留职责。本批沿此边界接入，不恢复当前已暂缓的 preset 工作。
+技能加载复用工具循环，但“技能目录同步”“正文／资源加载”和“实际工具执行”各自保留职责。
 
 2026-11-02 本轮接入的范围与生命周期已明确，见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)。固定 Skill 工具 schema 不枚举名称；简介目录和按需正文直接使用上述具名指令增量，动态目录不要求替换工具 schema。自动压缩按当前有效 SystemContext 重建简介和已加载正文。
 
@@ -212,7 +216,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 | `TokenUsage.reasoning, cache_write_1h, cost` | 三个 optional／message | 缺失与显式 0 分开；assistant 的有效回放要求 usage.cost 存在；tool result 可无 usage，但提供 usage 时同样须有 cost |
 | `UsageCost.input, output, cache_read, cache_write, total` | 五个同名 double | 有限且非负；原值往返，不重算总费用 |
 
-领域 SystemContext 经 LLM PB 的结构化 system_context 传给 worker，再映射为 Pi `SystemMessage.sections/toolsAdded/toolsRemoved`；映射字段存在不代表当前 provider 已可靠支持全部工具变化，具体拒绝条件见上文。Agent 聊天的顶层 system_prompt 为空，实际指令随有序 messages 传递；RunContext 保存工具执行元数据。custom agent message、deferred handle、diagnostics、raw errorMessage，以及 Codex encrypted reasoning／专有响应项仍不在当前契约内。安全失败说明由 `GenEnded`／`TurnEnded`／`RunEnd` 表达，不能用任意 AppEvent blob 假装已经支持其他能力。
+领域 SystemContext 经 LLM PB 的结构化 system_context 传给 worker，再映射为 Pi `SystemMessage.sections/toolsAdded/toolsRemoved`；映射字段存在不代表当前 provider 已可靠支持全部工具变化，具体拒绝条件见上文。Agent 聊天的顶层 system_prompt 为空，实际指令随有序 messages 传递。Rust 按组装顺序发送 `repeated SystemInstruction`，worker 按数组顺序组装 Pi sections。字段编号沿用原 map entry 的二进制布局。RunContext 保存工具执行元数据。custom agent message、deferred handle、diagnostics、raw errorMessage，以及 Codex encrypted reasoning／专有响应项仍不在当前契约内。安全失败说明由 `GenEnded`／`TurnEnded`／`RunEnd` 表达，不能用任意 AppEvent blob 假装已经支持其他能力。
 
 ### 文件与 Rust 类型职责
 
