@@ -1,6 +1,7 @@
 import { clone } from "@bufbuild/protobuf";
 import {
   type AgentEvent,
+  type AgentItem,
   AgentRunStatus,
   type AgentSession,
   AgentSessionSchema,
@@ -47,6 +48,9 @@ export function applyAgentEvent(
     session.modelInfoWarning = payload.value.warning;
     session.providerName = payload.value.providerName;
     session.modelName = payload.value.modelName;
+  } else if (payload.case === "queueUpdated") {
+    session.queuedInputs = payload.value.queuedInputs;
+    session.queueError = payload.value.error;
   } else if (payload.case === "runStarted") {
     if (!payload.value.run) throw new Error("Missing accepted run");
     if (!session.runs.some((run) => run.runId === payload.value.run?.runId))
@@ -121,38 +125,66 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
           : run.status === AgentRunStatus.INTERRUPTED
             ? "cancelled"
             : "failed";
-    return [
-      { id: run.inputId, role: "user", text: userText, timestampMs: run.startedAtMs },
-      {
-        id: run.runId,
-        role: "assistant",
-        timestampMs: run.startedAtMs,
-        blocks: messageBlocks(run.items),
-        generation:
-          run.status === AgentRunStatus.IN_PROGRESS && run.generation
-            ? {
-                id: run.generation.genId,
-                startedAtMs: Number(run.generation.startedAtMs),
-                receivedContent: run.generation.receivedContent,
-                activeBlockId: run.generation.activeItemId,
-              }
-            : undefined,
-        finalResponseBlockIds:
-          run.status === AgentRunStatus.COMPLETED && run.finalGenId !== undefined
-            ? run.items
-                .filter(
-                  (item) => item.genId === run.finalGenId && item.content.case === "agentMessage",
-                )
-                .map((item) => item.itemId)
-            : undefined,
-        durationMs:
-          run.completedAtMs !== undefined && run.completedAtMs >= run.startedAtMs
-            ? run.completedAtMs - run.startedAtMs
-            : undefined,
-        status,
-        error:
-          status === "failed" ? run.error || "模型请求失败，请检查模型配置后重试。" : undefined,
-      },
-    ] satisfies QuickChatMessage[];
+    const segments: { userId: string; text: string; items: AgentItem[] }[] = [
+      { userId: run.inputId, text: userText, items: [] },
+    ];
+    let seenFirstUser = false;
+    for (const item of run.items) {
+      if (item.content.case === "userMessage") {
+        if (!seenFirstUser) {
+          seenFirstUser = true;
+          continue;
+        }
+        const text = item.content.value.content
+          .flatMap((input) => (input.content.case === "text" ? [input.content.value] : []))
+          .join("\n");
+        segments.push({ userId: item.itemId, text, items: [] });
+      } else {
+        segments.at(-1)?.items.push(item);
+      }
+    }
+    return segments.flatMap((segment, index) => {
+      const last = index === segments.length - 1;
+      return [
+        {
+          id: segment.userId,
+          role: "user",
+          text: segment.text,
+          timestampMs: index === 0 ? run.startedAtMs : undefined,
+        },
+        {
+          id: last ? run.runId : `${run.runId}-${segment.userId}`,
+          role: "assistant",
+          timestampMs: last ? run.startedAtMs : undefined,
+          blocks: messageBlocks(segment.items),
+          generation:
+            last && run.status === AgentRunStatus.IN_PROGRESS && run.generation
+              ? {
+                  id: run.generation.genId,
+                  startedAtMs: Number(run.generation.startedAtMs),
+                  receivedContent: run.generation.receivedContent,
+                  activeBlockId: run.generation.activeItemId,
+                }
+              : undefined,
+          finalResponseBlockIds:
+            last && run.status === AgentRunStatus.COMPLETED && run.finalGenId !== undefined
+              ? segment.items
+                  .filter(
+                    (item) => item.genId === run.finalGenId && item.content.case === "agentMessage",
+                  )
+                  .map((item) => item.itemId)
+              : undefined,
+          durationMs:
+            last && run.completedAtMs !== undefined && run.completedAtMs >= run.startedAtMs
+              ? run.completedAtMs - run.startedAtMs
+              : undefined,
+          status: last ? status : "complete",
+          error:
+            last && status === "failed"
+              ? run.error || "模型请求失败，请检查模型配置后重试。"
+              : undefined,
+        },
+      ] satisfies QuickChatMessage[];
+    });
   });
 }

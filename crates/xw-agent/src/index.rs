@@ -120,7 +120,7 @@ impl AgentService {
         Ok(true)
     }
 
-    async fn require(&self, id: &str) -> Result<SessionId, AgentError> {
+    pub(crate) async fn require(&self, id: &str) -> Result<SessionId, AgentError> {
         let id = parse_id(id, "session_id")?;
         if !self.load(id).await? {
             return Err(AgentError::NotFound("session"));

@@ -385,3 +385,404 @@ async fn every_extraction_commit_prefix_recovers_without_models_or_invented_resu
     }
     assert_eq!(host.calls.lock().unwrap().len(), 3);
 }
+
+fn queue_source() -> InputSource {
+    InputSource {
+        kind: SourceKind::Internal,
+        principal_id: "fixture".into(),
+    }
+}
+
+fn queue_request(
+    session: domain::SessionId,
+    input: domain::InputId,
+    text: &str,
+) -> QueueInputRequest {
+    QueueInputRequest {
+        session_id: session.to_string(),
+        input_id: input.to_string(),
+        input: vec![AgentUserInput {
+            content: Some(agent_user_input::Content::Text(text.into())),
+        }],
+    }
+}
+
+#[tokio::test]
+async fn queued_inputs_run_in_fifo_order_and_restore_edited_input() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    let first = domain::InputId::new();
+    let second = domain::InputId::new();
+    let request = queue_request(session, first, "first");
+    service
+        .queue_input(request.clone(), queue_source())
+        .await
+        .unwrap();
+    service.queue_input(request, queue_source()).await.unwrap();
+    service
+        .queue_input(queue_request(session, second, "second"), queue_source())
+        .await
+        .unwrap();
+    service
+        .edit_queued_input(
+            EditQueuedInputRequest {
+                session_id: session.to_string(),
+                input_id: second.to_string(),
+                input: queue_request(session, second, "edited").input,
+            },
+            queue_source(),
+        )
+        .await
+        .unwrap();
+    host.pending.lock().unwrap()[0]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 2).await;
+    {
+        let state = service.state().unwrap();
+        let current = &state.sessions[&session];
+        assert_eq!(current.view.runs.len(), 2);
+        assert_eq!(current.view.runs[1].input_id, first.to_string());
+        assert_eq!(current.view.queued_inputs.len(), 1);
+    }
+    host.pending.lock().unwrap()[1]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 3).await;
+    {
+        let state = service.state().unwrap();
+        let current = &state.sessions[&session];
+        assert_eq!(current.view.runs[2].input_id, second.to_string());
+        assert!(current.view.queued_inputs.is_empty());
+        let Some(agent_item::Content::UserMessage(user)) = &current.view.runs[2].items[0].content
+        else {
+            panic!()
+        };
+        assert_eq!(user.input_id.as_deref(), Some(second.to_string().as_str()));
+        assert_eq!(
+            user.content[0].content,
+            Some(agent_user_input::Content::Text("edited".into()))
+        );
+    }
+    host.pending.lock().unwrap()[2]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| service.state().unwrap().sessions[&session].active.is_none()).await;
+    service.close().await.unwrap();
+    drop(service);
+    let reopened = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let snapshot = reopened
+        .read_session(ReadSessionRequest {
+            session_id: session.to_string(),
+            include_runs: true,
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    assert_eq!(snapshot.runs.len(), 3);
+    assert_eq!(snapshot.runs[2].input_id, second.to_string());
+}
+
+#[tokio::test]
+async fn steering_without_tool_boundary_becomes_follow_up_and_interrupt_starts_new_run() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    let first = domain::InputId::new();
+    service
+        .queue_input(queue_request(session, first, "steer"), queue_source())
+        .await
+        .unwrap();
+    let run = service.state().unwrap().sessions[&session]
+        .active
+        .as_ref()
+        .unwrap()
+        .run_id;
+    service
+        .steer_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: first.to_string(),
+            run_id: Some(run.to_string()),
+        })
+        .await
+        .unwrap();
+    host.pending.lock().unwrap()[0]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 2).await;
+    assert_eq!(
+        service.state().unwrap().sessions[&session].view.runs[1].input_id,
+        first.to_string()
+    );
+    let next = domain::InputId::new();
+    service
+        .queue_input(queue_request(session, next, "interrupt"), queue_source())
+        .await
+        .unwrap();
+    let run = service.state().unwrap().sessions[&session]
+        .active
+        .as_ref()
+        .unwrap()
+        .run_id;
+    service
+        .interrupt_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: next.to_string(),
+            run_id: Some(run.to_string()),
+        })
+        .await
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 3).await;
+    let state = service.state().unwrap();
+    let current = &state.sessions[&session];
+    assert_eq!(
+        current.view.runs[1].status,
+        AgentRunStatus::Interrupted as i32
+    );
+    assert_eq!(current.view.runs[2].input_id, next.to_string());
+}
+
+#[tokio::test]
+async fn steering_is_inserted_between_tools_in_the_same_run_and_restored() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    let input_id = domain::InputId::new();
+    service
+        .queue_input(
+            queue_request(session, input_id, "change approach"),
+            queue_source(),
+        )
+        .await
+        .unwrap();
+    let run_id = service.state().unwrap().sessions[&session]
+        .active
+        .as_ref()
+        .unwrap()
+        .run_id;
+    service
+        .steer_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: input_id.to_string(),
+            run_id: Some(run_id.to_string()),
+        })
+        .await
+        .unwrap();
+    host.pending.lock().unwrap()[0]
+        .send(GenerationEvent::Finished(message(true)))
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 2).await;
+    {
+        let state = service.state().unwrap();
+        let session = &state.sessions[&session];
+        assert_eq!(session.view.runs.len(), 1);
+        assert!(session.queue.is_empty());
+        let run = &session.view.runs[0];
+        assert_eq!(run.run_id, run_id.to_string());
+        let input_text = input_id.to_string();
+        assert!(run.items.iter().any(|item| matches!(
+            &item.content,
+            Some(agent_item::Content::UserMessage(user))
+                if user.input_id.as_deref() == Some(input_text.as_str())
+        )));
+        assert!(run.items.iter().any(|item| matches!(
+            &item.content,
+            Some(agent_item::Content::ToolCall(tool))
+                if tool.status == AgentToolStatus::Skipped as i32
+        )));
+    }
+    host.pending.lock().unwrap()[1]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| service.state().unwrap().sessions[&session].active.is_none()).await;
+    service.close().await.unwrap();
+    drop(service);
+    let reopened = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let snapshot = reopened
+        .read_session(ReadSessionRequest {
+            session_id: session.to_string(),
+            include_runs: true,
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    assert_eq!(snapshot.runs.len(), 1);
+    let input_text = input_id.to_string();
+    assert!(snapshot.runs[0].items.iter().any(|item| matches!(
+        &item.content,
+        Some(agent_item::Content::UserMessage(user))
+            if user.input_id.as_deref() == Some(input_text.as_str())
+    )));
+}
+
+#[tokio::test]
+async fn pending_inputs_survive_close_and_are_not_automatically_replayed() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    let input_id = domain::InputId::new();
+    service
+        .queue_input(queue_request(session, input_id, "pending"), queue_source())
+        .await
+        .unwrap();
+    let run_id = service.state().unwrap().sessions[&session]
+        .active
+        .as_ref()
+        .unwrap()
+        .run_id;
+    service
+        .steer_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: input_id.to_string(),
+            run_id: Some(run_id.to_string()),
+        })
+        .await
+        .unwrap();
+    service.close().await.unwrap();
+    drop(service);
+    let reopened = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let snapshot = reopened
+        .read_session(ReadSessionRequest {
+            session_id: session.to_string(),
+            include_runs: true,
+        })
+        .await
+        .unwrap()
+        .session
+        .unwrap();
+    assert_eq!(snapshot.queued_inputs.len(), 1);
+    assert_eq!(snapshot.queued_inputs[0].input_id, input_id.to_string());
+    assert_eq!(
+        snapshot.queued_inputs[0].mode,
+        QueuedInputMode::FollowUp as i32
+    );
+    assert_eq!(host.pending.lock().unwrap().len(), 1);
+    reopened
+        .interrupt_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: input_id.to_string(),
+            run_id: None,
+        })
+        .await
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() == 2).await;
+    let state = reopened.state().unwrap();
+    let current = &state.sessions[&session];
+    assert_eq!(current.view.runs.len(), 2);
+    assert_eq!(current.view.runs[1].input_id, input_id.to_string());
+    assert!(current.queue.is_empty());
+}
+
+#[tokio::test]
+async fn interrupt_selects_non_head_and_keeps_other_inputs_in_fifo_order() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    let first = domain::InputId::new();
+    let selected = domain::InputId::new();
+    let last = domain::InputId::new();
+    for (id, text) in [(first, "first"), (selected, "interrupt"), (last, "last")] {
+        service
+            .queue_input(queue_request(session, id, text), queue_source())
+            .await
+            .unwrap();
+    }
+    let run_id = service.state().unwrap().sessions[&session]
+        .active
+        .as_ref()
+        .unwrap()
+        .run_id;
+    service
+        .interrupt_input(QueuedInputActionRequest {
+            session_id: session.to_string(),
+            input_id: selected.to_string(),
+            run_id: Some(run_id.to_string()),
+        })
+        .await
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 2).await;
+    {
+        let state = service.state().unwrap();
+        let current = &state.sessions[&session];
+        assert_eq!(current.view.runs[1].input_id, selected.to_string());
+        assert_eq!(
+            current
+                .queue
+                .iter()
+                .map(|entry| entry.accepted.input_id)
+                .collect::<Vec<_>>(),
+            vec![first, last]
+        );
+    }
+    host.pending.lock().unwrap()[1]
+        .send(GenerationEvent::Finished(message(false)))
+        .unwrap();
+    wait(|| host.pending.lock().unwrap().len() >= 3).await;
+    assert_eq!(
+        service.state().unwrap().sessions[&session].view.runs[2].input_id,
+        first.to_string()
+    );
+}
+
+#[tokio::test]
+async fn queue_write_failure_cancels_the_run_and_never_starts_a_queued_input() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = AgentService::open(host.clone(), root.path().into())
+        .await
+        .unwrap();
+    let session = start(&service).await;
+    wait(|| host.pending.lock().unwrap().len() == 1).await;
+    service
+        .state()
+        .unwrap()
+        .sessions
+        .get_mut(&session)
+        .unwrap()
+        .journal
+        .as_mut()
+        .unwrap()
+        .fail_next_append(TestFault::Partial);
+    let result = service
+        .queue_input(
+            queue_request(session, domain::InputId::new(), "pending"),
+            queue_source(),
+        )
+        .await;
+    assert_eq!(result.unwrap_err(), AgentError::Persistence);
+    wait(|| service.state().unwrap().sessions[&session].active.is_none()).await;
+    let state = service.state().unwrap();
+    let current = &state.sessions[&session];
+    assert!(current.failed_run.is_some());
+    assert!(current.queue.is_empty());
+    assert_eq!(host.pending.lock().unwrap().len(), 1);
+}

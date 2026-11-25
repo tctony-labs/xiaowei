@@ -31,6 +31,11 @@ service Agent {
   // Accepts one run per session; returns immediately, completion follows on SubscribeSession.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   rpc InterruptRun(InterruptRunRequest) returns (InterruptRunResponse);
+  rpc QueueInput(QueueInputRequest) returns (QueueInputResponse);
+  rpc EditQueuedInput(EditQueuedInputRequest) returns (QueueMutationResponse);
+  rpc SteerInput(QueuedInputActionRequest) returns (QueueMutationResponse);
+  rpc InterruptInput(QueuedInputActionRequest) returns (QueueMutationResponse);
+  rpc RemoveQueuedInput(QueuedInputActionRequest) returns (QueueMutationResponse);
   // Per-caller delivery, independent of the shared session observation. Ready first,
   // then current pending requests and 20-second heartbeats. Closing never stops a run.
   rpc ObserveInteractions(ObserveInteractionsRequest) returns (stream InteractionDeliveryEvent);
@@ -91,6 +96,8 @@ message AgentUserInput {
 
 message AgentUserMessage {
   repeated AgentUserInput content = 1;
+  // Stable identity of the consumed input, including steering in an existing Run.
+  optional string input_id = 2;
 }
 
 message AgentMessage {
@@ -210,6 +217,10 @@ message AgentSession {
   int64 updated_at_ms = 15;
   // Absolute working directory; absent for a rootless text-only session.
   optional string cwd = 16;
+  // Ordered inputs accepted but not yet consumed by a Run.
+  repeated QueuedInput queued_inputs = 17;
+  // Last automatic queue dispatch failure, cleared on the next queue change.
+  optional string queue_error = 18;
 }
 
 // Agent-root policy; defaults match the old app: 3 days to archive, deletion off.
@@ -495,6 +506,7 @@ message AgentEvent {
     SessionArchivedUpdated session_archived_updated = 14;
     GenerationUpdated generation_updated = 15;
     InteractionUpdated interaction_updated = 16;
+    QueueUpdated queue_updated = 17;
   }
 }
 
@@ -534,6 +546,56 @@ message InterruptRunResponse {
   bool found = 1;
   // Acknowledges cancellation only. Await RunCompleted for final status.
   bool cancellation_requested = 2;
+}
+
+enum QueuedInputMode {
+  QUEUED_INPUT_MODE_UNSPECIFIED = 0;
+  QUEUED_INPUT_MODE_FOLLOW_UP = 1;
+  QUEUED_INPUT_MODE_STEERING = 2;
+  QUEUED_INPUT_MODE_INTERRUPTING = 3;
+}
+
+message QueuedInput {
+  string input_id = 1;
+  repeated AgentUserInput input = 2;
+  QueuedInputMode mode = 3;
+  // Target Run for steering or interrupt. Absent for follow-up.
+  optional string run_id = 4;
+}
+
+message QueueUpdated {
+  string session_id = 1;
+  // Complete authoritative FIFO snapshot, including an empty queue.
+  repeated QueuedInput queued_inputs = 2;
+  optional string error = 3;
+}
+
+message QueueInputRequest {
+  string session_id = 1;
+  string input_id = 2;
+  repeated AgentUserInput input = 3;
+}
+
+message QueueInputResponse {
+  QueuedInput input = 1;
+}
+
+message EditQueuedInputRequest {
+  string session_id = 1;
+  string input_id = 2;
+  repeated AgentUserInput input = 3;
+}
+
+message QueuedInputActionRequest {
+  string session_id = 1;
+  string input_id = 2;
+  // Required by steer and by interrupt while running; must match the active Run.
+  // For interrupt on an idle session, absent sends this queued input in a new Run.
+  optional string run_id = 3;
+}
+
+message QueueMutationResponse {
+  repeated QueuedInput queued_inputs = 1;
 }
 
 message RegenerateTitleRequest {

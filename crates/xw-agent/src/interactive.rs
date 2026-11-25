@@ -235,7 +235,6 @@ pub(crate) async fn wait(
                     interaction_id: id,
                     revision: 2,
                     reason,
-                    preempting_input_id: None,
                 };
                 let session = state.sessions.get_mut(&session_id).unwrap();
                 let committed = session.append(

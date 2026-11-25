@@ -402,3 +402,71 @@ test("Run duration uses recorded start and end, preserving unknown and zero valu
   session.runs[0].completedAtMs = 99n;
   expect(chatMessages(session)[1].durationMs).toBeUndefined();
 });
+
+test("steering inputs appear in order among the same run's assistant output", () => {
+  const session = create(AgentSessionSchema, {
+    sessionId: "s",
+    runs: [
+      {
+        runId: "r",
+        inputId: "first",
+        status: AgentRunStatus.IN_PROGRESS,
+        items: [
+          {
+            itemId: "first-item",
+            content: {
+              case: "userMessage",
+              value: {
+                content: [{ content: { case: "text", value: "initial" } }],
+              },
+            },
+          },
+          { itemId: "before", content: { case: "agentMessage", value: { text: "before" } } },
+          {
+            itemId: "steer",
+            content: {
+              case: "userMessage",
+              value: {
+                content: [{ content: { case: "text", value: "change" } }],
+              },
+            },
+          },
+          { itemId: "after", content: { case: "agentMessage", value: { text: "after" } } },
+        ],
+      },
+    ],
+  });
+  expect(chatMessages(session)).toMatchObject([
+    { role: "user", text: "initial" },
+    { role: "assistant", blocks: [{ text: "before" }] },
+    { role: "user", text: "change" },
+    { role: "assistant", blocks: [{ text: "after" }], status: "generating" },
+  ]);
+});
+
+test("queue events replace the queue and expose or clear dispatch errors", () => {
+  let session: AgentSession | undefined = create(AgentSessionSchema, { sessionId: "s" });
+  session = applyAgentEvent(
+    session,
+    create(AgentEventSchema, {
+      payload: {
+        case: "queueUpdated",
+        value: {
+          sessionId: "s",
+          error: "排队消息发送失败，请检查会话。",
+          queuedInputs: [{ inputId: "queued" }],
+        },
+      },
+    }),
+  );
+  expect(session?.queueError).toContain("排队消息发送失败");
+  expect(session?.queuedInputs.map((input) => input.inputId)).toEqual(["queued"]);
+  session = applyAgentEvent(
+    session,
+    create(AgentEventSchema, {
+      payload: { case: "queueUpdated", value: { sessionId: "s", queuedInputs: [] } },
+    }),
+  );
+  expect(session?.queueError).toBeUndefined();
+  expect(session?.queuedInputs).toEqual([]);
+});

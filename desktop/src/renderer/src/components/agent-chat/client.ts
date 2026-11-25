@@ -11,9 +11,12 @@ import {
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
   DeleteSessionStatus,
+  EditQueuedInputRequestSchema,
   InterruptRunRequestSchema,
   ListSessionsRequestSchema,
   ObserveInteractionsRequestSchema,
+  QueuedInputActionRequestSchema,
+  QueueInputRequestSchema,
   ReadSessionRequestSchema,
   RegenerateTitleRequestSchema,
   type RespondInteractionRequest,
@@ -57,6 +60,10 @@ export class AgentChatClient {
   >();
   private connecting?: Promise<void>;
   private sending?: Promise<void>;
+  queueChanging = false;
+  private pendingSteerId?: string;
+  private interruptAfterSteer = false;
+  private uncertainQueue = new Map<string, { inputId: string; text: string }>();
   private changing?: Promise<void>;
   private listing?: Promise<void>;
   private drafts = new Map<string, string>();
@@ -139,6 +146,22 @@ export class AgentChatClient {
         (view) =>
           view.status === AgentInteractionStatus.PENDING && view.request.case === "question",
       );
+  }
+
+  get pendingPermission() {
+    return (
+      this.session?.runs
+        .flatMap((run) => (run.status === 1 ? run.items : []))
+        .flatMap((item) =>
+          item.content.case === "toolCall" && item.content.value.interaction
+            ? [item.content.value.interaction]
+            : [],
+        )
+        .some(
+          (view) =>
+            view.status === AgentInteractionStatus.PENDING && view.request.case === "permission",
+        ) === true
+    );
   }
 
   interaction(id: string) {
@@ -491,6 +514,177 @@ export class AgentChatClient {
     } finally {
       await stream?.cancel().catch(() => {});
       if (this.interactionStream === stream) this.interactionStream = undefined;
+    }
+  }
+
+  get activeRunId() {
+    return this.session?.runs.find((run) => run.status === 1)?.runId;
+  }
+
+  get hasUncertainQueueInput() {
+    const sessionId = this.session?.sessionId;
+    return !!sessionId && this.uncertainQueue.has(sessionId);
+  }
+
+  private hasAcceptedInput(id: string) {
+    return (
+      this.session?.queuedInputs.some((input) => input.inputId === id) ||
+      this.session?.runs.some(
+        (run) =>
+          run.inputId === id ||
+          run.items.some(
+            (item) => item.content.case === "userMessage" && item.content.value.inputId === id,
+          ),
+      ) === true
+    );
+  }
+
+  async queueInput(text: string): Promise<string> {
+    const sessionId = this.session?.sessionId;
+    if (!sessionId || this.queueChanging) throw new Error("Queue unavailable");
+    const previous = this.uncertainQueue.get(sessionId);
+    if (previous && previous.text !== text) {
+      this.error = "上一条消息的发送结果尚未确认，请先重试原消息。";
+      this.notify();
+      throw new Error("Uncertain queue input");
+    }
+    if (previous && this.hasAcceptedInput(previous.inputId)) {
+      this.uncertainQueue.delete(sessionId);
+      this.error = "";
+      this.notify();
+      return sessionId;
+    }
+    if (!this.activeRunId) {
+      this.error = "排队结果尚未确认，请等待会话同步。";
+      this.notify();
+      throw new Error("Queue unavailable");
+    }
+    const pending = previous ?? { inputId: agentIdentity(), text };
+    this.uncertainQueue.set(sessionId, pending);
+    this.queueChanging = true;
+    this.error = "";
+    this.notify();
+    try {
+      await this.services.getAgent().queueInput(
+        create(QueueInputRequestSchema, {
+          sessionId,
+          inputId: pending.inputId,
+          input: [{ content: { case: "text", value: text } }],
+        }),
+      );
+      this.uncertainQueue.delete(sessionId);
+      return sessionId;
+    } catch (error) {
+      if (this.session?.sessionId === sessionId) {
+        this.disconnect();
+        await this.connect(false, sessionId).catch(() => {});
+        if (this.hasAcceptedInput(pending.inputId)) {
+          this.uncertainQueue.delete(sessionId);
+          this.error = "";
+          return sessionId;
+        }
+      }
+      if (
+        error instanceof GatewayFailure &&
+        ["INVALID_ARGUMENT", "NOT_FOUND", "RESOURCE_EXHAUSTED"].includes(error.detail.code)
+      ) {
+        this.uncertainQueue.delete(sessionId);
+        this.error = "排队失败，请重试。";
+      } else {
+        this.error = "排队结果尚未确认，请重试原消息。";
+      }
+      throw error;
+    } finally {
+      this.queueChanging = false;
+      this.notify();
+    }
+  }
+
+  async steerQueuedInput(id: string) {
+    if (this.queueChanging) {
+      if (this.pendingSteerId === id) this.interruptAfterSteer = true;
+      return;
+    }
+    const sessionId = this.session?.sessionId;
+    this.pendingSteerId = id;
+    this.interruptAfterSteer = false;
+    try {
+      const accepted = await this.changeQueuedInput("steer", id);
+      if (
+        accepted &&
+        this.interruptAfterSteer &&
+        this.session?.sessionId === sessionId &&
+        this.session?.queuedInputs.some((input) => input.inputId === id)
+      ) {
+        await this.changeQueuedInput("interrupt", id);
+      }
+    } finally {
+      this.pendingSteerId = undefined;
+      this.interruptAfterSteer = false;
+    }
+  }
+
+  async interruptQueuedInput(id: string) {
+    if (this.queueChanging && this.pendingSteerId === id) {
+      this.interruptAfterSteer = true;
+      return;
+    }
+    await this.changeQueuedInput("interrupt", id);
+  }
+
+  async changeQueuedInput(
+    action: "steer" | "interrupt" | "remove" | "edit",
+    id: string,
+    text?: string,
+  ) {
+    const sessionId = this.session?.sessionId;
+    if (!sessionId || this.queueChanging) return false;
+    const runId = this.activeRunId;
+    if (action === "steer" && !runId) {
+      this.error = "当前对话已结束，请等待队列同步。";
+      this.notify();
+      return false;
+    }
+    this.queueChanging = true;
+    this.error = "";
+    this.notify();
+    try {
+      const agent = this.services.getAgent();
+      if (action === "edit") {
+        await agent.editQueuedInput(
+          create(EditQueuedInputRequestSchema, {
+            sessionId,
+            inputId: id,
+            input: [{ content: { case: "text", value: text ?? "" } }],
+          }),
+        );
+      } else {
+        const request = create(QueuedInputActionRequestSchema, { sessionId, inputId: id, runId });
+        if (action === "steer") await agent.steerInput(request);
+        else if (action === "interrupt") await agent.interruptInput(request);
+        else await agent.removeQueuedInput(request);
+      }
+      return true;
+    } catch (error) {
+      if (this.session?.sessionId === sessionId) {
+        this.disconnect();
+        await this.connect(false, sessionId).catch(() => {});
+        if (
+          action === "interrupt" &&
+          error instanceof GatewayFailure &&
+          error.detail.code === "CONFLICT" &&
+          this.session &&
+          !this.session.queuedInputs.some((input) => input.inputId === id)
+        ) {
+          this.error = "";
+          return false;
+        }
+        this.error = "队列操作未确认，请检查状态后重试。";
+      }
+      return false;
+    } finally {
+      this.queueChanging = false;
+      this.notify();
     }
   }
 

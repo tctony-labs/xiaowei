@@ -106,6 +106,8 @@ impl Session {
         let restored = project(self.journal.as_ref().expect("journal exists"))?;
         self.history = restored.history;
         self.requests = restored.requests;
+        self.queue = restored.queue;
+        self.view.queued_inputs = restored.view.queued_inputs;
         self.interactions = restored.interactions;
         self.granted_paths = restored.granted_paths;
         self.permission_mode = restored.permission_mode;
@@ -162,18 +164,103 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
     session.view.provider_name = rebuilt.meta.provider_name.clone().unwrap_or_default();
     session.view.model_name = rebuilt.meta.model_name.clone().unwrap_or_default();
     let mut accepted = std::collections::BTreeMap::new();
+    let mut input_messages = std::collections::BTreeMap::new();
     let mut generations = std::collections::BTreeMap::new();
     for entry in entries {
         match &entry.payload {
             domain::EntryPayload::InputAccepted(input) => {
                 accepted.insert(input.input_id, input);
+                input_messages.insert(input.input_id, &input.message);
+                if input.mode != domain::InputMode::Send {
+                    session.queue.push(crate::queue::PendingInput {
+                        accepted: input.clone(),
+                        message: input.message.clone(),
+                        mode: input.mode,
+                        target: input.expected_run_id,
+                    });
+                }
+            }
+            domain::EntryPayload::InputEdited(input) => {
+                input_messages.insert(input.input_id, &input.message);
+                if let Some(queued) = session
+                    .queue
+                    .iter_mut()
+                    .find(|entry| entry.accepted.input_id == input.input_id)
+                {
+                    queued.message = input.message.clone();
+                }
+            }
+            domain::EntryPayload::InputRouted(input) => {
+                if let Some(queued) = session
+                    .queue
+                    .iter_mut()
+                    .find(|entry| entry.accepted.input_id == input.input_id)
+                {
+                    queued.mode = input.mode;
+                    queued.target = input.expected_run_id;
+                }
+            }
+            domain::EntryPayload::InputCancelled(input) => {
+                session
+                    .queue
+                    .retain(|entry| entry.accepted.input_id != input.input_id);
+            }
+            domain::EntryPayload::InputConsumed(input) => {
+                session
+                    .queue
+                    .retain(|entry| !input.input_ids.contains(&entry.accepted.input_id));
+                if let Some(run) = session
+                    .view
+                    .runs
+                    .iter_mut()
+                    .find(|run| run.run_id == input.run_id.to_string())
+                {
+                    for id in &input.input_ids {
+                        let message = input_messages[id];
+                        if run
+                            .items
+                            .iter()
+                            .any(|item| item.item_id == message.block_ids[0].to_string())
+                        {
+                            continue;
+                        }
+                        let domain::AgentMessage::User(user) = &message.message else {
+                            return Err(AgentError::Persistence);
+                        };
+                        run.items.push(AgentItem {
+                            item_id: message.block_ids[0].to_string(),
+                            gen_id: None,
+                            content: Some(agent_item::Content::UserMessage(AgentUserMessage {
+                                input_id: Some(id.to_string()),
+                                content: user
+                                    .content
+                                    .iter()
+                                    .filter_map(|block| match block {
+                                        domain::ContentBlock::Text { text, .. } => {
+                                            Some(AgentUserInput {
+                                                content: Some(agent_user_input::Content::Text(
+                                                    text.clone(),
+                                                )),
+                                            })
+                                        }
+                                        _ => None,
+                                    })
+                                    .collect(),
+                            })),
+                        });
+                    }
+                }
             }
             domain::EntryPayload::RunStarted(run) => {
-                let domain::RunCause::Send { input_id } = run.cause else {
-                    continue;
+                let input_id = match &run.cause {
+                    domain::RunCause::Send { input_id }
+                    | domain::RunCause::Interrupt { input_id, .. }
+                    | domain::RunCause::Queued { input_id } => *input_id,
+                    domain::RunCause::FollowUp { input_ids } => input_ids[0],
+                    domain::RunCause::Continue { .. } => continue,
                 };
-                let input = accepted[&input_id];
-                let content = match &input.message.message {
+                let message = input_messages[&input_id];
+                let content = match &message.message {
                     domain::AgentMessage::User(user) => user
                         .content
                         .iter()
@@ -199,10 +286,11 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     model_name: model.model_name.clone().unwrap_or_default(),
                     started_at_ms: entry.timestamp_ms,
                     items: vec![AgentItem {
-                        item_id: input.message.block_ids[0].to_string(),
+                        item_id: message.block_ids[0].to_string(),
                         gen_id: None,
                         content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                             content,
+                            input_id: Some(input_id.to_string()),
                         })),
                     }],
                     ..Default::default()
@@ -377,6 +465,11 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
     }
     session.granted_paths = rebuilt.granted_paths;
     session.history = rebuilt.messages;
+    session.view.queued_inputs = session
+        .queue
+        .iter()
+        .map(crate::queue::PendingInput::view)
+        .collect();
     session.meta = Some(rebuilt.meta);
     Ok(session)
 }
@@ -390,6 +483,8 @@ impl Session {
         user_item_id: domain::BlockId,
         model: domain::ModelDescriptor,
         tools: Vec<domain::ToolDeclaration>,
+        queued: Option<&crate::queue::PendingInput>,
+        manual: bool,
     ) -> Result<(), AgentError> {
         if self.journal.is_none() {
             return Ok(());
@@ -432,42 +527,59 @@ impl Session {
             .collect::<Vec<_>>();
         let mut block_ids = vec![user_item_id];
         block_ids.extend((1..content.len()).map(|_| domain::BlockId::new()));
-        self.append(
-            domain::EntryPayload::InputAccepted(domain::InputAccepted {
+        if queued.is_none() {
+            self.append(
+                domain::EntryPayload::InputAccepted(domain::InputAccepted {
+                    input_id: execution.input_id,
+                    source,
+                    mode: domain::InputMode::Send,
+                    expected_run_id: None,
+                    expected_head: None,
+                    selection: request
+                        .config
+                        .as_ref()
+                        .map(|config| domain::ModelSelection {
+                            model_ref: config.model_ref.clone(),
+                            reasoning: config.reasoning.clone(),
+                        }),
+                    message: domain::RecordedMessage {
+                        message_id: domain::MessageId::new(),
+                        block_ids,
+                        run_id: None,
+                        turn_id: None,
+                        gen_id: None,
+                        input_id: Some(execution.input_id),
+                        completeness: domain::MessageCompleteness::Complete,
+                        message: domain::AgentMessage::User(domain::UserMessage {
+                            content,
+                            timestamp_ms: started_at,
+                        }),
+                    },
+                }),
+                started_at,
+            )?;
+        }
+        let cause = match queued {
+            Some(_) if manual => domain::RunCause::Queued {
                 input_id: execution.input_id,
-                source,
-                mode: domain::InputMode::Send,
-                expected_run_id: None,
-                expected_head: None,
-                selection: request
-                    .config
-                    .as_ref()
-                    .map(|config| domain::ModelSelection {
-                        model_ref: config.model_ref.clone(),
-                        reasoning: config.reasoning.clone(),
-                    }),
-                message: domain::RecordedMessage {
-                    message_id: domain::MessageId::new(),
-                    block_ids,
-                    run_id: None,
-                    turn_id: None,
-                    gen_id: None,
-                    input_id: Some(execution.input_id),
-                    completeness: domain::MessageCompleteness::Complete,
-                    message: domain::AgentMessage::User(domain::UserMessage {
-                        content,
-                        timestamp_ms: started_at,
-                    }),
-                },
-            }),
-            started_at,
-        )?;
+            },
+            Some(input) if input.mode == domain::InputMode::Interrupt => {
+                domain::RunCause::Interrupt {
+                    input_id: execution.input_id,
+                    previous_run_id: input.target.ok_or(AgentError::Internal)?,
+                }
+            }
+            Some(_) => domain::RunCause::FollowUp {
+                input_ids: vec![execution.input_id],
+            },
+            None => domain::RunCause::Send {
+                input_id: execution.input_id,
+            },
+        };
         self.append(
             domain::EntryPayload::RunStarted(domain::RunStarted {
                 run_id: execution.run_id,
-                cause: domain::RunCause::Send {
-                    input_id: execution.input_id,
-                },
+                cause,
                 base_context: boundary.clone(),
                 context,
             }),
@@ -588,7 +700,6 @@ impl Session {
             domain::EntryPayload::GenEnded(domain::GenEnded {
                 gen_id: execution.gen_id,
                 status: gen_status,
-                preempting_input_id: None,
                 ended_at_ms: Some(outcome.ended_at_ms),
                 stop_reason,
                 assistant_message_id: recorded_id,

@@ -33,7 +33,9 @@ impl AgentService {
                 .get(&id)
                 .filter(|s| !s.deleted())
                 .ok_or(AgentError::NotFound("session"))?;
-            if let Some(original) = session.requests.get(&input_id) {
+            if let Some(original) = session.requests.get(&input_id)
+                && session.dispatching != Some(input_id)
+            {
                 if original != &request {
                     return Err(AgentError::Conflict("input identity"));
                 }
@@ -112,7 +114,9 @@ impl AgentService {
             .ok_or(AgentError::NotFound("session"))?;
         session.available()?;
         session.prepare_writer()?;
-        if let Some(original) = session.requests.get(&input_id) {
+        if let Some(original) = session.requests.get(&input_id)
+            && session.dispatching != Some(input_id)
+        {
             if original != &request {
                 return Err(AgentError::Conflict("input identity"));
             }
@@ -128,6 +132,26 @@ impl AgentService {
         if session.active.is_some() {
             return Err(AgentError::Conflict("session is running"));
         }
+        if session
+            .dispatching
+            .is_some_and(|pending| pending != input_id)
+        {
+            return Err(AgentError::Conflict("queued input dispatching"));
+        }
+        let queued = if session.dispatching == Some(input_id) {
+            let queued = session
+                .queue
+                .iter()
+                .find(|entry| entry.accepted.input_id == input_id)
+                .cloned()
+                .ok_or(AgentError::Conflict("input not queued"))?;
+            if queued.view().input != request.input {
+                return Err(AgentError::Conflict("queued input changed"));
+            }
+            Some(queued)
+        } else {
+            None
+        };
         if crate::tool_registry::has_unclosed_calls(&session.history) {
             return Err(AgentError::Conflict(
                 "previous tool results remain unresolved",
@@ -228,10 +252,14 @@ impl AgentService {
                 .unwrap_or_default(),
             started_at_ms,
             items: vec![AgentItem {
-                item_id: BlockId::new().to_string(),
+                item_id: queued
+                    .as_ref()
+                    .map(|entry| entry.message.block_ids[0].to_string())
+                    .unwrap_or_else(|| BlockId::new().to_string()),
                 gen_id: None,
                 content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                     content: request.input.clone(),
+                    input_id: Some(input_id.to_string()),
                 })),
             }],
             ..Default::default()
@@ -273,6 +301,7 @@ impl AgentService {
             capabilities: queried.map(|info| info.capabilities),
             budget,
         };
+        let manual = session.dispatch_manual;
         if let Err(error) = session.record_start(
             &request,
             source,
@@ -283,6 +312,8 @@ impl AgentService {
                 .map_err(|_| AgentError::Internal)?,
             descriptor,
             tools,
+            queued.as_ref(),
+            manual,
         ) {
             session.failed_run = Some(run_id);
             return Err(error);
@@ -294,10 +325,20 @@ impl AgentService {
             permission_mode,
             cancellation: cancellation.clone(),
             done: done.clone(),
+            committed: false,
         });
         session.history = history;
         session.cancel_titles();
-        session.requests.insert(input_id, request);
+        if queued.is_some() {
+            session
+                .queue
+                .retain(|entry| entry.accepted.input_id != input_id);
+            session.dispatching = None;
+            session.dispatch_manual = false;
+            session.view.queue_error = None;
+        } else {
+            session.requests.insert(input_id, request);
+        }
         session.view.status = AgentSessionStatus::Running.into();
         session.view.runs.push(run.clone());
         let warning = crate::model::warning_event(session);
@@ -309,6 +350,9 @@ impl AgentService {
                 warning,
             )),
         );
+        if queued.is_some() {
+            crate::queue::publish(&mut state, id);
+        }
         Self::publish(
             &mut state,
             event(agent_event::Payload::RunStarted(RunStarted {
@@ -323,6 +367,7 @@ impl AgentService {
         let generation = self.generation.clone();
         let host = self.host.clone();
         handle.spawn(crate::run_loop::execute(
+            self.dispatch_handle(),
             shared,
             index,
             host,

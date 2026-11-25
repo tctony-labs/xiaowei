@@ -213,19 +213,19 @@ runtime 收到 Started、BlockStarted／BlockFinished、正文／思考／参数
 
 ## 后续对话控制能力的扩展边界
 
-上述后续能力复用同一套会话、运行、输入与历史模型，不分别建立独立的消息通道。本期实现满足实际需要的最小结构；下表描述未来语义和必须避免的设计限制，不要求现在暴露对应 RPC。
+这些能力复用同一套会话、运行、输入与历史模型，不分别建立独立的消息通道。输入队列与运行调度已接入；rewind／fork 仍为后续设计。
 
 | 能力 | 后续预期语义 | 本期保留的设计接入点 |
 | --- | --- | --- |
-| `FollowUp` | 当前 Run 正常完成后，按服务确认的 FIFO 消费已接纳输入，启动新 Run | InputMode／RunCause／消费关系在 01a 定义；失败、取消或达到硬限制时保持待处理，不自动拉起下一 Run。新 Run 重置执行预算；区别于旧版／Pi 在同一 loop 继续的语义 |
-| `Steering`（即时引导） | 在当前 Run 的工具之间检查，下一 Gen 前插入补充指令 | 已启动工具先结算；检查到 steering 后，本批尚未启动工具记录 skipped 结果以闭合配对，再结束 Turn、在同 Run 下一 Turn 消费输入。无工具时在下一 Gen 前消费；不修改已发请求，不隐式停止当前工具／审批 |
-| `Preempt`（抢占） | 立即请求取消当前 Gen／工具，在同 Run 下一 Turn 应用新指令 | Preempt 输入携带 expected_run_id；TurnEnded::Preempted 关联触发 Input，正在生成的 Gen 结算 Preempted，已经结束的 Gen 保留原终态。工具／交互先安全结算，不重置 Run 预算，不引入后台继续执行语义；实际调度／RPC 后续实现 |
+| `FollowUp` | 当前 Run 正常完成后，按服务确认的 FIFO 逐条消费已接纳输入，每条启动一个新 Run | InputMode／RunCause／消费关系在 01a 定义；失败、取消或达到硬限制时保持待处理，不自动拉起下一 Run。新 Run 重置执行预算；区别于旧版／Pi 在同一 loop 继续的语义 |
+| `Steering`（即时引导） | 在当前 Run 的工具之间检查，下一 Gen 前插入补充指令 | 已启动工具先结算；检查到 steering 后，本批尚未启动工具记录 skipped 结果以闭合配对，再结束 Turn、在同 Run 下一 Turn 消费输入。没有工具间隙且 Run 结束时转为 Follow-up；不修改已发请求，不隐式停止当前工具／审批 |
+| `Interrupt`（打断） | 停止当前 Run，结算后用选中的 query 启动新 Run | 其他排队输入保留顺序；新 Run 使用新的执行预算，空闲时可显式发送选中的待处理消息 |
 | rewind | 将后续对话的上下文起点退回到指定历史边界 | 历史条目具有稳定 ID 与顺序，区分持久记录和当前有效上下文；上下文构建可按明确边界取历史。不得依赖覆盖旧消息或破坏性删除后缀作为唯一实现方式 |
 | fork | 从指定历史边界创建可独立继续的新会话，保留来源关系 | 会话身份与历史条目身份分离，允许记录来源会话和分叉位置；历史内容与运行中状态分离，不能要求复制活跃任务、队列或授权才能继续新会话 |
 
 共同约束：
 
-- **输入状态可辨认**：未来启用排队时，须区分已接收、待消费、已消费与取消；确定消费归属并防止重复。steering 与 follow-up 是不同消费时机，模式在接纳时显式记录，不从文案或发送时间猜测。Run 收尾与输入接纳按会话串行判定：先接纳的 steering 必须进入收尾检查，Run 已终结则拒绝目标过期输入，不静默转 follow-up。重启重建未消费输入，绝不自动发送。
+- **输入状态可辨认**：区分已接收、待消费、已消费与取消；确定消费归属并防止重复。Steering 与 Follow-up 的接纳、编辑和模式变更写入历史，不从文案或发送时间猜测。Run 收尾与输入接纳按会话串行判定：先接纳的 Steering 进入收尾检查，未消费时转为 Follow-up；Run 已终结则拒绝针对该 Run 的迟到操作。重启重建未消费输入，绝不自动发送。
 - **历史边界完整**：rewind／fork 只从可重建的边界产生后续上下文，不截断工具调用／结果配对。优先支持已完成用户轮次边界；更细粒度边界须满足 Turn 工具闭合，不以 GenEnded 代替安全边界。压缩记录须保留所覆盖历史范围与来源，避免未来只能恢复最新摘要而无法解释选定位置。
 - **运行隔离**：在途运行固定其上下文起点与版本；未来 rewind 前须停止并结算当前运行，fork 默认取已提交的历史边界。旧事件仍属于原运行，不得写入退回后的上下文或新会话。并发检查可用 revision／预期历史位置实现，具体字段在契约切片确定。
 - **外部副作用不随历史回退**：rewind 不等于撤销文件修改或已执行操作；fork 不重放历史工具，不继承在途任务或一次性授权。副作用回滚若需要，作为独立能力设计并验收。
@@ -233,21 +233,7 @@ runtime 收到 Started、BlockStarted／BlockFinished、正文／思考／参数
 
 扩展性验收以本期真实接口与数据模型为依据，检查上述接入点是否存在，以及增加能力是否需要改写既有历史语义；不为尚未交付的行为编写假实现或声称已完成运行时验证。
 
-### Preempt 的执行边界与即时打断的上游参考（设计待实施）
-
-本节不改变已确认的普通 steering 时机。核对 Codex b741e480 的 features/src/lib.rs：InstantInterrupt（instant_interrupt）为 UnderDevelopment、默认 false；session/mod.rs 仅启用时为 step 创建 preempt token，input_queue.rs::watch_user_input 在新用户输入到达时取消它。turn.rs 抢占当前生成／重试等待，再消费输入并继续同一 Codex Turn（对应我们的 Run）；Responses lite 可以发送 interrupt 后排空剩余响应，其他路径可停止读取。工具侧并非一律强杀：已经派发的直接工具可能仍需 drain，code-mode exec／wait 可以让前台等待返回，后台 cell 继续。不能把该设计描述为所有 Gen／tool call 都立即停止。
-
-Pi 11449730 的 Agent.steer 只 enqueue，AgentSession.steer 在轮次边界注入；最新 agent-loop 顺序工具循环不再具有旧 XiaoWei 那种每个工具之后检查 steering 并跳过余下工具的逻辑。更强的停止通过 Agent.abort／AgentSession.abort 传播 AbortSignal 并等待 idle，再另发 prompt；工具能否及时终止取决于其 signal 实现。这是 abort 后新执行，不是普通 steer 的原子即时切换接口。
-
-另有不依赖 InstantInterrupt 的手动路径：tui/chatwidget/interaction.rs 在 interrupt 快捷键（Esc）且存在 pending_steers 时设置 submit_pending_steers_after_interrupt 并发送 interrupt；input_restore.rs::on_interrupted_turn 在收到旧 Turn 中断后立即重新提交这些输入。它结束旧 Codex Turn，再开始新 Turn（对应我们的旧 Run → 新 Run），与自动抢占保留同 Turn 是不同生命周期。普通 follow-up 队列并非在所有 Esc 场景都自动提交，须区分 pending steering 与普通排队输入。
-
-2026-10-03 用户要求把 InstantInterrupt 也加入设计，采用简短名 Preempt（抢占），作为 InputMode 的独立值；它保留当前 Run，区别于 StopRun 后重新发送的新 Run。01a 定义历史字段、状态和 fixture，产品调度／RPC／UI 仍后续实施；不新增切片。
-
-Preempt 先持久接纳输入并验证 expected_run_id，再立即发出当前调用的取消请求。当前 Gen 尚在生成时结算 GenStatus::Preempted，直接记录 preempting_input_id，保留真实开始／首个 SSE／结束时间和 Partial；当前 Gen 已成功、正在执行工具时不改写 Gen 终态。当前 Turn 以 TurnStatus::Preempted 结束并保存触发的 preempting_input_id；下一 Turn 通过 InputConsumed 引入新指令，Run ID 与累计预算保持不变。处于 Turn 之间时直接在下一 Turn 消费，不伪造一个被抢占的 Gen／Turn。多个请求按同会话串行边界处理，终态只提交一次，已终结 Run 的目标请求冲突，不改成 follow-up。
-
-工具接收取消，已完成的真实结果保留，尚未启动项补 skipped；等待中的 Interaction 以 Preempted 失效并直接保存触发的 preempting_input_id。抢占请求立即发出，下一 Gen 须等当前调用和工具配对完成安全结算；不能仅 drop future 就声称外部进程已终止。无法确认调用结束时仍显示待结算，不在后台偷偷脱离执行，也不启动下一 Gen；无法取得结果的已结束动作明确为 ResultUnknown，并禁止自动重做等价副作用。这里不建设 Codex code-mode 的后台 cell／前台 yield 机制。源调用的迟到事件只归原 Gen／ToolId，不修改新 Turn，不覆写已提交终态。
-
-InputAccepted(Preempt) 表示接纳，TurnEnded(Preempted) 表示原轮抢占完成，InputConsumed 表示新指令进入下一轮上下文；新 GenStarted 才表示已提交给模型。三阶段状态不可合并为客户端即时“已生效”。
+打断采用停止旧 Run 后启动新 Run 的方式，不保留同一 Run 内抢占继续的模式。取消请求发出后，必须等待旧 Run 和工具安全结算，再发送选中的 query；界面应区分请求中与实际发送。
 
 ## Chat UI 与交互
 

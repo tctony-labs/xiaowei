@@ -43,10 +43,10 @@ pub use system_context::{SystemContext, SystemContextDelta, SystemContextUpdate}
 pub use rollout::{
     Compacted, CompactionTrigger, ContextBudgetSnapshot, DeletionMarker, EntryPayload, GenEnded,
     GenFirstSseReceived, GenPurpose, GenStarted, GenStatus, InputAccepted, InputCancelReason,
-    InputCancelled, InputConsumed, JournalEntry, MessageCompleteness, ProviderToolKey,
-    RecordedMessage, RunEnd, RunStarted, RunStatus, SafeError, SessionMeta, SessionSummary,
-    TitleGenerated, TitleSource, ToolIntent, ToolOutcome, ToolStatus, TurnEnded, TurnStarted,
-    TurnStatus,
+    InputCancelled, InputConsumed, InputEdited, InputRouted, JournalEntry, MessageCompleteness,
+    ProviderToolKey, RecordedMessage, RunEnd, RunStarted, RunStatus, SafeError, SessionMeta,
+    SessionSummary, TitleGenerated, TitleSource, ToolIntent, ToolOutcome, ToolStatus, TurnEnded,
+    TurnStarted, TurnStatus,
 };
 
 pub use validation::{

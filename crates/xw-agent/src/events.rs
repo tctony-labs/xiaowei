@@ -68,6 +68,7 @@ impl Observer {
             }
             Some(agent_event::Payload::RunStarted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::RunCompleted(event)) => Some(event.session_id.as_str()),
+            Some(agent_event::Payload::QueueUpdated(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ItemStarted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::ItemCompleted(event)) => Some(event.session_id.as_str()),
             Some(agent_event::Payload::AgentMessageDelta(event)) => Some(event.session_id.as_str()),

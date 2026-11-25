@@ -123,7 +123,6 @@ pub(crate) fn settle_with_tools(
                 interaction_id: *id,
                 revision: revision + 1,
                 reason: InteractionExpireReason::Recovery,
-                preempting_input_id: None,
             }),
             recovered_at_ms,
         )?;
@@ -138,7 +137,6 @@ pub(crate) fn settle_with_tools(
             EntryPayload::GenEnded(GenEnded {
                 gen_id: *id,
                 status: GenStatus::Interrupted,
-                preempting_input_id: None,
                 ended_at_ms: None,
                 stop_reason: None,
                 assistant_message_id: message.map(|message| message.message_id),
@@ -251,7 +249,6 @@ pub(crate) fn settle_with_tools(
                 turn_id: *id,
                 status: TurnStatus::Interrupted,
                 final_gen_id,
-                preempting_input_id: None,
                 duration_ms: None,
                 error: None,
             }),
@@ -290,6 +287,38 @@ pub(crate) fn settle_with_tools(
             }),
             recovered_at_ms,
         )?;
+    }
+    let mut routes = BTreeMap::new();
+    for entry in journal.entries() {
+        match &entry.payload {
+            EntryPayload::InputAccepted(input) if input.mode != InputMode::Send => {
+                routes.insert(input.input_id, (input.mode, input.expected_run_id));
+            }
+            EntryPayload::InputRouted(input) => {
+                routes.insert(input.input_id, (input.mode, input.expected_run_id));
+            }
+            EntryPayload::InputConsumed(input) => {
+                for id in &input.input_ids {
+                    routes.remove(id);
+                }
+            }
+            EntryPayload::InputCancelled(input) => {
+                routes.remove(&input.input_id);
+            }
+            _ => {}
+        }
+    }
+    for (input_id, (_, target)) in routes {
+        if target.is_some() {
+            journal.append(
+                EntryPayload::InputRouted(InputRouted {
+                    input_id,
+                    mode: InputMode::FollowUp,
+                    expected_run_id: None,
+                }),
+                recovered_at_ms,
+            )?;
+        }
     }
     inspect_recovery(journal.entries()).map_err(|_| xw_agent_rollout::RolloutError::InvalidHistory)
 }

@@ -29,7 +29,7 @@
 
 发送路径为 pending → 服务端持久接纳并广播 Input → 消费并关联 Run → Item／模型与工具变化 → 终态。后续 follow-up 由服务确认队列顺序，消费时才关联新的 run；取消／重排也通过服务命令。steering 指定预期活动 run，服务接纳后仍可等待安全边界，实际消费时才发布 applied boundary；接纳不等于已影响模型。两端均观察相同 Input／Run／Item／Interaction 变化，而不是仅同步 LLM 文本。
 
-首期仍只接纳普通发送，运行中发送明确冲突；queue／steer RPC、排队状态、手机 UI 与网络 adapter 不提前实现。未来功能扩展同一个 Input、JSONL 恢复和变化契约。重连重新订阅，以首帧完整快照替换缓存；不续传旧事件。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
+队列与插入复用同一个 Input、JSONL 恢复和变化契约；手机 UI 与网络 adapter 尚未实现。重连重新订阅，以首帧完整快照替换缓存；不续传旧事件。公共持久状态可恢复，未进入业务层的传输失败只属于请求方，不伪造会话事件。
 
 ## 共享 Agent 控制 API
 
@@ -119,7 +119,7 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 等待用户时原 Run 仍 InProgress，当前 generation 为空；模型流已经结束，等待不占用 Generate 或长时间 unary RPC。有效回答／批准／拒绝提交后成为原工具的结果，再继续同一 Run，不发送新的 StartRun。停止与决定在现有串行边界竞争：停止已生效则不再接纳决定；决定先提交则保留真实结果。展示保留已解决卡片的回答摘要，不再保留可操作按钮。
 
-内部历史类型已明确 InputMode（Send／FollowUp／Steering／Preempt）、expected_run_id、按接纳 sequence 的 FIFO、消费 Run／Turn 和 boundary；公共 queue／steer 方法和状态仍等功能实际实现时加入。其来源、排序和消费由服务确认；不能只加 UI 标志。本期公共 API 只接纳普通发送，不提前生成后续 RPC 或空调度实现。
+输入队列由 Agent 权威维护：QueueInput 接纳 Follow-up，EditQueuedInput 更新待处理文本，SteerInput 指向当前 Run，InterruptInput 在运行中停止指定 Run 并发送选中项，在空闲时显式发送选中项，RemoveQueuedInput 移除待处理项。AgentSession 快照和 QueueUpdated 事件提供有序队列及自动发送错误；消费后的用户 Item 包含 input_id。失败、停止和重启后保留未消费输入，不自动重发。Steering 和 Run 收尾在会话锁内串行判定，运行结束前未消费的 Steering 回到 Follow-up。
 
 ### 后续能力（未实现）
 

@@ -38,6 +38,9 @@ pub(crate) struct Session {
         crate::interactive::InteractionRecord,
     >,
     pub requests: std::collections::BTreeMap<xw_agent_types::InputId, StartRunRequest>,
+    pub queue: Vec<crate::queue::PendingInput>,
+    pub dispatching: Option<xw_agent_types::InputId>,
+    pub dispatch_manual: bool,
     pub active: Option<ActiveRun>,
     pub title_tasks: std::collections::BTreeMap<xw_agent_types::GenId, TitleTask>,
     pub current_title_task: Option<xw_agent_types::GenId>,
@@ -83,6 +86,9 @@ impl Session {
             granted_paths: Vec::new(),
             interactions: Default::default(),
             requests: Default::default(),
+            queue: Vec::new(),
+            dispatching: None,
+            dispatch_manual: false,
             active: None,
         }
     }
@@ -121,4 +127,5 @@ pub(crate) struct ActiveRun {
     pub permission_mode: PermissionMode,
     pub cancellation: crate::CancellationToken,
     pub done: crate::CancellationToken,
+    pub committed: bool,
 }

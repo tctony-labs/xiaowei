@@ -480,6 +480,7 @@ mod tests {
                             content: vec![AgentUserInput {
                                 content: Some(agent_user_input::Content::Text(format!("q{n}"))),
                             }],
+                            input_id: None,
                         })),
                         ..Default::default()
                     },

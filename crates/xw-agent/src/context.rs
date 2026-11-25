@@ -66,6 +66,9 @@ pub fn rebuild_context(
             EntryPayload::InputAccepted(input) => {
                 inputs.insert(input.input_id, &input.message.message);
             }
+            EntryPayload::InputEdited(input) => {
+                inputs.insert(input.input_id, &input.message.message);
+            }
             EntryPayload::InputConsumed(input) => {
                 for id in &input.input_ids {
                     effective.push((entry.entry_id, inputs[id].clone()));

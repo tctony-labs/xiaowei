@@ -15,6 +15,7 @@ mod persistence;
 #[cfg(test)]
 mod persistence_tests;
 mod prompts;
+mod queue;
 mod recovery;
 mod resources;
 mod retention;

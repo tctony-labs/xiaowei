@@ -31,7 +31,7 @@
 
 2026-10-18 用户明确暂不实现旧 Read 的 PDF 能力，登记为后续工作；当前 Read 实现与验收范围为文本。PDF 的解析及输出接入以后另行确定，不作为当前批次或本事项现有完成标准的前置。
 
-follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩展空间，不默认要求交付相应功能或 UI。旧版已经具备的相关机制先核对再复用，不一概当成缺失能力，也不为预留能力提前引入通用调度框架或完整分支系统。
+Follow-up、Steering 和 Interrupt 已进入本期运行控制与 UI 范围；rewind、fork 仍保留扩展空间，不提前引入通用调度框架或完整分支系统。
 
 ### 完成标准
 
@@ -95,7 +95,7 @@ follow-up、steering、preempt、rewind、fork 本期要求在设计上留好扩
 
 2026-10-26 第 4 批 AskUserQuestion／RequestPermission、两阶段送达／决定及 03c 对应 UI 已实现，自动检查和正式原生链路通过。用户手动完成纯文字、批准／文件结果和拒绝；Agent 已核对持久记录，并补验 Stop／草稿恢复、重启失效、不重放、后续新 Run 及明暗主题。具体证据、重复请求不撤销既有授权的边界和真实 IME 平台复核限制见[本批结果](2026-09-28-agent-chat/implementation-results.md#问答权限与对应-ui2026-10-26)。02f 已删除，03c 只保留 01f 长输出范围，平台人工复核继续在 04d 跟踪。同 Run 等待与权限生效规则见[运行与 UI](2026-09-28-agent-chat/runtime-ui.md#问答与权限卡片第-4-批)。第 5 批 TodoWrite 的最新进展见下文，后续依次为 WebFetch、后台三工具、Skill，Skill 仍只登记范围。02h 仅保留第 7 批后台阶段。继续扩展现有 xw-agent/run_loop，不另建循环；动态工具删除／替换和其他 provider 联调仍单独跟踪，不静默改成全量工具重注入。
 
-PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Preempt、rewind／fork、CLI 与手机 transport 保留设计边界，没有新增运行调度 RPC／UI。
+PDF 与 preset 继续暂缓；应用／项目规则及命令资源已通过 02m 验收。大历史／完整长内容、压缩、显式 Continue 及完整产品验收按[总实施顺序](../../plans/2026-09-28-agent-chat/00-implementation-order.md)推进；有现成依赖的维护切片可独立实施，不改变工具批次顺序。FollowUp／Steering／Interrupt 的接入与验收进行中；rewind／fork、CLI 与手机 transport 保留设计边界。
 
 2026-10-27 第 5 批 TodoWrite 已实现执行、完整结果持久恢复和独立只读清单卡片，自动、正式原生链路及真实模型验证通过；产品窗口／重启验收统一见[本批结果](2026-09-28-agent-chat/implementation-results.md#todowrite-与清单卡片2026-10-27)。第 6 批网页工具进展见下文。
 

@@ -128,7 +128,7 @@ pub enum InputMode {
     Send,
     FollowUp,
     Steering,
-    Preempt,
+    Interrupt,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,6 +153,13 @@ pub enum RunCause {
     },
     FollowUp {
         input_ids: Vec<InputId>,
+    },
+    Interrupt {
+        input_id: InputId,
+        previous_run_id: RunId,
+    },
+    Queued {
+        input_id: InputId,
     },
     Continue {
         previous_run_id: RunId,

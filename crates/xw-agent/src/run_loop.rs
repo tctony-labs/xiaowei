@@ -22,6 +22,7 @@ use crate::{
 };
 
 pub(crate) async fn execute(
+    dispatcher: AgentService,
     shared: Arc<Mutex<State>>,
     index: Option<Arc<IndexAccess>>,
     host: Arc<dyn AgentHost>,
@@ -49,8 +50,10 @@ pub(crate) async fn execute(
         Ok((RunStatus::Failed, error)) => (AgentRunStatus::Failed, error),
         Err(error) => (AgentRunStatus::Failed, Some(error.to_string())),
     };
+    let mut dispatch = None;
     {
         let mut state = shared.lock().unwrap();
+        let closed = state.closed;
         let Some(session) = state.sessions.get_mut(&session_id) else {
             return;
         };
@@ -79,6 +82,26 @@ pub(crate) async fn execute(
         session.active = None;
         session.view.status = AgentSessionStatus::Idle.into();
         session.view.updated_at_ms = session.view.updated_at_ms.max(run.completed_at_ms.unwrap());
+        if !closed && !failed_commit && session.failed_run.is_none() && !session.frozen {
+            let next = if status == AgentRunStatus::Interrupted {
+                session.queue.iter().find(|input| {
+                    input.mode == domain::InputMode::Interrupt
+                        && input.target == Some(request.run_id)
+                })
+            } else if status == AgentRunStatus::Completed {
+                session
+                    .queue
+                    .first()
+                    .filter(|input| input.mode == domain::InputMode::FollowUp)
+            } else {
+                None
+            };
+            if let Some(input) = next {
+                let id = input.accepted.input_id;
+                session.dispatching = Some(id);
+                dispatch = Some(id);
+            }
+        }
         AgentService::publish(
             &mut state,
             event(agent_event::Payload::RunCompleted(RunCompleted {
@@ -122,6 +145,9 @@ pub(crate) async fn execute(
     if let Some(index) = index {
         let _gate = index.gate.lock().await;
         let _ = crate::index::flush(&shared, &index, session_id).await;
+    }
+    if let Some(input_id) = dispatch {
+        crate::queue::dispatch(&dispatcher, session_id, input_id).await;
     }
 }
 
@@ -368,12 +394,28 @@ async fn drive(
                 commit_intent(shared, &intent)?;
                 used += 1;
                 let began = Instant::now();
-                let skipped = cancellation.is_cancelled() || status == RunStatus::Failed;
+                let steering = {
+                    let state = shared.lock().unwrap();
+                    state.sessions[&request.session_id]
+                        .queue
+                        .iter()
+                        .any(|input| {
+                            input.mode == domain::InputMode::Steering
+                                && input.target == Some(request.run_id)
+                        })
+                };
+                let skipped =
+                    cancellation.is_cancelled() || status == RunStatus::Failed || steering;
                 let mut execution_cancelled = false;
                 let mut execution_failed = false;
                 let mut execution_result_unknown = false;
                 let result = if skipped {
-                    Err("运行已停止，工具未执行".into())
+                    Err(if steering {
+                        "收到补充指令，工具未执行"
+                    } else {
+                        "运行已停止，工具未执行"
+                    }
+                    .into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
                 } else if name == "RequestPermission"
@@ -578,7 +620,7 @@ async fn drive(
             settle_run(
                 shared,
                 request,
-                status,
+                &mut status,
                 error.as_deref(),
                 started.elapsed().as_millis() as u64,
                 used,
@@ -819,7 +861,6 @@ fn settle_turn(
                     RunStatus::Cancelled => domain::TurnStatus::Aborted,
                 },
                 final_gen_id: Some(request.gen_id),
-                preempting_input_id: None,
                 duration_ms: Some(elapsed),
                 error: failure(error),
             }),
@@ -831,13 +872,40 @@ fn settle_turn(
 fn settle_run(
     shared: &Mutex<State>,
     request: &RunRequest,
-    status: RunStatus,
+    status: &mut RunStatus,
     error: Option<&str>,
     elapsed: u64,
     used: u32,
 ) -> Result<(), AgentError> {
     let mut state = shared.lock().unwrap();
     let session = state.sessions.get_mut(&request.session_id).unwrap();
+    if session
+        .active
+        .as_ref()
+        .is_some_and(|active| active.cancellation.is_cancelled())
+        && *status == RunStatus::Completed
+    {
+        *status = RunStatus::Cancelled;
+    }
+    for position in 0..session.queue.len() {
+        if (session.queue[position].mode == domain::InputMode::Steering
+            || (*status == RunStatus::Failed
+                && session.queue[position].mode == domain::InputMode::Interrupt))
+            && session.queue[position].target == Some(request.run_id)
+        {
+            let input_id = session.queue[position].accepted.input_id;
+            session.append(
+                domain::EntryPayload::InputRouted(domain::InputRouted {
+                    input_id,
+                    mode: domain::InputMode::FollowUp,
+                    expected_run_id: None,
+                }),
+                now_ms()?,
+            )?;
+            session.queue[position].mode = domain::InputMode::FollowUp;
+            session.queue[position].target = None;
+        }
+    }
     let had_assistant_output = session.view.runs.last().unwrap().items.iter().any(|item| {
         matches!(
             item.content,
@@ -849,7 +917,7 @@ fn settle_run(
     session.append(
         domain::EntryPayload::RunEnd(domain::RunEnd {
             run_id: request.run_id,
-            status: match status {
+            status: match *status {
                 RunStatus::Completed => domain::RunStatus::Completed,
                 RunStatus::Failed => domain::RunStatus::Failed,
                 RunStatus::Cancelled => domain::RunStatus::Aborted,
@@ -862,6 +930,8 @@ fn settle_run(
         }),
         now_ms()?,
     )?;
+    session.active.as_mut().expect("active Run").committed = true;
+    crate::queue::publish(&mut state, request.session_id);
     Ok(())
 }
 
@@ -873,7 +943,7 @@ fn start_next(
     let mut state = shared.lock().unwrap();
     let session = state.sessions.get_mut(&request.session_id).unwrap();
     let at = now_ms()?;
-    let boundary = domain::ContextBoundary {
+    let mut boundary = domain::ContextBoundary {
         through_entry_id: session
             .journal
             .as_ref()
@@ -890,6 +960,42 @@ fn start_next(
         }),
         at,
     )?;
+    let mut inserted = None;
+    if let Some(position) = session.queue.iter().position(|input| {
+        input.mode == domain::InputMode::Steering && input.target == Some(request.run_id)
+    }) {
+        let input = session.queue[position].clone();
+        let consumed = session.append(
+            domain::EntryPayload::InputConsumed(domain::InputConsumed {
+                input_ids: vec![input.accepted.input_id],
+                run_id: request.run_id,
+                turn_id: request.turn_id.expect("conversation Turn"),
+                boundary: boundary.clone(),
+            }),
+            at,
+        )?;
+        if let Some(consumed) = consumed {
+            boundary.through_entry_id = Some(consumed.entry_id);
+        }
+        session.history.push(input.message.message.clone());
+        let item = AgentItem {
+            item_id: input.message.block_ids[0].to_string(),
+            gen_id: None,
+            content: Some(agent_item::Content::UserMessage(AgentUserMessage {
+                content: input.view().input,
+                input_id: Some(input.accepted.input_id.to_string()),
+            })),
+        };
+        session
+            .view
+            .runs
+            .last_mut()
+            .expect("active Run")
+            .items
+            .push(item.clone());
+        session.queue.remove(position);
+        inserted = Some(item);
+    }
     session.append(
         domain::EntryPayload::GenStarted(domain::GenStarted {
             gen_id: request.gen_id,
@@ -911,6 +1017,17 @@ fn start_next(
         ..Default::default()
     });
     let update = generation_update(request.session_id, run);
+    if let Some(item) = inserted {
+        AgentService::publish(
+            &mut state,
+            event(agent_event::Payload::ItemCompleted(ItemCompleted {
+                session_id: request.session_id.to_string(),
+                run_id: request.run_id.to_string(),
+                item: Some(item),
+            })),
+        );
+        crate::queue::publish(&mut state, request.session_id);
+    }
     AgentService::publish(&mut state, event(update));
     Ok(())
 }
