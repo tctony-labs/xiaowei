@@ -163,6 +163,7 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
                   id: run.generation.genId,
                   startedAtMs: Number(run.generation.startedAtMs),
                   receivedContent: run.generation.receivedContent,
+                  ...(run.generation.isCompaction ? { isCompaction: true } : {}),
                   activeBlockId: run.generation.activeItemId,
                 }
               : undefined,

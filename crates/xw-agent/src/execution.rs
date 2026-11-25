@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use prost::Message;
-use xw_agent_runtime::{GenerationRequest, RunRequest};
+use xw_agent_runtime::{GenerationRequest, RunRequest, context_budget::ContextBudget};
 use xw_agent_types::{
     AgentMessage as ModelMessage, BlockId, ContentBlock, GenId, InputId, MessageId, RunId,
     SessionId, TurnId, UserMessage,
@@ -34,7 +34,7 @@ impl AgentService {
                 .filter(|s| !s.deleted())
                 .ok_or(AgentError::NotFound("session"))?;
             if let Some(original) = session.requests.get(&input_id)
-                && session.dispatching != Some(input_id)
+                && (session.dispatching != Some(input_id) || session.active.is_some())
             {
                 if original != &request {
                     return Err(AgentError::Conflict("input identity"));
@@ -43,6 +43,7 @@ impl AgentService {
                     .view
                     .runs
                     .iter()
+                    .rev()
                     .find(|run| run.input_id == request.input_id)
                     .cloned()
                     .ok_or(AgentError::Conflict("input accepted without a run"))?;
@@ -115,7 +116,7 @@ impl AgentService {
         session.available()?;
         session.prepare_writer()?;
         if let Some(original) = session.requests.get(&input_id)
-            && session.dispatching != Some(input_id)
+            && (session.dispatching != Some(input_id) || session.active.is_some())
         {
             if original != &request {
                 return Err(AgentError::Conflict("input identity"));
@@ -124,6 +125,7 @@ impl AgentService {
                 .view
                 .runs
                 .iter()
+                .rev()
                 .find(|run| run.input_id == request.input_id)
                 .cloned()
                 .ok_or(AgentError::Conflict("input accepted without a run"))?;
@@ -227,7 +229,10 @@ impl AgentService {
         if let Some(update) = crate::tool_registry::planned_update(session)? {
             history.push(ModelMessage::SystemContext { update });
         }
-        history.push(user);
+        let user = queued
+            .as_ref()
+            .map_or(user, |input| input.message.message.clone());
+        history.push(user.clone());
         let history_bytes = serde_json::to_vec(&history)
             .map_err(|_| AgentError::Internal)?
             .len();
@@ -237,6 +242,9 @@ impl AgentService {
             ));
         }
         let tools = crate::tool_registry::synchronize(session, started_at_ms)?;
+        let user_block_id = queued
+            .as_ref()
+            .map_or_else(BlockId::new, |entry| entry.message.block_ids[0]);
         let mut run = AgentRun {
             run_id: run_id.to_string(),
             input_id: input_id.to_string(),
@@ -252,10 +260,7 @@ impl AgentService {
                 .unwrap_or_default(),
             started_at_ms,
             items: vec![AgentItem {
-                item_id: queued
-                    .as_ref()
-                    .map(|entry| entry.message.block_ids[0].to_string())
-                    .unwrap_or_else(|| BlockId::new().to_string()),
+                item_id: user_block_id.to_string(),
                 gen_id: None,
                 content: Some(agent_item::Content::UserMessage(AgentUserMessage {
                     content: request.input.clone(),
@@ -264,7 +269,7 @@ impl AgentService {
             }],
             ..Default::default()
         };
-        let execution = RunRequest {
+        let mut execution = RunRequest {
             session_id: id,
             input_id,
             run_id,
@@ -273,19 +278,15 @@ impl AgentService {
             message_id: MessageId::new(),
             generation: GenerationRequest {
                 session_id: id,
+                isolate_provider_session: false,
                 model_ref: config.model_ref,
                 reasoning: config.reasoning,
                 temperature: None,
                 max_tokens: None,
                 system_prompt: String::new(),
-                messages: history.clone(),
+                messages: Vec::new(),
             },
         };
-        run.generation = Some(AgentGeneration {
-            gen_id: execution.gen_id.to_string(),
-            started_at_ms,
-            ..Default::default()
-        });
         let budget = queried
             .as_ref()
             .map(|info| xw_agent_types::ModelBudget {
@@ -301,23 +302,56 @@ impl AgentService {
             capabilities: queried.map(|info| info.capabilities),
             budget,
         };
+        let sample = crate::compaction::previous_sample(session, &descriptor.model_ref);
+        let input_budget = ContextBudget::new(
+            &descriptor.budget,
+            sample,
+            &session.history,
+            std::slice::from_ref(&user),
+        );
+        let defer_first_turn = crate::compaction::needs_preflight(session, &input_budget);
         let manual = session.dispatch_manual;
-        if let Err(error) = session.record_start(
+        let run_entry_id = match session.record_start(
             &request,
             source,
             &execution,
-            run.items[0]
-                .item_id
-                .parse()
-                .map_err(|_| AgentError::Internal)?,
-            descriptor,
+            user_block_id,
+            descriptor.clone(),
             tools,
             queued.as_ref(),
             manual,
         ) {
-            session.failed_run = Some(run_id);
-            return Err(error);
+            Ok(entry_id) => entry_id,
+            Err(error) => {
+                session.failed_run = Some(run_id);
+                return Err(error);
+            }
+        };
+        if queued.is_some() {
+            run.items[0].item_id = crate::persistence::run_input_item_id(
+                session,
+                input_id,
+                user_block_id,
+                run_entry_id,
+            );
         }
+        let pending_first = if defer_first_turn {
+            Some(user)
+        } else {
+            if let Err(error) = session.record_first_turn(&execution, started_at_ms) {
+                session.failed_run = Some(run_id);
+                return Err(error);
+            }
+            session.history.push(user);
+            execution.generation.messages = session.history.clone();
+            run.generation = Some(AgentGeneration {
+                gen_id: execution.gen_id.to_string(),
+                started_at_ms,
+                ..Default::default()
+            });
+            crate::queue::finish_dispatch(session, input_id);
+            None
+        };
         let cancellation = CancellationToken::new();
         let done = CancellationToken::new();
         session.active = Some(ActiveRun {
@@ -327,16 +361,8 @@ impl AgentService {
             done: done.clone(),
             committed: false,
         });
-        session.history = history;
         session.cancel_titles();
-        if queued.is_some() {
-            session
-                .queue
-                .retain(|entry| entry.accepted.input_id != input_id);
-            session.dispatching = None;
-            session.dispatch_manual = false;
-            session.view.queue_error = None;
-        } else {
+        if queued.is_none() {
             session.requests.insert(input_id, request);
         }
         session.view.status = AgentSessionStatus::Running.into();
@@ -372,7 +398,12 @@ impl AgentService {
             index,
             host,
             generation,
-            execution,
+            crate::run_loop::RunPlan {
+                request: execution,
+                model: descriptor,
+                sample,
+                pending_first,
+            },
             cancellation,
             done,
         ));

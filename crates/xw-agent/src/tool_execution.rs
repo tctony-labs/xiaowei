@@ -64,6 +64,7 @@ impl ToolContext for ExecutionContext {
                 message_id: domain::MessageId::new(),
                 generation: GenerationRequest {
                     session_id: self.request.session_id,
+                    isolate_provider_session: false,
                     model_ref: model_ref.clone(),
                     reasoning: info.capabilities.supports_reasoning.then(|| "off".into()),
                     temperature: Some(0.3),

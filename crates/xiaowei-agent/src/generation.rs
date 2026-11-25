@@ -124,7 +124,7 @@ impl AgentHost for GatewayGeneration {
                     .collect::<Result<_, _>>()
                     .map_err(|_| invalid())?,
                 options: Some(pb::GenerationOptions {
-                    session_id: Some(request.session_id.to_string()),
+                    session_id: (!request.isolate_provider_session).then(|| session_id.to_string()),
                     reasoning: request.reasoning,
                     ..Default::default()
                 }),
@@ -288,6 +288,7 @@ mod tests {
         let session_id = SessionId::new();
         let request = GenerationRequest {
             session_id,
+            isolate_provider_session: false,
             model_ref: "fixture-model".into(),
             system_prompt: "private prompt".into(),
             messages: vec![],

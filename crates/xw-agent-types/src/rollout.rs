@@ -236,6 +236,8 @@ pub struct ToolOutcome {
     pub settled_by_run_id: Option<RunId>,
 }
 
+pub const COMPACTION_SUMMARY_PREFIX: &str = "Summary of the earlier conversation:\n\n";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Compacted {

@@ -90,6 +90,7 @@ fn request() -> RunRequest {
             temperature: None,
             max_tokens: None,
             session_id,
+            isolate_provider_session: false,
             model_ref: "test".into(),
             system_prompt: String::new(),
             messages: vec![],

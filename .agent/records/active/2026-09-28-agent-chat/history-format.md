@@ -2,7 +2,7 @@
 
 所属事项：[完整 Agent Chat](../2026-09-28-agent-chat.md)。本文是同一 record 的专题附件，状态与范围由主 record 管理。
 
-当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本与 Read／Write／Edit 工具生产者已接入；Interaction、压缩的实际执行仍属后续工作。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
+当前 JSONL 使用精简格式 v2。开发历史已经按用户确认清空，没有 v1 reader、数据转换或运行时升级分支。文本、工具、交互与自动压缩均已接入持久历史。消息与 RunContext 见[领域类型](model-types.md)，Host 见[宿主接口](host-interface.md)。
 
 ## 系统上下文记录（核心记录／恢复已实现）
 
@@ -12,7 +12,7 @@
 
 系统记录不依附 Run／Gen，不伪装用户输入或助手 Message；外层身份、顺序与时间复用普通 entry。首次空基线仍是一条明确记录；已有基线时禁止再次追加 baseline，实际无变化的 delta 也拒绝。Conversation Gen 未结束或工具结果未闭合时禁止更新，包括模型已返回完整工具调用、ToolIntent 尚未提交的前缀。
 
-`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动压缩的实际触发、生成和提交接线仍属于 02j。
+`Compacted.system_context` 保存检查点中的当前完整基线，与替换历史在同一 entry 提交；此前已有同步状态时，该字段必须存在且内容一致。旧记录省略此字段表示尚未建立系统基线；无系统记录的既有 v2 历史保持可读。检查点后直接从快照继续比较，不重放旧基线／增量。自动触发规则与生产验证见[上下文预算与自动压缩](implementation-results.md#上下文预算与自动压缩)。
 
 ## 编码边界、SessionHeader 与 Meta
 
@@ -98,7 +98,7 @@ Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子
 | `interaction_opened` | `interaction_id`、`tool_id`、`request` | 从 Tool 恢复 Run，初始 revision=1 |
 | `interaction_resolved` | `interaction_id`、`client_request_id`、`source`、`answer` | 终态 revision=2；与 Expired 互斥，首个有效决定提交后才生效 |
 | `interaction_expired` | `interaction_id`、`reason` | 终态 revision=2；迟到决定不能复活 |
-| `compacted` | `gen_id`、`replaced_through_entry_id`、`replacement_history`、`trigger`、可选 `tokens_before`／`estimated_tokens_before` | 从 Gen 取得归属／边界及预算，从 GenEnded 取得单调耗时；从有效历史取得前一检查点和保留后缀，从 replacement_history 派生 summary |
+| `compacted` | `gen_id`、`replaced_through_entry_id`、`replacement_history`、`trigger`、可选 `tokens_before`／`estimated_tokens_before` | 从 Gen 取得归属／边界及预算，从 GenEnded 取得单调耗时；从有效历史取得前一检查点和保留后缀，从 replacement_history 的最后一条摘要消息提取 summary，旧记录仍按替换历史文本派生 |
 
 工具调用须来自成功完整 Conversation Gen，provider call ID 仅在该 Gen 内唯一；内部 ToolId 独立。结果与执行状态在同一 entry 提交，参数非法／未知工具也形成明确结果。duration、elapsed、queue duration 分别表示执行、整体经过和排队，不能互相替代；执行 metadata_json 与模型 details_json 分开保留。
 

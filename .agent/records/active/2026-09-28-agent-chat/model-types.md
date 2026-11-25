@@ -18,7 +18,7 @@ Host 注入接口为 xw-agent 的单个 AgentHost trait，含 generate／get_mod
 
 ## 当前类型与历史格式（01a 与文件层已交付）
 
-本文与[历史格式](history-format.md)共同描述当前领域类型与 v2 磁盘表示。文本与首批文件工具已接生产；交互、压缩和继续运行的结构已有定义及 fixture 校验，实际执行仍由后续切片实现。types 是内部领域包，公共 Request／Response／Event 在 agent.proto。
+本文与[历史格式](history-format.md)共同描述当前领域类型与 v2 磁盘表示。文本、工具、交互与自动压缩已接入生产路径。继续运行已定义内部结构并通过 fixture 校验，实际执行由后续切片实现。types 是内部领域包，公共 Request／Response／Event 在 agent.proto。
 
 ### 源码基线与采用范围
 
@@ -74,7 +74,7 @@ XiaoWei 自己实现 harness，决定基线、差异、顺序、提交和恢复�
 
 最终验证：types／rollout／runtime／xw-agent／xiaowei-agent 合计 137 项 Rust 测试通过；五包 all-targets、no-deps 严格 Clippy 通过；正式 xiaowei-agent napi 的 build:debug 与 just check 通过。仅使用临时目录与合成内容，没有真实模型调用、修改应用配置或启动应用。
 
-`39b7bb5` 只交付本节的核心记录／恢复，当时尚未接生产生成边界；AgentMessage／LLM PB／worker 投影和工具执行随后由 `cc2f049` 接通，见[正式生成接线](#正式生成接线与适配边界2026-10-18)。自动压缩仍未实现，核心检查点恢复测试不代表自动压缩已交付。
+`39b7bb5` 只交付本节的核心记录／恢复，当时尚未接生产生成边界；AgentMessage／LLM PB／worker 投影和工具执行随后由 `cc2f049` 接通，见[正式生成接线](#正式生成接线与适配边界2026-10-18)。随后 02j 接入[自动压缩](implementation-results.md#上下文预算与自动压缩)。
 
 系统提示词来源纠正：此前用旧仓库 `933a6997c1d2bc44e2addd608b6a5d8d8731a2d3` 的 `xw-agent-app/src/{send,interactive,agent_manager}.rs` 中空字符串推断生产正文不存在，属于误读测试工厂，撤回该结论。生产 `xiaowei/studio/src/biz/chat/mod.rs` 的 ChatManager::init 创建 ChatAgentFactory 并交给 AgentManager；`chat/agent_factory.rs` 的 create_agent 注入 build_static_system_prompt、默认动态指引加 merged_rules_text，以及实际 bundle 的动态片段。完整静态正文由该文件维护，包含小微身份、中文风格和工具规则；`bundle/filesystem.rs` 另提供 home 目录片段。runtime 再拼接基础与动态片段；环境／会话 attachment 属于另一条链路，不能代替生产提示词来源。
 
@@ -161,7 +161,7 @@ Responses 实际代理的 SSE 对照保留相同历史和 `allowed_tools`，只�
 
 边界：此次证明该目标接口接受这种消息表达，并观察到一次完整实验中的遵循行为，不保证所有模型或未来每次采样均遵循。模型可读的变化通知是增量，但请求 tools 仍为完整当前集合；既不能把消息增量宣称成原生工具声明增量，也不能承诺完整请求缓存前缀稳定。实验没有量化 token／缓存收益，未验证原生 additional_tools 路径。执行器仍必须独立按生效工具集合和 schema 校验，不能依赖模型自觉；实验仅有固定工具结果与基本允许集检查，生产执行防线尚未实现。
 
-该实验没有解决顶层 tools 变化带来的工具声明增量和前缀稳定问题，故未将“文字通知＋完整 tools”作为最终方案。2026-10-18 后续已按结构化领域更新实现持久化／恢复和正式接线，不以这些缓存实验阻塞核心工具循环；删除／替换的 provider 适配、缓存收益和实际自动压缩仍为后续事项，其他 provider 的能力不能据此推定。
+该实验没有解决顶层 tools 变化带来的工具声明增量和前缀稳定问题，故未将“文字通知＋完整 tools”作为最终方案。2026-10-18 后续已按结构化领域更新实现持久化／恢复和正式接线，不以这些缓存实验阻塞核心工具循环；删除／替换的 provider 适配和缓存收益按实际协议单独验收。
 
 #### sol 实际请求链路核对（2026-10-11）
 
@@ -188,7 +188,7 @@ Pi 0.87.1 的 Responses 默认关闭中途系统消息、additional_tools 和 to
 
 技能加载复用工具循环，但“技能目录同步”“正文／资源加载”和“实际工具执行”各自保留职责。本批沿此边界接入，不恢复当前已暂缓的 preset 工作。
 
-2026-11-02 本轮接入的范围与生命周期已明确，见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)。固定 Skill 工具 schema 不枚举名称；简介目录和按需正文直接使用上述具名指令增量，动态目录不要求替换工具 schema。自动压缩仍未实现，后续按当前有效 SystemContext 重建简介和已加载正文。
+2026-11-02 本轮接入的范围与生命周期已明确，见[运行与 UI](runtime-ui.md#skill-加载2026-11-02)。固定 Skill 工具 schema 不枚举名称；简介目录和按需正文直接使用上述具名指令增量，动态目录不要求替换工具 schema。自动压缩按当前有效 SystemContext 重建简介和已加载正文。
 
 ### 当前消息字段逐项对齐
 

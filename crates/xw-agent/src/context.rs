@@ -10,6 +10,8 @@ pub struct RebuiltContext {
     pub system_context: Option<SystemContext>,
     pub granted_paths: Vec<PermissionTarget>,
     pub budget: ContextBudgetSnapshot,
+    pub(crate) last_model_entry_id: Option<EntryId>,
+    pub(crate) summary_index: Option<usize>,
 }
 
 pub fn rebuild_context(
@@ -112,6 +114,8 @@ pub fn rebuild_context(
     }
     let mut rebuilt = Vec::new();
     let mut replaced = 0;
+    let mut last_model_entry_id = None;
+    let mut summary_index = None;
     if let Some((id, checkpoint)) = checkpoints.iter().max_by_key(|(id, _)| positions[id]) {
         if let Some(context) = &checkpoint.system_context {
             rebuilt.push(AgentMessage::SystemContext {
@@ -119,6 +123,13 @@ pub fn rebuild_context(
             });
         }
         rebuilt.extend(checkpoint.replacement_history.iter().cloned());
+        last_model_entry_id = Some(*id);
+        if matches!(rebuilt.last(), Some(AgentMessage::User(user)) if
+            matches!(user.content.as_slice(), [ContentBlock::Text { text, .. }]
+                if text.starts_with(COMPACTION_SUMMARY_PREFIX)))
+        {
+            summary_index = Some(rebuilt.len() - 1);
+        }
         let mut through = checkpoint.replaced_through_entry_id;
         while let Some(previous) = checkpoints.get(&through) {
             through = previous.replaced_through_entry_id;
@@ -126,24 +137,30 @@ pub fn rebuild_context(
         replaced = positions[&through];
         debug_assert!(positions[id] <= upper as u64);
     }
-    rebuilt.extend(
-        effective
-            .into_iter()
-            .filter(|(id, message)| {
-                positions[id] > replaced
-                    && (!matches!(message, AgentMessage::SystemContext { .. })
-                        || checkpoints
-                            .keys()
-                            .all(|checkpoint| positions[id] > positions[checkpoint]))
-            })
-            .map(|(_, message)| message),
-    );
+    for (id, message) in effective {
+        if positions[&id] <= replaced {
+            continue;
+        }
+        if matches!(message, AgentMessage::SystemContext { .. }) {
+            if checkpoints
+                .keys()
+                .any(|checkpoint| positions[&id] <= positions[checkpoint])
+            {
+                continue;
+            }
+        } else {
+            last_model_entry_id = Some(id);
+        }
+        rebuilt.push(message);
+    }
     Ok(RebuiltContext {
         meta,
         messages: rebuilt,
         system_context,
         granted_paths,
         budget: ContextBudgetSnapshot::from_entries(entries)?,
+        last_model_entry_id,
+        summary_index,
     })
 }
 

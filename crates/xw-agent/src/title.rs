@@ -171,6 +171,7 @@ pub(crate) fn schedule_title(
             }
             let request = GenerationRequest {
                 session_id: id,
+                isolate_provider_session: false,
                 model_ref: model_ref.clone(),
                 system_prompt: SYSTEM_PROMPT.into(),
                 messages: vec![ModelMessage::User(UserMessage {
