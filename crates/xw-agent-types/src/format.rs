@@ -387,7 +387,9 @@ pub fn encode_entry(entry: &JournalEntry, history: &[JournalEntry]) -> Result<St
                 "duration_ms",
             ],
         )?,
-        EntryPayload::InputCancelled(_) => {}
+        EntryPayload::InputCancelled(_)
+        | EntryPayload::InputRouted(_)
+        | EntryPayload::InputEdited(_) => {}
     }
     if let Some((cause, error)) = error_cause(history, &entry.payload)
         && data.get("error") == Some(&serde_json::to_value(error).map_err(|_| invalid())?)
@@ -694,7 +696,7 @@ pub fn decode_entry(line: &str, history: &[JournalEntry]) -> Result<JournalEntry
             )?;
             put(data, "duration_ms", end.duration_ms)?;
         }
-        "input_cancelled" => {}
+        "input_cancelled" | "input_routed" | "input_edited" => {}
         _ => return Err(invalid()),
     }
     let error_ref = object(data)?.remove("error_ref");

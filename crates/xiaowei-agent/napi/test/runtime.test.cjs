@@ -400,6 +400,65 @@ test("formal Agent addon reaches production worker; history, dual observers, fai
       requests.at(-1).messages.map((message) => message.role),
       ["developer", "user"],
     );
+    // Exercise queue commands through the real Gateway and production worker.
+    const waitingRun = (
+      await api.startRun(
+        create(pb.StartRunRequestSchema, {
+          sessionId: secondSession.sessionId,
+          inputId: id(),
+          input: [{ content: { case: "text", value: "cancel" } }],
+        }),
+      )
+    ).run;
+    await until(() => {
+      const content = requests.at(-1)?.messages.at(-1).content;
+      return content === "cancel" || content?.[0]?.text === "cancel";
+    });
+    const queuedId = id();
+    await api.queueInput(
+      create(pb.QueueInputRequestSchema, {
+        sessionId: secondSession.sessionId,
+        inputId: queuedId,
+        input: [{ content: { case: "text", value: "queued" } }],
+      }),
+    );
+    await api.editQueuedInput(
+      create(pb.EditQueuedInputRequestSchema, {
+        sessionId: secondSession.sessionId,
+        inputId: queuedId,
+        input: [{ content: { case: "text", value: "edited queue" } }],
+      }),
+    );
+    const action = create(pb.QueuedInputActionRequestSchema, {
+      sessionId: secondSession.sessionId,
+      inputId: queuedId,
+      runId: waitingRun.runId,
+    });
+    await api.steerInput(action);
+    await api.interruptInput(action);
+    const queueEvents = [];
+    let queuedFinal;
+    while (!queuedFinal) {
+      const { done, value } = await secondObserver.next();
+      if (done) throw new Error("missing queued run terminal");
+      queueEvents.push(value);
+      if (value.payload.case === "runCompleted" && value.payload.value.run.inputId === queuedId) {
+        queuedFinal = value.payload.value.run;
+      }
+    }
+    assert.equal(queuedFinal.status, pb.AgentRunStatus.COMPLETED);
+    assert.ok(queueEvents.some((event) => event.payload.case === "queueUpdated"));
+    assert.ok(
+      queueEvents.some(
+        (event) =>
+          event.payload.case === "runCompleted" &&
+          event.payload.value.run.runId === waitingRun.runId &&
+          event.payload.value.run.status === pb.AgentRunStatus.INTERRUPTED,
+      ),
+    );
+    const queuedUser = queuedFinal.items.find((item) => item.content.case === "userMessage");
+    assert.equal(queuedUser.content.value.inputId, queuedId);
+    assert.equal(queuedUser.content.value.content[0].content.value, "edited queue");
     await secondObserver.cancel();
     const listed = await api.listSessions(create(pb.ListSessionsRequestSchema));
     assert.equal(listed.sessions.length, 2);

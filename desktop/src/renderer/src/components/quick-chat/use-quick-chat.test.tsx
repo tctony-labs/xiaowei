@@ -661,3 +661,32 @@ test("failed selection save keeps the committed model and sending remains possib
   await waitFor(() => expect(app.requests).toHaveLength(2));
   expect(app.agent.session?.runs[1].config?.modelRef).toBe("model");
 });
+
+test("running conversation sends queued messages and promotes the first with Enter", async () => {
+  const app = fixture();
+  function Chat() {
+    return (
+      <QuickChatPanel
+        {...useQuickChat(app.services)}
+        expanded
+        search={<div />}
+        onCollapse={() => {}}
+      />
+    );
+  }
+  render(<Chat />);
+  const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+  fireEvent.change(composer, { target: { value: "first" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  fireEvent.change(composer, { target: { value: "follow up" } });
+  fireEvent.keyDown(composer, { key: "Enter" });
+  const queue = await screen.findByLabelText("待发送消息");
+  await waitFor(() => expect(within(queue).getByText("follow up")).toBeInTheDocument());
+  expect(composer).toHaveValue("");
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(within(queue).getByText("插入引导")).toBeInTheDocument());
+  fireEvent.keyDown(composer, { key: "Enter" });
+  await waitFor(() => expect(within(queue).getByText("正在打断")).toBeInTheDocument());
+});

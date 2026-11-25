@@ -7,6 +7,7 @@ import {
   OpenFileLinkRequestSchema,
   OpenSettingsRequestSchema,
   OpenUrlRequestSchema,
+  QueuedInputMode,
   SettingsAnchor,
   WriteClipboardTextRequestSchema,
 } from "proto-desktop-ts";
@@ -117,7 +118,9 @@ export function useQuickChat(services: Services, viewing = false) {
     !client.initializing &&
     !!selection.modelRef &&
     (!!client.session || (!!snapshot && !initialError));
-  const error = client.session ? client.error : initialError || client.error;
+  const error = client.session
+    ? client.error || client.session.queueError || ""
+    : initialError || client.error;
   const modelLabel = client.session?.modelName
     ? [client.session.providerName, client.session.modelName].filter(Boolean).join("/")
     : selection.modelRef;
@@ -150,9 +153,22 @@ export function useQuickChat(services: Services, viewing = false) {
       await client.respondInteraction(client.pendingQuestion.interactionId);
       return;
     }
-    if (!configured || !client.draft.trim() || client.busy || client.configuring) return;
+    if (
+      !configured ||
+      !client.draft.trim() ||
+      client.configuring ||
+      client.queueChanging ||
+      client.pendingPermission
+    )
+      return;
     const submitted = client.draft;
     try {
+      if (client.busy || client.hasUncertainQueueInput) {
+        if (!client.activeRunId && !client.hasUncertainQueueInput) return;
+        const sessionId = await client.queueInput(submitted);
+        if (client.draftFor(sessionId) === submitted) client.setDraft("", sessionId);
+        return;
+      }
       const sessionId = await client.send(
         submitted,
         create(AgentModelConfigSchema, {
@@ -229,6 +245,24 @@ export function useQuickChat(services: Services, viewing = false) {
         client.setInteractionSelection(id, indices),
       onRespond: (id: string, allow?: boolean) => void client.respondInteraction(id, allow),
     },
+    queueBlocked: client.pendingPermission,
+    queuePending: client.queueChanging,
+    queuedInputs: (client.session?.queuedInputs ?? []).map((input) => ({
+      id: input.inputId,
+      text: input.input
+        .flatMap((block) => (block.content.case === "text" ? [block.content.value] : []))
+        .join("\n"),
+      mode:
+        input.mode === QueuedInputMode.STEERING
+          ? ("steering" as const)
+          : input.mode === QueuedInputMode.INTERRUPTING
+            ? ("interrupting" as const)
+            : ("follow-up" as const),
+    })),
+    onSteerQueuedInput: (id: string) => void client.steerQueuedInput(id),
+    onInterruptQueuedInput: (id: string) => void client.interruptQueuedInput(id),
+    onEditQueuedInput: (id: string, text: string) => client.changeQueuedInput("edit", id, text),
+    onRemoveQueuedInput: (id: string) => void client.changeQueuedInput("remove", id),
     generating: client.busy,
     configured,
     modelHint,

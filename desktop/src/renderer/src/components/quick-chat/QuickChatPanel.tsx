@@ -7,6 +7,7 @@ import type {
 } from "../agent-chat/message-blocks";
 import { hasOpenModal } from "../modal-state";
 import { type ComposerControlsProps, QuickChatComposerControls } from "./QuickChatComposerControls";
+import { QuickChatQueue, type QuickChatQueuedInput } from "./QuickChatQueue";
 import QuickChatTitleBar, {
   type QuickChatSessionItem,
   type QuickChatTitleBarHandle,
@@ -63,6 +64,13 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   onCollapse: () => void;
   interactions?: InteractionControls;
   questionReply?: { submitting: boolean; canSubmit: boolean };
+  queueBlocked?: boolean;
+  queuePending?: boolean;
+  queuedInputs?: QuickChatQueuedInput[];
+  onSteerQueuedInput?: (id: string) => void;
+  onInterruptQueuedInput?: (id: string) => void;
+  onEditQueuedInput?: (id: string, text: string) => Promise<boolean>;
+  onRemoveQueuedInput?: (id: string) => void;
 }
 
 // No sessions, persistence or Gateway connection here: the page adapter owns the conversation.
@@ -76,13 +84,16 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
   const sessionScroll = useRef(new Map<string, { position: number; follow: boolean }>());
   const scrollSession = useRef(props.sessionId ?? "");
   const [composerHeight, setComposerHeight] = useState(65);
+  const showStop =
+    props.generating && (!props.onSteerQueuedInput || !props.draft.trim() || props.queueBlocked);
   const canSend = props.questionReply
     ? !props.loading && !props.questionReply.submitting && props.questionReply.canSubmit
     : props.configured &&
       !!props.draft.trim() &&
-      !props.generating &&
+      (!props.generating || (!!props.onSteerQueuedInput && !props.queueBlocked)) &&
       !props.loading &&
-      !props.configSaving;
+      !props.configSaving &&
+      !props.queuePending;
   const title =
     props.title || props.messages.find((message) => message.role === "user")?.text || "新的对话";
 
@@ -170,19 +181,31 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
             if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              send();
+              const first = props.queuedInputs?.[0];
+              if (
+                props.generating &&
+                !props.questionReply &&
+                !props.queueBlocked &&
+                !props.draft.trim() &&
+                first
+              ) {
+                if (first.mode === "steering") props.onInterruptQueuedInput?.(first.id);
+                else if (first.mode === "follow-up") props.onSteerQueuedInput?.(first.id);
+              } else {
+                send();
+              }
             }
           }}
         />
         <button
           type="button"
-          aria-label={props.questionReply ? "提交回答" : props.generating ? "停止生成" : "发送消息"}
-          disabled={props.questionReply ? !canSend : !props.generating && !canSend}
-          onClick={props.generating && !props.questionReply ? props.onStop : send}
+          aria-label={props.questionReply ? "提交回答" : showStop ? "停止生成" : "发送消息"}
+          disabled={props.questionReply ? !canSend : !showStop && !canSend}
+          onClick={showStop && !props.questionReply ? props.onStop : send}
           className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primary
             text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {props.generating && !props.questionReply ? (
+          {showStop && !props.questionReply ? (
             <span className="size-3 rounded-sm bg-current" />
           ) : (
             <svg
@@ -251,7 +274,7 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
         composer={input}
       >
         {(animating) => (
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="relative flex h-full min-h-0 flex-col">
             <QuickChatTitleBar
               ref={titleBar}
               convId={props.sessionId ?? null}
@@ -351,6 +374,20 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
               </div>
             )}
             {props.onModelChange && <QuickChatComposerControls {...props} />}
+            {props.onSteerQueuedInput &&
+              props.onInterruptQueuedInput &&
+              props.onEditQueuedInput &&
+              props.onRemoveQueuedInput && (
+                <QuickChatQueue
+                  items={props.queuedInputs ?? []}
+                  draft={props.draft}
+                  onSteer={props.onSteerQueuedInput}
+                  onInterrupt={props.onInterruptQueuedInput}
+                  onEdit={props.onEditQueuedInput}
+                  onRemove={props.onRemoveQueuedInput}
+                  onRecoverEdit={props.onDraftChange}
+                />
+              )}
           </div>
         )}
       </QuickChatTransition>

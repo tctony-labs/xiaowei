@@ -65,6 +65,9 @@ impl ::prost::Name for AgentUserInput {
 pub struct AgentUserMessage {
     #[prost(message, repeated, tag = "1")]
     pub content: ::prost::alloc::vec::Vec<AgentUserInput>,
+    /// Stable identity of the consumed input, including steering in an existing Run.
+    #[prost(string, optional, tag = "2")]
+    pub input_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for AgentUserMessage {
     const NAME: &'static str = "AgentUserMessage";
@@ -293,6 +296,12 @@ pub struct AgentSession {
     /// Absolute working directory; absent for a rootless text-only session.
     #[prost(string, optional, tag = "16")]
     pub cwd: ::core::option::Option<::prost::alloc::string::String>,
+    /// Ordered inputs accepted but not yet consumed by a Run.
+    #[prost(message, repeated, tag = "17")]
+    pub queued_inputs: ::prost::alloc::vec::Vec<QueuedInput>,
+    /// Last automatic queue dispatch failure, cleared on the next queue change.
+    #[prost(string, optional, tag = "18")]
+    pub queue_error: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for AgentSession {
     const NAME: &'static str = "AgentSession";
@@ -986,7 +995,7 @@ pub struct AgentEvent {
     pub emitted_at_ms: i64,
     #[prost(
         oneof = "agent_event::Payload",
-        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16"
+        tags = "2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17"
     )]
     pub payload: ::core::option::Option<agent_event::Payload>,
 }
@@ -1024,6 +1033,8 @@ pub mod agent_event {
         GenerationUpdated(super::GenerationUpdated),
         #[prost(message, tag = "16")]
         InteractionUpdated(super::InteractionUpdated),
+        #[prost(message, tag = "17")]
+        QueueUpdated(super::QueueUpdated),
     }
 }
 impl ::prost::Name for AgentEvent {
@@ -1143,6 +1154,137 @@ impl ::prost::Name for InterruptRunResponse {
     }
     fn type_url() -> ::prost::alloc::string::String {
         "/xiaowei.agent.InterruptRunResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueuedInput {
+    #[prost(string, tag = "1")]
+    pub input_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "2")]
+    pub input: ::prost::alloc::vec::Vec<AgentUserInput>,
+    #[prost(enumeration = "QueuedInputMode", tag = "3")]
+    pub mode: i32,
+    /// Target Run for steering or interrupt. Absent for follow-up.
+    #[prost(string, optional, tag = "4")]
+    pub run_id: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for QueuedInput {
+    const NAME: &'static str = "QueuedInput";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueuedInput".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueuedInput".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueueUpdated {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Complete authoritative FIFO snapshot, including an empty queue.
+    #[prost(message, repeated, tag = "2")]
+    pub queued_inputs: ::prost::alloc::vec::Vec<QueuedInput>,
+    #[prost(string, optional, tag = "3")]
+    pub error: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for QueueUpdated {
+    const NAME: &'static str = "QueueUpdated";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueueUpdated".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueueUpdated".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueueInputRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub input_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub input: ::prost::alloc::vec::Vec<AgentUserInput>,
+}
+impl ::prost::Name for QueueInputRequest {
+    const NAME: &'static str = "QueueInputRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueueInputRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueueInputRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueueInputResponse {
+    #[prost(message, optional, tag = "1")]
+    pub input: ::core::option::Option<QueuedInput>,
+}
+impl ::prost::Name for QueueInputResponse {
+    const NAME: &'static str = "QueueInputResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueueInputResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueueInputResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EditQueuedInputRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub input_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub input: ::prost::alloc::vec::Vec<AgentUserInput>,
+}
+impl ::prost::Name for EditQueuedInputRequest {
+    const NAME: &'static str = "EditQueuedInputRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.EditQueuedInputRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.EditQueuedInputRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct QueuedInputActionRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub input_id: ::prost::alloc::string::String,
+    /// Required by steer and by interrupt while running; must match the active Run.
+    /// For interrupt on an idle session, absent sends this queued input in a new Run.
+    #[prost(string, optional, tag = "3")]
+    pub run_id: ::core::option::Option<::prost::alloc::string::String>,
+}
+impl ::prost::Name for QueuedInputActionRequest {
+    const NAME: &'static str = "QueuedInputActionRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueuedInputActionRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueuedInputActionRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueueMutationResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub queued_inputs: ::prost::alloc::vec::Vec<QueuedInput>,
+}
+impl ::prost::Name for QueueMutationResponse {
+    const NAME: &'static str = "QueueMutationResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.QueueMutationResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.QueueMutationResponse".into()
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1702,6 +1844,38 @@ impl DeleteSessionStatus {
             "DELETE_SESSION_STATUS_SKIPPED" => Some(Self::Skipped),
             "DELETE_SESSION_STATUS_FAILED" => Some(Self::Failed),
             "DELETE_SESSION_STATUS_NOT_EXECUTED" => Some(Self::NotExecuted),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum QueuedInputMode {
+    Unspecified = 0,
+    FollowUp = 1,
+    Steering = 2,
+    Interrupting = 3,
+}
+impl QueuedInputMode {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "QUEUED_INPUT_MODE_UNSPECIFIED",
+            Self::FollowUp => "QUEUED_INPUT_MODE_FOLLOW_UP",
+            Self::Steering => "QUEUED_INPUT_MODE_STEERING",
+            Self::Interrupting => "QUEUED_INPUT_MODE_INTERRUPTING",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "QUEUED_INPUT_MODE_UNSPECIFIED" => Some(Self::Unspecified),
+            "QUEUED_INPUT_MODE_FOLLOW_UP" => Some(Self::FollowUp),
+            "QUEUED_INPUT_MODE_STEERING" => Some(Self::Steering),
+            "QUEUED_INPUT_MODE_INTERRUPTING" => Some(Self::Interrupting),
             _ => None,
         }
     }

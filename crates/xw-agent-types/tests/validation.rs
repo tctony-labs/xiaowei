@@ -142,7 +142,6 @@ fn gen_end_is_separate_from_turn_end_and_pending_tools_are_a_valid_prefix() {
             turn_id: turn,
             status: TurnStatus::Completed,
             final_gen_id: Some(generation),
-            preempting_input_id: None,
             duration_ms: None,
             error: None,
         }),
@@ -256,68 +255,6 @@ fn tool_extraction_has_an_owner_and_must_finish_before_the_tool() {
 }
 
 #[test]
-fn preemption_causality_is_preserved_in_a_prefix_and_must_match_terminal_facts() {
-    let entries = history("inputs");
-    let prefix = entries
-        .iter()
-        .position(|row| {
-            matches!(&row.payload,
-        EntryPayload::GenEnded(end) if end.status == GenStatus::Preempted)
-        })
-        .unwrap();
-    validate_history(&entries[..=prefix]).unwrap();
-    rejects("inputs", |rows| {
-        for row in rows {
-            if let EntryPayload::GenEnded(end) = &mut row.payload
-                && end.status == GenStatus::Preempted
-            {
-                end.preempting_input_id = None;
-                break;
-            }
-        }
-    });
-    rejects("inputs", |rows| {
-        let send = rows
-            .iter()
-            .find_map(|row| match &row.payload {
-                EntryPayload::InputAccepted(input) if input.mode == InputMode::Send => {
-                    Some(input.input_id)
-                }
-                _ => None,
-            })
-            .unwrap();
-        for row in rows {
-            if let EntryPayload::GenEnded(end) = &mut row.payload
-                && end.status == GenStatus::Preempted
-            {
-                end.preempting_input_id = Some(send);
-                break;
-            }
-        }
-    });
-    rejects("inputs", |rows| {
-        for row in rows {
-            if let EntryPayload::InteractionExpired(expired) = &mut row.payload
-                && expired.reason == InteractionExpireReason::Preempted
-            {
-                expired.preempting_input_id = Some(InputId::new());
-                break;
-            }
-        }
-    });
-    rejects("inputs", |rows| {
-        for row in rows {
-            if let EntryPayload::TurnEnded(end) = &mut row.payload
-                && end.status == TurnStatus::Preempted
-            {
-                end.preempting_input_id = Some(InputId::new());
-                break;
-            }
-        }
-    });
-}
-
-#[test]
 fn first_sse_is_unique_and_cannot_arrive_after_a_committed_end() {
     rejects("text", |rows| {
         let first = rows
@@ -369,7 +306,6 @@ fn interrupted_gen_can_have_unknown_end_time_and_wall_clock_rollback_is_valid() 
         EntryPayload::GenEnded(GenEnded {
             gen_id: generation.gen_id,
             status: GenStatus::Interrupted,
-            preempting_input_id: None,
             ended_at_ms: None,
             stop_reason: None,
             assistant_message_id: None,
@@ -851,7 +787,6 @@ fn unstarted_calls_can_only_be_supplemented_as_skipped_during_continue() {
             turn_id: turn.turn_id,
             status: TurnStatus::Interrupted,
             final_gen_id: Some(gen_id),
-            preempting_input_id: None,
             duration_ms: None,
             error: None,
         }),
