@@ -3,6 +3,7 @@ mod catalog;
 mod compaction;
 mod context;
 mod context_sync;
+mod continuation;
 mod error;
 mod events;
 mod execution;

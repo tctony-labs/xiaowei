@@ -456,6 +456,35 @@ test("Stop waits for terminal; new conversation retains history after settlement
   expect(app.agent.counts.created).toBe(2);
 });
 
+test("Continue opens a linked response and keeps the original input once", async () => {
+  const app = fixture();
+  function Chat() {
+    return (
+      <QuickChatPanel
+        {...useQuickChat(app.services)}
+        expanded
+        search={<div />}
+        onCollapse={() => {}}
+      />
+    );
+  }
+  render(<Chat />);
+  const composer = screen.getByRole("textbox", { name: "快速对话输入" });
+  fireEvent.change(composer, { target: { value: "original question" } });
+  await waitFor(() => expect(screen.getByRole("button", { name: "发送消息" })).toBeEnabled());
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() => expect(app.requests).toHaveLength(1));
+  act(() => app.finish(AgentRunStatus.INTERRUPTED, "partial"));
+  const button = await screen.findByRole("button", { name: "继续运行" });
+  fireEvent.click(button);
+  await waitFor(() => expect(app.agent.session?.runs).toHaveLength(2));
+  expect(screen.getAllByLabelText("用户消息")).toHaveLength(1);
+  act(() => app.finish(AgentRunStatus.COMPLETED, "answer after continuation"));
+  expect(await screen.findByText("answer after continuation")).toBeVisible();
+  expect(screen.getAllByLabelText("用户消息")).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "继续运行" })).toBeNull();
+});
+
 test("no models blocks send; restoring models and missing defaults use first available without updating settings", async () => {
   const app = fixture("", []);
   const { result } = renderHook(() => useQuickChat(app.services));

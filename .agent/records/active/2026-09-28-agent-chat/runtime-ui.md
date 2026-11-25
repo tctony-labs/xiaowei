@@ -4,6 +4,10 @@
 
 基础文本、JSONL、Host、composer、前六批工具及 Skill 已接入；各批窗口及重启验收见[实施结果](implementation-results.md)。真实输入法等平台复核边界见交付结果；后台工具及其他扩展能力仍待实施。持久配置与 Run 快照按[宿主接口复核](host-interface.md)的已确认调整实施；不追踪 worker 内同引用配置的版本。
 
+## 显式继续
+
+空闲会话的最新回复处于已停止或失败状态时显示「继续运行」。新一轮回复关联旧 Run，日常消息列表保留原输入一次。模型再次申请执行曾尝试的等价副作用时，卡片展示本次工具参数，用户可选择「再次执行」或「跳过」。窗口和重启验收见[显式继续与工具副作用保护](implementation-results.md#显式继续与工具副作用保护)。
+
 ## Skill 加载（2026-11-02）
 
 本轮用户确认 Skill 提前于后台工具、slash command 主动触发另行实现、name 不使用 enum、技能定义更新从下一 Run 生效。运行行为维护在 [core](../../../../crates/xw-agent/README.md) 与 [runtime](../../../../crates/xw-agent-runtime/README.md)，desktop 展示见 [Quick Chat](../../../../desktop/docs/chat-ui.md)，此处只记录迁移取舍。

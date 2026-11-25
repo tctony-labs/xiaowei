@@ -48,7 +48,11 @@ impl InteractionRecord {
                     reason: reason.clone(),
                 }),
             ),
-            domain::InteractionRequest::ToolExecution { .. } => None,
+            domain::InteractionRequest::ToolExecution { reason } => Some(
+                agent_interaction::Request::ToolExecution(AgentToolExecutionRequest {
+                    reason: reason.clone(),
+                }),
+            ),
         };
         AgentInteraction {
             interaction_id: self.opened.interaction_id.to_string(),
@@ -107,7 +111,11 @@ fn public_answer(answer: &domain::InteractionAnswer) -> AgentInteractionAnswer {
                     AgentPermissionAnswer { allow: *allow },
                 ))
             }
-            domain::InteractionAnswer::ToolExecution { .. } => None,
+            domain::InteractionAnswer::ToolExecution { allow } => {
+                Some(agent_interaction_answer::Answer::ToolExecution(
+                    AgentToolExecutionAnswer { allow: *allow },
+                ))
+            }
         },
     }
 }
@@ -122,6 +130,11 @@ fn domain_answer(answer: &AgentInteractionAnswer) -> Result<domain::InteractionA
         }
         Some(agent_interaction_answer::Answer::Permission(answer)) => {
             Ok(domain::InteractionAnswer::Permission {
+                allow: answer.allow,
+            })
+        }
+        Some(agent_interaction_answer::Answer::ToolExecution(answer)) => {
+            Ok(domain::InteractionAnswer::ToolExecution {
                 allow: answer.allow,
             })
         }

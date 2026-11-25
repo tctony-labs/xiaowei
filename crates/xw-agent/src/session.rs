@@ -132,4 +132,5 @@ pub(crate) struct ActiveRun {
     pub cancellation: crate::CancellationToken,
     pub done: crate::CancellationToken,
     pub committed: bool,
+    pub first_inputs: Vec<xw_agent_types::InputId>,
 }

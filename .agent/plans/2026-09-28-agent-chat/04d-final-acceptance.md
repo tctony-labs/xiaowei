@@ -1,6 +1,6 @@
 # 04d：工具边界、打包与产品验收
 
-前置：[当前文本聊天基线](../../records/active/2026-09-28-agent-chat/implementation-results.md#持久文本聊天里程碑)、[网页工具交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)、[02k](02k-continue-recovery.md)、[03d](03d-composed-preview.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[当前文本聊天基线](../../records/active/2026-09-28-agent-chat/implementation-results.md#持久文本聊天里程碑)、[网页工具交付结果](../../records/active/2026-09-28-agent-chat/implementation-results.md#webfetchwebsearch-与搜索设置2026-10-27)、[已交付显式继续](../../records/active/2026-09-28-agent-chat/implementation-results.md#显式继续与工具副作用保护)、[03d](03d-composed-preview.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：首期全部真实工具／恢复／标题功能通过生产边界与 Quick Chat 产品验收，回填结果后结束计划。
 

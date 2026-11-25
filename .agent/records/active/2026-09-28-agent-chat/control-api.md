@@ -40,7 +40,7 @@
 | 公共实体／方法 | 已定义的语义 |
 | --- | --- |
 | AgentSession | ID、model_ref／optional reasoning 配置、idle／running／deleted、时间、metadata revision、title／auto_title_enabled、可选 cwd 和完整 runs |
-| AgentRun | 对应 Codex Turn；run／input ID、有效模型配置、状态、items、开始／结束时间与安全错误 |
+| AgentRun | run／input ID、有效模型配置、状态、items、开始／结束时间与安全错误；Continue Run 另含 continued_from_run_id |
 | AgentItem | 稳定 item ID，oneof user_message／agent_message／reasoning／tool_call；显示内容与模型回放分开 |
 | CreateSession | client_request_id + 必填 config + 可选已有绝对 cwd；省略时创建自有目录，仅在当前服务实例内幂等创建、同键不同原始配置或目录选择冲突；重启后通过 session_id 重开会话，不从 SQLite 或 JSONL 恢复创建去重 |
 | ListSessions | 返回不含运行历史的会话摘要，包含标题、自动生成开关、创建／更新时间、归档状态与 revision；archived 与标题 query 过滤、默认 50／最大 100、continuation 绑定两种过滤条件；菜单／设置页按需刷新 |
@@ -50,6 +50,7 @@
 | SetSessionArchived | session_id + archived + expected_archive_revision；停止并结算后归档，归档后禁止打开／修改，取消归档才可恢复 |
 | SetSessionConfig | config + expected_metadata_revision；独立提交会话选择并发布 SessionConfigUpdated |
 | StartRun | session_id、input_id、有序结构化 input、可选完整 config；响应为原子接纳的 Run，不等待模型完成 |
+| ContinueRun | session_id、previous_run_id 和 client_request_id；只接受会话最后一个未成功的 Run，同调用方重试返回已接纳的关联 Run |
 | InterruptRun | session_id + run_id；响应只确认取消请求，终态从 RunCompleted 得到 |
 | SubscribeSession | 必填 session_id，只订阅该会话，响应流首帧 SubscriptionReady 包含指定单个会话完整快照，随后只发送快照之后的业务事件；Rust 直接宿主消费同一个 EventSubscription |
 
@@ -123,7 +124,7 @@ Interaction 解决时广播公共状态，客户端关闭对应卡片；迟到�
 
 ### 后续能力（未实现）
 
-SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答与权限生产者；Fork／Rewind 和 ContinueRun 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
+SQLite 列表及归档／取消归档／删除已扩展现有接口；归档后禁止打开／订阅／发送，先取消归档再打开。ObserveInteractions／AcknowledgeInteraction／RespondInteraction 已接真实问答、权限和继续运行时的重复工具确认；Fork／Rewind 仍待后续实现。此处不保留另一套 SendMessage／GetInput／ReadChanges 空接口。历史分页需要按 Run／Item 结构复核，不能重新让实时事件依赖逐 token 拉取。
 
 大历史分页由 01f 在现有 Run／Item 框架上扩展，采用核心完整恢复、UI 分页读取的边界。会话冷打开时，核心仍从头顺序读取整个 JSONL，完成校验、恢复及整体状态重建；已加载会话复用核心内存状态。UI 在恢复后的 Run／Item 投影上分页加载历史及读取长内容，分页只限制返回和展示的数据量，不减少核心冷打开时的全量读取，也不改变完整模型上下文的组装。此片不引入磁盘随机读取索引、独立尾部恢复或新增恢复检查点。
 

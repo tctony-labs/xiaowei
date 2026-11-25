@@ -102,7 +102,7 @@ Gen／Turn／Run 的状态及耗时保留各自含义。同一安全错误从子
 
 工具调用须来自成功完整 Conversation Gen，provider call ID 仅在该 Gen 内唯一；内部 ToolId 独立。结果与执行状态在同一 entry 提交，参数非法／未知工具也形成明确结果。duration、elapsed、queue duration 分别表示执行、整体经过和排队，不能互相替代；执行 metadata_json 与模型 details_json 分开保留。
 
-ToolIntent 无 Outcome 表示副作用可能发生，不能自动重试。后续 Continue 可结算旧 ResultUnknown，尚未建立 intent 的旧调用可明确 Skipped；settled_by_run_id 关联当前 Continue Run，不能假装旧工具成功执行。旧配对闭合后才能开始新的 Turn／Gen。
+ToolIntent 无 Outcome 表示副作用可能发生，不能自动重试。显式 Continue 结算旧 ResultUnknown，尚未建立 intent 的旧调用可明确 Skipped；settled_by_run_id 关联当前 Continue Run，不能假装旧工具成功执行。旧配对闭合后才能开始新的 Turn／Gen。
 
 InteractionRequest 为 Question、Permission 或 ToolExecution；回答类型匹配、索引有界且不重复，单选至多一个，并允许自由文本。PermissionTarget 由服务端解析，客户端不能扩大授权路径。ToolExecution 用于 Continue 后模型重新提出等价副作用时确认，不重新执行旧 intent。送达 ACK、客户端连接和 observer 状态只放内存。
 
@@ -129,7 +129,7 @@ FormatError 区分 UnsupportedVersion 与 InvalidStructure，ValidationError 返
 1. main 解析绝对路径 `XIAOWEI_AGENT_HOME`，默认 `~/.xiaowei`，直接传给 Agent.open，不添加 agent 子目录。文件位于 `<root>/sessions/YYYY/MM/<session-id>.jsonl`，年月来自创建时间 UTC，不从 UUID 推测。自有目录为 `<root>/quick-chat/<session-id>/`，创建与清理规则见[会话工作目录](#会话工作目录)。模型设置在同根的 models.json；其他业务数据保持原目录。
 2. xw-agent-rollout 取得跨进程独占写锁后读取／修复。锁覆盖可写 Journal 生命周期，不抢占其他宿主。完整行、换行、flush／sync_data 成功后才推进确认边界并发布持久状态，多行不是原子事务。live cache 使用同一 compact codec 重建，和文件重开结果一致。
 3. 冷打开或 NeedsCheck 后的下一次使用才重新检查文件，正常 query 不重扫。末端截断／未提交换行的合法记录保存 tail 诊断后截断，不提升为提交；未知版本／字段、完整非法记录和中间损坏保留报错，不跳过。
-4. 必需记录写盘失败立即使整个 Run 失败并取消生成，提示用户排除磁盘空间／权限问题。没有补写队列、恢复按钮或自动重发；下一条 query 必要时清理失败尾部、结算旧 Run，成功才接纳新输入，仍不可写则报错。
+4. 必需记录写盘失败立即使整个 Run 失败并取消生成，提示用户排除磁盘空间／权限问题。会话再次写入时先修复失败尾部并结算旧 Run。用户可用 Continue 从持久边界恢复，剩余调用在新生成前按状态结算。
 5. 文件层只管理读取／修复／提交，业务恢复归 xw-agent。核心识别未完成 Input／Run／Turn／Gen／工具／Interaction，追加基本中断终态；当前实例已知写盘失败可补 Failed，冷打开未知原因补 Interrupted。实际 Gen 结束时间未知保持 null，不重执行历史模型或工具。
 6. 有效上下文按稳定 entry 边界、适用检查点和后缀重建；公共投影恢复 Run／Item 和原 input 请求身份。完整 Assistant 来源、签名和统计来自历史响应，不能从当前模型补猜。
 

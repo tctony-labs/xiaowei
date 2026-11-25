@@ -285,6 +285,8 @@ export function useQuickChat(services: Services, viewing = false) {
     },
     onSend: () => void send(),
     onStop: () => void client.stop().catch(() => {}),
+    continueRunId: client.continuableRun,
+    onContinue: () => void client.continueRun(),
     onNewConversation: () => {
       setDraftSelection(undefined);
       void client.newConversation().catch(() => {});

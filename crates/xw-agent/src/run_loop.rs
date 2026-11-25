@@ -30,7 +30,7 @@ pub(crate) struct RunPlan {
     pub request: RunRequest,
     pub model: domain::ModelDescriptor,
     pub sample: Option<ContextSample>,
-    pub pending_first: Option<domain::AgentMessage>,
+    pub pending_first: Option<Vec<(domain::InputId, domain::AgentMessage)>>,
 }
 
 pub(crate) async fn execute(
@@ -104,7 +104,10 @@ pub(crate) async fn execute(
         }
         run.completed_at_ms = Some(now_ms().unwrap_or_default());
         let run = run.clone();
-        session.active = None;
+        let reserved_inputs = session
+            .active
+            .take()
+            .is_some_and(|run| !run.first_inputs.is_empty());
         let released_dispatch = session.dispatching == Some(request.input_id);
         if released_dispatch {
             session.dispatching = None;
@@ -132,7 +135,7 @@ pub(crate) async fn execute(
                 dispatch = Some(id);
             }
         }
-        if released_dispatch {
+        if released_dispatch || reserved_inputs {
             crate::queue::publish(&mut state, session_id);
         }
         AgentService::publish(
@@ -198,12 +201,13 @@ async fn drive(
         sample,
         pending_first,
     } = plan;
-    if let Some(user) = pending_first.take() {
+    if let Some(inputs) = pending_first.take() {
+        let (ids, upcoming): (Vec<_>, Vec<_>) = inputs.into_iter().unzip();
         let result = crate::compaction::compact_if_needed(
             shared,
             request,
             model,
-            std::slice::from_ref(&user),
+            &upcoming,
             sample,
             None,
             generation.clone(),
@@ -217,15 +221,34 @@ async fn drive(
         }
         let session = state.sessions.get_mut(&request.session_id).unwrap();
         let at = now_ms()?;
-        session.record_first_turn(request, at)?;
-        session.history.push(user);
+        session.record_first_turn(request, &ids, at)?;
+        session.history.extend(upcoming);
         request.generation.messages = session.history.clone();
         crate::queue::finish_dispatch(session, request.input_id);
+        session
+            .queue
+            .retain(|input| !ids.contains(&input.accepted.input_id));
+        session
+            .active
+            .as_mut()
+            .expect("active Run")
+            .first_inputs
+            .clear();
         let update = opening_generation(session, request, at);
         crate::queue::publish(&mut state, request.session_id);
         AgentService::publish(&mut state, event(update));
     }
-    let (cwd, permission_mode, history, mut grants, todo_metadata, registered, exposed, shells) = {
+    let (
+        cwd,
+        permission_mode,
+        history,
+        mut grants,
+        todo_metadata,
+        registered,
+        exposed,
+        shells,
+        repeat_guard,
+    ) = {
         let state = shared.lock().unwrap();
         let session = &state.sessions[&request.session_id];
         let todo_metadata = session
@@ -261,6 +284,7 @@ async fn drive(
                 .map(|tool| tool.name)
                 .collect::<std::collections::BTreeSet<_>>(),
             session.background.clone(),
+            crate::continuation::repeat_guard(session, request.run_id),
         )
     };
     let mut todos = xw_agent_runtime::tools::todo::TodoWrite::restore(todo_metadata.as_deref())
@@ -481,18 +505,50 @@ async fn drive(
                                 && input.target == Some(request.run_id)
                         })
                 };
-                let skipped =
+                let mut skipped =
                     cancellation.is_cancelled() || status == RunStatus::Failed || steering;
+                let mut skip_reason = if steering {
+                    "收到补充指令，工具未执行"
+                } else {
+                    "运行已停止，工具未执行"
+                };
+                if !skipped
+                    && namespace.is_none()
+                    && exposed.contains(name)
+                    && repeat_guard.iter().any(|old| {
+                        old.tool_name == *name
+                            && domain::same_tool_effect(
+                                name,
+                                &old.arguments_json,
+                                &intent.arguments_json,
+                            )
+                    })
+                {
+                    let answer = crate::interactive::wait(
+                        shared,
+                        request.session_id,
+                        &intent,
+                        domain::InteractionRequest::ToolExecution {
+                            reason: "此前运行已尝试相同操作。请确认是否再次执行。".into(),
+                        },
+                        cancellation,
+                    )
+                    .await?;
+                    if cancellation.is_cancelled() || answer.is_none() {
+                        skipped = true;
+                    } else if !matches!(
+                        answer,
+                        Some(domain::InteractionAnswer::ToolExecution { allow: true })
+                    ) {
+                        skipped = true;
+                        skip_reason = "用户拒绝重复执行此工具";
+                    }
+                }
                 let mut execution_cancelled = false;
                 let mut execution_failed = false;
                 let mut execution_result_unknown = false;
                 let result = if skipped {
-                    Err(if steering {
-                        "收到补充指令，工具未执行"
-                    } else {
-                        "运行已停止，工具未执行"
-                    }
-                    .into())
+                    Err(skip_reason.into())
                 } else if namespace.is_some() {
                     Err("工具命名空间未开放".into())
                 } else if name == "RequestPermission"

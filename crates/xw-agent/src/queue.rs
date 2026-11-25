@@ -50,9 +50,7 @@ pub(crate) fn publish(state: &mut State, id: domain::SessionId) {
     session.view.queued_inputs = session
         .queue
         .iter()
-        .filter(|input| {
-            session.active.is_none() || session.dispatching != Some(input.accepted.input_id)
-        })
+        .filter(|input| session.active.is_none() || !reserved(session, input.accepted.input_id))
         .map(PendingInput::view)
         .collect();
     let queued_inputs = session.view.queued_inputs.clone();
@@ -72,6 +70,14 @@ pub(crate) fn steering_input(session: &Session, run_id: domain::RunId) -> Option
         .queue
         .iter()
         .find(|input| input.mode == domain::InputMode::Steering && input.target == Some(run_id))
+}
+
+fn reserved(session: &Session, input_id: domain::InputId) -> bool {
+    session.dispatching == Some(input_id)
+        || session
+            .active
+            .as_ref()
+            .is_some_and(|run| run.first_inputs.contains(&input_id))
 }
 
 pub(crate) fn finish_dispatch(session: &mut Session, id: domain::InputId) {
@@ -235,7 +241,7 @@ impl AgentService {
             .iter()
             .position(|input| input.accepted.input_id == input_id)
             .ok_or(AgentError::Conflict("input not queued"))?;
-        if session.dispatching == Some(input_id) {
+        if reserved(session, input_id) {
             return Err(AgentError::Conflict("input dispatching"));
         }
         let at = now_ms()?;
@@ -356,7 +362,7 @@ impl AgentService {
             .iter()
             .position(|input| input.accepted.input_id == input_id)
             .ok_or(AgentError::Conflict("input not queued"))?;
-        if session.dispatching == Some(input_id) {
+        if reserved(session, input_id) {
             return Err(AgentError::Conflict("input dispatching"));
         }
         let at = now_ms()?;

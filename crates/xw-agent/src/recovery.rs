@@ -83,7 +83,7 @@ pub fn inspect_recovery(
 }
 
 /// Settle basic interrupted lifecycles, without executing models/tools or inventing results.
-/// Unknown tools remain unknown; Continue policy is a later runtime responsibility.
+/// Closing unknown calls belongs to explicit Continue.
 pub fn settle_interrupted(
     journal: &mut Journal,
     known_failed_run: Option<RunId>,
@@ -155,9 +155,31 @@ pub(crate) fn settle_with_tools(
             recovered_at_ms,
         )?;
     }
+    // Acceptance may have stopped after RunStarted or after writing a synthetic intent.
+    // Finish closing the predecessor's calls before terminating the interrupted Continue.
+    for entry in &entries {
+        if let EntryPayload::RunStarted(run) = &entry.payload
+            && state.runs.contains(&run.run_id)
+            && let RunCause::Continue {
+                previous_run_id, ..
+            } = run.cause
+        {
+            crate::continuation::settle_calls(
+                journal,
+                previous_run_id,
+                run.run_id,
+                recovered_at_ms,
+            )?;
+        }
+    }
     // Session-local tools have no unknown external side effect. Rebuild interactive
     // results from durable answers; uncommitted TodoWrite updates are cancelled.
     for id in &state.tools {
+        if journal.entries().iter().any(|entry| {
+            matches!(&entry.payload, EntryPayload::ToolOutcome(outcome) if outcome.tool_id == *id)
+        }) {
+            continue;
+        }
         let Some(intent) = entries
             .iter()
             .find_map(|entry| match &entry.payload {

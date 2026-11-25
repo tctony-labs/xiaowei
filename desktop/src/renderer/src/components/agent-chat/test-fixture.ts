@@ -14,6 +14,7 @@ import {
   AgentSessionSchema,
   AgentSessionStatus,
   AgentSessionSummarySchema,
+  ContinueRunResponseSchema,
   CreateSessionResponseSchema,
   DeleteSessionResponseSchema,
   type InteractionDeliveryEvent,
@@ -88,7 +89,7 @@ export function agentFixture(host = new GatewayHost()) {
     session.updatedAtMs =
       run.completedAtMs > session.updatedAtMs ? run.completedAtMs : session.updatedAtMs;
     run.items = [
-      run.items[0],
+      ...run.items.filter((item) => item.content.case === "userMessage"),
       ...run.items.filter((item) => item.content.case === "toolCall"),
       {
         $typeName: "xiaowei.agent.AgentItem",
@@ -320,6 +321,36 @@ export function agentFixture(host = new GatewayHost()) {
           return { sessionId: item.sessionId, status: 1 };
         });
         return create(DeleteSessionResponseSchema, { results });
+      },
+      continueRun(request) {
+        const target = sessions.get(request.sessionId);
+        const previous = target?.runs.at(-1);
+        if (!target || !previous || previous.runId !== request.previousRunId) {
+          throw new GatewayFailure({ code: "CONFLICT", message: "run changed" });
+        }
+        const run = create(AgentRunSchema, {
+          runId: agentIdentity(),
+          continuedFromRunId: previous.runId,
+          status: AgentRunStatus.IN_PROGRESS,
+          config: previous.config,
+          startedAtMs: BigInt(Date.now()),
+          generation: { genId: agentIdentity(), startedAtMs: BigInt(Date.now()) },
+        });
+        target.runs.push(run);
+        target.status = AgentSessionStatus.RUNNING;
+        emit(
+          create(AgentEventSchema, {
+            payload: {
+              case: "runStarted",
+              value: {
+                sessionId: target.sessionId,
+                run,
+                sessionMetadataRevision: target.metadataRevision,
+              },
+            },
+          }),
+        );
+        return create(ContinueRunResponseSchema, { run });
       },
       startRun(request) {
         const session = sessions.get(request.sessionId);

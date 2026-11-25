@@ -125,10 +125,10 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
           : run.status === AgentRunStatus.INTERRUPTED
             ? "cancelled"
             : "failed";
-    const segments: { userId: string; text: string; items: AgentItem[] }[] = [
-      { userId: run.inputId, text: userText, items: [] },
+    const segments: { userId?: string; text: string; items: AgentItem[] }[] = [
+      { userId: run.continuedFromRunId ? undefined : run.inputId, text: userText, items: [] },
     ];
-    let seenFirstUser = false;
+    let seenFirstUser = !!run.continuedFromRunId;
     for (const item of run.items) {
       if (item.content.case === "userMessage") {
         if (!seenFirstUser) {
@@ -146,14 +146,18 @@ export function chatMessages(session?: AgentSession): QuickChatMessage[] {
     return segments.flatMap((segment, index) => {
       const last = index === segments.length - 1;
       return [
+        ...(segment.userId === undefined
+          ? []
+          : [
+              {
+                id: segment.userId,
+                role: "user" as const,
+                text: segment.text,
+                timestampMs: index === 0 ? run.startedAtMs : undefined,
+              },
+            ]),
         {
-          id: segment.userId,
-          role: "user",
-          text: segment.text,
-          timestampMs: index === 0 ? run.startedAtMs : undefined,
-        },
-        {
-          id: last ? run.runId : `${run.runId}-${segment.userId}`,
+          id: last ? run.runId : `${run.runId}-${segment.userId ?? "continue"}`,
           role: "assistant",
           timestampMs: last ? run.startedAtMs : undefined,
           blocks: messageBlocks(segment.items),

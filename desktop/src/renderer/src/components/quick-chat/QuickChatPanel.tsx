@@ -60,6 +60,8 @@ export interface QuickChatPanelProps extends ComposerControlsProps {
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onStop: () => void;
+  continueRunId?: string;
+  onContinue?: () => void;
   onNewConversation: () => void;
   onCollapse: () => void;
   interactions?: InteractionControls;
@@ -350,6 +352,17 @@ export function QuickChatPanel(props: QuickChatPanelProps) {
                         onOpenUrl={openMessageLink}
                         interactions={props.interactions}
                       />
+                      {props.onContinue &&
+                        !props.generating &&
+                        message.id === props.continueRunId && (
+                          <button
+                            type="button"
+                            className="agent-interaction-option"
+                            onClick={props.onContinue}
+                          >
+                            继续运行
+                          </button>
+                        )}
                     </article>
                   ))}
                   {props.emptyState && (

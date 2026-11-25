@@ -1,6 +1,6 @@
 # 03d：工具、压缩与继续的组合 UI 确认
 
-前置：[03a](03a-history-ui.md)、[03c](03c-tools-interaction-ui.md)、[已交付自动压缩](../../records/active/2026-09-28-agent-chat/implementation-results.md#上下文预算与自动压缩)、[02k](02k-continue-recovery.md)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
+前置：[03a](03a-history-ui.md)、[03c](03c-tools-interaction-ui.md)、[已交付自动压缩](../../records/active/2026-09-28-agent-chat/implementation-results.md#上下文预算与自动压缩)、[已交付显式继续](../../records/active/2026-09-28-agent-chat/implementation-results.md#显式继续与工具副作用保护)。关联 [record](../../records/active/2026-09-28-agent-chat.md) 与 [总实施顺序](00-implementation-order.md)。
 
 本片结果：在现有 Quick Chat 组合新增工具／交互、压缩与继续状态，确认产品接入所需的新交互；已交付文本与 chip 不重新验收。
 

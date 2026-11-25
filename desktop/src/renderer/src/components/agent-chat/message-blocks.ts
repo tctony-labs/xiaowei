@@ -1,4 +1,9 @@
-import type { AgentInteraction, AgentItem, AgentToolCall } from "proto-desktop-ts";
+import {
+  type AgentInteraction,
+  AgentInteractionStatus,
+  type AgentItem,
+  type AgentToolCall,
+} from "proto-desktop-ts";
 
 export interface InteractionForm {
   text: string;
@@ -19,7 +24,7 @@ export type AgentMessageBlock =
   | { id: string; kind: "text"; text: string }
   | { id: string; kind: "reasoning"; text: string }
   | { id: string; kind: "tool"; call: AgentToolCall }
-  | { id: string; kind: "interaction"; interaction: AgentInteraction };
+  | { id: string; kind: "interaction"; interaction: AgentInteraction; call?: AgentToolCall };
 
 export type AgentToolBlock = Extract<AgentMessageBlock, { kind: "tool" }>;
 
@@ -74,13 +79,25 @@ export function messageBlocks(items: AgentItem[]): AgentMessageBlock[] {
         return [{ id: item.itemId, kind: "text", text: item.content.value.text }];
       case "reasoning":
         return [{ id: item.itemId, kind: "reasoning", text: item.content.value.text }];
-      case "toolCall":
-        if (item.content.value.interaction?.request.case) {
+      case "toolCall": {
+        const call = item.content.value;
+        const interaction = call.interaction;
+        if (
+          interaction?.request.case &&
+          (interaction.request.case !== "toolExecution" ||
+            interaction.status === AgentInteractionStatus.PENDING)
+        ) {
           return [
-            { id: item.itemId, kind: "interaction", interaction: item.content.value.interaction },
+            {
+              id: item.itemId,
+              kind: "interaction",
+              interaction,
+              call: interaction.request.case === "toolExecution" ? call : undefined,
+            },
           ];
         }
-        return [{ id: item.itemId, kind: "tool", call: item.content.value }];
+        return [{ id: item.itemId, kind: "tool", call }];
+      }
       default:
         return [];
     }

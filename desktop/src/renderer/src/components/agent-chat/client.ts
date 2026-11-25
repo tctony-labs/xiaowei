@@ -5,9 +5,11 @@ import {
   AgentInteractionAnswerSchema,
   AgentInteractionStatus,
   type AgentModelConfig,
+  AgentRunStatus,
   type AgentSession,
   type AgentSessionSummary,
   AgentSessionSummarySchema,
+  ContinueRunRequestSchema,
   CreateSessionRequestSchema,
   DeleteSessionRequestSchema,
   DeleteSessionStatus,
@@ -60,6 +62,11 @@ export class AgentChatClient {
   >();
   private connecting?: Promise<void>;
   private sending?: Promise<void>;
+  private continuation?: {
+    sessionId: string;
+    previousRunId: string;
+    clientRequestId: string;
+  };
   queueChanging = false;
   private pendingSteerId?: string;
   private interruptAfterSteer = false;
@@ -159,7 +166,8 @@ export class AgentChatClient {
         )
         .some(
           (view) =>
-            view.status === AgentInteractionStatus.PENDING && view.request.case === "permission",
+            view.status === AgentInteractionStatus.PENDING &&
+            (view.request.case === "permission" || view.request.case === "toolExecution"),
         ) === true
     );
   }
@@ -232,7 +240,7 @@ export class AgentChatClient {
           })
         : create(AgentInteractionAnswerSchema, {
             answer: {
-              case: "permission",
+              case: view.request.case === "toolExecution" ? "toolExecution" : "permission",
               value: {
                 allow: allow === true,
               },
@@ -875,6 +883,58 @@ export class AgentChatClient {
       throw new Error("标题生成失败，请检查小文本任务模型配置后重试");
     } finally {
       if (this.titleGeneration === generation) this.regeneratingTitle = false;
+      this.notify();
+    }
+  }
+
+  get continuableRun() {
+    const latest = this.session?.runs.at(-1);
+    return latest &&
+      (latest.status === AgentRunStatus.INTERRUPTED || latest.status === AgentRunStatus.FAILED)
+      ? latest.runId
+      : undefined;
+  }
+
+  async continueRun() {
+    const sessionId = this.session?.sessionId;
+    const previousRunId = this.continuableRun;
+    if (!sessionId || !previousRunId || this.busy || this.configuring) return;
+    if (
+      this.continuation?.sessionId !== sessionId ||
+      this.continuation.previousRunId !== previousRunId
+    ) {
+      this.continuation = { sessionId, previousRunId, clientRequestId: agentIdentity() };
+    }
+    const command = this.continuation;
+    this.error = "";
+    const work = (async () => {
+      await this.connect();
+      const response = await this.services
+        .getAgent()
+        .continueRun(create(ContinueRunRequestSchema, command));
+      if (!response.run) throw new Error("Missing accepted Continue Run");
+      if (
+        !this.session?.runs.some(
+          (run) => run.runId === response.run?.runId && run.status !== AgentRunStatus.IN_PROGRESS,
+        )
+      ) {
+        this.acceptedRun = { sessionId, runId: response.run.runId };
+      }
+    })();
+    this.sending = work;
+    this.notify();
+    try {
+      await work;
+    } catch (error) {
+      if (this.session?.sessionId === sessionId) {
+        this.error =
+          error instanceof GatewayFailure && error.detail.message.startsWith("会话记录")
+            ? error.detail.message
+            : "继续运行请求未确认，请同步会话后重试。";
+      }
+    } finally {
+      this.sending = undefined;
+      if (!this.listeners.size) this.disconnect();
       this.notify();
     }
   }

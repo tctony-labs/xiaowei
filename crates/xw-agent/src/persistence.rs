@@ -129,13 +129,29 @@ impl Session {
         self.permission_mode = restored.permission_mode;
         self.meta = restored.meta;
         for run in restored.view.runs {
-            if !self
+            let Some(current) = self
                 .view
                 .runs
-                .iter()
-                .any(|current| current.run_id == run.run_id)
-            {
+                .iter_mut()
+                .find(|current| current.run_id == run.run_id)
+            else {
                 self.view.runs.push(run);
+                continue;
+            };
+            for item in run
+                .items
+                .into_iter()
+                .filter(|item| matches!(item.content, Some(agent_item::Content::ToolCall(_))))
+            {
+                if let Some(existing) = current
+                    .items
+                    .iter_mut()
+                    .find(|existing| existing.item_id == item.item_id)
+                {
+                    *existing = item;
+                } else {
+                    current.items.push(item);
+                }
             }
         }
         for id in self.interactions.keys().copied().collect::<Vec<_>>() {
@@ -182,6 +198,7 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
     let mut accepted = std::collections::BTreeMap::new();
     let mut input_messages = std::collections::BTreeMap::new();
     let mut generations = std::collections::BTreeMap::new();
+    let mut first_turns = std::collections::BTreeSet::new();
     for entry in entries {
         match &entry.payload {
             domain::EntryPayload::InputAccepted(input) => {
@@ -221,6 +238,9 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     .queue
                     .retain(|entry| entry.accepted.input_id != input.input_id);
             }
+            domain::EntryPayload::TurnStarted(turn) if turn.ordinal == 1 => {
+                first_turns.insert(turn.turn_id);
+            }
             domain::EntryPayload::InputConsumed(input) => {
                 session
                     .queue
@@ -231,6 +251,9 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     .iter_mut()
                     .find(|run| run.run_id == input.run_id.to_string())
                 {
+                    if run.continued_from_run_id.is_some() && first_turns.contains(&input.turn_id) {
+                        continue;
+                    }
                     for id in &input.input_ids {
                         let message = input_messages[id];
                         let input_id = id.to_string();
@@ -275,7 +298,16 @@ fn project(journal: &Journal) -> Result<Session, AgentError> {
                     | domain::RunCause::Interrupt { input_id, .. }
                     | domain::RunCause::Queued { input_id } => *input_id,
                     domain::RunCause::FollowUp { input_ids } => input_ids[0],
-                    domain::RunCause::Continue { .. } => continue,
+                    domain::RunCause::Continue {
+                        previous_run_id, ..
+                    } => {
+                        session.view.runs.push(crate::continuation::continued_run(
+                            run,
+                            *previous_run_id,
+                            entry.timestamp_ms,
+                        ));
+                        continue;
+                    }
                 };
                 let message = input_messages[&input_id];
                 let content = match &message.message {
@@ -627,6 +659,7 @@ impl Session {
     pub(crate) fn record_first_turn(
         &mut self,
         execution: &xw_agent_runtime::RunRequest,
+        input_ids: &[domain::InputId],
         started_at: i64,
     ) -> Result<(), AgentError> {
         if self.journal.is_none() {
@@ -642,17 +675,17 @@ impl Session {
             }),
             started_at,
         )?;
-        let consumed = self
-            .append(
+        if !input_ids.is_empty() {
+            self.append(
                 domain::EntryPayload::InputConsumed(domain::InputConsumed {
-                    input_ids: vec![execution.input_id],
+                    input_ids: input_ids.to_vec(),
                     run_id: execution.run_id,
                     turn_id: execution.turn_id.expect("conversation Turn"),
                     boundary,
                 }),
                 started_at,
-            )?
-            .expect("journal exists");
+            )?;
+        }
         self.append(
             domain::EntryPayload::GenStarted(domain::GenStarted {
                 gen_id: execution.gen_id,
@@ -661,10 +694,7 @@ impl Session {
                 attempt: 1,
                 purpose: domain::GenPurpose::Conversation,
                 context: None,
-                boundary: domain::ContextBoundary {
-                    through_entry_id: Some(consumed.entry_id),
-                    after_turn_id: None,
-                },
+                boundary: self.boundary(None),
                 started_at_ms: started_at,
             }),
             started_at,

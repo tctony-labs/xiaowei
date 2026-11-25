@@ -142,7 +142,13 @@ export function AgentMessage({
           } else if (group.kind === "todo") {
             content = <AgentToolCall call={group.call} defaultOpen={group.id === lastTodoId} />;
           } else if (group.kind === "interaction") {
-            content = <AgentInteraction view={group.interaction} controls={interactions} />;
+            content = (
+              <AgentInteraction
+                view={group.interaction}
+                controls={interactions}
+                call={group.call}
+              />
+            );
           } else {
             content = (
               <AgentMarkdown

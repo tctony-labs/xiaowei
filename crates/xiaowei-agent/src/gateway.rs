@@ -44,6 +44,7 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
     let delete = agent.clone();
     let title = agent.clone();
     let start = agent.clone();
+    let resume = agent.clone();
     let interrupt = agent.clone();
     let queue = agent.clone();
     let edit_queued = agent.clone();
@@ -255,6 +256,23 @@ pub fn registrations(agent: &Arc<Agent>) -> Vec<InvokeRegistration> {
                 agent
                     .service
                     .set_session_retention_policy(request)
+                    .await
+                    .map_err(error)
+            }
+        }),
+        api::CONTINUE_RUN.handler(move |request, client| {
+            let agent = resume.clone();
+            async move {
+                ready(&agent)?;
+                agent
+                    .service
+                    .continue_run(
+                        request,
+                        InputSource {
+                            kind: SourceKind::Desktop,
+                            principal_id: client.context().caller().to_owned(),
+                        },
+                    )
                     .await
                     .map_err(error)
             }

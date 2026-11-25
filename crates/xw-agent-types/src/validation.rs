@@ -86,6 +86,25 @@ fn source(source: &InputSource) -> Result<(), ValidationError> {
     value(!source.principal_id.is_empty(), "source.principal_id")
 }
 
+/// Compares repeat requests without relying on the order of JSON object keys.
+pub fn same_tool_effect(name: &str, left: &str, right: &str) -> bool {
+    if matches!(name, "Bash" | "BgRun") {
+        // The command determines the effect. Display descriptions can change across attempts.
+        #[derive(serde::Deserialize)]
+        struct Command {
+            command: String,
+        }
+        let (Ok(left), Ok(right)) = (
+            serde_json::from_str::<Command>(left),
+            serde_json::from_str::<Command>(right),
+        ) else {
+            return false;
+        };
+        return left.command == right.command;
+    }
+    crate::system_context::same_json(left, right)
+}
+
 fn json_raw<'a>(json: &'a str, object: bool, path: &str) -> Result<&'a RawValue, ValidationError> {
     let parsed = serde_json::from_str::<&RawValue>(json);
     value(parsed.is_ok(), path)?;
@@ -1026,6 +1045,17 @@ impl<'a> History<'a> {
                     let position = self.input_positions[id];
                     transition(position > previous_sequence, "input_ids")?;
                     previous_sequence = position;
+                    if turn.ordinal == 1 && matches!(run.cause, RunCause::Continue { .. }) {
+                        let original = match self.origin(run) {
+                            RunCause::Send { input_id }
+                            | RunCause::Queued { input_id }
+                            | RunCause::Interrupt { input_id, .. } => input_id == id,
+                            RunCause::FollowUp { input_ids } => input_ids.contains(id),
+                            RunCause::Continue { .. } => unreachable!(),
+                        };
+                        ownership(original, "input_ids")?;
+                        continue;
+                    }
                     let (mode, target) = self.input_routes[id];
                     match mode {
                         InputMode::Send => ownership(
@@ -1552,13 +1582,29 @@ impl<'a> History<'a> {
                     else {
                         return transition(false, "request");
                     };
+                    let mut ancestors = HashSet::new();
+                    let mut previous = previous_run_id;
+                    loop {
+                        ancestors.insert(previous);
+                        let RunCause::Continue {
+                            previous_run_id, ..
+                        } = self.runs[&previous].0.cause
+                        else {
+                            break;
+                        };
+                        previous = previous_run_id;
+                    }
                     transition(
                         self.tools.values().any(|(old, outcome)| {
-                            old.key.run_id == previous_run_id
+                            ancestors.contains(&old.key.run_id)
                                 && old.tool_name == tool.tool_name
-                                && outcome.is_some_and(|outcome| {
-                                    outcome.status == ToolStatus::ResultUnknown
-                                })
+                                && outcome
+                                    .is_some_and(|result| result.status != ToolStatus::Skipped)
+                                && same_tool_effect(
+                                    &tool.tool_name,
+                                    &old.arguments_json,
+                                    &tool.arguments_json,
+                                )
                         }),
                         "request",
                     )?;

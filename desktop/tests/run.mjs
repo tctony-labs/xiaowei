@@ -68,4 +68,5 @@ runPnpm([
   "tests/rust-napi/agent-settings.test.ts",
   "tests/rust-napi/agent-web-tools.test.cjs",
   "tests/rust-napi/agent-compaction.test.cjs",
+  "tests/rust-napi/agent-recovery.test.cjs",
 ]);

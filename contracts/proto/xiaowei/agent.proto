@@ -30,6 +30,8 @@ service Agent {
   rpc TrackSessionViewing(TrackSessionViewingRequest) returns (stream SessionViewingReady);
   // Accepts one run per session; returns immediately, completion follows on SubscribeSession.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Continues an interrupted or failed Run in the same session.
+  rpc ContinueRun(ContinueRunRequest) returns (ContinueRunResponse);
   rpc InterruptRun(InterruptRunRequest) returns (InterruptRunResponse);
   rpc QueueInput(QueueInputRequest) returns (QueueInputResponse);
   rpc EditQueuedInput(EditQueuedInputRequest) returns (QueueMutationResponse);
@@ -169,6 +171,7 @@ enum AgentRunStatus {
 
 message AgentRun {
   string run_id = 1;
+  // Empty for a Continue Run. Its originating input belongs to the earlier Run.
   string input_id = 2;
   AgentRunStatus status = 3;
   AgentModelConfig config = 4;
@@ -186,6 +189,8 @@ message AgentRun {
   // present even when that response contains no visible text. Select matching Item.gen_id
   // for the final reply; earlier responses remain process content. Rebuilt from the journal.
   optional string final_gen_id = 12;
+  // Present for a Continue Run. Identifies the preceding Run in the same session.
+  optional string continued_from_run_id = 13;
 }
 
 message AgentSession {
@@ -538,6 +543,18 @@ message StartRunResponse {
   AgentRun run = 1;
 }
 
+message ContinueRunRequest {
+  string session_id = 1;
+  // Latest unsuccessful Run. The session must be idle.
+  string previous_run_id = 2;
+  // Canonical UUIDv7. A matching retry by the same caller returns the accepted Run.
+  string client_request_id = 3;
+}
+
+message ContinueRunResponse {
+  AgentRun run = 1;
+}
+
 message InterruptRunRequest {
   string session_id = 1;
   // Targets exactly this run; a stale request must not interrupt a newer run.
@@ -643,10 +660,20 @@ message AgentPermissionAnswer {
   bool allow = 1;
 }
 
+message AgentToolExecutionRequest {
+  string reason = 1;
+}
+
+message AgentToolExecutionAnswer {
+  // True authorizes one specific pending call.
+  bool allow = 1;
+}
+
 message AgentInteractionAnswer {
   oneof answer {
     AgentQuestionAnswer question = 1;
     AgentPermissionAnswer permission = 2;
+    AgentToolExecutionAnswer tool_execution = 3;
   }
 }
 
@@ -671,6 +698,7 @@ message AgentInteraction {
   oneof request {
     AgentQuestion question = 3;
     AgentPermissionRequest permission = 4;
+    AgentToolExecutionRequest tool_execution = 9;
   }
   AgentInteractionStatus status = 5;
   // Present only when resolved. Permission refusal is a valid resolved answer.

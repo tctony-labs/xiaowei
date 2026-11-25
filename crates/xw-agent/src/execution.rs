@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+};
 
 use prost::Message;
 use xw_agent_runtime::{GenerationRequest, RunRequest, context_budget::ContextBudget};
@@ -60,11 +63,27 @@ impl AgentService {
                 session.resource_cache.clone(),
             )
         };
+        let (skills, resources) = self.snapshot_resources(cwd, resource_cache).await?;
+        let info = self.host.get_model_info(config.model_ref.clone()).await;
+        self.accept_run(request, source, config, info, skills, resources)
+    }
+
+    pub(crate) async fn snapshot_resources(
+        &self,
+        cwd: Option<String>,
+        resource_cache: Arc<Mutex<xw_agent_runtime::resources::ResourceCache>>,
+    ) -> Result<
+        (
+            xw_agent_runtime::tools::skill::SkillSnapshot,
+            xw_agent_runtime::resources::ResourceSnapshot,
+        ),
+        AgentError,
+    > {
         let user_root = self
             .rollout
             .as_ref()
             .map(|store| store.root().to_path_buf());
-        let (skills, resources) = if cwd.is_some() || user_root.is_some() {
+        let snapshots = if cwd.is_some() || user_root.is_some() {
             let runtime = tokio::runtime::Handle::try_current()
                 .map_err(|_| AgentError::ExecutionUnavailable)?;
             runtime
@@ -92,8 +111,7 @@ impl AgentService {
         } else {
             (Default::default(), Default::default())
         };
-        let info = self.host.get_model_info(config.model_ref.clone()).await;
-        self.accept_run(request, source, config, info, skills, resources)
+        Ok(snapshots)
     }
 
     fn accept_run(
@@ -287,21 +305,7 @@ impl AgentService {
                 messages: Vec::new(),
             },
         };
-        let budget = queried
-            .as_ref()
-            .map(|info| xw_agent_types::ModelBudget {
-                context_window: info.capabilities.context_window,
-                max_output_tokens: info.capabilities.max_output_tokens,
-                source: xw_agent_types::BudgetSource::Host,
-            })
-            .unwrap_or_default();
-        let descriptor = xw_agent_types::ModelDescriptor {
-            model_ref: execution.generation.model_ref.clone(),
-            provider_name: queried.as_ref().map(|info| info.provider_name.clone()),
-            model_name: queried.as_ref().map(|info| info.model_name.clone()),
-            capabilities: queried.map(|info| info.capabilities),
-            budget,
-        };
+        let descriptor = model_descriptor(&execution.generation.model_ref, queried);
         let sample = crate::compaction::previous_sample(session, &descriptor.model_ref);
         let input_budget = ContextBudget::new(
             &descriptor.budget,
@@ -336,9 +340,9 @@ impl AgentService {
             );
         }
         let pending_first = if defer_first_turn {
-            Some(user)
+            Some(vec![(input_id, user)])
         } else {
-            if let Err(error) = session.record_first_turn(&execution, started_at_ms) {
+            if let Err(error) = session.record_first_turn(&execution, &[input_id], started_at_ms) {
                 session.failed_run = Some(run_id);
                 return Err(error);
             }
@@ -352,35 +356,71 @@ impl AgentService {
             crate::queue::finish_dispatch(session, input_id);
             None
         };
-        let cancellation = CancellationToken::new();
-        let done = CancellationToken::new();
-        session.active = Some(ActiveRun {
-            run_id,
-            permission_mode,
-            cancellation: cancellation.clone(),
-            done: done.clone(),
-            committed: false,
-        });
-        session.cancel_titles();
         if queued.is_none() {
             session.requests.insert(input_id, request);
         }
+        self.launch_run(
+            &mut state,
+            run.clone(),
+            crate::run_loop::RunPlan {
+                request: execution,
+                model: descriptor,
+                sample,
+                pending_first,
+            },
+            queued.is_some(),
+            handle,
+        );
+        log::debug!(
+            "Agent Run accepted session={id} input={input_id} run={run_id} \
+             permission_mode={permission_mode:?}"
+        );
+        Ok(StartRunResponse { run: Some(run) })
+    }
+
+    pub(crate) fn launch_run(
+        &self,
+        state: &mut crate::service::State,
+        run: AgentRun,
+        plan: crate::run_loop::RunPlan,
+        queue_changed: bool,
+        handle: tokio::runtime::Handle,
+    ) {
+        let id = plan.request.session_id;
+        let session = state.sessions.get_mut(&id).expect("loaded session");
+        let cancellation = CancellationToken::new();
+        let done = CancellationToken::new();
+        session.active = Some(ActiveRun {
+            run_id: plan.request.run_id,
+            permission_mode: session.permission_mode,
+            cancellation: cancellation.clone(),
+            done: done.clone(),
+            committed: false,
+            first_inputs: plan
+                .pending_first
+                .iter()
+                .flatten()
+                .map(|(id, _)| *id)
+                .collect(),
+        });
+        session.cancel_titles();
+        session.view.updated_at_ms = run.started_at_ms;
         session.view.status = AgentSessionStatus::Running.into();
         session.view.runs.push(run.clone());
         let warning = crate::model::warning_event(session);
         let revision = session.view.metadata_revision;
         let title_model_ref = session.view.title_model_ref.clone();
         Self::publish(
-            &mut state,
+            state,
             event(agent_event::Payload::SessionModelInfoWarningUpdated(
                 warning,
             )),
         );
-        if queued.is_some() {
-            crate::queue::publish(&mut state, id);
+        if queue_changed {
+            crate::queue::publish(state, id);
         }
         Self::publish(
-            &mut state,
+            state,
             event(agent_event::Payload::RunStarted(RunStarted {
                 session_id: id.to_string(),
                 run: Some(run.clone()),
@@ -398,20 +438,31 @@ impl AgentService {
             index,
             host,
             generation,
-            crate::run_loop::RunPlan {
-                request: execution,
-                model: descriptor,
-                sample,
-                pending_first,
-            },
+            plan,
             cancellation,
             done,
         ));
-        log::debug!(
-            "Agent Run accepted session={id} input={input_id} run={run_id} \
-             permission_mode={permission_mode:?}"
-        );
-        Ok(StartRunResponse { run: Some(run) })
+    }
+}
+
+pub(crate) fn model_descriptor(
+    model_ref: &str,
+    queried: Option<xw_agent_types::ModelInfo>,
+) -> xw_agent_types::ModelDescriptor {
+    let budget = queried
+        .as_ref()
+        .map(|info| xw_agent_types::ModelBudget {
+            context_window: info.capabilities.context_window,
+            max_output_tokens: info.capabilities.max_output_tokens,
+            source: xw_agent_types::BudgetSource::Host,
+        })
+        .unwrap_or_default();
+    xw_agent_types::ModelDescriptor {
+        model_ref: model_ref.to_owned(),
+        provider_name: queried.as_ref().map(|info| info.provider_name.clone()),
+        model_name: queried.as_ref().map(|info| info.model_name.clone()),
+        capabilities: queried.map(|info| info.capabilities),
+        budget,
     }
 }
 

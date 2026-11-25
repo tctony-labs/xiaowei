@@ -707,3 +707,103 @@ async fn stopped_preflight_leaves_follow_up_pending_without_consuming_it_twice()
         matches!(&entry.payload, EntryPayload::InputConsumed(input) if input.input_ids == [queued])
     }).count(), 1);
 }
+
+#[tokio::test]
+async fn continue_consumes_the_original_input_once_and_reuses_the_checkpoint() {
+    let root = tempfile::tempdir().unwrap();
+    let host = Arc::new(Host::default());
+    let service = open(root.path(), &host, vec![]).await;
+    let id = create(&service).await;
+    let mut events = subscribe(&service, &id).await;
+    host.reply(reply("old answer", 16_000));
+    send(&service, &id, "first question").await;
+    assert_completed(completed(&mut events).await);
+
+    let _aborted_summary = host.pause();
+    let before_turn = send(&service, &id, "input accepted before compression").await;
+    compaction_started(&mut events).await;
+    service
+        .interrupt_run(InterruptRunRequest {
+            session_id: id.clone(),
+            run_id: before_turn.run_id.clone(),
+        })
+        .unwrap();
+    assert_eq!(
+        completed(&mut events).await.status,
+        AgentRunStatus::Interrupted as i32
+    );
+
+    host.reply(reply("checkpoint summary", 100));
+    let _aborted_chat = host.pause();
+    let command = ContinueRunRequest {
+        session_id: id.clone(),
+        previous_run_id: before_turn.run_id,
+        client_request_id: ClientRequestId::new().to_string(),
+    };
+    let continuation = service
+        .continue_run(command.clone(), source())
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+    compaction_started(&mut events).await;
+    matching(&mut events, |payload| match payload {
+        agent_event::Payload::GenerationUpdated(update) => update
+            .generation
+            .filter(|generation| !generation.is_compaction),
+        _ => None,
+    })
+    .await;
+    service
+        .interrupt_run(InterruptRunRequest {
+            session_id: id.clone(),
+            run_id: continuation.run_id.clone(),
+        })
+        .unwrap();
+    assert_eq!(
+        completed(&mut events).await.status,
+        AgentRunStatus::Interrupted as i32
+    );
+    service.close().await.unwrap();
+
+    let service = open(root.path(), &host, vec![]).await;
+    let mut events = subscribe(&service, &id).await;
+    let retry = service
+        .continue_run(command, source())
+        .await
+        .unwrap()
+        .run
+        .unwrap();
+    assert_eq!(retry.run_id, continuation.run_id);
+    host.reply(reply("continued after reopening", 100));
+    service
+        .continue_run(
+            ContinueRunRequest {
+                session_id: id.clone(),
+                previous_run_id: continuation.run_id,
+                client_request_id: ClientRequestId::new().to_string(),
+            },
+            source(),
+        )
+        .await
+        .unwrap();
+    assert_completed(completed(&mut events).await);
+    service.close().await.unwrap();
+
+    let requests = host.requests.lock().unwrap();
+    let last = serde_json::to_string(&requests.last().unwrap().messages).unwrap();
+    assert!(last.contains("checkpoint summary"));
+    assert_eq!(last.matches("input accepted before compression").count(), 1);
+    let entries = journal(root.path(), &id);
+    assert_eq!(checkpoints(&entries).len(), 1);
+    let input_id = before_turn.input_id.parse().unwrap();
+    assert_eq!(
+        entries
+            .iter()
+            .filter(|entry| matches!(&entry.payload,
+                EntryPayload::InputConsumed(input) if input.input_ids.contains(&input_id)
+            ))
+            .count(),
+        1
+    );
+}

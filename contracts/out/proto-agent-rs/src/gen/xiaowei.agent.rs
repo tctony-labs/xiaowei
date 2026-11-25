@@ -212,6 +212,7 @@ impl ::prost::Name for AgentGeneration {
 pub struct AgentRun {
     #[prost(string, tag = "1")]
     pub run_id: ::prost::alloc::string::String,
+    /// Empty for a Continue Run. Its originating input belongs to the earlier Run.
     #[prost(string, tag = "2")]
     pub input_id: ::prost::alloc::string::String,
     #[prost(enumeration = "AgentRunStatus", tag = "3")]
@@ -240,6 +241,9 @@ pub struct AgentRun {
     /// for the final reply; earlier responses remain process content. Rebuilt from the journal.
     #[prost(string, optional, tag = "12")]
     pub final_gen_id: ::core::option::Option<::prost::alloc::string::String>,
+    /// Present for a Continue Run. Identifies the preceding Run in the same session.
+    #[prost(string, optional, tag = "13")]
+    pub continued_from_run_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 impl ::prost::Name for AgentRun {
     const NAME: &'static str = "AgentRun";
@@ -1124,6 +1128,42 @@ impl ::prost::Name for StartRunResponse {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ContinueRunRequest {
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Latest unsuccessful Run. The session must be idle.
+    #[prost(string, tag = "2")]
+    pub previous_run_id: ::prost::alloc::string::String,
+    /// Canonical UUIDv7. A matching retry by the same caller returns the accepted Run.
+    #[prost(string, tag = "3")]
+    pub client_request_id: ::prost::alloc::string::String,
+}
+impl ::prost::Name for ContinueRunRequest {
+    const NAME: &'static str = "ContinueRunRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ContinueRunRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ContinueRunRequest".into()
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ContinueRunResponse {
+    #[prost(message, optional, tag = "1")]
+    pub run: ::core::option::Option<AgentRun>,
+}
+impl ::prost::Name for ContinueRunResponse {
+    const NAME: &'static str = "ContinueRunResponse";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.ContinueRunResponse".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.ContinueRunResponse".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct InterruptRunRequest {
     #[prost(string, tag = "1")]
     pub session_id: ::prost::alloc::string::String,
@@ -1428,8 +1468,39 @@ impl ::prost::Name for AgentPermissionAnswer {
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentToolExecutionRequest {
+    #[prost(string, tag = "1")]
+    pub reason: ::prost::alloc::string::String,
+}
+impl ::prost::Name for AgentToolExecutionRequest {
+    const NAME: &'static str = "AgentToolExecutionRequest";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentToolExecutionRequest".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentToolExecutionRequest".into()
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct AgentToolExecutionAnswer {
+    /// True authorizes one specific pending call.
+    #[prost(bool, tag = "1")]
+    pub allow: bool,
+}
+impl ::prost::Name for AgentToolExecutionAnswer {
+    const NAME: &'static str = "AgentToolExecutionAnswer";
+    const PACKAGE: &'static str = "xiaowei.agent";
+    fn full_name() -> ::prost::alloc::string::String {
+        "xiaowei.agent.AgentToolExecutionAnswer".into()
+    }
+    fn type_url() -> ::prost::alloc::string::String {
+        "/xiaowei.agent.AgentToolExecutionAnswer".into()
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AgentInteractionAnswer {
-    #[prost(oneof = "agent_interaction_answer::Answer", tags = "1, 2")]
+    #[prost(oneof = "agent_interaction_answer::Answer", tags = "1, 2, 3")]
     pub answer: ::core::option::Option<agent_interaction_answer::Answer>,
 }
 /// Nested message and enum types in `AgentInteractionAnswer`.
@@ -1440,6 +1511,8 @@ pub mod agent_interaction_answer {
         Question(super::AgentQuestionAnswer),
         #[prost(message, tag = "2")]
         Permission(super::AgentPermissionAnswer),
+        #[prost(message, tag = "3")]
+        ToolExecution(super::AgentToolExecutionAnswer),
     }
 }
 impl ::prost::Name for AgentInteractionAnswer {
@@ -1470,7 +1543,7 @@ pub struct AgentInteraction {
     /// Present only when expired; pending/resolved have no expiry reason.
     #[prost(enumeration = "AgentInteractionExpireReason", optional, tag = "8")]
     pub expire_reason: ::core::option::Option<i32>,
-    #[prost(oneof = "agent_interaction::Request", tags = "3, 4")]
+    #[prost(oneof = "agent_interaction::Request", tags = "3, 4, 9")]
     pub request: ::core::option::Option<agent_interaction::Request>,
 }
 /// Nested message and enum types in `AgentInteraction`.
@@ -1481,6 +1554,8 @@ pub mod agent_interaction {
         Question(super::AgentQuestion),
         #[prost(message, tag = "4")]
         Permission(super::AgentPermissionRequest),
+        #[prost(message, tag = "9")]
+        ToolExecution(super::AgentToolExecutionRequest),
     }
 }
 impl ::prost::Name for AgentInteraction {
