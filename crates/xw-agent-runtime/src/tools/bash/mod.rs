@@ -100,7 +100,7 @@ pub async fn execute(
         _ = tokio::time::sleep(Duration::from_millis(timeout_ms)) => { timed_out = true; None }
         status = child.wait() => Some(status),
     };
-    let exit = reap(child, &mut group, exit).await?;
+    let exit = reap(child, &mut group, exit, false).await?;
     let (stdout, stderr) = tokio::join!(reader_result(stdout), reader_result(stderr));
     let (stdout, stdout_bytes) = stdout.map_err(BashError::ResultUnknown)?;
     let (stderr, stderr_bytes) = stderr.map_err(BashError::ResultUnknown)?;
@@ -239,33 +239,40 @@ async fn reap(
     mut child: tokio::process::Child,
     group: &mut ProcessGroup,
     exit: Option<std::io::Result<std::process::ExitStatus>>,
+    force_kill: bool,
 ) -> Result<std::process::ExitStatus, BashError> {
-    // Reap first if exit raced cancellation; a zombie leader can make Darwin report EPERM.
-    let initial = child
-        .try_wait()
-        .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
-    if let Err(error) = group.terminate().await {
-        if initial.is_some() || !child.try_wait().is_ok_and(|status| status.is_some()) {
-            return Err(BashError::ResultUnknown(error));
+    // Stop unchecked disk growth immediately, then reap before probing the group.
+    // Darwin may report EPERM while the killed leader is still unreaped.
+    let force_kill_ok = force_kill
+        && group
+            .kill()
+            .inspect_err(|error| log::warn!("Agent background shell output limit cleanup: {error}"))
+            .is_ok();
+    if !force_kill_ok {
+        // Reap first if exit raced cancellation; a zombie leader can make Darwin report EPERM.
+        let initial = child
+            .try_wait()
+            .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
+        if let Err(error) = group.terminate().await {
+            if initial.is_some() || !child.try_wait().is_ok_and(|status| status.is_some()) {
+                return Err(BashError::ResultUnknown(error));
+            }
+            group.terminate().await.map_err(BashError::ResultUnknown)?;
         }
-        group.terminate().await.map_err(BashError::ResultUnknown)?;
+        // Reap a leader that exited after SIGTERM before sending SIGKILL.
+        child
+            .try_wait()
+            .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
+        group.kill().map_err(BashError::ResultUnknown)?;
     }
-    // Reap an exited shell before the final group signal. Darwin may report EPERM
-    // when a group contains only an unreaped zombie.
-    let reaped = child
-        .try_wait()
-        .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
-    group.kill().map_err(BashError::ResultUnknown)?;
+
     let exit = match exit {
         Some(exit) => exit,
-        None => match reaped {
-            Some(exit) => Ok(exit),
-            None => child.wait().await,
-        },
+        None => child.wait().await,
     }
     .map_err(|error| BashError::ResultUnknown(format!("Bash 进程回收失败：{error}")))?;
     group
-        .wait_terminated()
+        .wait_terminated(force_kill_ok)
         .await
         .map_err(BashError::ResultUnknown)?;
     Ok(exit)
@@ -323,7 +330,7 @@ struct ProcessGroup {
 
 impl ProcessGroup {
     #[cfg(target_os = "macos")]
-    fn signal(&self, signal: i32) -> Result<bool, String> {
+    fn signal(&self, signal: i32) -> std::io::Result<bool> {
         if unsafe { libc::kill(-(self.pid as i32), signal) } == 0 {
             return Ok(true);
         }
@@ -331,13 +338,18 @@ impl ProcessGroup {
         if error.raw_os_error() == Some(libc::ESRCH) {
             Ok(false)
         } else {
-            Err(format!("Bash 进程组清理失败：{error}"))
+            Err(error)
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn cleanup_error(error: std::io::Error) -> String {
+        format!("Bash 进程组清理失败：{error}")
     }
 
     async fn terminate(&mut self) -> Result<(), String> {
         #[cfg(target_os = "macos")]
-        if self.signal(libc::SIGTERM)? {
+        if self.signal(libc::SIGTERM).map_err(Self::cleanup_error)? {
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
         Ok(())
@@ -345,18 +357,24 @@ impl ProcessGroup {
 
     fn kill(&self) -> Result<(), String> {
         #[cfg(target_os = "macos")]
-        self.signal(libc::SIGKILL)?;
+        self.signal(libc::SIGKILL).map_err(Self::cleanup_error)?;
         Ok(())
     }
 
-    async fn wait_terminated(&mut self) -> Result<(), String> {
+    async fn wait_terminated(&mut self, _force_kill_ok: bool) -> Result<(), String> {
         // The direct child has been waited. Orphaned descendants may exit a little later.
         #[cfg(target_os = "macos")]
         tokio::time::timeout(Duration::from_secs(2), async {
-            while self.signal(0)? {
+            loop {
+                match self.signal(0) {
+                    Ok(false) => return Ok(()),
+                    Ok(true) => {}
+                    // A force-killed descendant may still be waiting for its parent to reap it.
+                    Err(error) if _force_kill_ok && error.raw_os_error() == Some(libc::EPERM) => {}
+                    Err(error) => return Err(Self::cleanup_error(error)),
+                }
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            Ok::<_, String>(())
         })
         .await
         .map_err(|_| "Bash 进程组未能确认退出".to_owned())??;
@@ -477,10 +495,12 @@ mod tests {
         let probe_error = std::io::Error::last_os_error();
         let terminated = group.terminate().await;
         let killed = group.kill();
-        let confirmed = group.wait_terminated().await;
+        let confirmed = group.wait_terminated(false).await;
 
+        let before_reap =
+            tokio::time::timeout(Duration::from_millis(20), group.wait_terminated(true)).await;
         let exit = child.wait().unwrap();
-        let after_reap = group.wait_terminated().await;
+        let after_reap = group.wait_terminated(true).await;
 
         assert!(exit.success());
         assert_eq!(probe, -1);
@@ -489,6 +509,7 @@ mod tests {
         assert_eq!(terminated.unwrap_err(), expected);
         assert_eq!(killed.unwrap_err(), expected);
         assert_eq!(confirmed.unwrap_err(), expected);
+        assert!(before_reap.is_err());
         after_reap.unwrap();
         assert!(!group.armed);
 

@@ -350,17 +350,13 @@ async fn watch(
                     _ => None,
                 };
                 if output_failure.is_some() {
-                    // End unchecked disk growth before the ordinary group drain.
-                    if let Err(error) = group.kill() {
-                        log::warn!("Agent background shell output limit cleanup: {error}");
-                    }
                     break None;
                 }
             }
         }
     };
     let stopped = exit.is_none();
-    let end = match reap(child, &mut group, exit).await {
+    let end = match reap(child, &mut group, exit, output_failure.is_some()).await {
         Err(error) => End::Unknown(error.to_string()),
         Ok(_) if stopped => output_failure.unwrap_or(End::Killed),
         Ok(exit) => {
