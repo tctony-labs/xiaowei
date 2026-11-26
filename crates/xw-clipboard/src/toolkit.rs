@@ -55,13 +55,25 @@ impl ClipboardBackend for SystemClipboard {
 #[cfg(target_os = "macos")]
 mod macos {
     use crate::ClipboardData;
+    use core_graphics::display::CGDisplay;
+    use core_graphics::event::CGEvent;
+    use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+    use image::ImageFormat;
     use objc2::runtime::ProtocolObject;
-    use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardWriting};
-    use objc2_foundation::{NSArray, NSString, NSURL};
+    use objc2_app_kit::{
+        NSBitmapImageRep, NSPasteboard, NSPasteboardItem, NSPasteboardTypePNG,
+        NSPasteboardTypeTIFF, NSPasteboardWriting,
+    };
+    use objc2_foundation::{NSArray, NSData, NSDictionary, NSNumber, NSString, NSURL};
+    use objc2_image_io::{kCGImagePropertyDPIHeight, kCGImagePropertyDPIWidth, CGImageSource};
+    use std::io::Cursor;
+
+    const WECHAT_SCREENSHOT_TYPE: &str = "com.trolltech.anymime.WeChatScreenshotFormat";
 
     pub fn read_clipboard() -> Result<Option<ClipboardData>, String> {
+        let pasteboard = NSPasteboard::generalPasteboard();
         // Finder also publishes filenames as text, so file URLs take priority.
-        if let Some(files) = read_file_urls(&NSPasteboard::generalPasteboard()) {
+        if let Some(files) = read_file_urls(&pasteboard) {
             return Ok(Some(files));
         }
         let mut clipboard = arboard::Clipboard::new().map_err(|error| error.to_string())?;
@@ -70,18 +82,7 @@ mod macos {
             Ok(_) | Err(arboard::Error::ContentNotAvailable) => {}
             Err(error) => return Err(error.to_string()),
         }
-        match clipboard.get_image() {
-            Ok(image) if image.width > 0 && image.height > 0 => {
-                let data = encode_png(&image.bytes, image.width as u32, image.height as u32)?;
-                Ok(Some(ClipboardData::Image {
-                    data,
-                    width: image.width as u32,
-                    height: image.height as u32,
-                }))
-            }
-            Ok(_) | Err(arboard::Error::ContentNotAvailable) => Ok(None),
-            Err(error) => Err(error.to_string()),
-        }
+        read_image_from(&pasteboard, display_scale_at_pointer)
     }
 
     fn read_file_urls(pasteboard: &NSPasteboard) -> Option<ClipboardData> {
@@ -106,37 +107,139 @@ mod macos {
         }
     }
 
-    fn encode_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
+    fn read_image_from(
+        pasteboard: &NSPasteboard,
+        screenshot_scale: impl Fn() -> Option<f64>,
+    ) -> Result<Option<ClipboardData>, String> {
+        // Prefer PNG when offered, since it carries its pixel density without TIFF conversion.
+        let formats = unsafe {
+            [
+                (NSPasteboardTypePNG, ImageFormat::Png),
+                (NSPasteboardTypeTIFF, ImageFormat::Tiff),
+            ]
+        };
+        let mut result = Ok(None);
+        for (pasteboard_type, format) in formats {
+            if let Some(data) = pasteboard.dataForType(pasteboard_type) {
+                result = read_image_data(&data, format, || {
+                    wechat_screenshot_density(pasteboard, &screenshot_scale)
+                })
+                .map(Some);
+                if result.is_ok() {
+                    break;
+                }
+            }
+        }
+        result
+    }
+
+    fn read_image_data(
+        data: &NSData,
+        format: ImageFormat,
+        fallback_density: impl FnOnce() -> Option<png::PixelDimensions>,
+    ) -> Result<ClipboardData, String> {
+        // The retained pasteboard data is immutable for the duration of the decode.
+        let bytes = unsafe { data.as_bytes_unchecked() };
+        let image = image::load_from_memory_with_format(bytes, format)
+            .map_err(|error| error.to_string())?
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let density = if format == ImageFormat::Png {
+            png::Decoder::new(Cursor::new(bytes))
+                .read_info()
+                .ok()
+                .and_then(|reader| reader.info().pixel_dims)
+        } else {
+            tiff_pixel_density(data)
+        }
+        .or_else(fallback_density);
+        log::trace!(
+            "Clipboard image decoded: format={format:?} size={width}x{height} density={density:?}"
+        );
+        let data = encode_png(image.as_raw(), width, height, density)?;
+        Ok(ClipboardData::Image {
+            data,
+            width,
+            height,
+        })
+    }
+
+    fn tiff_pixel_density(data: &NSData) -> Option<png::PixelDimensions> {
+        let source = unsafe { CGImageSource::with_data(data.as_ref(), None) }?;
+        let properties = unsafe { source.properties_at_index(0, None) }?;
+        // ImageIO returns a property list with Objective-C string keys and object values.
+        let properties: &NSDictionary = unsafe { properties.cast_unchecked() }.as_ref();
+        let pixels_per_meter = |key: &NSString| {
+            let dpi = properties.objectForKey(key)?.downcast::<NSNumber>().ok()?;
+            dpi_to_pixels_per_meter(dpi.doubleValue())
+        };
+        Some(png::PixelDimensions {
+            xppu: pixels_per_meter(unsafe { kCGImagePropertyDPIWidth }.as_ref())?,
+            yppu: pixels_per_meter(unsafe { kCGImagePropertyDPIHeight }.as_ref())?,
+            unit: png::Unit::Meter,
+        })
+    }
+
+    fn wechat_screenshot_density(
+        pasteboard: &NSPasteboard,
+        screenshot_scale: impl FnOnce() -> Option<f64>,
+    ) -> Option<png::PixelDimensions> {
+        let marker = NSString::from_str(WECHAT_SCREENSHOT_TYPE);
+        if !pasteboard.types()?.containsObject(&marker) {
+            return None;
+        }
+        // WeChat supplies pixels and the screenshot marker, but no source display ID.
+        let scale = screenshot_scale()?;
+        if scale <= 1.0 {
+            return None;
+        }
+        // AppKit's logical image size uses 72 points per inch.
+        let ppm = dpi_to_pixels_per_meter(72.0 * scale)?;
+        log::debug!("Applying WeChat screenshot display scale: {scale}");
+        Some(png::PixelDimensions {
+            xppu: ppm,
+            yppu: ppm,
+            unit: png::Unit::Meter,
+        })
+    }
+
+    fn display_scale_at_pointer() -> Option<f64> {
+        let source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState).ok()?;
+        let point = CGEvent::new(source).ok()?.location();
+        let mode = CGDisplay::active_displays()
+            .ok()?
+            .into_iter()
+            .map(CGDisplay::new)
+            .find(|display| display.bounds().contains(&point))?
+            .display_mode()?;
+        Some(mode.pixel_width() as f64 / mode.width() as f64)
+    }
+
+    fn dpi_to_pixels_per_meter(dpi: f64) -> Option<u32> {
+        let ppm = (dpi / 0.0254).round();
+        (1.0..=f64::from(u32::MAX))
+            .contains(&ppm)
+            .then_some(ppm as u32)
+    }
+
+    fn encode_png(
+        rgba: &[u8],
+        width: u32,
+        height: u32,
+        density: Option<png::PixelDimensions>,
+    ) -> Result<Vec<u8>, String> {
         let mut bytes = Vec::new();
         {
             let mut encoder = png::Encoder::new(&mut bytes, width, height);
             encoder.set_color(png::ColorType::Rgba);
             encoder.set_depth(png::BitDepth::Eight);
+            encoder.set_pixel_dims(density);
             let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
             writer
                 .write_image_data(rgba)
                 .map_err(|error| error.to_string())?;
         }
         Ok(bytes)
-    }
-
-    fn decode_png(data: &[u8]) -> Result<arboard::ImageData<'static>, String> {
-        let decoder = png::Decoder::new(std::io::Cursor::new(data));
-        let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
-        let mut bytes = vec![0; reader.output_buffer_size()];
-        let info = reader
-            .next_frame(&mut bytes)
-            .map_err(|error| error.to_string())?;
-        // Captured images are encoded as RGBA8 above; never pass other layouts to arboard.
-        if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
-            return Err("Unsupported stored image pixel format".into());
-        }
-        bytes.truncate(info.buffer_size());
-        Ok(arboard::ImageData {
-            width: info.width as usize,
-            height: info.height as usize,
-            bytes: std::borrow::Cow::Owned(bytes),
-        })
     }
 
     pub fn write_text(text: &str) -> Result<(), String> {
@@ -146,10 +249,27 @@ mod macos {
     }
 
     pub fn write_image_from_png(data: &[u8]) -> Result<(), String> {
-        let image = decode_png(data)?;
-        arboard::Clipboard::new()
-            .and_then(|mut clipboard| clipboard.set_image(image))
-            .map_err(|error| error.to_string())
+        write_image_to(&NSPasteboard::generalPasteboard(), data)
+    }
+
+    fn write_image_to(pasteboard: &NSPasteboard, data: &[u8]) -> Result<(), String> {
+        let png = NSData::with_bytes(data);
+        let tiff = NSBitmapImageRep::imageRepWithData(&png)
+            .and_then(|image| image.TIFFRepresentation())
+            .ok_or("Cannot convert clipboard image to TIFF")?;
+        let item = NSPasteboardItem::new();
+        if !item.setData_forType(&png, unsafe { NSPasteboardTypePNG })
+            || !item.setData_forType(&tiff, unsafe { NSPasteboardTypeTIFF })
+        {
+            return Err("Cannot encode clipboard image".into());
+        }
+        let object: &ProtocolObject<dyn NSPasteboardWriting> = ProtocolObject::from_ref(&*item);
+        pasteboard.clearContents();
+        if pasteboard.writeObjects(&NSArray::from_slice(&[object])) {
+            Ok(())
+        } else {
+            Err("Cannot write clipboard image".into())
+        }
     }
 
     pub fn write_file_urls(paths: &[&str]) -> Result<(), String> {
@@ -193,12 +313,90 @@ mod macos {
         use super::*;
 
         #[test]
-        fn png_round_trip_preserves_rgba_pixels() {
-            let pixels = [255, 0, 0, 255, 0, 255, 0, 128];
-            let png = encode_png(&pixels, 2, 1).unwrap();
-            let image = decode_png(&png).unwrap();
-            assert_eq!((image.width, image.height), (2, 1));
-            assert_eq!(&*image.bytes, &pixels);
+        fn image_copy_preserves_pixels_and_optional_density() {
+            objc2::rc::autoreleasepool(|_| {
+                let pasteboard = NSPasteboard::pasteboardWithUniqueName();
+                let pixels = [255, 0, 0, 255, 0, 255, 0, 128];
+                let density = png::PixelDimensions {
+                    xppu: 5669,
+                    yppu: 5670,
+                    unit: png::Unit::Meter,
+                };
+                for density in [Some(density), None] {
+                    let png = encode_png(&pixels, 2, 1, density).unwrap();
+                    write_image_to(&pasteboard, &png).unwrap();
+                    assert!(pasteboard
+                        .dataForType(unsafe { NSPasteboardTypeTIFF })
+                        .is_some());
+                    let captured = read_image_from(&pasteboard, || Some(2.0)).unwrap();
+                    assert_eq!(
+                        captured,
+                        Some(ClipboardData::Image {
+                            data: png,
+                            width: 2,
+                            height: 1
+                        })
+                    );
+                }
+                pasteboard.clearContents();
+            });
+        }
+
+        #[test]
+        fn tiff_capture_preserves_density_or_recovers_wechat_screenshot_scale() {
+            objc2::rc::autoreleasepool(|_| {
+                let pasteboard = NSPasteboard::pasteboardWithUniqueName();
+                let pixels = [255, 0, 0, 255, 0, 255, 0, 255];
+                let retina = png::PixelDimensions {
+                    xppu: 5669,
+                    yppu: 5669,
+                    unit: png::Unit::Meter,
+                };
+                let cases = [
+                    (Some(retina), false, 2.0, Some(retina)),
+                    (None, false, 2.0, None),
+                    (Some(retina), true, 1.0, Some(retina)),
+                    (None, true, 1.0, None),
+                    (None, true, 2.0, Some(retina)),
+                ];
+                for (source_density, wechat, display_scale, expected_density) in cases {
+                    let png = encode_png(&pixels, 2, 1, source_density).unwrap();
+                    let tiff = NSBitmapImageRep::imageRepWithData(&NSData::with_bytes(&png))
+                        .unwrap()
+                        .TIFFRepresentation()
+                        .unwrap();
+                    let item = NSPasteboardItem::new();
+                    assert!(item.setData_forType(&tiff, unsafe { NSPasteboardTypeTIFF }));
+                    if wechat {
+                        let marker = NSString::from_str(WECHAT_SCREENSHOT_TYPE);
+                        assert!(item.setData_forType(&NSData::with_bytes(b"X"), &marker));
+                    }
+                    let object: &ProtocolObject<dyn NSPasteboardWriting> =
+                        ProtocolObject::from_ref(&*item);
+                    pasteboard.clearContents();
+                    assert!(pasteboard.writeObjects(&NSArray::from_slice(&[object])));
+                    let Some(ClipboardData::Image {
+                        data,
+                        width,
+                        height,
+                    }) = read_image_from(&pasteboard, || Some(display_scale)).unwrap()
+                    else {
+                        panic!("Expected a captured TIFF image");
+                    };
+                    assert_eq!((width, height), (2, 1));
+                    assert_eq!(data, encode_png(&pixels, 2, 1, expected_density).unwrap());
+                    let size = NSBitmapImageRep::imageRepWithData(&NSData::with_bytes(&data))
+                        .unwrap()
+                        .size();
+                    let expected_size = if expected_density.is_some() {
+                        (1.0, 0.5)
+                    } else {
+                        (2.0, 1.0)
+                    };
+                    assert_eq!((size.width, size.height), expected_size);
+                }
+                pasteboard.clearContents();
+            });
         }
 
         #[test]

@@ -19,10 +19,28 @@ tempfile = "3"
 xw-platform = { path = "../xw-platform" }
 core-foundation = "0.10"
 core-graphics = "0.24"
-arboard = { version = "3", features = ["image-data"] }
+arboard = { version = "3", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png", "tiff"] }
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
-objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSArray"] }
+objc2-app-kit = { version = "0.3", features = [
+    "NSBitmapImageRep",
+    "NSPasteboard",
+    "NSPasteboardItem",
+] }
+objc2-foundation = { version = "0.3", features = [
+    "NSArray",
+    "NSData",
+    "NSDictionary",
+    "NSString",
+    "NSURL",
+    "NSValue",
+    "objc2-core-foundation",
+] }
+objc2-image-io = { version = "0.3", default-features = false, features = [
+    "CGImageProperties",
+    "CGImageSource",
+    "std",
+] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
