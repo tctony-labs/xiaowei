@@ -615,9 +615,9 @@ test("manual title update gets missing auxiliary configuration from the Agent an
   await waitFor(() => expect(canvas.queryByRole("button", { name: "停止生成" })).toBeNull());
   await user.click(canvas.getByRole("button", { name: "更多操作" }));
   await user.click(canvas.getByRole("button", { name: "更新标题" }));
-  expect(await canvas.findByText("尚未配置小文本任务模型，请先在设置中选择")).toBeVisible();
+  expect(await canvas.findByText("尚未配置辅助任务模型，请先在设置中选择")).toBeVisible();
   expect(app.agent.titleRequests).toEqual([app.agent.requests[0].sessionId]);
-  await user.click(canvas.getByRole("button", { name: "选择小文本任务模型" }));
+  await user.click(canvas.getByRole("button", { name: "选择辅助任务模型" }));
   await waitFor(() =>
     expect(app.calls.openSettings).toHaveBeenCalledWith(
       expect.objectContaining({ anchor: SettingsAnchor.MODEL_PROVIDERS }),

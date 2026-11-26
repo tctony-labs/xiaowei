@@ -216,7 +216,7 @@ test("default thinking strength requires a selected model and offers only its su
   expect(thinking).toBeDisabled();
   expect(thinking).toHaveTextContent("请先选择默认模型");
   const defaultModel = screen.getByRole("button", { name: "默认模型" });
-  const smallModel = screen.getByText("小文本任务模型");
+  const smallModel = screen.getByText("辅助任务模型");
   expect(
     defaultModel.compareDocumentPosition(thinking) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();

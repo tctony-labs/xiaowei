@@ -316,7 +316,7 @@ export function agentFixture(host = new GatewayHost(), history: Partial<HistoryH
         if (!auxiliaryAvailable) {
           throw new GatewayFailure({
             code: "HANDLER_ERROR",
-            message: "尚未配置小文本任务模型，请先在设置中选择",
+            message: "尚未配置辅助任务模型，请先在设置中选择",
           });
         }
         updateTitle("生成的标题", request.titleModelRef, request.sessionId);

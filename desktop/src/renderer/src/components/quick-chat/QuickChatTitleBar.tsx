@@ -748,7 +748,7 @@ export default function QuickChatTitleBar({
             }
           >
             <span>{regenError}</span>
-            {regenError.includes("小文本任务模型") && (
+            {regenError.includes("辅助任务模型") && (
               <button
                 type="button"
                 onClick={() => {
@@ -757,7 +757,7 @@ export default function QuickChatTitleBar({
                 }}
                 className="shrink-0 cursor-pointer font-medium text-primary hover:underline"
               >
-                选择小文本任务模型
+                选择辅助任务模型
               </button>
             )}
           </div>

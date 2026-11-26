@@ -171,7 +171,7 @@ pub(crate) fn schedule_title(
                 .await
                 .map_err(|_| AgentError::TitleGeneration("辅助模型配置获取失败"))?
                 .ok_or(AgentError::TitleGeneration(
-                    "尚未配置小文本任务模型，请先在设置中选择",
+                    "尚未配置辅助任务模型，请先在设置中选择",
                 ))?;
             if model_ref.trim().is_empty() || model_ref.len() > 1024 {
                 return Err(AgentError::TitleGeneration("辅助模型引用无效"));

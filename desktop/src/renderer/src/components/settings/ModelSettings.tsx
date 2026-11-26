@@ -224,7 +224,7 @@ export function ModelSettings(props: ModelSettingsProps) {
             menuPortal
           />
         </SettingRow>
-        <SettingRow title="小文本任务模型" description="用于自动生成会话标题等轻量文本任务">
+        <SettingRow title="辅助任务模型" description="用于自动生成会话标题等轻量文本任务">
           <Select
             value={values.smallModel}
             options={modelOptions}

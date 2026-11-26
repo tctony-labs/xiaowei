@@ -573,7 +573,7 @@ async fn missing_auxiliary_model_is_a_failed_tool_and_conversation_can_continue(
         "{completed:?}"
     );
     assert_eq!(tool(&completed).status, AgentToolStatus::Failed as i32);
-    assert!(tool(&completed).output.contains("小文本任务模型"));
+    assert!(tool(&completed).output.contains("辅助任务模型"));
     assert_eq!(host.requests.lock().unwrap().len(), 2);
     service.close().await.unwrap();
 }

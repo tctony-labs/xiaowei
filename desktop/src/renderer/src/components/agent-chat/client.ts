@@ -1023,11 +1023,11 @@ export class AgentChatClient {
     } catch (error) {
       if (
         error instanceof GatewayFailure &&
-        error.detail.message.includes("尚未配置小文本任务模型")
+        error.detail.message.includes("尚未配置辅助任务模型")
       ) {
-        throw new Error("尚未配置小文本任务模型，请先在设置中选择");
+        throw new Error("尚未配置辅助任务模型，请先在设置中选择");
       }
-      throw new Error("标题生成失败，请检查小文本任务模型配置后重试");
+      throw new Error("标题生成失败，请检查辅助任务模型配置后重试");
     } finally {
       if (this.titleGeneration === generation) this.regeneratingTitle = false;
       this.notify();

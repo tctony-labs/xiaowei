@@ -39,13 +39,13 @@ impl ToolContext for ExecutionContext {
                     .await
                     .map_err(|_| ToolError::Failed("无法读取辅助模型配置".into()))?
                     .filter(|value| !value.trim().is_empty() && value.len() <= 1024)
-                    .ok_or_else(|| ToolError::Failed("请先在设置中配置小文本任务模型".into()))?;
+                    .ok_or_else(|| ToolError::Failed("请先在设置中配置辅助任务模型".into()))?;
                 let info = self
                     .host
                     .get_model_info(model_ref.clone())
                     .await
                     .and_then(|info| crate::model::validate_info(&model_ref, info))
-                    .map_err(|_| ToolError::Failed("小文本任务模型不可用".into()))?;
+                    .map_err(|_| ToolError::Failed("辅助任务模型不可用".into()))?;
                 Ok::<_, ToolError>((model_ref, info))
             };
             let (model_ref, info) = tokio::select! {
@@ -207,7 +207,7 @@ impl ToolContext for ExecutionContext {
             }
             if outcome.status != RunStatus::Completed {
                 return Err(ToolError::Failed(
-                    "辅助模型提取失败，请检查小文本任务模型".into(),
+                    "辅助模型提取失败，请检查辅助任务模型".into(),
                 ));
             }
             let message = outcome.message.expect("completed generation");

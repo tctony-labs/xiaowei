@@ -161,15 +161,15 @@ test.each([{ hasAssistantReply: false }, { isGenerating: true }, { isRegeneratin
 test("title failure links to the model setting without opening a real settings window", async () => {
   const { props } = setup({
     onRegenerateTitle: vi.fn(async () => {
-      throw new Error("尚未配置小文本任务模型，请先在设置中选择");
+      throw new Error("尚未配置辅助任务模型，请先在设置中选择");
     }),
   });
   await click("更多操作");
   await click("更新标题");
-  expect(await screen.findByText("尚未配置小文本任务模型，请先在设置中选择")).toBeVisible();
-  await click("选择小文本任务模型");
+  expect(await screen.findByText("尚未配置辅助任务模型，请先在设置中选择")).toBeVisible();
+  await click("选择辅助任务模型");
   expect(props.onOpenTitleModelSettings).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText("尚未配置小文本任务模型，请先在设置中选择")).not.toBeInTheDocument();
+  expect(screen.queryByText("尚未配置辅助任务模型，请先在设置中选择")).not.toBeInTheDocument();
 });
 
 test("session loading and empty results are controlled by the adapter", async () => {
